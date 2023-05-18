@@ -18,11 +18,16 @@ const hours_to_ra = (hours) => {
 };
 
 const dms_to_dec = (dms) => {
-  const dmsSplit = dms.split(/[^\d\w]+/);
+  const dmsSplit = dms.split(/[^\d\w]+/).filter((e) => e === 0 || e);
+  let mult = 1;
+  if (dms[0] === "-") {
+    mult = -1;
+  }
   return (
-    parseInt(dmsSplit[0], 10) +
-    parseInt(dmsSplit[1], 10) / 60 +
-    parseInt(dmsSplit[2], 10) / (60 * 60)
+    mult *
+    (parseInt(dmsSplit[0], 10) +
+      parseInt(dmsSplit[1], 10) / 60 +
+      parseInt(dmsSplit[2], 10) / (60 * 60))
   );
 };
 

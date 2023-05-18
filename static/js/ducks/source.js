@@ -110,6 +110,12 @@ const ADD_HOST = "skyportal/ADD_HOST";
 
 const REMOVE_HOST = "skyportal/REMOVE_HOST";
 
+const ADD_MPC = "skyportal/ADD_MPC";
+
+export function addMPC(id, formData) {
+  return API.POST(`/api/sources/${id}/mpc`, ADD_MPC, formData);
+}
+
 export function addHost(id, formData) {
   return API.POST(`/api/sources/${id}/host`, ADD_HOST, formData);
 }

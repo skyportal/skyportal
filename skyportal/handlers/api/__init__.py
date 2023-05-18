@@ -89,6 +89,7 @@ from .mmadetector import (
     MMADetectorSpectrumHandler,
     MMADetectorTimeIntervalHandler,
 )
+from .mpc import ObjMPCHandler
 from .news_feed import NewsFeedHandler
 from .observation import (
     ObservationASCIIFileHandler,

@@ -2,6 +2,7 @@ __all__ = ['Listing']
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import JSONB
 
 from baselayer.app.models import Base, AccessibleIfUserMatches
 
@@ -40,6 +41,12 @@ class Listing(Base):
         index=True,
         nullable=False,
         doc="Name of the list, e.g., 'favorites'. ",
+    )
+
+    params = sa.Column(
+        JSONB,
+        nullable=True,
+        doc='''Optional parameters for "watchlist" type listings, when searching for new candidates around a given object.''',
     )
 
 

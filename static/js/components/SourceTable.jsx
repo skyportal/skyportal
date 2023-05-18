@@ -27,6 +27,7 @@ import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
 import InfoIcon from "@mui/icons-material/Info";
 import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
+import PriorityHigh from "@mui/icons-material/PriorityHigh";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import ListItem from "@mui/material/ListItem";
@@ -480,6 +481,7 @@ RenderShowClassification.propTypes = {
     origin: PropTypes.string,
     alias: PropTypes.arrayOf(PropTypes.string),
     redshift: PropTypes.number,
+    mpc_name: PropTypes.string,
     annotations: PropTypes.arrayOf(
       PropTypes.shape({
         origin: PropTypes.string.isRequired,
@@ -598,6 +600,7 @@ RenderShowLabelling.propTypes = {
     gal_lat: PropTypes.number,
     origin: PropTypes.string,
     alias: PropTypes.arrayOf(PropTypes.string),
+    mpc_name: PropTypes.string,
     redshift: PropTypes.number,
     annotations: PropTypes.arrayOf(
       PropTypes.shape({
@@ -1293,6 +1296,11 @@ const SourceTable = ({
     );
   };
 
+  const renderMPCName = (dataIndex) => {
+    const source = sources[dataIndex];
+    return <div>{source.mpc_name ? source.mpc_name : ""}</div>;
+  };
+
   const getSavedBy = (source) => {
     // Get the user who saved the source to the specified group
     if (groupID !== undefined) {
@@ -1315,7 +1323,7 @@ const SourceTable = ({
     const source = sources[dataIndex];
     let statusIcon = null;
     if (sourcesingcn.filter((s) => s.obj_id === source.id).length === 0) {
-      statusIcon = <QuestionMarkIcon size="small" color="primary" />;
+      statusIcon = <PriorityHigh size="small" color="primary" />;
     } else if (
       sourcesingcn.filter((s) => s.obj_id === source.id)[0].confirmed === true
     ) {
@@ -1324,6 +1332,8 @@ const SourceTable = ({
       sourcesingcn.filter((s) => s.obj_id === source.id)[0].confirmed === false
     ) {
       statusIcon = <ClearIcon size="small" color="secondary" />;
+    } else {
+      statusIcon = <QuestionMarkIcon size="small" color="primary" />;
     }
 
     return (
@@ -1733,6 +1743,15 @@ const SourceTable = ({
         display: displayedColumns.includes("TNS Name"),
       },
     },
+    {
+      name: "MPC Name",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderMPCName,
+        display: displayedColumns.includes("MPC Name"),
+      },
+    },
   ];
 
   if (includeGcnStatus) {
@@ -1864,89 +1883,115 @@ const SourceTable = ({
       downloadCallback().then((data) => {
         // if there is no data, cancel download
         if (data?.length > 0) {
+          const head = [
+            {
+              name: "id",
+              download: true,
+            },
+            {
+              name: "ra [deg]",
+              download: true,
+            },
+            {
+              name: "dec [deg]",
+              download: true,
+            },
+            {
+              name: "redshift",
+              download: true,
+            },
+            {
+              name: "classification",
+              download: true,
+            },
+            {
+              name: "probability",
+              download: true,
+            },
+            {
+              name: "annotation origin",
+              download: true,
+            },
+            {
+              name: "annotation origin key-value pair count",
+              download: true,
+            },
+            {
+              name: "annotation key",
+              download: true,
+            },
+            {
+              name: "annotation value",
+              download: true,
+            },
+            {
+              name: "groups",
+              download: true,
+            },
+            {
+              name: "Date saved",
+              download: true,
+            },
+            {
+              name: "Alias",
+              download: true,
+            },
+            {
+              name: "Origin",
+              download: true,
+            },
+            {
+              name: "TNS Name",
+              download: true,
+            },
+          ];
+          if (includeGcnStatus) {
+            head.push({
+              name: "GCN Status",
+              download: true,
+            });
+            head.push({
+              name: "GCN Status Explanation",
+              download: true,
+            });
+            head.push({
+              name: "GCN Notes",
+              download: true,
+            });
+          }
+
+          const formatDataFunc = (x) => {
+            const formattedData = [
+              x.id,
+              x.ra,
+              x.dec,
+              x.redshift,
+              renderDownloadClassification(x),
+              renderDownloadProbability(x),
+              renderDownloadAnnotationOrigin(x),
+              renderDownloadAnnotationOriginKeyValuePairCount(x),
+              renderDownloadAnnotationKey(x),
+              renderDownloadAnnotationValue(x),
+              renderDownloadGroups(x),
+              renderDownloadDateSaved(x),
+              renderDownloadAlias(x),
+              x.origin,
+              renderDownloadTNSName(x),
+            ];
+            if (includeGcnStatus) {
+              formattedData.push(x.gcn ? x.gcn.status : "");
+              formattedData.push(x.gcn ? x.gcn.explanation : "");
+              formattedData.push(x.gcn ? x.gcn.notes : "");
+            }
+            return formattedData;
+          };
+
           const result =
-            buildHead([
-              {
-                name: "id",
-                download: true,
-              },
-              {
-                name: "ra [deg]",
-                download: true,
-              },
-              {
-                name: "dec [deg]",
-                download: true,
-              },
-              {
-                name: "redshift",
-                download: true,
-              },
-              {
-                name: "classification",
-                download: true,
-              },
-              {
-                name: "probability",
-                download: true,
-              },
-              {
-                name: "annotation origin",
-                download: true,
-              },
-              {
-                name: "annotation origin key-value pair count",
-                download: true,
-              },
-              {
-                name: "annotation key",
-                download: true,
-              },
-              {
-                name: "annotation value",
-                download: true,
-              },
-              {
-                name: "groups",
-                download: true,
-              },
-              {
-                name: "Date saved",
-                download: true,
-              },
-              {
-                name: "Alias",
-                download: true,
-              },
-              {
-                name: "Origin",
-                download: true,
-              },
-              {
-                name: "TNS Name",
-                download: true,
-              },
-            ]) +
+            buildHead(head) +
             buildBody(
               data.map((x) => ({
                 ...x,
-                data: [
-                  x.id,
-                  x.ra,
-                  x.dec,
-                  x.redshift,
-                  renderDownloadClassification(x),
-                  renderDownloadProbability(x),
-                  renderDownloadAnnotationOrigin(x),
-                  renderDownloadAnnotationOriginKeyValuePairCount(x),
-                  renderDownloadAnnotationKey(x),
-                  renderDownloadAnnotationValue(x),
-                  renderDownloadGroups(x),
-                  renderDownloadDateSaved(x),
-                  renderDownloadAlias(x),
-                  x.origin,
-                  renderDownloadTNSName(x),
-                ],
+                data: formatDataFunc(x),
               }))
             );
           const blob = new Blob([result], {
@@ -2039,6 +2084,7 @@ SourceTable.propTypes = {
       }),
       host_offset: PropTypes.number,
       alias: PropTypes.arrayOf(PropTypes.string),
+      mpc_name: PropTypes.string,
       redshift: PropTypes.number,
       annotations: PropTypes.arrayOf(
         PropTypes.shape({
