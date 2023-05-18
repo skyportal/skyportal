@@ -694,11 +694,46 @@ class ObservationPlanRequestHandler(BaseHandler):
                         session.user_or_token, options=options
                     ).where(ObservationPlanRequest.id == observation_plan_request_id)
                 ).first()
+
                 if observation_plan_request is None:
                     return self.error(
                         f'Cannot find ObservationPlanRequest with ID: {observation_plan_request_id}'
                     )
-                return self.success(data=observation_plan_request)
+
+                data_out = observation_plan_request.to_dict()
+                print(include_planned_observations)
+                if include_planned_observations:
+                    observation_plans = []
+                    for observation_plan in observation_plan_request.observation_plans:
+                        planned_observations = []
+                        for (
+                            planned_observation
+                        ) in observation_plan.planned_observations:
+                            set_time = planned_observation.set_time()
+                            if set_time is not None:
+                                set_time = set_time.isot
+                            rise_time = planned_observation.rise_time()
+                            if rise_time is not None:
+                                rise_time = rise_time.isot
+                            planned_observation_data = planned_observation.to_dict()
+                            del planned_observation_data["instrument"]
+
+                            planned_observations.append(
+                                {
+                                    **planned_observation_data,
+                                    'rise_time': rise_time,
+                                    'set_time': set_time,
+                                }
+                            )
+                        observation_plans.append(
+                            {
+                                **observation_plan.to_dict(),
+                                'planned_observations': planned_observations,
+                            }
+                        )
+                    data_out["observation_plans"] = observation_plans
+
+                return self.success(data=data_out)
 
             observation_plan_requests = ObservationPlanRequest.select(
                 session.user_or_token, options=options
