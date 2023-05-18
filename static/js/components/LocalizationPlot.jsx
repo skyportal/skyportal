@@ -413,6 +413,82 @@ const GeoJSONGlobePlot = ({
           .style("stroke-width", "0.5px");
       }
 
+      if (data.instrument?.fields && data.options.instrument) {
+        const filterColor = filtersToColor(data.instrument?.filters);
+
+        data.instrument.fields.sort((a, b) => {
+          if (a.field_id < b.field_id) {
+            return 1;
+          }
+          if (a.field_id > b.field_id) {
+            return -1;
+          }
+          return 0;
+        });
+
+        data.instrument.fields.forEach((f) => {
+          const { field_id } = f;
+          const { features } = f.contour_summary;
+          const selected = selectedFields.includes(Number(f.id));
+          const { airmass } = f;
+          svg
+            .data(features)
+            .append("path")
+            .attr("class", field_id)
+            .classed(classes.fieldStyle, true)
+            .style(
+              "fill",
+              // eslint-disable-next-line no-nested-ternary
+              selected
+                ? filterColor
+                : airmass && airmass < airmass_threshold
+                ? "white"
+                : "gray"
+            )
+            .attr("d", geoGenerator)
+            .on("click", () => {
+              if (!selected) {
+                setSelectedFields([...selectedFields, Number(field_id)]);
+              } else {
+                setSelectedFields(
+                  selectedFields.filter((id) => id !== Number(field_id))
+                );
+              }
+              refresh();
+              setRotation(projection.rotate());
+            })
+            .append("title")
+            .text(
+              `field ID: ${field_id} \nra: ${f.ra} \ndec: ${
+                f.dec
+              } \nfilters: ${data.instrument.filters.join(", ")}`
+            );
+        });
+      }
+
+      if (data.observations && data.options.observations) {
+        data.observations.forEach((f) => {
+          const { field_id } = f.properties;
+          const { features } = f;
+          svg
+            .data(features)
+            .append("path")
+            .attr("class", field_id)
+            .style("fill", f.selected ? "red" : "white")
+            .style("stroke", "blue")
+            .style("stroke-width", "0.5px")
+            .attr("d", geoGenerator)
+            .on("click", () => {
+              if (f.selected) {
+                f.selected = false;
+              } else {
+                f.selected = true;
+              }
+              refresh();
+            });
+        });
+      }
+
       if (data.sources?.features && data.options.sources) {
         svg
           .selectAll(".label")
@@ -442,48 +518,6 @@ const GeoJSONGlobePlot = ({
           .attr("cx", x)
           .attr("cy", y)
           .attr("r", 3);
-      }
-
-      if (data.instrument?.fields && data.options.instrument) {
-        const filterColor = filtersToColor(data.instrument?.filters);
-        data.instrument.fields.forEach((f) => {
-          const { field_id } = f.contour_summary.properties;
-          const { features } = f.contour_summary;
-          const selected = selectedFields.includes(Number(f.id));
-          const { airmass } = f;
-          svg
-            .data(features)
-            .append("path")
-            .attr("class", field_id)
-            .classed(classes.fieldStyle, true)
-            .style(
-              "fill",
-              // eslint-disable-next-line no-nested-ternary
-              selected
-                ? filterColor
-                : airmass && airmass < airmass_threshold
-                ? "white"
-                : "gray"
-            )
-            .attr("d", geoGenerator)
-            .on("click", () => {
-              if (!selected) {
-                setSelectedFields([...selectedFields, Number(f.id)]);
-              } else {
-                setSelectedFields(
-                  selectedFields.filter((id) => id !== Number(f.id))
-                );
-              }
-              refresh();
-              setRotation(projection.rotate());
-            })
-            .append("title")
-            .text(
-              `field ID: ${field_id} \nra: ${f.ra} \ndec: ${
-                f.dec
-              } \nfilters: ${data.instrument.filters.join(", ")}`
-            );
-        });
       }
 
       if (data.galaxies?.features && data.options.galaxies) {
@@ -520,29 +554,6 @@ const GeoJSONGlobePlot = ({
             (d) =>
               `coordinates: ${d.geometry.coordinates[0]}, ${d.geometry.coordinates[1]}`
           );
-      }
-
-      if (data.observations && data.options.observations) {
-        data.observations.forEach((f) => {
-          const { field_id } = f.properties;
-          const { features } = f;
-          svg
-            .data(features)
-            .append("path")
-            .attr("class", field_id)
-            .style("fill", f.selected ? "red" : "white")
-            .style("stroke", "blue")
-            .style("stroke-width", "0.5px")
-            .attr("d", geoGenerator)
-            .on("click", () => {
-              if (f.selected) {
-                f.selected = false;
-              } else {
-                f.selected = true;
-              }
-              refresh();
-            });
-        });
       }
     }
 
