@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import PropTypes from "prop-types";
@@ -211,7 +211,11 @@ const CommentList = ({
 
   const { showBotComments } = useSelector((state) => state.profile.preferences);
 
-  const [includeBots, setIncludeBots] = useState(showBotComments || false);
+  const [includeBots, setIncludeBots] = useState(false);
+
+  useEffect(() => {
+    setIncludeBots(showBotComments);
+  }, [showBotComments]);
 
   if (!objID && obj) {
     objID = obj.id;
