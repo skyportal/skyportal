@@ -86,6 +86,12 @@ class InstrumentHandler(BaseHandler):
                 )
                 data['configuration_data'] = configuration_data
 
+            references = data.pop("references", None)
+            if isinstance(references, str):
+                references = ast.literal_eval(references.replace("\'", "\""))
+            if references is not None:
+                references = pd.DataFrame.from_dict(references)
+
             field_data = data.pop("field_data", None)
             field_region = data.pop("field_region", None)
 
@@ -175,7 +181,11 @@ class InstrumentHandler(BaseHandler):
                 IOLoop.current().run_in_executor(
                     None,
                     lambda: add_tiles(
-                        instrument.id, instrument.name, regions, field_data
+                        instrument.id,
+                        instrument.name,
+                        regions,
+                        field_data,
+                        references=references,
                     ),
                 )
 
@@ -621,6 +631,12 @@ class InstrumentHandler(BaseHandler):
                 )
                 data['configuration_data'] = configuration_data
 
+            references = data.pop("references", None)
+            if isinstance(references, str):
+                references = ast.literal_eval(references.replace("\'", "\""))
+            if references is not None:
+                references = pd.DataFrame.from_dict(references)
+
             field_data = data.pop("field_data", None)
             field_region = data.pop("field_region", None)
 
@@ -703,23 +719,24 @@ class InstrumentHandler(BaseHandler):
 
             session.commit()
 
-            if field_data is not None:
-                if (
-                    (field_region is None)
-                    and (field_fov_type is None)
-                    and (regions is None)
-                ):
-                    return self.error(
-                        'field_region or field_fov_type or existing region is required with field_data'
-                    )
+            if (field_data is not None) or (references is not None):
+                if field_data is not None:
+                    if (
+                        (field_region is None)
+                        and (field_fov_type is None)
+                        and (regions is None)
+                    ):
+                        return self.error(
+                            'field_region or field_fov_type or existing region is required with field_data'
+                        )
 
-                if type(field_data) is str:
-                    field_data = load_field_data(field_data)
-                    if field_data is None:
-                        return self.error('Could not parse the field data table')
+                    if type(field_data) is str:
+                        field_data = load_field_data(field_data)
+                        if field_data is None:
+                            return self.error('Could not parse the field data table')
 
-                if not {'ID', 'RA', 'Dec'}.issubset(field_data):
-                    return self.error("ID, RA, and Dec required in field_data.")
+                    if not {'ID', 'RA', 'Dec'}.issubset(field_data):
+                        return self.error("ID, RA, and Dec required in field_data.")
 
                 log(f"Started generating fields for instrument {instrument.id}")
                 # run async
@@ -730,6 +747,7 @@ class InstrumentHandler(BaseHandler):
                         instrument.name,
                         regions,
                         field_data,
+                        references=references,
                         modify=True,
                     ),
                 )
@@ -876,6 +894,12 @@ InstrumentHandler.post.__doc__ = f"""
                         Single float radius in degrees in case of circle or
                         list of two floats (height and width) in case of
                         a rectangle.
+                    references:
+                      type: dict
+                      items:
+                        type: array
+                      description: |
+                        List of ID, filter, and limiting magnitude for each reference.
         responses:
           200:
             content:
@@ -924,7 +948,13 @@ def load_field_data(field_data):
 
 
 def add_tiles(
-    instrument_id, instrument_name, regions, field_data, modify=False, session=None
+    instrument_id,
+    instrument_name,
+    regions,
+    field_data,
+    references=None,
+    modify=False,
+    session=None,
 ):
     field_ids = []
     if session is None:
@@ -988,6 +1018,13 @@ def add_tiles(
             ids = field_data['ID']
         else:
             ids = [-1] * len(field_data['RA'])
+
+        if references is not None:
+            reference_filters = {}
+            reference_filter_mags = {}
+            for name, group in references.groupby('field'):
+                reference_filters[name] = group['filter'].tolist()
+                reference_filter_mags[name] = group['limmag'].tolist()
 
         for ii, (field_id, ra, dec, coords) in enumerate(
             zip(ids, field_data['RA'], field_data['Dec'], coords_icrs)
@@ -1117,6 +1154,7 @@ def add_tiles(
                         create_field = False
 
                 if create_field:
+
                     field = InstrumentField(
                         instrument_id=instrument_id,
                         field_id=int(field_id),
@@ -1125,6 +1163,14 @@ def add_tiles(
                         ra=ra,
                         dec=dec,
                     )
+
+                    if references is not None:
+                        if field_id in reference_filters:
+                            field.reference_filters = reference_filters[field_id]
+                            field.reference_filter_mags = reference_filter_mags[
+                                field_id
+                            ]
+
                     session.add(field)
                     session.commit()
 

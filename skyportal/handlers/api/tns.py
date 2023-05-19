@@ -32,10 +32,24 @@ report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
 reply_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report-reply')
 search_url = urllib.parse.urljoin(TNS_URL, 'api/get/search')
 
+# IDs here: https://www.wis-tns.org/api/values
+
 TNS_INSTRUMENT_IDS = {
+    'DECam': 172,
     'ZTF': 196,
 }
 TNS_FILTER_IDS = {
+    'sdssu': 20,
+    'sdssg': 21,
+    'sdssr': 22,
+    'sdssi': 23,
+    'sdssz': 24,
+    'desu': 20,
+    'desg': 21,
+    'desr': 22,
+    'desi': 23,
+    'desz': 24,
+    'desy': 81,
     'ztfg': 110,
     'ztfr': 111,
     'ztfi': 112,
@@ -227,19 +241,23 @@ class ObjTNSHandler(BaseHandler):
             if obj is None:
                 return self.error(f'No object available with ID {obj_id}')
 
-            # for now we limit it to ZTF photometry, as we do not have a defined way to find the TNS id of other instruments and filters
-            ztf = session.scalars(
-                Instrument.select(session.user_or_token).where(Instrument.name == 'ZTF')
-            ).first()
-            if ztf is None:
+            # for now we limit it to instruments and filters we have mapped to TNS
+            instruments = session.scalars(
+                Instrument.select(session.user_or_token).where(
+                    Instrument.name.in_(list(TNS_INSTRUMENT_IDS.keys()))
+                )
+            ).all()
+            if len(instruments) == 0:
                 return self.error(
-                    'No ZTF instrument available. Submitting to TNS is only available for ZTF data (for now).'
+                    'No instrument with known IDs available. Submitting to TNS is only available for ZTF and DECam data (for now).'
                 )
 
             photometry = session.scalars(
                 Photometry.select(session.user_or_token).where(
                     Photometry.obj_id == obj_id,
-                    Photometry.instrument_id == ztf.id,  # only ZTF
+                    Photometry.instrument_id.in_(
+                        [instrument.id for instrument in instruments]
+                    ),
                 )
             ).all()
             photometry = [serialize(phot, 'ab', 'mag') for phot in photometry]
