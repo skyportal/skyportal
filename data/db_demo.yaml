@@ -349,6 +349,8 @@ instrument:
     field_region:
 #      file: ../data/ZTF_Region.reg
       file: ../data/ZTF_Square_Region.reg
+    references:
+      file: ../data/ZTF_Ref.csv
     sensitivity_data: {'ztfg': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}, 'ztfr': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}, 'ztfi': {'limiting_magnitude': 19.6, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}
     configuration_data: {'overhead_per_exposure': 2.0, 'readout': 8.0, 'slew_rate': 2.6, 'filt_change_time': 60.0}
   - name: ALFOSC
@@ -425,12 +427,12 @@ instrument:
     telescope_id: =CTIO-4m
     type: imager
     filters: ['sdssu', 'desg', 'desr', 'desi', 'desz', 'desy']
-      #field_data:
-      #  file: ../data/DECam_Fields.csv
-      #field_region:
-      #  file: ../data/DECam_Region.reg
-      #references:
-      #  file: ../data/DECam_Ref.csv
+    # field_data:
+    #   file: ../data/DECam_Fields.csv
+    # field_region:
+    #   file: ../data/DECam_Region.reg
+    # references:
+    #   file: ../data/DECam_Ref.csv
     sensitivity_data: {'sdssu': {'limiting_magnitude': 21.6, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.87,}, 'desg': {'limiting_magnitude': 23.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 28.91,}, 'desr': {'limiting_magnitude': 25.5, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 29.06,}, 'desi': {'limiting_magnitude': 22.8, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 28.97,}, 'desz': {'limiting_magnitude': 22.1, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 28.68,}, 'desy': {'limiting_magnitude': 20.9, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 27.57,}}
     configuration_data: {'overhead_per_exposure': 2.0, 'readout': 28.0, 'slew_rate': 0.36, 'filt_change_time': 8.0}
   - band: optical

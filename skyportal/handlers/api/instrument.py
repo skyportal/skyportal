@@ -90,7 +90,32 @@ class InstrumentHandler(BaseHandler):
             if isinstance(references, str):
                 references = ast.literal_eval(references.replace("\'", "\""))
             if references is not None:
-                references = pd.DataFrame.from_dict(references)
+                try:
+                    references = pd.DataFrame.from_dict(references)
+                except Exception as e:
+                    return self.error(f"Could not parse references: {e}")
+                # verify that the columns are field, filter (required) and limmag (optional)
+                if not {'field', 'filter'}.issubset(references.columns):
+                    return self.error(
+                        "references must contain at least field and filter columns"
+                    )
+                if not set(list(references.columns)).issubset(
+                    {'field', 'filter', 'limmag'}
+                ):
+                    return self.error(
+                        "references can only contain field, filter, and limmag columns"
+                    )
+                if not references['field'].dtype == int:
+                    return self.error("references field must be an integer")
+                if not set(references['filter']).issubset(ALLOWED_BANDPASSES):
+                    return self.error(
+                        f"references filter must be one of {ALLOWED_BANDPASSES}"
+                    )
+                if (
+                    'limmag' in list(references.columns)
+                    and not references['limmag'].dtype == float
+                ):
+                    return self.error("references limmag must be a float")
 
             field_data = data.pop("field_data", None)
             field_region = data.pop("field_region", None)
@@ -635,7 +660,32 @@ class InstrumentHandler(BaseHandler):
             if isinstance(references, str):
                 references = ast.literal_eval(references.replace("\'", "\""))
             if references is not None:
-                references = pd.DataFrame.from_dict(references)
+                try:
+                    references = pd.DataFrame.from_dict(references)
+                except Exception as e:
+                    return self.error(f"Could not parse references: {e}")
+                # verify that the columns are field, filter (required) and limmag (optional)
+                if not {'field', 'filter'}.issubset(references.columns):
+                    return self.error(
+                        "references must contain at least field and filter columns"
+                    )
+                if not set(list(references.columns)).issubset(
+                    {'field', 'filter', 'limmag'}
+                ):
+                    return self.error(
+                        "references can only contain field, filter, and limmag columns"
+                    )
+                if not references['field'].dtype == int:
+                    return self.error("references field must be an integer")
+                if not set(references['filter']).issubset(ALLOWED_BANDPASSES):
+                    return self.error(
+                        f"references filter must be one of {ALLOWED_BANDPASSES}"
+                    )
+                if (
+                    'limmag' in list(references.columns)
+                    and not references['limmag'].dtype == float
+                ):
+                    return self.error("references limmag must be a float")
 
             field_data = data.pop("field_data", None)
             field_region = data.pop("field_region", None)
@@ -1024,7 +1074,8 @@ def add_tiles(
             reference_filter_mags = {}
             for name, group in references.groupby('field'):
                 reference_filters[name] = group['filter'].tolist()
-                reference_filter_mags[name] = group['limmag'].tolist()
+                if 'limmag' in list(references.columns):
+                    reference_filter_mags[name] = group['limmag'].tolist()
 
         for ii, (field_id, ra, dec, coords) in enumerate(
             zip(ids, field_data['RA'], field_data['Dec'], coords_icrs)
@@ -1167,9 +1218,10 @@ def add_tiles(
                     if references is not None:
                         if field_id in reference_filters:
                             field.reference_filters = reference_filters[field_id]
-                            field.reference_filter_mags = reference_filter_mags[
-                                field_id
-                            ]
+                            if 'limmag' in list(references.columns):
+                                field.reference_filter_mags = reference_filter_mags[
+                                    field_id
+                                ]
 
                     session.add(field)
                     session.commit()
