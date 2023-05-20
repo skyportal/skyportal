@@ -5,6 +5,7 @@ import uuid
 import gcn
 import lxml
 import requests
+import sqlalchemy as sa
 import xmlschema
 from gcn_kafka import Consumer
 
@@ -12,12 +13,12 @@ from baselayer.app.env import load_env
 from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.gcn import (
+    get_tags,
     post_gcnevent_from_xml,
     post_skymap_from_notice,
-    get_tags,
 )
-from skyportal.models import DBSession
-from skyportal.utils.gcn import get_skymap_metadata
+from skyportal.models import DBSession, GcnEvent
+from skyportal.utils.gcn import get_dateobs, get_skymap_metadata, get_trigger
 
 env, cfg = load_env()
 
@@ -132,6 +133,7 @@ def poll_events():
                 if payload.find(b'Broker: Unknown topic or partition') != -1:
                     continue
                 root = get_root_from_payload(payload)
+                notice_type = gcn.get_notice_type(root)
                 tags = get_tags(root)
                 tags_intersection = list(set(tags).intersection(set(reject_tags)))
                 if len(tags_intersection) > 0:
@@ -139,7 +141,29 @@ def poll_events():
                         f'Rejecting gcn_event from {message.topic()} due to tag(s): {tags_intersection}'
                     )
                     continue
+
                 with DBSession() as session:
+                    # we skip the ingestion of a retraction of the event does not exist in the DB
+                    if notice_type == gcn.NoticeType.LVC_RETRACTION:
+                        dateobs = get_dateobs(root)
+                        trigger_id = get_trigger(root)
+                        existing_event = None
+                        if trigger_id is not None:
+                            existing_event = session.scalar(
+                                sa.select(GcnEvent).where(
+                                    GcnEvent.trigger_id == trigger_id
+                                )
+                            )
+                        if existing_event is None and dateobs is not None:
+                            existing_event = session.scalar(
+                                sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
+                            )
+                        if existing_event is None:
+                            log(
+                                f'No event found to retract for gcn_event from {message.topic()}, skipping'
+                            )
+                            continue
+
                     # event ingestion
                     log(f'Ingesting gcn_event from {message.topic()}')
                     try:
@@ -155,7 +179,6 @@ def poll_events():
                         continue
 
                     # skymap ingestion if available or cone
-                    notice_type = gcn.get_notice_type(root)
                     status, metadata = get_skymap_metadata(root, notice_type, 15)
                     if status in ['available', 'cone']:
                         log(
