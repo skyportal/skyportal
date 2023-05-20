@@ -248,6 +248,18 @@ async def get_source(
     else:
         source_info["duplicates"] = None
 
+    if 'photstats' in source_info:
+        photstats = source_info["photstats"]
+        for photstat in photstats:
+            if hasattr(photstat, 'first_detected_mjd'):
+                source_info["first_detected"] = Time(
+                    photstat.first_detected_mjd, format='mjd'
+                ).isot
+            if hasattr(photstat, 'last_detected_mjd'):
+                source_info["last_detected"] = Time(
+                    photstat.last_detected_mjd, format='mjd'
+                ).isot
+
     if s.host_id:
         source_info["host"] = s.host.to_dict()
         source_info["host_offset"] = s.host_offset.deg * 3600.0

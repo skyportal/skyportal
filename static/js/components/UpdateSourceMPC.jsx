@@ -33,7 +33,8 @@ const UpdateSourceMPC = ({ source }) => {
   const dispatch = useDispatch();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ss");
+  const defaultDate = source.first_detected ? source.first_detected : nowDate;
 
   const handleSubmit = async ({ formData }) => {
     dispatch(sourceActions.addMPC(source.id, formData)).then((response) => {
@@ -51,8 +52,8 @@ const UpdateSourceMPC = ({ source }) => {
       date: {
         type: "string",
         format: "date-time",
-        title: "Start Date [Local Time]",
-        default: nowDate,
+        title: "Start Date [UTC]",
+        default: defaultDate,
       },
       search_radius: {
         type: "number",
@@ -108,6 +109,7 @@ UpdateSourceMPC.propTypes = {
   source: PropTypes.shape({
     id: PropTypes.string,
     mpc_name: PropTypes.string,
+    first_detected: PropTypes.string,
   }).isRequired,
 };
 
