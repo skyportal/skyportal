@@ -88,10 +88,18 @@ class InstrumentHandler(BaseHandler):
 
             references = data.pop("references", None)
             if isinstance(references, str):
-                references = ast.literal_eval(references.replace("\'", "\""))
+                try:
+                    references = ast.literal_eval(references.replace("\'", "\""))
+                except Exception:
+                    pass
             if references is not None:
                 try:
-                    references = pd.DataFrame.from_dict(references)
+                    if isinstance(references, dict):
+                        references = pd.DataFrame.from_dict(references)
+                    elif isinstance(references, str):
+                        references = pd.read_table(StringIO(references), sep=',')
+                    else:
+                        raise ValueError("references must be a dict or a string")
                 except Exception as e:
                     return self.error(f"Could not parse references: {e}")
                 # verify that the columns are field, filter (required) and limmag (optional)
@@ -186,6 +194,12 @@ class InstrumentHandler(BaseHandler):
             instrument.telescope = telescope
             session.add(instrument)
             session.commit()
+
+            if references is not None:
+                if not set(references['filter']).issubset(instrument.filters):
+                    return self.error(
+                        'Filters in references must be a subset of the instrument filters'
+                    )
 
             if field_data is not None:
                 if (field_region is None) and (field_fov_type is None):
@@ -658,10 +672,18 @@ class InstrumentHandler(BaseHandler):
 
             references = data.pop("references", None)
             if isinstance(references, str):
-                references = ast.literal_eval(references.replace("\'", "\""))
+                try:
+                    references = ast.literal_eval(references.replace("\'", "\""))
+                except Exception:
+                    pass
             if references is not None:
                 try:
-                    references = pd.DataFrame.from_dict(references)
+                    if isinstance(references, dict):
+                        references = pd.DataFrame.from_dict(references)
+                    elif isinstance(references, str):
+                        references = pd.read_table(StringIO(references), sep=',')
+                    else:
+                        raise ValueError("references must be a dict or a string")
                 except Exception as e:
                     return self.error(f"Could not parse references: {e}")
                 # verify that the columns are field, filter (required) and limmag (optional)
@@ -748,6 +770,12 @@ class InstrumentHandler(BaseHandler):
             for k in data:
                 if k not in ['sensitivity_data', 'configuration_data']:
                     setattr(instrument, k, data[k])
+
+            if references is not None:
+                if not set(references['filter']).issubset(instrument.filters):
+                    return self.error(
+                        'Filters in references must be a subset of the instrument filters'
+                    )
 
             if sensitivity_data:
                 if not set(sensitivity_data.keys()).issubset(instrument.filters):
@@ -931,6 +959,12 @@ InstrumentHandler.post.__doc__ = f"""
                         Serialized version of a regions.Region describing
                         the shape of the instrument field. Note: should
                         only include field_region or field_fov_type.
+                    references:
+                      type: dict
+                      items:
+                        type: array
+                      description: |
+                        List of filter, and limiting magnitude for each reference.
                     field_fov_type:
                       type: str
                       description: |
@@ -944,12 +978,6 @@ InstrumentHandler.post.__doc__ = f"""
                         Single float radius in degrees in case of circle or
                         list of two floats (height and width) in case of
                         a rectangle.
-                    references:
-                      type: dict
-                      items:
-                        type: array
-                      description: |
-                        List of ID, filter, and limiting magnitude for each reference.
         responses:
           200:
             content:
