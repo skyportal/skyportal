@@ -30,6 +30,7 @@ from skyportal.models import (
     FacilityTransaction,
     FollowupRequest,
     GcnEvent,
+    GcnTag,
     Group,
     GroupAdmissionRequest,
     GroupUser,
@@ -483,6 +484,7 @@ def api(queue):
 
             is_facility_transaction = target_class_name == "FacilityTransaction"
             is_gcnevent = target_class_name == "Localization"
+            is_gcn_tag = target_class_name == "GcnTag"
             is_classification = target_class_name == "Classification"
             is_spectra = target_class_name == "Spectrum"
             is_comment = target_class_name == "Comment"
@@ -494,7 +496,7 @@ def api(queue):
 
             with DBSession() as session:
                 try:
-                    if is_gcnevent:
+                    if is_gcnevent or is_gcn_tag:
                         users = session.scalars(
                             sa.select(User).where(
                                 User.preferences["notifications"]["gcn_events"][
@@ -504,6 +506,20 @@ def api(queue):
                                 .is_(True)
                             )
                         ).all()
+
+                        if is_gcn_tag:
+                            gcn_tag = session.scalars(
+                                sa.select(GcnTag).where(GcnTag.id == target_id)
+                            ).first()
+                            gcn_event = session.scalars(
+                                sa.select(GcnEvent).where(
+                                    GcnEvent.dateobs == gcn_tag.dateobs
+                                )
+                            ).first()
+                            if len(gcn_event.localizations) > 0:
+                                target_id = gcn_event.localizations[0].id
+                            else:
+                                return
 
                         target_class = Localization
                         target = session.scalars(
@@ -711,7 +727,7 @@ def api(queue):
                                 ).first()
                                 is not None
                             ):
-                                if is_gcnevent and (pref is not None):
+                                if (is_gcnevent or is_gcn_tag) and (pref is not None):
                                     event = session.scalars(
                                         sa.select(GcnEvent).where(
                                             GcnEvent.dateobs == target_data["dateobs"]
@@ -846,16 +862,22 @@ def api(queue):
                                                 ):
                                                     continue
 
-                                        if len(notices) > 1:
+                                        if is_gcn_tag:
                                             text = (
-                                                f"New Notice for GCN Event *{target_data['dateobs']}*, "
-                                                f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                                f"Updated GCN Event *{target_data['dateobs']}*, "
+                                                f"with Tag *{gcn_tag.text}*"
                                             )
                                         else:
-                                            text = (
-                                                f"New GCN Event *{target_data['dateobs']}*, "
-                                                f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
-                                            )
+                                            if len(notices) > 1:
+                                                text = (
+                                                    f"New Notice for GCN Event *{target_data['dateobs']}*, "
+                                                    f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                                )
+                                            else:
+                                                text = (
+                                                    f"New GCN Event *{target_data['dateobs']}*, "
+                                                    f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                                )
 
                                         notification = UserNotification(
                                             user=user,

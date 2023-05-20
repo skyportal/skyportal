@@ -93,6 +93,7 @@ from ...utils.gcn import (
     from_polygon,
     has_skymap,
 )
+from ...utils.notifications import post_notification
 
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 
@@ -557,6 +558,22 @@ class GcnEventTagsHandler(BaseHandler):
                 )
                 session.add(tag)
                 session.commit()
+
+                try:
+                    loop = asyncio.get_event_loop()
+                except Exception:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                request_body = {
+                    'target_class_name': 'GcnTag',
+                    'target_id': tag.id,
+                }
+
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: post_notification(request_body, timeout=30),
+                )
 
                 self.push(
                     action='skyportal/REFRESH_GCN_EVENT',
