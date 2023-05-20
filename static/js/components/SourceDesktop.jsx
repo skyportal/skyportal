@@ -41,6 +41,7 @@ import DisplayPhotStats from "./DisplayPhotStats";
 import EditSourceGroups from "./EditSourceGroups";
 import SimilarSources from "./SimilarSources";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
+import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
 import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import UpdateSourceSummary from "./UpdateSourceSummary";
@@ -529,6 +530,25 @@ const SourceDesktop = ({ source }) => {
             <b>MPC Name: &nbsp;</b>
             <UpdateSourceMPC source={source} />
             <div key="mpc_name"> {source.mpc_name} </div>
+          </div>
+          <div className={classes.infoLine}>
+            <b>GCN Crossmatches: &nbsp;</b>
+            <UpdateSourceGCNCrossmatch source={source} />
+            {source.gcn_crossmatch && (
+              <div>
+                {source.gcn_crossmatch.map((dateobs) => (
+                  <div key={dateobs}>
+                    <Link
+                      to={`/gcn_events/${dateobs.replace(" ", "T")}`}
+                      role="link"
+                      key={dateobs}
+                    >
+                      <Button size="small">{dateobs}</Button>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className={classes.infoLine}>
             <DisplayPhotStats photstats={source.photstats[0]} />
@@ -1080,6 +1100,7 @@ SourceDesktop.propTypes = {
     ),
     duplicates: PropTypes.arrayOf(PropTypes.string),
     alias: PropTypes.arrayOf(PropTypes.string),
+    gcn_crossmatch: PropTypes.arrayOf(PropTypes.string),
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
     photstats: PropTypes.arrayOf(PropTypes.shape(Object)),

@@ -271,6 +271,11 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Minor planet center name.",
     )
 
+    gcn_crossmatch = sa.Column(
+        sa.ARRAY(sa.String),
+        doc="List of GCN event dateobs for crossmatched events.",
+    )
+
     score = sa.Column(sa.Float, nullable=True, doc="Machine learning score.")
 
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the object.")

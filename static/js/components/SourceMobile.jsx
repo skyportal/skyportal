@@ -51,6 +51,7 @@ import EditSourceGroups from "./EditSourceGroups";
 import ShowSummaryHistory from "./ShowSummaryHistory";
 import SourceNotification from "./SourceNotification";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
+import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
 import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import UpdateSourceSummary from "./UpdateSourceSummary";
@@ -522,6 +523,25 @@ const SourceMobile = WidthProvider(
                         <UpdateSourceMPC source={source} />
                       </div>
                     </>
+                  </div>
+                  <div className={classes.alignRight}>
+                    <b>GCN Crossmatches: &nbsp;</b>
+                    <UpdateSourceGCNCrossmatch source={source} />
+                    {source.gcn_crossmatch && (
+                      <div>
+                        {source.gcn_crossmatch.map((dateobs) => (
+                          <div key={dateobs}>
+                            <Link
+                              to={`/gcn_events/${dateobs.replace(" ", "T")}`}
+                              role="link"
+                              key={dateobs}
+                            >
+                              <Button size="small">{dateobs}</Button>
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className={classes.infoLine}>
                     <DisplayPhotStats photstats={source.photstats[0]} />
@@ -1012,6 +1032,7 @@ SourceMobile.propTypes = {
       })
     ),
     alias: PropTypes.arrayOf(PropTypes.string),
+    gcn_crossmatch: PropTypes.arrayOf(PropTypes.string),
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
     photstats: PropTypes.arrayOf(PropTypes.shape(Object)),
