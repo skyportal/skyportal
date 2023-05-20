@@ -106,6 +106,7 @@ from skyportal.handlers.api import (
     ObjHostHandler,
     ObjClassificationHandler,
     ObjClassificationQueryHandler,
+    ObjGcnEventHandler,
     ObjMPCHandler,
     ObjTNSHandler,
     ObservationHandler,
@@ -431,6 +432,7 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/labels', SourceLabelsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/gcn_event', ObjGcnEventHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/mpc', ObjMPCHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/tns', ObjTNSHandler),
     (
