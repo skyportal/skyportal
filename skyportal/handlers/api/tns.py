@@ -1,17 +1,23 @@
 import astropy.time
+import asyncio
 import json
+from marshmallow.exceptions import ValidationError
 import requests
+import sqlalchemy as sa
+from sqlalchemy.orm import sessionmaker, scoped_session
 import tempfile
+from tornado.ioloop import IOLoop
 import urllib
 
-from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 from .photometry import serialize
 from ..base import BaseHandler
 from ...models import (
+    DBSession,
     Group,
     Obj,
     Photometry,
@@ -20,11 +26,13 @@ from ...models import (
     SpectrumObserver,
     TNSRobot,
     Instrument,
+    User,
 )
 
 
 _, cfg = load_env()
 
+Session = scoped_session(sessionmaker())
 
 TNS_URL = cfg['app.tns_endpoint']
 upload_url = urllib.parse.urljoin(TNS_URL, 'api/file-upload')
@@ -54,6 +62,8 @@ TNS_FILTER_IDS = {
     'ztfr': 111,
     'ztfi': 112,
 }
+
+log = make_log('api/tns')
 
 
 class TNSRobotHandler(BaseHandler):
@@ -201,6 +211,204 @@ class TNSRobotHandler(BaseHandler):
             return self.success()
 
 
+def tns_submission(obj_ids, tnsrobot_id, user_id, reporters=""):
+    """Submit objects to TNS.
+    obj_ids : List[str]
+        Object IDs
+    tnsrobot_id : int
+        TNSRobot ID
+    user_id : int
+        SkyPortal ID of User posting to TNS
+    reporters : str
+        Reporters to appear on TNS submission.
+    """
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    user = session.scalar(sa.select(User).where(User.id == user_id))
+
+    try:
+        # for now we limit it to instruments and filters we have mapped to TNS
+        instruments = session.scalars(
+            Instrument.select(user).where(
+                Instrument.name.in_(list(TNS_INSTRUMENT_IDS.keys()))
+            )
+        ).all()
+        if len(instruments) == 0:
+            raise ValueError(
+                'No instrument with known IDs available. Submitting to TNS is only available for ZTF and DECam data (for now).'
+            )
+
+        tnsrobot = session.scalars(
+            TNSRobot.select(user).where(TNSRobot.id == tnsrobot_id)
+        ).first()
+        if tnsrobot is None:
+            raise ValueError(f'No TNSRobot available with ID {tnsrobot_id}')
+
+        altdata = tnsrobot.altdata
+        if not altdata:
+            raise ValueError('Missing TNS information.')
+        if 'api_key' not in altdata:
+            raise ValueError('Missing TNS API key.')
+
+        tns_headers = {
+            'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
+        }
+
+        for obj_id in obj_ids:
+            obj = session.scalars(Obj.select(user).where(Obj.id == obj_id)).first()
+            if obj is None:
+                log(f'No object available with ID {obj_id}')
+                continue
+
+            photometry = session.scalars(
+                Photometry.select(user).where(
+                    Photometry.obj_id == obj_id,
+                    Photometry.instrument_id.in_(
+                        [instrument.id for instrument in instruments]
+                    ),
+                )
+            ).all()
+
+            if len(photometry) == 0:
+                log(
+                    f'No photometry from instrument that can be submitted to TNS) available for {obj_id}.'
+                )
+                continue
+
+            photometry = [serialize(phot, 'ab', 'mag') for phot in photometry]
+
+            _, tns_name = get_IAUname(obj.id, altdata['api_key'], tns_headers)
+            if tns_name is not None:
+                log(f'{obj_id} already posted to TNS as {tns_name}.')
+                continue
+
+            time_first = mag_first = magerr_first = filt_first = instrument_first = None
+            time_last = mag_last = magerr_last = filt_last = instrument_last = None
+            time_last_nondetection = (
+                limmag_last_nondetection
+            ) = filt_last_nondetection = instrument_last_nondetection = None
+
+            # split the photometry into detections and non-detections
+            # non detections are those with mag=None
+            detections, non_detections = [], []
+
+            for phot in photometry:
+                if phot['mag'] is None:
+                    non_detections.append(phot)
+                else:
+                    detections.append(phot)
+
+            if len(non_detections) == 0 or len(detections) == 0:
+                log(
+                    f'Need at least one detection and one non-detection for TNS report of {obj_id}'
+                )
+                continue
+
+            # sort each by mjd ascending
+            non_detections = sorted(non_detections, key=lambda k: k['mjd'])
+            detections = sorted(detections, key=lambda k: k['mjd'])
+
+            time_first = detections[0]['mjd']
+            mag_first = detections[0]['mag']
+            magerr_first = detections[0]['magerr']
+            filt_first = TNS_FILTER_IDS[detections[0]['filter']]
+            instrument_first = TNS_INSTRUMENT_IDS[detections[0]['instrument_name']]
+
+            time_last = detections[-1]['mjd']
+            mag_last = detections[-1]['mag']
+            magerr_last = detections[-1]['magerr']
+            filt_last = TNS_FILTER_IDS[detections[-1]['filter']]
+            instrument_last = TNS_INSTRUMENT_IDS[detections[-1]['instrument_name']]
+
+            # find the the last non-detection that is before the first detection
+            for phot in non_detections:
+                if phot['mjd'] < time_first:
+                    time_last_nondetection = phot['mjd']
+                    limmag_last_nondetection = phot['limiting_mag']
+                    filt_last_nondetection = TNS_FILTER_IDS[phot['filter']]
+                    instrument_last_nondetection = TNS_INSTRUMENT_IDS[
+                        phot['instrument_name']
+                    ]
+
+            if time_last_nondetection is None:
+                log(
+                    f'No non-detections found before first detection, cannot submit {obj_id} to TNS'
+                )
+                continue
+
+            proprietary_period = {
+                "proprietary_period_value": 0,
+                "proprietary_period_units": "years",
+            }
+            non_detection = {
+                "obsdate": astropy.time.Time(time_last_nondetection, format='mjd').jd,
+                "limiting_flux": limmag_last_nondetection,
+                "flux_units": "1",
+                "filter_value": filt_last_nondetection,
+                "instrument_value": instrument_last_nondetection,
+            }
+            phot_first = {
+                "obsdate": astropy.time.Time(time_first, format='mjd').jd,
+                "flux": mag_first,
+                "flux_err": magerr_first,
+                "flux_units": "1",
+                "filter_value": filt_first,
+                "instrument_value": instrument_first,
+            }
+            phot_last = {
+                "obsdate": astropy.time.Time(time_last, format='mjd').jd,
+                "flux": mag_last,
+                "flux_err": magerr_last,
+                "flux_units": "1",
+                "filter_value": filt_last,
+                "instrument_value": instrument_last,
+            }
+
+            at_report = {
+                "ra": {"value": obj.ra},
+                "dec": {"value": obj.dec},
+                "groupid": tnsrobot.source_group_id,
+                "internal_name_format": {
+                    "prefix": instrument_first,
+                    "year_format": "YY",
+                    "postfix": "",
+                },
+                "internal_name": obj.id,
+                "reporter": reporters,
+                "discovery_datetime": astropy.time.Time(
+                    time_first, format='mjd'
+                ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                "at_type": 1,  # allow other options?
+                "proprietary_period_groups": [tnsrobot.source_group_id],
+                "proprietary_period": proprietary_period,
+                "non_detection": non_detection,
+                "photometry": {"photometry_group": {"0": phot_first, "1": phot_last}},
+            }
+            report = {"at_report": {"0": at_report}}
+
+            data = {
+                'api_key': altdata['api_key'],
+                'data': json.dumps(report),
+            }
+
+            r = requests.post(report_url, headers=tns_headers, data=data)
+            if r.status_code == 200:
+                tns_id = r.json()['data']['report_id']
+                log(f'Successfully submitted {obj_id} to TNS as {tns_id}')
+            else:
+                log(f'Failed to submit {obj_id} to TNS: {r.content}')
+
+    except Exception as e:
+        log(f"Unable to generate TNS reports for {obj_ids.join(',')}: {e}")
+    finally:
+        session.close()
+        Session.remove()
+
+
 class ObjTNSHandler(BaseHandler):
     @auth_or_token
     def post(self, obj_id):
@@ -227,202 +435,47 @@ class ObjTNSHandler(BaseHandler):
         """
 
         with self.Session() as session:
+            data = self.get_json()
+            tnsrobotID = data.get('tnsrobotID')
+            reporters = data.get('reporters', '')
+
+            if tnsrobotID is None:
+                return self.error('tnsrobotID is required')
+
+            obj = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f'No object available with ID {obj_id}')
+
+            tnsrobot = session.scalars(
+                TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobotID)
+            ).first()
+            if tnsrobot is None:
+                return self.error(f'No TNSRobot available with ID {tnsrobotID}')
+
+            altdata = tnsrobot.altdata
+            if not altdata:
+                return self.error('Missing TNS information.')
+            if 'api_key' not in altdata:
+                return self.error('Missing TNS API key.')
+
             try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: tns_submission(
+                    [obj.id],
+                    tnsrobot.id,
+                    self.associated_user_object.id,
+                    reporters=reporters,
+                ),
+            )
 
-                data = self.get_json()
-                tnsrobotID = data.get('tnsrobotID')
-                reporters = data.get('reporters', '')
-
-                if tnsrobotID is None:
-                    return self.error('tnsrobotID is required')
-
-                obj = session.scalars(
-                    Obj.select(session.user_or_token).where(Obj.id == obj_id)
-                ).first()
-                if obj is None:
-                    return self.error(f'No object available with ID {obj_id}')
-
-                # for now we limit it to ZTF photometry, as we do not have a defined way to find the TNS id of other instruments and filters
-                ztf = session.scalars(
-                    Instrument.select(session.user_or_token).where(
-                        Instrument.name == 'ZTF'
-                    )
-                ).first()
-                if ztf is None:
-                    return self.error(
-                        'No ZTF instrument available. Submitting to TNS is only available for ZTF data (for now).'
-                    )
-
-                # for now we limit it to instruments and filters we have mapped to TNS
-                instruments = session.scalars(
-                    Instrument.select(session.user_or_token).where(
-                        Instrument.name.in_(list(TNS_INSTRUMENT_IDS.keys()))
-                    )
-                ).all()
-                if len(instruments) == 0:
-                    return self.error(
-                        'No instrument with known IDs available. Submitting to TNS is only available for ZTF and DECam data (for now).'
-                    )
-
-                photometry = session.scalars(
-                    Photometry.select(session.user_or_token).where(
-                        Photometry.obj_id == obj_id,
-                        Photometry.instrument_id.in_(
-                            [instrument.id for instrument in instruments]
-                        ),
-                    )
-                ).all()
-
-                if len(photometry) == 0:
-                    return self.error(
-                        'No photometry (from instrument that can be submitted to TNS) available for this object.'
-                    )
-                photometry = [serialize(phot, 'ab', 'mag') for phot in photometry]
-
-                tnsrobot = session.scalars(
-                    TNSRobot.select(session.user_or_token).where(
-                        TNSRobot.id == tnsrobotID
-                    )
-                ).first()
-                if tnsrobot is None:
-                    return self.error(f'No TNSRobot available with ID {tnsrobotID}')
-
-                altdata = tnsrobot.altdata
-                if not altdata:
-                    return self.error('Missing TNS information.')
-                if 'api_key' not in altdata:
-                    return self.error('Missing TNS API key.')
-
-                tns_headers = {
-                    'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
-                }
-
-                _, tns_name = get_IAUname(obj.id, altdata['api_key'], tns_headers)
-                if tns_name is not None:
-                    return self.error(f'Already posted to TNS as {tns_name}.')
-
-                time_first = (
-                    mag_first
-                ) = magerr_first = filt_first = instrument_first = None
-                time_last = mag_last = magerr_last = filt_last = instrument_last = None
-                time_last_nondetection = (
-                    limmag_last_nondetection
-                ) = filt_last_nondetection = instrument_last_nondetection = None
-
-                # split the photometry into detections and non-detections
-                # non detections are those with mag=None
-                detections, non_detections = [], []
-
-                for phot in photometry:
-                    if phot['mag'] is None:
-                        non_detections.append(phot)
-                    else:
-                        detections.append(phot)
-
-                if len(non_detections) == 0 or len(detections) == 0:
-                    return self.error(
-                        'Need at least one detection and one non-detection for TNS report'
-                    )
-
-                # sort each by mjd ascending
-                non_detections = sorted(non_detections, key=lambda k: k['mjd'])
-                detections = sorted(detections, key=lambda k: k['mjd'])
-
-                time_first = detections[0]['mjd']
-                mag_first = detections[0]['mag']
-                magerr_first = detections[0]['magerr']
-                filt_first = TNS_FILTER_IDS[detections[0]['filter']]
-                instrument_first = TNS_INSTRUMENT_IDS[detections[0]['instrument_name']]
-
-                time_last = detections[-1]['mjd']
-                mag_last = detections[-1]['mag']
-                magerr_last = detections[-1]['magerr']
-                filt_last = TNS_FILTER_IDS[detections[-1]['filter']]
-                instrument_last = TNS_INSTRUMENT_IDS[detections[-1]['instrument_name']]
-
-                # find the the last non-detection that is before the first detection
-                for phot in non_detections:
-                    if phot['mjd'] < time_first:
-                        time_last_nondetection = phot['mjd']
-                        limmag_last_nondetection = phot['limiting_mag']
-                        filt_last_nondetection = TNS_FILTER_IDS[phot['filter']]
-                        instrument_last_nondetection = TNS_INSTRUMENT_IDS[
-                            phot['instrument_name']
-                        ]
-
-                if time_last_nondetection is None:
-                    return self.error(
-                        'No non-detections found before first detection, cannot submit to TNS'
-                    )
-
-                proprietary_period = {
-                    "proprietary_period_value": 0,
-                    "proprietary_period_units": "years",
-                }
-                non_detection = {
-                    "obsdate": astropy.time.Time(
-                        time_last_nondetection, format='mjd'
-                    ).jd,
-                    "limiting_flux": limmag_last_nondetection,
-                    "flux_units": "1",
-                    "filter_value": filt_last_nondetection,
-                    "instrument_value": instrument_last_nondetection,
-                }
-                phot_first = {
-                    "obsdate": astropy.time.Time(time_first, format='mjd').jd,
-                    "flux": mag_first,
-                    "flux_err": magerr_first,
-                    "flux_units": "1",
-                    "filter_value": filt_first,
-                    "instrument_value": instrument_first,
-                }
-                phot_last = {
-                    "obsdate": astropy.time.Time(time_last, format='mjd').jd,
-                    "flux": mag_last,
-                    "flux_err": magerr_last,
-                    "flux_units": "1",
-                    "filter_value": filt_last,
-                    "instrument_value": instrument_last,
-                }
-
-                at_report = {
-                    "ra": {"value": obj.ra},
-                    "dec": {"value": obj.dec},
-                    "groupid": tnsrobot.source_group_id,
-                    "internal_name_format": {
-                        "prefix": instrument_first,
-                        "year_format": "YY",
-                        "postfix": "",
-                    },
-                    "internal_name": obj.id,
-                    "reporter": reporters,
-                    "discovery_datetime": astropy.time.Time(
-                        time_first, format='mjd'
-                    ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f'),
-                    "at_type": 1,  # allow other options?
-                    "proprietary_period_groups": [tnsrobot.source_group_id],
-                    "proprietary_period": proprietary_period,
-                    "non_detection": non_detection,
-                    "photometry": {
-                        "photometry_group": {"0": phot_first, "1": phot_last}
-                    },
-                }
-                report = {"at_report": {"0": at_report}}
-
-                data = {
-                    'api_key': altdata['api_key'],
-                    'data': json.dumps(report),
-                }
-
-                r = requests.post(report_url, headers=tns_headers, data=data)
-                if r.status_code == 200:
-                    tns_id = r.json()['data']['report_id']
-                    return self.success(data={'tns_id': tns_id})
-                else:
-                    return self.error(f'{r.content}')
-
-            except Exception as e:
-                return self.error(f'Error submitting to TNS: {e}')
+            return self.success()
 
 
 class SpectrumTNSHandler(BaseHandler):
