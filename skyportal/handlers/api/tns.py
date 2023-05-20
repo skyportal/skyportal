@@ -272,7 +272,7 @@ class ObjTNSHandler(BaseHandler):
                         ),
                     )
                 ).all()
-                
+
                 if len(photometry) == 0:
                     return self.error(
                         'No photometry (from instrument that can be submitted to TNS) available for this object.'
