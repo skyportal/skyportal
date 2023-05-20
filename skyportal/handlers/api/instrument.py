@@ -1016,6 +1016,8 @@ def load_field_data(field_data):
                     names=["ID", "RA", "Dec"],
                 )
                 loaded = True
+            if loaded:
+                break
         except TypeError:
             pass
 
