@@ -115,6 +115,16 @@ class InstrumentField(Base):
         )
     )
 
+    reference_filters = sa.Column(
+        sa.ARRAY(sa.String), nullable=True, comment='Reference template filters'
+    )
+
+    reference_filter_mags = sa.Column(
+        sa.ARRAY(sa.Float),
+        nullable=True,
+        comment='Reference filter limiting magnitudes',
+    )
+
     tiles = relationship("InstrumentFieldTile")
 
     @property

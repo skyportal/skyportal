@@ -344,11 +344,6 @@ const SourceDesktop = ({ source }) => {
             <div key="aliases"> {source.alias.join(", ")} </div>
           </div>
         ) : null}
-        <div className={classes.infoLine}>
-          <b>MPC Name: &nbsp;</b>
-          <UpdateSourceMPC source={source} />
-          <div key="mpc_name"> {source.mpc_name} </div>
-        </div>
         {associatedGCNs?.length > 0 ? (
           <div className={classes.infoLine}>
             <b>Associated to: &nbsp;</b>
@@ -529,6 +524,11 @@ const SourceDesktop = ({ source }) => {
                 </div>
               )}
             </div>
+          </div>
+          <div className={classes.infoLine}>
+            <b>MPC Name: &nbsp;</b>
+            <UpdateSourceMPC source={source} />
+            <div key="mpc_name"> {source.mpc_name} </div>
           </div>
           <div className={classes.infoLine}>
             <DisplayPhotStats photstats={source.photstats[0]} />

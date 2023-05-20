@@ -105,6 +105,12 @@ const InstrumentTable = ({
 
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
 
+  const renderInstrumentID = (dataIndex) => {
+    const instrument = instruments[dataIndex];
+
+    return <div>{instrument ? instrument.id : ""}</div>;
+  };
+
   const renderInstrumentName = (dataIndex) => {
     const instrument = instruments[dataIndex];
 
@@ -231,6 +237,16 @@ const InstrumentTable = ({
   };
 
   const columns = [
+    {
+      name: "id",
+      label: "ID",
+      options: {
+        filter: true,
+        // sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderInstrumentID,
+      },
+    },
     {
       name: "instrument_name",
       label: "Instrument Name",

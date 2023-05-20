@@ -340,17 +340,6 @@ const SourceMobile = WidthProvider(
                     <div key="aliases"> ({source.alias.join(", ")}) </div>
                   ) : null}
                 </div>
-                <div className={classes.alignRight}>
-                  <>
-                    <div className={classes.infoLine}>
-                      <b>MPC Name: &nbsp;</b>
-                      <div key="mpc_name"> {source.mpc_name} </div>
-                    </div>
-                    <div>
-                      <UpdateSourceMPC source={source} />
-                    </div>
-                  </>
-                </div>
               </div>
               <div>
                 <div className={classes.sourceInfo}>
@@ -523,6 +512,17 @@ const SourceMobile = WidthProvider(
                       </div>
                     </div>
                   )}
+                  <div className={classes.alignRight}>
+                    <>
+                      <div className={classes.infoLine}>
+                        <b>MPC Name: &nbsp;</b>
+                        <div key="mpc_name"> {source.mpc_name} </div>
+                      </div>
+                      <div>
+                        <UpdateSourceMPC source={source} />
+                      </div>
+                    </>
+                  </div>
                   <div className={classes.infoLine}>
                     <DisplayPhotStats photstats={source.photstats[0]} />
                   </div>
