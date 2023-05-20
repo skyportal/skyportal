@@ -148,17 +148,17 @@ def poll_events():
                         dateobs = get_dateobs(root)
                         trigger_id = get_trigger(root)
                         existing_event = None
-                        if trigger_id:
+                        if trigger_id is not None:
                             existing_event = session.scalar(
                                 sa.select(GcnEvent).where(
                                     GcnEvent.trigger_id == trigger_id
                                 )
                             )
-                        if not existing_event:
+                        if existing_event is None and dateobs is not None:
                             existing_event = session.scalar(
                                 sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
                             )
-                        if not existing_event:
+                        if existing_event is None:
                             log(
                                 f'No event found to retract for gcn_event from {message.topic()}, skipping'
                             )
