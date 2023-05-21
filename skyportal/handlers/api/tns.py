@@ -1,4 +1,6 @@
 import astropy.time
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 import asyncio
 import json
 from marshmallow.exceptions import ValidationError
@@ -13,6 +15,7 @@ from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+from baselayer.app.flow import Flow
 
 from .photometry import serialize
 from ..base import BaseHandler
@@ -39,6 +42,7 @@ upload_url = urllib.parse.urljoin(TNS_URL, 'api/file-upload')
 report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
 reply_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report-reply')
 search_url = urllib.parse.urljoin(TNS_URL, 'api/get/search')
+object_url = urllib.parse.urljoin(TNS_URL, 'api/get/object')
 
 # IDs here: https://www.wis-tns.org/api/values
 
@@ -211,6 +215,88 @@ class TNSRobotHandler(BaseHandler):
             return self.success()
 
 
+def tns_retrieval(obj_id, tnsrobot_id, user_id):
+    """Retrieve object from TNS.
+    obj_id : str
+        Object ID
+    tnsrobot_id : int
+        TNSRobot ID
+    user_id : int
+        SkyPortal ID of User retrieving from TNS
+    """
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    user = session.scalar(sa.select(User).where(User.id == user_id))
+
+    try:
+        obj = session.scalars(Obj.select(user).where(Obj.id == obj_id)).first()
+        if obj is None:
+            raise ValueError(f'No object available with ID {obj_id}')
+
+        tnsrobot = session.scalars(
+            TNSRobot.select(user).where(TNSRobot.id == tnsrobot_id)
+        ).first()
+        if tnsrobot is None:
+            raise ValueError(f'No TNSRobot available with ID {tnsrobot_id}')
+
+        altdata = tnsrobot.altdata
+        if not altdata:
+            raise ValueError('Missing TNS information.')
+        if 'api_key' not in altdata:
+            raise ValueError('Missing TNS API key.')
+
+        tns_headers = {
+            'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
+        }
+
+        _, tns_name = get_IAUname(
+            altdata['api_key'], tns_headers, ra=obj.ra, dec=obj.dec
+        )
+        if tns_name is None:
+            raise ValueError(f'{obj_id} not yet posted to TNS.')
+
+        obj.tns_name = tns_name
+
+        data = {
+            'api_key': altdata['api_key'],
+            'data': json.dumps({"objname": tns_name}),
+        }
+
+        r = requests.post(
+            object_url,
+            headers=tns_headers,
+            data=data,
+            allow_redirects=True,
+            stream=True,
+            timeout=10,
+        )
+        if r.status_code == 200:
+            source_data = r.json().get("data", dict()).get("reply", dict())
+            if source_data:
+                obj.tns_info = source_data
+            log(f'Successfully retrieved {obj_id} from TNS as {tns_name}')
+        else:
+            log(f'Failed to retrieve {obj_id} from TNS: {r.content}')
+        session.commit()
+
+        flow = Flow()
+        flow.push(
+            '*',
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': obj.internal_key},
+        )
+
+    except Exception as e:
+        log(f"Unable to retrieve TNS report for {obj_id}: {e}")
+    finally:
+        session.close()
+        Session.remove()
+
+
 def tns_submission(obj_ids, tnsrobot_id, user_id, reporters=""):
     """Submit objects to TNS.
     obj_ids : List[str]
@@ -281,7 +367,7 @@ def tns_submission(obj_ids, tnsrobot_id, user_id, reporters=""):
 
             photometry = [serialize(phot, 'ab', 'mag') for phot in photometry]
 
-            _, tns_name = get_IAUname(obj.id, altdata['api_key'], tns_headers)
+            _, tns_name = get_IAUname(altdata['api_key'], tns_headers, obj_id=obj_id)
             if tns_name is not None:
                 log(f'{obj_id} already posted to TNS as {tns_name}.')
                 continue
@@ -410,6 +496,69 @@ def tns_submission(obj_ids, tnsrobot_id, user_id, reporters=""):
 
 
 class ObjTNSHandler(BaseHandler):
+    @auth_or_token
+    def get(self, obj_id):
+        """
+        ---
+        description: Retrieve an Obj from TNS
+        tags:
+          - objs
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        tnsrobot_id = self.get_query_argument("tnsrobotID", None)
+        if tnsrobot_id is None:
+            return self.error('tnsrobotID is required')
+
+        with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f'No object available with ID {obj_id}')
+
+            tnsrobot = session.scalars(
+                TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobot_id)
+            ).first()
+            if tnsrobot is None:
+                return self.error(f'No TNSRobot available with ID {tnsrobot_id}')
+
+            altdata = tnsrobot.altdata
+            if not altdata:
+                return self.error('Missing TNS information.')
+            if 'api_key' not in altdata:
+                return self.error('Missing TNS API key.')
+
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: tns_retrieval(
+                    obj.id,
+                    tnsrobot.id,
+                    self.associated_user_object.id,
+                ),
+            )
+
+            return self.success()
+
     @auth_or_token
     def post(self, obj_id):
         """
@@ -694,29 +843,55 @@ class SpectrumTNSHandler(BaseHandler):
                     return self.error(f'{r.content}')
 
 
-def get_IAUname(objname, api_key, headers):
+def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=5):
     """Query TNS to get IAU name (if exists)
     Parameters
     ----------
     objname : str
         Name of the object to query TNS for
+    headers : str
+        TNS query headers
+    obj_id : str
+        Object name to search for
+    ra : float
+        Right ascension of object to search for
+    dec : float
+        Declination of object to search for
+    radius : float
+        Radius of object to search for
     Returns
     -------
     list
         IAU prefix, IAU name
     """
 
-    req_data = {
-        "ra": "",
-        "dec": "",
-        "radius": "",
-        "units": "",
-        "objname": "",
-        "objname_exact_match": 0,
-        "internal_name": objname.replace('_', ' '),
-        "internal_name_exact_match": 0,
-        "objid": "",
-    }
+    if obj_id is not None:
+        req_data = {
+            "ra": "",
+            "dec": "",
+            "radius": "",
+            "units": "",
+            "objname": "",
+            "objname_exact_match": 0,
+            "internal_name": obj_id.replace('_', ' '),
+            "internal_name_exact_match": 0,
+            "objid": "",
+        }
+    elif ra is not None and dec is not None:
+        c = SkyCoord(ra=ra * u.degree, dec=dec * u.degree, frame='icrs')
+        req_data = {
+            "ra": c.ra.to_string(unit=u.hour, sep=':'),
+            "dec": c.dec.to_string(unit=u.degree, sep=':'),
+            "radius": f"{radius}",
+            "units": "arcsec",
+            "objname": "",
+            "objname_exact_match": 0,
+            "internal_name": "",
+            "internal_name_exact_match": 0,
+            "objid": "",
+        }
+    else:
+        raise ValueError('Must define obj_id or ra/dec.')
 
     data = {'api_key': api_key, 'data': json.dumps(req_data)}
     r = requests.post(search_url, headers=headers, data=data)

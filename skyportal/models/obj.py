@@ -270,7 +270,15 @@ class Obj(Base, conesearch_alchemy.Point):
         sa.String,
         doc="Minor planet center name.",
     )
-
+    tns_name = sa.Column(
+        sa.String,
+        doc="Transient Name Server name.",
+    )
+    tns_info = sa.Column(
+        JSONB,
+        nullable=True,
+        doc="TNS info in JSON format",
+    )
     score = sa.Column(sa.Float, nullable=True, doc="Machine learning score.")
 
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the object.")

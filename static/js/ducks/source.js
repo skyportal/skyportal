@@ -106,6 +106,8 @@ const SUBMIT_IMAGE_ANALYSIS = "skyportal/SUBMIT_IMAGE_ANALYSIS";
 
 const COPY_SOURCE_PHOTOMETRY = "skyportal/COPY_SOURCE_PHOTOMETRY";
 
+const ADD_TNS = "skyportal/ADD_TNS";
+
 const ADD_HOST = "skyportal/ADD_HOST";
 
 const REMOVE_HOST = "skyportal/REMOVE_HOST";
@@ -122,6 +124,10 @@ export function addHost(id, formData) {
 
 export function removeHost(id) {
   return API.DELETE(`/api/sources/${id}/host`, REMOVE_HOST);
+}
+
+export function addTNS(id, formData) {
+  return API.GET(`/api/sources/${id}/tns`, ADD_TNS, formData);
 }
 
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
