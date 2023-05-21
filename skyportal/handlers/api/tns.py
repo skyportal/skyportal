@@ -484,7 +484,7 @@ def tns_submission(obj_ids, tnsrobot_id, user_id, reporters=""):
             r = requests.post(report_url, headers=tns_headers, data=data)
             if r.status_code == 200:
                 tns_id = r.json()['data']['report_id']
-                log(f'Successfully submitted {obj_id} to TNS as {tns_id}')
+                log(f'Successfully submitted {obj_id} to TNS with request ID {tns_id}')
             else:
                 log(f'Failed to submit {obj_id} to TNS: {r.content}')
 

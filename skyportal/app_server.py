@@ -167,6 +167,7 @@ from skyportal.handlers.api import (
     AnalysisWebhookHandler,
     PS1ThumbnailHandler,
     SourcesConfirmedInGCNHandler,
+    SourcesConfirmedInGCNTNSHandler,
     GCNsAssociatedWithSourceHandler,
 )
 from skyportal.handlers.api.internal import (
@@ -315,6 +316,7 @@ skyportal_handlers = [
     (r'/api/gcn_event/tags(/.*)?', GcnEventTagsHandler),
     (r'/api/gcn_event/properties', GcnEventPropertiesHandler),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
+    (r'/api/sources_in_gcn/(.*)/tns', SourcesConfirmedInGCNTNSHandler),
     (r'/api/sources_in_gcn/(.*)/(.*)', SourcesConfirmedInGCNHandler),
     (r'/api/sources_in_gcn/(.*)', SourcesConfirmedInGCNHandler),
     (r'/api/associated_gcns/(.*)', GCNsAssociatedWithSourceHandler),
