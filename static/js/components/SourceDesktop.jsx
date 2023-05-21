@@ -530,7 +530,18 @@ const SourceDesktop = ({ source }) => {
           <div className={classes.infoLine}>
             <b>TNS Name: &nbsp;</b>
             <UpdateSourceTNS source={source} />
-            <div key="tns_name"> {source.tns_name} </div>
+            {source.tns_name && (
+              <div key="tns_name">
+                <a
+                  key={source.tns_name}
+                  href={`https://www.wis-tns.org/object/${source.tns_name}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {`${source.tns_name} `}
+                </a>
+              </div>
+            )}
             <DisplayTNSInfo tns_info={source.tns_info} display_header={false} />
           </div>
           <div className={classes.infoLine}>
