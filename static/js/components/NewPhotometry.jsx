@@ -1,5 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
+import Select from "@mui/material/Select";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
 import { useDispatch, useSelector } from "react-redux";
 import { showNotification } from "baselayer/components/Notifications";
 // eslint-disable-next-line import/no-unresolved
@@ -24,6 +27,7 @@ const UTCToMJD = (utc) => {
 const NewPhotometryForm = ({ obj_id }) => {
   const dispatch = useDispatch();
   const { instrumentList } = useSelector((state) => state.instruments);
+  const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const groups = useSelector((state) => state.groups.userAccessible);
   // only show instruments that have an imaging mode
   const sortedInstrumentList = [...instrumentList].filter((instrument) =>
@@ -38,6 +42,20 @@ const NewPhotometryForm = ({ obj_id }) => {
     }
     return 0;
   });
+
+  if (instrumentList.length === 0) {
+    return <h3>No instruments available...</h3>;
+  }
+
+  const instLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  instrumentList?.forEach((instrumentObj) => {
+    instLookUp[instrumentObj.id] = instrumentObj;
+  });
+
+  const handleSelectedInstrumentChange = (e) => {
+    setSelectedInstrumentId(e.target.value);
+  };
 
   const listmag = ["Vega", "AB"];
 
@@ -95,33 +113,14 @@ const NewPhotometryForm = ({ obj_id }) => {
         title: "Enter coordinates",
         default: false,
       },
-      instrument_id: {
-        type: "integer",
-        oneOf: sortedInstrumentList.map((instrument) => ({
-          enum: [instrument.id],
-          // title is the instrument name: the list of filters comma separated
-          title: `(${instrument.name}: ${instrument.filters})`,
-        })),
-        title: "Instrument",
+      filter: {
+        type: "string",
+        enum: instLookUp[selectedInstrumentId]?.filters,
+        title: "Filter",
       },
     },
-    required: ["dateobs", "instrument_id", "magsys"],
+    required: ["dateobs", "filter", "magsys"],
     dependencies: {
-      instrument_id: {
-        oneOf: sortedInstrumentList.map((instrument) => ({
-          properties: {
-            instrument_id: {
-              enum: [instrument.id],
-            },
-            filter: {
-              type: "string",
-              enum: instrument.filters,
-              title: "Filter",
-            },
-          },
-          required: ["filter"],
-        })),
-      },
       coordinates: {
         oneOf: [
           {
@@ -168,13 +167,13 @@ const NewPhotometryForm = ({ obj_id }) => {
     if (
       sortedInstrumentList.some(
         (instrument) =>
-          instrument.id === formData.instrument_id &&
+          instrument.id === selectedInstrumentId &&
           instrument.filters.length === 0
       )
     ) {
-      errors.instrument_id.addError("This instrument has no filters");
+      errors.filter.addError("This instrument has no filters");
     }
-    if (formData.instrument_id && !formData.filter) {
+    if (selectedInstrumentId && !formData.filter) {
       errors.filter.addError("Please select a filter");
     }
     if (!formData.mag && !formData.limiting_mag) {
@@ -215,7 +214,6 @@ const NewPhotometryForm = ({ obj_id }) => {
       nb_exposure,
       exposure_time,
       coordinates,
-      instrument_id,
       filter,
       ra,
       dec,
@@ -227,7 +225,7 @@ const NewPhotometryForm = ({ obj_id }) => {
       // 'dec': obj.dec,
       obj_id,
       magsys,
-      instrument_id,
+      instrument_id: selectedInstrumentId,
       filter,
     };
 
@@ -269,13 +267,32 @@ const NewPhotometryForm = ({ obj_id }) => {
   return (
     <div style={{ display: "flex", alignItems: "center" }}>
       {instrumentList?.length > 0 && groups?.length > 0 ? (
-        <Form
-          schema={photoFormSchema}
-          validator={validator}
-          onSubmit={submit}
-          customValidate={validate}
-          liveValidate
-        />
+        <div>
+          <div>
+            <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
+            <Select
+              inputProps={{ MenuProps: { disableScrollLock: true } }}
+              labelId="instrumentSelectLabel"
+              value={selectedInstrumentId}
+              onChange={handleSelectedInstrumentChange}
+              name="instrumentSelect"
+            >
+              {instrumentList?.map((instrument) => (
+                <MenuItem value={instrument.id} key={instrument.id}>
+                  {`${instrument.name}: ${instrument.filters}`}
+                </MenuItem>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Form
+              schema={photoFormSchema}
+              validator={validator}
+              onSubmit={submit}
+              customValidate={validate}
+            />
+          </div>
+        </div>
       ) : (
         <div>
           <p>Loading instruments and groups</p>
