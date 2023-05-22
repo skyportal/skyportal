@@ -405,7 +405,12 @@ def generate_plan(
         params = {
             # gwemopt filter strategy
             # options: block (blocks of single filters), integrated (series of alternating filters)
-            'doAlternativeFilters': request.payload["filter_strategy"] == "block",
+            'doAlternatingFilters': True
+            if request.payload["filter_strategy"] == "block"
+            else False,
+            'doBlocks': True
+            if request.payload["filter_strategy"] == "block"
+            else False,
             # flag to indicate fields come from DB
             'doDatabase': True,
             # only keep tiles within powerlaw_cl
@@ -419,6 +424,8 @@ def generate_plan(
             'filters': request.payload["filters"].split(","),
             # GPS time for event
             'gpstime': event_time.gps,
+            # Dateobs of the event in UTC, used when doDatabase is True
+            'dateobs': requests[0].gcnevent.dateobs,
             # Healpix nside for the skymap
             'nside': 512,
             # maximum integrated probability of the skymap to consider
