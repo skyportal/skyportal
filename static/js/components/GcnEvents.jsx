@@ -267,7 +267,10 @@ const GcnEvents = () => {
         key={tag}
         label={tag}
         style={{
-          backgroundColor: gcn_tags_classes ? gcn_tags_classes[tag] : "#999999",
+          backgroundColor:
+            gcn_tags_classes && tag in gcn_tags_classes
+              ? gcn_tags_classes[tag]
+              : "#999999",
         }}
       />
     ));
