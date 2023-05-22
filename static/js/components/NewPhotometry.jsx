@@ -272,7 +272,7 @@ const NewPhotometryForm = ({ obj_id }) => {
             <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
             <Select
               inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="instrumentSelectLabel"
+              id="instrumentSelectLabel"
               value={selectedInstrumentId}
               onChange={handleSelectedInstrumentChange}
               name="instrumentSelect"
