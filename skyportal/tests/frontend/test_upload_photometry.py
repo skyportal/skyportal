@@ -180,6 +180,10 @@ def test_upload_photometry_form(driver, sedm, super_admin_user, public_source):
     button = driver.wait_for_xpath('//*[contains(text(), "Using Form (one)")]')
     button.click()
 
+    # instrument select
+    driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
+    driver.click_xpath(f'//li[@data-value="{sedm.id}"]', scroll_parent=True)
+
     driver.wait_for_xpath('//*[@id="root_dateobs"]').send_keys("2017-05-09T12:34:56")
     driver.wait_for_xpath('//*[@id="root_mag"]').send_keys("12.3")
     driver.wait_for_xpath('//*[@id="root_magerr"]').send_keys("0.1")
@@ -197,10 +201,6 @@ def test_upload_photometry_form(driver, sedm, super_admin_user, public_source):
     driver.scroll_to_element_and_click(coordinates_option)
     driver.wait_for_xpath('//*[@id="root_ra"]').send_keys("10.625")
     driver.wait_for_xpath('//*[@id="root_dec"]').send_keys("41.2")
-
-    instrument_dropdown = driver.wait_for_xpath('//*[@id="root_instrument_id"]')
-    driver.scroll_to_element_and_click(instrument_dropdown)
-    driver.wait_for_xpath(f'//*[contains(text(), "{sedm.name}")]').click()
 
     filter_dropdown = driver.wait_for_xpath('//*[@id="root_filter"]')
     driver.scroll_to_element_and_click(filter_dropdown)
