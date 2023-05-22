@@ -10,12 +10,16 @@ from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 import sqlalchemy as sa
 import datetime
 import lxml
+import requests
 
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 env, cfg = load_env()
 
 app_url = get_app_base_url()
+
+log = make_log('notifications')
 
 
 def gcn_notification_content(target, session):
@@ -320,3 +324,18 @@ def source_email_notification(target, data=None):
         + source_detection_stats
         + "</body></html>"
     )
+
+
+def post_notification(request_body, timeout=2):
+
+    notifications_microservice_url = (
+        f'http://127.0.0.1:{cfg["ports.notification_queue"]}'
+    )
+
+    resp = requests.post(
+        notifications_microservice_url, json=request_body, timeout=timeout
+    )
+    if resp.status_code != 200:
+        log(
+            f'Notification request failed for {request_body["target_class_name"]} with ID {request_body["target_id"]}: {resp.content}'
+        )
