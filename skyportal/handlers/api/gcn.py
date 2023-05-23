@@ -495,7 +495,7 @@ class GcnEventAliasesHandler(BaseHandler):
     def post(self, dateobs):
         """
         ---
-        description: Post a GCN Event tag
+        description: Post a GCN Event alias
         tags:
           - gcnevents
         parameters:
@@ -531,6 +531,8 @@ class GcnEventAliasesHandler(BaseHandler):
 
         if alias is None:
             return self.error("alias must be present in data")
+        if type(alias) is not str:
+            return self.error("alias must be a string")
 
         with self.Session() as session:
             try:
@@ -600,6 +602,13 @@ class GcnEventAliasesHandler(BaseHandler):
 
         if alias is None:
             return self.error("alias must be present in data to remove")
+
+        forbidden_substrings = ['LVC#', 'FERMI#']
+        for forbidden_substring in forbidden_substrings:
+            if forbidden_substring in alias:
+                return self.error(
+                    f"Cannot delete alias with substring {forbidden_substring}"
+                )
 
         with self.Session() as session:
             try:
