@@ -88,4 +88,4 @@ openai[embeddings]==0.27.7
 tiktoken==0.3.3
 pinecone-client==2.2.1
 simplejson==3.19.1
-langchain==0.0.149
+langchain==0.0.177
