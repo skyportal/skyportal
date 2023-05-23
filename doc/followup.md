@@ -3,6 +3,7 @@
 The vast majority of follow-up instruments will require some form of authentication. All such information is passed through the `altdata` variable of the `Allocation`s API. We briefly describe the authentication form the available telescopes take below:
 
 * ATLAS Forced Photometry: A user account must be made on https://fallingstar-data.com/forcedphot/, at which point the authentication takes the form `{"api_token": "testtoken"}`.
+* GENERIC: There are three generic methods for distributing follow-up requests. The first is through API, where the user provides {"endpoint": "API_ENDPOINT", "api_token": "token"} where API_ENDPOINT is the telescope API endpoint. The second is through slack, where the user provides {"type": "slack", "slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}. The third is by email, where the user provides {"type": "email", "email": "email_1@gmail.com,email_2@gmail.com"}. Both slack and email also allow for "comment":"True" to indicate that comment text should also be shared in the message.
 * KAIT: A username and password are passed as `{"username": "username", "password": "password"}`.
 * LCO: A user account must be made on https://lco.global/, at which point the authentication takes the form `{"PROPOSAL_ID": "your_proposal_ID", "API_TOKEN": "testtoken", "API_ARCHIVE_TOKEN": "testarchivetoken"}`. The submission token is available directly from https://observe.lco.global while the archive token can be aquired by API:
 ar = requests.post('https://archive-api.lco.global/api-token-auth/',

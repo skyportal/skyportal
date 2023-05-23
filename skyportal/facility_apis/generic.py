@@ -69,7 +69,7 @@ def validate_request(request, filters):
         raise ValueError('priority must be within 1-5.')
 
 
-def create_target_text(request, request_type='email'):
+def create_target_text(request, request_type='email', comments=False):
     """Payload json for SLACK / email queue requests.
 
     Parameters
@@ -78,6 +78,8 @@ def create_target_text(request, request_type='email'):
         The request to add to the queue and the SkyPortal database.
     request_type : str
         Type of request. Must be either email or slack.
+    comments : bool
+        Include comments in notification. Defaults to False.
 
     Returns
     ----------
@@ -126,6 +128,13 @@ def create_target_text(request, request_type='email'):
         f"Exposure counts: {target['exposure_counts']}{linebreak}"
         f"Username: {target['username']}"
     )
+
+    if comments:
+        text_comments = [f"{linebreak}{linebreak}Comments:"]
+        for comment in request.obj.comments:
+            text_comments.append(f'{comment.author.username}: {comment.text}')
+
+        text = text + f"{linebreak}".join(text_comments)
 
     return textwrap.dedent(text)
 
@@ -202,7 +211,14 @@ class GENERICAPI(FollowUpAPI):
                     f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
                 )
 
-                text = create_target_text(request, request_type='slack')
+                if altdata.get('comments') in ["True", "t", "true", "1", True, 1]:
+                    comments = True
+                else:
+                    comments = False
+
+                text = create_target_text(
+                    request, request_type='slack', comments=comments
+                )
 
                 data = json.dumps(
                     {
@@ -231,7 +247,14 @@ class GENERICAPI(FollowUpAPI):
                 if email:
                     subject = f"{cfg['app.title']} - New observation request"
 
-                    text = create_target_text(request, request_type='email')
+                    if altdata.get('comments') in ["True", "t", "true", "1", True, 1]:
+                        comments = True
+                    else:
+                        comments = False
+
+                    text = create_target_text(
+                        request, request_type='email', comments=comments
+                    )
 
                     send_email(
                         recipients=altdata['email'].split(","),
