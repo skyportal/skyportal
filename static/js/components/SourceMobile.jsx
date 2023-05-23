@@ -47,6 +47,7 @@ import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import DisplayPhotStats from "./DisplayPhotStats";
+import DisplayTNSInfo from "./DisplayTNSInfo";
 import EditSourceGroups from "./EditSourceGroups";
 import ShowSummaryHistory from "./ShowSummaryHistory";
 import SourceNotification from "./SourceNotification";
@@ -54,6 +55,7 @@ import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import UpdateSourceSummary from "./UpdateSourceSummary";
+import UpdateSourceTNS from "./UpdateSourceTNS";
 import StartBotSummary from "./StartBotSummary";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
@@ -512,6 +514,26 @@ const SourceMobile = WidthProvider(
                       </div>
                     </div>
                   )}
+                  <div className={classes.alignRight}>
+                    <b>TNS Name: &nbsp;</b>
+                    <UpdateSourceTNS source={source} />
+                    {source.tns_name && (
+                      <div key="tns_name">
+                        <a
+                          key={source.tns_name}
+                          href={`https://www.wis-tns.org/object/${source.tns_name}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {`${source.tns_name} `}
+                        </a>
+                      </div>
+                    )}
+                    <DisplayTNSInfo
+                      tns_info={source.tns_info}
+                      display_header={false}
+                    />
+                  </div>
                   <div className={classes.alignRight}>
                     <>
                       <div className={classes.infoLine}>
@@ -980,6 +1002,10 @@ SourceMobile.propTypes = {
     gal_lon: PropTypes.number,
     gal_lat: PropTypes.number,
     dm: PropTypes.number,
+    ebv: PropTypes.number,
+    tns_name: PropTypes.string,
+    tns_info: PropTypes.arrayOf(PropTypes.shape(Object)),
+    mpc_name: PropTypes.string,
     luminosity_distance: PropTypes.number,
     annotations: PropTypes.arrayOf(
       PropTypes.shape({
