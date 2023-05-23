@@ -538,6 +538,11 @@ def generate_plan(
                 'writeCatalog': False,
                 'catalog_n': 1.0,
                 'powerlaw_dist_exp': 1.0,
+                # TODO: Fix gwemopt.coverage.timeallocation doBlocks if statement
+                # which doesnt pass catalog_struct to gwemopt.tiles.powerlaw_tiles_struct -> gwemopt.tiles.compute_tiles_map
+                # in other methods (outside of doBlocks statement), it does use the catalog_struct we added in the tile_structs
+                # until then, we force doBlocks to False
+                'doBlocks': False,
             }
         elif request.payload["schedule_strategy"] == "tiling":
             params = {**params, 'tilesType': 'moc'}
