@@ -1144,7 +1144,7 @@ def observation_schedule(
     global_constraints = [
         AirmassConstraint(max=2.50, boolean_constraint=False),
         AltitudeConstraint(20 * u.deg, 90 * u.deg),
-        AtNightConstraint.twilight_civil(),
+        AtNightConstraint.twilight_nautical(),
         HourAngleConstraint(min=-5.5, max=5.5),
         MoonSeparationConstraint(min=10.0 * u.deg),
         TargetOfOpportunityConstraint(toos=toos),
