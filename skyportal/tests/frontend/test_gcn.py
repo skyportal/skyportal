@@ -98,7 +98,9 @@ def test_gcn_tach(
     )
     driver.scroll_to_element_and_click(update_aliases, scroll_parent=True)
     driver.wait_for_xpath('//*[contains(., "GRB180116A")]', timeout=60)
-    assert len(driver.find_elements(By.XPATH, '//*[@name="aliases-chips"]/*')) == 2
+    assert (
+        len(driver.find_elements(By.XPATH, '//*[@name="gcn_triggers-aliases"]/*')) == 4
+    )
 
     driver.wait_for_xpath('//a[contains(text(), "GRB 180116A: Fermi GBM Detection")]')
 
