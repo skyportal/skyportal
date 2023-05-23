@@ -7,6 +7,9 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import {
   createTheme,
   ThemeProvider,
@@ -41,6 +44,12 @@ const useStyles = makeStyles(() => ({
   },
   localization: {
     minWidth: "250px",
+  },
+  dialog: {
+    minWidth: "60vw",
+    "& .MuiDialog-paper": {
+      minWidth: "60vw",
+    },
   },
 }));
 
@@ -273,6 +282,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
   const gcnEvent = useSelector((state) => state.gcnEvent);
 
   const observationPlanRequestList = gcnEvent?.observation_plans || [];
+  const fetchedObservationPlan = gcnEvent?.observation_plan || null;
 
   const [
     observationPlanRequestFetchedForLocalization,
@@ -280,6 +290,8 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
   ] = useState(null);
 
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
+
+  const [showTable, setShowTable] = useState(null);
 
   useEffect(() => {
     if (!gcnEvent) {
@@ -301,6 +313,11 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
     observationPlanRequestFetchedForLocalization,
     dateobs,
   ]);
+
+  function handleShowTable(id) {
+    dispatch(Actions.fetchObservationPlan(id));
+    setShowTable(id);
+  }
 
   const [isDeleting, setIsDeleting] = useState(null);
   const handleDelete = async (id) => {
@@ -328,6 +345,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
     setIsSending(id);
     await dispatch(Actions.sendObservationPlanRequest(id));
     setIsSending(null);
+    setShowTable(null);
   };
 
   const [isRemoving, setIsRemoving] = useState(null);
@@ -579,47 +597,106 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
                 <CircularProgress />
               </div>
             ) : (
-              <div className={classes.actionButtons}>
-                {implementsSend && isSending === observationplanRequest.id ? (
-                  <div>
-                    <CircularProgress />
-                  </div>
-                ) : (
-                  <div>
-                    <Button
-                      primary
-                      onClick={() => {
-                        handleSend(observationplanRequest.id);
-                      }}
-                      size="small"
-                      type="submit"
-                      data-testid={`sendRequest_${observationplanRequest.id}`}
-                    >
-                      Send to Queue
-                    </Button>
-                  </div>
-                )}
-                {implementsRemove &&
-                isRemoving === observationplanRequest.id ? (
-                  <div>
-                    <CircularProgress />
-                  </div>
-                ) : (
-                  <div>
-                    <Button
-                      secondary
-                      onClick={() => {
-                        handleRemove(observationplanRequest.id);
-                      }}
-                      size="small"
-                      type="submit"
-                      data-testid={`removeRequest_${observationplanRequest.id}`}
-                    >
-                      Remove from Queue
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <>
+                <div className={classes.actionButtons}>
+                  {implementsSend && isSending === observationplanRequest.id ? (
+                    <div>
+                      <CircularProgress />
+                    </div>
+                  ) : (
+                    <div>
+                      <Button
+                        primary
+                        onClick={() => {
+                          handleShowTable(observationplanRequest.id);
+                        }}
+                        size="small"
+                        type="submit"
+                        data-testid={`sendRequest_${observationplanRequest.id}`}
+                      >
+                        Send to Queue
+                      </Button>
+                    </div>
+                  )}
+                  {implementsRemove &&
+                  isRemoving === observationplanRequest.id ? (
+                    <div>
+                      <CircularProgress />
+                    </div>
+                  ) : (
+                    <div>
+                      <Button
+                        secondary
+                        onClick={() => {
+                          handleRemove(observationplanRequest.id);
+                        }}
+                        size="small"
+                        type="submit"
+                        data-testid={`removeRequest_${observationplanRequest.id}`}
+                      >
+                        Remove from Queue
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <Dialog
+                  open={showTable === observationplanRequest.id}
+                  onClose={() => {
+                    setShowTable(null);
+                  }}
+                  style={{ position: "fixed" }}
+                  className={classes.dialog}
+                >
+                  <DialogTitle>Observation plan</DialogTitle>
+                  <DialogContent>
+                    {fetchedObservationPlan &&
+                    fetchedObservationPlan.id === observationplanRequest.id ? (
+                      /* here will show a list (ordered by time) of all the observations in the plan */
+                      /* for each will show the time, field_id, filter */
+                      <>
+                        <MUIDataTable
+                          data={
+                            fetchedObservationPlan.observation_plans[0]
+                              .planned_observations
+                          }
+                          columns={[
+                            { name: "obstime", label: "Time" },
+                            { name: "field_id", label: "Field ID" },
+                            { name: "filt", label: "Filter" },
+                            { name: "exposure_time", label: "Exposure Time" },
+                            { name: "weight", label: "Weight" },
+                          ]}
+                          options={{
+                            filter: false,
+                            sort: false,
+                            print: true,
+                            download: true,
+                            search: true,
+                            selectableRows: "none",
+                            enableNestedDataAccess: ".",
+                            elevation: 0,
+                          }}
+                        />
+                        <Button
+                          primary
+                          onClick={() => {
+                            handleSend(observationplanRequest.id);
+                          }}
+                          size="small"
+                          type="submit"
+                          data-testid={`sendRequest_${observationplanRequest.id}`}
+                        >
+                          Send to Queue
+                        </Button>
+                      </>
+                    ) : (
+                      <div>
+                        <CircularProgress />
+                      </div>
+                    )}
+                  </DialogContent>
+                </Dialog>
+              </>
             )}
           </div>
         );

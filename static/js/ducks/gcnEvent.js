@@ -40,6 +40,11 @@ const SUBMIT_OBSERVATION_PLAN_REQUEST_TREASUREMAP =
 const DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP =
   "skyportal/DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP";
 
+const FETCH_OBSERVATION_PLAN_REQUEST =
+  "skyportal/FETCH_OBSERVATION_PLAN_REQUEST";
+const FETCH_OBSERVATION_PLAN_REQUEST_OK =
+  "skyportal/FETCH_OBSERVATION_PLAN_REQUEST_OK";
+
 const SEND_OBSERVATION_PLAN_REQUEST = "skyportal/SEND_OBSERVATION_PLAN_REQUEST";
 const REMOVE_OBSERVATION_PLAN_REQUEST =
   "skyportal/REMOVE_OBSERVATION_PLAN_REQUEST";
@@ -222,6 +227,13 @@ export const deleteObservationPlanFields = (id, fieldIds) =>
     DELETE_OBSERVATION_PLAN_FIELDS,
     { fieldIds }
   );
+
+export function fetchObservationPlan(id) {
+  return API.GET(
+    `/api/observation_plan/${id}?includePlannedObservations=true`,
+    FETCH_OBSERVATION_PLAN_REQUEST
+  );
+}
 
 export function getCommentOnGcnEventAttachment(gcnEventID, commentID) {
   return API.GET(
@@ -432,6 +444,12 @@ const reducer = (state = null, action) => {
       return {
         ...state,
         observation_plans: action.data,
+      };
+    }
+    case FETCH_OBSERVATION_PLAN_REQUEST_OK: {
+      return {
+        ...state,
+        observation_plan: action.data,
       };
     }
     default:

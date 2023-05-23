@@ -405,7 +405,12 @@ def generate_plan(
         params = {
             # gwemopt filter strategy
             # options: block (blocks of single filters), integrated (series of alternating filters)
-            'doAlternativeFilters': request.payload["filter_strategy"] == "block",
+            'doAlternatingFilters': True
+            if request.payload["filter_strategy"] == "block"
+            else False,
+            'doBlocks': True
+            if request.payload["filter_strategy"] == "block"
+            else False,
             # flag to indicate fields come from DB
             'doDatabase': True,
             # only keep tiles within powerlaw_cl
@@ -419,13 +424,16 @@ def generate_plan(
             'filters': request.payload["filters"].split(","),
             # GPS time for event
             'gpstime': event_time.gps,
+            # Dateobs of the event in UTC, used when doDatabase is True
+            'dateobs': requests[0].gcnevent.dateobs,
             # Healpix nside for the skymap
             'nside': 512,
             # maximum integrated probability of the skymap to consider
             'powerlaw_cl': request.payload["integrated_probability"],
             'telescopes': [request.instrument.name for request in requests],
             # minimum difference between observations of the same field
-            'mindiff': request.payload["minimum_time_difference"],
+            # 'doMindifFilt': True if request.payload["minimum_time_difference"] > 0 else False, TODO: Understand how to use this parameter
+            'mindiff': request.payload["minimum_time_difference"] * 60,
             # maximum airmass with which to observae
             'airmass': request.payload["maximum_airmass"],
             # array of exposure times (same length as filter array)
@@ -510,6 +518,8 @@ def generate_plan(
                 'slew_rate': slew_rate,
                 # camera readout time
                 'readout': readout,
+                # telescope FOV_type
+                'FOV_type': None,  # TODO: use the instrument FOV from the database
                 # telescope field of view
                 'FOV': 0.0,
                 # exposure time for the given limiting magnitude
@@ -528,6 +538,11 @@ def generate_plan(
                 'writeCatalog': False,
                 'catalog_n': 1.0,
                 'powerlaw_dist_exp': 1.0,
+                # TODO: Fix gwemopt.coverage.timeallocation doBlocks if statement
+                # which doesnt pass catalog_struct to gwemopt.tiles.powerlaw_tiles_struct -> gwemopt.tiles.compute_tiles_map
+                # in other methods (outside of doBlocks statement), it does use the catalog_struct we added in the tile_structs
+                # until then, we force doBlocks to False
+                'doBlocks': False,
             }
         elif request.payload["schedule_strategy"] == "tiling":
             params = {**params, 'tilesType': 'moc'}
@@ -708,6 +723,13 @@ def generate_plan(
                 tile_structs = gwemopt.skyportal.create_galaxy_from_skyportal(
                     params, map_struct, catalog_struct, regions=regions
                 )
+
+        # if min_diff_filt is set, we need to add the 'epochs_filter' key to the tile_structs
+        # TODO: Fix gwemopt so that this does not need to be done in SkyPortal
+        if params.get("doMindifFilt", False):
+            for key in tile_structs.keys():
+                for key2 in tile_structs[key].keys():
+                    tile_structs[key][key2]["epochs_filters"] = []
 
         log(f"Creating schedule(s) for ID(s): {','.join(observation_plan_id_strings)}")
 
@@ -1266,6 +1288,7 @@ class MMAAPI(FollowUpAPI):
                 "balance_exposure": {
                     "title": "Balance exposures across fields",
                     "type": "boolean",
+                    "default": True,
                 },
                 "ra_slice": {
                     "title": "RA Slicing",

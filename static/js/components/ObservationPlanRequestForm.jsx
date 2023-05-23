@@ -80,6 +80,7 @@ const useStyles = makeStyles(() => ({
       // no space between 2 lines of text
       lineHeight: "1rem",
     },
+    marginTop: "0.5rem",
     marginBottom: "1rem",
   },
 }));
@@ -541,6 +542,16 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     );
   };
 
+  const exportData = (data) => {
+    const jsonString = `data:text/json;chatset=utf-8,${encodeURIComponent(
+      JSON.stringify(data.fields)
+    )}`;
+    const link = document.createElement("a");
+    link.href = jsonString;
+    link.download = `${dateobs.replaceAll(":", "-")}_fields_${data.name}.json`;
+    link.click();
+  };
+
   return (
     <Grid container spacing={4}>
       <Grid item xs={12} sm={12} md={6} lg={4}>
@@ -640,6 +651,18 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                 data-testid={`worldmapChartRequest_${selectedLocalizationId}`}
               >
                 World Map Chart
+              </Button>
+              <Button
+                secondary
+                onClick={() => exportData(skymapInstrument)}
+                size="small"
+                type="submit"
+                data-testid="exportSkymapInstrument"
+                disabled={
+                  !skymapInstrument || skymapInstrument?.fields?.length === 0
+                }
+              >
+                Download Fields
               </Button>
             </div>
           </Grid>
