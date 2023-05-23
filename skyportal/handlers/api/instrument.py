@@ -27,6 +27,7 @@ from ...models import (
     InstrumentFieldTile,
     Localization,
     LocalizationTile,
+    Photometry,
     Telescope,
 )
 
@@ -655,6 +656,26 @@ class InstrumentHandler(BaseHandler):
             instrument = session.scalars(stmt).first()
             if instrument is None:
                 return self.error(f'Missing instrument with ID {instrument_id}')
+
+            filters = data.get('filters', None)
+            if filters is not None:
+                if not set(list(instrument.filters)).issubset(set(filters)):
+                    new_filters = list(
+                        set(list(instrument.filters)).difference(set(filters))
+                    )
+                    for filt in new_filters:
+                        stmt = Photometry.select(session.user_or_token).where(
+                            Photometry.filter == filt,
+                            Photometry.instrument_id == instrument.id,
+                        )
+                        count_stmt = sa.select(sa.func.count()).select_from(
+                            stmt.distinct()
+                        )
+                        total_photometry = session.execute(count_stmt).scalar()
+                        if total_photometry > 0:
+                            return self.error(
+                                f'Cannot remove filter {filt} from instrument {instrument.name}: {total_photometry} photometry points must be first deleted.'
+                            )
 
             sensitivity_data = data.get('sensitivity_data', None)
             if isinstance(sensitivity_data, str):
