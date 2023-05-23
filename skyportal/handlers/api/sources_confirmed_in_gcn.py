@@ -640,17 +640,6 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                     "some of the sourceIDs in the sourcesIDList are not valid strings"
                 )
 
-        sources_id_list = data.get('sourcesIDList', '')
-        if sources_id_list != '':
-            try:
-                sources_id_list = [
-                    source_id.strip() for source_id in sources_id_list.split(',')
-                ]
-            except ValueError:
-                return self.error(
-                    "some of the sourceIDs in the sourcesIDList are not valid strings"
-                )
-
         with self.Session() as session:
             try:
                 stmt = GcnEvent.select(session.user_or_token).where(
