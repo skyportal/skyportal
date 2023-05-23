@@ -81,7 +81,9 @@ const GcnTags = ({ gcnEvent, show_title = false }) => {
       gcnTags.push(tag);
     });
   }
-  // we want to look through the gcnEvent?.aliases. If one starts by LVC#, we grab what is after the #
+
+  // we want to look through the gcnEvent.aliases.
+  // If one starts by LVC#, we grab what is after the #
   // and use it later as a link for the LVC tag
   let graceid =
     gcnEvent?.aliases?.find((alias) => alias.startsWith("LVC#")) || null;
@@ -176,9 +178,10 @@ const GcnTags = ({ gcnEvent, show_title = false }) => {
                 label={tag}
                 key={tag}
                 style={{
-                  backgroundColor: gcn_tags_classes
-                    ? gcn_tags_classes[tag]
-                    : "#999999",
+                  backgroundColor:
+                    gcn_tags_classes && tag in gcn_tags_classes
+                      ? gcn_tags_classes[tag]
+                      : "#999999",
                 }}
               />
             )}
