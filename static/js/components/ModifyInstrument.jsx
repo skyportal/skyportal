@@ -186,20 +186,7 @@ const ModifyInstrument = () => {
     instLookUp[selectedInstrumentId].filters?.forEach((filter) => {
       oldFilters.push(filter);
     });
-    const oldFiltersUnique = [...new Set(oldFilters)];
 
-    const newFilters = [];
-    formData.filters?.forEach((filter) => {
-      newFilters.push(filter);
-    });
-    const newFiltersUnique = [...new Set(newFilters)];
-
-    const result = oldFiltersUnique.every((val) =>
-      newFiltersUnique.includes(val)
-    );
-    if (errors && formData.filters && !result) {
-      errors.filters.addError("New filter list must contain old filter list.");
-    }
     if (errors && formData.api_classname && formData.api_classname.length > 1) {
       errors.api_classname.addError("Must only choose one API class.");
     }
