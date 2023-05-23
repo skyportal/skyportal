@@ -432,7 +432,8 @@ def generate_plan(
             'powerlaw_cl': request.payload["integrated_probability"],
             'telescopes': [request.instrument.name for request in requests],
             # minimum difference between observations of the same field
-            'mindiff': request.payload["minimum_time_difference"],
+            # 'doMindifFilt': True if request.payload["minimum_time_difference"] > 0 else False, TODO: Understand how to use this parameter
+            'mindiff': request.payload["minimum_time_difference"] * 60,
             # maximum airmass with which to observae
             'airmass': request.payload["maximum_airmass"],
             # array of exposure times (same length as filter array)
@@ -450,7 +451,7 @@ def generate_plan(
             'max_nb_tiles': [request.payload.get("max_nb_tiles", 100)]
             * len(request.payload["filters"].split(",")),
             # balance observations by filter
-            'doBalanceExposure': request.payload.get("balance_exposure", True),
+            'doBalanceExposure': request.payload.get("balance_exposure", False),
             # slice observations by right ascension
             'doRASlice': request.payload.get("ra_slice", False),
             # right ascension block
@@ -717,6 +718,13 @@ def generate_plan(
                 tile_structs = gwemopt.skyportal.create_galaxy_from_skyportal(
                     params, map_struct, catalog_struct, regions=regions
                 )
+
+        # if min_diff_filt is set, we need to add the 'epochs_filter' key to the tile_structs
+        # TODO: Fix gwemopt so that this does not need to be done in SkyPortal
+        if params.get("doMindifFilt", False):
+            for key in tile_structs.keys():
+                for key2 in tile_structs[key].keys():
+                    tile_structs[key][key2]["epochs_filters"] = []
 
         log(f"Creating schedule(s) for ID(s): {','.join(observation_plan_id_strings)}")
 
