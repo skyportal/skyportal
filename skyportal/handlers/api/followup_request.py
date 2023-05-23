@@ -1113,9 +1113,8 @@ def observation_schedule(
     )
 
     for index, standard in standards.iterrows():
-        obj = standard.name
         coord = SkyCoord(ra=standard.ra_float * u.deg, dec=standard.dec_float * u.deg)
-        target = FixedTarget(coord=coord, name=standard.name)
+        target = FixedTarget(coord=coord, name=f"STD-{standard['name']}")
         priority = 1
         exposure_time = 300 * u.s
         exposure_counts = 1

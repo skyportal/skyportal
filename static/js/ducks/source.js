@@ -144,7 +144,11 @@ export function submitImageAnalysis(id, formData) {
 }
 
 export function copySourcePhotometry(id, formData = {}) {
-  return API.POST(`/api/sources/${id}/copy`, COPY_SOURCE_PHOTOMETRY, formData);
+  return API.POST(
+    `/api/sources/${id}/copy_photometry`,
+    COPY_SOURCE_PHOTOMETRY,
+    formData
+  );
 }
 
 export function addClassification(formData) {
