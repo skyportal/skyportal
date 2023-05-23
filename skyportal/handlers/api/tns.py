@@ -590,6 +590,10 @@ class ObjTNSHandler(BaseHandler):
 
             if tnsrobotID is None:
                 return self.error('tnsrobotID is required')
+            if reporters == '' or not isinstance(reporters, str):
+                return self.error(
+                    'reporters is required and must be a non-empty string'
+                )
 
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)

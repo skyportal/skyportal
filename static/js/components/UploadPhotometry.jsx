@@ -26,15 +26,15 @@ import GroupShareSelect from "./GroupShareSelect";
 import FormValidationError from "./FormValidationError";
 import * as Actions from "../ducks/source";
 
-const sampleFluxSpaceText = `mjd,flux,fluxerr,zp,magsys,instrument_id,filter,altdata.meta1
-58001.,22.,1.,30.,ab,1,ztfg,44.4
-58002.,23.,1.,30.,ab,1,ztfg,43.1
-58003.,22.,1.,30.,ab,1,ztfg,42.5`;
+const sampleFluxSpaceText = `mjd,flux,fluxerr,zp,magsys,filter,altdata.meta1
+58001.,22.,1.,30.,ab,ztfg,44.4
+58002.,23.,1.,30.,ab,ztfg,43.1
+58003.,22.,1.,30.,ab,ztfg,42.5`;
 
-const sampleMagSpaceText = `mjd,mag,magerr,limiting_mag,magsys,instrument_id,filter,altdata.meta1
-58001.,13.3,0.3,18.0,ab,1,ztfg,44.4
-58002.,13.1,0.2,18.0,ab,1,ztfg,43.1
-58003.,12.9,0.3,18.0,ab,1,ztfg,42.5`;
+const sampleMagSpaceText = `mjd,mag,magerr,limiting_mag,magsys,filter,altdata.meta1
+58001.,13.3,0.3,18.0,ab,ztfg,44.4
+58002.,13.1,0.2,18.0,ab,ztfg,43.1
+58003.,12.9,0.3,18.0,ab,ztfg,42.5`;
 
 export const HtmlTooltip = withStyles((theme) => ({
   tooltip: {

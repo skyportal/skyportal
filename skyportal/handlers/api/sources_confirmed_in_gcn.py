@@ -598,7 +598,7 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                   reporters:
                     type: string
                     description: |
-                      Reports for the TNS report.
+                      Reporters for the TNS report.
                   sourcesIDList:
                     type: string
                     description: |
@@ -629,6 +629,8 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
         reporters = data.get('reporters', '')
         if tnsrobotID is None:
             return self.error('tnsrobotID is required')
+        if reporters == '' or not isinstance(reporters, str):
+            return self.error('reporters is required and must be a non-empty string')
 
         if sources_id_list != '':
             try:
