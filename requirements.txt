@@ -59,7 +59,7 @@ healpy==1.16.2
 pygcn==1.1.2
 pysedm==0.31.0
 xmlschema==2.1.1
-requests==2.28.1
+requests==2.31.0
 geojson==3.0.1
 typing-extensions==4.5.0 # Needed for OpenAI
 swifttools==3.0.16
