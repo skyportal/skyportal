@@ -225,6 +225,7 @@ class Obj(Base, conesearch_alchemy.Point):
     host_id = sa.Column(
         sa.ForeignKey('galaxys.id', ondelete='CASCADE'),
         nullable=True,
+        index=True,
         doc="The ID of the Galaxy to which this Obj is associated.",
     )
     summary = sa.Column(sa.String, nullable=True, doc="Summary of the obj.")
