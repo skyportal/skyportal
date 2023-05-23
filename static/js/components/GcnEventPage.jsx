@@ -328,6 +328,7 @@ const GcnEventPage = ({ route }) => {
               // we want to show the title if the breakpoint is over md
               showTitle={isBig}
             />
+            <GcnAliases gcnEvent={gcnEvent} show_title />
           </div>
           <div className={styles.columnItem}>
             <Accordion defaultExpanded>

@@ -151,6 +151,8 @@ def get_tags(root):
     else:
         instruments = value.split(",")
         yield from instruments
+        if len(instruments) > 1:
+            yield "MultiInstrument"
 
     # Get pipeline if present.
     try:
@@ -159,6 +161,17 @@ def get_tags(root):
         pass
     else:
         yield value
+
+    # Get significant tag if present
+    try:
+        value = int(root.find(".//Param[@name='Significant']").attrib['value'])
+    except AttributeError:
+        pass
+    else:
+        if value == 1:
+            yield "Significant"
+        else:
+            yield "Subthreshold"
 
 
 def get_notice_aliases(root, notice_type):
@@ -349,6 +362,15 @@ def get_properties(root):
         if value is not None:
             value = float(value)
             property_dict[property_name] = value
+
+    # Get instruments if present.
+    try:
+        value = root.find(".//Param[@name='Instruments']").attrib['value']
+    except AttributeError:
+        pass
+    else:
+        instruments = value.split(",")
+        property_dict["num_instruments"] = len(instruments)
 
     return property_dict
 

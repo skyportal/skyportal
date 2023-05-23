@@ -749,6 +749,7 @@ colors:
       "BBH": "#333333",
       "GRB": "#f89406",
       "AMON": "#3a87ad",
+      "Significant": "#8B008B",
     }
 
   summary_sources:

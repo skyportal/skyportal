@@ -475,12 +475,31 @@ class GalaxyCatalogHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            session.execute(
-                sa.delete(Galaxy).where(Galaxy.catalog_name == catalog_name)
+        with self.Session():
+
+            IOLoop.current().run_in_executor(
+                None, lambda: delete_galaxies(catalog_name)
             )
-            session.commit()
+
             return self.success()
+
+
+def delete_galaxies(catalog_name):
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    try:
+        session.execute(sa.delete(Galaxy).where(Galaxy.catalog_name == catalog_name))
+        session.commit()
+        return log(f"Deleted galaxy table: {catalog_name}")
+    except Exception as e:
+        return log(f"Unable to generate galaxy table: {e}")
+    finally:
+        session.close()
+        Session.remove()
 
 
 def add_galaxies(catalog_name, catalog_data):

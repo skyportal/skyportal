@@ -59,9 +59,9 @@ healpy==1.16.2
 pygcn==1.1.2
 pysedm==0.31.0
 xmlschema==2.1.1
-requests==2.28.1
+requests==2.31.0
 geojson==3.0.1
-typing-extensions>=4.0.1  # astropy v5.0 needs this, but does not correctly specify as much in its install config
+typing-extensions==4.5.0 # Needed for OpenAI
 swifttools==3.0.16
 pip==22.3.1
 gwemopt==0.0.84
@@ -84,8 +84,10 @@ watchdog==2.2.1
 PyAstronomy==0.18.1
 shapely==1.8.1
 stdpipe==0.1
-openai[embeddings]==0.27.2
+openai[embeddings]==0.27.7
 tiktoken==0.3.3
 pinecone-client==2.2.1
 simplejson==3.19.1
-langchain==0.0.149
+langchain==0.0.177
+pydantic==1.10.7
+typing-inspect==0.8.0 # Needed for OpenAI

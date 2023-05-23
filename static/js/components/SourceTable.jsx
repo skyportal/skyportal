@@ -1289,11 +1289,7 @@ const SourceTable = ({
 
   const renderTNSName = (dataIndex) => {
     const source = sources[dataIndex];
-    return (
-      <div>
-        {source.altdata && source.altdata.tns ? source.altdata.tns.name : ""}
-      </div>
-    );
+    return <div>{source.tns_name ? source.tns_name : ""}</div>;
   };
 
   const renderMPCName = (dataIndex) => {
@@ -2084,6 +2080,7 @@ SourceTable.propTypes = {
       }),
       host_offset: PropTypes.number,
       alias: PropTypes.arrayOf(PropTypes.string),
+      tns_name: PropTypes.string,
       mpc_name: PropTypes.string,
       redshift: PropTypes.number,
       annotations: PropTypes.arrayOf(

@@ -44,6 +44,7 @@ def test_gcn_GW(super_admin_token, view_only_token):
         'MassGap': 0.0,
         'HasRemnant': 1.0,
         'Terrestrial': 0.00059743288626,
+        'num_instruments': 2,
     }
     assert data["properties"][0]["data"] == property_dict
 

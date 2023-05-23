@@ -40,6 +40,11 @@ const SUBMIT_OBSERVATION_PLAN_REQUEST_TREASUREMAP =
 const DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP =
   "skyportal/DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP";
 
+const FETCH_OBSERVATION_PLAN_REQUEST =
+  "skyportal/FETCH_OBSERVATION_PLAN_REQUEST";
+const FETCH_OBSERVATION_PLAN_REQUEST_OK =
+  "skyportal/FETCH_OBSERVATION_PLAN_REQUEST_OK";
+
 const SEND_OBSERVATION_PLAN_REQUEST = "skyportal/SEND_OBSERVATION_PLAN_REQUEST";
 const REMOVE_OBSERVATION_PLAN_REQUEST =
   "skyportal/REMOVE_OBSERVATION_PLAN_REQUEST";
@@ -65,6 +70,9 @@ const FETCH_GCN_TRIGGERED = "skyportal/FETCH_GCN_TRIGGERED";
 const FETCH_GCN_TRIGGERED_OK = "skyportal/FETCH_GCN_TRIGGERED_OK";
 const DELETE_GCN_TRIGGERED = "skyportal/DELETE_GCN_TRIGGERED";
 const REFRESH_GCN_TRIGGERED = "skyportal/REFRESH_GCN_TRIGGERED";
+
+const POST_GCN_ALIAS = "skyportal/POST_GCN_ALIAS";
+const DELETE_GCN_ALIAS = "skyportal/DELETE_GCN_ALIAS";
 
 const FETCH_GCNEVENT_SURVEY_EFFICIENCY =
   "skyportal/FETCH_GCNEVENT_SURVEY_EFFICIENCY";
@@ -220,6 +228,13 @@ export const deleteObservationPlanFields = (id, fieldIds) =>
     { fieldIds }
   );
 
+export function fetchObservationPlan(id) {
+  return API.GET(
+    `/api/observation_plan/${id}?includePlannedObservations=true`,
+    FETCH_OBSERVATION_PLAN_REQUEST
+  );
+}
+
 export function getCommentOnGcnEventAttachment(gcnEventID, commentID) {
   return API.GET(
     `/api/gcn_event/${gcnEventID}/comments/${commentID}/attachment`,
@@ -265,6 +280,18 @@ export function patchGcnEventSummary(dateobs, summaryID, formData) {
     `/api/gcn_event/${dateobs}/summary/${summaryID}`,
     PATCH_GCNEVENT_SUMMARY,
     formData
+  );
+}
+
+export function postGcnAlias(dateobs, params = {}) {
+  return API.POST(`/api/gcn_event/${dateobs}/alias`, POST_GCN_ALIAS, params);
+}
+
+export function deleteGcnAlias(dateobs, params = {}) {
+  return API.DELETE(
+    `/api/gcn_event/${dateobs}/alias`,
+    DELETE_GCN_ALIAS,
+    params
   );
 }
 
@@ -417,6 +444,12 @@ const reducer = (state = null, action) => {
       return {
         ...state,
         observation_plans: action.data,
+      };
+    }
+    case FETCH_OBSERVATION_PLAN_REQUEST_OK: {
+      return {
+        ...state,
+        observation_plan: action.data,
       };
     }
     default:

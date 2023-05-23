@@ -12,6 +12,7 @@ from baselayer.log import make_log
 
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm.attributes import flag_modified
 
 Session = scoped_session(sessionmaker())
 
@@ -232,7 +233,8 @@ def post_aliases(dateobs, tach_id, user_id):
                 for new_gcn_alias in new_gcn_aliases:
                     if new_gcn_alias not in gcn_aliases:
                         gcn_aliases.append(new_gcn_alias)
-                gcn_event.aliases = gcn_aliases
+                setattr(gcn_event, 'aliases', gcn_aliases)
+                flag_modified(gcn_event, 'aliases')
 
         session.commit()
 

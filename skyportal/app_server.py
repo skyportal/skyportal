@@ -48,6 +48,7 @@ from skyportal.handlers.api import (
     GalaxyASCIIFileHandler,
     GalaxyGladeHandler,
     GcnEventHandler,
+    GcnEventAliasesHandler,
     GcnEventPropertiesHandler,
     GcnEventTagsHandler,
     GcnEventObservationPlanRequestsHandler,
@@ -168,6 +169,7 @@ from skyportal.handlers.api import (
     AnalysisWebhookHandler,
     PS1ThumbnailHandler,
     SourcesConfirmedInGCNHandler,
+    SourcesConfirmedInGCNTNSHandler,
     GCNsAssociatedWithSourceHandler,
 )
 from skyportal.handlers.api.internal import (
@@ -308,6 +310,7 @@ skyportal_handlers = [
     ),
     (r'/api/earthquake/status', EarthquakeStatusHandler),
     (r'/api/earthquake(/.*)?', EarthquakeHandler),
+    (r'/api/gcn_event(/.*)/alias', GcnEventAliasesHandler),
     (r'/api/gcn_event(/.*)/triggered(/.*)?', GcnEventTriggerHandler),
     (r'/api/gcn_event(/.*)/gracedb', GcnGraceDBHandler),
     (r'/api/gcn_event(/.*)/tach', GcnTachHandler),
@@ -316,6 +319,7 @@ skyportal_handlers = [
     (r'/api/gcn_event/tags(/.*)?', GcnEventTagsHandler),
     (r'/api/gcn_event/properties', GcnEventPropertiesHandler),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
+    (r'/api/sources_in_gcn/(.*)/tns', SourcesConfirmedInGCNTNSHandler),
     (r'/api/sources_in_gcn/(.*)/(.*)', SourcesConfirmedInGCNHandler),
     (r'/api/sources_in_gcn/(.*)', SourcesConfirmedInGCNHandler),
     (r'/api/associated_gcns/(.*)', GCNsAssociatedWithSourceHandler),
