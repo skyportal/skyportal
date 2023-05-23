@@ -160,6 +160,17 @@ def get_tags(root):
     else:
         yield value
 
+    # Get significant tag if present
+    try:
+        value = int(root.find(".//Param[@name='Significant']").attrib['value'])
+    except AttributeError:
+        pass
+    else:
+        if value == 1:
+            yield "Significant"
+        else:
+            yield "Subthreshold"
+
 
 def get_notice_aliases(root, notice_type):
     aliases = []
