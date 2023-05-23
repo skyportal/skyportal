@@ -450,7 +450,7 @@ def generate_plan(
             'max_nb_tiles': [request.payload.get("max_nb_tiles", 100)]
             * len(request.payload["filters"].split(",")),
             # balance observations by filter
-            'doBalanceExposure': request.payload.get("balance_exposure", False),
+            'doBalanceExposure': request.payload.get("balance_exposure", True),
             # slice observations by right ascension
             'doRASlice': request.payload.get("ra_slice", False),
             # right ascension block
@@ -517,6 +517,8 @@ def generate_plan(
                 'slew_rate': slew_rate,
                 # camera readout time
                 'readout': readout,
+                # telescope FOV_type
+                'FOV_type': None,  # TODO: use the instrument FOV from the database
                 # telescope field of view
                 'FOV': 0.0,
                 # exposure time for the given limiting magnitude
@@ -1273,6 +1275,7 @@ class MMAAPI(FollowUpAPI):
                 "balance_exposure": {
                     "title": "Balance exposures across fields",
                     "type": "boolean",
+                    "default": True,
                 },
                 "ra_slice": {
                     "title": "RA Slicing",

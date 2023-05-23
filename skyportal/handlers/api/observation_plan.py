@@ -9,6 +9,8 @@ import time
 import astropy
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
+import numpy.ma as ma
+
 from astropy import units as u
 from astroplan import (
     AirmassConstraint,
@@ -720,9 +722,19 @@ class ObservationPlanRequestHandler(BaseHandler):
                             planned_observations.append(
                                 {
                                     **planned_observation_data,
-                                    'rise_time': rise_time,
-                                    'set_time': set_time,
+                                    'rise_time': rise_time
+                                    if not type(rise_time) is ma.masked_array
+                                    else None,
+                                    'set_time': set_time
+                                    if not type(set_time) is ma.masked_array
+                                    else None,
                                 }
+                            )
+                            # sort the planned observations by obstime
+                            planned_observations = sorted(
+                                planned_observations,
+                                key=lambda k: k['obstime'],
+                                reverse=False,
                             )
                         observation_plans.append(
                             {
