@@ -130,9 +130,12 @@ def create_target_text(request, request_type='email', comments=False):
     )
 
     if comments:
-        text_comments = [f"{linebreak}{linebreak}Comments:"]
-        for comment in request.obj.comments:
-            text_comments.append(f'{comment.author.username}: {comment.text}')
+        if len(request.obj.comments) > 0:
+            text_comments = [f"{linebreak}{linebreak}Comments:"]
+            for comment in request.obj.comments:
+                text_comments.append(f'{comment.author.username}: {comment.text}')
+        else:
+            text_comments = [f"{linebreak}{linebreak}No Comments"]
 
         text = text + f"{linebreak}".join(text_comments)
 
