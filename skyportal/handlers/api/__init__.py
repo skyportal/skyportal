@@ -54,6 +54,7 @@ from .galaxy import (
 )
 from .gcn import (
     GcnEventHandler,
+    GcnEventAliasesHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventPropertiesHandler,
     GcnEventSurveyEfficiencyHandler,

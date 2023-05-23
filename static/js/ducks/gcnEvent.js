@@ -66,6 +66,9 @@ const FETCH_GCN_TRIGGERED_OK = "skyportal/FETCH_GCN_TRIGGERED_OK";
 const DELETE_GCN_TRIGGERED = "skyportal/DELETE_GCN_TRIGGERED";
 const REFRESH_GCN_TRIGGERED = "skyportal/REFRESH_GCN_TRIGGERED";
 
+const POST_GCN_ALIAS = "skyportal/POST_GCN_ALIAS";
+const DELETE_GCN_ALIAS = "skyportal/DELETE_GCN_ALIAS";
+
 const FETCH_GCNEVENT_SURVEY_EFFICIENCY =
   "skyportal/FETCH_GCNEVENT_SURVEY_EFFICIENCY";
 const FETCH_GCNEVENT_SURVEY_EFFICIENCY_OK =
@@ -265,6 +268,18 @@ export function patchGcnEventSummary(dateobs, summaryID, formData) {
     `/api/gcn_event/${dateobs}/summary/${summaryID}`,
     PATCH_GCNEVENT_SUMMARY,
     formData
+  );
+}
+
+export function postGcnAlias(dateobs, params = {}) {
+  return API.POST(`/api/gcn_event/${dateobs}/alias`, POST_GCN_ALIAS, params);
+}
+
+export function deleteGcnAlias(dateobs, params = {}) {
+  return API.DELETE(
+    `/api/gcn_event/${dateobs}/alias`,
+    DELETE_GCN_ALIAS,
+    params
   );
 }
 

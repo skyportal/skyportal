@@ -27,6 +27,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import cast
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm.attributes import flag_modified
 from marshmallow import Schema
 from marshmallow.exceptions import ValidationError
 import numpy as np
@@ -487,6 +488,156 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
             add_tiles_properties_contour_and_obsplan(localization_id, user_id, session)
 
     return event.id
+
+
+class GcnEventAliasesHandler(BaseHandler):
+    @auth_or_token
+    def post(self, dateobs):
+        """
+        ---
+        description: Post a GCN Event alias
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+            description: The dateobs of the event, as an arrow parseable string
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alias:
+                    type: string
+                    description: Alias to add to the event
+                required:
+                  - alias
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+        alias = data.get('alias', None)
+
+        if alias is None:
+            return self.error("alias must be present in data")
+        if type(alias) is not str:
+            return self.error("alias must be a string")
+
+        with self.Session() as session:
+            try:
+                event = session.scalars(
+                    GcnEvent.select(
+                        session.user_or_token,
+                        mode="update",
+                    ).where(GcnEvent.dateobs == dateobs)
+                ).first()
+                if event is None:
+                    return self.error("GCN event not found", status=404)
+
+                if event.aliases is None:
+                    event.aliases = [alias]
+                elif alias not in event.aliases:
+                    event.aliases = list(set(event.aliases + [alias]))
+                else:
+                    return self.error(f'{alias} already in {dateobs} aliases.')
+                session.commit()
+
+                self.push(
+                    action='skyportal/REFRESH_GCN_EVENT',
+                    payload={"gcnEvent_dateobs": dateobs},
+                )
+            except Exception as e:
+                return self.error(f'Cannot post alias: {str(e)}')
+
+            return self.success()
+
+    @auth_or_token
+    def delete(self, dateobs):
+        """
+        ---
+        description: Delete a GCN event alias
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: dateobs
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alias:
+                    type: string
+                    description: Alias to remove from the event
+                required:
+                  - alias
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        alias = data.get('alias')
+
+        if alias is None:
+            return self.error("alias must be present in data to remove")
+
+        forbidden_substrings = ['LVC#', 'FERMI#']
+        for forbidden_substring in forbidden_substrings:
+            if forbidden_substring in alias:
+                return self.error(
+                    f"Cannot delete alias with substring {forbidden_substring}"
+                )
+
+        with self.Session() as session:
+            try:
+                event = session.scalars(
+                    GcnEvent.select(
+                        session.user_or_token,
+                        mode="update",
+                    ).where(GcnEvent.dateobs == dateobs)
+                ).first()
+                if event is None:
+                    return self.error("GCN event not found", status=404)
+
+                if alias in event.aliases:
+                    aliases = event.aliases
+                    aliases.remove(alias)
+                    setattr(event, 'aliases', aliases)
+                    flag_modified(event, 'aliases')
+                else:
+                    return self.error(f'{alias} not in {dateobs} aliases.')
+                session.commit()
+
+                self.push(
+                    action='skyportal/REFRESH_GCN_EVENT',
+                    payload={"gcnEvent_dateobs": dateobs},
+                )
+            except Exception as e:
+                return self.error(f'Cannot remove alias: {str(e)}')
+
+            return self.success()
 
 
 class GcnEventTagsHandler(BaseHandler):
