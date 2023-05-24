@@ -57,7 +57,7 @@ const Crossmatch = () => {
   };
 
   return (
-    <form className={classes.root}>
+    <div className={classes.root}>
       <div className={classes.gridItem}>
         <h6> 1: </h6>
         <FindGcnEvents
@@ -77,7 +77,6 @@ const Crossmatch = () => {
         />
       </div>
       <ButtonGroup
-        primary
         aria-label="contained primary button group"
         className={classes.formButtons}
       >
@@ -94,7 +93,7 @@ const Crossmatch = () => {
           Reset
         </Button>
       </ButtonGroup>
-    </form>
+    </div>
   );
 };
 
