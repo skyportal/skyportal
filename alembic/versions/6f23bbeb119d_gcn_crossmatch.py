@@ -1,7 +1,7 @@
 """GCN crossmatch migration
 
 Revision ID: 6f23bbeb119d
-Revises: f027c37fabed
+Revises: 38f9789d2dff
 Create Date: 2023-05-20 20:47:34.554780
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '6f23bbeb119d'
-down_revision = 'f027c37fabed'
+down_revision = '38f9789d2dff'
 branch_labels = None
 depends_on = None
 
