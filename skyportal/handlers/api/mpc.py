@@ -3,7 +3,6 @@ from astropy.time import Time
 from astropy.coordinates import Angle
 import astropy.units as u
 import asyncio
-from bs4 import BeautifulSoup
 import requests
 import re
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -13,6 +12,7 @@ import urllib
 from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
+from baselayer.app.flow import Flow
 
 from ..base import BaseHandler
 from ...models import (
@@ -189,27 +189,30 @@ def query_mpc(obj_id, user_id, url):
 
         requests_session = requests.Session()
         response = requests_session.get(url)
-        soup = BeautifulSoup(response.text, "html.parser")
 
-        pre = soup.find("pre")
-        if pre is None:
-            log(f'Error checking MPC for {obj_id}: {str(soup)}')
+        if re.findall("The following objects,.*", response.text):
+            responseSplit = response.text.split("(1)")[-1].split(" ")
+            mpc_name = list(filter(None, responseSplit))[0]
+
+            log(f'{obj_id}: identified MPC name {mpc_name}')
+
+            obj.is_roid = True
+            obj.mpc_name = mpc_name
+            session.commit()
+        elif re.findall("No known minor planets,.*", response.text):
+            log(f'{obj_id}: No known minor planets')
+            obj.is_roid = False
+            session.commit()
         else:
-            if re.findall("The following objects,.*", response.text)[0]:
-                responseSplit = response.text.split("(1)")[-1].split(" ")
-                mpc_name = list(filter(None, responseSplit))[0]
+            log(f'Message from MPC for {obj_id} not parsable: {response.text}')
 
-                log(f'{obj_id}: identified MPC name {mpc_name}')
+        flow = Flow()
+        flow.push(
+            '*',
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': obj.internal_key},
+        )
 
-                obj.is_roid = True
-                obj.mpc_name = mpc_name
-
-            elif re.findall("No known minor planets,.*", response.text)[0]:
-                log(f'{obj_id}: No known minor planets')
-                obj.is_roid = False
-
-            else:
-                log(f'Message from MPC for {obj_id} not parsable: {response.text}')
     except Exception as e:
         log(f"Error checking MPC for {obj_id}: {(str(e))}")
         session.rollback()

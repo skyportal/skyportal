@@ -271,6 +271,10 @@ class Obj(Base, conesearch_alchemy.Point):
         sa.String,
         doc="Minor planet center name.",
     )
+    gcn_crossmatch = sa.Column(
+        sa.ARRAY(sa.String),
+        doc="List of GCN event dateobs for crossmatched events.",
+    )
     tns_name = sa.Column(
         sa.String,
         doc="Transient Name Server name.",

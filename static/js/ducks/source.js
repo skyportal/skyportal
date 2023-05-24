@@ -114,6 +114,12 @@ const REMOVE_HOST = "skyportal/REMOVE_HOST";
 
 const ADD_MPC = "skyportal/ADD_MPC";
 
+const ADD_GCN_CROSSMATCH = "skyportal/ADD_GCN_CROSSMATCH";
+
+export function addGCNCrossmatch(id, formData) {
+  return API.POST(`/api/sources/${id}/gcn_event`, ADD_GCN_CROSSMATCH, formData);
+}
+
 export function addMPC(id, formData) {
   return API.POST(`/api/sources/${id}/mpc`, ADD_MPC, formData);
 }
