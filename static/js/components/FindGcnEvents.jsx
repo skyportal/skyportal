@@ -61,6 +61,8 @@ const FindGcnEvents = ({
     gcnEventsLookUp[gcnEvent.id] = gcnEvent;
   });
 
+  const [selectedDateobs, setSelectedDateobs] = React.useState(null);
+
   return (
     <div className={classes.gridItem}>
       <div className={classes.selectItems}>
@@ -76,7 +78,7 @@ const FindGcnEvents = ({
           className={classes.select}
           // eslint-disable-next-line no-shadow
           onInputChange={(event, value) => {
-            if (value !== null) {
+            if (value !== null && value !== selectedDateobs) {
               dispatch(
                 gcnEventsActions.fetchGcnEvents({
                   partialdateobs: value,
@@ -87,6 +89,7 @@ const FindGcnEvents = ({
           onChange={(event, newValue) => {
             if (newValue !== null) {
               setSelectedGcnEventId(newValue.id);
+              setSelectedDateobs(newValue.dateobs);
               setSelectedLocalizationId(
                 gcnEventsLookUp[newValue.id]?.localizations[0]?.id || ""
               );
