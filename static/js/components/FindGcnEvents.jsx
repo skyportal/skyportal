@@ -95,6 +95,7 @@ const FindGcnEvents = ({
               );
             } else {
               setSelectedGcnEventId(null);
+              setSelectedDateobs(null);
               setSelectedLocalizationId(null);
             }
           }}
