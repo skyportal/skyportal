@@ -1,13 +1,14 @@
-import os
-from pathlib import Path
 import argparse
+import os
 from email.utils import parseaddr
-from baselayer.app.env import load_env
-from baselayer.app.model_util import status, drop_tables, create_tables
-from social_tornado.models import TornadoStorage
-from skyportal.models import init_db, Base, User, DBSession
+from pathlib import Path
 
 import model_util
+
+from baselayer.app.env import load_env
+from baselayer.app.model_util import create_tables, drop_tables, status
+from baselayer.app.psa import TornadoStorage
+from skyportal.models import Base, DBSession, User, init_db
 
 """
 usage: initial_setup.py [-h] [--nodrop] [--adminusername ADMINUSER]
