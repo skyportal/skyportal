@@ -885,7 +885,8 @@ def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=5):
         c = SkyCoord(ra=ra * u.degree, dec=dec * u.degree, frame='icrs')
         req_data = {
             "ra": c.ra.to_string(unit=u.hour, sep=':'),
-            "dec": c.dec.to_string(unit=u.degree, sep=':'),
+            "dec": "+0"
+            + c.dec.to_string(unit=u.degree, sep=':', alwayssign=True, pad=True),
             "radius": f"{radius}",
             "units": "arcsec",
             "objname": "",
