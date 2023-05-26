@@ -70,6 +70,7 @@ from ...models import (
     LocalizationTile,
     LocalizationTag,
     MMADetector,
+    Obj,
     ObservationPlanRequest,
     User,
     Group,
@@ -3463,3 +3464,204 @@ class GcnEventTriggerHandler(BaseHandler):
                     )
             except Exception as e:
                 return self.error(f'Failed to delete triggered status: str({e})')
+
+
+class ObjGcnEventHandler(BaseHandler):
+    @auth_or_token
+    def post(self, obj_id):
+        """
+        ---
+        description: Retrieve an object's in-out critera for GcnEvents
+        tags:
+          - objs
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  startDate:
+                    type: string
+                    description: |
+                      Arrow-parseable date string (e.g. 2020-01-01).
+                      If provided, filter by GcnEvent.dateobs >= startDate.
+                  endDate:
+                    type: string
+                    description: |
+                      Arrow-parseable date string (e.g. 2020-01-01).
+                      If provided, filter by GcnEvent.dateobs <= startDate.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
+        integrated_probability = self.get_query_argument('probability', 0.95)
+
+        with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(session.user_or_token, mode='update').where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f"Cannot find object with ID {obj_id}.")
+
+            query = GcnEvent.select(
+                session.user_or_token,
+            )
+
+            if start_date:
+                start_date = arrow.get(start_date.strip()).datetime
+                query = query.where(GcnEvent.dateobs >= start_date)
+            if end_date:
+                end_date = arrow.get(end_date.strip()).datetime
+                query = query.where(GcnEvent.dateobs <= end_date)
+
+            event_ids = [event.id for event in session.scalars(query).unique().all()]
+            if len(event_ids) == 0:
+                return self.error("Cannot find GcnEvents in those bounds.")
+
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: crossmatch_gcn_objects(
+                    obj_id,
+                    event_ids,
+                    self.associated_user_object.id,
+                    integrated_probability=integrated_probability,
+                ),
+            )
+
+            return self.success()
+
+
+def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.95):
+    """Query MPC for a given object.
+    obj_id : str
+        Object ID
+    events_id : List[int]
+        GCN Event IDs to crossmatch against
+    user_id : int
+        SkyPortal ID of User posting the MPC result
+    integrated_probability : float
+        Confidence level up to which to perform crossmatch
+    """
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    user = session.scalar(sa.select(User).where(User.id == user_id))
+
+    try:
+        obj = session.scalars(
+            Obj.select(user, mode='update').where(Obj.id == obj_id)
+        ).first()
+        if obj is None:
+            raise ValueError(f"Cannot find object with ID {obj_id}.")
+
+        events = []
+        for event_id in event_ids:
+
+            event = session.scalars(
+                GcnEvent.select(
+                    user,
+                    options=[
+                        joinedload(GcnEvent.localizations),
+                    ],
+                ).where(GcnEvent.id == event_id)
+            ).first()
+            if event is None:
+                continue
+            if len(event.localizations) == 0:
+                continue
+            localization_id = event.localizations[0].id
+
+            partition_key = event.dateobs
+            # now get the dateobs in the format YYYY_MM
+            localizationtile_partition_name = (
+                f'{partition_key.year}_{partition_key.month:02d}'
+            )
+            localizationtilescls = LocalizationTile.partitions.get(
+                localizationtile_partition_name, None
+            )
+            if localizationtilescls is None:
+                localizationtilescls = LocalizationTile
+            else:
+                # check that there is actually a localizationTile with the given localization_id in the partition
+                # if not, use the default partition
+                if not (
+                    session.scalars(
+                        sa.select(localizationtilescls.localization_id).where(
+                            localizationtilescls.localization_id == localization_id
+                        )
+                    ).first()
+                ):
+                    localizationtilescls = LocalizationTile.partitions.get(
+                        'def', LocalizationTile
+                    )
+
+            cum_prob = (
+                sa.func.sum(
+                    localizationtilescls.probdensity * localizationtilescls.healpix.area
+                )
+                .over(order_by=localizationtilescls.probdensity.desc())
+                .label('cum_prob')
+            )
+            localizationtile_subquery = (
+                sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                    localizationtilescls.localization_id == localization_id
+                )
+            ).subquery()
+
+            min_probdensity = (
+                sa.select(
+                    sa.func.min(localizationtile_subquery.columns.probdensity)
+                ).filter(
+                    localizationtile_subquery.columns.cum_prob <= integrated_probability
+                )
+            ).scalar_subquery()
+
+            obj_query = sa.select(Obj.id).where(
+                Obj.id == obj.id,
+                localizationtilescls.localization_id == localization_id,
+                localizationtilescls.probdensity >= min_probdensity,
+                localizationtilescls.healpix.contains(Obj.healpix),
+            )
+            obj_check = session.scalars(obj_query).first()
+            if obj_check is not None:
+                events.append(event.dateobs)
+
+        obj.gcn_crossmatch = events
+        session.commit()
+
+        flow = Flow()
+        flow.push(
+            '*',
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': obj.internal_key},
+        )
+
+        log(f"Generated GCN crossmatch for {obj_id}")
+    except Exception as e:
+        log(f"Unable to generate GCN crossmatch for {obj_id}: {e}")
+    finally:
+        session.close()
+        Session.remove()

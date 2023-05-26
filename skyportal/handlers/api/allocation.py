@@ -91,7 +91,8 @@ class AllocationHandler(BaseHandler):
                 requests = []
                 for request in allocation_data['requests']:
                     request_data = request.to_dict()
-                    request_data['requester'] = request.requester.to_dict()
+                    if request.requester is not None:
+                        request_data['requester'] = request.requester.to_dict()
                     request_data['obj'] = request.obj.to_dict()
                     request_data['obj']['thumbnails'] = [
                         thumbnail.to_dict() for thumbnail in request.obj.thumbnails
