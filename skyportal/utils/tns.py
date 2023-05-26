@@ -80,7 +80,14 @@ def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=5):
         return None, None
 
 
-def post_tns(request_body, timeout=2):
+def post_tns(obj_ids, tnsrobot_id, user_id, reporters="", timeout=2):
+
+    request_body = {
+        'obj_ids': obj_ids,
+        'tnsrobot_id': tnsrobot_id,
+        'user_id': user_id,
+        'reporters': reporters,
+    }
 
     tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_queue"]}'
 

@@ -685,16 +685,15 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
 
-                request_body = {
-                    'obj_ids': [obj.obj_id for obj in sources_in_gcn],
-                    'tnsrobot_id': tnsrobot.id,
-                    'user_id': self.associated_user_object.id,
-                    'reporters': reporters,
-                }
-
                 IOLoop.current().run_in_executor(
                     None,
-                    lambda: post_tns(request_body, timeout=30),
+                    lambda: post_tns(
+                        obj_ids=[obj.obj_id for obj in sources_in_gcn],
+                        tnsrobot_id=tnsrobot.id,
+                        user_id=self.associated_user_object.id,
+                        reporters=reporters,
+                        timeout=30,
+                    ),
                 )
                 return self.success()
 

@@ -386,13 +386,6 @@ class ObjTNSHandler(BaseHandler):
             if 'api_key' not in altdata:
                 return self.error('Missing TNS API key.')
 
-            request_body = {
-                'obj_ids': [obj.id],
-                'tnsrobot_id': tnsrobot.id,
-                'user_id': self.associated_user_object.id,
-                'reporters': reporters,
-            }
-
             try:
                 loop = asyncio.get_event_loop()
             except Exception:
@@ -400,7 +393,13 @@ class ObjTNSHandler(BaseHandler):
                 asyncio.set_event_loop(loop)
             IOLoop.current().run_in_executor(
                 None,
-                lambda: post_tns(request_body, timeout=30),
+                lambda: post_tns(
+                    obj_ids=[obj.id],
+                    tnsrobot_id=tnsrobot.id,
+                    user_id=self.associated_user_object.id,
+                    reporters=reporters,
+                    timeout=30,
+                ),
             )
 
             return self.success()
