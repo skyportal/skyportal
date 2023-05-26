@@ -6,9 +6,10 @@ from tornado.ioloop import IOLoop
 from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from .source import get_sources, MAX_SOURCES_PER_PAGE
-from .tns import tns_submission
+
 from ...models import GcnEvent, Localization, SourcesConfirmedInGCN, TNSRobot
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
+from ...utils.tns import post_tns
 
 
 class Validator(Schema):
@@ -686,11 +687,12 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
 
                 IOLoop.current().run_in_executor(
                     None,
-                    lambda: tns_submission(
-                        [obj.obj_id for obj in sources_in_gcn],
-                        tnsrobot.id,
-                        self.associated_user_object.id,
+                    lambda: post_tns(
+                        obj_ids=[obj.obj_id for obj in sources_in_gcn],
+                        tnsrobot_id=tnsrobot.id,
+                        user_id=self.associated_user_object.id,
                         reporters=reporters,
+                        timeout=30,
                     ),
                 )
                 return self.success()

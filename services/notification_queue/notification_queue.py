@@ -1353,5 +1353,5 @@ if __name__ == "__main__":
             log(f"Current notification queue length: {len(queue)}")
             time.sleep(120)
     except Exception as e:
-        log(f"Error starting observation plan queue: {str(e)}")
+        log(f"Error starting notification queue: {str(e)}")
         raise e
