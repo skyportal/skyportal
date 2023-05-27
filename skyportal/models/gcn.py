@@ -17,11 +17,26 @@ from baselayer.app.models import (
     UserAccessControl,
     safe_aliased,
     join_model,
+    restricted,
 )
 from .group import accessible_by_group_members
 from .allocation import Allocation, AllocationUser
 
 SOURCE_RADIUS_THRESHOLD = 5 / 60.0  # 5 arcmin in degrees
+
+
+def gcn_tag_update_delete_logic(cls, user_or_token):
+    """This function generates the query for GCNTags that the current user
+    can update or delete. If the querying user doesn't have System admin or
+    Manage GCNs acl, then no GCN tags are accessible to that user under this
+    policy .
+    """
+
+    if len({'Manage GCNs', 'System admin'} & set(user_or_token.permissions)) == 0:
+        # nothing accessible
+        return restricted.query_accessible_rows(cls, user_or_token)
+
+    return DBSession().query(cls)
 
 
 class GcnSummary(Base):
@@ -74,7 +89,9 @@ class GcnSummary(Base):
 class GcnNotice(Base):
     """Records of ingested GCN notices"""
 
-    update = delete = AccessibleIfUserMatches('sent_by')
+    update = delete = AccessibleIfUserMatches('sent_by') | CustomUserAccessControl(
+        gcn_tag_update_delete_logic
+    )
 
     sent_by_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
