@@ -81,6 +81,7 @@ from ...models import (
     SpatialCatalogEntry,
     SpatialCatalogEntryTile,
     Telescope,
+    TNSRobot,
 )
 from ...utils.offset import (
     get_nearby_offset_stars,
@@ -89,6 +90,7 @@ from ...utils.offset import (
     get_finding_chart,
     _calculate_best_position_for_offset_stars,
 )
+from ...utils.tns import post_tns
 from .candidate import (
     grab_query_results,
     update_redshift_history_if_relevant,
@@ -1676,13 +1678,44 @@ def post_source(data, user_id, session, refresh_source=True):
             source.saved_by = user
         else:
             session.add(Source(obj=obj, group=group, saved_by_id=user.id))
+
     session.commit()
 
+    loop = None
+    for group in groups:
+        tnsrobot = session.scalars(
+            TNSRobot.select(user).where(
+                TNSRobot.auto_report_group_ids.contains([group.id]),
+                TNSRobot.auto_reporters.isnot(None),
+            )
+        ).first()
+        if tnsrobot is not None:
+            if loop is None:
+                try:
+                    loop = IOLoop.current()
+                except RuntimeError:
+                    loop = IOLoop(make_current=True).current()
+
+            loop.run_in_executor(
+                None,
+                lambda: post_tns(
+                    obj_ids=[obj.id],
+                    tnsrobot_id=tnsrobot.id,
+                    user_id=user.id,
+                    reporters=tnsrobot.auto_reporters,
+                    timeout=30,
+                ),
+            )
+
+            # only need to report once
+            break
+
     if not obj_already_exists:
-        try:
-            loop = IOLoop.current()
-        except RuntimeError:
-            loop = IOLoop(make_current=True).current()
+        if loop is None:
+            try:
+                loop = IOLoop.current()
+            except RuntimeError:
+                loop = IOLoop(make_current=True).current()
         loop.run_in_executor(
             None,
             lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, user_id),
