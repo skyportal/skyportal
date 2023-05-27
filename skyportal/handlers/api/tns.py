@@ -14,8 +14,9 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 from baselayer.app.flow import Flow
 
+from .spectrum import post_spectrum
 from ..base import BaseHandler
-from ...utils.tns import post_tns, get_IAUname
+from ...utils.tns import post_tns, read_tns_spectrum, get_IAUname
 from ...models import (
     DBSession,
     Group,
@@ -186,7 +187,7 @@ class TNSRobotHandler(BaseHandler):
             return self.success()
 
 
-def tns_retrieval(obj_id, tnsrobot_id, user_id):
+def tns_retrieval(obj_id, tnsrobot_id, user_id, include_spectra=False):
     """Retrieve object from TNS.
     obj_id : str
         Object ID
@@ -194,6 +195,8 @@ def tns_retrieval(obj_id, tnsrobot_id, user_id):
         TNSRobot ID
     user_id : int
         SkyPortal ID of User retrieving from TNS
+    include_spectra : boolean
+        Include spectra available on TNS
     """
 
     if Session.registry.has():
@@ -234,7 +237,9 @@ def tns_retrieval(obj_id, tnsrobot_id, user_id):
 
         data = {
             'api_key': altdata['api_key'],
-            'data': json.dumps({"objname": tns_name}),
+            'data': json.dumps(
+                {"objname": tns_name, "spectra": "1" if include_spectra else "0"}
+            ),
         }
 
         r = requests.post(
@@ -249,6 +254,20 @@ def tns_retrieval(obj_id, tnsrobot_id, user_id):
             source_data = r.json().get("data", dict()).get("reply", dict())
             if source_data:
                 obj.tns_info = source_data
+
+                if include_spectra and 'spectra' in source_data:
+                    group_ids = [g.id for g in user.accessible_groups]
+                    spectra = source_data['spectra']
+                    for spectrum in spectra:
+                        try:
+                            data = read_tns_spectrum(spectrum, session)
+                        except Exception as e:
+                            log(f'Cannot read TNS spectrum {str(spectrum)}: {str(e)}')
+                            continue
+                        data["obj_id"] = obj_id
+                        data["group_ids"] = group_ids
+                        post_spectrum(data, user_id, session)
+
             log(f'Successfully retrieved {obj_id} from TNS as {tns_name}')
         else:
             log(f'Failed to retrieve {obj_id} from TNS: {r.content}')
@@ -297,6 +316,8 @@ class ObjTNSHandler(BaseHandler):
         if tnsrobot_id is None:
             return self.error('tnsrobotID is required')
 
+        include_spectra = self.get_query_argument("includeSpectra", False)
+
         with self.Session() as session:
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
@@ -327,6 +348,7 @@ class ObjTNSHandler(BaseHandler):
                     obj.id,
                     tnsrobot.id,
                     self.associated_user_object.id,
+                    include_spectra=include_spectra,
                 ),
             )
 

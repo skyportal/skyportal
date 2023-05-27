@@ -18,7 +18,7 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from skyportal.handlers.api.photometry import serialize
-from skyportal.utils.tns import get_IAUname
+from skyportal.utils.tns import get_IAUname, TNS_INSTRUMENT_IDS, TNS_FILTER_IDS
 from skyportal.models import (
     DBSession,
     Instrument,
@@ -35,31 +35,8 @@ init_db(**cfg['database'])
 
 Session = scoped_session(sessionmaker())
 
-# IDs here: https://www.wis-tns.org/api/values
-
 TNS_URL = cfg['app.tns_endpoint']
 report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
-
-TNS_INSTRUMENT_IDS = {
-    'DECam': 172,
-    'ZTF': 196,
-}
-TNS_FILTER_IDS = {
-    'sdssu': 20,
-    'sdssg': 21,
-    'sdssr': 22,
-    'sdssi': 23,
-    'sdssz': 24,
-    'desu': 20,
-    'desg': 21,
-    'desr': 22,
-    'desi': 23,
-    'desz': 24,
-    'desy': 81,
-    'ztfg': 110,
-    'ztfr': 111,
-    'ztfi': 112,
-}
 
 queue = []
 
