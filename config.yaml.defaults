@@ -57,6 +57,8 @@ app:
 
   ps1_endpoint: https://catalogs.mast.stsci.edu/
 
+  tess_endpoint: https://tess.mit.edu/public/tesstransients/
+
   atlas:
     protocol: https
     host: fallingstar-data.com

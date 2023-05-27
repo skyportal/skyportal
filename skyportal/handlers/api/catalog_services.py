@@ -1,7 +1,6 @@
 import arrow
-from astropy.time import Time
+from astropy.time import Time, TimeDelta
 from astropy.table import Table
-import base64
 import functools
 import glob
 from marshmallow.exceptions import ValidationError
@@ -46,6 +45,8 @@ from ...utils.catalog import get_conesearch_centers, query_kowalski, query_fink
 
 _, cfg = load_env()
 
+
+TESS_URL = cfg['app.tess_endpoint']
 
 log = make_log('api/catalogs')
 
@@ -249,6 +250,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                     Obj.select(user).where(Obj.id == source['id'])
                 ).first()
                 if s is None:
+                    source['group_ids'] = group_ids
                     obj_id = post_source(source, user_id, session)
                     obj_ids.append(obj_id)
 
@@ -268,7 +270,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                 raise AttributeError(f'Expected a Telescope named {telescope_name}')
             instrument = telescope.instruments[0]
             log("Querying Swift for sources")
-            obj_ids = fetch_swift_transients(instrument.id, user_id)
+            obj_ids = fetch_swift_transients(instrument.id, user_id, group_ids)
             log("Finished querying Swift for sources")
 
         elif payload['catalogName'] == 'Gaia':
@@ -281,9 +283,28 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             instrument = telescope.instruments[0]
             log("Querying Gaia for sources")
             obj_ids = fetch_gaia_transients(
-                instrument.id, user_id, {'start_date': start_date, 'end_date': end_date}
+                instrument.id,
+                user_id,
+                group_ids,
+                {'start_date': start_date, 'end_date': end_date},
             )
-            log("Finished querying fink for sources")
+            log("Finished querying Gaia for sources")
+        elif payload['catalogName'] == 'TESS':
+            telescope_name = 'TESS'
+            telescope = session.scalars(
+                Telescope.select(user).where(Telescope.nickname == 'TESS')
+            ).first()
+            if telescope is None:
+                raise AttributeError(f'Expected a Telescope named {telescope_name}')
+            instrument = telescope.instruments[0]
+            log("Querying TESS for sources")
+            obj_ids = fetch_tess_transients(
+                instrument.id,
+                user_id,
+                group_ids,
+                {'start_date': start_date, 'end_date': end_date},
+            )
+            log("Finished querying TESS for sources")
         else:
             return AttributeError(f"Catalog name {payload['catalogName']} unknown")
 
@@ -319,7 +340,14 @@ class SwiftLSXPSQueryHandler(BaseHandler):
                       Use the same name as your nickname
                       for the Neil Gehrels Swift Observatory.
                       Defaults to Swift.
-
+                  groupIDs:
+                    required: false
+                    schema:
+                      type: list
+                      items:
+                      type: integer
+                    description: |
+                      If provided, save to these group IDs.
         responses:
           200:
             content:
@@ -334,6 +362,9 @@ class SwiftLSXPSQueryHandler(BaseHandler):
         data = self.get_json()
 
         telescope_name = data.get('telescope_name', 'Swift')
+        group_ids = data.get('groupIDs', None)
+        if group_ids is None:
+            group_ids = [g.id for g in self.current_user.accessible_groups]
 
         with self.Session() as session:
             telescope = session.scalars(
@@ -346,7 +377,10 @@ class SwiftLSXPSQueryHandler(BaseHandler):
             instrument = telescope.instruments[0]
 
             fetch_tr = functools.partial(
-                fetch_swift_transients, instrument.id, self.associated_user_object.id
+                fetch_swift_transients,
+                instrument.id,
+                self.associated_user_object.id,
+                group_ids,
             )
 
             IOLoop.current().run_in_executor(None, fetch_tr)
@@ -354,21 +388,26 @@ class SwiftLSXPSQueryHandler(BaseHandler):
             return self.success()
 
 
-def fetch_swift_transients(instrument_id, user_id):
+def fetch_swift_transients(instrument_id, user_id, group_ids):
     """Fetch Swift XRT transients.
     instrument_id : int
         ID of the instrument
     user_id : int
         ID of the User
+    group_id : List[int]
+        List of group IDs to save to
     """
 
-    session = Session(bind=DBSession.session_factory.kw["bind"])
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
     obj_ids = []
 
     try:
         user = session.scalar(sa.select(User).where(User.id == user_id))
 
-        group_ids = [g.id for g in user.accessible_groups]
         groups = session.scalars(
             Group.select(user).where(Group.id.in_(group_ids))
         ).all()
@@ -392,6 +431,7 @@ def fetch_swift_transients(instrument_id, user_id):
                 data = {'ra': ra, 'dec': dec, 'id': obj_name}
                 s = session.scalars(Obj.select(user).where(Obj.id == obj_name)).first()
                 if s is None:
+                    data['group_ids'] = group_ids
                     obj_id = post_source(data, user_id, session)
                     obj_ids.append(obj_id)
                 else:
@@ -476,7 +516,8 @@ def fetch_swift_transients(instrument_id, user_id):
                     for filename in filenames:
                         attachment_name = filename.split("/")[-1]
                         with open(filename, 'rb') as f:
-                            data_to_disk = base64.b64encode(f.read())
+                            data_to_disk = f.read()
+
                         comment = Comment(
                             text='Swift Detection Spectrum',
                             obj_id=obj_id,
@@ -517,6 +558,14 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
                       Name of telescope to assign this catalog to.
                       Use the same name as your nickname
                       for Gaia. Defaults to Gaia.
+                  groupIDs:
+                    required: false
+                    schema:
+                      type: list
+                      items:
+                      type: integer
+                    description: |
+                      If provided, save to these group IDs.
                   startDate:
                     required: false
                     type: str
@@ -541,6 +590,9 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
         telescope_name = data.get('telescope_name', 'Gaia')
         start_date = data.get('startDate', None)
         end_date = data.get('endDate', None)
+        group_ids = data.get('groupIDs', None)
+        if group_ids is None:
+            group_ids = [g.id for g in self.current_user.accessible_groups]
 
         if start_date is not None:
             start_date = Time(arrow.get(start_date.strip()).datetime)
@@ -571,17 +623,23 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
             return self.success()
 
 
-def fetch_gaia_transients(instrument_id, user_id, payload):
+def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
     """Fetch Gaia Photometric Alert transients.
     instrument_id : int
         ID of the instrument
     user_id : int
         ID of the User
+    group_id : List[int]
+        List of group IDs to save to
     payload : dict
         Dictionary containing filtering parameters
     """
 
-    session = Session(bind=DBSession.session_factory.kw["bind"])
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
     obj_ids = []
 
     lightcurve_url = "https://gsaweb.ast.cam.ac.uk/alerts/alert"
@@ -607,7 +665,6 @@ def fetch_gaia_transients(instrument_id, user_id, payload):
 
         user = session.scalar(sa.select(User).where(User.id == user_id))
 
-        group_ids = [g.id for g in user.accessible_groups]
         for row in table:
             name = row['#Name']
             ra, dec = row['RaDeg'], row['DecDeg']
@@ -623,6 +680,7 @@ def fetch_gaia_transients(instrument_id, user_id, payload):
             data = {'ra': ra, 'dec': dec, 'id': name}
             s = session.scalars(Obj.select(user).where(Obj.id == name)).first()
             if s is None:
+                data['group_ids'] = group_ids
                 obj_id = post_source(data, user_id, session)
                 obj_ids.append(obj_id)
             else:
@@ -696,3 +754,238 @@ def fetch_gaia_transients(instrument_id, user_id, payload):
         return obj_ids
     except Exception as e:
         return log(f"Unable to commit Gaia Photometric Alert catalog: {e}")
+
+
+class TessTransientsQueryHandler(BaseHandler):
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        description: |
+            Get TESS transient objects and post them as sources.
+            Repeated posting will skip the existing source.
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  telescope_name:
+                    required: false
+                    type: string
+                    description: |
+                      Name of telescope to assign this catalog to.
+                      Use the same name as your nickname
+                      for TESS. Defaults to TESS.
+                  groupIDs:
+                    required: false
+                    schema:
+                      type: list
+                      items:
+                      type: integer
+                    description: |
+                      If provided, save to these group IDs.
+                  startDate:
+                    required: false
+                    type: str
+                    description: Arrow parsable string. Filter by start date.
+                  endDate:
+                    required: false
+                    type: str
+                    description: Arrow parsable string. Filter by end date.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+
+        telescope_name = data.get('telescope_name', 'TESS')
+        start_date = data.get('startDate', None)
+        end_date = data.get('endDate', None)
+        group_ids = data.get('groupIDs', None)
+        if group_ids is None:
+            group_ids = [g.id for g in self.current_user.accessible_groups]
+
+        if start_date is not None:
+            start_date = Time(arrow.get(start_date.strip()).datetime)
+        if end_date is not None:
+            end_date = Time(arrow.get(end_date.strip()).datetime)
+
+        payload = {'start_date': start_date, 'end_date': end_date}
+
+        with self.Session() as session:
+            telescope = session.scalars(
+                Telescope.select(session.user_or_token).where(
+                    Telescope.nickname == telescope_name
+                )
+            ).first()
+            if telescope is None:
+                return self.error(f'Expected a Telescope named {telescope_name}')
+            instrument = telescope.instruments[0]
+
+            fetch_tr = functools.partial(
+                fetch_tess_transients,
+                instrument.id,
+                self.associated_user_object.id,
+                group_ids,
+                payload,
+            )
+
+            IOLoop.current().run_in_executor(None, fetch_tr)
+
+            return self.success()
+
+
+def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
+    """Fetch TESS transients.
+    instrument_id : int
+        ID of the instrument
+    user_id : int
+        ID of the User
+    group_id : List[int]
+        List of group IDs to save to
+    payload : dict
+        Dictionary containing filtering parameters
+    """
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    obj_ids = []
+
+    alert_url = f"{TESS_URL}/lc_bulk/count_transients.txt"
+    lightcurve_url = f"{TESS_URL}/light_curves/"
+
+    try:
+        file_read = False
+        nretries = 0
+
+        while not file_read and nretries < 10:
+            try:
+                table = Table.read(alert_url, format='ascii')
+                file_read = True
+            except FileNotFoundError:
+                nretries = nretries + 1
+                time.sleep(10)
+        if not file_read:
+            log('Failed to read TESS alert catalog')
+            return
+
+        start_date = payload.get('start_date', None)
+        end_date = payload.get('end_date', None)
+
+        user = session.scalar(sa.select(User).where(User.id == user_id))
+
+        for row in table:
+            name = row['name']
+            ra, dec = row['ra'], row['dec']
+            date = Time(2457000, format='jd') + TimeDelta(row['disc_tjd'], format='jd')
+
+            if start_date is not None:
+                if date < start_date:
+                    continue
+            if end_date is not None:
+                if date > end_date:
+                    continue
+
+            data = {'ra': ra, 'dec': dec, 'id': name}
+            s = session.scalars(Obj.select(user).where(Obj.id == name)).first()
+            if s is None:
+                data['group_ids'] = group_ids
+                obj_id = post_source(data, user_id, session)
+                obj_ids.append(obj_id)
+            else:
+                obj_id = s.id
+
+            try:
+                lc = Table.read(
+                    f"{lightcurve_url}/lc_{name}_cleaned",
+                    format='ascii',
+                    header_start=1,
+                )
+            except FileNotFoundError:
+                log(f"TESS alert {name} not found.")
+                continue
+            except Exception:
+                log(
+                    f"TESS alert {name} could not be ingested: {lightcurve_url}/lc_{name}_cleaned"
+                )
+                continue
+
+            if 'BTJD' not in list(lc.columns):
+                log(
+                    f"TESS alert {name} could not be ingested: {lightcurve_url}/lc_{name}_cleaned"
+                )
+                continue
+
+            lc['mjd'] = (
+                Time(2457000, format='jd') + TimeDelta(lc['BTJD'], format='jd')
+            ).mjd
+            lc['ra'] = ra
+            lc['dec'] = dec
+            lc['limiting_mag'] = 18.4
+            lc['filter'] = 'tess'
+            lc['magsys'] = 'ab'
+
+            df = lc.to_pandas()
+            df.rename(
+                columns={
+                    'e_mag': 'magerr',
+                },
+                inplace=True,
+            )
+
+            magerr_none = df['magerr'] == None  # noqa: E711
+            df.loc[magerr_none, 'mag'] = None
+
+            isnan = np.isnan(df['magerr'])
+            df.loc[isnan, 'mag'] = None
+            df.loc[isnan, 'magerr'] = None
+
+            is99 = np.isclose(df['magerr'], 99.9)
+            df.loc[is99, 'mag'] = None
+            df.loc[is99, 'magerr'] = None
+
+            drop_columns = list(
+                set(df.columns.values)
+                - {
+                    'mjd',
+                    'ra',
+                    'dec',
+                    'mag',
+                    'magerr',
+                    'limiting_mag',
+                    'filter',
+                    'magsys',
+                }
+            )
+            df.drop(
+                columns=drop_columns,
+                inplace=True,
+            )
+
+            data_out = {
+                'obj_id': obj_id,
+                'instrument_id': instrument_id,
+                'group_ids': group_ids,
+                **df.to_dict(orient='list'),
+            }
+
+            if len(df.index) > 0:
+                add_external_photometry(data_out, user)
+                log(f"Photometry committed to database for {obj_id}")
+            else:
+                log(f"No photometry to commit to database for {obj_id}")
+
+        return obj_ids
+    except Exception as e:
+        return log(f"Unable to commit TESS transient catalog: {e}")

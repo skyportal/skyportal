@@ -63,7 +63,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationList } = useSelector((state) => state.allocations);
 
-  const allGroups = useSelector((state) => state.groups.all);
+  const groups = useSelector((state) => state.groups.userAccessible);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,7 +82,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
 
   const groupLookUp = {};
   // eslint-disable-next-line no-unused-expressions
-  allGroups?.forEach((group) => {
+  groups?.forEach((group) => {
     groupLookUp[group.id] = group;
   });
 
@@ -129,8 +129,8 @@ const CatalogQueryForm = ({ gcnevent }) => {
   }, [dispatch, gcnevent]);
 
   if (
-    !allGroups ||
-    allGroups.length === 0 ||
+    !groups ||
+    groups.length === 0 ||
     telescopeList.length === 0 ||
     instrumentList.length === 0
   ) {
@@ -211,6 +211,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
         oneOf: [
           { enum: ["LSXPS"], title: "Swift LSXPS catalog" },
           { enum: ["Gaia"], title: "Gaia" },
+          { enum: ["TESS"], title: "TESS" },
           { enum: ["ZTF-Kowalski"], title: "ZTF Kowalski" },
           { enum: ["ZTF-Fink"], title: "ZTF Fink" },
         ],
@@ -258,7 +259,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
         </Select>
       </div>
       <GroupShareSelect
-        groupList={allGroups}
+        groupList={groups}
         setGroupIDs={setSelectedGroupIds}
         groupIDs={selectedGroupIds}
       />

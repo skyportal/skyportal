@@ -170,12 +170,10 @@ const FollowupRequestForm = ({
   };
 
   const validate = (formData, errors) => {
-    if (
-      formData.start_date &&
-      formData.end_date &&
-      formData.start_date > formData.end_date
-    ) {
-      errors.start_date.addError("Start Date must come before End Date");
+    if (formData?.start_date && formData?.end_date) {
+      if (formData.start_date > formData.end_date) {
+        errors.start_date.addError("Start Date must come before End Date");
+      }
     }
 
     return errors;

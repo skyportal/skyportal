@@ -413,6 +413,10 @@ def post_followup_request(data, session, refresh_source=True):
     except AttributeError:
         formSchema = instrument.api_class.form_json_schema
 
+    # not all requests need payloads
+    if 'payload' not in data:
+        data['payload'] = {}
+
     # if the instrument has a "prepare_payload" method, call it
     if instrument.api_class.implements()['prepare_payload']:
         data['payload'] = instrument.api_class.prepare_payload(data['payload'])
