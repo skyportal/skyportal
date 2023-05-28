@@ -89,9 +89,7 @@ class GcnSummary(Base):
 class GcnNotice(Base):
     """Records of ingested GCN notices"""
 
-    update = delete = AccessibleIfUserMatches('sent_by') | CustomUserAccessControl(
-        gcn_tag_update_delete_logic
-    )
+    update = delete = AccessibleIfUserMatches('sent_by')
 
     sent_by_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -179,7 +177,9 @@ class GcnProperty(Base):
 class GcnTag(Base):
     """Store qualitative tags for events."""
 
-    update = delete = AccessibleIfUserMatches('sent_by')
+    update = delete = AccessibleIfUserMatches('sent_by') | CustomUserAccessControl(
+        gcn_tag_update_delete_logic
+    )
 
     sent_by_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
