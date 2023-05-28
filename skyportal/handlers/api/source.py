@@ -253,11 +253,17 @@ async def get_source(
     if 'photstats' in source_info:
         photstats = source_info["photstats"]
         for photstat in photstats:
-            if hasattr(photstat, 'first_detected_mjd'):
+            if (
+                hasattr(photstat, 'first_detected_mjd')
+                and photstat.first_detected_mjd is not None
+            ):
                 source_info["first_detected"] = Time(
                     photstat.first_detected_mjd, format='mjd'
                 ).isot
-            if hasattr(photstat, 'last_detected_mjd'):
+            if (
+                hasattr(photstat, 'last_detected_mjd')
+                and photstat.last_detected_mjd is not None
+            ):
                 source_info["last_detected"] = Time(
                     photstat.last_detected_mjd, format='mjd'
                 ).isot

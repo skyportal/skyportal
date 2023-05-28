@@ -1840,7 +1840,7 @@ def make_photometry_panel(
     xmax = data['mjd'].max() + 2
 
     mags = data.loc[obsind, 'mag']
-    if not all(np.isnan(mags)):
+    if not mags.empty and not all(np.isnan(mags)):
         max_mags = np.nanmax(mags)
         min_mags = np.nanmin(mags)
     else:
@@ -1848,7 +1848,7 @@ def make_photometry_panel(
         min_mags = np.nan
 
     lims = data.loc[~obsind, 'lim_mag']
-    if not all(np.isnan(lims)):
+    if not lims.empty and not all(np.isnan(lims)):
         max_lims = np.nanmax(lims)
         min_lims = np.nanmin(lims)
     else:
