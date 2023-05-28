@@ -718,6 +718,13 @@ class ObservationPlanRequestHandler(BaseHandler):
                                 rise_time = rise_time.isot
                             planned_observation_data = planned_observation.to_dict()
                             del planned_observation_data["instrument"]
+                            # rename the field_id key to field_db_id to avoid confusion
+                            planned_observation_data[
+                                "field_db_id"
+                            ] = planned_observation_data.pop("field_id")
+                            planned_observation_data[
+                                "field_id"
+                            ] = planned_observation_data['field'].field_id
 
                             planned_observations.append(
                                 {
