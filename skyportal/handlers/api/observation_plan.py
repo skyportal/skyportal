@@ -1567,11 +1567,15 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             altdata = allocation.altdata
             if not altdata:
                 return self.error('Missing allocation information.')
+            if 'TREASUREMAP_API_TOKEN' not in altdata:
+                return self.error(
+                    'Missing TREASUREMAP_API_TOKEN in allocation information.'
+                )
 
             observation_plan = observation_plan_request.observation_plans[0]
             num_observations = len(observation_plan.planned_observations)
             if num_observations == 0:
-                return self.error('Need at least one observation to produce a GCN')
+                return self.error('Need at least one observation to submit')
 
             planned_observations = observation_plan.planned_observations
 
@@ -1595,7 +1599,9 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                 pointing["ra"] = obs.field.ra
                 pointing["dec"] = obs.field.dec
                 pointing["instrumentid"] = str(instrument.treasuremap_id)
-                pointing["time"] = Time(obs.obstime, format='datetime').isot
+                pointing["time"] = Time(obs.obstime, format='datetime').isot.split('.')[
+                    0
+                ]  # remove microseconds
                 pointing["status"] = "planned"
                 pointing["depth"] = 0.0
                 pointing["depth_unit"] = "ab_mag"
