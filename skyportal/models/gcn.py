@@ -305,6 +305,24 @@ class GcnEvent(Base):
         )
     )
 
+    gracedb_log = deferred(
+        sa.Column(
+            JSONB,
+            nullable=False,
+            server_default='{}',
+            doc="List of GraceDB logs associated with a GW event.",
+        )
+    )
+
+    gracedb_labels = deferred(
+        sa.Column(
+            JSONB,
+            nullable=False,
+            server_default='{}',
+            doc="List of GraceDB labels associated with a GW event.",
+        )
+    )
+
     reminders = relationship(
         'ReminderOnGCN',
         back_populates='gcn',
