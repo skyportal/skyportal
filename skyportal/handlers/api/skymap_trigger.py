@@ -59,16 +59,42 @@ class SkymapTriggerAPIHandler(BaseHandler):
             if localization is None:
                 return self.error("Localization not found", status=404)
 
+            partition_key = localization.dateobs
+            # now get the dateobs in the format YYYY_MM
+            localizationtile_partition_name = (
+                f'{partition_key.year}_{partition_key.month:02d}'
+            )
+            localizationtilescls = LocalizationTile.partitions.get(
+                localizationtile_partition_name, None
+            )
+            if localizationtilescls is None:
+                localizationtilescls = LocalizationTile.partitions.get(
+                    'def', LocalizationTile
+                )
+            else:
+                # check that there is actually a localizationTile with the given localization_id in the partition
+                # if not, use the default partition
+                if not (
+                    session.scalars(
+                        sa.select(localizationtilescls.localization_id).where(
+                            localizationtilescls.localization_id == localization.id
+                        )
+                    ).first()
+                ):
+                    localizationtilescls = LocalizationTile.partitions.get(
+                        'def', LocalizationTile
+                    )
+
             cum_prob = (
                 sa.func.sum(
-                    LocalizationTile.probdensity * LocalizationTile.healpix.area
+                    localizationtilescls.probdensity * localizationtilescls.healpix.area
                 )
-                .over(order_by=LocalizationTile.probdensity.desc())
+                .over(order_by=localizationtilescls.probdensity.desc())
                 .label('cum_prob')
             )
             localizationtile_subquery = (
-                sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                    LocalizationTile.localization_id == localization.id
+                sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                    localizationtilescls.localization_id == localization.id
                 )
             ).subquery()
 
@@ -80,17 +106,17 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 )
             ).scalar_subquery()
 
-            area = (InstrumentFieldTile.healpix * LocalizationTile.healpix).area
-            prob = sa.func.sum(LocalizationTile.probdensity * area)
+            area = (InstrumentFieldTile.healpix * localizationtilescls.healpix).area
+            prob = sa.func.sum(localizationtilescls.probdensity * area)
 
             field_tiles_query = (
                 sa.select(InstrumentField.field_id, prob)
                 .where(
-                    LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
+                    localizationtilescls.localization_id == localization.id,
+                    localizationtilescls.probdensity >= min_probdensity,
                     InstrumentFieldTile.instrument_id == instrument.id,
                     InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                    InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+                    InstrumentFieldTile.healpix.overlaps(localizationtilescls.healpix),
                 )
                 .group_by(InstrumentField.field_id)
             )
