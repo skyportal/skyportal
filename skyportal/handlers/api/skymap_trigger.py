@@ -8,6 +8,7 @@ from ...models import (
     Allocation,
     InstrumentField,
     InstrumentFieldTile,
+    GcnEvent,
     Localization,
     LocalizationTile,
 )
@@ -58,6 +59,20 @@ class SkymapTriggerAPIHandler(BaseHandler):
             localization = session.scalars(stmt).first()
             if localization is None:
                 return self.error("Localization not found", status=404)
+
+            stmt = GcnEvent.select(session.user_or_token).where(
+                GcnEvent.dateobs == localization.dateobs,
+            )
+            gcn_event = session.scalars(stmt).first()
+            if gcn_event is None:
+                return self.error("GcnEvent not found", status=404)
+
+            gracedb_id = None
+            aliases = gcn_event.aliases
+            for alias in aliases:
+                if "LVC" in alias:
+                    gracedb_id = alias.split("#")[-1]
+                    break
 
             partition_key = localization.dateobs
             # now get the dateobs in the format YYYY_MM
@@ -124,7 +139,9 @@ class SkymapTriggerAPIHandler(BaseHandler):
             field_ids, probs = zip(*session.execute(field_tiles_query).all())
 
             payload = {
-                "trigger_name": Time(localization.dateobs).isot,
+                "trigger_name": gracedb_id
+                if gracedb_id is not None
+                else Time(localization.dateobs).isot,
                 "trigger_time": Time.now().mjd,
                 "fields": [
                     {'field_id': field_id, 'probability': prob}
