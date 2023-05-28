@@ -722,6 +722,9 @@ class ObservationPlanRequestHandler(BaseHandler):
                             planned_observations.append(
                                 {
                                     **planned_observation_data,
+                                    'field_id': planned_observation_data[
+                                        'field'
+                                    ].field_id,
                                     'rise_time': rise_time
                                     if not type(rise_time) is ma.masked_array
                                     else None,
