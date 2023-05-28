@@ -50,6 +50,7 @@ from .observation_plan import (
     observation_simsurvey,
     observation_simsurvey_plot,
     TREASUREMAP_URL,
+    TREASUREMAP_INSTRUMENT_IDS,
     TREASUREMAP_FILTERS,
 )
 from ...facility_apis.observation_plan import combine_healpix_tuples
@@ -1567,6 +1568,17 @@ class ObservationTreasureMapHandler(BaseHandler):
             if instrument is None:
                 return self.error(message=f"Invalid instrument ID {instrument_id}")
 
+            treasuremap_id = None
+            if instrument.treasuremap_id is None:
+                if instrument.name in TREASUREMAP_INSTRUMENT_IDS:
+                    treasuremap_id = TREASUREMAP_INSTRUMENT_IDS[instrument.name]
+                else:
+                    return self.error(
+                        message=f"Instrument {instrument.name} does not have a TreasureMap ID associated with it"
+                    )
+            else:
+                treasuremap_id = instrument.treasuremap_id
+
             data = get_observations(
                 session,
                 start_date,
@@ -1616,7 +1628,7 @@ class ObservationTreasureMapHandler(BaseHandler):
                 pointing = {}
                 pointing["ra"] = obs["field"].ra
                 pointing["dec"] = obs["field"].dec
-                pointing["instrumentid"] = int(instrument.treasuremap_id)
+                pointing["instrumentid"] = str(treasuremap_id)
                 pointing["status"] = "completed"
                 pointing["time"] = Time(obs["obstime"], format='datetime').isot
                 pointing["depth"] = obs["limmag"]
@@ -1686,6 +1698,17 @@ class ObservationTreasureMapHandler(BaseHandler):
         if instrument is None:
             return self.error(message=f"Invalid instrument ID {instrument_id}")
 
+        treasuremap_id = None
+        if instrument.treasuremap_id is None:
+            if instrument.name in TREASUREMAP_INSTRUMENT_IDS:
+                treasuremap_id = TREASUREMAP_INSTRUMENT_IDS[instrument.name]
+            else:
+                return self.error(
+                    message=f"Instrument {instrument.name} does not have a TreasureMap ID associated with it"
+                )
+        else:
+            treasuremap_id = instrument.treasuremap_id
+
         event = (
             GcnEvent.query_records_accessible_by(
                 self.current_user,
@@ -1719,7 +1742,7 @@ class ObservationTreasureMapHandler(BaseHandler):
         payload = {
             "graceid": graceid,
             "api_token": api_token,
-            "instrumentid": instrument.treasuremap_id,
+            "instrumentid": str(treasuremap_id),
         }
 
         baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/cancel_all')

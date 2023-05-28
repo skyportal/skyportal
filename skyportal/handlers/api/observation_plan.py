@@ -91,6 +91,19 @@ from skyportal.facility_apis.observation_plan import (
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
+TREASUREMAP_INSTRUMENT_IDS = {  # https://treasuremap.space/search_instruments
+    'Sinistro': 9,
+    'UVOT': 12,
+    'DECam': 38,
+    'CFHT': 42,
+    'GITCamera': 46,
+    'ZTF': 47,
+    'Spectral': 56,
+    'TESS': 60,
+    'MOSFIRE': 74,
+    'KAIT': 75,
+}
+
 # this is the list of filters that are available in the treasuremap
 TREASUREMAP_FILTERS = {
     'U': 'U',
@@ -1559,10 +1572,16 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             allocation = session.scalars(stmt).first()
             instrument = allocation.instrument
 
+            treasuremap_id = None
             if instrument.treasuremap_id is None:
-                return self.error(
-                    message=f"Instrument {instrument.name} does not have a TreasureMap ID associated with it"
-                )
+                if instrument.name in TREASUREMAP_INSTRUMENT_IDS:
+                    treasuremap_id = TREASUREMAP_INSTRUMENT_IDS[instrument.name]
+                else:
+                    return self.error(
+                        message=f"Instrument {instrument.name} does not have a TreasureMap ID associated with it"
+                    )
+            else:
+                treasuremap_id = instrument.treasuremap_id
 
             altdata = allocation.altdata
             if not altdata:
@@ -1598,7 +1617,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                 pointing = {}
                 pointing["ra"] = obs.field.ra
                 pointing["dec"] = obs.field.dec
-                pointing["instrumentid"] = str(instrument.treasuremap_id)
+                pointing["instrumentid"] = str(treasuremap_id)
                 pointing["time"] = Time(obs.obstime, format='datetime').isot.split('.')[
                     0
                 ]  # remove microseconds
@@ -1673,6 +1692,17 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             allocation = session.scalars(stmt).first()
             instrument = allocation.instrument
 
+            treasuremap_id = None
+            if instrument.treasuremap_id is None:
+                if instrument.name in TREASUREMAP_INSTRUMENT_IDS:
+                    treasuremap_id = TREASUREMAP_INSTRUMENT_IDS[instrument.name]
+                else:
+                    return self.error(
+                        message=f"Instrument {instrument.name} does not have a TreasureMap ID associated with it"
+                    )
+            else:
+                treasuremap_id = instrument.treasuremap_id
+
             altdata = allocation.altdata
             if not altdata:
                 return self.error('Missing allocation information.')
@@ -1681,7 +1711,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             payload = {
                 "graceid": graceid,
                 "api_token": altdata['TREASUREMAP_API_TOKEN'],
-                "instrumentid": instrument.treasuremap_id,
+                "instrumentid": str(treasuremap_id),
             }
 
             baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/cancel_all')
