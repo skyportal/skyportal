@@ -46,13 +46,17 @@ from ...utils.simsurvey import (
     get_simsurvey_parameters,
 )
 from .instrument import add_tiles
-from .observation_plan import observation_simsurvey, observation_simsurvey_plot
+from .observation_plan import (
+    observation_simsurvey,
+    observation_simsurvey_plot,
+    TREASUREMAP_URL,
+    TREASUREMAP_FILTERS,
+)
 from ...facility_apis.observation_plan import combine_healpix_tuples
 from ...utils.cache import Cache
 
 
 env, cfg = load_env()
-TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
 log = make_log('api/observation')
 
@@ -1612,12 +1616,12 @@ class ObservationTreasureMapHandler(BaseHandler):
                 pointing = {}
                 pointing["ra"] = obs["field"].ra
                 pointing["dec"] = obs["field"].dec
-                pointing["band"] = obs["filt"]
                 pointing["instrumentid"] = int(instrument.treasuremap_id)
                 pointing["status"] = "completed"
                 pointing["time"] = Time(obs["obstime"], format='datetime').isot
                 pointing["depth"] = obs["limmag"]
                 pointing["depth_unit"] = "ab_mag"
+                pointing["band"] = TREASUREMAP_FILTERS[obs["filt"]]
                 pointings.append(pointing)
             payload["pointings"] = pointings
 

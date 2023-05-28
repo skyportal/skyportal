@@ -91,6 +91,56 @@ from skyportal.facility_apis.observation_plan import (
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
+# this is the list of filters that are available in the treasuremap
+TREASUREMAP_FILTERS = {
+    'U': 'U',
+    'B': 'B',
+    'V': 'V',
+    'R': 'R',
+    'I': 'I',
+    'J': 'J',
+    'H': 'H',
+    'K': 'K',
+    'u': 'u',
+    'g': 'g',
+    'r': 'r',
+    'i': 'i',
+    'z': 'z',
+    'UVW1': 'UVW1',
+    'UVM2': 'UVM2',
+    'XRT': 'XRT',
+    'clear': 'clear',
+    'open': 'open',
+    'UHF': 'UHF',
+    'VHF': 'VHF',
+    'L': 'L',
+    'S': 'S',
+    'C': 'C',
+    'X': 'X',
+    'other': 'other',
+    'TESS': 'TESS',
+    'BAT': 'BAT',
+    'HESS': 'HESS',
+    'WISEL': 'WISEL',
+}
+# to it, we add mappers for sncosmo bandpasses
+TREASUREMAP_FILTERS = {
+    **TREASUREMAP_FILTERS,
+    'ztfg': 'g',
+    'ztfr': 'r',
+    'ztfi': 'i',
+    'uvot::b': 'b',
+    'uvot::u': 'u',
+    'uvot::uvm2': 'UVM2',
+    'uvot::uvw1': 'UVW1',
+    'uvot::uvw2': 'UVW2',
+    'uvot::v': 'v',
+    'uvot::white': 'open',
+    'desg': 'g',
+    'desr': 'r',
+    'desz': 'z',
+}
+
 Session = scoped_session(sessionmaker())
 
 log = make_log('api/observation_plan')
@@ -524,6 +574,26 @@ class ObservationPlanRequestHandler(BaseHandler):
                         f"Observation plan with name {plan['payload']['queue_name']} already exists."
                     )
 
+                allocation = session.scalars(
+                    Allocation.select(self.current_user).where(
+                        Allocation.id == plan['allocation_id']
+                    )
+                ).first()
+                if allocation is None:
+                    return self.error(
+                        f"Cannot access allocation with ID: {plan['allocation_id']}"
+                    )
+                filters = plan.get('payload', {}).get('filters', [])
+                if isinstance(filters, str):
+                    filters = filters.split(',')
+                if (
+                    not set(filters).issubset(set(allocation.instrument.filters))
+                    or len(filters) == 0
+                ):
+                    return self.error(
+                        f'Filters in payload must be a subset of instrument filters: {allocation.instrument.filters}'
+                    )
+
         request_body = {
             'plans': observation_plans,
             'user_id': self.associated_user_object.id,
@@ -942,6 +1012,14 @@ class ObservationPlanManualRequestHandler(BaseHandler):
             )
             session.add(event_observation_plan)
             session.commit()
+
+            if not {
+                planned_obs['filt']
+                for planned_obs in observation_plan['planned_observations']
+            }.issubset(set(instrument.filters)):
+                return self.error(
+                    message=f"Planned observation filter(s) not in instrument's filter list, must be one of: {str(instrument.filters)}"
+                )
 
             planned_observations = []
             for planned_obs in observation_plan['planned_observations']:
@@ -1481,6 +1559,11 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             allocation = session.scalars(stmt).first()
             instrument = allocation.instrument
 
+            if instrument.treasuremap_id is None:
+                return self.error(
+                    message=f"Instrument {instrument.name} does not have a TreasureMap ID associated with it"
+                )
+
             altdata = allocation.altdata
             if not altdata:
                 return self.error('Missing allocation information.')
@@ -1498,17 +1581,25 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                 "api_token": altdata['TREASUREMAP_API_TOKEN'],
             }
 
+            # first check that all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict
+            if not all(
+                [obs.filt in TREASUREMAP_FILTERS.keys() for obs in planned_observations]
+            ):
+                return self.error(
+                    'Not all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict, they cannot be submitted'
+                )
+
             pointings = []
             for obs in planned_observations:
                 pointing = {}
                 pointing["ra"] = obs.field.ra
                 pointing["dec"] = obs.field.dec
-                pointing["band"] = obs.filt
                 pointing["instrumentid"] = str(instrument.treasuremap_id)
-                pointing["status"] = "planned"
                 pointing["time"] = Time(obs.obstime, format='datetime').isot
+                pointing["status"] = "planned"
                 pointing["depth"] = 0.0
                 pointing["depth_unit"] = "ab_mag"
+                pointing["band"] = TREASUREMAP_FILTERS[obs.filt]
                 pointings.append(pointing)
             payload["pointings"] = pointings
 
