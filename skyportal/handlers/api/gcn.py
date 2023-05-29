@@ -48,6 +48,7 @@ from baselayer.log import make_log
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
+from .gcn_gracedb import post_gracedb_data
 from .source import post_source
 from ..base import BaseHandler
 from ...models import (
@@ -217,6 +218,27 @@ def post_gcnevent_from_xml(
         ).first()
         event_to_update.mma_detectors = mma_detectors
         session.commit()
+
+    gracedb_id = None
+    aliases = event.aliases
+    for alias in aliases:
+        if "LVC" in alias:
+            gracedb_id = alias.split("#")[-1]
+            break
+
+    if gracedb_id is not None:
+        if asynchronous:
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: post_gracedb_data(event.dateobs, gracedb_id, user_id),
+            )
+        else:
+            post_gracedb_data(event.dateobs, gracedb_id, user_id)
 
     if post_skymap:
         try:
@@ -1321,6 +1343,8 @@ class GcnEventHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     ),
+                    "gracedb_log": event.gracedb_log,
+                    "gracedb_labels": event.gracedb_labels,
                 }
 
                 return self.success(data=data)
