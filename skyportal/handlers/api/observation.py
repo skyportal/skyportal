@@ -1621,7 +1621,7 @@ class ObservationTreasureMapHandler(BaseHandler):
                 return self.error('Missing allocation information.')
 
             graceid = event.graceid
-            payload = {"graceid": graceid, "api_token": api_token}
+            payload = {"api_token": api_token, "graceid": graceid}
 
             pointings = []
             for obs in observations:
@@ -1637,7 +1637,7 @@ class ObservationTreasureMapHandler(BaseHandler):
                 pointings.append(pointing)
             payload["pointings"] = pointings
 
-            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
+            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/pointings')
             r = requests.post(url=url, json=payload)
             r.raise_for_status()
             request_json = r.json()
@@ -1740,12 +1740,12 @@ class ObservationTreasureMapHandler(BaseHandler):
 
         graceid = event.graceid
         payload = {
-            "graceid": graceid,
             "api_token": api_token,
+            "graceid": graceid,
             "instrumentid": str(treasuremap_id),
         }
 
-        baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/cancel_all')
+        baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/cancel_all')
         url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
         r = requests.post(url=url)
         r.raise_for_status()

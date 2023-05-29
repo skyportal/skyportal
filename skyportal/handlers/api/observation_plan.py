@@ -1607,8 +1607,8 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
 
             graceid = event.graceid
             payload = {
-                "graceid": graceid,
                 "api_token": altdata['TREASUREMAP_API_TOKEN'],
+                "graceid": graceid,
             }
 
             # first check that all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict
@@ -1635,7 +1635,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                 pointings.append(pointing)
             payload["pointings"] = pointings
 
-            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
+            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/pointings')
             r = requests.post(url=url, json=payload)
             r.raise_for_status()
             request_json = r.json()
@@ -1716,15 +1716,14 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
 
             graceid = event.graceid
             payload = {
-                "graceid": graceid,
                 "api_token": altdata['TREASUREMAP_API_TOKEN'],
+                "graceid": graceid,
                 "instrumentid": str(treasuremap_id),
             }
 
-            baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/cancel_all')
+            baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/cancel_all')
             url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
-            r = requests.post(url=url)
-            r.raise_for_status()
+            r = requests.post(url=url, json=payload)
             request_text = r.text
             if "successfully" not in request_text:
                 return self.error(f'TreasureMap delete failed: {request_text}')
