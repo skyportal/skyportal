@@ -31,8 +31,8 @@ def test_default_observation_plan_tiling(user, super_admin_token, public_group):
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
 
-    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
-    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+    fielddatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Fields.csv'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Region.reg'
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
@@ -133,7 +133,7 @@ def test_default_observation_plan_tiling(user, super_admin_token, public_group):
     assert data['status'] == 'success'
     assert data["data"]["allocation_id"] == allocation_id
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}
