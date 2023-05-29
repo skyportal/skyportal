@@ -545,11 +545,9 @@ def from_url(url):
     filename = os.path.basename(urlparse(url).path)
 
     skymap = ligo.skymap.io.read_sky_map(url, moc=True)
-    minval = 1e-20
-    idx1 = np.where(skymap['PROBDENSITY'] < minval)[0]
-    idx2 = np.where(skymap['PROBDENSITY'] > 0)[0]
-    idx = np.intersect1d(idx1, idx2)
-    skymap['PROBDENSITY'][idx] = minval
+    minval = 1e-300
+    idx = np.where(skymap['PROBDENSITY'] < minval)[0]
+    skymap['PROBDENSITY'][idx] = 0
 
     nside = 128
     occulted = get_occulted(url, nside=nside)
