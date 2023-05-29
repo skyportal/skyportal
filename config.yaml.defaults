@@ -72,6 +72,8 @@ app:
   tns_endpoint: https://sandbox.wis-tns.org
 
   gracedb_endpoint: https://gracedb.ligo.org/api/
+  # See https://computing.docs.ligo.org/guide/auth/x509/ for example
+  gracedb_credential:
 
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
