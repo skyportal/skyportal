@@ -81,6 +81,7 @@ from ...models import (
     SpatialCatalogEntry,
     SpatialCatalogEntryTile,
     Telescope,
+    TNSRobot,
 )
 from ...utils.offset import (
     get_nearby_offset_stars,
@@ -89,6 +90,7 @@ from ...utils.offset import (
     get_finding_chart,
     _calculate_best_position_for_offset_stars,
 )
+from ...utils.tns import post_tns
 from .candidate import (
     grab_query_results,
     update_redshift_history_if_relevant,
@@ -251,11 +253,17 @@ async def get_source(
     if 'photstats' in source_info:
         photstats = source_info["photstats"]
         for photstat in photstats:
-            if hasattr(photstat, 'first_detected_mjd'):
+            if (
+                hasattr(photstat, 'first_detected_mjd')
+                and photstat.first_detected_mjd is not None
+            ):
                 source_info["first_detected"] = Time(
                     photstat.first_detected_mjd, format='mjd'
                 ).isot
-            if hasattr(photstat, 'last_detected_mjd'):
+            if (
+                hasattr(photstat, 'last_detected_mjd')
+                and photstat.last_detected_mjd is not None
+            ):
                 source_info["last_detected"] = Time(
                     photstat.last_detected_mjd, format='mjd'
                 ).isot
@@ -1676,13 +1684,44 @@ def post_source(data, user_id, session, refresh_source=True):
             source.saved_by = user
         else:
             session.add(Source(obj=obj, group=group, saved_by_id=user.id))
+
     session.commit()
 
+    loop = None
+    for group in groups:
+        tnsrobot = session.scalars(
+            TNSRobot.select(user).where(
+                TNSRobot.auto_report_group_ids.contains([group.id]),
+                TNSRobot.auto_reporters.isnot(None),
+            )
+        ).first()
+        if tnsrobot is not None:
+            if loop is None:
+                try:
+                    loop = IOLoop.current()
+                except RuntimeError:
+                    loop = IOLoop(make_current=True).current()
+
+            loop.run_in_executor(
+                None,
+                lambda: post_tns(
+                    obj_ids=[obj.id],
+                    tnsrobot_id=tnsrobot.id,
+                    user_id=user.id,
+                    reporters=tnsrobot.auto_reporters,
+                    timeout=30,
+                ),
+            )
+
+            # only need to report once
+            break
+
     if not obj_already_exists:
-        try:
-            loop = IOLoop.current()
-        except RuntimeError:
-            loop = IOLoop(make_current=True).current()
+        if loop is None:
+            try:
+                loop = IOLoop.current()
+            except RuntimeError:
+                loop = IOLoop(make_current=True).current()
         loop.run_in_executor(
             None,
             lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, user_id),

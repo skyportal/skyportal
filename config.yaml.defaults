@@ -67,7 +67,7 @@ app:
     host: herculesii.astro.berkeley.edu
     port:
 
-  treasuremap_endpoint: http://treasuremap.space
+  treasuremap_endpoint: https://treasuremap.space
 
   tns_endpoint: https://sandbox.wis-tns.org
 
@@ -643,6 +643,7 @@ ports:
   facility_queue: 64510
   notification_queue: 64610
   observation_plan_queue: 64710
+  tns_queue: 64810
 
 gcn:
   server: gcn.nasa.gov
