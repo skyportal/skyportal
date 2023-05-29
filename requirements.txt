@@ -64,7 +64,7 @@ geojson==3.0.1
 typing-extensions==4.5.0 # Needed for OpenAI
 swifttools==3.0.16
 pip==22.3.1
-gwemopt==0.0.84
+gwemopt==0.1
 humanize==4.6.0
 xarray>=21.1
 simsurvey==0.7.5

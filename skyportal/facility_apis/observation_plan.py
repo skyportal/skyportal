@@ -356,7 +356,8 @@ def generate_plan(
     from skyportal.handlers.api.instrument import add_tiles
 
     import gwemopt
-    import gwemopt.utils
+    import gwemopt.coverage
+    import gwemopt.io
     import gwemopt.segments
     import gwemopt.skyportal
 
@@ -403,6 +404,10 @@ def generate_plan(
         end_time = Time(requests[0].payload["end_date"], format='iso', scale='utc')
 
         params = {
+            # time
+            'Tobs': [start_time.mjd - event_time.mjd, end_time.mjd - event_time.mjd],
+            # geometry
+            'geometry': '3d' if request.localization.is_3d else '2d',
             # gwemopt filter strategy
             # options: block (blocks of single filters), integrated (series of alternating filters)
             'doAlternatingFilters': True
@@ -417,6 +422,8 @@ def generate_plan(
             'doMinimalTiling': True,
             # single set of scheduled observations
             'doSingleExposure': True,
+            # parallelize computation
+            'doParallel': False,
             # gwemopt scheduling algorithms
             # options: greedy, greedy_slew, sear, airmass_weighted
             'scheduleType': request.payload["schedule_type"],
@@ -428,6 +435,10 @@ def generate_plan(
             'dateobs': requests[0].gcnevent.dateobs,
             # Healpix nside for the skymap
             'nside': 512,
+            # skymap probability powerlaw exponent
+            'powerlaw_n': 1,
+            # skymap distance powerlaw exponent
+            'powerlaw_dist_exp': 1,
             # maximum integrated probability of the skymap to consider
             'powerlaw_cl': request.payload["integrated_probability"],
             'telescopes': [request.instrument.name for request in requests],
@@ -445,15 +456,17 @@ def generate_plan(
             'doAvoidGalacticPlane': request.payload.get("galactic_plane", False),
             # galactic latitude to exclude
             'galactic_limit': request.payload.get("galactic_latitude", 10),
-            # threshold number of fields?
-            'doMaxTiles': request.payload.get("max_tiles", False),
             # Maximum number of fields to consider
             'max_nb_tiles': [request.payload.get("max_nb_tiles", 100)]
-            * len(request.payload["filters"].split(",")),
+            * len(request.payload["filters"].split(","))
+            if request.payload.get("max_tiles", False)
+            else None,
             # balance observations by filter
             'doBalanceExposure': request.payload.get("balance_exposure", False),
             # slice observations by right ascension
             'doRASlice': request.payload.get("ra_slice", False),
+            # try scheduling with multiple RA slices
+            'doRASlices': False,
             # right ascension block
             'raslice': [
                 request.payload.get("ra_slice_min", 0),
@@ -462,6 +475,30 @@ def generate_plan(
             # use only primary grid
             'doUsePrimary': request.payload.get("use_primary", False),
             'doUseSecondary': request.payload.get("use_secondary", False),
+            # iterate through telescopes
+            'doIterativeTiling': False,
+            # amount of overlap to keep for multiple telescopes
+            'iterativeOverlap': 0.0,
+            # maximum overlap between telescopes
+            'maximumOverlap': 1.0,
+            # time allocation strategy
+            'timeallocationType': 'powerlaw',
+            # check for references
+            'doReferences': False,
+            # treasuremap interactions
+            'treasuremap_token': None,
+            # number of scheduling blocks to attempt
+            'Nblocks': 1,
+            # enable splitting by telescope
+            'splitType': None,
+            # perturb tiles to maximize probability
+            'doPerturbativeTiling': False,
+            # check for overlapping telescope schedules
+            'doOverlappingScheduling': False,
+            # which telescope tiles to turn off
+            'unbalanced_tiles': None,
+            # turn on diagnostic plotting?
+            'doPlots': False,
         }
 
         config = {}
@@ -549,20 +586,21 @@ def generate_plan(
         else:
             raise AttributeError('scheduling_strategy should be tiling or galaxy')
 
-        params = gwemopt.utils.params_checker(params)
+        # params = gwemopt.utils.params_checker(params)
         params = gwemopt.segments.get_telescope_segments(params)
 
-        params["Tobs"] = [
-            start_time.mjd - event_time.mjd,
-            end_time.mjd - event_time.mjd,
-        ]
-
-        params['map_struct'] = dict(
+        map_struct = dict(
             zip(
                 ['prob', 'distmu', 'distsigma', 'distnorm'],
                 request.localization.flat,
             )
         )
+
+        log(f"Reading skymap for ID(s): {','.join(observation_plan_id_strings)}")
+
+        # Function to read maps
+        params, map_struct = gwemopt.io.read_skymap(params, map_struct=map_struct)
+
         # get the partition name for the localization tiles using the dateobs
         # that way, we explicitely use the partition that contains the localization tiles we are interested in
         # that should help not reach that "critical point" mentioned by @mcoughlin where the queries almost dont work anymore
@@ -594,14 +632,6 @@ def generate_plan(
                     'def', LocalizationTile
                 )
 
-        params['is3D'] = request.localization.is_3d
-
-        log(f"Reading skymap for ID(s): {','.join(observation_plan_id_strings)}")
-
-        # Function to read maps
-        map_struct = gwemopt.utils.read_skymap(
-            params, is3D=params["do3D"], map_struct=params['map_struct']
-        )
         start = time.time()
 
         cum_prob = (
