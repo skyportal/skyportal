@@ -38,6 +38,11 @@ class Galaxy(Base, ca.Point):
     mag_fuv = sa.Column(sa.Float, nullable=True, doc="FUV band magnitude")
     mag_nuv = sa.Column(sa.Float, nullable=True, doc="NUV band magnitude")
 
+    mag_w1 = sa.Column(sa.Float, nullable=True, doc="W1 band magnitude")
+    mag_w2 = sa.Column(sa.Float, nullable=True, doc="W2 band magnitude")
+    mag_w3 = sa.Column(sa.Float, nullable=True, doc="W3 band magnitude")
+    mag_w4 = sa.Column(sa.Float, nullable=True, doc="W4 band magnitude")
+
     a = sa.Column(sa.Float, nullable=True, doc="semi-major axis in arcsec [arcsec]")
     b2a = sa.Column(sa.Float, nullable=True, doc="semi-minor to semi-major axis ratio")
     pa = sa.Column(sa.Float, nullable=True, doc="position angle in degrees")
