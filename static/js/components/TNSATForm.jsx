@@ -120,6 +120,28 @@ const TNSATForm = ({ obj_id }) => {
   };
 
   const validate = (formData, errors) => {
+    if (
+      formData.reporters ===
+      `${currentUser.first_name} ${currentUser.last_name} on behalf of...`
+    ) {
+      errors.reporters.addError(
+        "Please edit the reporters field before submitting"
+      );
+    }
+    if (formData.reporters.includes("on behalf of")) {
+      const secondHalf = formData.reporters.split("on behalf of")[1];
+      if (!secondHalf.match(/[a-z]/i)) {
+        errors.reporters.addError(
+          "Please specify the group you are reporting on behalf of"
+        );
+      }
+    }
+    if (formData.reporters === "" || formData.reporters === undefined) {
+      errors.reporters.addError(
+        "Please specify the group you are reporting on behalf of"
+      );
+    }
+
     if (formData.archival === true) {
       if (
         Object.keys(formData).includes("archivalComment") &&
