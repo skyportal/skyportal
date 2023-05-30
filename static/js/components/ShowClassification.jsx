@@ -227,21 +227,41 @@ const ClassificationRow = ({ classifications }) => {
           </div>
         }
       >
-        <Chip
-          label={
-            classification.probability < 0.1
-              ? `${classification.classification}?`
-              : classification.classification
-          }
-          key={`${classification.modified}tb`}
-          size="small"
-          className={classes.chip}
-          style={{
-            backgroundColor: classifications_classes
-              ? classifications_classes[classification.classification]
-              : "#999999",
-          }}
-        />
+        {classifications_classes?.origin && classification.origin ? (
+          <Chip
+            label={
+              classification.probability < 0.1
+                ? `${classification.classification}?`
+                : classification.classification
+            }
+            key={`${classification.modified}tb`}
+            size="small"
+            className={classes.chip}
+            style={{
+              color: classifications_classes?.origin
+                ? classifications_classes.origin[classification.origin]
+                : "#999999",
+            }}
+          />
+        ) : (
+          <Chip
+            label={
+              classification.probability < 0.1
+                ? `${classification.classification}?`
+                : classification.classification
+            }
+            key={`${classification.modified}tb`}
+            size="small"
+            className={classes.chip}
+            style={{
+              backgroundColor: classifications_classes?.classification
+                ? classifications_classes.classification[
+                    classification.classification
+                  ]
+                : "#999999",
+            }}
+          />
+        )}
       </Tooltip>
     </div>
   );
@@ -256,6 +276,7 @@ ClassificationRow.propTypes = {
       author_name: PropTypes.string,
       modified: PropTypes.string,
       probability: PropTypes.number,
+      origin: PropTypes.string,
       groups: PropTypes.arrayOf(
         PropTypes.shape({
           id: PropTypes.number,

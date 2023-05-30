@@ -741,12 +741,16 @@ photometric_series_autodelete: True
 
 colors:
   classifications:
-    # A few examples that show up in the demo data. You can modify the config on deploy to fill out the colors and types you want.
-    {
-      "variable": "#3a87ad",
-      "Time-domain Source": "#ff0000",
-    }
-
+    classification:
+      # A few examples that show up in the demo data. You can modify the config on deploy to fill out the colors and types you want.
+      {
+        "variable": "#3a87ad",
+        "Time-domain Source": "#ff0000",
+      }
+    origin:
+      {
+        "SCoPe": "#3a87ad",
+      }
   gcnTags:
     {
       "BNS": "#468847",
