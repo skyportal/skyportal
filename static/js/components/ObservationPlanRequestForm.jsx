@@ -692,8 +692,8 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
               >
                 {`${
                   telLookUp[instLookUp[allocation.instrument_id].telescope_id]
-                    .name
-                } / ${instLookUp[allocation.instrument_id].name} - ${
+                    ?.name
+                } / ${instLookUp[allocation.instrument_id]?.name} - ${
                   groupLookUp[allocation.group_id]?.name
                 } (PI ${allocation.pi})`}
               </MenuItem>
@@ -774,7 +774,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
               key={plan.payload.queue_name}
               label={`${
                 instLookUp[allocationLookUp[plan.allocation_id].instrument_id]
-                  .name
+                  ?.name
               }: ${plan.payload.queue_name}`}
               data-testid={`queueName_${plan.payload.queue_name}`}
             />

@@ -4,6 +4,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine
 from sqlalchemy_utils.types import JSONType
+from sqlalchemy.dialects.postgresql import ARRAY
 
 import json
 
@@ -41,6 +42,14 @@ class TNSRobot(Base):
     _altdata = sa.Column(
         EncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5')
     )
+
+    auto_report_group_ids = sa.Column(
+        ARRAY(sa.Integer),
+        comment='List of group IDs to report from',
+        nullable=True,
+    )
+
+    auto_reporters = sa.Column(sa.String, doc="Auto report reporters.", nullable=True)
 
     @property
     def altdata(self):

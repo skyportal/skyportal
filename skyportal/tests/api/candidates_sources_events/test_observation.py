@@ -12,7 +12,7 @@ from skyportal.tests import api
 @pytest.mark.flaky(reruns=2)
 def test_observation(super_admin_token, view_only_token):
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     data = {'xml': payload}
@@ -39,8 +39,8 @@ def test_observation(super_admin_token, view_only_token):
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
 
-    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
-    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+    fielddatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Fields.csv'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Region.reg'
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
@@ -72,7 +72,9 @@ def test_observation(super_admin_token, view_only_token):
     # wait for the fields to populate
     time.sleep(15)
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/sample_observation_data.csv'
+    datafile = (
+        f'{os.path.dirname(__file__)}/../../../../data/sample_observation_data.csv'
+    )
     data = {
         'telescopeName': telescope_name,
         'instrumentName': instrument_name,
@@ -185,8 +187,8 @@ def test_observation_radec(super_admin_token, view_only_token):
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
 
-    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
-    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+    fielddatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Fields.csv'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Region.reg'
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
@@ -225,9 +227,7 @@ def test_observation_radec(super_admin_token, view_only_token):
             nretries = nretries + 1
             time.sleep(3)
 
-    datafile = (
-        f'{os.path.dirname(__file__)}/../../../data/sample_observation_data_radec.csv'
-    )
+    datafile = f'{os.path.dirname(__file__)}/../../../../data/sample_observation_data_radec.csv'
     data = {
         'telescopeName': telescope_name,
         'instrumentName': instrument_name,
@@ -290,8 +290,8 @@ def test_observation_isot(super_admin_token, view_only_token):
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
 
-    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
-    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+    fielddatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Fields.csv'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Region.reg'
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
@@ -331,7 +331,7 @@ def test_observation_isot(super_admin_token, view_only_token):
             time.sleep(3)
 
     datafile = (
-        f'{os.path.dirname(__file__)}/../../../data/sample_observation_data_isot.csv'
+        f'{os.path.dirname(__file__)}/../../../../data/sample_observation_data_isot.csv'
     )
     data = {
         'telescopeName': telescope_name,

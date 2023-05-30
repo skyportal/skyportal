@@ -81,7 +81,7 @@ const GcnAliases = ({ gcnEvent, show_title = false }) => {
     <div className={styles.root}>
       {show_title && <h4 className={styles.title}>Aliases:</h4>}
       <div className={styles.chips} name="gcn_triggers-aliases">
-        {gcnEvent?.aliases.map((alias) => (
+        {gcnEvent?.aliases?.map((alias) => (
           <Tooltip
             key={alias}
             title={

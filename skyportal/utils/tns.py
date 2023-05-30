@@ -1,13 +1,18 @@
 from skyportal.app_utils import get_app_base_url
 
 import astropy.units as u
+from astropy.table import Table
 from astropy.coordinates import SkyCoord
+from astropy.time import Time
 import json
 import requests
+import sqlalchemy as sa
 import urllib
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+
+from ..models import Instrument
 
 env, cfg = load_env()
 
@@ -17,6 +22,34 @@ TNS_URL = cfg['app.tns_endpoint']
 search_url = urllib.parse.urljoin(TNS_URL, 'api/get/search')
 
 log = make_log('tns')
+
+# IDs here: https://www.wis-tns.org/api/values
+
+TNS_INSTRUMENT_IDS = {
+    'DECam': 172,
+    'EFOSC2': 30,
+    'Goodman': 136,
+    'SEDM': 225,
+    'SPRAT': 156,
+    'ZTF': 196,
+}
+TNS_FILTER_IDS = {
+    'sdssu': 20,
+    'sdssg': 21,
+    'sdssr': 22,
+    'sdssi': 23,
+    'sdssz': 24,
+    'desu': 20,
+    'desg': 21,
+    'desr': 22,
+    'desi': 23,
+    'desz': 24,
+    'desy': 81,
+    'ztfg': 110,
+    'ztfr': 111,
+    'ztfi': 112,
+}
+INSTRUMENT_TNS_IDS = {v: k for k, v in TNS_INSTRUMENT_IDS.items()}
 
 
 def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=5):
@@ -96,3 +129,33 @@ def post_tns(obj_ids, tnsrobot_id, user_id, reporters="", timeout=2):
         log(
             f'TNS request failed for {str(request_body["obj_ids"])} by user ID {request_body["user_id"]}: {resp.content}'
         )
+
+
+def read_tns_spectrum(spectrum, session):
+
+    try:
+        tab = Table.read(spectrum["asciifile"], format="ascii")
+        tab.rename_column('col1', 'wavelengths')
+        tab.rename_column('col2', 'fluxes')
+        if len(tab.columns) == 3:
+            tab.rename_column('col3', 'errors')
+    except Exception:
+        tab = Table.read(spectrum["asciifile"], format="fits")
+
+    data = tab.to_pandas().to_dict(orient='list')
+    data["observed_at"] = Time(spectrum["jd"], format="jd").isot
+    data["origin"] = "TNS"
+
+    tns_instrument_id = spectrum["instrument"]["id"]
+    if tns_instrument_id not in INSTRUMENT_TNS_IDS:
+        raise ValueError(f'Cannot find TNS ID mapping for {tns_instrument_id}')
+    inst_name = INSTRUMENT_TNS_IDS[tns_instrument_id]
+
+    instrument = session.scalars(
+        sa.select(Instrument).where(Instrument.name == inst_name)
+    ).first()
+    if instrument is None:
+        raise ValueError(f'Cannot find instrument with name {inst_name}')
+    data["instrument_id"] = instrument.id
+
+    return data

@@ -12,7 +12,7 @@ def test_reprioritize_followup_request(
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
     if status != 200:
         # POST the GCN event
-        datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
+        datafile = f'{os.path.dirname(__file__)}/../../data/GW190425_initial.xml'
         with open(datafile, 'rb') as fid:
             payload = fid.read()
         data = {'xml': payload}
