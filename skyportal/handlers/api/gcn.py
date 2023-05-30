@@ -2491,20 +2491,21 @@ def add_gcn_summary(
                 )
             contents.extend(galaxies_text)
 
-            distmean, distsigma = localization.marginal_moments
-            if (distmean is not None) and (distsigma is not None):
-                min_distance = np.max([distmean - 3 * distsigma, 0])
-                max_distance = np.min([distmean + 3 * distsigma, 10000])
-                try:
-                    completeness = get_galaxies_completeness(
-                        galaxies, dist_min=min_distance, dist_max=max_distance
-                    )
-                except Exception:
-                    completeness = None
+            if localization is not None:
+                distmean, distsigma = localization.marginal_moments
+                if (distmean is not None) and (distsigma is not None):
+                    min_distance = np.max([distmean - 3 * distsigma, 0])
+                    max_distance = np.min([distmean + 3 * distsigma, 10000])
+                    try:
+                        completeness = get_galaxies_completeness(
+                            galaxies, dist_min=min_distance, dist_max=max_distance
+                        )
+                    except Exception:
+                        completeness = None
 
-                if completeness is not None and not no_text:
-                    completeness_text = f"\n\nThe estimated mass completeness of the catalog for the skymap distance is ~{int(round(completeness*100,0))}%. This calculation was made by comparing the total mass within the catalog to a stellar mass function described by a Schechter function in the range {distmean:.1f} ± {distsigma:.1f} Mpc (within 3 sigma of the skymap).\n"
-                    contents.append(completeness_text)
+                    if completeness is not None and not no_text:
+                        completeness_text = f"\n\nThe estimated mass completeness of the catalog for the skymap distance is ~{int(round(completeness*100,0))}%. This calculation was made by comparing the total mass within the catalog to a stellar mass function described by a Schechter function in the range {distmean:.1f} ± {distsigma:.1f} Mpc (within 3 sigma of the skymap).\n"
+                        contents.append(completeness_text)
 
         if show_observations:
             # get the executed obs, by instrument
