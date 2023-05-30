@@ -255,11 +255,11 @@ def get_galaxies(
 
         features = []
         for source in query_results["galaxies"]:
-            point = Point((source.ra, source.dec))
-            if source.name is not None:
-                source_name = source.name
+            point = Point((source["ra"], source["dec"]))
+            if source["name"] is not None:
+                source_name = source["name"]
             else:
-                source_name = f'{source.ra},{source.dec}'
+                source_name = f'{source["ra"]},{source["dec"]}'
 
             features.append(Feature(geometry=point, properties={"name": source_name}))
 
@@ -1028,6 +1028,7 @@ def get_galaxies_completeness(
     hist_schechter = np.array(N) * V
 
     mstar = [galaxy['mstar'] for galaxy in galaxies if galaxy['mstar'] is not None]
+    mstar = np.log10(mstar)
     hist_galaxies, _ = np.histogram(mstar, bins=logM)
 
     mass_schechter = np.sum(M_ave * hist_schechter)
