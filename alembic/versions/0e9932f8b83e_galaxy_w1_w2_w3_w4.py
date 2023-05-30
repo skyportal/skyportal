@@ -1,7 +1,7 @@
 """Galaxy w1/w2/w3/w4 migration
 
 Revision ID: 0e9932f8b83e
-Revises: cdfb7edc7438
+Revises: b2aadcb864d1
 Create Date: 2023-05-29 21:28:09.300603
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '0e9932f8b83e'
-down_revision = 'cdfb7edc7438'
+down_revision = 'b2aadcb864d1'
 branch_labels = None
 depends_on = None
 
