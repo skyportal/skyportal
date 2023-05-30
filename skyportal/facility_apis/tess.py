@@ -1,6 +1,7 @@
 from astropy.time import Time, TimeDelta
 from astropy.table import Table
 import numpy as np
+import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 
@@ -37,6 +38,7 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
     from ..models import (
         DBSession,
         FollowupRequest,
+        PhotometricSeries,
         User,
     )
 
@@ -111,11 +113,29 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
             'group_ids': [g.id for g in user.accessible_groups],
         }
 
-        from skyportal.handlers.api.photometric_series import post_photometric_series
+        from skyportal.handlers.api.photometric_series import (
+            post_photometric_series,
+            update_photometric_series,
+        )
 
         if len(df.index) > 0:
-            post_photometric_series(data_out, df, {}, request.requester, session)
-            request.status = "Photometry committed to database"
+            try:
+                post_photometric_series(data_out, df, {}, request.requester, session)
+                request.status = "Photometry committed to database"
+            except Exception:
+                ps = session.scalars(
+                    sa.select(PhotometricSeries).where(
+                        PhotometricSeries.series_obj_id == request.obj.id,
+                        PhotometricSeries.obj_id == request.obj.id,
+                    )
+                ).first()
+                if ps is not None:
+                    update_photometric_series(
+                        ps, data_out, df, {}, request.requester, session
+                    )
+                    request.status = "Photometry updated in database"
+                else:
+                    request.status = "No photometry to commit to database"
         else:
             request.status = "No photometry to commit to database"
 

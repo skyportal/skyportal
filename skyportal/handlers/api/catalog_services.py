@@ -26,7 +26,7 @@ except Exception:
 
 from .source import post_source
 from .photometry import add_external_photometry
-from .photometric_series import post_photometric_series
+from .photometric_series import post_photometric_series, update_photometric_series
 
 from ..base import BaseHandler
 from ...models import (
@@ -38,6 +38,7 @@ from ...models import (
     Instrument,
     Localization,
     Obj,
+    PhotometricSeries,
     Telescope,
     User,
 )
@@ -990,8 +991,21 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
             }
 
             if len(df.index) > 0:
-                post_photometric_series(data_out, df, {}, user, session)
-                log(f"Photometry committed to database for {obj_id}")
+                try:
+                    post_photometric_series(data_out, df, {}, user, session)
+                    log(f"Photometry committed to database for {obj_id}")
+                except Exception:
+                    ps = session.scalars(
+                        sa.select(PhotometricSeries).where(
+                            PhotometricSeries.series_obj_id == obj_id,
+                            PhotometricSeries.obj_id == obj_id,
+                        )
+                    ).first()
+                    if ps is not None:
+                        update_photometric_series(ps, data_out, df, {}, user, session)
+                        log(f"Photometry updated in database for {obj_id}")
+                    else:
+                        log(f"No photometry to commit to database for {obj_id}")
             else:
                 log(f"No photometry to commit to database for {obj_id}")
 
