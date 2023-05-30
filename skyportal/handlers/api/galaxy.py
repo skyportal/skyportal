@@ -915,6 +915,11 @@ def add_glade(file_path=None, file_url=None):
             df = df[(df['ra'] >= 0) & (df['ra'] < 360)]
             df = df[(df['dec'] >= -90) & (df['dec'] <= 90)]
 
+            # the mstar in Glade is in 10^10 M_Sun units, so multiply by 1e10 where its not None
+            df['mstar'] = df['mstar'].apply(
+                lambda x: x * 1e10 if x is not None else None
+            )
+
             # add a healpix column where healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
             df['healpix'] = [
                 ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)

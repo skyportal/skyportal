@@ -35,7 +35,7 @@ import operator  # noqa: F401
 
 from skyportal.models.photometry import Photometry
 
-from .observation import get_observations
+from .observation import get_observations, MAX_OBSERVATIONS
 from .source import get_sources, serialize, MAX_SOURCES_PER_PAGE
 from .galaxy import get_galaxies, get_galaxies_completeness, MAX_GALAXIES
 import pandas as pd
@@ -2531,6 +2531,8 @@ def add_gcn_summary(
                         localization_cumprob=localization_cumprob,
                         return_statistics=True,
                         stats_method=stats_method,
+                        n_per_page=MAX_OBSERVATIONS,
+                        page_number=1,
                     )
 
                     observations = data["observations"]
