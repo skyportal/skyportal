@@ -56,6 +56,7 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
         lc['ra'] = request.obj.ra
         lc['dec'] = request.obj.dec
         lc['limiting_mag'] = 18.4
+        lc['zp'] = 20.5
         lc['filter'] = 'tess'
         lc['magsys'] = 'ab'
 
@@ -63,6 +64,8 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
         df.rename(
             columns={
                 'e_mag': 'magerr',
+                'cts_per_s': 'flux',
+                'e_cts_per_s': 'fluxerr',
             },
             inplace=True,
         )
@@ -86,6 +89,9 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
                 'dec',
                 'mag',
                 'magerr',
+                'flux',
+                'fluxerr',
+                'zp',
                 'limiting_mag',
                 'filter',
                 'magsys',
@@ -98,15 +104,17 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
 
         data_out = {
             'obj_id': request.obj.id,
+            'series_name': 'tesstransients',
+            'series_obj_id': request.obj.id,
+            'exp_time': 2.0,
             'instrument_id': instrument_id,
             'group_ids': [g.id for g in user.accessible_groups],
-            **df.to_dict(orient='list'),
         }
 
-        from skyportal.handlers.api.photometry import add_external_photometry
+        from skyportal.handlers.api.photometric_series import post_photometric_series
 
         if len(df.index) > 0:
-            add_external_photometry(data_out, request.requester)
+            post_photometric_series(data_out, df, {}, request.requester, session)
             request.status = "Photometry committed to database"
         else:
             request.status = "No photometry to commit to database"

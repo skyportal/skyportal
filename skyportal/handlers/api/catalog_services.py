@@ -26,6 +26,7 @@ except Exception:
 
 from .source import post_source
 from .photometry import add_external_photometry
+from .photometric_series import post_photometric_series
 
 from ..base import BaseHandler
 from ...models import (
@@ -933,6 +934,7 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
             lc['ra'] = ra
             lc['dec'] = dec
             lc['limiting_mag'] = 18.4
+            lc['zp'] = 20.5
             lc['filter'] = 'tess'
             lc['magsys'] = 'ab'
 
@@ -940,6 +942,8 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
             df.rename(
                 columns={
                     'e_mag': 'magerr',
+                    'cts_per_s': 'flux',
+                    'e_cts_per_s': 'fluxerr',
                 },
                 inplace=True,
             )
@@ -963,6 +967,9 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
                     'dec',
                     'mag',
                     'magerr',
+                    'flux',
+                    'fluxerr',
+                    'zp',
                     'limiting_mag',
                     'filter',
                     'magsys',
@@ -975,13 +982,15 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
 
             data_out = {
                 'obj_id': obj_id,
+                'series_name': 'tesstransients',
+                'series_obj_id': obj_id,
+                'exp_time': 2.0,
                 'instrument_id': instrument_id,
                 'group_ids': group_ids,
-                **df.to_dict(orient='list'),
             }
 
             if len(df.index) > 0:
-                add_external_photometry(data_out, user)
+                post_photometric_series(data_out, df, {}, user, session)
                 log(f"Photometry committed to database for {obj_id}")
             else:
                 log(f"No photometry to commit to database for {obj_id}")
