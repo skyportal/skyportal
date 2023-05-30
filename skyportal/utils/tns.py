@@ -26,6 +26,7 @@ log = make_log('tns')
 # IDs here: https://www.wis-tns.org/api/values
 
 TNS_INSTRUMENT_IDS = {
+    'ALFOSC': 41,
     'DECam': 172,
     'EFOSC2': 30,
     'Goodman': 136,

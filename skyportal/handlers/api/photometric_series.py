@@ -415,6 +415,274 @@ def check_objects_exist(metadata, user, session):
             raise ValueError(f'Invalid assignment_id: {assignment_id}')
 
 
+def post_photometric_series(json_data, data, attributes_metadata, user, session):
+    """
+    Post the photometric series.
+
+    Parameters
+    ----------
+    json_data : dict
+        Dictionary containing any information, such as to be added to metadata.
+    data : pandas.DataFrame
+        Photometric series data set.
+    attributes_metadata: dict
+        Dictionary containing the metadata for the photometric series.
+        Must have at least an 'object_id' and 'instrument_id' keys.
+    user: skyportal.models.User
+        The user associated with the request.
+    session: sqlalchemy.orm.Session
+        The database session.
+
+    """
+
+    try:
+        # make sure data has the minimal columns:
+        verify_data(data)
+
+        # check if any metadata can be inferred from the data:
+        metadata = infer_metadata(data)
+
+        # if we got any more data from the HDF5 file:
+        metadata.update(attributes_metadata)
+
+        # now load any additional metadata from the json_data:
+        metadata.update(json_data)
+
+        # remove any metadata items that are None (equivalent to not given):
+        for k, v in metadata.items():
+            if v is None:
+                metadata.pop(k)
+
+    except Exception:
+        raise ValueError(f'Problem parsing data/metadata: {traceback.format_exc()}')
+
+    # check all the related DB objects are valid:
+    try:
+        group_ids = get_group_ids(metadata, user, session)
+    except Exception:
+        raise ValueError(f'Could not parse group IDs: {traceback.format_exc()}')
+    try:
+        stream_ids = get_stream_ids(metadata, user, session)
+    except Exception:
+        raise ValueError(f'Could not parse stream IDs: {traceback.format_exc()}')
+
+    try:
+        check_objects_exist(metadata, user, session)
+    except Exception:
+        raise ValueError(
+            f'Problems accessing database objects: {traceback.format_exc()}'
+        )
+
+    try:
+        # load the group, stream and owner IDs:
+        metadata.update(
+            {
+                'group_ids': group_ids,
+                'stream_ids': stream_ids,
+                'owner_id': user.id,
+            }
+        )
+
+        # make sure all required attributes are present
+        # make sure no unknown attributes are present
+        # parse all attributes into correct type
+        metadata = verify_metadata(metadata)
+
+    except Exception:
+        raise ValueError(f'Problem parsing data/metadata: {traceback.format_exc()}')
+
+    try:
+        individual_enum_checks(metadata)
+    except Exception:
+        raise ValueError(f'Problem parsing metadata: {traceback.format_exc()}')
+
+    try:
+        ps = PhotometricSeries(data, **metadata)
+        # allow the config to change the default behavior:
+        ps.autodelete = cfg.get('photometric_series_autodelete', True)
+
+    except Exception:
+        raise ValueError(
+            f'Could not create PhotometricSeries object: {traceback.format_exc()}'
+        )
+
+    try:
+        # make sure we can get the file name:
+        full_name, path = ps.make_full_name()
+
+        # make sure the file does not exist:
+        if os.path.isfile(full_name):
+            raise ValueError(f'File already exists: {full_name}')
+
+        # make sure this file is not already saved using the hash:
+        existing_ps = session.scalars(
+            sa.select(PhotometricSeries).where(PhotometricSeries.hash == ps.hash)
+        ).first()
+        if existing_ps is not None:
+            raise ValueError(
+                'A PhotometricSeries with the same hash already exists, '
+                f'with filename: {existing_ps.make_full_name()[0]}'
+            )
+
+    except Exception:
+        raise ValueError(
+            f'Errors when making file name or hash: {traceback.format_exc()}'
+        )
+
+    try:
+        ps.save_data()
+        session.add(ps)
+        session.commit()
+
+        return ps.id
+
+    except Exception:
+        session.rollback()
+        ps.delete_data()  # make sure not to leave files behind
+        raise ValueError(f'Could not save photometric series: {traceback.format_exc()}')
+
+        return None
+
+
+def update_photometric_series(ps, json_data, data, attributes_metadata, user, session):
+    """
+    Update the photometric series.
+
+    Parameters
+    ----------
+    ps : skyportal.models.PhotometricSeries
+        Photometric series to update.
+    json_data : dict
+        Dictionary containing any information, such as to be added to metadata.
+    data : pandas.DataFrame
+        Photometric series data set.
+    attributes_metadata: dict
+        Dictionary containing the metadata for the photometric series.
+        Must have at least an 'object_id' and 'instrument_id' keys.
+    user: skyportal.models.User
+        The user associated with the request.
+    session: sqlalchemy.orm.Session
+        The database session.
+
+    """
+
+    # check that the data is valid:
+    inferred_metadata = {}
+    if data is not None:
+        try:
+            verify_data(data)
+            inferred_metadata = infer_metadata(data)
+        except Exception:
+            raise ValueError(f'Problem parsing data/metadata: {traceback.format_exc()}')
+
+    prev_filename = ps.filename
+
+    # apply parameters from existing, inferred, bytes stream, and json body.
+    existing_metadata = ps.get_metadata()
+    metadata = {}
+    metadata.update(existing_metadata)
+    metadata.update(inferred_metadata)
+    metadata.update(attributes_metadata)
+    metadata.update(json_data)
+
+    # check all the related DB objects are valid:
+    try:
+        group_ids = get_group_ids(metadata, user, session)
+    except Exception:
+        raise ValueError(f'Could not parse group IDs: {traceback.format_exc()}')
+    try:
+        stream_ids = get_stream_ids(metadata, user, session)
+    except Exception:
+        raise ValueError(f'Could not parse stream IDs: {traceback.format_exc()}')
+
+    try:
+        check_objects_exist(metadata, user, session)
+    except Exception:
+        raise ValueError(
+            f'Problems accessing database objects: {traceback.format_exc()}'
+        )
+
+    try:
+        # load the group and stream IDs:
+        metadata.update(
+            {
+                'group_ids': group_ids,
+                'stream_ids': stream_ids,
+                'owner_id': ps.owner_id,  # does not change on PATCH
+            }
+        )
+
+        # make sure all required attributes are present
+        # make sure no unknown attributes are present
+        # parse all attributes into correct type
+        metadata = verify_metadata(metadata)
+
+    except Exception:
+        raise ValueError(f'Problem parsing data/metadata: {traceback.format_exc()}')
+
+    try:
+        individual_enum_checks(metadata)
+    except Exception:
+        raise ValueError(f'Problem parsing metadata: {traceback.format_exc()}')
+
+    # update the underlying data (if given)
+    if data is not None:
+        try:
+            ps.data = data  # also run calc_flux_mag() and calc_stats()
+        except Exception:
+            raise ValueError(f'Could not update data: {traceback.format_exc()}')
+
+    # update the metadata on the PhotometricSeries object
+    for k, v in metadata.items():
+        setattr(ps, k, v)
+
+    try:
+        # make sure we can get the file name:
+        full_name, path = ps.make_full_name()
+
+        # make sure the file does not exist:
+        if prev_filename != full_name and os.path.isfile(full_name):
+            raise ValueError(f'New filename already exists: {full_name}')
+
+        # make sure this file is not already saved using the hash:
+        # this includes only objects different from the one being updated
+        existing_ps = session.scalars(
+            sa.select(PhotometricSeries).where(
+                PhotometricSeries.hash == ps.hash, PhotometricSeries.id != ps.id
+            )
+        ).first()
+        if existing_ps is not None:
+            raise ValueError(
+                'Another PhotometricSeries with the same hash already exists, '
+                f'with filename: {existing_ps.make_full_name()[0]}'
+            )
+
+    except Exception:
+        raise ValueError(
+            f'Errors when making file name or hash: {traceback.format_exc()}'
+        )
+    try:
+        # save the new data as temporary file:
+        ps.save_data(temp=True)
+        session.add(ps)
+        session.commit()
+
+    except Exception:
+        session.rollback()
+        ps.delete_data(temp=True)  # make sure not to leave files behind
+        raise ValueError(f'Could not save photometric series: {traceback.format_exc()}')
+
+    # get rid of the old data, regardless of new name
+    try:
+        if os.path.isfile(prev_filename):
+            os.remove(prev_filename)
+    except Exception:
+        log(f'Could not remove old file {prev_filename}: {traceback.format_exc()}')
+    ps.move_temp_data()  # make the temp file permanent
+
+    return ps.id
+
+
 class PhotometricSeriesHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
@@ -469,130 +737,19 @@ class PhotometricSeriesHandler(BaseHandler):
                 'Data must be a dictionary (JSON) or dataframe in HDF5 format. '
             )
 
-        try:
-            # make sure data has the minimal columns:
-            verify_data(data)
-
-            # check if any metadata can be inferred from the data:
-            metadata = infer_metadata(data)
-
-            # if we got any more data from the HDF5 file:
-            metadata.update(attributes_metadata)
-
-            # now load any additional metadata from the json_data:
-            metadata.update(json_data)
-
-            # remove any metadata items that are None (equivalent to not given):
-            for k, v in metadata.items():
-                if v is None:
-                    metadata.pop(k)
-
-        except Exception:
-            return self.error(
-                f'Problem parsing data/metadata: {traceback.format_exc()}'
-            )
-
-        # check all the related DB objects are valid:
         with self.Session() as session:
             try:
-                group_ids = get_group_ids(
-                    metadata, self.associated_user_object, session
+                photometric_series_id = post_photometric_series(
+                    json_data,
+                    data,
+                    attributes_metadata,
+                    self.associated_user_object,
+                    session,
                 )
-            except Exception:
-                return self.error(
-                    f'Could not parse group IDs: {traceback.format_exc()}'
-                )
-            try:
-                stream_ids = get_stream_ids(
-                    metadata, self.associated_user_object, session
-                )
-            except Exception:
-                return self.error(
-                    f'Could not parse stream IDs: {traceback.format_exc()}'
-                )
+            except Exception as e:
+                return self.error(f'Unable to post photometric series: {str(e)}')
 
-            try:
-                check_objects_exist(metadata, self.associated_user_object, session)
-            except Exception:
-                return self.error(
-                    f'Problems accessing database objects: {traceback.format_exc()}'
-                )
-
-        try:
-            # load the group, stream and owner IDs:
-            metadata.update(
-                {
-                    'group_ids': group_ids,
-                    'stream_ids': stream_ids,
-                    'owner_id': self.associated_user_object.id,
-                }
-            )
-
-            # make sure all required attributes are present
-            # make sure no unknown attributes are present
-            # parse all attributes into correct type
-            metadata = verify_metadata(metadata)
-
-        except Exception:
-            return self.error(
-                f'Problem parsing data/metadata: {traceback.format_exc()}'
-            )
-
-        try:
-            individual_enum_checks(metadata)
-        except Exception:
-            return self.error(f'Problem parsing metadata: {traceback.format_exc()}')
-
-        try:
-            ps = PhotometricSeries(data, **metadata)
-            # allow the config to change the default behavior:
-            ps.autodelete = cfg.get('photometric_series_autodelete', True)
-
-        except Exception:
-            return self.error(
-                f'Could not create PhotometricSeries object: {traceback.format_exc()}'
-            )
-
-        try:
-            # make sure we can get the file name:
-            full_name, path = ps.make_full_name()
-
-            # make sure the file does not exist:
-            if os.path.isfile(full_name):
-                return self.error(f'File already exists: {full_name}')
-
-            # make sure this file is not already saved using the hash:
-            with self.Session() as session:
-                existing_ps = session.scalars(
-                    sa.select(PhotometricSeries).where(
-                        PhotometricSeries.hash == ps.hash
-                    )
-                ).first()
-                if existing_ps is not None:
-                    return self.error(
-                        'A PhotometricSeries with the same hash already exists, '
-                        f'with filename: {existing_ps.make_full_name()[0]}'
-                    )
-
-        except Exception:
-            return self.error(
-                f'Errors when making file name or hash: {traceback.format_exc()}'
-            )
-
-        with self.Session() as session:
-            try:
-                ps.save_data()
-                session.add(ps)
-                session.commit()
-
-                return self.success(data={'id': ps.id})
-
-            except Exception:
-                session.rollback()
-                ps.delete_data()  # make sure not to leave files behind
-                return self.error(
-                    f'Could not save photometric series: {traceback.format_exc()}'
-                )
+        return self.success(data={'id': photometric_series_id})
 
     @permissions(['Upload data'])
     def patch(self, photometric_series_id):
@@ -645,7 +802,6 @@ class PhotometricSeriesHandler(BaseHandler):
             if ps is None:
                 return self.error('Invalid photometric series ID.')
 
-            prev_filename = ps.filename
             json_data = self.get_json()
             data = json_data.pop('data', None)  # allowed to be None
 
@@ -665,137 +821,19 @@ class PhotometricSeriesHandler(BaseHandler):
                         f'Could not load DataFrame from HDF5 file. {traceback.format_exc()} '
                     )
 
-            # check that the data is valid:
-            inferred_metadata = {}
-            if data is not None:
-                try:
-                    verify_data(data)
-                    inferred_metadata = infer_metadata(data)
-                except Exception:
-                    return self.error(
-                        f'Problem parsing data/metadata: {traceback.format_exc()}'
-                    )
-
-            # apply parameters from existing, inferred, bytes stream, and json body.
-            existing_metadata = ps.get_metadata()
-            metadata = {}
-            metadata.update(existing_metadata)
-            metadata.update(inferred_metadata)
-            metadata.update(attributes_metadata)
-            metadata.update(json_data)
-
-            # check all the related DB objects are valid:
             try:
-                group_ids = get_group_ids(
-                    metadata, self.associated_user_object, session
+                photometric_series_id = update_photometric_series(
+                    ps,
+                    json_data,
+                    data,
+                    attributes_metadata,
+                    self.associated_user_object,
+                    session,
                 )
-            except Exception:
-                return self.error(
-                    f'Could not parse group IDs: {traceback.format_exc()}'
-                )
-            try:
-                stream_ids = get_stream_ids(
-                    metadata, self.associated_user_object, session
-                )
-            except Exception:
-                return self.error(
-                    f'Could not parse stream IDs: {traceback.format_exc()}'
-                )
+            except Exception as e:
+                return self.error(f'Unable to update photometric series: {str(e)}')
 
-            try:
-                check_objects_exist(metadata, self.associated_user_object, session)
-            except Exception:
-                return self.error(
-                    f'Problems accessing database objects: {traceback.format_exc()}'
-                )
-
-            try:
-                # load the group and stream IDs:
-                metadata.update(
-                    {
-                        'group_ids': group_ids,
-                        'stream_ids': stream_ids,
-                        'owner_id': ps.owner_id,  # does not change on PATCH
-                    }
-                )
-
-                # make sure all required attributes are present
-                # make sure no unknown attributes are present
-                # parse all attributes into correct type
-                metadata = verify_metadata(metadata)
-
-            except Exception:
-                return self.error(
-                    f'Problem parsing data/metadata: {traceback.format_exc()}'
-                )
-
-            try:
-                individual_enum_checks(metadata)
-            except Exception:
-                return self.error(f'Problem parsing metadata: {traceback.format_exc()}')
-
-            # update the underlying data (if given)
-            if data is not None:
-                try:
-                    ps.data = data  # also run calc_flux_mag() and calc_stats()
-                except Exception:
-                    return self.error(
-                        f'Could not update data: {traceback.format_exc()}'
-                    )
-
-            # update the metadata on the PhotometricSeries object
-            for k, v in metadata.items():
-                setattr(ps, k, v)
-
-            try:
-                # make sure we can get the file name:
-                full_name, path = ps.make_full_name()
-
-                # make sure the file does not exist:
-                if prev_filename != full_name and os.path.isfile(full_name):
-                    return self.error(f'New filename already exists: {full_name}')
-
-                # make sure this file is not already saved using the hash:
-                # this includes only objects different from the one being updated
-                existing_ps = session.scalars(
-                    sa.select(PhotometricSeries).where(
-                        PhotometricSeries.hash == ps.hash, PhotometricSeries.id != ps.id
-                    )
-                ).first()
-                if existing_ps is not None:
-                    return self.error(
-                        'Another PhotometricSeries with the same hash already exists, '
-                        f'with filename: {existing_ps.make_full_name()[0]}'
-                    )
-
-            except Exception:
-                return self.error(
-                    f'Errors when making file name or hash: {traceback.format_exc()}'
-                )
-            try:
-                # save the new data as temporary file:
-                ps.save_data(temp=True)
-                session.add(ps)
-                session.commit()
-
-            except Exception:
-                session.rollback()
-                ps.delete_data(temp=True)  # make sure not to leave files behind
-                return self.error(
-                    f'Could not save photometric series: {traceback.format_exc()}'
-                )
-
-            # get rid of the old data, regardless of new name
-            try:
-                if os.path.isfile(prev_filename):
-                    os.remove(prev_filename)
-            except Exception:
-                log(
-                    f'Could not remove old file {prev_filename}: {traceback.format_exc()}'
-                )
-            ps.move_temp_data()  # make the temp file permanent
-
-            return self.success(data={'id': ps.id})
+            return self.success(data={'id': photometric_series_id})
 
     @permissions(['Upload data'])
     def get(self, photometric_series_id=None):

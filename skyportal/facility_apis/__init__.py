@@ -15,4 +15,5 @@ from .lco import SINISTROAPI, SPECTRALAPI, FLOYDSAPI, MUSCATAPI
 from .nicer import NICERAPI
 from .ps1 import PS1API
 from .swift import UVOTXRTAPI, UVOTXRTMMAAPI
+from .tess import TESSAPI
 from .ztf import ZTFAPI, ZTFMMAAPI
