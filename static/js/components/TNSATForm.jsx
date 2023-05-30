@@ -100,7 +100,6 @@ const TNSATForm = ({ obj_id }) => {
   };
 
   const formSchema = {
-    description: "Add TNS",
     type: "object",
     properties: {
       reporters: {
@@ -108,11 +107,30 @@ const TNSATForm = ({ obj_id }) => {
         title: "Reporters",
         default: `${currentUser.first_name} ${currentUser.last_name} on behalf of...`,
       },
-      transientComment: {
+      archival: {
+        type: "boolean",
+        title: "Archival (no upperlimits)",
+        default: false,
+      },
+      archivalComment: {
         type: "string",
-        title: "Transient Comment",
+        title: "Archival Comment",
       },
     },
+  };
+
+  const validate = (formData, errors) => {
+    if (formData.archival === true) {
+      if (
+        Object.keys(formData).includes("archivalComment") &&
+        formData.archivalComment === undefined
+      ) {
+        errors.archival.addError(
+          "Archival comment must be defined if archive is true"
+        );
+      }
+    }
+    return errors;
   };
 
   return (
@@ -142,6 +160,8 @@ const TNSATForm = ({ obj_id }) => {
           validator={validator}
           onSubmit={handleSubmit}
           disabled={submissionRequestInProcess}
+          customValidate={validate}
+          liveValidate
         />
       </div>
     </div>

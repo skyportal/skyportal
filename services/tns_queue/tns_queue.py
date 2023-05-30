@@ -41,7 +41,15 @@ report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
 queue = []
 
 
-def tns_submission(obj_ids, tnsrobot_id, user_id, reporters="", parent_session=None):
+def tns_submission(
+    obj_ids,
+    tnsrobot_id,
+    user_id,
+    reporters="",
+    archival=False,
+    archivalComment="",
+    parent_session=None,
+):
     """Submit objects to TNS.
     obj_ids : List[str]
         Object IDs
@@ -51,6 +59,10 @@ def tns_submission(obj_ids, tnsrobot_id, user_id, reporters="", parent_session=N
         SkyPortal ID of User posting to TNS
     reporters : str
         Reporters to appear on TNS submission.
+    archival : boolean
+        Reporting the source as an archival source (i.e. no upperlimit).
+    archivalComment : str
+        Comment on archival source. Required if archival is True:
     parent_session : `sqlalchemy.orm.session.Session`
         Database session.
     """
@@ -88,6 +100,12 @@ def tns_submission(obj_ids, tnsrobot_id, user_id, reporters="", parent_session=N
             raise ValueError('Missing TNS information.')
         if 'api_key' not in altdata:
             raise ValueError('Missing TNS API key.')
+
+        if archival is True:
+            if len(archivalComment) == 0:
+                raise ValueError(
+                    'If source flagged as archival, archivalComment is required'
+                )
 
         tns_headers = {
             'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
@@ -137,9 +155,13 @@ def tns_submission(obj_ids, tnsrobot_id, user_id, reporters="", parent_session=N
                 else:
                     detections.append(phot)
 
-            if len(non_detections) == 0 or len(detections) == 0:
+            if len(detections) == 0:
+                log(f'Need at least one detection for TNS report of {obj_id}')
+                continue
+
+            if len(non_detections) == 0 and not archival:
                 log(
-                    f'Need at least one detection and one non-detection for TNS report of {obj_id}'
+                    f'Need at least one non-detection for non-archival TNS report of {obj_id}'
                 )
                 continue
 
@@ -169,23 +191,29 @@ def tns_submission(obj_ids, tnsrobot_id, user_id, reporters="", parent_session=N
                         phot['instrument_name']
                     ]
 
-            if time_last_nondetection is None:
-                log(
-                    f'No non-detections found before first detection, cannot submit {obj_id} to TNS'
-                )
-                continue
+            if not archival:
+                if time_last_nondetection is None:
+                    log(
+                        f'No non-detections found before first detection, cannot submit {obj_id} to TNS'
+                    )
+                    continue
 
             proprietary_period = {
                 "proprietary_period_value": 0,
                 "proprietary_period_units": "years",
             }
-            non_detection = {
-                "obsdate": astropy.time.Time(time_last_nondetection, format='mjd').jd,
-                "limiting_flux": limmag_last_nondetection,
-                "flux_units": "1",
-                "filter_value": filt_last_nondetection,
-                "instrument_value": instrument_last_nondetection,
-            }
+            if archival:
+                non_detection = {"archiveid": "0", "archival_remarks": archivalComment}
+            else:
+                non_detection = {
+                    "obsdate": astropy.time.Time(
+                        time_last_nondetection, format='mjd'
+                    ).jd,
+                    "limiting_flux": limmag_last_nondetection,
+                    "flux_units": "1",
+                    "filter_value": filt_last_nondetection,
+                    "instrument_value": instrument_last_nondetection,
+                }
             phot_first = {
                 "obsdate": astropy.time.Time(time_first, format='mjd').jd,
                 "flux": mag_first,
@@ -262,11 +290,16 @@ def service(queue):
                 tnsrobot_id = data.get("tnsrobot_id")
                 user_id = data.get("user_id")
                 reporters = data.get("reporters", "")
+                archival = data.get("archival", False)
+                archivalComment = data.get("archivalComment", "")
+
                 tns_submission(
                     obj_ids,
                     tnsrobot_id,
                     user_id,
                     reporters=reporters,
+                    archival=archival,
+                    archivalComment=archivalComment,
                     parent_session=session,
                 )
             except Exception as e:
