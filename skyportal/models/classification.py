@@ -23,6 +23,9 @@ class Classification(Base):
     classification = sa.Column(
         sa.String, nullable=False, index=True, doc="The assigned class."
     )
+    origin = sa.Column(
+        sa.String, nullable=True, index=True, doc="String describing the source of this classification."
+    )
     taxonomy_id = sa.Column(
         sa.ForeignKey('taxonomies.id', ondelete='CASCADE'),
         nullable=False,
