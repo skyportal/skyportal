@@ -19,13 +19,19 @@ Session = scoped_session(sessionmaker())
 log = make_log('api/gcn_tach')
 
 
-def get_tach_event_id(dateobs, tags):
+def get_tach_event_id(dateobs, tags, aliases=None):
     date = dateobs.split("T", 1)[0]
     if 'Neutrino' in tags:
         tags.append('ν')
     url = (
         "https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/graphql_fast"
     )
+
+    if aliases is not None:
+        aliases = [
+            alias.split("#")[1].upper() if '#' in alias else alias.upper()
+            for alias in aliases
+        ]
 
     payload = {
         "query": f'''{{
@@ -74,6 +80,11 @@ def get_tach_event_id(dateobs, tags):
     event_id = None
     for event in events:
         trigger = event["node"]["trigger"]
+        if aliases is not None:
+            event_name = event["node"]["event"].replace(" ", "")
+            if event_name.upper() in aliases:
+                event_id = event["node"]["id_"]
+                break
         if trigger is not None:
             try:
                 trigger = Time(Time(trigger, precision=0).iso).datetime.strftime(
@@ -83,6 +94,7 @@ def get_tach_event_id(dateobs, tags):
                 continue
             if trigger == dateobs:
                 event_id = event["node"]["id_"]
+                break
 
     if event_id is None:
         event_ids = []
@@ -298,11 +310,12 @@ class GcnTachHandler(BaseHandler):
                 if gcn_event is None:
                     return self.error(f'No GCN event found for {dateobs}')
 
-                tags = gcn_event.tags
                 tach_id = (
                     gcn_event.tach_id
                     if gcn_event.tach_id is not None
-                    else get_tach_event_id(dateobs, tags)
+                    else get_tach_event_id(
+                        dateobs, tags=gcn_event.tags, aliases=gcn_event.aliases
+                    )
                 )
                 if tach_id is None:
                     return self.error(

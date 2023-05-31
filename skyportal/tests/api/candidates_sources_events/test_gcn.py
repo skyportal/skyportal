@@ -567,16 +567,18 @@ def test_gcn_summary_galaxies(
     assert f"on behalf of the {public_group.name}, report:" in data[5]
 
     # galaxies
-    assert "Found 82 galaxies in the event's localization:" in data[6]
+    assert "Found 54 galaxies in the event's localization:" in data[6]
 
     galaxy_table = data[7:]
-    assert len(galaxy_table) == 86
-    assert "catalog" in galaxy_table[1]
-    assert "name" in galaxy_table[1]
-    assert "ra" in galaxy_table[1]
-    assert "dec" in galaxy_table[1]
-    assert "distmpc" in galaxy_table[1]
-    assert "redshift" in galaxy_table[1]
+    assert len(galaxy_table) == 58
+    assert "Galaxy" in galaxy_table[1]
+    assert "RA [deg]" in galaxy_table[1]
+    assert "Dec [deg]" in galaxy_table[1]
+    assert "Distance [Mpc]" in galaxy_table[1]
+    assert "m_Ks [mag]" in galaxy_table[1]
+    assert "m_NUV [mag]" in galaxy_table[1]
+    assert "m_W1 [mag]" in galaxy_table[1]
+    assert "dP_dV" in galaxy_table[1]
 
     status, data = api(
         'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
