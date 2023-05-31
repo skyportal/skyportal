@@ -600,6 +600,15 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                     type: string
                     description: |
                       Reporters for the TNS report.
+                  archival:
+                    type: boolean
+                    description: |
+                      Report sources as archival (i.e. no upperlimit).
+                      Defaults to False.
+                  archivalComment:
+                    type: string
+                    description: |
+                      Comment on archival source. Required if archival is True.
                   sourcesIDList:
                     type: string
                     description: |
@@ -628,6 +637,9 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
         confirmed = data.get('confirmed', True)
         tnsrobotID = data.get('tnsrobotID')
         reporters = data.get('reporters', '')
+        archival = data.get('archival', False)
+        archival_comment = data.get('archivalComment', '')
+
         if tnsrobotID is None:
             return self.error('tnsrobotID is required')
         if reporters == '' or not isinstance(reporters, str):
@@ -673,6 +685,12 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                 if tnsrobot is None:
                     return self.error(f'No TNSRobot available with ID {tnsrobotID}')
 
+                if archival is True:
+                    if len(archival_comment) == 0:
+                        return self.error(
+                            'If source flagged as archival, archival_comment is required'
+                        )
+
                 altdata = tnsrobot.altdata
                 if not altdata:
                     return self.error('Missing TNS information.')
@@ -692,6 +710,8 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                         tnsrobot_id=tnsrobot.id,
                         user_id=self.associated_user_object.id,
                         reporters=reporters,
+                        archival=archival,
+                        archival_comment=archival_comment,
                         timeout=30,
                     ),
                 )
