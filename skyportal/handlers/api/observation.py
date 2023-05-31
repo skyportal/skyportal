@@ -403,14 +403,41 @@ def get_observations(
                 raise ValueError("GCN event not found")
             localization = event.localizations[-1]
 
+        partition_key = arrow.get(localization.dateobs).datetime
+        localizationtile_partition_name = (
+            f'{partition_key.year}_{partition_key.month:02d}'
+        )
+        localizationtilescls = LocalizationTile.partitions.get(
+            localizationtile_partition_name, None
+        )
+        if localizationtilescls is None:
+            localizationtilescls = LocalizationTile.partitions.get(
+                'def', LocalizationTile
+            )
+        else:
+            # check that there is actually a localizationTile with the given localization_id in the partition
+            # if not, use the default partition
+            if not (
+                session.scalars(
+                    localizationtilescls.select(session.user_or_token).where(
+                        localizationtilescls.localization_id == localization.id
+                    )
+                ).first()
+            ):
+                localizationtilescls = LocalizationTile.partitions.get(
+                    'def', LocalizationTile
+                )
+
         cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
+            sa.func.sum(
+                localizationtilescls.probdensity * localizationtilescls.healpix.area
+            )
+            .over(order_by=localizationtilescls.probdensity.desc())
             .label('cum_prob')
         )
         localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                LocalizationTile.localization_id == localization.id
+            sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                localizationtilescls.localization_id == localization.id
             )
         ).subquery()
         min_probdensity = (
@@ -432,12 +459,11 @@ def get_observations(
                 .distinct()
             )
         else:
-
             field_tiles_query = sa.select(InstrumentField.id).where(
-                LocalizationTile.localization_id == localization.id,
-                LocalizationTile.probdensity >= min_probdensity,
+                localizationtilescls.localization_id == localization.id,
+                localizationtilescls.probdensity >= min_probdensity,
                 InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+                InstrumentFieldTile.healpix.overlaps(localizationtilescls.healpix),
             )
 
         if telescope_name is not None and instrument_name is not None:
@@ -458,12 +484,12 @@ def get_observations(
             if stats_method == 'python':
                 t0 = time.time()
                 localization_tiles = session.scalars(
-                    sa.select(LocalizationTile)
+                    sa.select(localizationtilescls)
                     .where(
-                        LocalizationTile.localization_id == localization.id,
-                        LocalizationTile.probdensity >= min_probdensity,
+                        localizationtilescls.localization_id == localization.id,
+                        localizationtilescls.probdensity >= min_probdensity,
                     )
-                    .order_by(LocalizationTile.probdensity.desc())
+                    .order_by(localizationtilescls.probdensity.desc())
                     .distinct()
                 ).all()
                 if stats_logging:
@@ -580,18 +606,18 @@ def get_observations(
 
                 area = sa.func.sum(union.columns.healpix.area)
                 prob = sa.func.sum(
-                    LocalizationTile.probdensity
-                    * (union.columns.healpix * LocalizationTile.healpix).area
+                    localizationtilescls.probdensity
+                    * (union.columns.healpix * localizationtilescls.healpix).area
                 )
                 query_area = sa.select(area).filter(
-                    LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
-                    union.columns.healpix.overlaps(LocalizationTile.healpix),
+                    localizationtilescls.localization_id == localization.id,
+                    localizationtilescls.probdensity >= min_probdensity,
+                    union.columns.healpix.overlaps(localizationtilescls.healpix),
                 )
                 query_prob = sa.select(prob).filter(
-                    LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
-                    union.columns.healpix.overlaps(LocalizationTile.healpix),
+                    localizationtilescls.localization_id == localization.id,
+                    localizationtilescls.probdensity >= min_probdensity,
+                    union.columns.healpix.overlaps(localizationtilescls.healpix),
                 )
                 intprob = session.execute(query_prob).scalar_one()
                 intarea = session.execute(query_area).scalar_one()
@@ -1588,7 +1614,9 @@ class ObservationTreasureMapHandler(BaseHandler):
                 localization_dateobs=localization_dateobs,
                 localization_name=localization_name,
                 localization_cumprob=localization_cumprob,
-                return_statistics=True,
+                return_statistics=False,
+                n_per_page=MAX_OBSERVATIONS,
+                page_number=1,
             )
 
             observations = data["observations"]
@@ -1626,8 +1654,8 @@ class ObservationTreasureMapHandler(BaseHandler):
             pointings = []
             for obs in observations:
                 pointing = {}
-                pointing["ra"] = obs["field"].ra
-                pointing["dec"] = obs["field"].dec
+                pointing["ra"] = obs["field"]["ra"]
+                pointing["dec"] = obs["field"]["dec"]
                 pointing["instrumentid"] = str(treasuremap_id)
                 pointing["status"] = "completed"
                 pointing["time"] = Time(obs["obstime"], format='datetime').isot

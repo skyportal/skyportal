@@ -589,6 +589,19 @@ const GcnSelectionForm = ({
   };
 
   const handleSubmitTreasureMap = async (id, filterParams) => {
+    if (
+      filterParams.localizationDateobs === null ||
+      filterParams.localizationDateobs === undefined ||
+      filterParams.localizationDateobs !== gcnEvent.dateobs
+    ) {
+      dispatch(
+        showNotification(
+          "Please fetch observations before submitting to treasure map",
+          "error"
+        )
+      );
+      return;
+    }
     setIsSubmittingTreasureMap(id);
     const data = {
       startDate: filterParams.startDate,
