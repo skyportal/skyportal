@@ -1607,10 +1607,23 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                     'Not all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict, they cannot be submitted'
                 )
 
+            # we first get the pointings that are already on treasuremap to avoid duplicates
+            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/pointings')
+            r = requests.get(
+                url=url,
+                json={
+                    **payload,
+                    "status": "planned",
+                    "instrumentid": str(treasuremap_id),
+                },
+            )
+            r.raise_for_status()
+            existing_pointings = r.json()
+
             pointings = []
             for obs in planned_observations:
                 pointing = {}
-                pointing["ra"] = obs.field.ra
+                pointing["ra"] = obs.field.ra - 180
                 pointing["dec"] = obs.field.dec
                 pointing["instrumentid"] = str(treasuremap_id)
                 pointing["time"] = Time(obs.obstime, format='datetime').isot
@@ -1623,7 +1636,36 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                     pointing["wavelength_unit"] = "angstrom"
                 else:
                     pointing["band"] = TREASUREMAP_FILTERS[obs.filt]
-                pointings.append(pointing)
+
+                exists = False
+                for existing_pointing in existing_pointings:
+                    if (
+                        all(
+                            [
+                                existing_pointing[key] == pointing[key]
+                                for key in [
+                                    "status",
+                                    "depth",
+                                    "central_wave",
+                                    "bandwidth",
+                                ]
+                            ]
+                        )
+                        and existing_pointing["instrumentid"] == treasuremap_id
+                        and existing_pointing["position"]
+                        == f"POINT ({pointing['ra']} {pointing['dec']})"
+                        and existing_pointing["time"]
+                        == pointing["time"].split("T")[0] + "T00:00:00"
+                    ):
+                        exists = True
+                        break
+                if not exists:
+                    pointings.append(pointing)
+
+            if len(pointings) == 0:
+                return self.error(
+                    'No new pointings to submit to TreasureMap (all already exist).'
+                )
             payload["pointings"] = pointings
 
             url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/pointings')

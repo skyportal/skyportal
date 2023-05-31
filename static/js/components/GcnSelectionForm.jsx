@@ -476,7 +476,6 @@ const GcnSelectionForm = ({
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingTreasureMap, setIsSubmittingTreasureMap] = useState(null);
-  const [isDeletingTreasureMap, setIsDeletingTreasureMap] = useState(null);
   const [checkedDisplayState, setCheckedDisplayState] = useState(
     displayOptionsDefault
   );
@@ -612,19 +611,6 @@ const GcnSelectionForm = ({
     };
     await dispatch(observationsActions.submitObservationsTreasureMap(id, data));
     setIsSubmittingTreasureMap(null);
-  };
-
-  const handleDeleteTreasureMap = async (id, filterParams) => {
-    setIsDeletingTreasureMap(id);
-    const data = {
-      startDate: filterParams.startDate,
-      endDate: filterParams.endDate,
-      localizationCumprob: filterParams.localizationCumprob,
-      localizationName: filterParams.localizationName,
-      localizationDateobs: filterParams.localizationDateobs,
-    };
-    await dispatch(observationsActions.deleteObservationsTreasureMap(id, data));
-    setIsDeletingTreasureMap(null);
   };
 
   if (!sortedInstrumentList) {
@@ -1113,26 +1099,6 @@ const GcnSelectionForm = ({
                         data-testid={`treasuremapRequest_${selectedInstrumentId}`}
                       >
                         Send to Treasure Map
-                      </Button>
-                    )}
-                    {isDeletingTreasureMap === selectedInstrumentId ? (
-                      <div>
-                        <CircularProgress />
-                      </div>
-                    ) : (
-                      <Button
-                        secondary
-                        onClick={() => {
-                          handleDeleteTreasureMap(
-                            selectedInstrumentId,
-                            formDataState
-                          );
-                        }}
-                        type="submit"
-                        size="small"
-                        data-testid={`treasuremapDelete_${selectedInstrumentId}`}
-                      >
-                        Retract from Treasure Map
                       </Button>
                     )}
                   </div>

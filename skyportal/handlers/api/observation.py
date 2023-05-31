@@ -1651,6 +1651,27 @@ class ObservationTreasureMapHandler(BaseHandler):
             graceid = event.graceid
             payload = {"api_token": api_token, "graceid": graceid}
 
+            # first check that all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict
+            if not all(
+                [obs["filt"] in TREASUREMAP_FILTERS.keys() for obs in observations]
+            ):
+                return self.error(
+                    'Not all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict, they cannot be submitted'
+                )
+
+            # we first get the pointings that are already on treasuremap to avoid duplicates
+            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/pointings')
+            r = requests.get(
+                url=url,
+                json={
+                    **payload,
+                    "status": "completed",
+                    "instrumentid": str(treasuremap_id),
+                },
+            )
+            r.raise_for_status()
+            existing_pointings = r.json()
+
             pointings = []
             for obs in observations:
                 pointing = {}
@@ -1667,16 +1688,44 @@ class ObservationTreasureMapHandler(BaseHandler):
                     pointing["wavelength_unit"] = "angstrom"
                 else:
                     pointing["band"] = TREASUREMAP_FILTERS[obs["filt"]]
-                pointings.append(pointing)
+
+                exists = False
+                for existing_pointing in existing_pointings:
+                    if (
+                        all(
+                            [
+                                existing_pointing[key] == pointing[key]
+                                for key in [
+                                    "status",
+                                    "depth",
+                                    "central_wave",
+                                    "bandwidth",
+                                ]
+                            ]
+                        )
+                        and existing_pointing["instrumentid"] == treasuremap_id
+                        and existing_pointing["position"]
+                        == f"POINT ({pointing['ra']} {pointing['dec']})"
+                        and existing_pointing["time"] == pointing["time"].split(".")[0]
+                    ):
+                        exists = True
+                        break
+                if not exists:
+                    pointings.append(pointing)
+
+            if len(pointings) == 0:
+                return self.error(
+                    'All existing executed observations have already been uploaded to Treasure Map already'
+                )
             payload["pointings"] = pointings
 
-            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/pointings')
-            r = requests.post(url=url, json=payload)
-            r.raise_for_status()
-            request_json = r.json()
-            errors = request_json["ERRORS"]
-            if len(errors) > 0:
-                return self.error(f'TreasureMap upload failed: {errors}')
+            # url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/pointings')
+            # r = requests.post(url=url, json=payload)
+            # r.raise_for_status()
+            # request_json = r.json()
+            # errors = request_json["ERRORS"]
+            # if len(errors) > 0:
+            #     return self.error(f'TreasureMap upload failed: {errors}')
             self.push_notification('TreasureMap upload succeeded')
             return self.success()
 
