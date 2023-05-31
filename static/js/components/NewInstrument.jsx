@@ -226,6 +226,11 @@ const NewInstrument = () => {
         title:
           "Configuration data i.e. {'overhead_per_exposure': 2.0, 'readout': 8.0, 'slew_rate': 2.6, 'filt_change_time': 60.0}",
       },
+      treasuremap_id: {
+        type: "integer",
+        title: "Treasuremap ID",
+        description: "ID of the instrument to submit to Treasuremap (optional)",
+      },
     },
     required: ["name", "type", "band", "telescope_id"],
   };

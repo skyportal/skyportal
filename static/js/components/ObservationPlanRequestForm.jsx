@@ -516,6 +516,23 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   };
 
   const validate = (formData, errors) => {
+    const instrumentId = allocationLookUp[selectedAllocationId]?.instrument_id;
+    const instrument = instrumentList.find((inst) => inst.id === instrumentId);
+    const instrumentsFilters = instrument?.filters;
+    if (
+      instrumentsFilters &&
+      formData.filters !== undefined &&
+      formData.filters !== ""
+    ) {
+      const formDataFilters = formData.filters.split(",");
+      if (
+        !formDataFilters.every((filter) => instrumentsFilters.includes(filter))
+      ) {
+        errors.filters.addError(
+          `Filters must be a subset of the instrument filters: ${instrumentsFilters}`
+        );
+      }
+    }
     if (
       formData.start_date &&
       formData.end_date &&
