@@ -1,66 +1,71 @@
-import arrow
-from datetime import datetime, timedelta
+import asyncio
 import functools
 import io
+import json
 import random
 import tempfile
 import time
+import urllib
+from datetime import datetime, timedelta
 
+import afterglowpy
+import arrow
 import astropy
-from astropy.coordinates import EarthLocation
-from astropy.time import Time
+import geopandas
+import healpy as hp
+import humanize
+import jsonschema
+import ligo.skymap
+import matplotlib
+import matplotlib.animation as animation
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
 import numpy.ma as ma
-
-from astropy import units as u
+import pandas as pd
+import requests
+import simsurvey
+import sncosmo
+import sqlalchemy as sa
 from astroplan import (
     AirmassConstraint,
     AtNightConstraint,
     Observer,
     is_event_observable,
 )
-import asyncio
-import geopandas
-import healpy as hp
-import humanize
-import json
-import jsonschema
-import requests
-from marshmallow.exceptions import ValidationError
-import sqlalchemy as sa
-from sqlalchemy import func
-from sqlalchemy.orm import joinedload, undefer
-from sqlalchemy.orm import sessionmaker, scoped_session
-import urllib
-import numpy as np
-from tornado.ioloop import IOLoop
-import ligo.skymap
-from ligo.skymap.tool.ligo_skymap_plot_airmass import main as plot_airmass
-from ligo.skymap import plot  # noqa: F401
-import matplotlib
-from matplotlib import dates
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-import matplotlib.patches as mpatches
-import pandas as pd
-import simsurvey
-from simsurvey.utils import model_tools
-from simsurvey.models import AngularTimeSeriesSource
-from ligo.skymap.distance import parameters_to_marginal_moments
-from ligo.skymap.bayestar import rasterize
+from astropy import units as u
+from astropy.coordinates import EarthLocation
+from astropy.time import Time
 from ligo.skymap import plot  # noqa: F401 F811
-import afterglowpy
-import sncosmo
+from ligo.skymap.bayestar import rasterize
+from ligo.skymap.distance import parameters_to_marginal_moments
+from ligo.skymap.tool.ligo_skymap_plot_airmass import main as plot_airmass
+from marshmallow.exceptions import ValidationError
+from matplotlib import dates
+from simsurvey.models import AngularTimeSeriesSource
+from simsurvey.utils import model_tools
+from sncosmo import get_bandpass
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload, scoped_session, sessionmaker, undefer
+from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
-from baselayer.app.custom_exceptions import AccessError
-from ..base import BaseHandler
+from skyportal.enum_types import ALLOWED_BANDPASSES
+from skyportal.facility_apis.observation_plan import (
+    generate_observation_plan_statistics,
+)
+from skyportal.handlers.api.followup_request import post_assignment
+from skyportal.handlers.api.observingrun import post_observing_run
+from skyportal.handlers.api.source import post_source
+
 from ...models import (
     Allocation,
-    DefaultObservationPlanRequest,
     DBSession,
+    DefaultObservationPlanRequest,
     EventObservationPlan,
     GcnEvent,
     GcnTrigger,
@@ -76,19 +81,12 @@ from ...models import (
     User,
 )
 from ...models.schema import ObservationPlanPost
-from ...utils.simsurvey import (
-    get_simsurvey_parameters,
-    random_parameters_notheta,
-)
-
-from skyportal.handlers.api.source import post_source
-from skyportal.handlers.api.followup_request import post_assignment
-from skyportal.handlers.api.observingrun import post_observing_run
-from skyportal.facility_apis.observation_plan import (
-    generate_observation_plan_statistics,
-)
+from ...utils.simsurvey import get_simsurvey_parameters, random_parameters_notheta
+from ..base import BaseHandler
 
 env, cfg = load_env()
+log = make_log('api/observation_plan')
+
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
 TREASUREMAP_INSTRUMENT_IDS = {  # https://treasuremap.space/search_instruments
@@ -137,26 +135,16 @@ TREASUREMAP_FILTERS = {
     'WISEL': 'WISEL',
 }
 # to it, we add mappers for sncosmo bandpasses
-TREASUREMAP_FILTERS = {
-    **TREASUREMAP_FILTERS,
-    'ztfg': 'g',
-    'ztfr': 'r',
-    'ztfi': 'i',
-    'uvot::b': 'b',
-    'uvot::u': 'u',
-    'uvot::uvm2': 'UVM2',
-    'uvot::uvw1': 'UVW1',
-    'uvot::uvw2': 'UVW2',
-    'uvot::v': 'v',
-    'uvot::white': [3695.66, 7820.43 - 1597.49],  # central, bandwidth (max-min)
-    'desg': 'g',
-    'desr': 'r',
-    'desz': 'z',
-}
+for bandpass_name in ALLOWED_BANDPASSES:
+    try:
+        bandpass = get_bandpass(bandpass_name)
+        central_wavelength = (bandpass.minwave() + bandpass.maxwave()) / 2
+        bandwidth = bandpass.maxwave() - bandpass.minwave()
+        TREASUREMAP_FILTERS[bandpass_name] = [central_wavelength, bandwidth]
+    except Exception as e:
+        log(f'Error adding bandpass {bandpass_name} to treasuremap filters: {e}')
 
 Session = scoped_session(sessionmaker())
-
-log = make_log('api/observation_plan')
 
 observation_plans_microservice_url = (
     f'http://127.0.0.1:{cfg["ports.observation_plan_queue"]}'
