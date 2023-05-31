@@ -1662,8 +1662,9 @@ class ObservationTreasureMapHandler(BaseHandler):
                 pointing["depth"] = obs["limmag"]
                 pointing["depth_unit"] = "ab_mag"
                 if isinstance(TREASUREMAP_FILTERS[obs["filt"]], list):
-                    pointing["central_wavelength"] = TREASUREMAP_FILTERS[obs["filt"]][0]
+                    pointing["central_wave"] = TREASUREMAP_FILTERS[obs["filt"]][0]
                     pointing["bandwidth"] = TREASUREMAP_FILTERS[obs["filt"]][1]
+                    pointing["wavelength_unit"] = "angstrom"
                 else:
                     pointing["band"] = TREASUREMAP_FILTERS[obs["filt"]]
                 pointings.append(pointing)
