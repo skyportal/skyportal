@@ -69,7 +69,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { instrumentList } = useSelector((state) => state.instruments);
-  const { allocationListApiObsplan } = useSelector(
+  const { allocationListApiClassname } = useSelector(
     (state) => state.allocations
   );
 
@@ -115,8 +115,11 @@ const CatalogQueryForm = ({ gcnevent }) => {
       // Wait for the allocations to update before setting
       // the new default form fields, so that the instruments list can
       // update
-      if (!allocationListApiObsplan || allocationListApiObsplan?.length === 0) {
-        dispatch(allocationActions.fetchAllocationsApiObsplan());
+      if (
+        !allocationListApiClassname ||
+        allocationListApiClassname?.length === 0
+      ) {
+        dispatch(allocationActions.fetchAllocationsApiClassname());
       }
       setSelectedLocalizationId(gcnevent.localizations[0]?.id);
     };
@@ -141,8 +144,8 @@ const CatalogQueryForm = ({ gcnevent }) => {
     );
   }
 
-  if (allocationListApiObsplan.length === 0) {
-    return <h3>No allocations with an observation plan API...</h3>;
+  if (allocationListApiClassname.length === 0) {
+    return <h3>No allocations with a follow-up API...</h3>;
   }
 
   const handleSelectedLocalizationChange = (e) => {
@@ -220,7 +223,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
       },
       allocation_id: {
         type: "integer",
-        oneOf: allocationListApiObsplan.map((allocation) => ({
+        oneOf: allocationListApiClassname.map((allocation) => ({
           enum: [allocation.id],
           title: `${
             telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
@@ -229,7 +232,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
           } (PI ${allocation.pi})`,
         })),
         title: "Allocation",
-        default: allocationListApiObsplan[0]?.id,
+        default: allocationListApiClassname[0]?.id,
       },
     },
     required: ["startDate", "endDate", "allocation_id", "catalogName"],
