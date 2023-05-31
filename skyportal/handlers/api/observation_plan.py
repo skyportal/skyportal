@@ -1668,7 +1668,6 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                 )
             payload["pointings"] = pointings
 
-            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/pointings')
             r = requests.post(url=url, json=payload)
             r.raise_for_status()
             request_json = r.json()

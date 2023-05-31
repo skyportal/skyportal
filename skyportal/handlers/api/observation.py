@@ -1719,13 +1719,12 @@ class ObservationTreasureMapHandler(BaseHandler):
                 )
             payload["pointings"] = pointings
 
-            # url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/pointings')
-            # r = requests.post(url=url, json=payload)
-            # r.raise_for_status()
-            # request_json = r.json()
-            # errors = request_json["ERRORS"]
-            # if len(errors) > 0:
-            #     return self.error(f'TreasureMap upload failed: {errors}')
+            r = requests.post(url=url, json=payload)
+            r.raise_for_status()
+            request_json = r.json()
+            errors = request_json["ERRORS"]
+            if len(errors) > 0:
+                return self.error(f'TreasureMap upload failed: {errors}')
             self.push_notification('TreasureMap upload succeeded')
             return self.success()
 
