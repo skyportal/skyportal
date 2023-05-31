@@ -47,7 +47,7 @@ def tns_submission(
     user_id,
     reporters="",
     archival=False,
-    archivalComment="",
+    archival_comment="",
     parent_session=None,
 ):
     """Submit objects to TNS.
@@ -61,8 +61,8 @@ def tns_submission(
         Reporters to appear on TNS submission.
     archival : boolean
         Reporting the source as an archival source (i.e. no upperlimit).
-    archivalComment : str
-        Comment on archival source. Required if archival is True:
+    archival_comment : str
+        Comment on archival source. Required if archival is True.
     parent_session : `sqlalchemy.orm.session.Session`
         Database session.
     """
@@ -102,9 +102,9 @@ def tns_submission(
             raise ValueError('Missing TNS API key.')
 
         if archival is True:
-            if len(archivalComment) == 0:
+            if len(archival_comment) == 0:
                 raise ValueError(
-                    'If source flagged as archival, archivalComment is required'
+                    'If source flagged as archival, archival_comment is required'
                 )
 
         tns_headers = {
@@ -203,7 +203,7 @@ def tns_submission(
                 "proprietary_period_units": "years",
             }
             if archival:
-                non_detection = {"archiveid": "0", "archival_remarks": archivalComment}
+                non_detection = {"archiveid": "0", "archival_remarks": archival_comment}
             else:
                 non_detection = {
                     "obsdate": astropy.time.Time(
@@ -291,7 +291,7 @@ def service(queue):
                 user_id = data.get("user_id")
                 reporters = data.get("reporters", "")
                 archival = data.get("archival", False)
-                archivalComment = data.get("archivalComment", "")
+                archival_comment = data.get("archival_comment", "")
 
                 tns_submission(
                     obj_ids,
@@ -299,7 +299,7 @@ def service(queue):
                     user_id,
                     reporters=reporters,
                     archival=archival,
-                    archivalComment=archivalComment,
+                    archival_comment=archival_comment,
                     parent_session=session,
                 )
             except Exception as e:

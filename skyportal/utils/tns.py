@@ -119,7 +119,7 @@ def post_tns(
     user_id,
     reporters="",
     archival=False,
-    archivalComment="",
+    archival_comment="",
     timeout=2,
 ):
 
@@ -129,7 +129,7 @@ def post_tns(
         'user_id': user_id,
         'reporters': reporters,
         'archival': archival,
-        'archivalComment': archivalComment,
+        'archival_comment': archival_comment,
     }
 
     tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_queue"]}'

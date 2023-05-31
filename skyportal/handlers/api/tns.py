@@ -383,7 +383,7 @@ class ObjTNSHandler(BaseHandler):
             tnsrobotID = data.get('tnsrobotID')
             reporters = data.get('reporters', '')
             archival = data.get('archival', False)
-            archivalComment = data.get('archivalComment', '')
+            archival_comment = data.get('archivalComment', '')
 
             if tnsrobotID is None:
                 return self.error('tnsrobotID is required')
@@ -405,9 +405,9 @@ class ObjTNSHandler(BaseHandler):
                 return self.error(f'No TNSRobot available with ID {tnsrobotID}')
 
             if archival is True:
-                if len(archivalComment) == 0:
+                if len(archival_comment) == 0:
                     return self.error(
-                        'If source flagged as archival, archivalComment is required'
+                        'If source flagged as archival, archival_comment is required'
                     )
 
             altdata = tnsrobot.altdata
@@ -430,7 +430,7 @@ class ObjTNSHandler(BaseHandler):
                     user_id=self.associated_user_object.id,
                     reporters=reporters,
                     archival=archival,
-                    archivalComment=archivalComment,
+                    archival_comment=archival_comment,
                     timeout=30,
                 ),
             )
