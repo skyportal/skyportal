@@ -1633,7 +1633,11 @@ class ObservationTreasureMapHandler(BaseHandler):
                 pointing["time"] = Time(obs["obstime"], format='datetime').isot
                 pointing["depth"] = obs["limmag"]
                 pointing["depth_unit"] = "ab_mag"
-                pointing["band"] = TREASUREMAP_FILTERS[obs["filt"]]
+                if isinstance(TREASUREMAP_FILTERS[obs["filt"]], list):
+                    pointing["central_wavelength"] = TREASUREMAP_FILTERS[obs["filt"]][0]
+                    pointing["bandwidth"] = TREASUREMAP_FILTERS[obs["filt"]][1]
+                else:
+                    pointing["band"] = TREASUREMAP_FILTERS[obs["filt"]]
                 pointings.append(pointing)
             payload["pointings"] = pointings
 

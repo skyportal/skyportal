@@ -148,7 +148,7 @@ TREASUREMAP_FILTERS = {
     'uvot::uvw1': 'UVW1',
     'uvot::uvw2': 'UVW2',
     'uvot::v': 'v',
-    'uvot::white': 'open',
+    'uvot::white': [3695.66, 7820.43 - 1597.49],  # central, bandwidth (max-min)
     'desg': 'g',
     'desr': 'r',
     'desz': 'z',
@@ -1625,13 +1625,15 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                 pointing["ra"] = obs.field.ra
                 pointing["dec"] = obs.field.dec
                 pointing["instrumentid"] = str(treasuremap_id)
-                pointing["time"] = Time(obs.obstime, format='datetime').isot.split('.')[
-                    0
-                ]  # remove microseconds
+                pointing["time"] = Time(obs.obstime, format='datetime').isot
                 pointing["status"] = "planned"
                 pointing["depth"] = 0.0
                 pointing["depth_unit"] = "ab_mag"
-                pointing["band"] = TREASUREMAP_FILTERS[obs.filt]
+                if isinstance(TREASUREMAP_FILTERS[obs.filt], list):
+                    pointing["central_wavelength"] = TREASUREMAP_FILTERS[obs.filt][0]
+                    pointing["bandwidth"] = TREASUREMAP_FILTERS[obs.filt][1]
+                else:
+                    pointing["band"] = TREASUREMAP_FILTERS[obs.filt]
                 pointings.append(pointing)
             payload["pointings"] = pointings
 
