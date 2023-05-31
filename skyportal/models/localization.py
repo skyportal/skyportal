@@ -10,6 +10,8 @@ import datetime
 import dustmaps.sfd
 import healpix_alchemy
 import healpy
+import ligo.skymap.distance
+import ligo.skymap.moc
 import ligo.skymap.bayestar as ligo_bayestar
 import ligo.skymap.postprocess
 import numpy as np
@@ -234,6 +236,25 @@ class Localization(Base):
         center_info["ebv"] = ebv
 
         return center_info
+
+    @property
+    def marginal_moments(self):
+        """Get marginalized distance information from the localization."""
+        if self.is_3d:
+            sky_map = self.table
+            # Calculate the cumulative area in deg2 and the
+            # cumulative probability.
+            dA = ligo.skymap.moc.uniq2pixarea(sky_map['UNIQ'])
+            dP = sky_map['PROBDENSITY'] * dA
+            mu = sky_map['DISTMU']
+            sigma = sky_map['DISTSIGMA']
+
+            distmean, distsigma = ligo.skymap.distance.parameters_to_marginal_moments(
+                dP, mu, sigma
+            )
+            return distmean, distsigma
+        else:
+            return None, None
 
     def get_localization_path(self):
         """
