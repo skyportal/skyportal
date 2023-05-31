@@ -71,7 +71,7 @@ cache = Cache(
     * 60,  # defaults to 1 day
 )
 
-MAX_OBSERVATIONS = 1000
+MAX_OBSERVATIONS = 10000
 
 
 def add_queued_observations(instrument_id, obstable):

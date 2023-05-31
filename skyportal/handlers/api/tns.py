@@ -382,6 +382,8 @@ class ObjTNSHandler(BaseHandler):
             data = self.get_json()
             tnsrobotID = data.get('tnsrobotID')
             reporters = data.get('reporters', '')
+            archival = data.get('archival', False)
+            archival_comment = data.get('archivalComment', '')
 
             if tnsrobotID is None:
                 return self.error('tnsrobotID is required')
@@ -402,6 +404,12 @@ class ObjTNSHandler(BaseHandler):
             if tnsrobot is None:
                 return self.error(f'No TNSRobot available with ID {tnsrobotID}')
 
+            if archival is True:
+                if len(archival_comment) == 0:
+                    return self.error(
+                        'If source flagged as archival, archival_comment is required'
+                    )
+
             altdata = tnsrobot.altdata
             if not altdata:
                 return self.error('Missing TNS information.')
@@ -413,6 +421,7 @@ class ObjTNSHandler(BaseHandler):
             except Exception:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
+
             IOLoop.current().run_in_executor(
                 None,
                 lambda: post_tns(
@@ -420,6 +429,8 @@ class ObjTNSHandler(BaseHandler):
                     tnsrobot_id=tnsrobot.id,
                     user_id=self.associated_user_object.id,
                     reporters=reporters,
+                    archival=archival,
+                    archival_comment=archival_comment,
                     timeout=30,
                 ),
             )

@@ -57,6 +57,8 @@ app:
 
   ps1_endpoint: https://catalogs.mast.stsci.edu/
 
+  tess_endpoint: https://tess.mit.edu/public/tesstransients/
+
   atlas:
     protocol: https
     host: fallingstar-data.com
@@ -72,6 +74,8 @@ app:
   tns_endpoint: https://sandbox.wis-tns.org
 
   gracedb_endpoint: https://gracedb.ligo.org/api/
+  # See https://computing.docs.ligo.org/guide/auth/x509/ for example
+  gracedb_credential:
 
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
@@ -737,12 +741,16 @@ photometric_series_autodelete: True
 
 colors:
   classifications:
-    # A few examples that show up in the demo data. You can modify the config on deploy to fill out the colors and types you want.
-    {
-      "variable": "#3a87ad",
-      "Time-domain Source": "#ff0000",
-    }
-
+    classification:
+      # A few examples that show up in the demo data. You can modify the config on deploy to fill out the colors and types you want.
+      {
+        "variable": "#3a87ad",
+        "Time-domain Source": "#ff0000",
+      }
+    origin:
+      {
+        "SCoPe": "#3a87ad",
+      }
   gcnTags:
     {
       "BNS": "#468847",

@@ -39,6 +39,8 @@ def post_classification(data, user_id, session):
     user_group_ids = [g.id for g in user.accessible_groups]
     group_ids = data.pop("group_ids", list(set(source_group_ids) & set(user_group_ids)))
 
+    origin = data.get('origin')
+
     # check the taxonomy
     taxonomy_id = data["taxonomy_id"]
     taxonomy = session.scalars(
@@ -77,6 +79,7 @@ def post_classification(data, user_id, session):
     classification = Classification(
         classification=data['classification'],
         obj_id=obj_id,
+        origin=origin,
         probability=probability,
         taxonomy_id=data["taxonomy_id"],
         author=user,
@@ -310,6 +313,10 @@ class ClassificationHandler(BaseHandler):
                     type: string
                   classification:
                     type: string
+                  origin:
+                    type: string
+                    description: |
+                      String describing the source of this classification.
                   taxonomy_id:
                     type: integer
                   probability:

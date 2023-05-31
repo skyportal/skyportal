@@ -63,13 +63,13 @@ const CatalogQueryForm = ({ gcnevent }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationList } = useSelector((state) => state.allocations);
 
-  const allGroups = useSelector((state) => state.groups.all);
+  const groups = useSelector((state) => state.groups.userAccessible);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { instrumentList } = useSelector((state) => state.instruments);
-  const { allocationListApiObsplan } = useSelector(
+  const { allocationListApiClassname } = useSelector(
     (state) => state.allocations
   );
 
@@ -82,7 +82,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
 
   const groupLookUp = {};
   // eslint-disable-next-line no-unused-expressions
-  allGroups?.forEach((group) => {
+  groups?.forEach((group) => {
     groupLookUp[group.id] = group;
   });
 
@@ -115,8 +115,11 @@ const CatalogQueryForm = ({ gcnevent }) => {
       // Wait for the allocations to update before setting
       // the new default form fields, so that the instruments list can
       // update
-      if (!allocationListApiObsplan || allocationListApiObsplan?.length === 0) {
-        dispatch(allocationActions.fetchAllocationsApiObsplan());
+      if (
+        !allocationListApiClassname ||
+        allocationListApiClassname?.length === 0
+      ) {
+        dispatch(allocationActions.fetchAllocationsApiClassname());
       }
       setSelectedLocalizationId(gcnevent.localizations[0]?.id);
     };
@@ -129,8 +132,8 @@ const CatalogQueryForm = ({ gcnevent }) => {
   }, [dispatch, gcnevent]);
 
   if (
-    !allGroups ||
-    allGroups.length === 0 ||
+    !groups ||
+    groups.length === 0 ||
     telescopeList.length === 0 ||
     instrumentList.length === 0
   ) {
@@ -141,8 +144,8 @@ const CatalogQueryForm = ({ gcnevent }) => {
     );
   }
 
-  if (allocationListApiObsplan.length === 0) {
-    return <h3>No allocations with an observation plan API...</h3>;
+  if (allocationListApiClassname.length === 0) {
+    return <h3>No allocations with a follow-up API...</h3>;
   }
 
   const handleSelectedLocalizationChange = (e) => {
@@ -211,6 +214,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
         oneOf: [
           { enum: ["LSXPS"], title: "Swift LSXPS catalog" },
           { enum: ["Gaia"], title: "Gaia" },
+          { enum: ["TESS"], title: "TESS" },
           { enum: ["ZTF-Kowalski"], title: "ZTF Kowalski" },
           { enum: ["ZTF-Fink"], title: "ZTF Fink" },
         ],
@@ -219,7 +223,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
       },
       allocation_id: {
         type: "integer",
-        oneOf: allocationListApiObsplan.map((allocation) => ({
+        oneOf: allocationListApiClassname.map((allocation) => ({
           enum: [allocation.id],
           title: `${
             telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
@@ -228,7 +232,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
           } (PI ${allocation.pi})`,
         })),
         title: "Allocation",
-        default: allocationListApiObsplan[0]?.id,
+        default: allocationListApiClassname[0]?.id,
       },
     },
     required: ["startDate", "endDate", "allocation_id", "catalogName"],
@@ -258,7 +262,7 @@ const CatalogQueryForm = ({ gcnevent }) => {
         </Select>
       </div>
       <GroupShareSelect
-        groupList={allGroups}
+        groupList={groups}
         setGroupIDs={setSelectedGroupIds}
         groupIDs={selectedGroupIds}
       />

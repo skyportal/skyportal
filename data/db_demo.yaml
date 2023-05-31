@@ -544,6 +544,7 @@ instrument:
   - band: Optical
     name: TESS
     =id: TESS
+    api_classname: TESSAPI
     telescope_id: =TESS
     type: imager
     filters: ['tess']
@@ -682,6 +683,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =GIT
+  - pi: Michael Coughlin
+    proposal_id: TESS-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =TESS
 
 galaxy_catalog:
   - catalog_name: CLU_mini
@@ -881,6 +889,7 @@ classification:
     obj_id: ZTF18aabcvnq
     probability: 0.9
     classification: "Time-domain Source"
+    origin: "SCoPe"
   - taxonomy_id: 2
     obj_id: ZTF18aabcvnq
     probability: 0.02

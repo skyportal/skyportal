@@ -35,9 +35,9 @@ import operator  # noqa: F401
 
 from skyportal.models.photometry import Photometry
 
-from .observation import get_observations
+from .observation import get_observations, MAX_OBSERVATIONS
 from .source import get_sources, serialize, MAX_SOURCES_PER_PAGE
-from .galaxy import get_galaxies, MAX_GALAXIES
+from .galaxy import get_galaxies, get_galaxies_completeness, MAX_GALAXIES
 import pandas as pd
 from tabulate import tabulate
 import datetime
@@ -48,6 +48,7 @@ from baselayer.log import make_log
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
+from .gcn_gracedb import post_gracedb_data
 from .source import post_source
 from ..base import BaseHandler
 from ...models import (
@@ -217,6 +218,27 @@ def post_gcnevent_from_xml(
         ).first()
         event_to_update.mma_detectors = mma_detectors
         session.commit()
+
+    gracedb_id = None
+    aliases = event.aliases
+    for alias in aliases:
+        if "LVC" in alias:
+            gracedb_id = alias.split("#")[-1]
+            break
+
+    if gracedb_id is not None:
+        if asynchronous:
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: post_gracedb_data(event.dateobs, gracedb_id, user_id),
+            )
+        else:
+            post_gracedb_data(event.dateobs, gracedb_id, user_id)
 
     if post_skymap:
         try:
@@ -1321,6 +1343,8 @@ class GcnEventHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     ),
+                    "gracedb_log": event.gracedb_log,
+                    "gracedb_labels": event.gracedb_labels,
                 }
 
                 return self.success(data=data)
@@ -2104,6 +2128,14 @@ def add_gcn_summary(
         gcn_summary = session.query(GcnSummary).get(summary_id)
         group = session.query(Group).get(group_id)
         event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
+        localization = (
+            session.query(Localization)
+            .filter(
+                Localization.dateobs == dateobs,
+                Localization.localization_name == localization_name,
+            )
+            .first()
+        )
 
         start_date_mjd = Time(arrow.get(start_date).datetime).mjd
         end_date_mjd = Time(arrow.get(end_date).datetime).mjd
@@ -2264,8 +2296,6 @@ def add_gcn_summary(
 
                 df_confirmed_or_unknown = df[(~df['id'].isin(df_rejected['id']))]
 
-                print(df_confirmed_or_unknown)
-
                 df_confirmed_or_unknown = df_confirmed_or_unknown.drop(
                     columns=['status']
                 )
@@ -2391,6 +2421,7 @@ def add_gcn_summary(
                     localization_cumprob=localization_cumprob,
                     page_number=galaxies_page_number,
                     num_per_page=MAX_GALAXIES,
+                    return_probability=True,
                 )
                 galaxies.extend(galaxies_data['galaxies'])
                 galaxies_page_number += 1
@@ -2400,7 +2431,9 @@ def add_gcn_summary(
                 galaxies_text.append(
                     f"""\nFound {len(galaxies)} {'galaxies' if len(galaxies) > 1 else 'galaxy'} in the event's localization:\n"""
                 ) if not no_text else None
-                catalogs, names, ras, decs, distmpcs, redshifts = (
+                names, ras, decs, distmpcs, magks, mag_nuvs, mag_w1s, probabilities = (
+                    [],
+                    [],
                     [],
                     [],
                     [],
@@ -2409,39 +2442,70 @@ def add_gcn_summary(
                     [],
                 )
                 for galaxy in galaxies:
-                    galaxy = galaxy.to_dict()
-                    catalogs.append(
-                        galaxy['catalog_name'] if 'catalog_name' in galaxy else None
-                    )
+                    if galaxy['probability'] is None or galaxy['probability'] == 0:
+                        continue
+
                     names.append(galaxy['name'] if 'name' in galaxy else None)
                     ras.append(galaxy['ra'] if 'ra' in galaxy else None)
                     decs.append(galaxy['dec'] if 'dec' in galaxy else None)
                     distmpcs.append(galaxy['distmpc'] if 'distmpc' in galaxy else None)
-                    redshifts.append(
-                        galaxy['redshift'] if 'redshift' in galaxy else None
+                    magks.append(galaxy['magk'] if 'magk' in galaxy else None)
+                    mag_nuvs.append(galaxy['mag_nuv'] if 'mag_nuv' in galaxy else None)
+                    mag_w1s.append(galaxy['mag_w1'] if 'mag_w1' in galaxy else None)
+                    probabilities.append(
+                        galaxy['probability'] if 'probability' in galaxy else None
                     )
                 df = pd.DataFrame(
                     {
-                        "catalog": catalogs,
                         "name": names,
                         "ra": ras,
                         "dec": decs,
                         "distmpc": distmpcs,
-                        "redshift": redshifts,
+                        "magk": magks,
+                        "mag_nuv": mag_nuvs,
+                        "mag_w1": mag_w1s,
+                        "probability": probabilities,
                     }
                 )
+                df.sort_values("probability", inplace=True, ascending=False)
+                df = df[df["probability"] >= np.max(df["probability"]) * 0.01]
                 df = df.fillna("--")
                 galaxies_text.append(
                     tabulate(
                         df,
-                        headers='keys',
+                        headers=[
+                            'Galaxy',
+                            'RA [deg]',
+                            'Dec [deg]',
+                            'Distance [Mpc]',
+                            'm_Ks [mag]',
+                            'm_NUV [mag]',
+                            'm_W1 [mag]',
+                            'dP_dV',
+                        ],
                         tablefmt='psql',
                         showindex=False,
-                        floatfmt=".4f",
+                        floatfmt=(str, ".4f", ".4f", ".1f", ".1f", ".1f", ".1f", ".3e"),
                     )
                     + "\n"
                 )
             contents.extend(galaxies_text)
+
+            if localization is not None:
+                distmean, distsigma = localization.marginal_moments
+                if (distmean is not None) and (distsigma is not None):
+                    min_distance = np.max([distmean - 3 * distsigma, 0])
+                    max_distance = np.min([distmean + 3 * distsigma, 10000])
+                    try:
+                        completeness = get_galaxies_completeness(
+                            galaxies, dist_min=min_distance, dist_max=max_distance
+                        )
+                    except Exception:
+                        completeness = None
+
+                    if completeness is not None and not no_text:
+                        completeness_text = f"\n\nThe estimated mass completeness of the catalog for the skymap distance is ~{int(round(completeness*100,0))}%. This calculation was made by comparing the total mass within the catalog to a stellar mass function described by a Schechter function in the range {distmean:.1f} ± {distsigma:.1f} Mpc (within 3 sigma of the skymap).\n"
+                        contents.append(completeness_text)
 
         if show_observations:
             # get the executed obs, by instrument
@@ -2467,6 +2531,8 @@ def add_gcn_summary(
                         localization_cumprob=localization_cumprob,
                         return_statistics=True,
                         stats_method=stats_method,
+                        n_per_page=MAX_OBSERVATIONS,
+                        page_number=1,
                     )
 
                     observations = data["observations"]

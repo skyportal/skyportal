@@ -19,8 +19,12 @@ log = make_log('api/gcn_gracedb')
 
 _, cfg = load_env()
 GRACEDB_URL = cfg['app.gracedb_endpoint']
+GRACEDB_CREDENTIAL = cfg.get('app.gracedb_credential')
 
-client = GraceDb(service_url=GRACEDB_URL)
+if GRACEDB_CREDENTIAL is not None:
+    client = GraceDb(service_url=GRACEDB_URL, cred=GRACEDB_CREDENTIAL)
+else:
+    client = GraceDb(service_url=GRACEDB_URL)
 
 
 def post_gracedb_data(dateobs, gracedb_id, user_id):
@@ -33,13 +37,18 @@ def post_gracedb_data(dateobs, gracedb_id, user_id):
     try:
         flow = Flow()
         user = session.scalars(sa.select(User).where(User.id == user_id)).first()
-        stmt = GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        stmt = GcnEvent.select(user, mode="update").where(GcnEvent.dateobs == dateobs)
         gcn_event = session.scalars(stmt).first()
         if gcn_event is None:
             return
 
         # fetch superevent
         superevent_dict = client.superevent(gracedb_id).json()
+        superevent_dict_log = client.logs(gracedb_id).json()
+        superevent_dict_labels = client.labels(gracedb_id).json()
+
+        gcn_event.gracedb_log = superevent_dict_log
+        gcn_event.gracedb_labels = superevent_dict_labels
 
         gracedb_link = superevent_dict['links']['self']
 
