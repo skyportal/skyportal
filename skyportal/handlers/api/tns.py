@@ -57,6 +57,12 @@ class TNSRobotHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: groupID
+              schema:
+                type: integer
+              description: |
+                Filter by group ID
           responses:
             200:
                content:
@@ -81,25 +87,36 @@ class TNSRobotHandler(BaseHandler):
                   schema: Error
         """
 
+        group_id = self.get_query_argument("groupID", None)
+
         with self.Session() as session:
+            try:
+                # get owned tnsrobots
+                stmt = TNSRobot.select(session.user_or_token)
 
-            # get owned tnsrobots
-            tnsrobots = TNSRobot.select(session.user_or_token)
+                if tnsrobot_id is not None:
+                    try:
+                        tnsrobot_id = int(tnsrobot_id)
+                    except ValueError:
+                        return self.error("TNSRobot ID must be an integer.")
 
-            if tnsrobot_id is not None:
-                try:
-                    tnsrobot_id = int(tnsrobot_id)
-                except ValueError:
-                    return self.error("TNSRobot ID must be an integer.")
-                tnsrobot = session.scalars(
-                    tnsrobots.where(TNSRobot.id == tnsrobot_id)
-                ).first()
-                if tnsrobot is None:
-                    return self.error("Could not retrieve tnsrobot.")
-                return self.success(data=tnsrobot)
+                    stmt = stmt.where(TNSRobot.id == tnsrobot_id)
+                    tnsrobot = session.scalars(stmt).first()
+                    if tnsrobot is None:
+                        return self.error(f'No TNS robot with ID {tnsrobot_id}')
+                    return self.success(data=tnsrobot)
 
-            tnsrobots = session.scalars(tnsrobots).all()
-            return self.success(data=tnsrobots)
+                elif group_id is not None:
+                    try:
+                        group_id = int(group_id)
+                    except ValueError:
+                        return self.error("Group ID must be an integer (if specified).")
+                    stmt = stmt.where(TNSRobot.group_id == group_id)
+
+                tns_robots = session.scalars(stmt).all()
+                return self.success(data=tns_robots)
+            except Exception as e:
+                return self.error(f'Failed to retrieve TNS robots: {e}')
 
     @permissions(['Manage tnsrobots'])
     def post(self):
