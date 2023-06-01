@@ -24,7 +24,7 @@ class TNSRobot(Base):
     group_id = sa.Column(
         sa.ForeignKey('groups.id', ondelete='CASCADE'),
         index=True,
-        doc='The ID of the Group the allocation is associated with.',
+        doc='The ID of the Group the TNS robot is associated with.',
         nullable=False,
     )
     group = relationship(
