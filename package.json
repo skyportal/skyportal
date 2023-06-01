@@ -36,7 +36,7 @@
     "d3-array": "3.2.2",
     "d3-geo": "3.1.0",
     "d3-geo-projection": "4.0.0",
-    "d3-geo-zoom": "1.5.1",
+    "d3-geo-zoom": "1.4.4",
     "data-uri-to-buffer": "4.0.1",
     "dayjs": "1.11.5",
     "dygraphs": "2.2.0",
@@ -103,7 +103,8 @@
     "use-count-up": "3.0.1",
     "vega": "5.25.0",
     "vega-embed": "6.21.3",
-    "vega-lite": "5.6.1"
+    "vega-lite": "5.6.1",
+    "versor": "0.1.2"
   },
   "devDependencies": {
     "@babel/core": "7.21.4",
