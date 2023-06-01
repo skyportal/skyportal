@@ -63,7 +63,7 @@ requests==2.31.0
 geojson==3.0.1
 typing-extensions==4.5.0 # Needed for OpenAI
 swifttools==3.0.16
-pip==22.3.1
+pip==23.1.2
 gwemopt==0.0.84
 humanize==4.6.0
 xarray>=21.1
