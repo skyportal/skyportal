@@ -47,7 +47,7 @@ scp==0.14.5
 requests_toolbelt==0.10.1
 sendgrid==6.10.0
 twilio==8.1.0
-responses==0.22.0
+responses==0.23.1
 numba==0.56.4
 pyvo==1.4.1
 lxml==4.9.2
