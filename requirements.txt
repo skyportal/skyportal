@@ -61,7 +61,7 @@ pysedm==0.31.0
 xmlschema==2.1.1
 requests==2.31.0
 geojson==3.0.1
-typing-extensions==4.5.0 # Needed for OpenAI
+typing-extensions==4.6.2 # Needed for OpenAI
 swifttools==3.0.16
 pip==22.3.1
 gwemopt==0.0.84
