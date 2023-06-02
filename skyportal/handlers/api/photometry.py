@@ -310,6 +310,12 @@ def standardize_photometry_data(data):
         )
 
     if altdata is not None and len(altdata) > 0:
+        for index, e in enumerate(altdata):
+            altdata[index] = (
+                {k: v for k, v in e.items() if v not in [None, '']}
+                if not all([v in [None, ''] for v in e.values()])
+                else None
+            )
         df['altdata'] = altdata
 
     # `to_numeric` coerces numbers written as strings to numeric types
