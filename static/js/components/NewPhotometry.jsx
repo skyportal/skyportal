@@ -146,7 +146,6 @@ const NewPhotometryForm = ({ obj_id }) => {
 
   const validate = (formData, errors) => {
     if (formData.dateobs && !validateDate(formData.dateobs)) {
-      console.log("flt", parseFloat(formData.dateobs));
       if (Number.isNaN(parseFloat(formData.dateobs))) {
         errors.dateobs.addError(
           "Date must be in the format YYYY-MM-DDThh:mm:ss or MJD"
