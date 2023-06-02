@@ -1763,7 +1763,6 @@ def test_sources_hidden_photometry_not_leaked(
         },
         token=upload_data_token_two_groups,
     )
-    print(status, data)
     assert status == 200
     assert data['status'] == 'success'
     photometry_id = data['data']['ids'][0]
