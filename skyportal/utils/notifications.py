@@ -1,19 +1,16 @@
-from skyportal.app_utils import get_app_base_url
-
-from skyportal.models import (
-    GcnEvent,
-)
-from astropy.time import Time
-
-from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
-
-import sqlalchemy as sa
 import datetime
+
+import gcn
 import lxml
 import requests
+import sqlalchemy as sa
+from astropy.time import Time
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+from skyportal.app_utils import get_app_base_url
+from skyportal.models import GcnEvent
+from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 
 env, cfg = load_env()
 
@@ -30,7 +27,7 @@ def gcn_notification_content(target, session):
     stmt = sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
     gcn_event = session.execute(stmt).scalars().first()
 
-    tags = target.tags
+    tags = [tag.text for tag in target.tags]
 
     time_since_dateobs = datetime.datetime.utcnow() - gcn_event.dateobs
     # remove the microseconds from the timedelta
@@ -98,7 +95,7 @@ def gcn_notification_content(target, session):
     return {
         'dateobs': dateobs_txt,
         'source_name': source_name,
-        'notice_type': notice_type,
+        'notice_type': gcn.NoticeType(notice_type).name,
         'new_event': new_event,
         'time_since_dateobs': time_since_dateobs,
         'ra': ra,
@@ -111,7 +108,7 @@ def gcn_notification_content(target, session):
     }
 
 
-def gcn_slack_notification(target, data=None):
+def gcn_slack_notification(target, data=None, new_tag=False):
 
     # Now, we will create json that describes the message we want to send to slack (and how to display it)
     # We will use the slack blocks API, which is a bit more complicated than the simple message API, but allows for more flexibility
@@ -119,6 +116,8 @@ def gcn_slack_notification(target, data=None):
 
     if data['new_event']:
         header_text = f"New Event: <{app_url}{target['url']}|*{data['dateobs']}*> ({data['notice_type']})"
+    elif new_tag:
+        header_text = f"New tag added to Event: <{app_url}{target['url']}|*{data['dateobs']}*> ({data['notice_type']})"
     else:
         header_text = f"New notice for Event: <{app_url}{target['url']}|*{data['dateobs']}*> ({data['notice_type']})"
 
@@ -170,13 +169,16 @@ def gcn_slack_notification(target, data=None):
     return blocks
 
 
-def gcn_email_notification(target, data=None):
+def gcn_email_notification(target, data=None, new_tag=False):
 
     # Now, we will create an HTML email that describes the message we want to send by email
 
     if data['new_event']:
         header_text = f"<h3>New GCN Event: <a href='{app_url}{target['url']}'>{data['dateobs']}</a> ({data['notice_type']})</h3>"
         subject = f"{cfg['app.title']} - New GCN Event: {data['dateobs']} ({data['notice_type']})"
+    elif new_tag:
+        header_text = f"<h3>New tag added to Event: <a href='{app_url}{target['url']}'>{data['dateobs']}</a> ({data['notice_type']})</h3>"
+        subject = f"{cfg['app.title']} - New tag added to Event: {data['dateobs']} ({data['notice_type']})"
     else:
         header_text = f"<h3>New notice for Event: <a href='{app_url}{target['url']}'>{data['dateobs']}</a> ({data['notice_type']})</h3>"
         subject = f"{cfg['app.title']} - New notice for Event: {data['dateobs']} ({data['notice_type']})"
