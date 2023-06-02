@@ -142,6 +142,10 @@ def gcn_slack_notification(target, data=None):
         for key, value in data['links'].items():
             external_links_text += f"\n *-* <{value}|*{key}*>"
 
+    tags_text = None
+    if len(data['tags']):
+        tags_text = f"*Event tags*: {','.join(data['tags'])}"
+
     blocks = [
         {"type": "section", "text": {"type": "mrkdwn", "text": header_text}},
         {"type": "divider"},
@@ -157,6 +161,12 @@ def gcn_slack_notification(target, data=None):
         blocks.append(
             {"type": "section", "text": {"type": "mrkdwn", "text": external_links_text}}
         )
+    if tags_text is not None:
+        blocks.append({"type": "divider"})
+        blocks.append(
+            {"type": "section", "text": {"type": "mrkdwn", "text": tags_text}}
+        )
+
     return blocks
 
 
@@ -191,17 +201,22 @@ def gcn_email_notification(target, data=None):
             external_links_text += f"<li><a href='{value}'>{key}</a></li>"
         external_links_text += "</ul>"
 
-    return subject, (
-        "<!DOCTYPE html><html><head><style>body {font-family: Arial, Helvetica, sans-serif;}</style></head>"
-        + "<body>"
-        + header_text
-        + time_text
-        + notice_type_text
-        + localization_text
-        + "</body></html>"
-        + external_links_text
-        if external_links_text is not None
-        else ""
+    tags_text = None
+    if len(data['tags']):
+        tags_text = f"<h4>Event tags: {','.join(data['tags'])}</h4><ul>"
+
+    return subject, "".join(
+        [
+            "<!DOCTYPE html><html><head><style>body {font-family: Arial, Helvetica, sans-serif;}</style></head>",
+            "<body>",
+            header_text,
+            time_text,
+            notice_type_text,
+            localization_text,
+            "</body></html>",
+            external_links_text if external_links_text is not None else "",
+            tags_text if tags_text is not None else "",
+        ]
     )
 
 
