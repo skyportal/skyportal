@@ -488,7 +488,7 @@ interactions:
       User-Agent:
       - python-requests/2.27.0
     method: POST
-    uri: http://treasuremap.space/api/v0/pointings
+    uri: https://treasuremap.space/api/v1/pointings
   response:
     body:
       string: '{"ERRORS":[["Object: {\"ra\": 16.36364, \"dec\": -81.85, \"band\":

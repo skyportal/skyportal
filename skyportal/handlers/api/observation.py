@@ -46,13 +46,18 @@ from ...utils.simsurvey import (
     get_simsurvey_parameters,
 )
 from .instrument import add_tiles
-from .observation_plan import observation_simsurvey, observation_simsurvey_plot
+from .observation_plan import (
+    observation_simsurvey,
+    observation_simsurvey_plot,
+    TREASUREMAP_URL,
+    TREASUREMAP_INSTRUMENT_IDS,
+    TREASUREMAP_FILTERS,
+)
 from ...facility_apis.observation_plan import combine_healpix_tuples
 from ...utils.cache import Cache
 
 
 env, cfg = load_env()
-TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
 log = make_log('api/observation')
 
@@ -398,14 +403,41 @@ def get_observations(
                 raise ValueError("GCN event not found")
             localization = event.localizations[-1]
 
+        partition_key = arrow.get(localization.dateobs).datetime
+        localizationtile_partition_name = (
+            f'{partition_key.year}_{partition_key.month:02d}'
+        )
+        localizationtilescls = LocalizationTile.partitions.get(
+            localizationtile_partition_name, None
+        )
+        if localizationtilescls is None:
+            localizationtilescls = LocalizationTile.partitions.get(
+                'def', LocalizationTile
+            )
+        else:
+            # check that there is actually a localizationTile with the given localization_id in the partition
+            # if not, use the default partition
+            if not (
+                session.scalars(
+                    localizationtilescls.select(session.user_or_token).where(
+                        localizationtilescls.localization_id == localization.id
+                    )
+                ).first()
+            ):
+                localizationtilescls = LocalizationTile.partitions.get(
+                    'def', LocalizationTile
+                )
+
         cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
+            sa.func.sum(
+                localizationtilescls.probdensity * localizationtilescls.healpix.area
+            )
+            .over(order_by=localizationtilescls.probdensity.desc())
             .label('cum_prob')
         )
         localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                LocalizationTile.localization_id == localization.id
+            sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                localizationtilescls.localization_id == localization.id
             )
         ).subquery()
         min_probdensity = (
@@ -427,12 +459,11 @@ def get_observations(
                 .distinct()
             )
         else:
-
             field_tiles_query = sa.select(InstrumentField.id).where(
-                LocalizationTile.localization_id == localization.id,
-                LocalizationTile.probdensity >= min_probdensity,
+                localizationtilescls.localization_id == localization.id,
+                localizationtilescls.probdensity >= min_probdensity,
                 InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+                InstrumentFieldTile.healpix.overlaps(localizationtilescls.healpix),
             )
 
         if telescope_name is not None and instrument_name is not None:
@@ -453,12 +484,12 @@ def get_observations(
             if stats_method == 'python':
                 t0 = time.time()
                 localization_tiles = session.scalars(
-                    sa.select(LocalizationTile)
+                    sa.select(localizationtilescls)
                     .where(
-                        LocalizationTile.localization_id == localization.id,
-                        LocalizationTile.probdensity >= min_probdensity,
+                        localizationtilescls.localization_id == localization.id,
+                        localizationtilescls.probdensity >= min_probdensity,
                     )
-                    .order_by(LocalizationTile.probdensity.desc())
+                    .order_by(localizationtilescls.probdensity.desc())
                     .distinct()
                 ).all()
                 if stats_logging:
@@ -575,18 +606,18 @@ def get_observations(
 
                 area = sa.func.sum(union.columns.healpix.area)
                 prob = sa.func.sum(
-                    LocalizationTile.probdensity
-                    * (union.columns.healpix * LocalizationTile.healpix).area
+                    localizationtilescls.probdensity
+                    * (union.columns.healpix * localizationtilescls.healpix).area
                 )
                 query_area = sa.select(area).filter(
-                    LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
-                    union.columns.healpix.overlaps(LocalizationTile.healpix),
+                    localizationtilescls.localization_id == localization.id,
+                    localizationtilescls.probdensity >= min_probdensity,
+                    union.columns.healpix.overlaps(localizationtilescls.healpix),
                 )
                 query_prob = sa.select(prob).filter(
-                    LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
-                    union.columns.healpix.overlaps(LocalizationTile.healpix),
+                    localizationtilescls.localization_id == localization.id,
+                    localizationtilescls.probdensity >= min_probdensity,
+                    union.columns.healpix.overlaps(localizationtilescls.healpix),
                 )
                 intprob = session.execute(query_prob).scalar_one()
                 intarea = session.execute(query_area).scalar_one()
@@ -1563,6 +1594,17 @@ class ObservationTreasureMapHandler(BaseHandler):
             if instrument is None:
                 return self.error(message=f"Invalid instrument ID {instrument_id}")
 
+            treasuremap_id = None
+            if instrument.treasuremap_id is None:
+                if instrument.name in TREASUREMAP_INSTRUMENT_IDS:
+                    treasuremap_id = TREASUREMAP_INSTRUMENT_IDS[instrument.name]
+                else:
+                    return self.error(
+                        message=f"Instrument {instrument.name} does not have a TreasureMap ID associated with it"
+                    )
+            else:
+                treasuremap_id = instrument.treasuremap_id
+
             data = get_observations(
                 session,
                 start_date,
@@ -1572,7 +1614,9 @@ class ObservationTreasureMapHandler(BaseHandler):
                 localization_dateobs=localization_dateobs,
                 localization_name=localization_name,
                 localization_cumprob=localization_cumprob,
-                return_statistics=True,
+                return_statistics=False,
+                n_per_page=MAX_OBSERVATIONS,
+                page_number=1,
             )
 
             observations = data["observations"]
@@ -1605,23 +1649,76 @@ class ObservationTreasureMapHandler(BaseHandler):
                 return self.error('Missing allocation information.')
 
             graceid = event.graceid
-            payload = {"graceid": graceid, "api_token": api_token}
+            payload = {"api_token": api_token, "graceid": graceid}
+
+            # first check that all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict
+            if not all(
+                [obs["filt"] in TREASUREMAP_FILTERS.keys() for obs in observations]
+            ):
+                return self.error(
+                    'Not all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict, they cannot be submitted'
+                )
+
+            # we first get the pointings that are already on treasuremap to avoid duplicates
+            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/pointings')
+            r = requests.get(
+                url=url,
+                json={
+                    **payload,
+                    "status": "completed",
+                    "instrumentid": str(treasuremap_id),
+                },
+            )
+            r.raise_for_status()
+            existing_pointings = r.json()
 
             pointings = []
             for obs in observations:
                 pointing = {}
-                pointing["ra"] = obs["field"].ra
-                pointing["dec"] = obs["field"].dec
-                pointing["band"] = obs["filt"]
-                pointing["instrumentid"] = int(instrument.treasuremap_id)
+                pointing["ra"] = obs["field"]["ra"]
+                pointing["dec"] = obs["field"]["dec"]
+                pointing["instrumentid"] = str(treasuremap_id)
                 pointing["status"] = "completed"
                 pointing["time"] = Time(obs["obstime"], format='datetime').isot
                 pointing["depth"] = obs["limmag"]
                 pointing["depth_unit"] = "ab_mag"
-                pointings.append(pointing)
+                if isinstance(TREASUREMAP_FILTERS[obs["filt"]], list):
+                    pointing["central_wave"] = TREASUREMAP_FILTERS[obs["filt"]][0]
+                    pointing["bandwidth"] = TREASUREMAP_FILTERS[obs["filt"]][1]
+                    pointing["wavelength_unit"] = "angstrom"
+                else:
+                    pointing["band"] = TREASUREMAP_FILTERS[obs["filt"]]
+
+                exists = False
+                for existing_pointing in existing_pointings:
+                    if (
+                        all(
+                            [
+                                existing_pointing[key] == pointing[key]
+                                for key in [
+                                    "status",
+                                    "depth",
+                                    "central_wave",
+                                    "bandwidth",
+                                ]
+                            ]
+                        )
+                        and existing_pointing["instrumentid"] == treasuremap_id
+                        and existing_pointing["position"]
+                        == f"POINT ({pointing['ra']} {pointing['dec']})"
+                        and existing_pointing["time"] == pointing["time"].split(".")[0]
+                    ):
+                        exists = True
+                        break
+                if not exists:
+                    pointings.append(pointing)
+
+            if len(pointings) == 0:
+                return self.error(
+                    'All existing executed observations have already been uploaded to Treasure Map already'
+                )
             payload["pointings"] = pointings
 
-            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
             r = requests.post(url=url, json=payload)
             r.raise_for_status()
             request_json = r.json()
@@ -1682,6 +1779,17 @@ class ObservationTreasureMapHandler(BaseHandler):
         if instrument is None:
             return self.error(message=f"Invalid instrument ID {instrument_id}")
 
+        treasuremap_id = None
+        if instrument.treasuremap_id is None:
+            if instrument.name in TREASUREMAP_INSTRUMENT_IDS:
+                treasuremap_id = TREASUREMAP_INSTRUMENT_IDS[instrument.name]
+            else:
+                return self.error(
+                    message=f"Instrument {instrument.name} does not have a TreasureMap ID associated with it"
+                )
+        else:
+            treasuremap_id = instrument.treasuremap_id
+
         event = (
             GcnEvent.query_records_accessible_by(
                 self.current_user,
@@ -1713,12 +1821,12 @@ class ObservationTreasureMapHandler(BaseHandler):
 
         graceid = event.graceid
         payload = {
-            "graceid": graceid,
             "api_token": api_token,
-            "instrumentid": instrument.treasuremap_id,
+            "graceid": graceid,
+            "instrumentid": str(treasuremap_id),
         }
 
-        baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/cancel_all')
+        baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/cancel_all')
         url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
         r = requests.post(url=url)
         r.raise_for_status()

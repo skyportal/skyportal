@@ -1159,14 +1159,41 @@ async def get_sources(
                     f"Localization {localization_dateobs} not found",
                 )
 
+        partition_key = arrow.get(localization.dateobs).datetime
+        localizationtile_partition_name = (
+            f'{partition_key.year}_{partition_key.month:02d}'
+        )
+        localizationtilescls = LocalizationTile.partitions.get(
+            localizationtile_partition_name, None
+        )
+        if localizationtilescls is None:
+            localizationtilescls = LocalizationTile.partitions.get(
+                'def', LocalizationTile
+            )
+        else:
+            # check that there is actually a localizationTile with the given localization_id in the partition
+            # if not, use the default partition
+            if not (
+                session.scalars(
+                    localizationtilescls.select(session.user_or_token).where(
+                        localizationtilescls.localization_id == localization.id
+                    )
+                ).first()
+            ):
+                localizationtilescls = LocalizationTile.partitions.get(
+                    'def', LocalizationTile
+                )
+
         cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
+            sa.func.sum(
+                localizationtilescls.probdensity * localizationtilescls.healpix.area
+            )
+            .over(order_by=localizationtilescls.probdensity.desc())
             .label('cum_prob')
         )
         localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                LocalizationTile.localization_id == localization.id
+            sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                localizationtilescls.localization_id == localization.id
             )
         ).subquery()
 
@@ -1177,17 +1204,17 @@ async def get_sources(
         ).scalar_subquery()
 
         tile_ids = session.scalars(
-            sa.select(LocalizationTile.id).where(
-                LocalizationTile.localization_id == localization.id,
-                LocalizationTile.probdensity >= min_probdensity,
+            sa.select(localizationtilescls.id).where(
+                localizationtilescls.localization_id == localization.id,
+                localizationtilescls.probdensity >= min_probdensity,
             )
         ).all()
 
         tiles_subquery = (
             sa.select(Obj.id)
             .filter(
-                LocalizationTile.id.in_(tile_ids),
-                LocalizationTile.healpix.contains(Obj.healpix),
+                localizationtilescls.id.in_(tile_ids),
+                localizationtilescls.healpix.contains(Obj.healpix),
             )
             .subquery()
         )

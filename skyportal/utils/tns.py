@@ -146,10 +146,10 @@ def read_tns_spectrum(spectrum, session):
 
     try:
         tab = Table.read(spectrum["asciifile"], format="ascii")
-        tab.rename_column('col1', 'wavelengths')
-        tab.rename_column('col2', 'fluxes')
+        tab.rename_column(tab.columns[0].name, 'wavelengths')
+        tab.rename_column(tab.columns[1].name, 'fluxes')
         if len(tab.columns) == 3:
-            tab.rename_column('col3', 'errors')
+            tab.rename_column(tab.columns[2].name, 'errors')
     except Exception:
         tab = Table.read(spectrum["asciifile"], format="fits")
 
