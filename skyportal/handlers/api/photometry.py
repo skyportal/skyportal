@@ -250,19 +250,20 @@ def standardize_photometry_data(data):
             'Top level JSON must be an instance of `dict`, got ' f'{type(data)}.'
         )
 
+    max_num_elements = max(
+        [
+            len(data[key])
+            for key in data
+            if isinstance(data[key], (list, tuple))
+            and key not in ["group_ids", "stream_ids"]
+        ]
+        + [1]
+    )
+
     if "altdata" in data and not data["altdata"]:
         del data["altdata"]
     if "altdata" in data:
         if isinstance(data["altdata"], dict):
-            max_num_elements = max(
-                [
-                    len(data[key])
-                    for key in data
-                    if isinstance(data[key], (list, tuple))
-                    and key not in ["group_ids", "stream_ids"]
-                ]
-                + [1]
-            )
             for key in data["altdata"].keys():
                 if not len(data["altdata"][key]) == max_num_elements:
                     data["altdata"][key] = [data["altdata"][key]] * max_num_elements
@@ -299,7 +300,10 @@ def standardize_photometry_data(data):
         altdata = None
 
     try:
-        df = pd.DataFrame(data)
+        if max_num_elements == 1:
+            df = pd.DataFrame(data, index=[0])
+        else:
+            df = pd.DataFrame(data)
     except ValueError as e:
         raise ValidationError(
             'Unable to coerce passed JSON to a series of packets. ' f'Error was: "{e}"'
