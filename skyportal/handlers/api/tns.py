@@ -57,6 +57,12 @@ class TNSRobotHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: groupID
+              schema:
+                type: integer
+              description: |
+                Filter by group ID
           responses:
             200:
                content:
@@ -81,25 +87,36 @@ class TNSRobotHandler(BaseHandler):
                   schema: Error
         """
 
+        group_id = self.get_query_argument("groupID", None)
+
         with self.Session() as session:
+            try:
+                # get owned tnsrobots
+                stmt = TNSRobot.select(session.user_or_token)
 
-            # get owned tnsrobots
-            tnsrobots = TNSRobot.select(session.user_or_token)
+                if tnsrobot_id is not None:
+                    try:
+                        tnsrobot_id = int(tnsrobot_id)
+                    except ValueError:
+                        return self.error("TNSRobot ID must be an integer.")
 
-            if tnsrobot_id is not None:
-                try:
-                    tnsrobot_id = int(tnsrobot_id)
-                except ValueError:
-                    return self.error("TNSRobot ID must be an integer.")
-                tnsrobot = session.scalars(
-                    tnsrobots.where(TNSRobot.id == tnsrobot_id)
-                ).first()
-                if tnsrobot is None:
-                    return self.error("Could not retrieve tnsrobot.")
-                return self.success(data=tnsrobot)
+                    stmt = stmt.where(TNSRobot.id == tnsrobot_id)
+                    tnsrobot = session.scalars(stmt).first()
+                    if tnsrobot is None:
+                        return self.error(f'No TNS robot with ID {tnsrobot_id}')
+                    return self.success(data=tnsrobot)
 
-            tnsrobots = session.scalars(tnsrobots).all()
-            return self.success(data=tnsrobots)
+                elif group_id is not None:
+                    try:
+                        group_id = int(group_id)
+                    except ValueError:
+                        return self.error("Group ID must be an integer (if specified).")
+                    stmt = stmt.where(TNSRobot.group_id == group_id)
+
+                tns_robots = session.scalars(stmt).all()
+                return self.success(data=tns_robots)
+            except Exception as e:
+                return self.error(f'Failed to retrieve TNS robots: {e}')
 
     @permissions(['Manage tnsrobots'])
     def post(self):
@@ -148,7 +165,115 @@ class TNSRobotHandler(BaseHandler):
 
             session.add(tnsrobot)
             session.commit()
+            self.push(
+                action='skyportal/REFRESH_TNSROBOTS',
+                payload={"group_id": tnsrobot.group_id},
+            )
             return self.success(data={"id": tnsrobot.id})
+
+    @permissions(['Manage tnsrobots'])
+    def put(self, tnsrobot_id):
+        """
+        ---
+        description: Update TNS robot
+        tags:
+          - tnsrobots
+        parameters:
+          - in: path
+            name: tnsrobot_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: TNSRobot
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        data = self.get_json()
+
+        # verify that the bot_id, bot_name, and source_group_id are not None and are integers (if specified)
+        if 'bot_id' in data:
+            try:
+                data['bot_id'] = int(data['bot_id'])
+            except ValueError:
+                return self.error("TNS bot ID must be an integer (if specified).")
+        if 'bot_name' in data:
+            if (
+                data['bot_name'] is None
+                or data['bot_name'] == ''
+                or not isinstance(data['bot_name'], str)
+            ):
+                return self.error(
+                    "TNS bot name must be a non-empty string (if specified)."
+                )
+        if 'source_group_id' in data:
+            try:
+                data['source_group_id'] = int(data['source_group_id'])
+            except ValueError:
+                return self.error(
+                    "TNS source group ID must be an integer (if specified)."
+                )
+
+        if 'auto_report_group_ids' in data:
+            if isinstance(data['auto_report_group_ids'], str):
+                try:
+                    data['auto_report_group_ids'] = data['auto_report_group_ids'].split(
+                        ','
+                    )
+                except Exception:
+                    return self.error(
+                        "TNS auto report group IDs must be a list (if specified)."
+                    )
+            if not isinstance(data['auto_report_group_ids'], list):
+                return self.error(
+                    "TNS auto report group IDs must be a list (if specified)."
+                )
+            for group_id in data['auto_report_group_ids']:
+                try:
+                    int(group_id)
+                except ValueError:
+                    return self.error(
+                        "TNS auto report group IDs must be integers (if specified)."
+                    )
+            if len(data['auto_report_group_ids']) == 0:
+                data['auto_reporters'] = ''
+
+        with self.Session() as session:
+            try:
+                tnsrobot = session.scalars(
+                    TNSRobot.select(session.user_or_token).where(
+                        TNSRobot.id == tnsrobot_id
+                    )
+                ).first()
+                if tnsrobot is None:
+                    return self.error(f'No TNS robot with ID {tnsrobot_id}')
+
+                if (
+                    len(data.get('auto_report_group_ids', [])) > 0
+                    and data.get('auto_reporters', '') in [None, '']
+                    and tnsrobot.auto_reporters in [None, '']
+                ):
+                    return self.error(
+                        "TNS auto reporters must be a non-empty string when auto report group IDs are specified."
+                    )
+
+                for key, val in data.items():
+                    setattr(tnsrobot, key, val)
+                session.commit()
+                self.push(
+                    action='skyportal/REFRESH_TNSROBOTS',
+                    payload={"group_id": tnsrobot.group_id},
+                )
+                return self.success()
+            except Exception as e:
+                raise e
+                return self.error(f'Failed to update TNS robot: {e}')
 
     @permissions(['Manage tnsrobots'])
     def delete(self, tnsrobot_id):
@@ -184,6 +309,10 @@ class TNSRobotHandler(BaseHandler):
                 return self.error(f'No TNS robot with ID {tnsrobot_id}')
             session.delete(tnsrobot)
             session.commit()
+            self.push(
+                action='skyportal/REFRESH_TNSROBOTS',
+                payload={"group_id": tnsrobot.group_id},
+            )
             return self.success()
 
 

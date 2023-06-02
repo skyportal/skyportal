@@ -21,6 +21,7 @@ import Button from "./Button";
 
 import GroupUsers from "./GroupUsers";
 import GroupFiltersStreams from "./GroupFiltersStreams";
+import TNSRobots from "./TNSRobots";
 
 import * as groupActions from "../ducks/group";
 import * as groupsActions from "../ducks/groups";
@@ -192,6 +193,7 @@ const Group = () => {
         isAdmin={isAdmin}
         theme={theme}
       />
+      <TNSRobots group_id={group.id} />
       {isAdmin(currentUser) && (
         <Button secondary onClick={() => setConfirmDeleteOpen(true)}>
           Delete Group
