@@ -211,8 +211,7 @@ def tns_retrieval(
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
-    # try:
-    if True:
+    try:
         obj = session.scalars(Obj.select(user).where(Obj.id == obj_id)).first()
         if obj is None:
             raise ValueError(f'No object available with ID {obj_id}')
@@ -309,11 +308,11 @@ def tns_retrieval(
             payload={'obj_key': obj.internal_key},
         )
 
-    # except Exception as e:
-    #    log(f"Unable to retrieve TNS report for {obj_id}: {e}")
-    # finally:
-    #    session.close()
-    #    Session.remove()
+    except Exception as e:
+        log(f"Unable to retrieve TNS report for {obj_id}: {e}")
+    finally:
+        session.close()
+        Session.remove()
 
 
 class ObjTNSHandler(BaseHandler):
