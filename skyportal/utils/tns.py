@@ -2,9 +2,10 @@ from skyportal.app_utils import get_app_base_url
 
 import astropy.units as u
 from astropy.table import Table
-from astropy.coordinates import SkyCoord
 from astropy.time import Time
+from astropy.coordinates import SkyCoord
 import json
+import pandas as pd
 import requests
 import sqlalchemy as sa
 import urllib
@@ -27,6 +28,7 @@ log = make_log('tns')
 
 TNS_INSTRUMENT_IDS = {
     'ALFOSC': 41,
+    'ATLAS': [159, 160, 255, 167],
     'DECam': 172,
     'EFOSC2': 30,
     'Goodman': 136,
@@ -34,7 +36,10 @@ TNS_INSTRUMENT_IDS = {
     'SPRAT': 156,
     'ZTF': 196,
 }
+
 TNS_FILTER_IDS = {
+    'atlasc': 71,
+    'atlaso': 72,
     'sdssu': 20,
     'sdssg': 21,
     'sdssr': 22,
@@ -50,7 +55,8 @@ TNS_FILTER_IDS = {
     'ztfr': 111,
     'ztfi': 112,
 }
-INSTRUMENT_TNS_IDS = {v: k for k, v in TNS_INSTRUMENT_IDS.items()}
+
+FILTER_TNS_IDS = {v: k for k, v in TNS_FILTER_IDS.items()}
 
 
 def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=5):
@@ -142,6 +148,62 @@ def post_tns(
         )
 
 
+def read_tns_photometry(photometry, session):
+
+    tns_instrument_id = photometry["instrument"]["id"]
+    inst_name = None
+    for key, value in TNS_INSTRUMENT_IDS.items():
+        if type(value) == list:
+            if tns_instrument_id in value:
+                inst_name = key
+        else:
+            if tns_instrument_id == value:
+                inst_name = key
+    if inst_name is None:
+        raise ValueError(f'Cannot find TNS ID mapping for {tns_instrument_id}')
+
+    instrument = session.scalars(
+        sa.select(Instrument).where(Instrument.name == inst_name)
+    ).first()
+    if instrument is None:
+        raise ValueError(f'Cannot find instrument with name {inst_name}')
+
+    flux_unit = photometry['flux_unit']
+    if not flux_unit['name'] == 'ABMag':
+        raise ValueError(f"Cannot understand flux_unit name: {flux_unit['name']}")
+
+    tns_filter_id = photometry["filters"]["id"]
+    if tns_filter_id not in FILTER_TNS_IDS:
+        raise ValueError(f'Cannot find TNS ID mapping for {tns_filter_id}')
+    filter_name = FILTER_TNS_IDS[tns_filter_id]
+
+    if filter_name not in instrument.filters:
+        raise ValueError(f'{filter_name} not in {instrument.nickname}')
+
+    if photometry['limflux'] == '':
+        data_out = {
+            'mjd': [Time(photometry['jd'], format='jd').mjd],
+            'mag': None,
+            'magerr': None,
+            'limiting_mag': [photometry['flux']],
+            'filter': [filter_name],
+            'magsys': ['ab'],
+        }
+    else:
+        data_out = {
+            'mjd': [Time(photometry['jd'], format='jd').mjd],
+            'mag': [photometry['flux']],
+            'magerr': [photometry['fluxerr']],
+            'limiting_mag': [photometry['limflux']],
+            'filter': [filter_name],
+            'magsys': ['ab'],
+        }
+
+    df = pd.DataFrame.from_dict(data_out)
+
+    return df, instrument.id
+
+
 def read_tns_spectrum(spectrum, session):
 
     try:
@@ -158,9 +220,16 @@ def read_tns_spectrum(spectrum, session):
     data["origin"] = "TNS"
 
     tns_instrument_id = spectrum["instrument"]["id"]
-    if tns_instrument_id not in INSTRUMENT_TNS_IDS:
+    inst_name = None
+    for key, value in TNS_INSTRUMENT_IDS.items():
+        if type(value) == list:
+            if tns_instrument_id in value:
+                inst_name = key
+        else:
+            if tns_instrument_id == value:
+                inst_name = key
+    if inst_name is None:
         raise ValueError(f'Cannot find TNS ID mapping for {tns_instrument_id}')
-    inst_name = INSTRUMENT_TNS_IDS[tns_instrument_id]
 
     instrument = session.scalars(
         sa.select(Instrument).where(Instrument.name == inst_name)
