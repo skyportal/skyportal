@@ -209,6 +209,8 @@ def tns_retrieval(
     else:
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
+    flow = Flow()
+
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
     try:
@@ -267,6 +269,10 @@ def tns_retrieval(
 
                 if include_photometry and 'photometry' in source_data:
                     photometry = source_data['photometry']
+
+                    failed_photometry = []
+                    failed_photometry_errors = []
+
                     for phot in photometry:
                         try:
                             df, instrument_id = read_tns_photometry(phot, session)
@@ -278,14 +284,23 @@ def tns_retrieval(
                             }
                             add_external_photometry(data_out, user)
                         except Exception as e:
+                            failed_photometry.append(phot)
+                            failed_photometry_errors.append(str(e))
                             log(
                                 f'Cannot read TNS photometry {str(photometry)}: {str(e)}'
                             )
                             continue
-
+                    if len(failed_photometry) > 0:
+                        log(
+                            f'Failed to retrieve {len(failed_photometry)}/{len(photometry)} TNS photometry for {obj_id} from TNS as {tns_name}: {str(list(set(failed_photometry_errors)))}'
+                        )
                 if include_spectra and 'spectra' in source_data:
                     group_ids = [g.id for g in user.accessible_groups]
                     spectra = source_data['spectra']
+
+                    failed_spectra = []
+                    failed_spectra_errors = []
+
                     for spectrum in spectra:
                         try:
                             data = read_tns_spectrum(spectrum, session)
@@ -295,6 +310,11 @@ def tns_retrieval(
                         data["obj_id"] = obj_id
                         data["group_ids"] = group_ids
                         post_spectrum(data, user_id, session)
+
+                    if len(failed_spectra) > 0:
+                        log(
+                            f'Failed to retrieve {len(failed_spectra)}/{len(spectra)} TNS spectra for {obj_id} from TNS as {tns_name}: {str(list(set(failed_spectra_errors)))}'
+                        )
 
             log(f'Successfully retrieved {obj_id} from TNS as {tns_name}')
         else:

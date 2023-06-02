@@ -37,7 +37,7 @@ TNS_INSTRUMENT_IDS = {
     'ZTF': 196,
 }
 
-TNS_FILTER_IDS = {
+SNCOSMO_TO_TNSFILTER = {
     'atlasc': 71,
     'atlaso': 72,
     'sdssu': 20,
@@ -56,7 +56,7 @@ TNS_FILTER_IDS = {
     'ztfi': 112,
 }
 
-FILTER_TNS_IDS = {v: k for k, v in TNS_FILTER_IDS.items()}
+TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
 
 
 def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=5):
@@ -173,9 +173,9 @@ def read_tns_photometry(photometry, session):
         raise ValueError(f"Cannot understand flux_unit name: {flux_unit['name']}")
 
     tns_filter_id = photometry["filters"]["id"]
-    if tns_filter_id not in FILTER_TNS_IDS:
+    if tns_filter_id not in TNSFILTER_TO_SNCOSMO:
         raise ValueError(f'Cannot find TNS ID mapping for {tns_filter_id}')
-    filter_name = FILTER_TNS_IDS[tns_filter_id]
+    filter_name = TNSFILTER_TO_SNCOSMO[tns_filter_id]
 
     if filter_name not in instrument.filters:
         raise ValueError(f'{filter_name} not in {instrument.nickname}')
