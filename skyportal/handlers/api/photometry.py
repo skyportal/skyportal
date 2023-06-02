@@ -263,7 +263,9 @@ def standardize_photometry_data(data):
                 ]
                 + [1]
             )
-            data["altdata"] = [data["altdata"]] * max_num_elements
+            for key in data["altdata"].keys():
+                if not len(data["altdata"][key]) == max_num_elements:
+                    data["altdata"][key] = [data["altdata"][key]] * max_num_elements
 
     # quick validation - just to make sure things have the right fields
     try:
@@ -291,12 +293,20 @@ def standardize_photometry_data(data):
     if allscalar(data):
         data = [data]
 
+    if "altdata" in data:
+        altdata = pd.DataFrame(data.pop("altdata")).to_dict(orient='records')
+    else:
+        altdata = None
+
     try:
         df = pd.DataFrame(data)
     except ValueError as e:
         raise ValidationError(
             'Unable to coerce passed JSON to a series of packets. ' f'Error was: "{e}"'
         )
+
+    if altdata is not None and len(altdata) > 0:
+        df['altdata'] = altdata
 
     # `to_numeric` coerces numbers written as strings to numeric types
     #  (int, float)
@@ -608,7 +618,7 @@ def insert_new_photometry_data(
             flux=flux,
             fluxerr=fluxerr,
             obj_id=packet['obj_id'],
-            altdata=json.dumps(packet['altdata']),
+            altdata=json.dumps(packet.get('altdata')),
             instrument_id=packet['instrument_id'],
             ra_unc=packet['ra_unc'],
             dec_unc=packet['dec_unc'],
@@ -906,7 +916,8 @@ class PhotometryHandler(BaseHandler):
         # data changes, and is self-exclusive so that only one session can
         # hold it at a time.
         with DBSession() as session:
-            try:
+            # try:
+            if True:
                 session.execute(
                     sa.text(
                         f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
@@ -920,9 +931,9 @@ class PhotometryHandler(BaseHandler):
                     self.associated_user_object,
                     session,
                 )
-            except Exception:
-                session.rollback()
-                return self.error(traceback.format_exc())
+            # except Exception:
+            #    session.rollback()
+            #    return self.error(traceback.format_exc())
 
             log(
                 f'Request from {username} for object {obj_id} with {len(df.index)} rows complete with upload_id {upload_id}'

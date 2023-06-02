@@ -75,7 +75,7 @@ const NewPhotometryForm = ({ obj_id }) => {
       },
       dateobs: {
         type: "string",
-        title: "Observation date [i.e. YYYY-MM-DDThh:mm:ss]",
+        title: "Observation date (YYYY-MM-DDThh:mm:ss or MJD)",
       },
       mag: {
         type: "number",
@@ -146,7 +146,12 @@ const NewPhotometryForm = ({ obj_id }) => {
 
   const validate = (formData, errors) => {
     if (formData.dateobs && !validateDate(formData.dateobs)) {
-      errors.dateobs.addError("Date must be in the format YYYY-MM-DDThh:mm:ss");
+      console.log("flt", parseFloat(formData.dateobs));
+      if (Number.isNaN(parseFloat(formData.dateobs))) {
+        errors.dateobs.addError(
+          "Date must be in the format YYYY-MM-DDThh:mm:ss or MJD"
+        );
+      }
     }
     if (formData.nb_exposure && formData.nb_exposure < 0) {
       errors.nb_exposure.addError("Number of exposures cannot be negative");
@@ -218,7 +223,12 @@ const NewPhotometryForm = ({ obj_id }) => {
       ra,
       dec,
     } = data.formData;
-    const mjd = UTCToMJD(dateobs);
+    let mjd = null;
+    if (validateDate(dateobs)) {
+      mjd = UTCToMJD(dateobs);
+    } else {
+      mjd = parseFloat(dateobs);
+    }
     const payload = {
       mjd,
       // 'ra': obj.ra,
