@@ -41,6 +41,14 @@ const FollowupRequestPreferences = () => {
     dispatch(allocationActions.fetchAllocationsApiClassname());
   }, [dispatch]);
 
+  useEffect(() => {
+    if (defaultAllocationId && selectedAllocationId === -1) {
+      setSelectedAllocationId(defaultAllocationId);
+    } else {
+      setSelectedAllocationId(-1);
+    }
+  }, [defaultAllocationId]);
+
   const allocationListApiClassnameOptions = [
     { id: -1, name: "No preference" },
     ...allocationListApiClassname,
@@ -92,35 +100,46 @@ const FollowupRequestPreferences = () => {
         title="Followup Allocation Preferences"
         popupText="The allocation to display first for followup requests"
       />
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="allocationSelectLabel"
-        value={selectedAllocationId}
-        onChange={handleChange}
-        name="followupRequestAllocationSelect"
-        className={classes.allocationSelect}
-      >
-        {allocationListApiClassnameOptions?.map((allocation) => (
-          <MenuItem
-            value={allocation.id}
-            key={allocation.id}
-            className={classes.SelectItem}
-          >
-            {allocation.id === -1 ? (
-              allocation.name
-            ) : (
-              <div>
-                {`${
-                  telLookUp[instLookUp[allocation.instrument_id].telescope_id]
-                    ?.name
-                } / ${instLookUp[allocation.instrument_id]?.name} - ${
-                  groupLookUp[allocation.group_id]?.name
-                } (PI ${allocation.pi})`}
-              </div>
-            )}
-          </MenuItem>
-        ))}
-      </Select>
+      {/* show the select if the instLookUp  isn't empty (has keys) */}
+      {Object.keys(instLookUp).length > 0 ? (
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="allocationSelectLabel"
+          value={selectedAllocationId}
+          onChange={handleChange}
+          name="followupRequestAllocationSelect"
+          className={classes.allocationSelect}
+        >
+          {allocationListApiClassnameOptions?.map(
+            (allocation) =>
+              instLookUp[allocation.instrument_id]?.telescope_id && (
+                <MenuItem
+                  value={allocation.id}
+                  key={allocation.id}
+                  className={classes.SelectItem}
+                >
+                  {allocation.id === -1 ? (
+                    allocation.name
+                  ) : (
+                    <div>
+                      {`${
+                        telLookUp[
+                          instLookUp[allocation.instrument_id]?.telescope_id
+                        ]?.name
+                      } / ${instLookUp[allocation.instrument_id]?.name} - ${
+                        groupLookUp[allocation.group_id]?.name
+                      } (PI ${allocation.pi})`}
+                    </div>
+                  )}
+                </MenuItem>
+              )
+          )}
+        </Select>
+      ) : (
+        <div>
+          <h3>Loading instrument list...</h3>
+        </div>
+      )}
     </div>
   );
 };
