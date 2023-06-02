@@ -916,8 +916,7 @@ class PhotometryHandler(BaseHandler):
         # data changes, and is self-exclusive so that only one session can
         # hold it at a time.
         with DBSession() as session:
-            # try:
-            if True:
+            try:
                 session.execute(
                     sa.text(
                         f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
@@ -931,9 +930,9 @@ class PhotometryHandler(BaseHandler):
                     self.associated_user_object,
                     session,
                 )
-            # except Exception:
-            #    session.rollback()
-            #    return self.error(traceback.format_exc())
+            except Exception:
+                session.rollback()
+                return self.error(traceback.format_exc())
 
             log(
                 f'Request from {username} for object {obj_id} with {len(df.index)} rows complete with upload_id {upload_id}'
