@@ -250,20 +250,29 @@ def standardize_photometry_data(data):
             'Top level JSON must be an instance of `dict`, got ' f'{type(data)}.'
         )
 
+    max_num_elements = max(
+        [
+            len(data[key])
+            for key in data
+            if isinstance(data[key], (list, tuple))
+            and key not in ["group_ids", "stream_ids"]
+        ]
+        + [1]
+    )
+
     if "altdata" in data and not data["altdata"]:
         del data["altdata"]
     if "altdata" in data:
         if isinstance(data["altdata"], dict):
-            max_num_elements = max(
-                [
-                    len(data[key])
-                    for key in data
-                    if isinstance(data[key], (list, tuple))
-                    and key not in ["group_ids", "stream_ids"]
-                ]
-                + [1]
-            )
-            data["altdata"] = [data["altdata"]] * max_num_elements
+            for key in data["altdata"].keys():
+                if not len(data["altdata"][key]) == max_num_elements:
+                    data["altdata"][key] = [data["altdata"][key]] * max_num_elements
+
+            altdata = pd.DataFrame(data.pop("altdata")).to_dict(orient='records')
+        else:
+            altdata = data.pop("altdata")
+    else:
+        altdata = None
 
     # quick validation - just to make sure things have the right fields
     try:
@@ -292,11 +301,23 @@ def standardize_photometry_data(data):
         data = [data]
 
     try:
-        df = pd.DataFrame(data)
+        if max_num_elements == 1:
+            df = pd.DataFrame(data, index=[0])
+        else:
+            df = pd.DataFrame(data)
     except ValueError as e:
         raise ValidationError(
             'Unable to coerce passed JSON to a series of packets. ' f'Error was: "{e}"'
         )
+
+    if altdata is not None and len(altdata) > 0:
+        for index, e in enumerate(altdata):
+            altdata[index] = (
+                {k: v for k, v in e.items() if v not in [None, '']}
+                if not all([v in [None, ''] for v in e.values()])
+                else None
+            )
+        df['altdata'] = altdata
 
     # `to_numeric` coerces numbers written as strings to numeric types
     #  (int, float)
@@ -608,7 +629,7 @@ def insert_new_photometry_data(
             flux=flux,
             fluxerr=fluxerr,
             obj_id=packet['obj_id'],
-            altdata=json.dumps(packet['altdata']),
+            altdata=json.dumps(packet.get('altdata')),
             instrument_id=packet['instrument_id'],
             ra_unc=packet['ra_unc'],
             dec_unc=packet['dec_unc'],
