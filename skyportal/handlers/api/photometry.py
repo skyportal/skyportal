@@ -268,6 +268,12 @@ def standardize_photometry_data(data):
                 if not len(data["altdata"][key]) == max_num_elements:
                     data["altdata"][key] = [data["altdata"][key]] * max_num_elements
 
+            altdata = pd.DataFrame(data.pop("altdata")).to_dict(orient='records')
+        else:
+            altdata = data.pop("altdata")
+    else:
+        altdata = None
+
     # quick validation - just to make sure things have the right fields
     try:
         data = PhotMagFlexible.load(data)
@@ -293,11 +299,6 @@ def standardize_photometry_data(data):
 
     if allscalar(data):
         data = [data]
-
-    if "altdata" in data:
-        altdata = pd.DataFrame(data.pop("altdata")).to_dict(orient='records')
-    else:
-        altdata = None
 
     try:
         if max_num_elements == 1:
