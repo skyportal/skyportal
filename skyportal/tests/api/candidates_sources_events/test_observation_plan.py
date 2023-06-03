@@ -454,7 +454,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
                 'galaxy_catalog': catalog_name,
                 'schedule_type': 'greedy_slew',
                 'exposure_time': 300,
-                'filters': 'ztfg',
+                'filters': 'ztfr',
                 'maximum_airmass': 2.0,
                 'integrated_probability': 100,
                 'minimum_time_difference': 30,
