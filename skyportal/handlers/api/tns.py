@@ -14,9 +14,10 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 from baselayer.app.flow import Flow
 
+from .photometry import add_external_photometry
 from .spectrum import post_spectrum
 from ..base import BaseHandler
-from ...utils.tns import post_tns, read_tns_spectrum, get_IAUname
+from ...utils.tns import post_tns, read_tns_spectrum, read_tns_photometry, get_IAUname
 from ...models import (
     DBSession,
     Group,
@@ -316,7 +317,9 @@ class TNSRobotHandler(BaseHandler):
             return self.success()
 
 
-def tns_retrieval(obj_id, tnsrobot_id, user_id, include_spectra=False):
+def tns_retrieval(
+    obj_id, tnsrobot_id, user_id, include_photometry=False, include_spectra=False
+):
     """Retrieve object from TNS.
     obj_id : str
         Object ID
@@ -324,6 +327,8 @@ def tns_retrieval(obj_id, tnsrobot_id, user_id, include_spectra=False):
         TNSRobot ID
     user_id : int
         SkyPortal ID of User retrieving from TNS
+    include_photometry: boolean
+        Include photometry available on TNS
     include_spectra : boolean
         Include spectra available on TNS
     """
@@ -332,6 +337,8 @@ def tns_retrieval(obj_id, tnsrobot_id, user_id, include_spectra=False):
         session = Session()
     else:
         session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    flow = Flow()
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
@@ -367,7 +374,11 @@ def tns_retrieval(obj_id, tnsrobot_id, user_id, include_spectra=False):
         data = {
             'api_key': altdata['api_key'],
             'data': json.dumps(
-                {"objname": tns_name, "spectra": "1" if include_spectra else "0"}
+                {
+                    "objname": tns_name,
+                    "photometry": "1" if include_photometry else "0",
+                    "spectra": "1" if include_spectra else "0",
+                }
             ),
         }
 
@@ -383,10 +394,42 @@ def tns_retrieval(obj_id, tnsrobot_id, user_id, include_spectra=False):
             source_data = r.json().get("data", dict()).get("reply", dict())
             if source_data:
                 obj.tns_info = source_data
+                group_ids = [g.id for g in user.accessible_groups]
 
+                if include_photometry and 'photometry' in source_data:
+                    photometry = source_data['photometry']
+
+                    failed_photometry = []
+                    failed_photometry_errors = []
+
+                    for phot in photometry:
+                        try:
+                            df, instrument_id = read_tns_photometry(phot, session)
+                            data_out = {
+                                'obj_id': obj_id,
+                                'instrument_id': instrument_id,
+                                'group_ids': group_ids,
+                                **df.to_dict(orient='list'),
+                            }
+                            add_external_photometry(data_out, user)
+                        except Exception as e:
+                            failed_photometry.append(phot)
+                            failed_photometry_errors.append(str(e))
+                            log(
+                                f'Cannot read TNS photometry {str(photometry)}: {str(e)}'
+                            )
+                            continue
+                    if len(failed_photometry) > 0:
+                        log(
+                            f'Failed to retrieve {len(failed_photometry)}/{len(photometry)} TNS photometry for {obj_id} from TNS as {tns_name}: {str(list(set(failed_photometry_errors)))}'
+                        )
                 if include_spectra and 'spectra' in source_data:
                     group_ids = [g.id for g in user.accessible_groups]
                     spectra = source_data['spectra']
+
+                    failed_spectra = []
+                    failed_spectra_errors = []
+
                     for spectrum in spectra:
                         try:
                             data = read_tns_spectrum(spectrum, session)
@@ -396,6 +439,11 @@ def tns_retrieval(obj_id, tnsrobot_id, user_id, include_spectra=False):
                         data["obj_id"] = obj_id
                         data["group_ids"] = group_ids
                         post_spectrum(data, user_id, session)
+
+                    if len(failed_spectra) > 0:
+                        log(
+                            f'Failed to retrieve {len(failed_spectra)}/{len(spectra)} TNS spectra for {obj_id} from TNS as {tns_name}: {str(list(set(failed_spectra_errors)))}'
+                        )
 
             log(f'Successfully retrieved {obj_id} from TNS as {tns_name}')
         else:
@@ -445,6 +493,7 @@ class ObjTNSHandler(BaseHandler):
         if tnsrobot_id is None:
             return self.error('tnsrobotID is required')
 
+        include_photometry = self.get_query_argument("includePhotometry", False)
         include_spectra = self.get_query_argument("includeSpectra", False)
 
         with self.Session() as session:
@@ -477,6 +526,7 @@ class ObjTNSHandler(BaseHandler):
                     obj.id,
                     tnsrobot.id,
                     self.associated_user_object.id,
+                    include_photometry=include_photometry,
                     include_spectra=include_spectra,
                 ),
             )
