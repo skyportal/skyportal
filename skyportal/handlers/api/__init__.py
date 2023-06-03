@@ -172,7 +172,7 @@ from .sysinfo import SysInfoHandler
 from .config_handler import ConfigHandler
 from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
-from .tns import ObjTNSHandler, SpectrumTNSHandler, TNSRobotHandler
+from .tns import ObjTNSHandler, BulkTNSHandler, SpectrumTNSHandler, TNSRobotHandler
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .user import (
     UserHandler,
