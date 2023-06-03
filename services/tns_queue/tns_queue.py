@@ -18,7 +18,7 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from skyportal.handlers.api.photometry import serialize
-from skyportal.utils.tns import get_IAUname, TNS_INSTRUMENT_IDS, TNS_FILTER_IDS
+from skyportal.utils.tns import get_IAUname, TNS_INSTRUMENT_IDS, SNCOSMO_TO_TNSFILTER
 from skyportal.models import (
     DBSession,
     Instrument,
@@ -172,13 +172,13 @@ def tns_submission(
             time_first = detections[0]['mjd']
             mag_first = detections[0]['mag']
             magerr_first = detections[0]['magerr']
-            filt_first = TNS_FILTER_IDS[detections[0]['filter']]
+            filt_first = SNCOSMO_TO_TNSFILTER[detections[0]['filter']]
             instrument_first = TNS_INSTRUMENT_IDS[detections[0]['instrument_name']]
 
             time_last = detections[-1]['mjd']
             mag_last = detections[-1]['mag']
             magerr_last = detections[-1]['magerr']
-            filt_last = TNS_FILTER_IDS[detections[-1]['filter']]
+            filt_last = SNCOSMO_TO_TNSFILTER[detections[-1]['filter']]
             instrument_last = TNS_INSTRUMENT_IDS[detections[-1]['instrument_name']]
 
             # find the the last non-detection that is before the first detection
@@ -186,7 +186,7 @@ def tns_submission(
                 if phot['mjd'] < time_first:
                     time_last_nondetection = phot['mjd']
                     limmag_last_nondetection = phot['limiting_mag']
-                    filt_last_nondetection = TNS_FILTER_IDS[phot['filter']]
+                    filt_last_nondetection = SNCOSMO_TO_TNSFILTER[phot['filter']]
                     instrument_last_nondetection = TNS_INSTRUMENT_IDS[
                         phot['instrument_name']
                     ]

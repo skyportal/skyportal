@@ -14,9 +14,10 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 from baselayer.app.flow import Flow
 
+from .photometry import add_external_photometry
 from .spectrum import post_spectrum
 from ..base import BaseHandler
-from ...utils.tns import post_tns, read_tns_spectrum, get_IAUname
+from ...utils.tns import post_tns, read_tns_spectrum, read_tns_photometry, get_IAUname
 from ...models import (
     DBSession,
     Group,
@@ -57,6 +58,12 @@ class TNSRobotHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: groupID
+              schema:
+                type: integer
+              description: |
+                Filter by group ID
           responses:
             200:
                content:
@@ -81,25 +88,36 @@ class TNSRobotHandler(BaseHandler):
                   schema: Error
         """
 
+        group_id = self.get_query_argument("groupID", None)
+
         with self.Session() as session:
+            try:
+                # get owned tnsrobots
+                stmt = TNSRobot.select(session.user_or_token)
 
-            # get owned tnsrobots
-            tnsrobots = TNSRobot.select(session.user_or_token)
+                if tnsrobot_id is not None:
+                    try:
+                        tnsrobot_id = int(tnsrobot_id)
+                    except ValueError:
+                        return self.error("TNSRobot ID must be an integer.")
 
-            if tnsrobot_id is not None:
-                try:
-                    tnsrobot_id = int(tnsrobot_id)
-                except ValueError:
-                    return self.error("TNSRobot ID must be an integer.")
-                tnsrobot = session.scalars(
-                    tnsrobots.where(TNSRobot.id == tnsrobot_id)
-                ).first()
-                if tnsrobot is None:
-                    return self.error("Could not retrieve tnsrobot.")
-                return self.success(data=tnsrobot)
+                    stmt = stmt.where(TNSRobot.id == tnsrobot_id)
+                    tnsrobot = session.scalars(stmt).first()
+                    if tnsrobot is None:
+                        return self.error(f'No TNS robot with ID {tnsrobot_id}')
+                    return self.success(data=tnsrobot)
 
-            tnsrobots = session.scalars(tnsrobots).all()
-            return self.success(data=tnsrobots)
+                elif group_id is not None:
+                    try:
+                        group_id = int(group_id)
+                    except ValueError:
+                        return self.error("Group ID must be an integer (if specified).")
+                    stmt = stmt.where(TNSRobot.group_id == group_id)
+
+                tns_robots = session.scalars(stmt).all()
+                return self.success(data=tns_robots)
+            except Exception as e:
+                return self.error(f'Failed to retrieve TNS robots: {e}')
 
     @permissions(['Manage tnsrobots'])
     def post(self):
@@ -148,7 +166,115 @@ class TNSRobotHandler(BaseHandler):
 
             session.add(tnsrobot)
             session.commit()
+            self.push(
+                action='skyportal/REFRESH_TNSROBOTS',
+                payload={"group_id": tnsrobot.group_id},
+            )
             return self.success(data={"id": tnsrobot.id})
+
+    @permissions(['Manage tnsrobots'])
+    def put(self, tnsrobot_id):
+        """
+        ---
+        description: Update TNS robot
+        tags:
+          - tnsrobots
+        parameters:
+          - in: path
+            name: tnsrobot_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: TNSRobot
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        data = self.get_json()
+
+        # verify that the bot_id, bot_name, and source_group_id are not None and are integers (if specified)
+        if 'bot_id' in data:
+            try:
+                data['bot_id'] = int(data['bot_id'])
+            except ValueError:
+                return self.error("TNS bot ID must be an integer (if specified).")
+        if 'bot_name' in data:
+            if (
+                data['bot_name'] is None
+                or data['bot_name'] == ''
+                or not isinstance(data['bot_name'], str)
+            ):
+                return self.error(
+                    "TNS bot name must be a non-empty string (if specified)."
+                )
+        if 'source_group_id' in data:
+            try:
+                data['source_group_id'] = int(data['source_group_id'])
+            except ValueError:
+                return self.error(
+                    "TNS source group ID must be an integer (if specified)."
+                )
+
+        if 'auto_report_group_ids' in data:
+            if isinstance(data['auto_report_group_ids'], str):
+                try:
+                    data['auto_report_group_ids'] = data['auto_report_group_ids'].split(
+                        ','
+                    )
+                except Exception:
+                    return self.error(
+                        "TNS auto report group IDs must be a list (if specified)."
+                    )
+            if not isinstance(data['auto_report_group_ids'], list):
+                return self.error(
+                    "TNS auto report group IDs must be a list (if specified)."
+                )
+            for group_id in data['auto_report_group_ids']:
+                try:
+                    int(group_id)
+                except ValueError:
+                    return self.error(
+                        "TNS auto report group IDs must be integers (if specified)."
+                    )
+            if len(data['auto_report_group_ids']) == 0:
+                data['auto_reporters'] = ''
+
+        with self.Session() as session:
+            try:
+                tnsrobot = session.scalars(
+                    TNSRobot.select(session.user_or_token).where(
+                        TNSRobot.id == tnsrobot_id
+                    )
+                ).first()
+                if tnsrobot is None:
+                    return self.error(f'No TNS robot with ID {tnsrobot_id}')
+
+                if (
+                    len(data.get('auto_report_group_ids', [])) > 0
+                    and data.get('auto_reporters', '') in [None, '']
+                    and tnsrobot.auto_reporters in [None, '']
+                ):
+                    return self.error(
+                        "TNS auto reporters must be a non-empty string when auto report group IDs are specified."
+                    )
+
+                for key, val in data.items():
+                    setattr(tnsrobot, key, val)
+                session.commit()
+                self.push(
+                    action='skyportal/REFRESH_TNSROBOTS',
+                    payload={"group_id": tnsrobot.group_id},
+                )
+                return self.success()
+            except Exception as e:
+                raise e
+                return self.error(f'Failed to update TNS robot: {e}')
 
     @permissions(['Manage tnsrobots'])
     def delete(self, tnsrobot_id):
@@ -184,10 +310,16 @@ class TNSRobotHandler(BaseHandler):
                 return self.error(f'No TNS robot with ID {tnsrobot_id}')
             session.delete(tnsrobot)
             session.commit()
+            self.push(
+                action='skyportal/REFRESH_TNSROBOTS',
+                payload={"group_id": tnsrobot.group_id},
+            )
             return self.success()
 
 
-def tns_retrieval(obj_id, tnsrobot_id, user_id, include_spectra=False):
+def tns_retrieval(
+    obj_id, tnsrobot_id, user_id, include_photometry=False, include_spectra=False
+):
     """Retrieve object from TNS.
     obj_id : str
         Object ID
@@ -195,6 +327,8 @@ def tns_retrieval(obj_id, tnsrobot_id, user_id, include_spectra=False):
         TNSRobot ID
     user_id : int
         SkyPortal ID of User retrieving from TNS
+    include_photometry: boolean
+        Include photometry available on TNS
     include_spectra : boolean
         Include spectra available on TNS
     """
@@ -203,6 +337,8 @@ def tns_retrieval(obj_id, tnsrobot_id, user_id, include_spectra=False):
         session = Session()
     else:
         session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    flow = Flow()
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
@@ -238,7 +374,11 @@ def tns_retrieval(obj_id, tnsrobot_id, user_id, include_spectra=False):
         data = {
             'api_key': altdata['api_key'],
             'data': json.dumps(
-                {"objname": tns_name, "spectra": "1" if include_spectra else "0"}
+                {
+                    "objname": tns_name,
+                    "photometry": "1" if include_photometry else "0",
+                    "spectra": "1" if include_spectra else "0",
+                }
             ),
         }
 
@@ -254,10 +394,42 @@ def tns_retrieval(obj_id, tnsrobot_id, user_id, include_spectra=False):
             source_data = r.json().get("data", dict()).get("reply", dict())
             if source_data:
                 obj.tns_info = source_data
+                group_ids = [g.id for g in user.accessible_groups]
 
+                if include_photometry and 'photometry' in source_data:
+                    photometry = source_data['photometry']
+
+                    failed_photometry = []
+                    failed_photometry_errors = []
+
+                    for phot in photometry:
+                        try:
+                            df, instrument_id = read_tns_photometry(phot, session)
+                            data_out = {
+                                'obj_id': obj_id,
+                                'instrument_id': instrument_id,
+                                'group_ids': group_ids,
+                                **df.to_dict(orient='list'),
+                            }
+                            add_external_photometry(data_out, user)
+                        except Exception as e:
+                            failed_photometry.append(phot)
+                            failed_photometry_errors.append(str(e))
+                            log(
+                                f'Cannot read TNS photometry {str(photometry)}: {str(e)}'
+                            )
+                            continue
+                    if len(failed_photometry) > 0:
+                        log(
+                            f'Failed to retrieve {len(failed_photometry)}/{len(photometry)} TNS photometry for {obj_id} from TNS as {tns_name}: {str(list(set(failed_photometry_errors)))}'
+                        )
                 if include_spectra and 'spectra' in source_data:
                     group_ids = [g.id for g in user.accessible_groups]
                     spectra = source_data['spectra']
+
+                    failed_spectra = []
+                    failed_spectra_errors = []
+
                     for spectrum in spectra:
                         try:
                             data = read_tns_spectrum(spectrum, session)
@@ -267,6 +439,11 @@ def tns_retrieval(obj_id, tnsrobot_id, user_id, include_spectra=False):
                         data["obj_id"] = obj_id
                         data["group_ids"] = group_ids
                         post_spectrum(data, user_id, session)
+
+                    if len(failed_spectra) > 0:
+                        log(
+                            f'Failed to retrieve {len(failed_spectra)}/{len(spectra)} TNS spectra for {obj_id} from TNS as {tns_name}: {str(list(set(failed_spectra_errors)))}'
+                        )
 
             log(f'Successfully retrieved {obj_id} from TNS as {tns_name}')
         else:
@@ -316,6 +493,7 @@ class ObjTNSHandler(BaseHandler):
         if tnsrobot_id is None:
             return self.error('tnsrobotID is required')
 
+        include_photometry = self.get_query_argument("includePhotometry", False)
         include_spectra = self.get_query_argument("includeSpectra", False)
 
         with self.Session() as session:
@@ -348,6 +526,7 @@ class ObjTNSHandler(BaseHandler):
                     obj.id,
                     tnsrobot.id,
                     self.associated_user_object.id,
+                    include_photometry=include_photometry,
                     include_spectra=include_spectra,
                 ),
             )

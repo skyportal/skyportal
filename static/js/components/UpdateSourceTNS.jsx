@@ -106,6 +106,11 @@ const UpdateSourceTNS = ({ source }) => {
         title: "Search radius [arcsec]",
         default: 2.0,
       },
+      includePhotometry: {
+        type: "boolean",
+        title: "Include photometry?",
+        default: false,
+      },
       includeSpectra: {
         type: "boolean",
         title: "Include spectra?",
