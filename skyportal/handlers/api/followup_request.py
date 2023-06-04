@@ -1029,7 +1029,7 @@ def observation_schedule(
             priority = 1
 
         # make sure to invert priority (priority = 5.0 is max, priority = 1.0 is min)
-        priority = 5.0 / priority
+        priority = 5.0 / np.max([0.1, priority])
 
         if "exposure_time" in payload:
             exposure_time = payload["exposure_time"] * u.s
@@ -1119,7 +1119,7 @@ def observation_schedule(
     for index, standard in standards.iterrows():
         coord = SkyCoord(ra=standard.ra_float * u.deg, dec=standard.dec_float * u.deg)
         target = FixedTarget(coord=coord, name=f"STD-{standard['name']}")
-        priority = 1
+        priority = 100
         exposure_time = 300 * u.s
         exposure_counts = 1
         too = False
