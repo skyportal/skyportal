@@ -1,45 +1,45 @@
-import arrow
 import asyncio
-from astropy.time import Time, TimeDelta
-import astropy.units as u
 import json
-from marshmallow.exceptions import ValidationError
-import requests
-import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
 import tempfile
 import time
-from tornado.ioloop import IOLoop
 import urllib
 
-from baselayer.app.access import permissions, auth_or_token
-from baselayer.app.model_util import recursive_to_dict
-from baselayer.app.env import load_env
-from baselayer.log import make_log
-from baselayer.app.flow import Flow
+import arrow
+import astropy.units as u
+import requests
+import sqlalchemy as sa
+from astropy.time import Time, TimeDelta
+from marshmallow.exceptions import ValidationError
+from sqlalchemy.orm import scoped_session, sessionmaker
+from tornado.ioloop import IOLoop
 
-from .photometry import add_external_photometry
-from .source import post_source
-from .spectrum import post_spectrum
-from ..base import BaseHandler
-from ...utils.tns import (
-    post_tns,
-    read_tns_spectrum,
-    read_tns_photometry,
-    get_IAUname,
-    get_recent_TNS,
-)
+from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.app.model_util import recursive_to_dict
+from baselayer.log import make_log
+
 from ...models import (
     DBSession,
     Group,
     Obj,
     Spectrum,
-    SpectrumReducer,
     SpectrumObserver,
+    SpectrumReducer,
     TNSRobot,
     User,
 )
-
+from ...utils.tns import (
+    get_IAUname,
+    get_recent_TNS,
+    post_tns,
+    read_tns_photometry,
+    read_tns_spectrum,
+)
+from ..base import BaseHandler
+from .photometry import add_external_photometry
+from .source import post_source
+from .spectrum import post_spectrum
 
 _, cfg = load_env()
 
