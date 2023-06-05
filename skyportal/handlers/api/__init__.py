@@ -84,6 +84,7 @@ from .healpix import HealpixUpdateHandler
 from .user_obj_list import UserObjListHandler
 from .group_admission_request import GroupAdmissionRequestHandler
 from .instrument import InstrumentHandler, InstrumentFieldHandler
+from .instrument_log import InstrumentLogHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .mmadetector import (

@@ -207,3 +207,26 @@ class FilterWavelengthHandler(BaseHandler):
                     return self.error("Invalid filters")
             return self.success(data={'wavelengths': wavelengths})
         return self.error("Need to pass in a set of filters")
+
+
+class PlotInstrumentLogHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, instrument_id):
+        width = self.get_query_argument("width", 600)
+        device = self.get_query_argument("device", None)
+        # Just return browser by default if not one of accepted types
+        if device not in device_types:
+            device = "browser"
+
+        with self.Session() as session:
+            try:
+                json = await plot.instrument_log_plot(
+                    instrument_id=instrument_id,
+                    session=session,
+                    width=int(width),
+                    device=device,
+                )
+            except Exception as e:
+                return self.error(f'Exception in photometry plot: {e}')
+
+            self.success(data={'bokehJSON': json, 'url': self.request.uri})
