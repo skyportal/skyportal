@@ -200,6 +200,22 @@ const InstrumentTable = ({
     return <div>{instrument ? instrument.number_of_fields : ""}</div>;
   };
 
+  const renderLogs = (dataIndex) => {
+    const instrument = instruments[dataIndex];
+    return (
+      <div>
+        <Button
+          key={instrument.id}
+          id="logs_button"
+          component={Link}
+          to={`/instrument/${instrument.id}`}
+        >
+          Logs
+        </Button>
+      </div>
+    );
+  };
+
   const renderDelete = (dataIndex) => {
     const instrument = instruments[dataIndex];
     return (
@@ -372,6 +388,13 @@ const InstrumentTable = ({
         sort: true,
         sortThirdClickReset: true,
         customBodyRenderLite: renderFields,
+      },
+    },
+    {
+      name: "logs",
+      label: " ",
+      options: {
+        customBodyRenderLite: renderLogs,
       },
     },
     {
