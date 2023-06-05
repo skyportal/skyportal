@@ -119,6 +119,8 @@ app:
       component: AllocationPage
     - path: "/allocation/:id"
       component: AllocationSummary
+    - path: "/instrument/:id"
+      component: InstrumentSummary
     - path: "/observations"
       component: ObservationPage
     - path: "/galaxies"
@@ -458,7 +460,7 @@ server:
   dedicated_frontend_processes: 2
 
   # The max size of a request body in megabytes (M)
-  max_body_size: 10
+  max_body_size: 100
 
   # nginx parameter which sets both the time in seconds before which
   # the server is considered unavailable and the subsequent period of
