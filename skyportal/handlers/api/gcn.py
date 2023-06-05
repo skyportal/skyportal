@@ -22,7 +22,7 @@ import astropy
 import humanize
 import requests
 import sqlalchemy as sa
-from sqlalchemy import String
+from sqlalchemy import String, func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import cast
@@ -1362,9 +1362,19 @@ class GcnEventHandler(BaseHandler):
             )
 
             if partialdateobs is not None and partialdateobs != "":
-                partialdateobs = partialdateobs.replace("T", " ")
+                try:
+                    arrow.get(partialdateobs.strip()).datetime
+                    partialdateobs = partialdateobs.replace("T", " ")
+                except Exception:
+                    if len(partialdateobs) > 10 and partialdateobs[10] == "T":
+                        partialdateobs = partialdateobs.replace("T", " ")
+                        print(f"2. manage to parse {partialdateobs}")
+                partialdateobs = partialdateobs.strip().lower()
                 query = query.where(
                     cast(GcnEvent.dateobs, String).like(f"{partialdateobs}%")
+                    | func.lower(cast(GcnEvent.aliases, String)).like(
+                        f"%{partialdateobs}%"
+                    )
                 )
             if start_date:
                 start_date = arrow.get(start_date.strip()).datetime

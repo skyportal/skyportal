@@ -726,7 +726,13 @@ const FilterCandidateList = ({
                               (option) => option.id === value
                             ) || null
                           }
-                          getOptionLabel={(option) => option?.dateobs || ""}
+                          getOptionLabel={(option) =>
+                            `${option?.dateobs} ${
+                              option?.aliases?.length > 0
+                                ? `(${option?.aliases})`
+                                : ""
+                            }` || ""
+                          }
                           className={classes.select}
                           // eslint-disable-next-line no-shadow
                           onInputChange={(event, value) => {
@@ -759,7 +765,7 @@ const FilterCandidateList = ({
                             }
                           }}
                           renderInput={(params) => (
-                            <TextField {...params} label="GCN Event" />
+                            <TextField {...params} label="Dateobs/Name" />
                           )}
                         />
                       )}
