@@ -47,13 +47,16 @@ import SharePage from "./SharePage";
 import AssignmentForm from "./AssignmentForm";
 import AssignmentList from "./AssignmentList";
 import DisplayPhotStats from "./DisplayPhotStats";
+import DisplayTNSInfo from "./DisplayTNSInfo";
 import EditSourceGroups from "./EditSourceGroups";
 import ShowSummaryHistory from "./ShowSummaryHistory";
 import SourceNotification from "./SourceNotification";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
+import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
 import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import UpdateSourceSummary from "./UpdateSourceSummary";
+import UpdateSourceTNS from "./UpdateSourceTNS";
 import StartBotSummary from "./StartBotSummary";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
@@ -340,17 +343,6 @@ const SourceMobile = WidthProvider(
                     <div key="aliases"> ({source.alias.join(", ")}) </div>
                   ) : null}
                 </div>
-                <div className={classes.alignRight}>
-                  <>
-                    <div className={classes.infoLine}>
-                      <b>MPC Name: &nbsp;</b>
-                      <div key="mpc_name"> {source.mpc_name} </div>
-                    </div>
-                    <div>
-                      <UpdateSourceMPC source={source} />
-                    </div>
-                  </>
-                </div>
               </div>
               <div>
                 <div className={classes.sourceInfo}>
@@ -523,6 +515,56 @@ const SourceMobile = WidthProvider(
                       </div>
                     </div>
                   )}
+                  <div className={classes.alignRight}>
+                    <b>TNS Name: &nbsp;</b>
+                    <UpdateSourceTNS source={source} />
+                    {source.tns_name && (
+                      <div key="tns_name">
+                        <a
+                          key={source.tns_name}
+                          href={`https://www.wis-tns.org/object/${source.tns_name}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {`${source.tns_name} `}
+                        </a>
+                      </div>
+                    )}
+                    <DisplayTNSInfo
+                      tns_info={source.tns_info}
+                      display_header={false}
+                    />
+                  </div>
+                  <div className={classes.alignRight}>
+                    <>
+                      <div className={classes.infoLine}>
+                        <b>MPC Name: &nbsp;</b>
+                        <div key="mpc_name"> {source.mpc_name} </div>
+                      </div>
+                      <div>
+                        <UpdateSourceMPC source={source} />
+                      </div>
+                    </>
+                  </div>
+                  <div className={classes.alignRight}>
+                    <b>GCN Crossmatches: &nbsp;</b>
+                    <UpdateSourceGCNCrossmatch source={source} />
+                    {source.gcn_crossmatch && (
+                      <div>
+                        {source.gcn_crossmatch.map((dateobs) => (
+                          <div key={dateobs}>
+                            <Link
+                              to={`/gcn_events/${dateobs.replace(" ", "T")}`}
+                              role="link"
+                              key={dateobs}
+                            >
+                              <Button size="small">{dateobs}</Button>
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className={classes.infoLine}>
                     <DisplayPhotStats photstats={source.photstats[0]} />
                   </div>
@@ -980,6 +1022,10 @@ SourceMobile.propTypes = {
     gal_lon: PropTypes.number,
     gal_lat: PropTypes.number,
     dm: PropTypes.number,
+    ebv: PropTypes.number,
+    tns_name: PropTypes.string,
+    tns_info: PropTypes.arrayOf(PropTypes.shape(Object)),
+    mpc_name: PropTypes.string,
     luminosity_distance: PropTypes.number,
     annotations: PropTypes.arrayOf(
       PropTypes.shape({
@@ -1012,6 +1058,7 @@ SourceMobile.propTypes = {
       })
     ),
     alias: PropTypes.arrayOf(PropTypes.string),
+    gcn_crossmatch: PropTypes.arrayOf(PropTypes.string),
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
     photstats: PropTypes.arrayOf(PropTypes.shape(Object)),

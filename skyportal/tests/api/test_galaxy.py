@@ -112,8 +112,8 @@ def test_galaxy(super_admin_token, view_only_token):
     geojson = data["data"]["geojson"]
     data = data["data"]["galaxies"]
 
-    # now we have restricted to only 3/92 being in localization
-    assert len(data) == 3
+    # now we have restricted to only 2/92 being in localization
+    assert len(data) == 2
     assert any(
         [
             d['name'] == 'MCG -04-03-023' and d['mstar'] == 20113219211.26844

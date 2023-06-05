@@ -69,8 +69,8 @@ def treasuremap_request_matcher(r1, r2):
 
     def is_treasuremap_request(uri):
         patterns = {
-            "delete": r"/api/v0/cancel_all/$",
-            "submit": r"/api/v0/pointings/$",
+            "delete": r"/api/v1/cancel_all/$",
+            "submit": r"/api/v1/pointings/$",
         }
         for (submit_type, pattern) in patterns.items():
             if re.search(pattern, uri) is not None:
@@ -537,7 +537,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
             ".*/api/triggers/ztf/.*",
             ".*/node_agent2/node_agent/.*",
             ".*/forcedphot/queue/.*",
-            ".*/api/v0/pointings/.*",
+            ".*/api/v1/pointings/.*",
         ]
         is_soap_action = "Soapaction" in self.request.headers
         if any(re.match(pat, self.request.uri) for pat in cached_urls):
@@ -555,7 +555,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
             match_on = ["ztf"]
         elif self.request.uri == "/cgi-bin/internal/process_kait_ztf_request.py":
             match_on = ["kait"]
-        elif self.request.uri == "/api/v0/pointings":
+        elif self.request.uri == "/api/v1/pointings":
             match_on = ["treasuremap"]
         elif "/toop/submit_json.php" in self.request.uri:
             match_on = ["swift"]
@@ -607,7 +607,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
                     json_body = parse_qs(urlparse(url).query)
 
                     requests.post(url, data=json_body, headers=header)
-                elif self.request.uri == "/api/v0/pointings":
+                elif self.request.uri == "/api/v1/pointings":
                     json_body = (
                         json.loads(self.request.body.decode())
                         if len(self.request.body) > 0

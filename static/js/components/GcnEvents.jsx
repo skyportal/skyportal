@@ -136,6 +136,8 @@ const GcnEvents = () => {
   const gcnEvents = useSelector((state) => state.gcnEvents);
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
 
+  const gcn_tags_classes = useSelector((state) => state.config.gcnTagsClasses);
+
   const [openNew, setOpenNew] = useState(false);
   const [openCrossmatch, setOpenCrossmatch] = useState(false);
 
@@ -260,7 +262,17 @@ const GcnEvents = () => {
     });
     const gcnTagsUnique = [...new Set(gcnTags)];
     return gcnTagsUnique.map((tag) => (
-      <Chip size="small" key={tag} label={tag} className={classes.eventTags} />
+      <Chip
+        size="small"
+        key={tag}
+        label={tag}
+        style={{
+          backgroundColor:
+            gcn_tags_classes && tag in gcn_tags_classes
+              ? gcn_tags_classes[tag]
+              : "#999999",
+        }}
+      />
     ));
   };
 

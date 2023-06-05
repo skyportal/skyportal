@@ -29,7 +29,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test_subset: ["api_and_utils", "frontend_pt1", "frontend_pt2", "flaky"]
+        test_subset:
+          [
+            "api_and_utils_pt1",
+            "api_and_utils_pt2",
+            "frontend_pt1",
+            "frontend_pt2",
+            "flaky",
+          ]
 
     steps:
       - uses: actions/setup-python@v1
@@ -85,7 +92,7 @@ jobs:
 
           sudo apt install -y wget nodejs unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
-          pip install pip==22.2.2
+          pip install pip==23.1.2
           pip install wheel numpy
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
@@ -174,10 +181,15 @@ jobs:
         run: |
           PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '--ignore=skyportal/tests/frontend/sources_and_followup_etc skyportal/tests/frontend'
 
-      - name: Run API & utils tests
-        if: ${{ matrix.test_subset == 'api_and_utils' }}
+      - name: Run API & utils tests part 1
+        if: ${{ matrix.test_subset == 'api_and_utils_pt1' }}
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/api skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting'
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/api/candidates_sources_events'
+
+      - name: Run API & utils tests part 2
+        if: ${{ matrix.test_subset == 'api_and_utils_pt2' }}
+        run: |
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '--ignore=skyportal/tests/api/candidates_sources_events skyportal/tests/api skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting'
 
       - name: Run flaky tests
         if: ${{ matrix.test_subset == 'flaky' }}

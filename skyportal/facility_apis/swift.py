@@ -480,7 +480,7 @@ class UVOTXRTAPI(FollowUpAPI):
             )
             r.raise_for_status()
 
-            if r.status_code == 201:
+            if r.status_code == 200:
                 request.status = 'submitted'
             else:
                 request.status = f'rejected: {r.content}'
@@ -633,7 +633,7 @@ class UVOTXRTAPI(FollowUpAPI):
                                 "type": "string",
                                 "enum": ["1", "2", "3", "4"],
                                 "default": "3",
-                                "title": "Urgency",
+                                "title": "Urgency: (1) Within 4 hours. (2) Within the next 24 hours. (3) In the next few days. (4) Weeks to a month.",
                             },
                             "obs_type": {
                                 "type": "string",

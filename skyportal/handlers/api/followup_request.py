@@ -413,6 +413,10 @@ def post_followup_request(data, session, refresh_source=True):
     except AttributeError:
         formSchema = instrument.api_class.form_json_schema
 
+    # not all requests need payloads
+    if 'payload' not in data:
+        data['payload'] = {}
+
     # if the instrument has a "prepare_payload" method, call it
     if instrument.api_class.implements()['prepare_payload']:
         data['payload'] = instrument.api_class.prepare_payload(data['payload'])
@@ -1025,7 +1029,7 @@ def observation_schedule(
             priority = 1
 
         # make sure to invert priority (priority = 5.0 is max, priority = 1.0 is min)
-        priority = 5.0 / priority
+        priority = 5.0 / np.max([0.1, priority])
 
         if "exposure_time" in payload:
             exposure_time = payload["exposure_time"] * u.s
@@ -1113,10 +1117,9 @@ def observation_schedule(
     )
 
     for index, standard in standards.iterrows():
-        obj = standard.name
         coord = SkyCoord(ra=standard.ra_float * u.deg, dec=standard.dec_float * u.deg)
-        target = FixedTarget(coord=coord, name=standard.name)
-        priority = 1
+        target = FixedTarget(coord=coord, name=f"STD-{standard['name']}")
+        priority = 100
         exposure_time = 300 * u.s
         exposure_counts = 1
         too = False
@@ -1145,7 +1148,7 @@ def observation_schedule(
     global_constraints = [
         AirmassConstraint(max=2.50, boolean_constraint=False),
         AltitudeConstraint(20 * u.deg, 90 * u.deg),
-        AtNightConstraint.twilight_civil(),
+        AtNightConstraint.twilight_nautical(),
         HourAngleConstraint(min=-5.5, max=5.5),
         MoonSeparationConstraint(min=10.0 * u.deg),
         TargetOfOpportunityConstraint(toos=toos),

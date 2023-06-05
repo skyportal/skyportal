@@ -76,6 +76,9 @@ const ClassificationList = () => {
   const obj = source;
   const userProfile = useSelector((state) => state.profile);
   const groupUsers = useSelector((state) => state.group?.group_users);
+  const classifications_classes = useSelector(
+    (state) => state.config.classificationsClasses
+  );
   const currentGroupUser = groupUsers?.filter(
     (groupUser) => groupUser.user_id === userProfile.id
   )[0];
@@ -134,6 +137,7 @@ const ClassificationList = () => {
       created_at,
       classification,
       probability,
+      origin,
       taxonomy_id,
       groups,
     }) => {
@@ -168,10 +172,26 @@ const ClassificationList = () => {
           </div>
           <div className={styles.wrap} data-testid={`classificationDiv_${id}`}>
             <div className={styles.classificationMessage}>
-              <span style={{ fontWeight: "bold", fontSize: "120%" }}>
-                {classification}
-              </span>{" "}
-              <span>{`(P=${probability})`}</span>
+              {origin && classifications_classes?.origin ? (
+                <span
+                  style={{
+                    fontWeight: "bold",
+                    fontSize: "120%",
+                    color: classifications_classes.origin[origin] || "black",
+                  }}
+                >
+                  {classification}
+                </span>
+              ) : (
+                <span style={{ fontWeight: "bold", fontSize: "120%" }}>
+                  {classification}
+                </span>
+              )}{" "}
+              {origin ? (
+                <span>{`(P=${probability}, origin=${origin})`}</span>
+              ) : (
+                <span>{`(P=${probability})`}</span>
+              )}
               <div>
                 <i>{taxname}</i>
               </div>

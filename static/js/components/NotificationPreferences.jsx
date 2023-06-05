@@ -80,6 +80,10 @@ const NotificationPreferences = () => {
       prefs.notifications[event.target.name] = {
         active: event.target.checked,
       };
+    } else if (event.target.name === "gcn_events_new_tags") {
+      prefs.notifications.gcn_events = {
+        new_tags: event.target.checked,
+      };
     } else if (event.target.name === "favorite_sources_new_comments") {
       prefs.notifications.favorite_sources = {
         new_comments: event.target.checked,
@@ -171,13 +175,31 @@ const NotificationPreferences = () => {
             label="GCN Events"
           />
           <Tooltip
-            title="This allows you to be notified for GCN events. You can select the notice types you want to be notified for."
+            title="This allows you to be notified when GCN events receive a new skymap (and optionally when new tags are added to the skymap). You must create at least one notification profile"
             placement="right"
             classes={{ tooltip: classes.tooltip }}
           >
             <HelpOutlineOutlinedIcon />
           </Tooltip>
         </FormGroup>
+        {profile?.notifications?.gcn_events?.active === true && (
+          <div className={classes.form}>
+            <FormGroup row className={classes.form_group}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={
+                      profile?.notifications?.gcn_events?.new_tags === true
+                    }
+                    name="gcn_events_new_tags"
+                    onChange={prefToggled}
+                  />
+                }
+                label="Notify on new tags"
+              />
+            </FormGroup>
+          </div>
+        )}
         {profile?.notifications?.gcn_events?.active === true && (
           <>
             <NotificationGcnEvent />

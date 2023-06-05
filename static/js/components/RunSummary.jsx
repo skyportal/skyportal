@@ -263,6 +263,29 @@ const RunSummary = ({ route }) => {
     );
   };
 
+  const renderRise = (dataIndex) => {
+    const assignment = assignments[dataIndex];
+    console.log("assignment", assignment);
+    return (
+      <div key={`${assignment.id}_rise`}>
+        {assignment.rise_time_utc === ""
+          ? "Never up"
+          : new Date(assignment.rise_time_utc).toLocaleTimeString()}
+      </div>
+    );
+  };
+
+  const renderSet = (dataIndex) => {
+    const assignment = assignments[dataIndex];
+    return (
+      <div key={`${assignment.id}_set`}>
+        {assignment.set_time_utc === ""
+          ? "Never up"
+          : new Date(assignment.set_time_utc).toLocaleTimeString()}
+      </div>
+    );
+  };
+
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderFinderButton = (dataIndex) => {
     const assignment = assignments[dataIndex];
@@ -370,16 +393,14 @@ const RunSummary = ({ route }) => {
       name: "Rises at (>30deg alt, UT)",
       options: {
         filter: false,
-        customBodyRenderLite: (dataIndex) =>
-          new Date(assignments[dataIndex].rise_time_utc).toLocaleTimeString(),
+        customBodyRenderLite: renderRise,
       },
     },
     {
       name: "Sets at (<30deg alt, UT)",
       options: {
         filter: false,
-        customBodyRenderLite: (dataIndex) =>
-          new Date(assignments[dataIndex].set_time_utc).toLocaleTimeString(),
+        customBodyRenderLite: renderSet,
       },
     },
     {

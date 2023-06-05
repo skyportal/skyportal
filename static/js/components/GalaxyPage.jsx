@@ -146,7 +146,7 @@ const GalaxyList = ({ catalogs, setCatalogs }) => {
   const deleteCatalog = () => {
     dispatch(galaxiesActions.deleteCatalog(catalogToDelete)).then((result) => {
       if (result.status === "success") {
-        dispatch(showNotification("Catalog deleted"));
+        dispatch(showNotification("Catalog deleting... please be patient."));
         const cat = dispatch(galaxiesActions.fetchCatalogs());
         setCatalogs(cat.data);
         closeDialog();

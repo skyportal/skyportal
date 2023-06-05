@@ -36,6 +36,7 @@ import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 
 import CommentList from "./CommentList";
+import DisplayGraceDB from "./DisplayGraceDB";
 import GcnAliases from "./GcnAliases";
 import GcnCirculars from "./GcnCirculars";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
@@ -328,6 +329,7 @@ const GcnEventPage = ({ route }) => {
               // we want to show the title if the breakpoint is over md
               showTitle={isBig}
             />
+            <GcnAliases gcnEvent={gcnEvent} show_title />
           </div>
           <div className={styles.columnItem}>
             <Accordion defaultExpanded>
@@ -709,6 +711,9 @@ const GcnEventPage = ({ route }) => {
                     </Typography>
                   </AccordionSummary>
                   <AccordionDetails>
+                    <div className={styles.gcnEventContainer}>
+                      <DisplayGraceDB gcnEvent={gcnEvent} />
+                    </div>
                     {permission && (
                       <Button
                         secondary

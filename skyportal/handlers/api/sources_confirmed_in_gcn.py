@@ -1,11 +1,15 @@
+import asyncio
+from marshmallow import Schema, fields, validates_schema
+from marshmallow.exceptions import ValidationError
+from tornado.ioloop import IOLoop
+
 from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from .source import get_sources, MAX_SOURCES_PER_PAGE
-from ...models import GcnEvent, Localization, SourcesConfirmedInGCN
-from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
-from marshmallow import Schema, fields, validates_schema
-from marshmallow.exceptions import ValidationError
+from ...models import GcnEvent, Localization, SourcesConfirmedInGCN, TNSRobot
+from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
+from ...utils.tns import post_tns
 
 
 class Validator(Schema):
@@ -565,6 +569,158 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 session.rollback()
                 return self.error(str(e))
         return self.success(data={'id': source_in_gcn.id})
+
+
+class SourcesConfirmedInGCNTNSHandler(BaseHandler):
+    @auth_or_token
+    async def post(self, dateobs):
+        """
+        ---
+        tags:
+          - sources_confirmed_in_gcn
+        description: Post sources that have been confirmed in a GCN to TNS
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+            description: The dateobs of the event, as an arrow parseable string
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tnsrobotID:
+                    type: int
+                    description: |
+                      TNS Robot ID.
+                  reporters:
+                    type: string
+                    description: |
+                      Reporters for the TNS report.
+                  archival:
+                    type: boolean
+                    description: |
+                      Report sources as archival (i.e. no upperlimit).
+                      Defaults to False.
+                  archivalComment:
+                    type: string
+                    description: |
+                      Comment on archival source. Required if archival is True.
+                  sourcesIDList:
+                    type: string
+                    description: |
+                      A comma-separated list of source_id's to post.
+                      If not provided, all sources confirmed in GCN will be posted.
+                  confirmed:
+                    type: boolean
+                    description: |
+                      Only post sources noted as confirmed / highlighted.
+                      Defaults to True.
+                required:
+                  - tnsrobotID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        sources_id_list = data.get('sourcesIDList', '')
+        confirmed = data.get('confirmed', True)
+        tnsrobotID = data.get('tnsrobotID')
+        reporters = data.get('reporters', '')
+        archival = data.get('archival', False)
+        archival_comment = data.get('archivalComment', '')
+
+        if tnsrobotID is None:
+            return self.error('tnsrobotID is required')
+        if reporters == '' or not isinstance(reporters, str):
+            return self.error('reporters is required and must be a non-empty string')
+
+        if sources_id_list != '':
+            try:
+                sources_id_list = [
+                    source_id.strip() for source_id in sources_id_list.split(',')
+                ]
+            except ValueError:
+                return self.error(
+                    "some of the sourceIDs in the sourcesIDList are not valid strings"
+                )
+
+        with self.Session() as session:
+            try:
+                stmt = GcnEvent.select(session.user_or_token).where(
+                    GcnEvent.dateobs == dateobs
+                )
+                gcn_event = session.scalars(stmt).first()
+                if not gcn_event:
+                    return self.error(f"GCN event not found for dateobs: {dateobs}")
+
+                if len(sources_id_list) == 0:
+                    stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
+                        SourcesConfirmedInGCN.dateobs == dateobs
+                    )
+                else:
+                    stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
+                        SourcesConfirmedInGCN.dateobs == dateobs,
+                        SourcesConfirmedInGCN.obj_id.in_(sources_id_list),
+                    )
+                if confirmed:
+                    stmt = stmt.where(SourcesConfirmedInGCN.confirmed.is_(True))
+                sources_in_gcn = session.scalars(stmt).all()
+
+                tnsrobot = session.scalars(
+                    TNSRobot.select(session.user_or_token).where(
+                        TNSRobot.id == tnsrobotID
+                    )
+                ).first()
+                if tnsrobot is None:
+                    return self.error(f'No TNSRobot available with ID {tnsrobotID}')
+
+                if archival is True:
+                    if len(archival_comment) == 0:
+                        return self.error(
+                            'If source flagged as archival, archival_comment is required'
+                        )
+
+                altdata = tnsrobot.altdata
+                if not altdata:
+                    return self.error('Missing TNS information.')
+                if 'api_key' not in altdata:
+                    return self.error('Missing TNS API key.')
+
+                try:
+                    loop = asyncio.get_event_loop()
+                except Exception:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: post_tns(
+                        obj_ids=[obj.obj_id for obj in sources_in_gcn],
+                        tnsrobot_id=tnsrobot.id,
+                        user_id=self.associated_user_object.id,
+                        reporters=reporters,
+                        archival=archival,
+                        archival_comment=archival_comment,
+                        timeout=30,
+                    ),
+                )
+                return self.success()
+
+            except Exception as e:
+                return self.error(str(e))
+
+        return self.success(data=sources_in_gcn)
 
 
 class GCNsAssociatedWithSourceHandler(BaseHandler):

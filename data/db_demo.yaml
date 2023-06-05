@@ -349,6 +349,8 @@ instrument:
     field_region:
 #      file: ../data/ZTF_Region.reg
       file: ../data/ZTF_Square_Region.reg
+    references:
+      file: ../data/ZTF_Ref.csv
     sensitivity_data: {'ztfg': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}, 'ztfr': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}, 'ztfi': {'limiting_magnitude': 19.6, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}
     configuration_data: {'overhead_per_exposure': 2.0, 'readout': 8.0, 'slew_rate': 2.6, 'filt_change_time': 60.0}
   - name: ALFOSC
@@ -429,6 +431,8 @@ instrument:
     #   file: ../data/DECam_Fields.csv
     # field_region:
     #   file: ../data/DECam_Region.reg
+    # references:
+    #   file: ../data/DECam_Ref.csv
     sensitivity_data: {'sdssu': {'limiting_magnitude': 21.6, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.87,}, 'desg': {'limiting_magnitude': 23.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 28.91,}, 'desr': {'limiting_magnitude': 25.5, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 29.06,}, 'desi': {'limiting_magnitude': 22.8, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 28.97,}, 'desz': {'limiting_magnitude': 22.1, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 28.68,}, 'desy': {'limiting_magnitude': 20.9, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 27.57,}}
     configuration_data: {'overhead_per_exposure': 2.0, 'readout': 28.0, 'slew_rate': 0.36, 'filt_change_time': 8.0}
   - band: optical
@@ -540,9 +544,17 @@ instrument:
   - band: Optical
     name: TESS
     =id: TESS
+    api_classname: TESSAPI
     telescope_id: =TESS
     type: imager
     filters: ['tess']
+
+instrument/=SEDMv2/log:
+  - start_date: "2023-06-02T22:00:00"
+    end_date: "2023-06-03T12:05:40"
+    log:
+      file: ../data/sample.log
+
 allocation:
   - pi: Michael Coughlin
     proposal_id: SEDM-001
@@ -678,6 +690,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =GIT
+  - pi: Michael Coughlin
+    proposal_id: TESS-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =TESS
 
 galaxy_catalog:
   - catalog_name: CLU_mini
@@ -877,6 +896,7 @@ classification:
     obj_id: ZTF18aabcvnq
     probability: 0.9
     classification: "Time-domain Source"
+    origin: "SCoPe"
   - taxonomy_id: 2
     obj_id: ZTF18aabcvnq
     probability: 0.02
@@ -1170,7 +1190,7 @@ spatial_catalog:
 default_observation_plan:
   - allocation_id: =ZTF_allocation
     default_plan_name: "ZTF-Default-Plan"
-    payload: {'filter_strategy': 'block', 'schedule_type': 'greedy', 'schedule_strategy': 'tiling', 'galaxy_catalog': 'CLU_mini', 'exposure_time': 300, 'filters': 'g,r,g', 'maximum_airmass': 2, 'integrated_probability': 90, 'minimum_time_difference': 30, 'program_id': 'Partnership', 'subprogram_name': 'GRB', 'galactic_plane': True, 'galactic_latitude': 10}
+    payload: {'filter_strategy': 'block', 'schedule_type': 'greedy', 'schedule_strategy': 'tiling', 'galaxy_catalog': 'CLU_mini', 'exposure_time': 300, 'filters': 'ztfg,ztfr,ztfg', 'maximum_airmass': 2, 'integrated_probability': 90, 'minimum_time_difference': 30, 'program_id': 'Partnership', 'subprogram_name': 'GRB', 'galactic_plane': True, 'galactic_latitude': 10}
 
 default_followup_request:
   - allocation_id: =SEDMv2_allocation

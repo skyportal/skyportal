@@ -1,45 +1,57 @@
-import astropy.time
+import asyncio
 import json
-import requests
 import tempfile
+import time
 import urllib
 
+import arrow
+import astropy.units as u
+import requests
+import sqlalchemy as sa
+from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import permissions, auth_or_token
-from baselayer.app.model_util import recursive_to_dict
-from baselayer.app.env import load_env
+from sqlalchemy.orm import scoped_session, sessionmaker
+from tornado.ioloop import IOLoop
 
-from .photometry import serialize
-from ..base import BaseHandler
+from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.app.model_util import recursive_to_dict
+from baselayer.log import make_log
+
 from ...models import (
+    DBSession,
     Group,
     Obj,
-    Photometry,
     Spectrum,
-    SpectrumReducer,
     SpectrumObserver,
+    SpectrumReducer,
     TNSRobot,
-    Instrument,
+    User,
 )
-
+from ...utils.tns import (
+    get_IAUname,
+    get_recent_TNS,
+    post_tns,
+    read_tns_photometry,
+    read_tns_spectrum,
+)
+from ..base import BaseHandler
+from .photometry import add_external_photometry
+from .source import post_source
+from .spectrum import post_spectrum
 
 _, cfg = load_env()
 
+Session = scoped_session(sessionmaker())
 
 TNS_URL = cfg['app.tns_endpoint']
 upload_url = urllib.parse.urljoin(TNS_URL, 'api/file-upload')
 report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
-reply_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report-reply')
 search_url = urllib.parse.urljoin(TNS_URL, 'api/get/search')
+object_url = urllib.parse.urljoin(TNS_URL, 'api/get/object')
 
-TNS_INSTRUMENT_IDS = {
-    'ZTF': 196,
-}
-TNS_FILTER_IDS = {
-    'ztfg': 110,
-    'ztfr': 111,
-    'ztfi': 112,
-}
+log = make_log('api/tns')
 
 
 class TNSRobotHandler(BaseHandler):
@@ -57,6 +69,12 @@ class TNSRobotHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: groupID
+              schema:
+                type: integer
+              description: |
+                Filter by group ID
           responses:
             200:
                content:
@@ -81,25 +99,36 @@ class TNSRobotHandler(BaseHandler):
                   schema: Error
         """
 
+        group_id = self.get_query_argument("groupID", None)
+
         with self.Session() as session:
+            try:
+                # get owned tnsrobots
+                stmt = TNSRobot.select(session.user_or_token)
 
-            # get owned tnsrobots
-            tnsrobots = TNSRobot.select(session.user_or_token)
+                if tnsrobot_id is not None:
+                    try:
+                        tnsrobot_id = int(tnsrobot_id)
+                    except ValueError:
+                        return self.error("TNSRobot ID must be an integer.")
 
-            if tnsrobot_id is not None:
-                try:
-                    tnsrobot_id = int(tnsrobot_id)
-                except ValueError:
-                    return self.error("TNSRobot ID must be an integer.")
-                tnsrobot = session.scalars(
-                    tnsrobots.where(TNSRobot.id == tnsrobot_id)
-                ).first()
-                if tnsrobot is None:
-                    return self.error("Could not retrieve tnsrobot.")
-                return self.success(data=tnsrobot)
+                    stmt = stmt.where(TNSRobot.id == tnsrobot_id)
+                    tnsrobot = session.scalars(stmt).first()
+                    if tnsrobot is None:
+                        return self.error(f'No TNS robot with ID {tnsrobot_id}')
+                    return self.success(data=tnsrobot)
 
-            tnsrobots = session.scalars(tnsrobots).all()
-            return self.success(data=tnsrobots)
+                elif group_id is not None:
+                    try:
+                        group_id = int(group_id)
+                    except ValueError:
+                        return self.error("Group ID must be an integer (if specified).")
+                    stmt = stmt.where(TNSRobot.group_id == group_id)
+
+                tns_robots = session.scalars(stmt).all()
+                return self.success(data=tns_robots)
+            except Exception as e:
+                return self.error(f'Failed to retrieve TNS robots: {e}')
 
     @permissions(['Manage tnsrobots'])
     def post(self):
@@ -148,7 +177,115 @@ class TNSRobotHandler(BaseHandler):
 
             session.add(tnsrobot)
             session.commit()
+            self.push(
+                action='skyportal/REFRESH_TNSROBOTS',
+                payload={"group_id": tnsrobot.group_id},
+            )
             return self.success(data={"id": tnsrobot.id})
+
+    @permissions(['Manage tnsrobots'])
+    def put(self, tnsrobot_id):
+        """
+        ---
+        description: Update TNS robot
+        tags:
+          - tnsrobots
+        parameters:
+          - in: path
+            name: tnsrobot_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema: TNSRobot
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        data = self.get_json()
+
+        # verify that the bot_id, bot_name, and source_group_id are not None and are integers (if specified)
+        if 'bot_id' in data:
+            try:
+                data['bot_id'] = int(data['bot_id'])
+            except ValueError:
+                return self.error("TNS bot ID must be an integer (if specified).")
+        if 'bot_name' in data:
+            if (
+                data['bot_name'] is None
+                or data['bot_name'] == ''
+                or not isinstance(data['bot_name'], str)
+            ):
+                return self.error(
+                    "TNS bot name must be a non-empty string (if specified)."
+                )
+        if 'source_group_id' in data:
+            try:
+                data['source_group_id'] = int(data['source_group_id'])
+            except ValueError:
+                return self.error(
+                    "TNS source group ID must be an integer (if specified)."
+                )
+
+        if 'auto_report_group_ids' in data:
+            if isinstance(data['auto_report_group_ids'], str):
+                try:
+                    data['auto_report_group_ids'] = data['auto_report_group_ids'].split(
+                        ','
+                    )
+                except Exception:
+                    return self.error(
+                        "TNS auto report group IDs must be a list (if specified)."
+                    )
+            if not isinstance(data['auto_report_group_ids'], list):
+                return self.error(
+                    "TNS auto report group IDs must be a list (if specified)."
+                )
+            for group_id in data['auto_report_group_ids']:
+                try:
+                    int(group_id)
+                except ValueError:
+                    return self.error(
+                        "TNS auto report group IDs must be integers (if specified)."
+                    )
+            if len(data['auto_report_group_ids']) == 0:
+                data['auto_reporters'] = ''
+
+        with self.Session() as session:
+            try:
+                tnsrobot = session.scalars(
+                    TNSRobot.select(session.user_or_token).where(
+                        TNSRobot.id == tnsrobot_id
+                    )
+                ).first()
+                if tnsrobot is None:
+                    return self.error(f'No TNS robot with ID {tnsrobot_id}')
+
+                if (
+                    len(data.get('auto_report_group_ids', [])) > 0
+                    and data.get('auto_reporters', '') in [None, '']
+                    and tnsrobot.auto_reporters in [None, '']
+                ):
+                    return self.error(
+                        "TNS auto reporters must be a non-empty string when auto report group IDs are specified."
+                    )
+
+                for key, val in data.items():
+                    setattr(tnsrobot, key, val)
+                session.commit()
+                self.push(
+                    action='skyportal/REFRESH_TNSROBOTS',
+                    payload={"group_id": tnsrobot.group_id},
+                )
+                return self.success()
+            except Exception as e:
+                raise e
+                return self.error(f'Failed to update TNS robot: {e}')
 
     @permissions(['Manage tnsrobots'])
     def delete(self, tnsrobot_id):
@@ -184,10 +321,429 @@ class TNSRobotHandler(BaseHandler):
                 return self.error(f'No TNS robot with ID {tnsrobot_id}')
             session.delete(tnsrobot)
             session.commit()
+            self.push(
+                action='skyportal/REFRESH_TNSROBOTS',
+                payload={"group_id": tnsrobot.group_id},
+            )
+            return self.success()
+
+
+def tns_bulk_retrieval(
+    start_date,
+    tnsrobot_id,
+    user_id,
+    group_ids=None,
+    include_photometry=False,
+    include_spectra=False,
+):
+
+    """Retrieve objects from TNS.
+    start_date : str
+        ISO-based start time
+    tnsrobot_id : int
+        TNSRobot ID
+    user_id : int
+        SkyPortal ID of User retrieving from TNS
+    group_ids : List[int]
+        List of groups to post TNS sources to
+    include_photometry: boolean
+        Include photometry available on TNS
+    include_spectra : boolean
+        Include spectra available on TNS
+    """
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    user = session.scalar(sa.select(User).where(User.id == user_id))
+    if group_ids is None:
+        group_ids = [g.id for g in user.accessible_groups]
+
+    try:
+        tnsrobot = session.scalars(
+            TNSRobot.select(user).where(TNSRobot.id == tnsrobot_id)
+        ).first()
+        if tnsrobot is None:
+            raise ValueError(f'No TNSRobot available with ID {tnsrobot_id}')
+
+        altdata = tnsrobot.altdata
+        if not altdata:
+            raise ValueError('Missing TNS information.')
+        if 'api_key' not in altdata:
+            raise ValueError('Missing TNS API key.')
+
+        tns_headers = {
+            'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
+        }
+
+        tns_sources = get_recent_TNS(altdata['api_key'], tns_headers, start_date)
+        if len(tns_sources) == 0:
+            raise ValueError(f'No objects posted to TNS since {start_date}.')
+
+        for source in tns_sources:
+            s = session.scalars(Obj.select(user).where(Obj.id == source['id'])).first()
+            if s is None:
+                log(f"Posting {source['id']} as source")
+                source['group_ids'] = group_ids
+                obj_id = post_source(source, user_id, session)
+
+            tns_retrieval(
+                source['id'],
+                tnsrobot_id,
+                user_id,
+                include_photometry=include_photometry,
+                include_spectra=include_spectra,
+                parent_session=session,
+            )
+        session.commit()
+
+    except Exception as e:
+        log(f"Unable to retrieve TNS report for {obj_id}: {e}")
+    finally:
+        session.close()
+        Session.remove()
+
+
+def tns_retrieval(
+    obj_id,
+    tnsrobot_id,
+    user_id,
+    include_photometry=False,
+    include_spectra=False,
+    parent_session=None,
+):
+    """Retrieve object from TNS.
+    obj_id : str
+        Object ID
+    tnsrobot_id : int
+        TNSRobot ID
+    user_id : int
+        SkyPortal ID of User retrieving from TNS
+    include_photometry: boolean
+        Include photometry available on TNS
+    include_spectra : boolean
+        Include spectra available on TNS
+    """
+
+    if parent_session is not None:
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
+    else:
+        session = parent_session
+
+    flow = Flow()
+
+    user = session.scalar(sa.select(User).where(User.id == user_id))
+
+    try:
+        obj = session.scalars(Obj.select(user).where(Obj.id == obj_id)).first()
+        if obj is None:
+            raise ValueError(f'No object available with ID {obj_id}')
+
+        tnsrobot = session.scalars(
+            TNSRobot.select(user).where(TNSRobot.id == tnsrobot_id)
+        ).first()
+        if tnsrobot is None:
+            raise ValueError(f'No TNSRobot available with ID {tnsrobot_id}')
+
+        altdata = tnsrobot.altdata
+        if not altdata:
+            raise ValueError('Missing TNS information.')
+        if 'api_key' not in altdata:
+            raise ValueError('Missing TNS API key.')
+
+        tns_headers = {
+            'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
+        }
+
+        _, tns_name = get_IAUname(
+            altdata['api_key'], tns_headers, ra=obj.ra, dec=obj.dec
+        )
+        if tns_name is None:
+            raise ValueError(f'{obj_id} not yet posted to TNS.')
+
+        obj.tns_name = tns_name
+
+        data = {
+            'api_key': altdata['api_key'],
+            'data': json.dumps(
+                {
+                    "objname": tns_name,
+                    "photometry": "1" if include_photometry else "0",
+                    "spectra": "1" if include_spectra else "0",
+                }
+            ),
+        }
+
+        r = requests.post(
+            object_url,
+            headers=tns_headers,
+            data=data,
+            allow_redirects=True,
+            stream=True,
+            timeout=10,
+        )
+
+        count = 0
+        count_limit = 5
+        while r.status_code == 429 and count < count_limit:
+            log(
+                f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
+            )
+            time.sleep(30)
+            r = requests.post(
+                object_url,
+                headers=tns_headers,
+                data=data,
+                allow_redirects=True,
+                stream=True,
+                timeout=10,
+            )
+            count += 1
+
+        if count == count_limit:
+            raise ValueError('TNS request failed: request rate exceeded.')
+
+        if r.status_code == 200:
+            source_data = r.json().get("data", dict()).get("reply", dict())
+            if source_data:
+                obj.tns_info = source_data
+                group_ids = [g.id for g in user.accessible_groups]
+
+                if include_photometry and 'photometry' in source_data:
+                    photometry = source_data['photometry']
+
+                    failed_photometry = []
+                    failed_photometry_errors = []
+
+                    for phot in photometry:
+                        try:
+                            df, instrument_id = read_tns_photometry(phot, session)
+                            data_out = {
+                                'obj_id': obj_id,
+                                'instrument_id': instrument_id,
+                                'group_ids': group_ids,
+                                **df.to_dict(orient='list'),
+                            }
+                            add_external_photometry(data_out, user)
+                        except Exception as e:
+                            failed_photometry.append(phot)
+                            failed_photometry_errors.append(str(e))
+                            log(f'Cannot read TNS photometry {str(phot)}: {str(e)}')
+                            continue
+                    if len(failed_photometry) > 0:
+                        log(
+                            f'Failed to retrieve {len(failed_photometry)}/{len(photometry)} TNS photometry for {obj_id} from TNS as {tns_name}: {str(list(set(failed_photometry_errors)))}'
+                        )
+                if include_spectra and 'spectra' in source_data:
+                    group_ids = [g.id for g in user.accessible_groups]
+                    spectra = source_data['spectra']
+
+                    failed_spectra = []
+                    failed_spectra_errors = []
+
+                    for spectrum in spectra:
+                        try:
+                            data = read_tns_spectrum(spectrum, session)
+                        except Exception as e:
+                            log(f'Cannot read TNS spectrum {str(spectrum)}: {str(e)}')
+                            continue
+                        data["obj_id"] = obj_id
+                        data["group_ids"] = group_ids
+                        post_spectrum(data, user_id, session)
+
+                    if len(failed_spectra) > 0:
+                        log(
+                            f'Failed to retrieve {len(failed_spectra)}/{len(spectra)} TNS spectra for {obj_id} from TNS as {tns_name}: {str(list(set(failed_spectra_errors)))}'
+                        )
+
+            log(f'Successfully retrieved {obj_id} from TNS as {tns_name}')
+        else:
+            log(f'Failed to retrieve {obj_id} from TNS: {r.content}')
+        session.commit()
+
+        flow = Flow()
+        flow.push(
+            '*',
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': obj.internal_key},
+        )
+
+    except Exception as e:
+        log(f"Unable to retrieve TNS report for {obj_id}: {e}")
+    finally:
+        if parent_session is not None:
+            session.close()
+            Session.remove()
+
+
+class BulkTNSHandler(BaseHandler):
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        description: Retrieve objects from TNS
+        tags:
+          - objs
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tnsrobotID:
+                    type: int
+                    description: |
+                      TNS Robot ID.
+                  startDate:
+                    type: string
+                    description: |
+                      Arrow-parseable date string (e.g. 2020-01-01).
+                      Filter by public_timestamp >= startDate.
+                      Defaults to one day ago.
+                  groupIds:
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of IDs of groups to indicate labelling for
+                required:
+                  - tnsrobotID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        group_ids = data.get("groupIds", None)
+        if group_ids is None:
+            group_ids = [g.id for g in self.current_user.accessible_groups]
+
+        start_date = data.get('startDate', None)
+        if start_date is None:
+            start_date = Time.now() - TimeDelta(1 * u.day)
+        else:
+            start_date = Time(arrow.get(start_date.strip()).datetime)
+
+        tnsrobot_id = data.get("tnsrobotID", None)
+        if tnsrobot_id is None:
+            return self.error('tnsrobotID is required')
+
+        include_photometry = data.get("includePhotometry", False)
+        include_spectra = data.get("includeSpectra", False)
+
+        with self.Session() as session:
+            tnsrobot = session.scalars(
+                TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobot_id)
+            ).first()
+            if tnsrobot is None:
+                return self.error(f'No TNSRobot available with ID {tnsrobot_id}')
+
+            altdata = tnsrobot.altdata
+            if not altdata:
+                return self.error('Missing TNS information.')
+            if 'api_key' not in altdata:
+                return self.error('Missing TNS API key.')
+
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: tns_bulk_retrieval(
+                    start_date.isot,
+                    tnsrobot.id,
+                    self.associated_user_object.id,
+                    group_ids=group_ids,
+                    include_photometry=include_photometry,
+                    include_spectra=include_spectra,
+                ),
+            )
+
             return self.success()
 
 
 class ObjTNSHandler(BaseHandler):
+    @auth_or_token
+    def get(self, obj_id):
+        """
+        ---
+        description: Retrieve an Obj from TNS
+        tags:
+          - objs
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        tnsrobot_id = self.get_query_argument("tnsrobotID", None)
+        if tnsrobot_id is None:
+            return self.error('tnsrobotID is required')
+
+        include_photometry = self.get_query_argument("includePhotometry", False)
+        include_spectra = self.get_query_argument("includeSpectra", False)
+
+        with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f'No object available with ID {obj_id}')
+
+            tnsrobot = session.scalars(
+                TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobot_id)
+            ).first()
+            if tnsrobot is None:
+                return self.error(f'No TNSRobot available with ID {tnsrobot_id}')
+
+            altdata = tnsrobot.altdata
+            if not altdata:
+                return self.error('Missing TNS information.')
+            if 'api_key' not in altdata:
+                return self.error('Missing TNS API key.')
+
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: tns_retrieval(
+                    obj.id,
+                    tnsrobot.id,
+                    self.associated_user_object.id,
+                    include_photometry=include_photometry,
+                    include_spectra=include_spectra,
+                ),
+            )
+
+            return self.success()
+
     @auth_or_token
     def post(self, obj_id):
         """
@@ -213,13 +769,18 @@ class ObjTNSHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             data = self.get_json()
             tnsrobotID = data.get('tnsrobotID')
             reporters = data.get('reporters', '')
+            archival = data.get('archival', False)
+            archival_comment = data.get('archivalComment', '')
 
             if tnsrobotID is None:
                 return self.error('tnsrobotID is required')
+            if reporters == '' or not isinstance(reporters, str):
+                return self.error(
+                    'reporters is required and must be a non-empty string'
+                )
 
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
@@ -227,136 +788,42 @@ class ObjTNSHandler(BaseHandler):
             if obj is None:
                 return self.error(f'No object available with ID {obj_id}')
 
-            # for now we limit it to ZTF photometry, as we do not have a defined way to find the TNS id of other instruments and filters
-            ztf = session.scalars(
-                Instrument.select(session.user_or_token).where(Instrument.name == 'ZTF')
-            ).first()
-            if ztf is None:
-                return self.error(
-                    'No ZTF instrument available. Submitting to TNS is only available for ZTF data (for now).'
-                )
-
-            photometry = session.scalars(
-                Photometry.select(session.user_or_token).where(
-                    Photometry.obj_id == obj_id,
-                    Photometry.instrument_id == ztf.id,  # only ZTF
-                )
-            ).all()
-            photometry = [serialize(phot, 'ab', 'mag') for phot in photometry]
-
             tnsrobot = session.scalars(
                 TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobotID)
             ).first()
             if tnsrobot is None:
                 return self.error(f'No TNSRobot available with ID {tnsrobotID}')
 
+            if archival is True:
+                if len(archival_comment) == 0:
+                    return self.error(
+                        'If source flagged as archival, archival_comment is required'
+                    )
+
             altdata = tnsrobot.altdata
             if not altdata:
                 return self.error('Missing TNS information.')
+            if 'api_key' not in altdata:
+                return self.error('Missing TNS API key.')
 
-            tns_headers = {
-                'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
-            }
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
 
-            time_first = mag_first = magerr_first = filt_first = instrument_first = None
-            time_last = mag_last = magerr_last = filt_last = instrument_last = None
-            time_last_nondetection = (
-                limmag_last_nondetection
-            ) = filt_last_nondetection = instrument_last_nondetection = None
-
-            for phot in photometry:
-                if phot['mag'] is None:
-                    if (
-                        time_last_nondetection is None
-                        or phot['mjd'] > time_last_nondetection
-                    ):
-                        time_last_nondetection = phot['mjd']
-                        limmag_last_nondetection = phot['limiting_mag']
-                        filt_last_nondetection = TNS_FILTER_IDS[phot['filter']]
-                        instrument_last_nondetection = TNS_INSTRUMENT_IDS[
-                            phot['instrument_name']
-                        ]
-                else:
-                    if time_first is None or phot['mjd'] < time_first:
-                        time_first = phot['mjd']
-                        mag_first = phot['mag']
-                        magerr_first = phot['magerr']
-                        filt_first = TNS_FILTER_IDS[phot['filter']]
-                        instrument_first = TNS_INSTRUMENT_IDS[phot['instrument_name']]
-                    if time_last is None or phot['mjd'] > time_last:
-                        time_last = phot['mjd']
-                        mag_last = phot['mag']
-                        magerr_last = phot['magerr']
-                        filt_last = TNS_FILTER_IDS[phot['filter']]
-                        instrument_last = TNS_INSTRUMENT_IDS[phot['instrument_name']]
-            if time_last_nondetection is None:
-                return self.error('Need last non-detection for TNS report')
-
-            tns_prefix, tns_name = get_IAUname(obj.id, altdata['api_key'], tns_headers)
-            if tns_name is not None:
-                return self.error(f'Already posted to TNS as {tns_name}.')
-
-            proprietary_period = {
-                "proprietary_period_value": 0,
-                "proprietary_period_units": "years",
-            }
-            non_detection = {
-                "obsdate": astropy.time.Time(time_last_nondetection, format='mjd').jd,
-                "limiting_flux": limmag_last_nondetection,
-                "flux_units": "1",
-                "filter_value": filt_last_nondetection,
-                "instrument_value": instrument_last_nondetection,
-            }
-            phot_first = {
-                "obsdate": astropy.time.Time(time_first, format='mjd').jd,
-                "flux": mag_first,
-                "flux_err": magerr_first,
-                "flux_units": "1",
-                "filter_value": filt_first,
-                "instrument_value": instrument_first,
-            }
-            phot_last = {
-                "obsdate": astropy.time.Time(time_last, format='mjd').jd,
-                "flux": mag_last,
-                "flux_err": magerr_last,
-                "flux_units": "1",
-                "filter_value": filt_last,
-                "instrument_value": instrument_last,
-            }
-
-            at_report = {
-                "ra": {"value": obj.ra},
-                "dec": {"value": obj.dec},
-                "groupid": tnsrobot.source_group_id,
-                "internal_name_format": {
-                    "prefix": instrument_first,
-                    "year_format": "YY",
-                    "postfix": "",
-                },
-                "internal_name": obj.id,
-                "reporter": reporters,
-                "discovery_datetime": astropy.time.Time(
-                    time_first, format='mjd'
-                ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f'),
-                "at_type": 1,  # allow other options?
-                "proprietary_period_groups": [tnsrobot.source_group_id],
-                "proprietary_period": proprietary_period,
-                "non_detection": non_detection,
-                "photometry": {"photometry_group": {"0": phot_first, "1": phot_last}},
-            }
-            report = {"at_report": {"0": at_report}}
-
-            data = {
-                'api_key': altdata['api_key'],
-                'data': json.dumps(report),
-            }
-
-            r = requests.post(report_url, headers=tns_headers, data=data)
-            if r.status_code == 200:
-                tns_id = r.json()['data']['report_id']
-                return self.success(data={'tns_id': tns_id})
-            else:
-                return self.error(f'{r.content}')
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: post_tns(
+                    obj_ids=[obj.id],
+                    tnsrobot_id=tnsrobot.id,
+                    user_id=self.associated_user_object.id,
+                    reporters=reporters,
+                    archival=archival,
+                    archival_comment=archival_comment,
+                    timeout=30,
+                ),
+            )
 
             return self.success()
 
@@ -575,38 +1042,3 @@ class SpectrumTNSHandler(BaseHandler):
                     return self.success(data={'tns_id': tns_id})
                 else:
                     return self.error(f'{r.content}')
-
-
-def get_IAUname(objname, api_key, headers):
-    """Query TNS to get IAU name (if exists)
-    Parameters
-    ----------
-    objname : str
-        Name of the object to query TNS for
-    Returns
-    -------
-    list
-        IAU prefix, IAU name
-    """
-
-    req_data = {
-        "ra": "",
-        "dec": "",
-        "radius": "",
-        "units": "",
-        "objname": "",
-        "objname_exact_match": 0,
-        "internal_name": objname.replace('_', ' '),
-        "internal_name_exact_match": 0,
-        "objid": "",
-    }
-
-    data = {'api_key': api_key, 'data': json.dumps(req_data)}
-    r = requests.post(search_url, headers=headers, data=data)
-    json_response = json.loads(r.text)
-    reply = json_response['data']['reply']
-
-    if len(reply) > 0:
-        return reply[0]['prefix'], reply[0]['objname']
-    else:
-        return None, None

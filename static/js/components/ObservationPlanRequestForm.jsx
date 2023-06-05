@@ -80,6 +80,7 @@ const useStyles = makeStyles(() => ({
       // no space between 2 lines of text
       lineHeight: "1rem",
     },
+    marginTop: "0.5rem",
     marginBottom: "1rem",
   },
 }));
@@ -515,6 +516,23 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   };
 
   const validate = (formData, errors) => {
+    const instrumentId = allocationLookUp[selectedAllocationId]?.instrument_id;
+    const instrument = instrumentList.find((inst) => inst.id === instrumentId);
+    const instrumentsFilters = instrument?.filters;
+    if (
+      instrumentsFilters &&
+      formData.filters !== undefined &&
+      formData.filters !== ""
+    ) {
+      const formDataFilters = formData.filters.split(",");
+      if (
+        !formDataFilters.every((filter) => instrumentsFilters.includes(filter))
+      ) {
+        errors.filters.addError(
+          `Filters must be a subset of the instrument filters: ${instrumentsFilters}`
+        );
+      }
+    }
     if (
       formData.start_date &&
       formData.end_date &&
@@ -539,6 +557,16 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     dispatch(
       showNotification("Updating airmass tiles... patience please.", "info")
     );
+  };
+
+  const exportData = (data) => {
+    const jsonString = `data:text/json;chatset=utf-8,${encodeURIComponent(
+      JSON.stringify(data.fields)
+    )}`;
+    const link = document.createElement("a");
+    link.href = jsonString;
+    link.download = `${dateobs.replaceAll(":", "-")}_fields_${data.name}.json`;
+    link.click();
   };
 
   return (
@@ -641,6 +669,18 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
               >
                 World Map Chart
               </Button>
+              <Button
+                secondary
+                onClick={() => exportData(skymapInstrument)}
+                size="small"
+                type="submit"
+                data-testid="exportSkymapInstrument"
+                disabled={
+                  !skymapInstrument || skymapInstrument?.fields?.length === 0
+                }
+              >
+                Download Fields
+              </Button>
             </div>
           </Grid>
         </Grid>
@@ -669,8 +709,8 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
               >
                 {`${
                   telLookUp[instLookUp[allocation.instrument_id].telescope_id]
-                    .name
-                } / ${instLookUp[allocation.instrument_id].name} - ${
+                    ?.name
+                } / ${instLookUp[allocation.instrument_id]?.name} - ${
                   groupLookUp[allocation.group_id]?.name
                 } (PI ${allocation.pi})`}
               </MenuItem>
@@ -751,7 +791,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
               key={plan.payload.queue_name}
               label={`${
                 instLookUp[allocationLookUp[plan.allocation_id].instrument_id]
-                  .name
+                  ?.name
               }: ${plan.payload.queue_name}`}
               data-testid={`queueName_${plan.payload.queue_name}`}
             />

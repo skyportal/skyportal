@@ -25,8 +25,10 @@ from ...models import (
     Instrument,
     InstrumentField,
     InstrumentFieldTile,
+    InstrumentLog,
     Localization,
     LocalizationTile,
+    Photometry,
     Telescope,
 )
 
@@ -85,6 +87,45 @@ class InstrumentHandler(BaseHandler):
                     configuration_data.replace("\'", "\"")
                 )
                 data['configuration_data'] = configuration_data
+
+            references = data.pop("references", None)
+            if isinstance(references, str):
+                try:
+                    references = ast.literal_eval(references.replace("\'", "\""))
+                except Exception:
+                    pass
+            if references is not None:
+                try:
+                    if isinstance(references, dict):
+                        references = pd.DataFrame.from_dict(references)
+                    elif isinstance(references, str):
+                        references = pd.read_table(StringIO(references), sep=',')
+                    else:
+                        raise ValueError("references must be a dict or a string")
+                except Exception as e:
+                    return self.error(f"Could not parse references: {e}")
+                # verify that the columns are field, filter (required) and limmag (optional)
+                if not {'field', 'filter'}.issubset(references.columns):
+                    return self.error(
+                        "references must contain at least field and filter columns"
+                    )
+                if not set(list(references.columns)).issubset(
+                    {'field', 'filter', 'limmag'}
+                ):
+                    return self.error(
+                        "references can only contain field, filter, and limmag columns"
+                    )
+                if not references['field'].dtype == int:
+                    return self.error("references field must be an integer")
+                if not set(references['filter']).issubset(ALLOWED_BANDPASSES):
+                    return self.error(
+                        f"references filter must be one of {ALLOWED_BANDPASSES}"
+                    )
+                if (
+                    'limmag' in list(references.columns)
+                    and not references['limmag'].dtype == float
+                ):
+                    return self.error("references limmag must be a float")
 
             field_data = data.pop("field_data", None)
             field_region = data.pop("field_region", None)
@@ -156,6 +197,12 @@ class InstrumentHandler(BaseHandler):
             session.add(instrument)
             session.commit()
 
+            if references is not None:
+                if not set(references['filter']).issubset(instrument.filters):
+                    return self.error(
+                        'Filters in references must be a subset of the instrument filters'
+                    )
+
             if field_data is not None:
                 if (field_region is None) and (field_fov_type is None):
                     return self.error(
@@ -175,7 +222,11 @@ class InstrumentHandler(BaseHandler):
                 IOLoop.current().run_in_executor(
                     None,
                     lambda: add_tiles(
-                        instrument.id, instrument.name, regions, field_data
+                        instrument.id,
+                        instrument.name,
+                        regions,
+                        field_data,
+                        references=references,
                     ),
                 )
 
@@ -377,6 +428,15 @@ class InstrumentHandler(BaseHandler):
 
                 data = instrument.to_dict()
 
+                data['log_exists'] = (
+                    session.scalars(
+                        InstrumentLog.select(self.current_user).where(
+                            InstrumentLog.instrument_id == int(instrument_id)
+                        )
+                    ).first()
+                    is not None
+                )
+
                 # optional: slice by GcnEvent localization
                 if localization_dateobs is not None:
                     if localization_name is not None:
@@ -564,6 +624,12 @@ class InstrumentHandler(BaseHandler):
                     'telescope': instrument.telescope.to_dict(),
                     'number_of_fields': instrument.number_of_fields,
                     'region_summary': instrument.region_summary,
+                    'log_exists': session.scalars(
+                        InstrumentLog.select(self.current_user).where(
+                            InstrumentLog.instrument_id == instrument.id
+                        )
+                    ).first()
+                    is not None,
                 }
                 for instrument in instruments
             ]
@@ -607,6 +673,26 @@ class InstrumentHandler(BaseHandler):
             if instrument is None:
                 return self.error(f'Missing instrument with ID {instrument_id}')
 
+            filters = data.get('filters', None)
+            if filters is not None:
+                if not set(list(instrument.filters)).issubset(set(filters)):
+                    new_filters = list(
+                        set(list(instrument.filters)).difference(set(filters))
+                    )
+                    for filt in new_filters:
+                        stmt = Photometry.select(session.user_or_token).where(
+                            Photometry.filter == filt,
+                            Photometry.instrument_id == instrument.id,
+                        )
+                        count_stmt = sa.select(sa.func.count()).select_from(
+                            stmt.distinct()
+                        )
+                        total_photometry = session.execute(count_stmt).scalar()
+                        if total_photometry > 0:
+                            return self.error(
+                                f'Cannot remove filter {filt} from instrument {instrument.name}: {total_photometry} photometry points must be first deleted.'
+                            )
+
             sensitivity_data = data.get('sensitivity_data', None)
             if isinstance(sensitivity_data, str):
                 sensitivity_data = ast.literal_eval(
@@ -620,6 +706,45 @@ class InstrumentHandler(BaseHandler):
                     configuration_data.replace("\'", "\"")
                 )
                 data['configuration_data'] = configuration_data
+
+            references = data.pop("references", None)
+            if isinstance(references, str):
+                try:
+                    references = ast.literal_eval(references.replace("\'", "\""))
+                except Exception:
+                    pass
+            if references is not None:
+                try:
+                    if isinstance(references, dict):
+                        references = pd.DataFrame.from_dict(references)
+                    elif isinstance(references, str):
+                        references = pd.read_table(StringIO(references), sep=',')
+                    else:
+                        raise ValueError("references must be a dict or a string")
+                except Exception as e:
+                    return self.error(f"Could not parse references: {e}")
+                # verify that the columns are field, filter (required) and limmag (optional)
+                if not {'field', 'filter'}.issubset(references.columns):
+                    return self.error(
+                        "references must contain at least field and filter columns"
+                    )
+                if not set(list(references.columns)).issubset(
+                    {'field', 'filter', 'limmag'}
+                ):
+                    return self.error(
+                        "references can only contain field, filter, and limmag columns"
+                    )
+                if not references['field'].dtype == int:
+                    return self.error("references field must be an integer")
+                if not set(references['filter']).issubset(ALLOWED_BANDPASSES):
+                    return self.error(
+                        f"references filter must be one of {ALLOWED_BANDPASSES}"
+                    )
+                if (
+                    'limmag' in list(references.columns)
+                    and not references['limmag'].dtype == float
+                ):
+                    return self.error("references limmag must be a float")
 
             field_data = data.pop("field_data", None)
             field_region = data.pop("field_region", None)
@@ -683,6 +808,12 @@ class InstrumentHandler(BaseHandler):
                 if k not in ['sensitivity_data', 'configuration_data']:
                     setattr(instrument, k, data[k])
 
+            if references is not None:
+                if not set(references['filter']).issubset(instrument.filters):
+                    return self.error(
+                        'Filters in references must be a subset of the instrument filters'
+                    )
+
             if sensitivity_data:
                 if not set(sensitivity_data.keys()).issubset(instrument.filters):
                     return self.error(
@@ -703,23 +834,24 @@ class InstrumentHandler(BaseHandler):
 
             session.commit()
 
-            if field_data is not None:
-                if (
-                    (field_region is None)
-                    and (field_fov_type is None)
-                    and (regions is None)
-                ):
-                    return self.error(
-                        'field_region or field_fov_type or existing region is required with field_data'
-                    )
+            if (field_data is not None) or (references is not None):
+                if field_data is not None:
+                    if (
+                        (field_region is None)
+                        and (field_fov_type is None)
+                        and (regions is None)
+                    ):
+                        return self.error(
+                            'field_region or field_fov_type or existing region is required with field_data'
+                        )
 
-                if type(field_data) is str:
-                    field_data = load_field_data(field_data)
-                    if field_data is None:
-                        return self.error('Could not parse the field data table')
+                    if type(field_data) is str:
+                        field_data = load_field_data(field_data)
+                        if field_data is None:
+                            return self.error('Could not parse the field data table')
 
-                if not {'ID', 'RA', 'Dec'}.issubset(field_data):
-                    return self.error("ID, RA, and Dec required in field_data.")
+                    if not {'ID', 'RA', 'Dec'}.issubset(field_data):
+                        return self.error("ID, RA, and Dec required in field_data.")
 
                 log(f"Started generating fields for instrument {instrument.id}")
                 # run async
@@ -730,6 +862,7 @@ class InstrumentHandler(BaseHandler):
                         instrument.name,
                         regions,
                         field_data,
+                        references=references,
                         modify=True,
                     ),
                 )
@@ -863,6 +996,12 @@ InstrumentHandler.post.__doc__ = f"""
                         Serialized version of a regions.Region describing
                         the shape of the instrument field. Note: should
                         only include field_region or field_fov_type.
+                    references:
+                      type: dict
+                      items:
+                        type: array
+                      description: |
+                        List of filter, and limiting magnitude for each reference.
                     field_fov_type:
                       type: str
                       description: |
@@ -914,6 +1053,8 @@ def load_field_data(field_data):
                     names=["ID", "RA", "Dec"],
                 )
                 loaded = True
+            if loaded:
+                break
         except TypeError:
             pass
 
@@ -924,7 +1065,13 @@ def load_field_data(field_data):
 
 
 def add_tiles(
-    instrument_id, instrument_name, regions, field_data, modify=False, session=None
+    instrument_id,
+    instrument_name,
+    regions,
+    field_data,
+    references=None,
+    modify=False,
+    session=None,
 ):
     field_ids = []
     if session is None:
@@ -988,6 +1135,14 @@ def add_tiles(
             ids = field_data['ID']
         else:
             ids = [-1] * len(field_data['RA'])
+
+        if references is not None:
+            reference_filters = {}
+            reference_filter_mags = {}
+            for name, group in references.groupby('field'):
+                reference_filters[name] = group['filter'].tolist()
+                if 'limmag' in list(references.columns):
+                    reference_filter_mags[name] = group['limmag'].tolist()
 
         for ii, (field_id, ra, dec, coords) in enumerate(
             zip(ids, field_data['RA'], field_data['Dec'], coords_icrs)
@@ -1117,6 +1272,7 @@ def add_tiles(
                         create_field = False
 
                 if create_field:
+
                     field = InstrumentField(
                         instrument_id=instrument_id,
                         field_id=int(field_id),
@@ -1125,6 +1281,15 @@ def add_tiles(
                         ra=ra,
                         dec=dec,
                     )
+
+                    if references is not None:
+                        if field_id in reference_filters:
+                            field.reference_filters = reference_filters[field_id]
+                            if 'limmag' in list(references.columns):
+                                field.reference_filter_mags = reference_filter_mags[
+                                    field_id
+                                ]
+
                     session.add(field)
                     session.commit()
 

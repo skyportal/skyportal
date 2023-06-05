@@ -123,13 +123,37 @@ class ObservingRun(Base):
                 sunset, target_subarr, which='previous', horizon=altitude
             ).reshape((len(target_subarr),))
 
+        masked = next_rise.mask
+        if masked.any():
+            target_subarr = [t for t, b in zip(target_array, masked) if b]
+            altitudes = observer.altaz(sunset, target_subarr).alt
+            always_up = np.where(altitudes > altitude)[0]
+            idx = np.where(masked)[0][always_up]
+            next_rise[idx] = sunset
+
         return next_rise.reshape(original_shape)
 
     def set_time(self, target_or_targets, altitude=30 * u.degree):
         """The set time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
         sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
+        sunrise = self.instrument.telescope.next_sunrise(self.calendar_noon).reshape(
+            (1,)
+        )
         original_shape = np.asarray(target_or_targets).shape
-        return observer.target_set_time(
-            sunset, target_or_targets, which='next', horizon=altitude
-        ).reshape(original_shape)
+        target_array = (
+            [target_or_targets] if len(original_shape) == 0 else target_or_targets
+        )
+        next_set = observer.target_set_time(
+            sunset, target_array, which='next', horizon=altitude
+        ).reshape((len(target_array),))
+
+        masked = next_set.mask
+        if masked.any():
+            target_subarr = [t for t, b in zip(target_array, masked) if b]
+            altitudes = observer.altaz(sunset, target_subarr).alt
+            always_up = np.where(altitudes > altitude)[0]
+            idx = np.where(masked)[0][always_up]
+            next_set[idx] = sunrise
+
+        return next_set.reshape(original_shape)

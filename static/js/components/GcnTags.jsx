@@ -21,24 +21,6 @@ const useStyles = makeStyles(() => ({
     flexDirection: "row",
     alignItems: "center",
   },
-  BNS: {
-    background: "#468847!important",
-  },
-  NSBH: {
-    background: "#b94a48!important",
-  },
-  BBH: {
-    background: "#333333!important",
-  },
-  GRB: {
-    background: "#f89406!important",
-  },
-  AMON: {
-    background: "#3a87ad!important",
-  },
-  Terrestrial: {
-    background: "#999999!important",
-  },
   title: {
     margin: 0,
     marginRight: "0.45rem",
@@ -99,7 +81,9 @@ const GcnTags = ({ gcnEvent, show_title = false }) => {
       gcnTags.push(tag);
     });
   }
-  // we want to look through the gcnEvent?.aliases. If one starts by LVC#, we grab what is after the #
+
+  // we want to look through the gcnEvent.aliases.
+  // If one starts by LVC#, we grab what is after the #
   // and use it later as a link for the LVC tag
   let graceid =
     gcnEvent?.aliases?.find((alias) => alias.startsWith("LVC#")) || null;
@@ -190,10 +174,15 @@ const GcnTags = ({ gcnEvent, show_title = false }) => {
               />
             ) : (
               <Chip
-                className={styles[tag]}
                 size="small"
                 label={tag}
                 key={tag}
+                style={{
+                  backgroundColor:
+                    gcn_tags_classes && tag in gcn_tags_classes
+                      ? gcn_tags_classes[tag]
+                      : "#999999",
+                }}
               />
             )}
           </Tooltip>
@@ -205,9 +194,10 @@ const GcnTags = ({ gcnEvent, show_title = false }) => {
             key={tag}
             // if there is a class for this tag, apply it, otherwise use the basic grey color
             style={{
-              backgroundColor: gcn_tags_classes
-                ? gcn_tags_classes[tag]
-                : "#999999",
+              backgroundColor:
+                gcn_tags_classes && tag in gcn_tags_classes
+                  ? gcn_tags_classes[tag]
+                  : "#999999",
             }}
           />
         ))}

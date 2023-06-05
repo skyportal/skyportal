@@ -1,64 +1,71 @@
-import arrow
-from datetime import datetime, timedelta
+import asyncio
 import functools
 import io
+import json
 import random
 import tempfile
 import time
+import urllib
+from datetime import datetime, timedelta
 
+import afterglowpy
+import arrow
 import astropy
-from astropy.coordinates import EarthLocation
-from astropy.time import Time
-from astropy import units as u
+import geopandas
+import healpy as hp
+import humanize
+import jsonschema
+import ligo.skymap
+import matplotlib
+import matplotlib.animation as animation
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
+import numpy.ma as ma
+import pandas as pd
+import requests
+import simsurvey
+import sncosmo
+import sqlalchemy as sa
 from astroplan import (
     AirmassConstraint,
     AtNightConstraint,
     Observer,
     is_event_observable,
 )
-import asyncio
-import geopandas
-import healpy as hp
-import humanize
-import json
-import jsonschema
-import requests
-from marshmallow.exceptions import ValidationError
-import sqlalchemy as sa
-from sqlalchemy import func
-from sqlalchemy.orm import joinedload, undefer
-from sqlalchemy.orm import sessionmaker, scoped_session
-import urllib
-import numpy as np
-from tornado.ioloop import IOLoop
-import ligo.skymap
-from ligo.skymap.tool.ligo_skymap_plot_airmass import main as plot_airmass
-from ligo.skymap import plot  # noqa: F401
-import matplotlib
-from matplotlib import dates
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-import matplotlib.patches as mpatches
-import pandas as pd
-import simsurvey
-from simsurvey.utils import model_tools
-from simsurvey.models import AngularTimeSeriesSource
-from ligo.skymap.distance import parameters_to_marginal_moments
-from ligo.skymap.bayestar import rasterize
+from astropy import units as u
+from astropy.coordinates import EarthLocation
+from astropy.time import Time
 from ligo.skymap import plot  # noqa: F401 F811
-import afterglowpy
-import sncosmo
+from ligo.skymap.bayestar import rasterize
+from ligo.skymap.distance import parameters_to_marginal_moments
+from ligo.skymap.tool.ligo_skymap_plot_airmass import main as plot_airmass
+from marshmallow.exceptions import ValidationError
+from matplotlib import dates
+from simsurvey.models import AngularTimeSeriesSource
+from simsurvey.utils import model_tools
+from sncosmo import get_bandpass
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload, scoped_session, sessionmaker, undefer
+from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
-from baselayer.app.custom_exceptions import AccessError
-from ..base import BaseHandler
+from skyportal.enum_types import ALLOWED_BANDPASSES
+from skyportal.facility_apis.observation_plan import (
+    generate_observation_plan_statistics,
+)
+from skyportal.handlers.api.followup_request import post_assignment
+from skyportal.handlers.api.observingrun import post_observing_run
+from skyportal.handlers.api.source import post_source
+
 from ...models import (
     Allocation,
-    DefaultObservationPlanRequest,
     DBSession,
+    DefaultObservationPlanRequest,
     EventObservationPlan,
     GcnEvent,
     GcnTrigger,
@@ -74,24 +81,70 @@ from ...models import (
     User,
 )
 from ...models.schema import ObservationPlanPost
-from ...utils.simsurvey import (
-    get_simsurvey_parameters,
-    random_parameters_notheta,
-)
-
-from skyportal.handlers.api.source import post_source
-from skyportal.handlers.api.followup_request import post_assignment
-from skyportal.handlers.api.observingrun import post_observing_run
-from skyportal.facility_apis.observation_plan import (
-    generate_observation_plan_statistics,
-)
+from ...utils.simsurvey import get_simsurvey_parameters, random_parameters_notheta
+from ..base import BaseHandler
 
 env, cfg = load_env()
+log = make_log('api/observation_plan')
+
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
-Session = scoped_session(sessionmaker())
+TREASUREMAP_INSTRUMENT_IDS = {  # https://treasuremap.space/search_instruments
+    'Sinistro': 9,
+    'UVOT': 12,
+    'DECam': 38,
+    'CFHT': 42,
+    'GITCamera': 46,
+    'ZTF': 47,
+    'Spectral': 56,
+    'TESS': 60,
+    'MOSFIRE': 74,
+    'KAIT': 75,
+}
 
-log = make_log('api/observation_plan')
+# this is the list of filters that are available in the treasuremap
+TREASUREMAP_FILTERS = {
+    'U': 'U',
+    'B': 'B',
+    'V': 'V',
+    'R': 'R',
+    'I': 'I',
+    'J': 'J',
+    'H': 'H',
+    'K': 'K',
+    'u': 'u',
+    'g': 'g',
+    'r': 'r',
+    'i': 'i',
+    'z': 'z',
+    'UVW1': 'UVW1',
+    'UVM2': 'UVM2',
+    'XRT': 'XRT',
+    'clear': 'clear',
+    'open': 'open',
+    'UHF': 'UHF',
+    'VHF': 'VHF',
+    'L': 'L',
+    'S': 'S',
+    'C': 'C',
+    'X': 'X',
+    'other': 'other',
+    'TESS': 'TESS',
+    'BAT': 'BAT',
+    'HESS': 'HESS',
+    'WISEL': 'WISEL',
+}
+# to it, we add mappers for sncosmo bandpasses
+for bandpass_name in ALLOWED_BANDPASSES:
+    try:
+        bandpass = get_bandpass(bandpass_name)
+        central_wavelength = (bandpass.minwave() + bandpass.maxwave()) / 2
+        bandwidth = bandpass.maxwave() - bandpass.minwave()
+        TREASUREMAP_FILTERS[bandpass_name] = [central_wavelength, bandwidth]
+    except Exception as e:
+        log(f'Error adding bandpass {bandpass_name} to treasuremap filters: {e}')
+
+Session = scoped_session(sessionmaker())
 
 observation_plans_microservice_url = (
     f'http://127.0.0.1:{cfg["ports.observation_plan_queue"]}'
@@ -522,6 +575,26 @@ class ObservationPlanRequestHandler(BaseHandler):
                         f"Observation plan with name {plan['payload']['queue_name']} already exists."
                     )
 
+                allocation = session.scalars(
+                    Allocation.select(self.current_user).where(
+                        Allocation.id == plan['allocation_id']
+                    )
+                ).first()
+                if allocation is None:
+                    return self.error(
+                        f"Cannot access allocation with ID: {plan['allocation_id']}"
+                    )
+                filters = plan.get('payload', {}).get('filters', [])
+                if isinstance(filters, str):
+                    filters = filters.split(',')
+                if (
+                    not set(filters).issubset(set(allocation.instrument.filters))
+                    or len(filters) == 0
+                ):
+                    return self.error(
+                        f'Filters in payload must be a subset of instrument filters: {allocation.instrument.filters}'
+                    )
+
         request_body = {
             'plans': observation_plans,
             'user_id': self.associated_user_object.id,
@@ -694,11 +767,62 @@ class ObservationPlanRequestHandler(BaseHandler):
                         session.user_or_token, options=options
                     ).where(ObservationPlanRequest.id == observation_plan_request_id)
                 ).first()
+
                 if observation_plan_request is None:
                     return self.error(
                         f'Cannot find ObservationPlanRequest with ID: {observation_plan_request_id}'
                     )
-                return self.success(data=observation_plan_request)
+
+                data_out = observation_plan_request.to_dict()
+                if include_planned_observations:
+                    observation_plans = []
+                    for observation_plan in observation_plan_request.observation_plans:
+                        planned_observations = []
+                        for (
+                            planned_observation
+                        ) in observation_plan.planned_observations:
+                            set_time = planned_observation.set_time()
+                            if set_time is not None:
+                                set_time = set_time.isot
+                            rise_time = planned_observation.rise_time()
+                            if rise_time is not None:
+                                rise_time = rise_time.isot
+                            planned_observation_data = planned_observation.to_dict()
+                            del planned_observation_data["instrument"]
+                            # rename the field_id key to field_db_id to avoid confusion
+                            planned_observation_data[
+                                "field_db_id"
+                            ] = planned_observation_data.pop("field_id")
+                            planned_observation_data[
+                                "field_id"
+                            ] = planned_observation_data['field'].field_id
+
+                            planned_observations.append(
+                                {
+                                    **planned_observation_data,
+                                    'rise_time': rise_time
+                                    if not type(rise_time) is ma.masked_array
+                                    else None,
+                                    'set_time': set_time
+                                    if not type(set_time) is ma.masked_array
+                                    else None,
+                                }
+                            )
+                            # sort the planned observations by obstime
+                            planned_observations = sorted(
+                                planned_observations,
+                                key=lambda k: k['obstime'],
+                                reverse=False,
+                            )
+                        observation_plans.append(
+                            {
+                                **observation_plan.to_dict(),
+                                'planned_observations': planned_observations,
+                            }
+                        )
+                    data_out["observation_plans"] = observation_plans
+
+                return self.success(data=data_out)
 
             observation_plan_requests = ObservationPlanRequest.select(
                 session.user_or_token, options=options
@@ -896,6 +1020,14 @@ class ObservationPlanManualRequestHandler(BaseHandler):
             )
             session.add(event_observation_plan)
             session.commit()
+
+            if not {
+                planned_obs['filt']
+                for planned_obs in observation_plan['planned_observations']
+            }.issubset(set(instrument.filters)):
+                return self.error(
+                    message=f"Planned observation filter(s) not in instrument's filter list, must be one of: {str(instrument.filters)}"
+                )
 
             planned_observations = []
             for planned_obs in observation_plan['planned_observations']:
@@ -1435,38 +1567,107 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             allocation = session.scalars(stmt).first()
             instrument = allocation.instrument
 
+            treasuremap_id = None
+            if instrument.treasuremap_id is None:
+                if instrument.name in TREASUREMAP_INSTRUMENT_IDS:
+                    treasuremap_id = TREASUREMAP_INSTRUMENT_IDS[instrument.name]
+                else:
+                    return self.error(
+                        message=f"Instrument {instrument.name} does not have a TreasureMap ID associated with it"
+                    )
+            else:
+                treasuremap_id = instrument.treasuremap_id
+
             altdata = allocation.altdata
             if not altdata:
                 return self.error('Missing allocation information.')
+            if 'TREASUREMAP_API_TOKEN' not in altdata:
+                return self.error(
+                    'Missing TREASUREMAP_API_TOKEN in allocation information.'
+                )
 
             observation_plan = observation_plan_request.observation_plans[0]
             num_observations = len(observation_plan.planned_observations)
             if num_observations == 0:
-                return self.error('Need at least one observation to produce a GCN')
+                return self.error('Need at least one observation to submit')
 
             planned_observations = observation_plan.planned_observations
 
             graceid = event.graceid
             payload = {
-                "graceid": graceid,
                 "api_token": altdata['TREASUREMAP_API_TOKEN'],
+                "graceid": graceid,
             }
+
+            # first check that all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict
+            if not all(
+                [obs.filt in TREASUREMAP_FILTERS.keys() for obs in planned_observations]
+            ):
+                return self.error(
+                    'Not all planned_observations have a filt that is in the TREASUREMAP_FILTERS dict, they cannot be submitted'
+                )
+
+            # we first get the pointings that are already on treasuremap to avoid duplicates
+            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/pointings')
+            r = requests.get(
+                url=url,
+                json={
+                    **payload,
+                    "status": "planned",
+                    "instrumentid": str(treasuremap_id),
+                },
+            )
+            r.raise_for_status()
+            existing_pointings = r.json()
 
             pointings = []
             for obs in planned_observations:
                 pointing = {}
-                pointing["ra"] = obs.field.ra
+                pointing["ra"] = obs.field.ra - 180
                 pointing["dec"] = obs.field.dec
-                pointing["band"] = obs.filt
-                pointing["instrumentid"] = str(instrument.treasuremap_id)
-                pointing["status"] = "planned"
+                pointing["instrumentid"] = str(treasuremap_id)
                 pointing["time"] = Time(obs.obstime, format='datetime').isot
+                pointing["status"] = "planned"
                 pointing["depth"] = 0.0
                 pointing["depth_unit"] = "ab_mag"
-                pointings.append(pointing)
+                if isinstance(TREASUREMAP_FILTERS[obs.filt], list):
+                    pointing["central_wave"] = TREASUREMAP_FILTERS[obs.filt][0]
+                    pointing["bandwidth"] = TREASUREMAP_FILTERS[obs.filt][1]
+                    pointing["wavelength_unit"] = "angstrom"
+                else:
+                    pointing["band"] = TREASUREMAP_FILTERS[obs.filt]
+
+                exists = False
+                for existing_pointing in existing_pointings:
+                    if (
+                        all(
+                            [
+                                existing_pointing[key] == pointing[key]
+                                for key in [
+                                    "status",
+                                    "depth",
+                                    "central_wave",
+                                    "bandwidth",
+                                ]
+                            ]
+                        )
+                        and existing_pointing["instrumentid"] == treasuremap_id
+                        and existing_pointing["position"]
+                        == f"POINT ({pointing['ra']} {pointing['dec']})"
+                        and existing_pointing["time"]
+                        == pointing["time"].split("T")[0] + "T00:00:00"
+                    ):
+                        exists = True
+                        break
+                if not exists:
+                    pointings.append(pointing)
+
+            if len(pointings) == 0:
+                return self.error(
+                    'No new pointings to submit to TreasureMap (all already exist).'
+                )
             payload["pointings"] = pointings
 
-            url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
             r = requests.post(url=url, json=payload)
             r.raise_for_status()
             request_json = r.json()
@@ -1530,21 +1731,31 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             allocation = session.scalars(stmt).first()
             instrument = allocation.instrument
 
+            treasuremap_id = None
+            if instrument.treasuremap_id is None:
+                if instrument.name in TREASUREMAP_INSTRUMENT_IDS:
+                    treasuremap_id = TREASUREMAP_INSTRUMENT_IDS[instrument.name]
+                else:
+                    return self.error(
+                        message=f"Instrument {instrument.name} does not have a TreasureMap ID associated with it"
+                    )
+            else:
+                treasuremap_id = instrument.treasuremap_id
+
             altdata = allocation.altdata
             if not altdata:
                 return self.error('Missing allocation information.')
 
             graceid = event.graceid
             payload = {
-                "graceid": graceid,
                 "api_token": altdata['TREASUREMAP_API_TOKEN'],
-                "instrumentid": instrument.treasuremap_id,
+                "graceid": graceid,
+                "instrumentid": str(treasuremap_id),
             }
 
-            baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/cancel_all')
+            baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v1/cancel_all')
             url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
-            r = requests.post(url=url)
-            r.raise_for_status()
+            r = requests.post(url=url, json=payload)
             request_text = r.text
             if "successfully" not in request_text:
                 return self.error(f'TreasureMap delete failed: {request_text}')

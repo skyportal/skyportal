@@ -1,4 +1,4 @@
-__all__ = ['Instrument', 'InstrumentField', 'InstrumentFieldTile']
+__all__ = ['Instrument', 'InstrumentField', 'InstrumentFieldTile', 'InstrumentLog']
 
 import re
 
@@ -115,6 +115,16 @@ class InstrumentField(Base):
         )
     )
 
+    reference_filters = sa.Column(
+        sa.ARRAY(sa.String), nullable=True, comment='Reference template filters'
+    )
+
+    reference_filter_mags = sa.Column(
+        sa.ARRAY(sa.Float),
+        nullable=True,
+        comment='Reference filter limiting magnitudes',
+    )
+
     tiles = relationship("InstrumentFieldTile")
 
     @property
@@ -180,6 +190,39 @@ class InstrumentField(Base):
         """
 
         return self.instrument.telescope.observer.altaz(time, self.target).alt
+
+
+class InstrumentLog(Base):
+    """A log for instrument status"""
+
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='Instrument ID',
+    )
+
+    instrument = relationship(
+        "Instrument",
+        foreign_keys=instrument_id,
+        doc="The Instrument that this log belongs to",
+        overlaps='logs',
+    )
+
+    start_date = sa.Column(
+        sa.DateTime, nullable=False, index=True, doc="Start date of the log packet."
+    )
+
+    end_date = sa.Column(
+        sa.DateTime, nullable=False, index=True, doc="End date of the log packet."
+    )
+
+    log = deferred(
+        sa.Column(
+            JSONB,
+            nullable=False,
+            doc='Instrument logging information',
+        )
+    )
 
 
 class InstrumentFieldTile(Base):
@@ -430,6 +473,7 @@ class Instrument(Base):
     fields = relationship("InstrumentField")
     tiles = relationship("InstrumentFieldTile")
     plans = relationship("EventObservationPlan")
+    logs = relationship("InstrumentLog")
 
 
 @event.listens_for(Instrument.fields, 'dispose_collection')

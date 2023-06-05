@@ -12,6 +12,7 @@ import {
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { Link } from "react-router-dom";
 
 import MUIDataTable from "mui-datatables";
 import Button from "./Button";
@@ -105,6 +106,28 @@ const InstrumentTable = ({
 
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
 
+  const renderInstrumentID = (dataIndex) => {
+    const instrument = instruments[dataIndex];
+
+    return (
+      <div>
+        {instrument?.log_exists ? (
+          <>
+            <Link
+              to={`/instrument/${instrument.id}`}
+              role="link"
+              className={classes.hover}
+            >
+              {instrument ? instrument.id : ""}
+            </Link>
+          </>
+        ) : (
+          <>{instrument ? instrument.id : ""}</>
+        )}
+      </div>
+    );
+  };
+
   const renderInstrumentName = (dataIndex) => {
     const instrument = instruments[dataIndex];
 
@@ -177,6 +200,22 @@ const InstrumentTable = ({
     return <div>{instrument ? instrument.number_of_fields : ""}</div>;
   };
 
+  const renderLogs = (dataIndex) => {
+    const instrument = instruments[dataIndex];
+    return (
+      <div>
+        <Button
+          key={instrument.id}
+          id="logs_button"
+          component={Link}
+          to={`/instrument/${instrument.id}`}
+        >
+          Logs
+        </Button>
+      </div>
+    );
+  };
+
   const renderDelete = (dataIndex) => {
     const instrument = instruments[dataIndex];
     return (
@@ -231,6 +270,16 @@ const InstrumentTable = ({
   };
 
   const columns = [
+    {
+      name: "id",
+      label: "ID",
+      options: {
+        filter: true,
+        // sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderInstrumentID,
+      },
+    },
     {
       name: "instrument_name",
       label: "Instrument Name",
@@ -339,6 +388,13 @@ const InstrumentTable = ({
         sort: true,
         sortThirdClickReset: true,
         customBodyRenderLite: renderFields,
+      },
+    },
+    {
+      name: "logs",
+      label: " ",
+      options: {
+        customBodyRenderLite: renderLogs,
       },
     },
     {

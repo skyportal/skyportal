@@ -27,6 +27,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import cast
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm.attributes import flag_modified
 from marshmallow import Schema
 from marshmallow.exceptions import ValidationError
 import numpy as np
@@ -34,9 +35,9 @@ import operator  # noqa: F401
 
 from skyportal.models.photometry import Photometry
 
-from .observation import get_observations
+from .observation import get_observations, MAX_OBSERVATIONS
 from .source import get_sources, serialize, MAX_SOURCES_PER_PAGE
-from .galaxy import get_galaxies, MAX_GALAXIES
+from .galaxy import get_galaxies, get_galaxies_completeness, MAX_GALAXIES
 import pandas as pd
 from tabulate import tabulate
 import datetime
@@ -47,6 +48,7 @@ from baselayer.log import make_log
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
+from .gcn_gracedb import post_gracedb_data
 from .source import post_source
 from ..base import BaseHandler
 from ...models import (
@@ -69,6 +71,7 @@ from ...models import (
     LocalizationTile,
     LocalizationTag,
     MMADetector,
+    Obj,
     ObservationPlanRequest,
     User,
     Group,
@@ -93,6 +96,7 @@ from ...utils.gcn import (
     from_polygon,
     has_skymap,
 )
+from ...utils.notifications import post_notification
 
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 
@@ -214,6 +218,27 @@ def post_gcnevent_from_xml(
         ).first()
         event_to_update.mma_detectors = mma_detectors
         session.commit()
+
+    gracedb_id = None
+    aliases = event.aliases
+    for alias in aliases:
+        if "LVC" in alias:
+            gracedb_id = alias.split("#")[-1]
+            break
+
+    if gracedb_id is not None:
+        if asynchronous:
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: post_gracedb_data(event.dateobs, gracedb_id, user_id),
+            )
+        else:
+            post_gracedb_data(event.dateobs, gracedb_id, user_id)
 
     if post_skymap:
         try:
@@ -488,6 +513,156 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
     return event.id
 
 
+class GcnEventAliasesHandler(BaseHandler):
+    @auth_or_token
+    def post(self, dateobs):
+        """
+        ---
+        description: Post a GCN Event alias
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+            description: The dateobs of the event, as an arrow parseable string
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alias:
+                    type: string
+                    description: Alias to add to the event
+                required:
+                  - alias
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+        alias = data.get('alias', None)
+
+        if alias is None:
+            return self.error("alias must be present in data")
+        if type(alias) is not str:
+            return self.error("alias must be a string")
+
+        with self.Session() as session:
+            try:
+                event = session.scalars(
+                    GcnEvent.select(
+                        session.user_or_token,
+                        mode="update",
+                    ).where(GcnEvent.dateobs == dateobs)
+                ).first()
+                if event is None:
+                    return self.error("GCN event not found", status=404)
+
+                if event.aliases is None:
+                    event.aliases = [alias]
+                elif alias not in event.aliases:
+                    event.aliases = list(set(event.aliases + [alias]))
+                else:
+                    return self.error(f'{alias} already in {dateobs} aliases.')
+                session.commit()
+
+                self.push(
+                    action='skyportal/REFRESH_GCN_EVENT',
+                    payload={"gcnEvent_dateobs": dateobs},
+                )
+            except Exception as e:
+                return self.error(f'Cannot post alias: {str(e)}')
+
+            return self.success()
+
+    @auth_or_token
+    def delete(self, dateobs):
+        """
+        ---
+        description: Delete a GCN event alias
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: dateobs
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alias:
+                    type: string
+                    description: Alias to remove from the event
+                required:
+                  - alias
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        alias = data.get('alias')
+
+        if alias is None:
+            return self.error("alias must be present in data to remove")
+
+        forbidden_substrings = ['LVC#', 'FERMI#']
+        for forbidden_substring in forbidden_substrings:
+            if forbidden_substring in alias:
+                return self.error(
+                    f"Cannot delete alias with substring {forbidden_substring}"
+                )
+
+        with self.Session() as session:
+            try:
+                event = session.scalars(
+                    GcnEvent.select(
+                        session.user_or_token,
+                        mode="update",
+                    ).where(GcnEvent.dateobs == dateobs)
+                ).first()
+                if event is None:
+                    return self.error("GCN event not found", status=404)
+
+                if alias in event.aliases:
+                    aliases = event.aliases
+                    aliases.remove(alias)
+                    setattr(event, 'aliases', aliases)
+                    flag_modified(event, 'aliases')
+                else:
+                    return self.error(f'{alias} not in {dateobs} aliases.')
+                session.commit()
+
+                self.push(
+                    action='skyportal/REFRESH_GCN_EVENT',
+                    payload={"gcnEvent_dateobs": dateobs},
+                )
+            except Exception as e:
+                return self.error(f'Cannot remove alias: {str(e)}')
+
+            return self.success()
+
+
 class GcnEventTagsHandler(BaseHandler):
     @auth_or_token
     async def get(self, dateobs=None, tag=None):
@@ -557,6 +732,22 @@ class GcnEventTagsHandler(BaseHandler):
                 )
                 session.add(tag)
                 session.commit()
+
+                try:
+                    loop = asyncio.get_event_loop()
+                except Exception:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                request_body = {
+                    'target_class_name': 'GcnTag',
+                    'target_id': tag.id,
+                }
+
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: post_notification(request_body, timeout=30),
+                )
 
                 self.push(
                     action='skyportal/REFRESH_GCN_EVENT',
@@ -1152,6 +1343,8 @@ class GcnEventHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     ),
+                    "gracedb_log": event.gracedb_log,
+                    "gracedb_labels": event.gracedb_labels,
                 }
 
                 return self.success(data=data)
@@ -1935,6 +2128,14 @@ def add_gcn_summary(
         gcn_summary = session.query(GcnSummary).get(summary_id)
         group = session.query(Group).get(group_id)
         event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
+        localization = (
+            session.query(Localization)
+            .filter(
+                Localization.dateobs == dateobs,
+                Localization.localization_name == localization_name,
+            )
+            .first()
+        )
 
         start_date_mjd = Time(arrow.get(start_date).datetime).mjd
         end_date_mjd = Time(arrow.get(end_date).datetime).mjd
@@ -2095,8 +2296,6 @@ def add_gcn_summary(
 
                 df_confirmed_or_unknown = df[(~df['id'].isin(df_rejected['id']))]
 
-                print(df_confirmed_or_unknown)
-
                 df_confirmed_or_unknown = df_confirmed_or_unknown.drop(
                     columns=['status']
                 )
@@ -2222,6 +2421,7 @@ def add_gcn_summary(
                     localization_cumprob=localization_cumprob,
                     page_number=galaxies_page_number,
                     num_per_page=MAX_GALAXIES,
+                    return_probability=True,
                 )
                 galaxies.extend(galaxies_data['galaxies'])
                 galaxies_page_number += 1
@@ -2231,7 +2431,9 @@ def add_gcn_summary(
                 galaxies_text.append(
                     f"""\nFound {len(galaxies)} {'galaxies' if len(galaxies) > 1 else 'galaxy'} in the event's localization:\n"""
                 ) if not no_text else None
-                catalogs, names, ras, decs, distmpcs, redshifts = (
+                names, ras, decs, distmpcs, magks, mag_nuvs, mag_w1s, probabilities = (
+                    [],
+                    [],
                     [],
                     [],
                     [],
@@ -2240,39 +2442,70 @@ def add_gcn_summary(
                     [],
                 )
                 for galaxy in galaxies:
-                    galaxy = galaxy.to_dict()
-                    catalogs.append(
-                        galaxy['catalog_name'] if 'catalog_name' in galaxy else None
-                    )
+                    if galaxy['probability'] is None or galaxy['probability'] == 0:
+                        continue
+
                     names.append(galaxy['name'] if 'name' in galaxy else None)
                     ras.append(galaxy['ra'] if 'ra' in galaxy else None)
                     decs.append(galaxy['dec'] if 'dec' in galaxy else None)
                     distmpcs.append(galaxy['distmpc'] if 'distmpc' in galaxy else None)
-                    redshifts.append(
-                        galaxy['redshift'] if 'redshift' in galaxy else None
+                    magks.append(galaxy['magk'] if 'magk' in galaxy else None)
+                    mag_nuvs.append(galaxy['mag_nuv'] if 'mag_nuv' in galaxy else None)
+                    mag_w1s.append(galaxy['mag_w1'] if 'mag_w1' in galaxy else None)
+                    probabilities.append(
+                        galaxy['probability'] if 'probability' in galaxy else None
                     )
                 df = pd.DataFrame(
                     {
-                        "catalog": catalogs,
                         "name": names,
                         "ra": ras,
                         "dec": decs,
                         "distmpc": distmpcs,
-                        "redshift": redshifts,
+                        "magk": magks,
+                        "mag_nuv": mag_nuvs,
+                        "mag_w1": mag_w1s,
+                        "probability": probabilities,
                     }
                 )
+                df.sort_values("probability", inplace=True, ascending=False)
+                df = df[df["probability"] >= np.max(df["probability"]) * 0.01]
                 df = df.fillna("--")
                 galaxies_text.append(
                     tabulate(
                         df,
-                        headers='keys',
+                        headers=[
+                            'Galaxy',
+                            'RA [deg]',
+                            'Dec [deg]',
+                            'Distance [Mpc]',
+                            'm_Ks [mag]',
+                            'm_NUV [mag]',
+                            'm_W1 [mag]',
+                            'dP_dV',
+                        ],
                         tablefmt='psql',
                         showindex=False,
-                        floatfmt=".4f",
+                        floatfmt=(str, ".4f", ".4f", ".1f", ".1f", ".1f", ".1f", ".3e"),
                     )
                     + "\n"
                 )
             contents.extend(galaxies_text)
+
+            if localization is not None:
+                distmean, distsigma = localization.marginal_moments
+                if (distmean is not None) and (distsigma is not None):
+                    min_distance = np.max([distmean - 3 * distsigma, 0])
+                    max_distance = np.min([distmean + 3 * distsigma, 10000])
+                    try:
+                        completeness = get_galaxies_completeness(
+                            galaxies, dist_min=min_distance, dist_max=max_distance
+                        )
+                    except Exception:
+                        completeness = None
+
+                    if completeness is not None and not no_text:
+                        completeness_text = f"\n\nThe estimated mass completeness of the catalog for the skymap distance is ~{int(round(completeness*100,0))}%. This calculation was made by comparing the total mass within the catalog to a stellar mass function described by a Schechter function in the range {distmean:.1f} ± {distsigma:.1f} Mpc (within 3 sigma of the skymap).\n"
+                        contents.append(completeness_text)
 
         if show_observations:
             # get the executed obs, by instrument
@@ -2298,6 +2531,8 @@ def add_gcn_summary(
                         localization_cumprob=localization_cumprob,
                         return_statistics=True,
                         stats_method=stats_method,
+                        n_per_page=MAX_OBSERVATIONS,
+                        page_number=1,
                     )
 
                     observations = data["observations"]
@@ -3295,3 +3530,204 @@ class GcnEventTriggerHandler(BaseHandler):
                     )
             except Exception as e:
                 return self.error(f'Failed to delete triggered status: str({e})')
+
+
+class ObjGcnEventHandler(BaseHandler):
+    @auth_or_token
+    def post(self, obj_id):
+        """
+        ---
+        description: Retrieve an object's in-out critera for GcnEvents
+        tags:
+          - objs
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  startDate:
+                    type: string
+                    description: |
+                      Arrow-parseable date string (e.g. 2020-01-01).
+                      If provided, filter by GcnEvent.dateobs >= startDate.
+                  endDate:
+                    type: string
+                    description: |
+                      Arrow-parseable date string (e.g. 2020-01-01).
+                      If provided, filter by GcnEvent.dateobs <= startDate.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
+        integrated_probability = self.get_query_argument('probability', 0.95)
+
+        with self.Session() as session:
+            obj = session.scalars(
+                Obj.select(session.user_or_token, mode='update').where(Obj.id == obj_id)
+            ).first()
+            if obj is None:
+                return self.error(f"Cannot find object with ID {obj_id}.")
+
+            query = GcnEvent.select(
+                session.user_or_token,
+            )
+
+            if start_date:
+                start_date = arrow.get(start_date.strip()).datetime
+                query = query.where(GcnEvent.dateobs >= start_date)
+            if end_date:
+                end_date = arrow.get(end_date.strip()).datetime
+                query = query.where(GcnEvent.dateobs <= end_date)
+
+            event_ids = [event.id for event in session.scalars(query).unique().all()]
+            if len(event_ids) == 0:
+                return self.error("Cannot find GcnEvents in those bounds.")
+
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: crossmatch_gcn_objects(
+                    obj_id,
+                    event_ids,
+                    self.associated_user_object.id,
+                    integrated_probability=integrated_probability,
+                ),
+            )
+
+            return self.success()
+
+
+def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.95):
+    """Query MPC for a given object.
+    obj_id : str
+        Object ID
+    events_id : List[int]
+        GCN Event IDs to crossmatch against
+    user_id : int
+        SkyPortal ID of User posting the MPC result
+    integrated_probability : float
+        Confidence level up to which to perform crossmatch
+    """
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    user = session.scalar(sa.select(User).where(User.id == user_id))
+
+    try:
+        obj = session.scalars(
+            Obj.select(user, mode='update').where(Obj.id == obj_id)
+        ).first()
+        if obj is None:
+            raise ValueError(f"Cannot find object with ID {obj_id}.")
+
+        events = []
+        for event_id in event_ids:
+
+            event = session.scalars(
+                GcnEvent.select(
+                    user,
+                    options=[
+                        joinedload(GcnEvent.localizations),
+                    ],
+                ).where(GcnEvent.id == event_id)
+            ).first()
+            if event is None:
+                continue
+            if len(event.localizations) == 0:
+                continue
+            localization_id = event.localizations[0].id
+
+            partition_key = event.dateobs
+            # now get the dateobs in the format YYYY_MM
+            localizationtile_partition_name = (
+                f'{partition_key.year}_{partition_key.month:02d}'
+            )
+            localizationtilescls = LocalizationTile.partitions.get(
+                localizationtile_partition_name, None
+            )
+            if localizationtilescls is None:
+                localizationtilescls = LocalizationTile
+            else:
+                # check that there is actually a localizationTile with the given localization_id in the partition
+                # if not, use the default partition
+                if not (
+                    session.scalars(
+                        sa.select(localizationtilescls.localization_id).where(
+                            localizationtilescls.localization_id == localization_id
+                        )
+                    ).first()
+                ):
+                    localizationtilescls = LocalizationTile.partitions.get(
+                        'def', LocalizationTile
+                    )
+
+            cum_prob = (
+                sa.func.sum(
+                    localizationtilescls.probdensity * localizationtilescls.healpix.area
+                )
+                .over(order_by=localizationtilescls.probdensity.desc())
+                .label('cum_prob')
+            )
+            localizationtile_subquery = (
+                sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                    localizationtilescls.localization_id == localization_id
+                )
+            ).subquery()
+
+            min_probdensity = (
+                sa.select(
+                    sa.func.min(localizationtile_subquery.columns.probdensity)
+                ).filter(
+                    localizationtile_subquery.columns.cum_prob <= integrated_probability
+                )
+            ).scalar_subquery()
+
+            obj_query = sa.select(Obj.id).where(
+                Obj.id == obj.id,
+                localizationtilescls.localization_id == localization_id,
+                localizationtilescls.probdensity >= min_probdensity,
+                localizationtilescls.healpix.contains(Obj.healpix),
+            )
+            obj_check = session.scalars(obj_query).first()
+            if obj_check is not None:
+                events.append(event.dateobs)
+
+        obj.gcn_crossmatch = events
+        session.commit()
+
+        flow = Flow()
+        flow.push(
+            '*',
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': obj.internal_key},
+        )
+
+        log(f"Generated GCN crossmatch for {obj_id}")
+    except Exception as e:
+        log(f"Unable to generate GCN crossmatch for {obj_id}: {e}")
+    finally:
+        session.close()
+        Session.remove()

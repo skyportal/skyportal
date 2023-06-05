@@ -15,7 +15,7 @@ import pytest
 
 def test_gcn_GW(super_admin_token, view_only_token):
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}
@@ -44,6 +44,7 @@ def test_gcn_GW(super_admin_token, view_only_token):
         'MassGap': 0.0,
         'HasRemnant': 1.0,
         'Terrestrial': 0.00059743288626,
+        'num_instruments': 2,
     }
     assert data["properties"][0]["data"] == property_dict
 
@@ -103,7 +104,9 @@ def test_gcn_GW(super_admin_token, view_only_token):
 
 def test_gcn_Fermi(super_admin_token, view_only_token):
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    datafile = (
+        f'{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    )
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}
@@ -170,7 +173,7 @@ def test_gcn_from_moc(super_admin_token):
     assert data['status'] == 'success'
     mmadetector_id = data['data']['id']
 
-    skymap = f'{os.path.dirname(__file__)}/../data/GRB220617A_IPN_map_hpx.fits.gz'
+    skymap = f'{os.path.dirname(__file__)}/../../data/GRB220617A_IPN_map_hpx.fits.gz'
     dateobs = '2022-06-18T18:31:12'
     tags = ['IPN', 'GRB', name]
     skymap = from_url(skymap)
@@ -231,7 +234,7 @@ def test_gcn_summary_sources(
     upload_data_token,
 ):
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}
@@ -420,7 +423,7 @@ def test_gcn_summary_galaxies(
         'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
     )
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}
@@ -463,7 +466,7 @@ def test_gcn_summary_galaxies(
             time.sleep(2)
     assert n_times_2 < 25
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5'
+    datafile = f'{os.path.dirname(__file__)}/../../../../data/CLU_mini.hdf5'
     data = {
         'catalog_name': catalog_name,
         'catalog_data': Table.read(datafile)
@@ -564,16 +567,18 @@ def test_gcn_summary_galaxies(
     assert f"on behalf of the {public_group.name}, report:" in data[5]
 
     # galaxies
-    assert "Found 82 galaxies in the event's localization:" in data[6]
+    assert "Found 54 galaxies in the event's localization:" in data[6]
 
     galaxy_table = data[7:]
-    assert len(galaxy_table) == 86
-    assert "catalog" in galaxy_table[1]
-    assert "name" in galaxy_table[1]
-    assert "ra" in galaxy_table[1]
-    assert "dec" in galaxy_table[1]
-    assert "distmpc" in galaxy_table[1]
-    assert "redshift" in galaxy_table[1]
+    assert len(galaxy_table) == 58
+    assert "Galaxy" in galaxy_table[1]
+    assert "RA [deg]" in galaxy_table[1]
+    assert "Dec [deg]" in galaxy_table[1]
+    assert "Distance [Mpc]" in galaxy_table[1]
+    assert "m_Ks [mag]" in galaxy_table[1]
+    assert "m_NUV [mag]" in galaxy_table[1]
+    assert "m_W1 [mag]" in galaxy_table[1]
+    assert "dP_dV" in galaxy_table[1]
 
     status, data = api(
         'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
@@ -584,7 +589,7 @@ def test_gcn_instrument_field(
     super_admin_token,
 ):
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}
@@ -645,8 +650,8 @@ def test_gcn_instrument_field(
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
 
-    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
-    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+    fielddatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Fields.csv'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Region.reg'
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
@@ -710,7 +715,7 @@ def test_gcn_summary_observations(
     public_group,
 ):
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}
@@ -776,8 +781,8 @@ def test_gcn_summary_observations(
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
 
-    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
-    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+    fielddatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Fields.csv'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Region.reg'
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
@@ -894,7 +899,7 @@ def test_gcn_summary_observations(
 
         assert n_retries < 10
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/sample_observation_gw.csv'
+    datafile = f'{os.path.dirname(__file__)}/../../../../data/sample_observation_gw.csv'
     data = {
         'telescopeName': name,
         'instrumentName': instrument_name,
@@ -1026,7 +1031,7 @@ def test_confirm_reject_source_in_gcn(
     upload_data_token,
 ):
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}
@@ -1275,12 +1280,12 @@ def test_gcn_from_polygon(super_admin_token):
 
 def test_gcn_Swift(super_admin_token):
 
-    datafile = f'{os.path.dirname(__file__)}/../data/SWIFT_1125809-092.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../data/SWIFT_1125809-092.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data_1 = {'xml': payload}
 
-    datafile = f'{os.path.dirname(__file__)}/../data/SWIFT_1125809-104.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../data/SWIFT_1125809-104.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data_2 = {'xml': payload}
@@ -1328,7 +1333,9 @@ def test_gcn_tach(
     view_only_token,
 ):
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    datafile = (
+        f'{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    )
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}
@@ -1384,7 +1391,7 @@ def test_gcn_tach(
 
 def test_download_localization(super_admin_token):
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}
@@ -1427,7 +1434,9 @@ def test_gcn_allocation_triggers(
     view_only_token,
 ):
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    datafile = (
+        f'{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    )
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}

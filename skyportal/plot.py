@@ -34,8 +34,9 @@ from bokeh.models.widgets import (
     NumericInput,
     TextInput,
 )
+from bokeh.palettes import Category20
 from bokeh.plotting import ColumnDataSource, figure
-from bokeh.transform import factor_mark
+from bokeh.transform import factor_mark, factor_cmap
 from matplotlib import cm
 from matplotlib.colors import rgb2hex
 from sqlalchemy.orm import joinedload
@@ -1840,7 +1841,7 @@ def make_photometry_panel(
     xmax = data['mjd'].max() + 2
 
     mags = data.loc[obsind, 'mag']
-    if not all(np.isnan(mags)):
+    if not mags.empty and not all(np.isnan(mags)):
         max_mags = np.nanmax(mags)
         min_mags = np.nanmin(mags)
     else:
@@ -1848,7 +1849,7 @@ def make_photometry_panel(
         min_mags = np.nan
 
     lims = data.loc[~obsind, 'lim_mag']
-    if not all(np.isnan(lims)):
+    if not lims.empty and not all(np.isnan(lims)):
         max_lims = np.nanmax(lims)
         min_lims = np.nanmin(lims)
     else:
@@ -3051,3 +3052,152 @@ def get_dimensions_by_device(device, width):
         legend_items_per_row = 1
 
     return frame_width, aspect_ratio, legend_row_height, legend_items_per_row
+
+
+async def instrument_log_plot(
+    instrument_id,
+    session,
+    start_date=None,
+    end_date=None,
+    width=800,
+    device="browser",
+):
+    """
+    Create object spectroscopy line plot.
+
+    Parameters
+    ----------
+    instrument_id : integer
+        ID of Instrument whose logs are to be plotted.
+    session : sqlalchemy.Session
+        Database session for this transaction
+    start_date : datetime
+        Start date for which to plot logs
+    end_date : datetime
+        End date for which to plot logs
+    width : int
+        Size of the plot in pixels. Default=600.
+    device : str
+        Choose one of the following options to describe
+        the device on which the plot will be displayed:
+        - "browser" (default)
+        - "mobile_portrait"
+        - "mobile_landscape"
+        - "tablet_portrait"
+        - "tablet_landscape"
+    Returns
+    -------
+    dict
+        Bokeh JSON embedding of the plot.
+
+    """
+
+    instrument = session.scalars(
+        Instrument.select(session.user_or_token).where(Instrument.id == instrument_id)
+    ).first()
+    if instrument is None:
+        raise ValueError(f'Cannot find instrument with ID "{instrument_id}"')
+
+    LOGTYPE_TO_INT = {
+        'Message_robo': 1,
+        'Power_robo': 2,
+        'Weather_robo': 3,
+        'Data_robo': 4,
+        'VIC_robo': 5,
+        'TCS_robo': 6,
+        'SPEC_robo': 7,
+        'Queue_robo': 8,
+        'FITS_robo': 9,
+        'Filter_robo': 10,
+        'Control': 11,
+        'Motion_robo': 12,
+        'BestFocus': 13,
+        'reset_server': 14,
+        'Other': 0,
+    }
+
+    INT_TO_LOGTYPE = {v: k for k, v in LOGTYPE_TO_INT.items()}
+
+    def check_str(logtype):
+        for key in LOGTYPE_TO_INT.keys():
+            if key in logtype:
+                return LOGTYPE_TO_INT[key]
+        return 0
+
+    mjds = []
+    logints = []
+    messages = []
+    for instrument_log in instrument.logs:
+        mjds.extend([data['mjd'] for data in instrument_log.log['logs']])
+        logints.extend([check_str(data['type']) for data in instrument_log.log['logs']])
+        messages.extend([data['message'] for data in instrument_log.log['logs']])
+
+    logtypes = [INT_TO_LOGTYPE[logint] for logint in logints]
+    data = pd.DataFrame.from_dict(
+        {'mjd': mjds, 'logint': logints, 'logtype': logtypes, 'message': messages}
+    )
+
+    xmin = data['mjd'].min() - 0.1
+    xmax = data['mjd'].max() + 0.1
+
+    active_drag = None if "mobile" in device or "tablet" in device else "box_zoom"
+    tools = (
+        "box_zoom, pan, reset"
+        if "mobile" in device or "tablet" in device
+        else "box_zoom,wheel_zoom,pan,reset"
+    )
+
+    (
+        frame_width,
+        aspect_ratio,
+        legend_row_height,
+        legend_items_per_row,
+    ) = get_dimensions_by_device(device, width)
+
+    plot_height = math.floor(width / aspect_ratio)
+
+    x_range = (xmin, xmax)
+    plot = figure(
+        frame_width=frame_width,
+        height=plot_height,
+        tools=tools,
+        toolbar_location="above",
+        active_drag=active_drag,
+        x_range=x_range,
+        sizing_mode="stretch_width",
+    )
+
+    plot.xaxis.axis_label = 'MJD'
+    plot.toolbar.logo = None
+    if device == "mobile_portrait":
+        plot.xaxis.ticker.desired_num_ticks = 5
+
+    now = Time.now().mjd
+    plot.extra_x_ranges = {
+        "Days Ago": Range1d(start=now - x_range[0], end=now - x_range[1])
+    }
+    plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
+
+    factors = sorted(data.logtype.unique())
+    tooltips = [
+        ('mjd', '@mjd{0.000000}'),
+        ('type', '@logtype'),
+        ('message', '@message'),
+    ]
+
+    imhover = HoverTool(tooltips=tooltips)
+    imhover.renderers = []
+    plot.add_tools(imhover)
+
+    p = plot.scatter(
+        'mjd',
+        'logint',
+        source=data,
+        fill_alpha=0.1,
+        size=10,
+        legend_group='logtype',
+        color=factor_cmap('logtype', Category20[len(factors)], factors),
+    )
+    imhover.renderers.append(p)
+
+    return bokeh_embed.json_item(plot)

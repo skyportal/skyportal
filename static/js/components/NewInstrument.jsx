@@ -43,6 +43,12 @@ const NewInstrument = () => {
       formData.field_region = dataUriToBuffer(formData.field_region).toString();
     }
     if (
+      Object.keys(formData).includes("references") &&
+      formData.references !== undefined
+    ) {
+      formData.references = dataUriToBuffer(formData.references).toString();
+    }
+    if (
       Object.keys(formData).includes("field_fov_type") &&
       formData.field_fov_type !== undefined
     ) {
@@ -189,6 +195,12 @@ const NewInstrument = () => {
         title: "Field region file",
         description: "Field region file",
       },
+      references: {
+        type: "string",
+        format: "data-url",
+        title: "References file",
+        description: "References file",
+      },
       field_fov_type: {
         type: "array",
         items: {
@@ -213,6 +225,11 @@ const NewInstrument = () => {
         type: "string",
         title:
           "Configuration data i.e. {'overhead_per_exposure': 2.0, 'readout': 8.0, 'slew_rate': 2.6, 'filt_change_time': 60.0}",
+      },
+      treasuremap_id: {
+        type: "integer",
+        title: "Treasuremap ID",
+        description: "ID of the instrument to submit to Treasuremap (optional)",
       },
     },
     required: ["name", "type", "band", "telescope_id"],

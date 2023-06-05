@@ -30,6 +30,7 @@ from skyportal.models import (
     FacilityTransaction,
     FollowupRequest,
     GcnEvent,
+    GcnTag,
     Group,
     GroupAdmissionRequest,
     GroupUser,
@@ -46,11 +47,11 @@ from skyportal.models import (
 from skyportal.utils.gcn import get_skymap_properties
 from skyportal.utils.notifications import (
     gcn_email_notification,
+    gcn_notification_content,
     gcn_slack_notification,
     source_email_notification,
-    source_slack_notification,
-    gcn_notification_content,
     source_notification_content,
+    source_slack_notification,
 )
 
 env, cfg = load_env()
@@ -88,10 +89,15 @@ op_options = [
 def notification_resource_type(target):
     if not target["notification_type"]:
         return None
-    if "favorite_sources" not in target["notification_type"]:
+    if (
+        "favorite_sources" not in target["notification_type"]
+        and "gcn_events" not in target["notification_type"]
+    ):
         return target["notification_type"]
     elif "favorite_sources" in target["notification_type"]:
         return "favorite_sources"
+    elif "gcn_events" in target["notification_type"]:
+        return "gcn_events"
 
 
 def user_preferences(target, notification_setting, resource_type):
@@ -174,7 +180,9 @@ def send_slack_notification(target):
                 {
                     "url": integration_url,
                     "blocks": gcn_slack_notification(
-                        target=target, data=target["content"]
+                        target=target,
+                        data=target["content"],
+                        new_tag=(target["notification_type"] == "gcn_events_new_tag"),
                     ),
                 }
             )
@@ -228,7 +236,9 @@ def send_email_notification(target):
 
         elif resource_type == "gcn_events":
             subject, body = gcn_email_notification(
-                target=target, data=target["content"]
+                target=target,
+                data=target["content"],
+                new_tag=(target["notification_type"] == "gcn_events_new_tag"),
             )
 
         elif resource_type == "facility_transactions":
@@ -483,6 +493,7 @@ def api(queue):
 
             is_facility_transaction = target_class_name == "FacilityTransaction"
             is_gcnevent = target_class_name == "Localization"
+            is_gcn_tag = target_class_name == "GcnTag"
             is_classification = target_class_name == "Classification"
             is_spectra = target_class_name == "Spectrum"
             is_comment = target_class_name == "Comment"
@@ -494,16 +505,35 @@ def api(queue):
 
             with DBSession() as session:
                 try:
-                    if is_gcnevent:
-                        users = session.scalars(
-                            sa.select(User).where(
+                    if is_gcnevent or is_gcn_tag:
+                        stmt = sa.select(User).where(
+                            User.preferences["notifications"]["gcn_events"]["active"]
+                            .astext.cast(sa.Boolean)
+                            .is_(True),
+                        )
+                        if is_gcn_tag:
+                            stmt = stmt.where(
                                 User.preferences["notifications"]["gcn_events"][
-                                    "active"
+                                    "new_tags"
                                 ]
                                 .astext.cast(sa.Boolean)
-                                .is_(True)
+                                .is_(True),
                             )
-                        ).all()
+                        users = session.scalars(stmt).all()
+
+                        if is_gcn_tag:
+                            gcn_tag = session.scalars(
+                                sa.select(GcnTag).where(GcnTag.id == target_id)
+                            ).first()
+                            gcn_event = session.scalars(
+                                sa.select(GcnEvent).where(
+                                    GcnEvent.dateobs == gcn_tag.dateobs
+                                )
+                            ).first()
+                            if len(gcn_event.localizations) > 0:
+                                target_id = gcn_event.localizations[0].id
+                            else:
+                                return
 
                         target_class = Localization
                         target = session.scalars(
@@ -711,7 +741,7 @@ def api(queue):
                                 ).first()
                                 is not None
                             ):
-                                if is_gcnevent and (pref is not None):
+                                if (is_gcnevent or is_gcn_tag) and (pref is not None):
                                     event = session.scalars(
                                         sa.select(GcnEvent).where(
                                             GcnEvent.dateobs == target_data["dateobs"]
@@ -846,21 +876,29 @@ def api(queue):
                                                 ):
                                                     continue
 
-                                        if len(notices) > 1:
+                                        if is_gcn_tag:
                                             text = (
-                                                f"New Notice for GCN Event *{target_data['dateobs']}*, "
-                                                f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                                f"Updated GCN Event *{target_data['dateobs']}*, "
+                                                f"with Tag *{gcn_tag.text}*"
                                             )
                                         else:
-                                            text = (
-                                                f"New GCN Event *{target_data['dateobs']}*, "
-                                                f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
-                                            )
+                                            if len(notices) > 1:
+                                                text = (
+                                                    f"New Notice for GCN Event *{target_data['dateobs']}*, "
+                                                    f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                                )
+                                            else:
+                                                text = (
+                                                    f"New GCN Event *{target_data['dateobs']}*, "
+                                                    f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                                )
 
                                         notification = UserNotification(
                                             user=user,
                                             text=text,
-                                            notification_type="gcn_events",
+                                            notification_type="gcn_events_new_tag"
+                                            if is_gcn_tag
+                                            else "gcn_events",
                                             url=f"/gcn_events/{str(target_data['dateobs']).replace(' ','T')}",
                                         )
                                         session.add(notification)
@@ -1331,5 +1369,5 @@ if __name__ == "__main__":
             log(f"Current notification queue length: {len(queue)}")
             time.sleep(120)
     except Exception as e:
-        log(f"Error starting observation plan queue: {str(e)}")
+        log(f"Error starting notification queue: {str(e)}")
         raise e

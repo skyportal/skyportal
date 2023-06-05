@@ -162,6 +162,7 @@ const GcnEventAllocationTriggers = ({
         "passed";
     } else if (
       t !== null &&
+      t?.triggered === false &&
       instruments_triggered[allocationLookUp[allocation_id]]?.triggered !==
         "not_set"
     ) {

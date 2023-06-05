@@ -54,6 +54,7 @@ from .galaxy import (
 )
 from .gcn import (
     GcnEventHandler,
+    GcnEventAliasesHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventPropertiesHandler,
     GcnEventSurveyEfficiencyHandler,
@@ -68,6 +69,7 @@ from .gcn import (
     LocalizationCrossmatchHandler,
     LocalizationPropertiesHandler,
     LocalizationTagsHandler,
+    ObjGcnEventHandler,
 )
 from .gcn_tach import GcnTachHandler
 from .gcn_gracedb import GcnGraceDBHandler
@@ -82,6 +84,7 @@ from .healpix import HealpixUpdateHandler
 from .user_obj_list import UserObjListHandler
 from .group_admission_request import GroupAdmissionRequestHandler
 from .instrument import InstrumentHandler, InstrumentFieldHandler
+from .instrument_log import InstrumentLogHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .mmadetector import (
@@ -133,7 +136,6 @@ from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
 from .summary_query import SummaryQueryHandler
 from .roles import RoleHandler, UserRoleHandler
-from .obj import ObjHandler
 from .recurring_api import RecurringAPIHandler
 from .reminder import ReminderHandler
 from .sharing import SharingHandler
@@ -170,7 +172,7 @@ from .sysinfo import SysInfoHandler
 from .config_handler import ConfigHandler
 from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
-from .tns import ObjTNSHandler, SpectrumTNSHandler, TNSRobotHandler
+from .tns import ObjTNSHandler, BulkTNSHandler, SpectrumTNSHandler, TNSRobotHandler
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .user import (
     UserHandler,
@@ -183,5 +185,6 @@ from .weather import WeatherHandler
 from .webhook import AnalysisWebhookHandler
 from .sources_confirmed_in_gcn import (
     SourcesConfirmedInGCNHandler,
+    SourcesConfirmedInGCNTNSHandler,
     GCNsAssociatedWithSourceHandler,
 )

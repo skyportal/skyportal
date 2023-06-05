@@ -5,13 +5,11 @@ import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
 from sqlalchemy import event, inspect
-import requests
 from tornado.ioloop import IOLoop
 
 from baselayer.app.models import Base, AccessibleIfUserMatches
-from baselayer.app.env import load_env
-from baselayer.log import make_log
 
+from ..utils.notifications import post_notification
 from .analysis import ObjAnalysis
 from .classification import Classification
 from .localization import Localization
@@ -21,11 +19,6 @@ from .facility_transaction import FacilityTransaction
 from .followup_request import FollowupRequest
 from .observation_plan import EventObservationPlan
 from .group import GroupAdmissionRequest
-
-
-_, cfg = load_env()
-
-log = make_log('notifications')
 
 
 class UserNotification(Base):
@@ -97,10 +90,6 @@ def add_user_notifications(mapper, connection, target):
             'target_id': target_id,
         }
 
-        notifications_microservice_url = (
-            f'http://127.0.0.1:{cfg["ports.notification_queue"]}'
-        )
-
         try:
             loop = asyncio.get_event_loop()
         except Exception:
@@ -109,18 +98,5 @@ def add_user_notifications(mapper, connection, target):
 
         IOLoop.current().run_in_executor(
             None,
-            lambda: post_notification(
-                notifications_microservice_url, request_body, timeout=30
-            ),
-        )
-
-
-def post_notification(notifications_microservice_url, request_body, timeout=2):
-
-    resp = requests.post(
-        notifications_microservice_url, json=request_body, timeout=timeout
-    )
-    if resp.status_code != 200:
-        log(
-            f'Notification request failed for {request_body["target_class_name"]} with ID {request_body["target_id"]}: {resp.content}'
+            lambda: post_notification(request_body, timeout=30),
         )

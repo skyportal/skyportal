@@ -81,6 +81,7 @@ from ...models import (
     SpatialCatalogEntry,
     SpatialCatalogEntryTile,
     Telescope,
+    TNSRobot,
 )
 from ...utils.offset import (
     get_nearby_offset_stars,
@@ -89,6 +90,7 @@ from ...utils.offset import (
     get_finding_chart,
     _calculate_best_position_for_offset_stars,
 )
+from ...utils.tns import post_tns
 from .candidate import (
     grab_query_results,
     update_redshift_history_if_relevant,
@@ -247,6 +249,24 @@ async def get_source(
         source_info["duplicates"] = list({dup.obj_id for dup in duplicates})
     else:
         source_info["duplicates"] = None
+
+    if 'photstats' in source_info:
+        photstats = source_info["photstats"]
+        for photstat in photstats:
+            if (
+                hasattr(photstat, 'first_detected_mjd')
+                and photstat.first_detected_mjd is not None
+            ):
+                source_info["first_detected"] = Time(
+                    photstat.first_detected_mjd, format='mjd'
+                ).isot
+            if (
+                hasattr(photstat, 'last_detected_mjd')
+                and photstat.last_detected_mjd is not None
+            ):
+                source_info["last_detected"] = Time(
+                    photstat.last_detected_mjd, format='mjd'
+                ).isot
 
     if s.host_id:
         source_info["host"] = s.host.to_dict()
@@ -1139,14 +1159,41 @@ async def get_sources(
                     f"Localization {localization_dateobs} not found",
                 )
 
+        partition_key = arrow.get(localization.dateobs).datetime
+        localizationtile_partition_name = (
+            f'{partition_key.year}_{partition_key.month:02d}'
+        )
+        localizationtilescls = LocalizationTile.partitions.get(
+            localizationtile_partition_name, None
+        )
+        if localizationtilescls is None:
+            localizationtilescls = LocalizationTile.partitions.get(
+                'def', LocalizationTile
+            )
+        else:
+            # check that there is actually a localizationTile with the given localization_id in the partition
+            # if not, use the default partition
+            if not (
+                session.scalars(
+                    localizationtilescls.select(session.user_or_token).where(
+                        localizationtilescls.localization_id == localization.id
+                    )
+                ).first()
+            ):
+                localizationtilescls = LocalizationTile.partitions.get(
+                    'def', LocalizationTile
+                )
+
         cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
+            sa.func.sum(
+                localizationtilescls.probdensity * localizationtilescls.healpix.area
+            )
+            .over(order_by=localizationtilescls.probdensity.desc())
             .label('cum_prob')
         )
         localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                LocalizationTile.localization_id == localization.id
+            sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                localizationtilescls.localization_id == localization.id
             )
         ).subquery()
 
@@ -1157,17 +1204,17 @@ async def get_sources(
         ).scalar_subquery()
 
         tile_ids = session.scalars(
-            sa.select(LocalizationTile.id).where(
-                LocalizationTile.localization_id == localization.id,
-                LocalizationTile.probdensity >= min_probdensity,
+            sa.select(localizationtilescls.id).where(
+                localizationtilescls.localization_id == localization.id,
+                localizationtilescls.probdensity >= min_probdensity,
             )
         ).all()
 
         tiles_subquery = (
             sa.select(Obj.id)
             .filter(
-                LocalizationTile.id.in_(tile_ids),
-                LocalizationTile.healpix.contains(Obj.healpix),
+                localizationtilescls.id.in_(tile_ids),
+                localizationtilescls.healpix.contains(Obj.healpix),
             )
             .subquery()
         )
@@ -1664,13 +1711,44 @@ def post_source(data, user_id, session, refresh_source=True):
             source.saved_by = user
         else:
             session.add(Source(obj=obj, group=group, saved_by_id=user.id))
+
     session.commit()
 
+    loop = None
+    for group in groups:
+        tnsrobot = session.scalars(
+            TNSRobot.select(user).where(
+                TNSRobot.auto_report_group_ids.contains([group.id]),
+                TNSRobot.auto_reporters.isnot(None),
+            )
+        ).first()
+        if tnsrobot is not None:
+            if loop is None:
+                try:
+                    loop = IOLoop.current()
+                except RuntimeError:
+                    loop = IOLoop(make_current=True).current()
+
+            loop.run_in_executor(
+                None,
+                lambda: post_tns(
+                    obj_ids=[obj.id],
+                    tnsrobot_id=tnsrobot.id,
+                    user_id=user.id,
+                    reporters=tnsrobot.auto_reporters,
+                    timeout=30,
+                ),
+            )
+
+            # only need to report once
+            break
+
     if not obj_already_exists:
-        try:
-            loop = IOLoop.current()
-        except RuntimeError:
-            loop = IOLoop(make_current=True).current()
+        if loop is None:
+            try:
+                loop = IOLoop.current()
+            except RuntimeError:
+                loop = IOLoop(make_current=True).current()
         loop.run_in_executor(
             None,
             lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, user_id),

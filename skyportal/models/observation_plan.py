@@ -7,6 +7,10 @@ __all__ = [
     'PlannedObservation',
 ]
 
+from astropy import coordinates as ap_coord
+from astropy import time as ap_time
+from astropy import units as u
+
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects import postgresql as psql
@@ -378,6 +382,8 @@ class PlannedObservation(Base):
         doc='Instrument ID',
     )
 
+    instrument = relationship("Instrument")
+
     dateobs = sa.Column(
         sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
         nullable=False,
@@ -413,3 +419,42 @@ class PlannedObservation(Base):
     planned_observation_id = sa.Column(
         sa.Integer, nullable=False, doc='Observation number'
     )
+
+    def rise_time(self, altitude=30 * u.degree):
+        """The rise time of the field as an astropy.time.Time."""
+        observer = self.instrument.telescope.observer
+        if observer is None:
+            return None
+
+        sunset = self.instrument.telescope.next_sunset(ap_time.Time.now()).reshape((1,))
+        sunrise = self.instrument.telescope.next_sunrise(ap_time.Time.now()).reshape(
+            (1,)
+        )
+
+        coord = ap_coord.SkyCoord(self.field.ra, self.field.dec, unit='deg')
+
+        next_rise = observer.target_rise_time(
+            sunset, coord, which='next', horizon=altitude
+        )
+
+        # if next rise time is after next sunrise, the target rises before
+        # sunset. show the previous rise so that the target is shown to be
+        # "already up" when the run begins (a beginning of night target).
+
+        recalc = next_rise > sunrise
+        if recalc.any():
+            next_rise = observer.target_rise_time(
+                sunset, coord, which='previous', horizon=altitude
+            )
+
+        return next_rise
+
+    def set_time(self, altitude=30 * u.degree):
+        """The set time of the field as an astropy.time.Time."""
+        observer = self.instrument.telescope.observer
+        if observer is None:
+            return None
+
+        sunset = self.instrument.telescope.next_sunset(ap_time.Time.now())
+        coord = ap_coord.SkyCoord(self.field.ra, self.field.dec, unit='deg')
+        return observer.target_set_time(sunset, coord, which='next', horizon=altitude)

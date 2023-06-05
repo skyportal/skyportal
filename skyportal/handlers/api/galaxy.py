@@ -6,11 +6,14 @@ from io import StringIO
 import astropy.units as u
 import arrow
 import healpix_alchemy as ha
+import healpy as hp
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 from astropy.io import ascii
 from geojson import Feature, Point
+from scipy.stats import norm
+from scipy.integrate import quad
 from sqlalchemy import func
 from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
@@ -44,6 +47,7 @@ def get_galaxies(
     catalog_names_only=False,
     page_number=1,
     num_per_page=MAX_GALAXIES,
+    return_probability=False,
 ):
     if catalog_names_only:
         stmt = Galaxy.select(
@@ -66,10 +70,6 @@ def get_galaxies(
 
         return query_result
 
-    query = Galaxy.select(session.user_or_token)
-    if catalog_name is not None:
-        query = query.where(Galaxy.catalog_name == catalog_name)
-
     if min_redshift is not None:
         try:
             min_redshift = float(min_redshift)
@@ -77,7 +77,6 @@ def get_galaxies(
             raise ValueError(
                 "Invalid values for min_redshift - could not convert to float"
             )
-        query = query.where(Galaxy.redshift >= min_redshift)
 
     if max_redshift is not None:
         try:
@@ -86,7 +85,6 @@ def get_galaxies(
             raise ValueError(
                 "Invalid values for max_redshift - could not convert to float"
             )
-        query = query.where(Galaxy.redshift <= max_redshift)
 
     if min_distance is not None:
         try:
@@ -95,7 +93,6 @@ def get_galaxies(
             raise ValueError(
                 "Invalid values for min_distance - could not convert to float"
             )
-        query = query.where(Galaxy.distmpc >= min_distance)
 
     if max_distance is not None:
         try:
@@ -104,7 +101,6 @@ def get_galaxies(
             raise ValueError(
                 "Invalid values for max_distance - could not convert to float"
             )
-        query = query.where(Galaxy.distmpc <= max_distance)
 
     if localization_dateobs is not None:
 
@@ -123,11 +119,18 @@ def get_galaxies(
             ).first()
         if localization is None:
             if localization_name is not None:
-                raise (
+                raise ValueError(
                     f"Localization {localization_dateobs} with name {localization_name} not found",
                 )
             else:
-                raise (f"Localization {localization_dateobs} not found")
+                raise ValueError(f"Localization {localization_dateobs} not found")
+
+        distmean, distsigma = localization.marginal_moments
+        if (distmean is not None) and (distsigma is not None):
+            if min_distance is None:
+                min_distance = np.max([distmean - 3 * distsigma, 0])
+            if max_distance is not None:
+                max_distance = np.min([distmean + 3 * distsigma, 10000])
 
         # now get the dateobs in the format YYYY_MM
         partition_key = arrow.get(localization.dateobs).datetime
@@ -190,10 +193,27 @@ def get_galaxies(
             .subquery()
         )
 
+    query = Galaxy.select(session.user_or_token)
+    if localization_dateobs is not None:
         query = query.join(
             tiles_subquery,
             Galaxy.id == tiles_subquery.c.id,
         )
+
+    if catalog_name is not None:
+        query = query.where(Galaxy.catalog_name == catalog_name)
+
+    if min_redshift is not None:
+        query = query.where(Galaxy.redshift >= min_redshift)
+
+    if max_redshift is not None:
+        query = query.where(Galaxy.redshift <= max_redshift)
+
+    if min_distance is not None:
+        query = query.where(Galaxy.distmpc >= min_distance)
+
+    if max_distance is not None:
+        query = query.where(Galaxy.distmpc <= max_distance)
 
     count_stmt = sa.select(func.count()).select_from(query)
     total_matches = session.execute(count_stmt).scalar()
@@ -201,6 +221,31 @@ def get_galaxies(
         query = query.limit(num_per_page).offset((page_number - 1) * num_per_page)
 
     galaxies = session.scalars(query).all()
+    if return_probability:
+
+        PROB, DISTMU, DISTSIGMA, DISTNORM = localization.flat
+        ras = np.array([galaxy.ra for galaxy in galaxies])
+        decs = np.array([galaxy.dec for galaxy in galaxies])
+        ipix = hp.ang2pix(localization.nside, ras, decs, lonlat=True)
+
+        if localization.is_3d:
+            dists = np.array([galaxy.distmpc for galaxy in galaxies])
+
+            probability = (
+                PROB[ipix]
+                * (DISTNORM[ipix] * norm(DISTMU[ipix], DISTSIGMA[ipix]).pdf(dists))
+                / hp.nside2pixarea(localization.nside)
+            )
+        else:
+            probability = PROB[ipix]
+
+        galaxies = [
+            {**galaxy.to_dict(), 'probability': prob}
+            for galaxy, prob in zip(galaxies, probability)
+        ]
+    else:
+        galaxies = [galaxy.to_dict() for galaxy in galaxies]
+
     query_results = {"galaxies": galaxies, "totalMatches": int(total_matches)}
 
     if includeGeoJSON:
@@ -210,11 +255,11 @@ def get_galaxies(
 
         features = []
         for source in query_results["galaxies"]:
-            point = Point((source.ra, source.dec))
-            if source.name is not None:
-                source_name = source.name
+            point = Point((source["ra"], source["dec"]))
+            if source["name"] is not None:
+                source_name = source["name"]
             else:
-                source_name = f'{source.ra},{source.dec}'
+                source_name = f'{source["ra"]},{source["dec"]}'
 
             features.append(Feature(geometry=point, properties={"name": source_name}))
 
@@ -274,6 +319,10 @@ class GalaxyCatalogHandler(BaseHandler):
             'magb',
             'mag_fuv',
             'mag_nuv',
+            'mag_w1',
+            'mag_w2',
+            'mag_w3',
+            'mag_w4',
             'a',
             'b2a',
             'pa',
@@ -397,6 +446,14 @@ class GalaxyCatalogHandler(BaseHandler):
               description: |
                 Boolean indicating whether to just return catalog names. Defaults to
                 false.
+            - in: query
+              name: returnProbability
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to return probability density.
+                Defaults to false.
           responses:
             200:
               content:
@@ -418,6 +475,7 @@ class GalaxyCatalogHandler(BaseHandler):
         max_redshift = self.get_query_argument("maxRedshift", None)
         min_distance = self.get_query_argument("minDistance", None)
         max_distance = self.get_query_argument("maxDistance", None)
+        return_probability = self.get_query_argument("returnProbability", False)
 
         page_number = self.get_query_argument("pageNumber", 1)
         try:
@@ -444,6 +502,7 @@ class GalaxyCatalogHandler(BaseHandler):
                     localization_cumprob=localization_cumprob,
                     includeGeoJSON=includeGeoJSON,
                     catalog_names_only=catalog_names_only,
+                    return_probability=return_probability,
                     page_number=page_number,
                     num_per_page=num_per_page,
                 )
@@ -475,12 +534,31 @@ class GalaxyCatalogHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            session.execute(
-                sa.delete(Galaxy).where(Galaxy.catalog_name == catalog_name)
+        with self.Session():
+
+            IOLoop.current().run_in_executor(
+                None, lambda: delete_galaxies(catalog_name)
             )
-            session.commit()
+
             return self.success()
+
+
+def delete_galaxies(catalog_name):
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    try:
+        session.execute(sa.delete(Galaxy).where(Galaxy.catalog_name == catalog_name))
+        session.commit()
+        return log(f"Deleted galaxy table: {catalog_name}")
+    except Exception as e:
+        return log(f"Unable to generate galaxy table: {e}")
+    finally:
+        session.close()
+        Session.remove()
 
 
 def add_galaxies(catalog_name, catalog_data):
@@ -509,13 +587,17 @@ def add_galaxies(catalog_name, catalog_data):
                 magb=magb,
                 mag_nuv=mag_nuv,
                 mag_fuv=mag_fuv,
+                mag_w1=mag_w1,
+                mag_w2=mag_w2,
+                mag_w3=mag_w3,
+                mag_w4=mag_w4,
                 a=a,
                 b2a=b2a,
                 pa=pa,
                 btc=btc,
                 healpix=ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg),
             )
-            for ra, dec, name, alt_name, distmpc, distmpc_unc, redshift, redshift_error, sfr_fuv, sfr_w4, mstar, magb, magk, mag_fuv, mag_nuv, a, b2a, pa, btc in zip(
+            for ra, dec, name, alt_name, distmpc, distmpc_unc, redshift, redshift_error, sfr_fuv, sfr_w4, mstar, magb, magk, mag_fuv, mag_nuv, mag_w1, mag_w2, mag_w3, mag_w4, a, b2a, pa, btc in zip(
                 catalog_data['ra'],
                 catalog_data['dec'],
                 catalog_data['name'],
@@ -531,6 +613,10 @@ def add_galaxies(catalog_name, catalog_data):
                 catalog_data['magk'],
                 catalog_data['mag_fuv'],
                 catalog_data['mag_nuv'],
+                catalog_data['mag_w1'],
+                catalog_data['mag_w2'],
+                catalog_data['mag_w3'],
+                catalog_data['mag_w4'],
                 catalog_data['a'],
                 catalog_data['b2a'],
                 catalog_data['pa'],
@@ -607,6 +693,10 @@ class GalaxyASCIIFileHandler(BaseHandler):
             'magb',
             'mag_fuv',
             'mag_nuv',
+            'mag_w1',
+            'mag_w2',
+            'mag_w3',
+            'mag_w4',
             'a',
             'b2a',
             'pa',
@@ -733,6 +823,8 @@ def add_glade(file_path=None, file_url=None):
                     'Mstar': 'mstar',
                     'K': 'magk',
                     'B': 'magb',
+                    'W1': 'mag_w1',
+                    'W2': 'mag_w2',
                     'z_helio': 'redshift',
                     'z_err': 'redshift_error',
                     'd_L': 'distmpc',
@@ -747,6 +839,10 @@ def add_glade(file_path=None, file_url=None):
                 'mstar',
                 'magk',
                 'magb',
+                'mag_w1',
+                'mag_w2',
+                'mag_w3',
+                'mag_w4',
                 'redshift',
                 'redshift_error',
                 'distmpc',
@@ -799,6 +895,12 @@ def add_glade(file_path=None, file_url=None):
                 'mstar',
                 'magk',
                 'magb',
+                'mag_fuv',
+                'mag_nuv',
+                'mag_w1',
+                'mag_w2',
+                'mag_w3',
+                'mag_w4',
                 'a',
                 'b2a',
                 'pa',
@@ -812,6 +914,11 @@ def add_glade(file_path=None, file_url=None):
             # remove rows with incorrect ra or dec
             df = df[(df['ra'] >= 0) & (df['ra'] < 360)]
             df = df[(df['dec'] >= -90) & (df['dec'] <= 90)]
+
+            # the mstar in Glade is in 10^10 M_Sun units, so multiply by 1e10 where its not None
+            df['mstar'] = df['mstar'].apply(
+                lambda x: x * 1e10 if x is not None else None
+            )
 
             # add a healpix column where healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
             df['healpix'] = [
@@ -840,6 +947,12 @@ def add_glade(file_path=None, file_url=None):
                 "name",
                 "alt_name",
                 "sfr_fuv",
+                'mag_fuv',
+                'mag_nuv',
+                'mag_w1',
+                'mag_w2',
+                'mag_w3',
+                'mag_w4',
                 "a",
                 "b2a",
                 "pa",
@@ -884,6 +997,51 @@ def add_glade(file_path=None, file_url=None):
         f"add_glade - Added a total of {full_length} galaxies (including {full_blueshift_length} with a negative redshift) to the database in {time.perf_counter() - start_loop_timer:0.4f} seconds"
     )
     return full_length, full_blueshift_length
+
+
+def get_galaxies_completeness(
+    galaxies,
+    dist_min=0,
+    dist_max=10000,
+    M_min=8,
+    M_max=12,
+    M_x12=10.676,
+):
+
+    # standard constants
+    h = 0.7
+    phiStar_M1 = 10 ** (-3.31) * h**3
+    phiStar_M2 = 10 ** (-2.01) * h**3
+    alpha_M1 = -1.61
+    alpha_M2 = -0.79
+    logMStar = 10.79
+
+    schechter_M_log_2 = (
+        lambda x: np.log(10)
+        * np.exp(-(10 ** (x - logMStar)))
+        * (
+            phiStar_M1 * (10 ** (x - logMStar)) ** (alpha_M1 + 1)
+            + phiStar_M2 * (10 ** (x - logMStar)) ** (alpha_M2 + 1)
+        )
+    )
+
+    logM = np.linspace(M_min, M_max, num=50)
+    M_ave = (10 ** logM[:-1] + 10 ** logM[1:]) / 2
+
+    N = [quad(schechter_M_log_2, logM[i], logM[i + 1])[0] for i in range(len(logM) - 1)]
+    V = ((4 / 3) * np.pi * dist_max**3) - ((4 / 3) * np.pi * dist_min**3)
+    hist_schechter = np.array(N) * V
+
+    mstar = [galaxy['mstar'] for galaxy in galaxies if galaxy['mstar'] is not None]
+    mstar = np.log10(mstar)
+    hist_galaxies, _ = np.histogram(mstar, bins=logM)
+
+    mass_schechter = np.sum(M_ave * hist_schechter)
+    mass_galaxies = np.sum(M_ave * hist_galaxies)
+
+    completeness = np.min([1, mass_galaxies / mass_schechter])
+
+    return completeness
 
 
 class GalaxyGladeHandler(BaseHandler):
