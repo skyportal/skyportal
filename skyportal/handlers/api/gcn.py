@@ -3573,9 +3573,10 @@ class ObjGcnEventHandler(BaseHandler):
                 schema: Error
         """
 
-        start_date = self.get_query_argument('startDate', None)
-        end_date = self.get_query_argument('endDate', None)
-        integrated_probability = self.get_query_argument('probability', 0.95)
+        data = self.get_json()
+        start_date = data.get('startDate', None)
+        end_date = data.get('endDate', None)
+        integrated_probability = data.get('probability', 0.95)
 
         with self.Session() as session:
             obj = session.scalars(
