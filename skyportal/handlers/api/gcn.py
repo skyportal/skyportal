@@ -1368,7 +1368,6 @@ class GcnEventHandler(BaseHandler):
                 except Exception:
                     if len(partialdateobs) > 10 and partialdateobs[10] == "T":
                         partialdateobs = partialdateobs.replace("T", " ")
-                        print(f"2. manage to parse {partialdateobs}")
                 partialdateobs = partialdateobs.strip().lower()
                 query = query.where(
                     cast(GcnEvent.dateobs, String).like(f"{partialdateobs}%")

@@ -736,11 +736,17 @@ const FilterCandidateList = ({
                           className={classes.select}
                           // eslint-disable-next-line no-shadow
                           onInputChange={(event, value) => {
-                            dispatch(
-                              gcnEventsActions.fetchGcnEvents({
-                                partialdateobs: value,
-                              })
-                            );
+                            if (
+                              event?.type === "onChange" &&
+                              value !== null &&
+                              value !== ""
+                            ) {
+                              dispatch(
+                                gcnEventsActions.fetchGcnEvents({
+                                  partialdateobs: value,
+                                })
+                              );
+                            }
                           }}
                           onChange={(event, newValue) => {
                             if (newValue !== null) {

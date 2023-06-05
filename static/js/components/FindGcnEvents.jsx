@@ -55,30 +55,48 @@ const FindGcnEvents = ({
   const dispatch = useDispatch();
   const gcnEvents = useSelector((state) => state.gcnEvents);
 
+  const [selectedEvent, setSelectedEvent] = React.useState(null);
+
   const gcnEventsLookUp = {};
   // eslint-disable-next-line no-unused-expressions
   gcnEvents?.events.forEach((gcnEvent) => {
     gcnEventsLookUp[gcnEvent.id] = gcnEvent;
   });
 
-  const [selectedDateobs, setSelectedDateobs] = React.useState(null);
+  const gcnEventsList = [...gcnEvents?.events];
+  if (selectedEvent !== null && selectedEvent !== undefined) {
+    gcnEventsList.push(selectedEvent);
+    gcnEventsLookUp[selectedEvent?.id] = selectedEvent;
+  }
 
   return (
     <div className={classes.gridItem}>
       <div className={classes.selectItems}>
         <Autocomplete
           id="gcnEventSelectLabel"
-          options={gcnEvents?.events}
+          options={gcnEventsList}
           value={
-            gcnEvents?.events.find(
-              (option) => option.id === selectedGcnEventId
-            ) || null
+            gcnEventsList.find((option) => option.id === selectedGcnEventId) ||
+            null
           }
-          getOptionLabel={(option) => option?.dateobs || ""}
+          getOptionLabel={(option) =>
+            `${option?.dateobs} ${
+              option?.aliases?.length > 0 ? `(${option?.aliases})` : ""
+            }` || ""
+          }
           className={classes.select}
           // eslint-disable-next-line no-shadow
           onInputChange={(event, value) => {
-            if (value !== null && value !== selectedDateobs) {
+            if (event?.type !== "change") {
+              return;
+            }
+            if (
+              value !== null &&
+              value !== "" &&
+              value !== selectedEvent?.dateobs
+            ) {
+              setSelectedEvent(null);
+              setSelectedGcnEventId(null);
               dispatch(
                 gcnEventsActions.fetchGcnEvents({
                   partialdateobs: value,
@@ -89,17 +107,19 @@ const FindGcnEvents = ({
           onChange={(event, newValue) => {
             if (newValue !== null) {
               setSelectedGcnEventId(newValue.id);
-              setSelectedDateobs(newValue.dateobs);
+              setSelectedEvent(newValue);
               setSelectedLocalizationId(
                 gcnEventsLookUp[newValue.id]?.localizations[0]?.id || ""
               );
             } else {
               setSelectedGcnEventId(null);
-              setSelectedDateobs(null);
+              setSelectedEvent(null);
               setSelectedLocalizationId(null);
             }
           }}
-          renderInput={(params) => <TextField {...params} label="GCN Event" />}
+          renderInput={(params) => (
+            <TextField {...params} label="Dateobs/Name" />
+          )}
         />
         <Select
           inputProps={{ MenuProps: { disableScrollLock: true } }}
