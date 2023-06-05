@@ -3085,13 +3085,6 @@ async def instrument_log_plot(
         - "mobile_landscape"
         - "tablet_portrait"
         - "tablet_landscape"
-    smoothing: bool
-        choose if to start the display with the smoothed plot or the full resolution spectrum.
-        default is no smoothing.
-    smooth_number: int
-        number of data points to use in the moving average when displaying the smoothed spectrum.
-        default is 10 points.
-
     Returns
     -------
     dict
