@@ -516,8 +516,6 @@ misc:
   # on an object's observability page
   hours_below_airmass_threshold: 2.9
 
-  allow_nonadmins_delete_objs: False
-
   bokeh_color_palette: Turbo256
 
 weather:
