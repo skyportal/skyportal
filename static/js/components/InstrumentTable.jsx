@@ -12,6 +12,7 @@ import {
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { Link } from "react-router-dom";
 
 import MUIDataTable from "mui-datatables";
 import Button from "./Button";
@@ -108,7 +109,23 @@ const InstrumentTable = ({
   const renderInstrumentID = (dataIndex) => {
     const instrument = instruments[dataIndex];
 
-    return <div>{instrument ? instrument.id : ""}</div>;
+    return (
+      <div>
+        {instrument?.log_exists ? (
+          <>
+            <Link
+              to={`/instrument/${instrument.id}`}
+              role="link"
+              className={classes.hover}
+            >
+              {instrument ? instrument.id : ""}
+            </Link>
+          </>
+        ) : (
+          <>{instrument ? instrument.id : ""}</>
+        )}
+      </div>
+    );
   };
 
   const renderInstrumentName = (dataIndex) => {

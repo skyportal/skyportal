@@ -548,6 +548,13 @@ instrument:
     telescope_id: =TESS
     type: imager
     filters: ['tess']
+
+instrument/=SEDMv2/log:
+  - start_date: "2023-06-02T22:00:00"
+    end_date: "2023-06-03T12:05:40"
+    log:
+      file: ../data/sample.log
+
 allocation:
   - pi: Michael Coughlin
     proposal_id: SEDM-001

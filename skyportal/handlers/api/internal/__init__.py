@@ -5,6 +5,7 @@ _, cfg = load_env()
 from .plot import (
     PlotPhotometryHandler,
     PlotSpectroscopyHandler,
+    PlotInstrumentLogHandler,
     PlotAssignmentAirmassHandler,
     PlotObjTelAirmassHandler,
     PlotHoursBelowAirmassHandler,

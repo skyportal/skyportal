@@ -25,6 +25,7 @@ from ...models import (
     Instrument,
     InstrumentField,
     InstrumentFieldTile,
+    InstrumentLog,
     Localization,
     LocalizationTile,
     Photometry,
@@ -427,6 +428,15 @@ class InstrumentHandler(BaseHandler):
 
                 data = instrument.to_dict()
 
+                data['log_exists'] = (
+                    session.scalars(
+                        InstrumentLog.select(self.current_user).where(
+                            InstrumentLog.instrument_id == int(instrument_id)
+                        )
+                    ).first()
+                    is not None
+                )
+
                 # optional: slice by GcnEvent localization
                 if localization_dateobs is not None:
                     if localization_name is not None:
@@ -614,6 +624,12 @@ class InstrumentHandler(BaseHandler):
                     'telescope': instrument.telescope.to_dict(),
                     'number_of_fields': instrument.number_of_fields,
                     'region_summary': instrument.region_summary,
+                    'log_exists': session.scalars(
+                        InstrumentLog.select(self.current_user).where(
+                            InstrumentLog.instrument_id == instrument.id
+                        )
+                    ).first()
+                    is not None,
                 }
                 for instrument in instruments
             ]
