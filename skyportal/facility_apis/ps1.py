@@ -106,6 +106,7 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
         )
 
     except Exception as e:
+        session.rollback()
         log(f"Unable to commit photometry for {request_id}: {e}")
     finally:
         session.close()
