@@ -15,6 +15,7 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
+import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 import WatcherButton from "./WatcherButton";
 
@@ -121,10 +122,22 @@ const FollowupRequestLists = ({
   };
 
   const [isGetting, setIsGetting] = useState(null);
+  const [hasRetrieved, setHasRetrieved] = useState([]);
   const handleGet = async (id) => {
     setIsGetting(id);
-    await dispatch(Actions.getPhotometryRequest(id));
-    setIsGetting(null);
+    dispatch(Actions.getPhotometryRequest(id)).then((response) => {
+      console.log(response);
+      if (response.status === "success") {
+        dispatch(
+          showNotification(
+            "Successfully retrieved photometry request, please wait for it to be processed.",
+            "success"
+          )
+        );
+        setHasRetrieved([...hasRetrieved, id]);
+      }
+      setIsGetting(null);
+    });
   };
 
   const [isSubmitting, setIsSubmitting] = useState(null);
@@ -271,29 +284,31 @@ const FollowupRequestLists = ({
                 </Button>
               </div>
             )}
-            {!isDone && isSubmitted && (
-              <div>
-                {implementsGet && isGetting === followupRequest.id ? (
-                  <div>
-                    <CircularProgress />
-                  </div>
-                ) : (
-                  <div>
-                    <Button
-                      primary
-                      onClick={() => {
-                        handleGet(followupRequest.id);
-                      }}
-                      size="small"
-                      type="submit"
-                      data-testid={`getRequest_${followupRequest.id}`}
-                    >
-                      Retrieve
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
+            {!isDone &&
+              isSubmitted &&
+              !hasRetrieved.includes(followupRequest.id) && (
+                <div>
+                  {implementsGet && isGetting === followupRequest.id ? (
+                    <div>
+                      <CircularProgress />
+                    </div>
+                  ) : (
+                    <div>
+                      <Button
+                        primary
+                        onClick={() => {
+                          handleGet(followupRequest.id);
+                        }}
+                        size="small"
+                        type="submit"
+                        data-testid={`getRequest_${followupRequest.id}`}
+                      >
+                        Retrieve
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             {isFailed && (
               <div>
                 {implementSubmit && isSubmitting === followupRequest.id ? (
