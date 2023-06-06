@@ -1,34 +1,45 @@
 import asyncio
 import json
-from marshmallow.exceptions import ValidationError
-import requests
-import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
 import tempfile
-from tornado.ioloop import IOLoop
+import time
 import urllib
 
-from baselayer.app.access import permissions, auth_or_token
-from baselayer.app.model_util import recursive_to_dict
-from baselayer.app.env import load_env
-from baselayer.log import make_log
-from baselayer.app.flow import Flow
+import arrow
+import astropy.units as u
+import requests
+import sqlalchemy as sa
+from astropy.time import Time, TimeDelta
+from marshmallow.exceptions import ValidationError
+from sqlalchemy.orm import scoped_session, sessionmaker
+from tornado.ioloop import IOLoop
 
-from .photometry import add_external_photometry
-from .spectrum import post_spectrum
-from ..base import BaseHandler
-from ...utils.tns import post_tns, read_tns_spectrum, read_tns_photometry, get_IAUname
+from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.app.model_util import recursive_to_dict
+from baselayer.log import make_log
+
 from ...models import (
     DBSession,
     Group,
     Obj,
     Spectrum,
-    SpectrumReducer,
     SpectrumObserver,
+    SpectrumReducer,
     TNSRobot,
     User,
 )
-
+from ...utils.tns import (
+    get_IAUname,
+    get_recent_TNS,
+    post_tns,
+    read_tns_photometry,
+    read_tns_spectrum,
+)
+from ..base import BaseHandler
+from .photometry import add_external_photometry
+from .source import post_source
+from .spectrum import post_spectrum
 
 _, cfg = load_env()
 
@@ -317,8 +328,91 @@ class TNSRobotHandler(BaseHandler):
             return self.success()
 
 
+def tns_bulk_retrieval(
+    start_date,
+    tnsrobot_id,
+    user_id,
+    group_ids=None,
+    include_photometry=False,
+    include_spectra=False,
+):
+
+    """Retrieve objects from TNS.
+    start_date : str
+        ISO-based start time
+    tnsrobot_id : int
+        TNSRobot ID
+    user_id : int
+        SkyPortal ID of User retrieving from TNS
+    group_ids : List[int]
+        List of groups to post TNS sources to
+    include_photometry: boolean
+        Include photometry available on TNS
+    include_spectra : boolean
+        Include spectra available on TNS
+    """
+
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    user = session.scalar(sa.select(User).where(User.id == user_id))
+    if group_ids is None:
+        group_ids = [g.id for g in user.accessible_groups]
+
+    try:
+        tnsrobot = session.scalars(
+            TNSRobot.select(user).where(TNSRobot.id == tnsrobot_id)
+        ).first()
+        if tnsrobot is None:
+            raise ValueError(f'No TNSRobot available with ID {tnsrobot_id}')
+
+        altdata = tnsrobot.altdata
+        if not altdata:
+            raise ValueError('Missing TNS information.')
+        if 'api_key' not in altdata:
+            raise ValueError('Missing TNS API key.')
+
+        tns_headers = {
+            'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
+        }
+
+        tns_sources = get_recent_TNS(altdata['api_key'], tns_headers, start_date)
+        if len(tns_sources) == 0:
+            raise ValueError(f'No objects posted to TNS since {start_date}.')
+
+        for source in tns_sources:
+            s = session.scalars(Obj.select(user).where(Obj.id == source['id'])).first()
+            if s is None:
+                log(f"Posting {source['id']} as source")
+                source['group_ids'] = group_ids
+                obj_id = post_source(source, user_id, session)
+
+            tns_retrieval(
+                source['id'],
+                tnsrobot_id,
+                user_id,
+                include_photometry=include_photometry,
+                include_spectra=include_spectra,
+                parent_session=session,
+            )
+        session.commit()
+
+    except Exception as e:
+        log(f"Unable to retrieve TNS report for {obj_id}: {e}")
+    finally:
+        session.close()
+        Session.remove()
+
+
 def tns_retrieval(
-    obj_id, tnsrobot_id, user_id, include_photometry=False, include_spectra=False
+    obj_id,
+    tnsrobot_id,
+    user_id,
+    include_photometry=False,
+    include_spectra=False,
+    parent_session=None,
 ):
     """Retrieve object from TNS.
     obj_id : str
@@ -333,10 +427,13 @@ def tns_retrieval(
         Include spectra available on TNS
     """
 
-    if Session.registry.has():
-        session = Session()
+    if parent_session is not None:
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = parent_session
 
     flow = Flow()
 
@@ -390,6 +487,27 @@ def tns_retrieval(
             stream=True,
             timeout=10,
         )
+
+        count = 0
+        count_limit = 5
+        while r.status_code == 429 and count < count_limit:
+            log(
+                f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
+            )
+            time.sleep(30)
+            r = requests.post(
+                object_url,
+                headers=tns_headers,
+                data=data,
+                allow_redirects=True,
+                stream=True,
+                timeout=10,
+            )
+            count += 1
+
+        if count == count_limit:
+            raise ValueError('TNS request failed: request rate exceeded.')
+
         if r.status_code == 200:
             source_data = r.json().get("data", dict()).get("reply", dict())
             if source_data:
@@ -415,9 +533,7 @@ def tns_retrieval(
                         except Exception as e:
                             failed_photometry.append(phot)
                             failed_photometry_errors.append(str(e))
-                            log(
-                                f'Cannot read TNS photometry {str(photometry)}: {str(e)}'
-                            )
+                            log(f'Cannot read TNS photometry {str(phot)}: {str(e)}')
                             continue
                     if len(failed_photometry) > 0:
                         log(
@@ -460,8 +576,103 @@ def tns_retrieval(
     except Exception as e:
         log(f"Unable to retrieve TNS report for {obj_id}: {e}")
     finally:
-        session.close()
-        Session.remove()
+        if parent_session is not None:
+            session.close()
+            Session.remove()
+
+
+class BulkTNSHandler(BaseHandler):
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        description: Retrieve objects from TNS
+        tags:
+          - objs
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tnsrobotID:
+                    type: int
+                    description: |
+                      TNS Robot ID.
+                  startDate:
+                    type: string
+                    description: |
+                      Arrow-parseable date string (e.g. 2020-01-01).
+                      Filter by public_timestamp >= startDate.
+                      Defaults to one day ago.
+                  groupIds:
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of IDs of groups to indicate labelling for
+                required:
+                  - tnsrobotID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        group_ids = data.get("groupIds", None)
+        if group_ids is None:
+            group_ids = [g.id for g in self.current_user.accessible_groups]
+
+        start_date = data.get('startDate', None)
+        if start_date is None:
+            start_date = Time.now() - TimeDelta(1 * u.day)
+        else:
+            start_date = Time(arrow.get(start_date.strip()).datetime)
+
+        tnsrobot_id = data.get("tnsrobotID", None)
+        if tnsrobot_id is None:
+            return self.error('tnsrobotID is required')
+
+        include_photometry = data.get("includePhotometry", False)
+        include_spectra = data.get("includeSpectra", False)
+
+        with self.Session() as session:
+            tnsrobot = session.scalars(
+                TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobot_id)
+            ).first()
+            if tnsrobot is None:
+                return self.error(f'No TNSRobot available with ID {tnsrobot_id}')
+
+            altdata = tnsrobot.altdata
+            if not altdata:
+                return self.error('Missing TNS information.')
+            if 'api_key' not in altdata:
+                return self.error('Missing TNS API key.')
+
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: tns_bulk_retrieval(
+                    start_date.isot,
+                    tnsrobot.id,
+                    self.associated_user_object.id,
+                    group_ids=group_ids,
+                    include_photometry=include_photometry,
+                    include_spectra=include_spectra,
+                ),
+            )
+
+            return self.success()
 
 
 class ObjTNSHandler(BaseHandler):

@@ -221,6 +221,9 @@ if __name__ == "__main__":
                         .to_dict(orient='list')
                     )
                     return payload
+                elif filename.endswith('log'):
+                    with open(filename) as f:
+                        return f.read()
                 else:
                     raise NotImplementedError(
                         f'{filename}: Only CSV, PNG, xml, reg, and hdf5 files '

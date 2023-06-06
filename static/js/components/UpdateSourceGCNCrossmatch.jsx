@@ -32,12 +32,18 @@ const UpdateSourceGCNCrossmatch = ({ source }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
+  let firstDet = source?.photstats[0]?.first_detected_mjd;
+  if (firstDet !== undefined && firstDet !== null) {
+    firstDet = dayjs.unix((firstDet + 2400000.5 + 0.5 - 2440588) * 86400);
+  }
+
   const [dialogOpen, setDialogOpen] = useState(false);
-  const defaultStartDate = dayjs()
-    .subtract(3, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultStartDate = firstDet
+    ? firstDet.subtract(2, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ")
+    : dayjs().subtract(3, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultEndDate = firstDet
+    ? firstDet.add(5, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ")
+    : dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
 
   const handleSubmit = async ({ formData }) => {
     dispatch(sourceActions.addGCNCrossmatch(source.id, formData)).then(
@@ -115,6 +121,11 @@ const UpdateSourceGCNCrossmatch = ({ source }) => {
 UpdateSourceGCNCrossmatch.propTypes = {
   source: PropTypes.shape({
     id: PropTypes.string,
+    photstats: PropTypes.arrayOf(
+      PropTypes.shape({
+        first_detected_mjd: PropTypes.number,
+      })
+    ),
   }).isRequired,
 };
 

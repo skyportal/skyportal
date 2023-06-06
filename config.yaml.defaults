@@ -119,6 +119,8 @@ app:
       component: AllocationPage
     - path: "/allocation/:id"
       component: AllocationSummary
+    - path: "/instrument/:id"
+      component: InstrumentSummary
     - path: "/observations"
       component: ObservationPage
     - path: "/galaxies"
@@ -458,7 +460,7 @@ server:
   dedicated_frontend_processes: 2
 
   # The max size of a request body in megabytes (M)
-  max_body_size: 10
+  max_body_size: 100
 
   # nginx parameter which sets both the time in seconds before which
   # the server is considered unavailable and the subsequent period of
@@ -513,8 +515,6 @@ misc:
   # The airmass value below which to track hours for when plotting
   # on an object's observability page
   hours_below_airmass_threshold: 2.9
-
-  allow_nonadmins_delete_objs: False
 
   bokeh_color_palette: Turbo256
 
