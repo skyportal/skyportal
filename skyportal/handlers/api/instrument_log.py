@@ -166,13 +166,12 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
                     'Submitting executed observation plan requests to this Instrument is not available.'
                 )
 
-            # try:
-            if True:
+            try:
                 # we now retrieve and commit to the database the
                 # instrument logs
                 instrument.api_class.retrieve_log(
                     allocation,
                 )
                 return self.success()
-            # except Exception as e:
-            # return self.error(f"Error in querying instrument API: {e}")
+            except Exception as e:
+                return self.error(f"Error in querying instrument API: {e}")
