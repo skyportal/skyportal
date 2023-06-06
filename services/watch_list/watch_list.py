@@ -53,7 +53,6 @@ def ztf_observing_times():
         if telescope is None:
             raise Exception('Could not find ZTF')
         time_info = telescope.current_time
-        print(time_info)
         return time_info
 
 
@@ -194,9 +193,6 @@ def check_watch_list(time_info):
                     include_all_fields=False,
                     filter=filter,
                 )
-                print(
-                    f"Got {len(alerts)} alerts"
-                )  # DEBUG PRINT, TO REMOVE BEFORE MERGING
 
                 if alerts is None:
                     continue
@@ -254,7 +250,6 @@ def check_watch_list(time_info):
     end = time.time()
     # if we took less than the shortest interval, sleep for the difference. Otherwise, don't sleep
     if end - start < shortest_interval:
-        print(f"Sleeping for {shortest_interval - (end - start)}")
         time.sleep(shortest_interval - (end - start))
 
 

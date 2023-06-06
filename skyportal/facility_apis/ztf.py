@@ -328,6 +328,7 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
             payload={"obj_key": request.obj.internal_key},
         )
     except Exception as e:
+        session.rollback()
         log(f"Unable to commit photometry for {request_id}: {e}")
     finally:
         session.close()
