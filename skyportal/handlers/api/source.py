@@ -1311,7 +1311,7 @@ async def get_sources(
         else [source_subquery.c.saved_at.desc()]
     )
 
-    if localization is not None and sort_by is None:
+    if localization_dateobs is not None and sort_by is None:
         sort_by = "gcn_status"
 
     if sort_by is not None:
@@ -1360,9 +1360,10 @@ async def get_sources(
                 else [classification_subquery.c.classification.desc().nullslast()]
             )
         elif sort_by == "gcn_status" and localization_dateobs is not None:
+            # For Ascending (Desc is the opposite)
             # 1. sources where there is no match
-            # 2. sources where the confirmed column is null
-            # 3. sources where the confirmed column is true
+            # 2. sources where the confirmed column is true
+            # 3. sources where the confirmed column is null
             # 4. sources where the confirmed column is false
 
             source_confirmed_in_gcn_subquery = (
@@ -1386,16 +1387,16 @@ async def get_sources(
             order_by = (
                 [
                     source_confirmed_in_gcn_subquery.c.dateobs.is_not(None),
-                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(None),
                     source_confirmed_in_gcn_subquery.c.confirmed.is_not(True),
+                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(None),
                     source_confirmed_in_gcn_subquery.c.confirmed.is_not(False),
                 ]
                 if sort_order == "asc"
                 else [
-                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(False),
-                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(True),
-                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(None),
                     source_confirmed_in_gcn_subquery.c.dateobs.is_(None),
+                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(False),
+                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(None),
+                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(True),
                 ]
             )
 
