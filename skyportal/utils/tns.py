@@ -1,17 +1,18 @@
-from skyportal.app_utils import get_app_base_url
+import json
+import time
+import urllib
 
 import astropy.units as u
-from astropy.table import Table
-from astropy.time import Time
-from astropy.coordinates import SkyCoord
-import json
 import pandas as pd
 import requests
 import sqlalchemy as sa
-import urllib
+from astropy.coordinates import SkyCoord
+from astropy.table import Table
+from astropy.time import Time
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+from skyportal.app_utils import get_app_base_url
 
 from ..models import Instrument
 
@@ -21,6 +22,7 @@ app_url = get_app_base_url()
 
 TNS_URL = cfg['app.tns_endpoint']
 search_url = urllib.parse.urljoin(TNS_URL, 'api/get/search')
+object_url = urllib.parse.urljoin(TNS_URL, 'api/get/object')
 
 log = make_log('tns')
 
@@ -31,7 +33,9 @@ TNS_INSTRUMENT_IDS = {
     'ATLAS': [159, 160, 255, 167],
     'DECam': 172,
     'EFOSC2': 30,
+    'Gaia': 163,
     'Goodman': 136,
+    'PS1': 155,
     'SEDM': 225,
     'SPRAT': 156,
     'ZTF': 196,
@@ -59,10 +63,90 @@ SNCOSMO_TO_TNSFILTER = {
 TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
 
 
+def get_recent_TNS(api_key, headers, public_timestamp):
+    """Query TNS to get IAU name (if exists)
+    Parameters
+    ----------
+    api_key : str
+        TNS api key
+    headers : str
+        TNS query headers
+    public_timestamp : str
+        Start date in ISO format.
+    Returns
+    -------
+    List[dict]
+        Source entries of id, ra, and dec.
+    """
+
+    req_data = {
+        "ra": "",
+        "dec": "",
+        "radius": "",
+        "units": "",
+        "objname": "",
+        "internal_name": "",
+        "public_timestamp": public_timestamp,
+        "objid": "",
+    }
+
+    data = {'api_key': api_key, 'data': json.dumps(req_data)}
+    r = requests.post(search_url, headers=headers, data=data)
+    json_response = json.loads(r.text)
+    reply = json_response['data']['reply']
+
+    sources = []
+    for obj in reply:
+        data = {
+            'api_key': api_key,
+            'data': json.dumps(
+                {
+                    "objname": obj["objname"],
+                }
+            ),
+        }
+
+        r = requests.post(
+            object_url,
+            headers=headers,
+            data=data,
+            allow_redirects=True,
+            stream=True,
+            timeout=10,
+        )
+
+        count = 0
+        count_limit = 5
+        while r.status_code == 429 and count < count_limit:
+            log(
+                f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
+            )
+            time.sleep(30)
+            r = requests.post(object_url, headers=headers, data=data)
+            count += 1
+
+        if count == count_limit:
+            raise ValueError('TNS request failed: request rate exceeded.')
+
+        if r.status_code == 200:
+            source_data = r.json().get("data", dict()).get("reply", dict())
+            if source_data:
+                sources.append(
+                    {
+                        'id': obj["objname"],
+                        'ra': source_data['radeg'],
+                        'dec': source_data['decdeg'],
+                    }
+                )
+    return sources
+
+
 def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=5):
     """Query TNS to get IAU name (if exists)
     Parameters
     ----------
+    api_key : str
+        TNS api key
     objname : str
         Name of the object to query TNS for
     headers : str
@@ -111,9 +195,21 @@ def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=5):
 
     data = {'api_key': api_key, 'data': json.dumps(req_data)}
     r = requests.post(search_url, headers=headers, data=data)
-    json_response = json.loads(r.text)
-    reply = json_response['data']['reply']
 
+    count = 0
+    count_limit = 5
+    while r.status_code == 429 and count < count_limit:
+        log(
+            f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
+        )
+        time.sleep(30)
+        r = requests.post(search_url, headers=headers, data=data)
+        count += 1
+
+    if count == count_limit:
+        raise ValueError('TNS request failed: request rate exceeded.')
+
+    reply = r.json().get("data", dict()).get("reply", [])
     if len(reply) > 0:
         return reply[0]['prefix'], reply[0]['objname']
     else:
