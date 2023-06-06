@@ -1104,6 +1104,7 @@ def observation_schedule(
                 exposure_counts,
                 read_out,
                 configuration=configuration,
+                constraints=constraints,
             )
             blocks.append(b)
 
