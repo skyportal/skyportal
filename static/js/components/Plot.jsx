@@ -20,7 +20,7 @@ const Plot = (props) => {
   const { url, className } = props;
   const dispatch = useDispatch();
 
-  const plotData = useSelector((state) => state.plots.plotData[url]);
+  const plotData = useSelector((state) => state.plots.plotData[encodeURI(url)]);
   const [error, setError] = useState(false);
   const [fetching, setFetching] = useState(false);
 

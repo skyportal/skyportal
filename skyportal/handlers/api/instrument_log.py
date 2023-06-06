@@ -1,8 +1,10 @@
 import arrow
+
+from baselayer.app.access import permissions, auth_or_token
+
 from ..base import BaseHandler
-from baselayer.app.access import auth_or_token
-from ...models import Instrument, InstrumentLog
-from astropy.time import Time
+from ...models import Allocation, Instrument, InstrumentLog
+from ...utils.instrument_log import read_logs
 
 
 class InstrumentLogHandler(BaseHandler):
@@ -86,22 +88,7 @@ class InstrumentLogHandler(BaseHandler):
             return self.error('log is required')
 
         if type(logs) == str:
-            logs_dict = []
-            for line in logs.split("\n"):
-                lineSplit = line.strip().split(" ")
-                if len(lineSplit) < 4:
-                    continue
-                if ":" in lineSplit[1]:
-                    lineSplit[1] = lineSplit[1][:-1]
-                try:
-                    tt = Time("T".join(lineSplit[:2]), format='isot')
-                except Exception:
-                    continue
-                log_type = lineSplit[2][1:-2]
-                message = " ".join(lineSplit[3:])
-
-                logs_dict.append({'mjd': tt.mjd, 'type': log_type, 'message': message})
-            logs = {'logs': logs_dict}
+            logs = read_logs(logs)
         elif not type(logs) == dict:
             return self.error('log must be either dictionary or parsable string')
 
@@ -124,3 +111,68 @@ class InstrumentLogHandler(BaseHandler):
             session.commit()
 
             return self.success(data={'id': instrument_log.id})
+
+
+class InstrumentLogExternalAPIHandler(BaseHandler):
+    @permissions(['Upload data'])
+    def get(self, allocation_id):
+        """
+        ---
+        description: Retrieve queued observations from external API
+        tags:
+          - observations
+        parameters:
+          - in: path
+            name: allocation_id
+            required: true
+            schema:
+              type: string
+            description: |
+              ID for the allocation to retrieve
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = {}
+        data["requester_id"] = self.associated_user_object.id
+        data["last_modified_by_id"] = self.associated_user_object.id
+        data['allocation_id'] = int(allocation_id)
+
+        with self.Session() as session:
+            allocation = session.scalars(
+                Allocation.select(session.user_or_token).where(
+                    Allocation.id == data['allocation_id']
+                )
+            ).first()
+            if allocation is None:
+                return self.error(
+                    f"Cannot find Allocation with ID: {data['allocation_id']}"
+                )
+
+            instrument = allocation.instrument
+
+            if instrument.api_classname is None:
+                return self.error('Instrument has no remote observation plan API.')
+
+            if not instrument.api_class.implements()['retrieve_log']:
+                return self.error(
+                    'Submitting executed observation plan requests to this Instrument is not available.'
+                )
+
+            # try:
+            if True:
+                # we now retrieve and commit to the database the
+                # instrument logs
+                instrument.api_class.retrieve_log(
+                    allocation,
+                )
+                return self.success()
+            # except Exception as e:
+            # return self.error(f"Error in querying instrument API: {e}")
