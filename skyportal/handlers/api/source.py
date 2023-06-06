@@ -1310,6 +1310,10 @@ async def get_sources(
         if sort_order == "desc"
         else [source_subquery.c.saved_at.desc()]
     )
+
+    if localization_dateobs is not None and sort_by is None:
+        sort_by = "gcn_status"
+
     if sort_by is not None:
         if sort_by == "id":
             order_by = [Obj.id] if sort_order == "asc" else [Obj.id.desc()]
@@ -1354,6 +1358,46 @@ async def get_sources(
                 [classification_subquery.c.classification.nullslast()]
                 if sort_order == "asc"
                 else [classification_subquery.c.classification.desc().nullslast()]
+            )
+        elif sort_by == "gcn_status" and localization_dateobs is not None:
+            # For Ascending (Desc is the opposite)
+            # 1. sources where there is no match
+            # 2. sources where the confirmed column is true
+            # 3. sources where the confirmed column is null
+            # 4. sources where the confirmed column is false
+
+            source_confirmed_in_gcn_subquery = (
+                sa.select(
+                    SourcesConfirmedInGCN.obj_id,
+                    SourcesConfirmedInGCN.dateobs,
+                    SourcesConfirmedInGCN.confirmed,
+                )
+                .where(
+                    SourcesConfirmedInGCN.obj_id == source_subquery.c.obj_id,
+                    SourcesConfirmedInGCN.dateobs == localization_dateobs,
+                )
+                .subquery()
+            )
+
+            query = query.outerjoin(
+                source_confirmed_in_gcn_subquery,
+                source_subquery.c.obj_id == source_confirmed_in_gcn_subquery.c.obj_id,
+            )
+
+            order_by = (
+                [
+                    source_confirmed_in_gcn_subquery.c.dateobs.is_not(None),
+                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(True),
+                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(None),
+                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(False),
+                ]
+                if sort_order == "asc"
+                else [
+                    source_confirmed_in_gcn_subquery.c.dateobs.is_(None),
+                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(False),
+                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(None),
+                    source_confirmed_in_gcn_subquery.c.confirmed.is_not(True),
+                ]
             )
 
     try:
