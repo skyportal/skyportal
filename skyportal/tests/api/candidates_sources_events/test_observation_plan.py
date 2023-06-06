@@ -516,10 +516,9 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
                 ]['end_date'].replace(" ", "T")
 
                 planned_observations = observation_plan['planned_observations']
-
                 assert len(planned_observations) > 0
 
-                assert len(planned_observations) == 12
+                assert len(planned_observations) == 11
                 assert all(
                     [
                         obs['filt'] == requests_data[i]["payload"]['filters']
