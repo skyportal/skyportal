@@ -541,9 +541,11 @@ def download_observations(request_id, ar):
         req.status = f'{ar.json()["count"]} images posted as comment'
         session.commit()
     except Exception as e:
-        return log(f"Unable to post data for {request_id}: {e}")
+        session.rollback()
+        log(f"Unable to post data for {request_id}: {e}")
     finally:
         session.close()
+        Session.remove()
 
 
 class LCOAPI(FollowUpAPI):

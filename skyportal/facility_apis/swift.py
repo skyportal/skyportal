@@ -363,6 +363,7 @@ def download_observations(request_id, oq):
         session.commit()
 
     except Exception as e:
+        session.rollback()
         log(f"Unable to post data for {request_id}: {e}")
     finally:
         session.close()
