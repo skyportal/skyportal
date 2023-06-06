@@ -1752,16 +1752,19 @@ const SourceTable = ({
 
   if (includeGcnStatus) {
     columns.splice(1, 0, {
-      name: "GCN Status",
+      name: "gcn_status",
+      label: "GCN Status",
       options: {
         filter: false,
-        sort: false,
+        sort: true,
+        sortThirdClickReset: true,
         customBodyRenderLite: renderGcnStatus,
         display: displayedColumns.includes("GCN Status"),
       },
     });
     columns.splice(2, 0, {
-      name: "GCN Status Explanation",
+      name: "gcn_explanation",
+      label: "GCN Status Explanation",
       options: {
         filter: false,
         sort: false,
@@ -1770,7 +1773,8 @@ const SourceTable = ({
       },
     });
     columns.splice(3, 0, {
-      name: "GCN Notes",
+      name: "gcn_notes",
+      label: "GCN Notes",
       options: {
         filter: false,
         sort: false,
