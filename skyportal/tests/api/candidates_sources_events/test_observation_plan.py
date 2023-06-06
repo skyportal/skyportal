@@ -499,7 +499,6 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
             assert len(data) == len(requests_data)
 
             for i, d in enumerate(data):
-                print(d)
                 assert d["payload"] == requests_data[i]["payload"]
                 observation_plans = d['observation_plans']
                 assert len(observation_plans) == 1
