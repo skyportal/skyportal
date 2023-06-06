@@ -501,6 +501,9 @@ def generate_plan(
             'unbalanced_tiles': None,
             # turn on diagnostic plotting?
             'doPlots': False,
+            # parameters used for galaxy targeting
+            'galaxies_FoV_sep': 1.0,
+            'doChipGaps': False,
         }
 
         config = {}
