@@ -22,7 +22,7 @@ import astropy
 import humanize
 import requests
 import sqlalchemy as sa
-from sqlalchemy import String
+from sqlalchemy import String, func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import cast
@@ -1362,9 +1362,18 @@ class GcnEventHandler(BaseHandler):
             )
 
             if partialdateobs is not None and partialdateobs != "":
-                partialdateobs = partialdateobs.replace("T", " ")
+                try:
+                    arrow.get(partialdateobs.strip()).datetime
+                    partialdateobs = partialdateobs.replace("T", " ")
+                except Exception:
+                    if len(partialdateobs) > 10 and partialdateobs[10] == "T":
+                        partialdateobs = partialdateobs.replace("T", " ")
+                partialdateobs = partialdateobs.strip().lower()
                 query = query.where(
                     cast(GcnEvent.dateobs, String).like(f"{partialdateobs}%")
+                    | func.lower(cast(GcnEvent.aliases, String)).like(
+                        f"%{partialdateobs}%"
+                    )
                 )
             if start_date:
                 start_date = arrow.get(start_date.strip()).datetime
@@ -3554,11 +3563,13 @@ class ObjGcnEventHandler(BaseHandler):
                 properties:
                   startDate:
                     type: string
+                    required: true
                     description: |
                       Arrow-parseable date string (e.g. 2020-01-01).
                       If provided, filter by GcnEvent.dateobs >= startDate.
                   endDate:
                     type: string
+                    required: true
                     description: |
                       Arrow-parseable date string (e.g. 2020-01-01).
                       If provided, filter by GcnEvent.dateobs <= startDate.
@@ -3573,9 +3584,28 @@ class ObjGcnEventHandler(BaseHandler):
                 schema: Error
         """
 
-        start_date = self.get_query_argument('startDate', None)
-        end_date = self.get_query_argument('endDate', None)
-        integrated_probability = self.get_query_argument('probability', 0.95)
+        data = self.get_json()
+        start_date = data.get('startDate', None)
+        end_date = data.get('endDate', None)
+        integrated_probability = data.get('probability', None)
+
+        if start_date is None or end_date is None:
+            return self.error("Must provide startDate and endDate query arguments.")
+
+        try:
+            start_date = arrow.get(start_date.strip()).datetime
+        except Exception as e:
+            return self.error(f'Failed to parse startDate: str({e})')
+
+        try:
+            end_date = arrow.get(end_date.strip()).datetime
+        except Exception as e:
+            return self.error(f'Failed to parse endDate: str({e})')
+
+        if (end_date - start_date).days > 31:
+            return self.error(
+                "startDate and endDate must be within 31 days of each other."
+            )
 
         with self.Session() as session:
             obj = session.scalars(
@@ -3584,16 +3614,10 @@ class ObjGcnEventHandler(BaseHandler):
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")
 
-            query = GcnEvent.select(
-                session.user_or_token,
+            query = GcnEvent.select(session.user_or_token,).where(
+                GcnEvent.dateobs >= start_date,
+                GcnEvent.dateobs <= end_date,
             )
-
-            if start_date:
-                start_date = arrow.get(start_date.strip()).datetime
-                query = query.where(GcnEvent.dateobs >= start_date)
-            if end_date:
-                end_date = arrow.get(end_date.strip()).datetime
-                query = query.where(GcnEvent.dateobs <= end_date)
 
             event_ids = [event.id for event in session.scalars(query).unique().all()]
             if len(event_ids) == 0:
@@ -3618,13 +3642,13 @@ class ObjGcnEventHandler(BaseHandler):
 
 
 def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.95):
-    """Query MPC for a given object.
+    """Find events in which an object is within the integrated probability contour.
     obj_id : str
         Object ID
     events_id : List[int]
         GCN Event IDs to crossmatch against
     user_id : int
-        SkyPortal ID of User posting the MPC result
+        SkyPortal ID of User posting the crossmatch results
     integrated_probability : float
         Confidence level up to which to perform crossmatch
     """
