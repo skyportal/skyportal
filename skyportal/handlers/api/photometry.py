@@ -265,6 +265,8 @@ def standardize_photometry_data(data):
     if "altdata" in data:
         if isinstance(data["altdata"], dict):
             for key in data["altdata"].keys():
+                if not type(data["altdata"][key]) == list:
+                    data["altdata"][key] = [data["altdata"][key]]
                 if not len(data["altdata"][key]) == max_num_elements:
                     data["altdata"][key] = [data["altdata"][key]] * max_num_elements
 
