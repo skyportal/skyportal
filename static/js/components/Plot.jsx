@@ -36,8 +36,10 @@ const Plot = (props) => {
       } else {
         const { bokehJSON } = plotData;
         window.Bokeh = Bokeh;
-        // eslint-disable-next-line no-new-func
-        Bokeh.embed.embed_item(bokehJSON, `bokeh-${bokehJSON.root_id}`);
+        if (bokehJSON[0] !== null) {
+          // eslint-disable-next-line no-new-func
+          Bokeh.embed.embed_item(bokehJSON, `bokeh-${bokehJSON.root_id}`);
+        }
       }
     };
     fetchPlotData();
