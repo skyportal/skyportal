@@ -10,7 +10,7 @@ def test_reprioritize_followup_request(
     # GET to see if the gcnevent already exists
     dateobs = "2019-04-25 08:18:05"
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-    if status != 200:
+    if status == 404:
         # POST the GCN event
         datafile = f'{os.path.dirname(__file__)}/../../data/GW190425_initial.xml'
         with open(datafile, 'rb') as fid:
@@ -23,10 +23,16 @@ def test_reprioritize_followup_request(
 
         params = {"include2DMap": True}
 
-        status, data = api(
-            'GET', f'gcn_event/{dateobs}', token=super_admin_token, params=params
-        )
-        assert status == 200
+        n_retries = 0
+        while n_retries < 10:
+            status, data = api(
+                'GET', f'gcn_event/{dateobs}', token=super_admin_token, params=params
+            )
+            assert status == 200
+            assert len(data['data']['localizations']) > 0
+            break
+
+        assert n_retries < 10
 
     localization_id = data['data']['localizations'][0]['id']
 
