@@ -48,7 +48,7 @@ def gcn_notification_content(target, session):
     # get the most recent notice for this event
     if gcn_event.gcn_notices is not None and len(gcn_event.gcn_notices) > 0:
         last_gcn_notice = gcn_event.gcn_notices[-1]
-        notice_type = last_gcn_notice.notice_type
+        notice_type = gcn.NoticeType(last_gcn_notice.notice_type).name
         notice_content = lxml.etree.fromstring(last_gcn_notice.content)
         name = notice_content.find('./Why/Inference/Name')
     else:
@@ -101,7 +101,7 @@ def gcn_notification_content(target, session):
     return {
         'dateobs': dateobs_txt,
         'source_name': source_name,
-        'notice_type': gcn.NoticeType(notice_type).name,
+        'notice_type': notice_type,
         'new_event': new_event,
         'time_since_dateobs': time_since_dateobs,
         'ra': ra,
