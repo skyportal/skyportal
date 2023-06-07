@@ -416,7 +416,7 @@ def from_polygon(localization_name, polygon):
 
     xyz = [hp.ang2vec(r, d, lonlat=True) for r, d in polygon]
     nside = 1024  # order 10
-    while nside < 2**20:  # until order 29
+    while nside < 2**30:  # until order 29
         try:
             hpx = HEALPix(nside, 'nested', frame=ICRS())
             ipix = hp.query_polygon(hpx.nside, np.array(xyz), nest=True)
