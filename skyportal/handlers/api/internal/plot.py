@@ -6,6 +6,7 @@ from ....models import ClassicalAssignment, Obj, Telescope
 
 import numpy as np
 from astropy import time as ap_time
+import arrow
 import astropy.units as u
 import pandas as pd
 import datetime
@@ -214,9 +215,23 @@ class PlotInstrumentLogHandler(BaseHandler):
     async def get(self, instrument_id):
         width = self.get_query_argument("width", 600)
         device = self.get_query_argument("device", None)
+        start_date = self.get_query_argument("startDate", None)
+        end_date = self.get_query_argument("endDate", None)
         # Just return browser by default if not one of accepted types
         if device not in device_types:
             device = "browser"
+
+        if start_date is not None:
+            try:
+                start_date = arrow.get(start_date).datetime
+            except Exception as e:
+                return self.error(f'Invalid start_date: {str(e)}')
+
+        if end_date is not None:
+            try:
+                end_date = arrow.get(end_date).datetime
+            except Exception as e:
+                return self.error(f'Invalid end_date: {str(e)}')
 
         with self.Session() as session:
             try:
@@ -225,6 +240,8 @@ class PlotInstrumentLogHandler(BaseHandler):
                     session=session,
                     width=int(width),
                     device=device,
+                    start_date=start_date,
+                    end_date=end_date,
                 )
             except Exception as e:
                 return self.error(f'Exception in photometry plot: {e}')
