@@ -11,7 +11,9 @@ const DisplayPhotStats = ({ photstats, display_header }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
-    <>
+    <div
+      style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
+    >
       {display_header ? <b>Photometry Statistics: </b> : ""}
       <IconButton
         data-testid="showPhotStatsIcon"
@@ -36,7 +38,7 @@ const DisplayPhotStats = ({ photstats, display_header }) => {
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 

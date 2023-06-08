@@ -20,7 +20,7 @@ const Plot = (props) => {
   const { url, className } = props;
   const dispatch = useDispatch();
 
-  const plotData = useSelector((state) => state.plots.plotData[url]);
+  const plotData = useSelector((state) => state.plots.plotData[encodeURI(url)]);
   const [error, setError] = useState(false);
   const [fetching, setFetching] = useState(false);
 
@@ -36,8 +36,10 @@ const Plot = (props) => {
       } else {
         const { bokehJSON } = plotData;
         window.Bokeh = Bokeh;
-        // eslint-disable-next-line no-new-func
-        Bokeh.embed.embed_item(bokehJSON, `bokeh-${bokehJSON.root_id}`);
+        if (bokehJSON[0] !== null) {
+          // eslint-disable-next-line no-new-func
+          Bokeh.embed.embed_item(bokehJSON, `bokeh-${bokehJSON.root_id}`);
+        }
       }
     };
     fetchPlotData();

@@ -447,15 +447,15 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
             'gcnevent_id': gcnevent_id,
             'localization_id': localization_id,
             'payload': {
-                'start_date': '2019-04-25 01:01:01',
-                'end_date': '2019-04-27 01:01:01',
+                'start_date': '2020-02-14 01:01:01',
+                'end_date': '2020-02-15 01:01:01',
                 'filter_strategy': 'block',
                 'schedule_strategy': 'galaxy',
                 'galaxy_catalog': catalog_name,
                 'schedule_type': 'greedy_slew',
                 'exposure_time': 300,
                 'filters': 'ztfr',
-                'maximum_airmass': 2.0,
+                'maximum_airmass': 2.5,
                 'integrated_probability': 100,
                 'minimum_time_difference': 30,
                 'queue_name': str(uuid.uuid4()),
@@ -518,7 +518,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
                 planned_observations = observation_plan['planned_observations']
                 assert len(planned_observations) > 0
 
-                assert len(planned_observations) == 23
+                assert len(planned_observations) == 11
                 assert all(
                     [
                         obs['filt'] == requests_data[i]["payload"]['filters']

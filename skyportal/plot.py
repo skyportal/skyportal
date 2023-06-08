@@ -49,6 +49,7 @@ from skyportal.models import (
     AnnotationOnSpectrum,
     GcnEvent,
     Instrument,
+    InstrumentLog,
     Obj,
     ObjAnalysis,
     PhotometricSeries,
@@ -3092,11 +3093,18 @@ async def instrument_log_plot(
 
     """
 
-    instrument = session.scalars(
-        Instrument.select(session.user_or_token).where(Instrument.id == instrument_id)
-    ).first()
-    if instrument is None:
-        raise ValueError(f'Cannot find instrument with ID "{instrument_id}"')
+    stmt = InstrumentLog.select(session.user_or_token).where(
+        InstrumentLog.instrument_id == instrument_id
+    )
+    if start_date is not None:
+        stmt = stmt.where(InstrumentLog.end_date >= start_date)
+
+    if end_date is not None:
+        stmt = stmt.where(InstrumentLog.start_date <= end_date)
+
+    instrument_logs = session.scalars(stmt).all()
+    if len(instrument_logs) == 0:
+        return None, None, None
 
     LOGTYPE_TO_INT = {
         'Message_robo': 1,
@@ -3127,7 +3135,7 @@ async def instrument_log_plot(
     mjds = []
     logints = []
     messages = []
-    for instrument_log in instrument.logs:
+    for instrument_log in instrument_logs:
         mjds.extend([data['mjd'] for data in instrument_log.log['logs']])
         logints.extend([check_str(data['type']) for data in instrument_log.log['logs']])
         messages.extend([data['message'] for data in instrument_log.log['logs']])
