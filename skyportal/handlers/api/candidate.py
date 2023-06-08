@@ -11,8 +11,6 @@ import arrow
 import numpy as np
 import time
 
-from tornado.ioloop import IOLoop
-
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -27,15 +25,11 @@ import healpix_alchemy as ha
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
-from baselayer.app.flow import Flow
-from baselayer.app.custom_exceptions import AccessError
 from baselayer.log import make_log
 
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
     AnnotationOnPhotometry,
-    User,
     Obj,
     Candidate,
     Photometry,
@@ -54,6 +48,7 @@ from ...models import (
 
 from ...utils.cache import Cache, array_to_bytes
 from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
+from ...utils.thumbnail import post_thumbnails
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31
 
@@ -66,33 +61,6 @@ cache = Cache(
 log = make_log('api/candidate')
 
 Session = scoped_session(sessionmaker())
-
-
-def add_linked_thumbnails_and_push_ws_msg(obj_id, user_id):
-
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
-
-    try:
-        user = session.query(User).get(user_id)
-        if Obj.get_if_accessible_by(obj_id, user) is None:
-            raise AccessError(
-                f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
-            )
-        obj = session.query(Obj).get(obj_id)
-        obj.add_linked_thumbnails(session=session)
-        flow = Flow()
-        flow.push(
-            '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-        )
-        flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
-    except Exception as e:
-        log(f"Unable to add linked thumbnails to {obj_id}: {e}")
-    finally:
-        session.close()
-        Session.remove()
 
 
 def update_summary_history_if_relevant(results_data, obj, user):
@@ -1595,14 +1563,8 @@ class CandidateHandler(BaseHandler):
                 )
 
             obj_id = obj.id
-            calling_user_id = self.associated_user_object.id
             if not obj_already_exists:
-                IOLoop.current().run_in_executor(
-                    None,
-                    lambda: add_linked_thumbnails_and_push_ws_msg(
-                        obj_id, calling_user_id
-                    ),
-                )
+                post_thumbnails([obj_id])
 
             return self.success(data={"ids": [c.id for c in candidates]})
 
