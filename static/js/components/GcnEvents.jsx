@@ -16,6 +16,7 @@ import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import JoinInnerIcon from "@mui/icons-material/JoinInner";
 import InfoIcon from "@mui/icons-material/Info";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import Close from "@mui/icons-material/Close";
 import grey from "@mui/material/colors/grey";
 
@@ -31,6 +32,7 @@ import * as gcnEventsActions from "../ducks/gcnEvents";
 import Spinner from "./Spinner";
 import GcnEventsFilterForm from "./GcnEventsFilterForm";
 import NewGcnEvent from "./NewGcnEvent";
+import DefaultGcnTagPage from "./DefaultGcnTagPage";
 import Crossmatch from "./CrossmatchGcnEvents";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 
@@ -140,6 +142,7 @@ const GcnEvents = () => {
 
   const [openNew, setOpenNew] = useState(false);
   const [openCrossmatch, setOpenCrossmatch] = useState(false);
+  const [openDefaultTag, setOpenDefaultTag] = useState(false);
 
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
@@ -159,6 +162,7 @@ const GcnEvents = () => {
   const handleClose = () => {
     setOpenNew(false);
     setOpenCrossmatch(false);
+    setOpenDefaultTag(false);
   };
 
   const handlePageChange = async (pageNumber, numPerPage, sortData) => {
@@ -441,6 +445,14 @@ const GcnEvents = () => {
         >
           <JoinInnerIcon />
         </IconButton>
+        <IconButton
+          name="default_gcn_tags"
+          onClick={() => {
+            setOpenDefaultTag(true);
+          }}
+        >
+          <LocalOfferIcon />
+        </IconButton>
       </>
     ),
   };
@@ -491,6 +503,19 @@ const GcnEvents = () => {
             </DialogTitle>
             <DialogContent dividers>
               <Crossmatch />
+            </DialogContent>
+          </Dialog>
+        )}
+        {openDefaultTag && (
+          <Dialog
+            open={openDefaultTag}
+            onClose={handleClose}
+            style={{ position: "fixed" }}
+            maxWidth="md"
+          >
+            <DialogTitle onClose={handleClose}>Default Gcn Tags</DialogTitle>
+            <DialogContent dividers>
+              <DefaultGcnTagPage />
             </DialogContent>
           </Dialog>
         )}

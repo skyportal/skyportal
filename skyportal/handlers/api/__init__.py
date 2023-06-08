@@ -53,6 +53,7 @@ from .galaxy import (
     ObjHostHandler,
 )
 from .gcn import (
+    DefaultGcnTagHandler,
     GcnEventHandler,
     GcnEventAliasesHandler,
     GcnEventObservationPlanRequestsHandler,
