@@ -21,15 +21,21 @@ const REFRESH_ALLOCATIONS = "skyportal/REFRESH_ALLOCATIONS";
 export const fetchAllocations = () =>
   API.GET("/api/allocation", FETCH_ALLOCATIONS);
 
-export const fetchAllocationsApiObsplan = () =>
-  API.GET("/api/allocation", FETCH_ALLOCATIONS_API_OBSPLAN, {
-    apiType: "api_classname_obsplan",
+export function fetchAllocationsApiObsplan(params = {}) {
+  const apiQueryDefaults = { apiType: "api_classname_obsplan" };
+  return API.GET("/api/allocation", FETCH_ALLOCATIONS_API_OBSPLAN, {
+    ...apiQueryDefaults,
+    ...params,
   });
+}
 
-export const fetchAllocationsApiClassname = () =>
-  API.GET("/api/allocation", FETCH_ALLOCATIONS_API_CLASSNAME, {
-    apiType: "api_classname",
+export function fetchAllocationsApiClassname(params = {}) {
+  const apiQueryDefaults = { apiType: "api_classname" };
+  return API.GET("/api/allocation", FETCH_ALLOCATIONS_API_CLASSNAME, {
+    ...apiQueryDefaults,
+    ...params,
   });
+}
 
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === REFRESH_ALLOCATIONS) {
