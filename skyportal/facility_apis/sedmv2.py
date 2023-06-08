@@ -1,14 +1,24 @@
 from astropy.time import Time, TimeDelta
+import astropy.units as u
+import functools
 import json
+import numpy as np
 import requests
+from requests.auth import HTTPBasicAuth
+from sqlalchemy.orm import sessionmaker, scoped_session
+from tornado.ioloop import IOLoop
 
 from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 from . import FollowUpAPI
 from ..utils import http
+from ..utils.instrument_log import read_logs
 
 env, cfg = load_env()
+
+log = make_log('facility_apis/sedmv2')
 
 
 def validate_request_to_sedmv2(request):
@@ -267,6 +277,26 @@ class SEDMV2API(FollowUpAPI):
             payload={'obj_key': request.obj.internal_key},
         )
 
+    @staticmethod
+    def retrieve_log(allocation):
+
+        """Retrieve SEDMv2 logs.
+
+        Parameters
+        ----------
+        allocation : skyportal.models.Allocation
+            The allocation with queue information.
+        """
+
+        altdata = allocation.altdata
+        if not altdata:
+            raise ValueError('Missing allocation information.')
+
+        fetch_logs = functools.partial(
+            fetch_nightly_logs, allocation.instrument.id, altdata
+        )
+        IOLoop.current().run_in_executor(None, fetch_logs)
+
     form_json_schema = {
         "type": "object",
         "properties": {
@@ -376,3 +406,64 @@ class SEDMV2API(FollowUpAPI):
         'priority': "Priority",
         'observation_type': 'Mode',
     }
+
+
+def fetch_nightly_logs(instrument_id, altdata):
+    """Fetch nightly logs.
+    instrument_id : int
+        ID of the instrument
+    altdata: dict
+        Contains SEDMv2 login for the user
+    """
+
+    from ..models import (
+        DBSession,
+        InstrumentLog,
+    )
+
+    Session = scoped_session(sessionmaker())
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    try:
+        day = (Time.now() - TimeDelta(1 * u.day)).strftime('%Y%m%d')
+        r = requests.get(
+            f"{altdata['url']}/Lastnight/robod.{day}.log",
+            auth=HTTPBasicAuth(altdata['user'], altdata['password']),
+        )
+        logs = read_logs(r.text)
+
+        start_date = None
+        end_date = None
+
+        for log_dict in logs['logs']:
+            if start_date is None:
+                start_date = log_dict['mjd']
+            else:
+                start_date = np.min([start_date, log_dict['mjd']])
+
+            if end_date is None:
+                end_date = log_dict['mjd']
+            else:
+                end_date = np.max([end_date, log_dict['mjd']])
+
+        start_date = Time(start_date, format='mjd').datetime
+        end_date = Time(end_date, format='mjd').datetime
+
+        instrument_log = InstrumentLog(
+            log=logs,
+            start_date=start_date,
+            end_date=end_date,
+            instrument_id=instrument_id,
+        )
+
+        session.add(instrument_log)
+        session.commit()
+
+    except Exception as e:
+        log(f"Unable to commit logs for instrument with ID {instrument_id}: {e}")
+    finally:
+        session.close()
+        Session.remove()

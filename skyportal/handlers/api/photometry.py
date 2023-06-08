@@ -265,10 +265,23 @@ def standardize_photometry_data(data):
     if "altdata" in data:
         if isinstance(data["altdata"], dict):
             for key in data["altdata"].keys():
-                if not len(data["altdata"][key]) == max_num_elements:
+                if type(data["altdata"][key]) == list:
+                    if not len(data["altdata"][key]) == max_num_elements:
+                        if len(data["altdata"][key]) == 1:
+                            data["altdata"][key] = (
+                                data["altdata"][key] * max_num_elements
+                            )
+                        else:
+                            raise ValueError(f'{key} in altdata incorrect length')
+                elif max_num_elements > 1:
                     data["altdata"][key] = [data["altdata"][key]] * max_num_elements
 
-            altdata = pd.DataFrame(data.pop("altdata")).to_dict(orient='records')
+            altdata = data.pop("altdata")
+            try:
+                df = pd.DataFrame(altdata)
+            except ValueError:
+                df = pd.DataFrame(altdata, index=[0])
+            altdata = df.to_dict(orient='records')
         else:
             altdata = data.pop("altdata")
     else:
