@@ -12,6 +12,7 @@ from baselayer.app.models import Base, AccessibleIfUserMatches
 from ..utils.notifications import post_notification
 from .analysis import ObjAnalysis
 from .classification import Classification
+from .localization import Localization
 from .spectrum import Spectrum
 from .comment import Comment
 from .facility_transaction import FacilityTransaction
@@ -68,6 +69,7 @@ class UserNotification(Base):
 @event.listens_for(ObjAnalysis, 'after_update')
 @event.listens_for(EventObservationPlan, 'after_insert')
 @event.listens_for(FollowupRequest, 'after_update')
+@event.listens_for(Localization, 'after_insert')
 def add_user_notifications(mapper, connection, target):
 
     # Add front-end user notifications

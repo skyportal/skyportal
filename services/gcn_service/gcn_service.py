@@ -19,7 +19,6 @@ from skyportal.handlers.api.gcn import (
 )
 from skyportal.models import DBSession, GcnEvent
 from skyportal.utils.gcn import get_dateobs, get_skymap_metadata, get_trigger
-from skyportal.utils.notifications import post_notification
 
 env, cfg = load_env()
 
@@ -174,34 +173,20 @@ def poll_events():
                             session,
                             post_skymap=False,
                             asynchronous=False,
-                            notify=False,
                         )
                     except Exception as e:
                         log(f'Failed to ingest gcn_event from {message.topic()}: {e}')
                         continue
 
                     # skymap ingestion if available or cone
-                    notified_on_skymap = False
                     status, metadata = get_skymap_metadata(root, notice_type, 15)
                     if status in ['available', 'cone']:
                         log(
                             f'Ingesting skymap for gcn_event: {dateobs}, notice_id: {notice_id}'
                         )
                         try:
-                            localization_id = post_skymap_from_notice(
-                                dateobs,
-                                notice_id,
-                                user_id,
-                                session,
-                                asynchronous=False,
-                                notify=False,
-                            )
-                            request_body = {
-                                'target_class_name': 'Localization',
-                                'target_id': localization_id,
-                            }
-                            notified_on_skymap = post_notification(
-                                request_body, timeout=30
+                            post_skymap_from_notice(
+                                dateobs, notice_id, user_id, session, asynchronous=False
                             )
                         except Exception as e:
                             log(
@@ -215,12 +200,6 @@ def poll_events():
                         log(
                             f'No skymap available for gcn_event: {dateobs}, notice_id: {notice_id}'
                         )
-                    if not notified_on_skymap:
-                        request_body = {
-                            'target_class_name': 'GcnNotice',
-                            'target_id': notice_id,
-                        }
-                        post_notification(request_body, timeout=30)
 
         except Exception as e:
             log(f'Failed to consume gcn event: {e}')

@@ -110,7 +110,7 @@ MAX_GCNEVENTS = 1000
 
 
 def post_gcnevent_from_xml(
-    payload, user_id, session, post_skymap=True, asynchronous=True, notify=True
+    payload, user_id, session, post_skymap=True, asynchronous=True
 ):
     """Post GcnEvent to database from voevent xml.
     payload: str
@@ -240,40 +240,16 @@ def post_gcnevent_from_xml(
         else:
             post_gracedb_data(event.dateobs, gracedb_id, user_id)
 
-    found_skymap = False
     if post_skymap:
         try:
-            post_skymap_from_notice(
-                dateobs, notice_id, user_id, session, asynchronous, notify
-            )
-            found_skymap = True
+            post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous)
         except Exception:
-            found_skymap = False
             pass
-
-    if not found_skymap and notify:
-        try:
-            loop = asyncio.get_event_loop()
-        except Exception:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        request_body = {
-            'target_class_name': 'GcnNotice',
-            'target_id': notice_id,
-        }
-
-        IOLoop.current().run_in_executor(
-            None,
-            lambda: post_notification(request_body, timeout=30),
-        )
 
     return dateobs, event_id, notice_id
 
 
-def post_skymap_from_notice(
-    dateobs, notice_id, user_id, session, asynchronous=True, notify=True
-):
+def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=True):
     """Post skymap to database from gcn notice."""
     user = session.query(User).get(user_id)
 
@@ -322,12 +298,12 @@ def post_skymap_from_notice(
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_tiles_properties_contour_and_obsplan(
-                    localization_id, user_id, url=url, notify=notify
+                    localization_id, user_id, url=url
                 ),
             )
         else:
             add_tiles_properties_contour_and_obsplan(
-                localization_id, user_id, session, url=url, notify=notify
+                localization_id, user_id, session, url=url
             )
 
         gcn_notice.localization_ingested = True
@@ -1625,7 +1601,7 @@ class GcnEventHandler(BaseHandler):
 
 
 def add_tiles_and_properties_and_contour(
-    localization_id, user_id, parent_session=None, url=None, notify=True
+    localization_id, user_id, parent_session=None, url=None
 ):
     if parent_session is None:
         if Session.registry.has():
@@ -1656,13 +1632,6 @@ def add_tiles_and_properties_and_contour(
             for text in tags_list
         ]
         session.add_all(tags)
-
-        request_body = {
-            'target_class_name': 'Localization',
-            'target_id': localization_id,
-        }
-        if notify:
-            post_notification(request_body, timeout=30),
 
         tiles = [
             LocalizationTile(
@@ -1883,7 +1852,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
 
 def add_tiles_properties_contour_and_obsplan(
-    localization_id, user_id, parent_session=None, url=None, notify=True
+    localization_id, user_id, parent_session=None, url=None
 ):
 
     if parent_session is None:
@@ -1895,9 +1864,7 @@ def add_tiles_properties_contour_and_obsplan(
         session = parent_session
 
     try:
-        add_tiles_and_properties_and_contour(
-            localization_id, user_id, session, url=url, notify=notify
-        )
+        add_tiles_and_properties_and_contour(localization_id, user_id, session, url=url)
         add_observation_plans(localization_id, user_id, session)
     except Exception as e:
         log(

@@ -30,7 +30,6 @@ from skyportal.models import (
     FacilityTransaction,
     FollowupRequest,
     GcnEvent,
-    GcnNotice,
     GcnTag,
     Group,
     GroupAdmissionRequest,
@@ -493,8 +492,7 @@ def api(queue):
             target_content = None
 
             is_facility_transaction = target_class_name == "FacilityTransaction"
-            is_gcn_notice = target_class_name == "GcnNotice"
-            is_gcn_localization = target_class_name == "Localization"
+            is_gcnevent = target_class_name == "Localization"
             is_gcn_tag = target_class_name == "GcnTag"
             is_classification = target_class_name == "Classification"
             is_spectra = target_class_name == "Spectrum"
@@ -507,7 +505,7 @@ def api(queue):
 
             with DBSession() as session:
                 try:
-                    if is_gcn_notice or is_gcn_localization or is_gcn_tag:
+                    if is_gcnevent or is_gcn_tag:
                         stmt = sa.select(User).where(
                             User.preferences["notifications"]["gcn_events"]["active"]
                             .astext.cast(sa.Boolean)
@@ -537,9 +535,9 @@ def api(queue):
                             else:
                                 return
 
-                        target_class = Localization if not is_gcn_notice else GcnNotice
+                        target_class = Localization
                         target = session.scalars(
-                            sa.select(target_class).where(target_class.id == target_id)
+                            sa.select(Localization).where(Localization.id == target_id)
                         ).first()
                         target_data = target.to_dict()
                         target_content = gcn_notification_content(target, session)
@@ -743,9 +741,7 @@ def api(queue):
                                 ).first()
                                 is not None
                             ):
-                                if (
-                                    is_gcn_notice or is_gcn_localization or is_gcn_tag
-                                ) and (pref is not None):
+                                if (is_gcnevent or is_gcn_tag) and (pref is not None):
                                     event = session.scalars(
                                         sa.select(GcnEvent).where(
                                             GcnEvent.dateobs == target_data["dateobs"]
@@ -753,30 +749,18 @@ def api(queue):
                                     ).first()
 
                                     notices = event.gcn_notices
-                                    if target_class is not GcnNotice:
-                                        filtered_notices = [
-                                            notice
-                                            for notice in notices
-                                            if notice.id == target_data["notice_id"]
-                                        ]
+                                    filtered_notices = [
+                                        notice
+                                        for notice in notices
+                                        if notice.id == target_data["notice_id"]
+                                    ]
 
-                                        if len(filtered_notices) > 0:
-                                            # the notice is the one with "localization_ingested" equal to the "id" of target_id
-                                            notice = filtered_notices[0]
-                                        else:
-                                            # we trigger the notification on localization, but we notify only if it comes from a notice
-                                            continue
+                                    if len(filtered_notices) > 0:
+                                        # the notice is the one with "localization_ingested" equal to the "id" of target_id
+                                        notice = filtered_notices[0]
                                     else:
-                                        # here, the notice is the notice of the target_id
-                                        filtered_notices = [
-                                            notice
-                                            for notice in notices
-                                            if notice.id == target_id
-                                        ]
-                                        if len(filtered_notices) > 0:
-                                            notice = filtered_notices[0]
-                                        else:
-                                            continue
+                                        # we trigger the notification on localization, but we notify only if it comes from a notice
+                                        continue
 
                                     gcn_prefs = pref["gcn_events"].get("properties", {})
                                     if len(gcn_prefs.keys()) == 0:
@@ -841,64 +825,56 @@ def api(queue):
                                             if not any(properties_bool):
                                                 continue
 
-                                        if not is_gcn_notice:
-                                            localization = session.scalars(
-                                                sa.select(Localization).where(
-                                                    Localization.id == target_id
-                                                )
-                                            ).first()
-                                            (
-                                                localization_properties_dict,
-                                                localization_tags_list,
-                                            ) = get_skymap_properties(localization)
+                                        localization = session.scalars(
+                                            sa.select(Localization).where(
+                                                Localization.dateobs
+                                                == target_data["dateobs"]
+                                            )
+                                        ).first()
+                                        (
+                                            localization_properties_dict,
+                                            localization_tags_list,
+                                        ) = get_skymap_properties(localization)
 
-                                            if (
-                                                len(
-                                                    gcn_pref.get(
-                                                        "localization_tags", []
-                                                    )
-                                                )
-                                                > 0
-                                            ):
-                                                intersection = list(
-                                                    set(localization_tags_list)
-                                                    & set(gcn_pref["localization_tags"])
-                                                )
-                                                if len(intersection) == 0:
-                                                    continue
+                                        if (
+                                            len(gcn_pref.get("localization_tags", []))
+                                            > 0
+                                        ):
+                                            intersection = list(
+                                                set(localization_tags_list)
+                                                & set(gcn_pref["localization_tags"])
+                                            )
+                                            if len(intersection) == 0:
+                                                continue
 
-                                            for prop_filt in gcn_pref.get(
-                                                "localization_properties", []
-                                            ):
-                                                prop_split = prop_filt.split(":")
-                                                if not len(prop_split) == 3:
+                                        for prop_filt in gcn_pref.get(
+                                            "localization_properties", []
+                                        ):
+                                            prop_split = prop_filt.split(":")
+                                            if not len(prop_split) == 3:
+                                                raise ValueError(
+                                                    "Invalid propertiesFilter value -- property filter must have 3 values"
+                                                )
+                                            name = prop_split[0].strip()
+                                            if name in localization_properties_dict:
+                                                value = prop_split[1].strip()
+                                                try:
+                                                    value = float(value)
+                                                except ValueError as e:
                                                     raise ValueError(
-                                                        "Invalid propertiesFilter value -- property filter must have 3 values"
+                                                        f"Invalid propertiesFilter value: {e}"
                                                     )
-                                                name = prop_split[0].strip()
-                                                if name in localization_properties_dict:
-                                                    value = prop_split[1].strip()
-                                                    try:
-                                                        value = float(value)
-                                                    except ValueError as e:
-                                                        raise ValueError(
-                                                            f"Invalid propertiesFilter value: {e}"
-                                                        )
-                                                    op = prop_split[2].strip()
-                                                    if op not in op_options:
-                                                        raise ValueError(
-                                                            f"Invalid operator: {op}"
-                                                        )
-                                                    comp_function = getattr(
-                                                        operator, op
+                                                op = prop_split[2].strip()
+                                                if op not in op_options:
+                                                    raise ValueError(
+                                                        f"Invalid operator: {op}"
                                                     )
-                                                    if not comp_function(
-                                                        localization_properties_dict[
-                                                            name
-                                                        ],
-                                                        value,
-                                                    ):
-                                                        continue
+                                                comp_function = getattr(operator, op)
+                                                if not comp_function(
+                                                    localization_properties_dict[name],
+                                                    value,
+                                                ):
+                                                    continue
 
                                         if is_gcn_tag:
                                             text = (
