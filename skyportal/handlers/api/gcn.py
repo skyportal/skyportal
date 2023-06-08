@@ -1708,8 +1708,6 @@ def add_default_gcn_tags(localization, user, session):
             .all()
         )
 
-        print(default_gcn_tags)
-
         for default_gcn_tag in default_gcn_tags:
             try:
                 filters = default_gcn_tag.filters
