@@ -415,8 +415,22 @@ def from_cone(ra, dec, error, n_sigma=4):
 def from_polygon(localization_name, polygon):
 
     xyz = [hp.ang2vec(r, d, lonlat=True) for r, d in polygon]
-    hpx = HEALPix(1024, 'nested', frame=ICRS())
-    ipix = hp.query_polygon(hpx.nside, np.array(xyz), nest=True)
+    ipix = None
+    nside = 1024  # order 10
+    while nside < 2**30:  # until order 29
+        try:
+            hpx = HEALPix(nside, 'nested', frame=ICRS())
+            ipix = hp.query_polygon(hpx.nside, np.array(xyz), nest=True)
+        except Exception:
+            nside *= 2
+            continue
+        if ipix is None or len(ipix) == 0:
+            nside *= 2
+        else:
+            break
+
+    if ipix is None or len(ipix) == 0:
+        raise ValueError("No pixels found in polygon.")
 
     # Convert to multi-resolution pixel indices and sort.
     uniq = ligo.skymap.moc.nest2uniq(nside_to_level(hpx.nside), ipix.astype(np.int64))
