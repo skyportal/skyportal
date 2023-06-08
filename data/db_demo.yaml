@@ -1153,6 +1153,10 @@ gcn_event/1/comments:
     author_id: testadmin
     created_at: "2022-03-18 16:00:00"
 
+default_gcn_tag:
+  - default_tag_name: "Default Tag"
+    filters: {gcn_tags: ['Fermi']}
+
 earthquake:
   - xml:
       file: ../skyportal/tests/data/quakeml.xml

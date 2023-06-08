@@ -51,6 +51,8 @@ def gcn_update_delete_logic(cls, user_or_token):
 class DefaultGcnTag(Base):
     """A default set of criteria to apply a GcnTag."""
 
+    __tablename__ = 'default_gcntags'
+
     # TODO: Make read-accessible via target groups
     update = delete = AccessibleIfUserMatches('requester')
 
