@@ -47,7 +47,7 @@ def test_delete_obj_non_admin(
     assert status == 400
     assert data['message'] in [
         f'Cannot find object with ID {public_source_no_data.id}.',
-        f'Please remove all associated photometry from object with ID {public_obj.id} before removing.',
+        f'Please remove all associated photometry from object with ID {public_source_no_data.id} before removing.',
     ]
 
     # Now delete the photometry blocking the delete
