@@ -1,4 +1,12 @@
-__all__ = ['GcnNotice', 'GcnTag', 'GcnEvent', 'GcnProperty', 'GcnSummary', 'GcnTrigger']
+__all__ = [
+    'GcnNotice',
+    'GcnTag',
+    'GcnEvent',
+    'GcnProperty',
+    'GcnSummary',
+    'GcnTrigger',
+    'DefaultGcnTag',
+]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
