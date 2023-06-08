@@ -95,7 +95,7 @@ def perform_api_calls():
                     params=data,
                 )
             else:
-                log('Unable to executed recurring API calls that are not GET or POST')
+                log('Unable to execute recurring API calls that are not GET or POST')
                 continue
 
             while True:
