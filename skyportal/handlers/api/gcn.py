@@ -1654,8 +1654,9 @@ def add_tiles_and_properties_and_contour(
         session.commit()
 
         gcn_tags = add_default_gcn_tags(localization, user, session)
-        session.add_all(gcn_tags)
-        session.commit()
+        if gcn_tags is not None and len(gcn_tags) > 0:
+            session.add_all(gcn_tags)
+            session.commit()
 
         if url is not None:
             try:
@@ -1686,47 +1687,60 @@ def add_tiles_and_properties_and_contour(
 
 
 def add_default_gcn_tags(localization, user, session):
+    gcn_tags = []
+    try:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == localization.dateobs)
+        ).first()
+        event_notice_types = [notice.notice_type for notice in event.gcn_notices]
+        event_tags = event.tags
+        localization_tags = [tag.text for tag in localization.tags]
 
-    event = session.scalars(
-        GcnEvent.select(user).where(GcnEvent.dateobs == localization.dateobs)
-    ).first()
-    event_notice_types = [notice.notice_type for notice in event.gcn_notices]
-    event_tags = event.tags
-    localization_tags = [tag.text for tag in localization.tags]
-
-    default_gcn_tags = (
-        (
-            session.scalars(
-                DefaultGcnTag.select(
-                    user,
+        default_gcn_tags = (
+            (
+                session.scalars(
+                    DefaultGcnTag.select(
+                        user,
+                    )
                 )
             )
+            .unique()
+            .all()
         )
-        .unique()
-        .all()
-    )
 
-    gcn_tags = []
-    for default_gcn_tag in default_gcn_tags:
-        filters = default_gcn_tag.filters
-        if len(filters.get('gcn_tags', [])) > 0:
-            if not any([tag in event_tags for tag in filters['gcn_tags']]):
-                continue
-        if len(filters.get('notice_types', [])) > 0:
-            if not any(
-                [
-                    notice_type in event_notice_types
-                    for notice_type in filters['notice_type']
-                ]
-            ):
-                continue
-        if len(filters.get('localization_tags', [])) > 0:
-            if not any(
-                [tag in localization_tags for tag in filters['localization_tags']]
-            ):
-                continue
+        print(default_gcn_tags)
 
-        gcn_tags.append(default_gcn_tag.default_tag_name)
+        for default_gcn_tag in default_gcn_tags:
+            try:
+                filters = default_gcn_tag.filters
+                if len(filters.get('gcn_tags', [])) > 0:
+                    if not any([tag in event_tags for tag in filters['gcn_tags']]):
+                        continue
+                if len(filters.get('notice_types', [])) > 0:
+                    if not any(
+                        [
+                            notice_type in event_notice_types
+                            for notice_type in filters['notice_type']
+                        ]
+                    ):
+                        continue
+                if len(filters.get('localization_tags', [])) > 0:
+                    if not any(
+                        [
+                            tag in localization_tags
+                            for tag in filters['localization_tags']
+                        ]
+                    ):
+                        continue
+                tag_name = default_gcn_tag.default_tag_name
+                gcn_tags.append(
+                    GcnTag(text=tag_name, dateobs=event.dateobs, sent_by_id=user.id)
+                )
+            except Exception:
+                pass
+    except Exception as e:
+        log(f"Unable to add default GCN tags: {str(e)}")
+        gcn_tags = []
 
     return gcn_tags
 
@@ -3851,6 +3865,21 @@ class DefaultGcnTagHandler(BaseHandler):
                     return self.error(
                         f"A default tag called {data['default_tag_name']} already exists. That name must be unique."
                     )
+
+            if 'filters' in data:
+                if not isinstance(data['filters'], dict):
+                    return self.error('filters must be a dictionary')
+                if not set(list(data['filters'].keys())).issubset(
+                    {'gcn_tags', 'notice_types', 'localization_tags'}
+                ):
+                    return self.error(
+                        'filters must be a dictionary with keys in ["gcn_tags", "notice_types", "localization_tags"]'
+                    )
+                for key in data['filters']:
+                    if not isinstance(data['filters'][key], list):
+                        return self.error(f'filters[{key}] must be a list')
+                    if not all(isinstance(item, str) for item in data['filters'][key]):
+                        return self.error(f'filters[{key}] must be a list of strings')
 
             default_gcn_tag = DefaultGcnTag.__schema__().load(data)
 

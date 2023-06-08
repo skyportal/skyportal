@@ -1138,6 +1138,10 @@ thumbnail:
     data:
       file: ./ZTFrlh6cyjh_new.png
 
+default_gcn_tag:
+  - default_tag_name: "Default Tag"
+    filters: {gcn_tags: ['Fermi']}
+
 gcn_event:
 #  - xml:
 #      file: ../skyportal/tests/data/GW190425_initial.xml
@@ -1152,10 +1156,6 @@ gcn_event/1/comments:
   - text: "This is a test comment"
     author_id: testadmin
     created_at: "2022-03-18 16:00:00"
-
-default_gcn_tag:
-  - default_tag_name: "Default Tag"
-    filters: {gcn_tags: ['Fermi']}
 
 earthquake:
   - xml:
