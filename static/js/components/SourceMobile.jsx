@@ -50,6 +50,7 @@ import DisplayPhotStats from "./DisplayPhotStats";
 import DisplayTNSInfo from "./DisplayTNSInfo";
 import EditSourceGroups from "./EditSourceGroups";
 import ShowSummaryHistory from "./ShowSummaryHistory";
+import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceNotification from "./SourceNotification";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
@@ -250,6 +251,16 @@ export const useSourceStyles = makeStyles((theme) => ({
     borderRightColor: "transparent",
     borderBottomColor: "transparent",
     borderLeftColor: "transparent",
+  },
+  colInfo: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+  },
+  rowInfo: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
   },
 }));
 
@@ -515,58 +526,44 @@ const SourceMobile = WidthProvider(
                       </div>
                     </div>
                   )}
-                  <div className={classes.alignRight}>
-                    <b>TNS Name: &nbsp;</b>
-                    <UpdateSourceTNS source={source} />
-                    {source.tns_name && (
-                      <div key="tns_name">
-                        <a
-                          key={source.tns_name}
-                          href={`https://www.wis-tns.org/object/${source.tns_name}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {`${source.tns_name} `}
-                        </a>
-                      </div>
-                    )}
-                    <DisplayTNSInfo
-                      tns_info={source.tns_info}
-                      display_header={false}
-                    />
-                  </div>
-                  <div className={classes.alignRight}>
-                    <>
-                      <div className={classes.infoLine}>
-                        <b>MPC Name: &nbsp;</b>
-                        <div key="mpc_name"> {source.mpc_name} </div>
-                      </div>
-                      <div>
-                        <UpdateSourceMPC source={source} />
-                      </div>
-                    </>
-                  </div>
-                  <div className={classes.alignRight}>
-                    <b>GCN Crossmatches: &nbsp;</b>
-                    <UpdateSourceGCNCrossmatch source={source} />
-                    {source.gcn_crossmatch && (
-                      <div>
-                        {source.gcn_crossmatch.map((dateobs) => (
-                          <div key={dateobs}>
-                            <Link
-                              to={`/gcn_events/${dateobs.replace(" ", "T")}`}
-                              role="link"
-                              key={dateobs}
-                            >
-                              <Button size="small">{dateobs}</Button>
-                            </Link>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className={classes.infoLine}>
-                    <DisplayPhotStats photstats={source.photstats[0]} />
+                  <div className={classes.colInfo}>
+                    <div className={classes.rowInfo}>
+                      <b>TNS Name: &nbsp;</b>
+                      {source.tns_name && (
+                        <div key="tns_name">
+                          <a
+                            key={source.tns_name}
+                            href={`https://www.wis-tns.org/object/${source.tns_name}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {`${source.tns_name} `}
+                          </a>
+                        </div>
+                      )}
+                      <DisplayTNSInfo
+                        tns_info={source.tns_info}
+                        display_header={false}
+                      />
+                      <UpdateSourceTNS source={source} />
+                    </div>
+                    <div className={classes.rowInfo}>
+                      <b>MPC Name: &nbsp;</b>
+                      <div key="mpc_name"> {source.mpc_name} </div>
+                      <UpdateSourceMPC source={source} />
+                    </div>
+                    <div className={classes.rowInfo}>
+                      <b>GCN Crossmatches: &nbsp;</b>
+                      {source.gcn_crossmatch?.length > 0 && (
+                        <SourceGCNCrossmatchList
+                          gcn_crossmatches={source.gcn_crossmatch}
+                        />
+                      )}
+                      <UpdateSourceGCNCrossmatch source={source} />
+                    </div>
+                    <div className={classes.rowInfo}>
+                      <DisplayPhotStats photstats={source.photstats[0]} />
+                    </div>
                   </div>
                   <div
                     className={`${classes.infoLine} ${classes.findingChart}`}

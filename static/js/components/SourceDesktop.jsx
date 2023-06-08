@@ -48,6 +48,7 @@ import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import UpdateSourceSummary from "./UpdateSourceSummary";
 import UpdateSourceTNS from "./UpdateSourceTNS";
 import StartBotSummary from "./StartBotSummary";
+import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ShowSummaryHistory from "./ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
@@ -158,6 +159,16 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     flexFlow: "row wrap",
     padding: "0.25rem 0",
+  },
+  colInfo: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+  },
+  rowInfo: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
   },
   redshiftInfo: {
     padding: "0.25rem 0.5rem 0.25rem 0",
@@ -528,49 +539,44 @@ const SourceDesktop = ({ source }) => {
               )}
             </div>
           </div>
-          <div className={classes.infoLine}>
-            <b>TNS Name: &nbsp;</b>
-            <UpdateSourceTNS source={source} />
-            {source.tns_name && (
-              <div key="tns_name">
-                <a
-                  key={source.tns_name}
-                  href={`https://www.wis-tns.org/object/${source.tns_name}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {`${source.tns_name} `}
-                </a>
-              </div>
-            )}
-            <DisplayTNSInfo tns_info={source.tns_info} display_header={false} />
-          </div>
-          <div className={classes.infoLine}>
-            <b>MPC Name: &nbsp;</b>
-            <UpdateSourceMPC source={source} />
-            <div key="mpc_name"> {source.mpc_name} </div>
-          </div>
-          <div className={classes.infoLine}>
-            <b>GCN Crossmatches: &nbsp;</b>
-            <UpdateSourceGCNCrossmatch source={source} />
-            {source.gcn_crossmatch && (
-              <div>
-                {source.gcn_crossmatch.map((dateobs) => (
-                  <div key={dateobs}>
-                    <Link
-                      to={`/gcn_events/${dateobs.replace(" ", "T")}`}
-                      role="link"
-                      key={dateobs}
-                    >
-                      <Button size="small">{dateobs}</Button>
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className={classes.infoLine}>
-            <DisplayPhotStats photstats={source.photstats[0]} />
+          <div className={classes.colInfo}>
+            <div className={classes.rowInfo}>
+              <b>TNS Name: &nbsp;</b>
+              {source.tns_name && (
+                <div key="tns_name">
+                  <a
+                    key={source.tns_name}
+                    href={`https://www.wis-tns.org/object/${source.tns_name}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {`${source.tns_name} `}
+                  </a>
+                </div>
+              )}
+              <DisplayTNSInfo
+                tns_info={source.tns_info}
+                display_header={false}
+              />
+              <UpdateSourceTNS source={source} />
+            </div>
+            <div className={classes.rowInfo}>
+              <b>MPC Name: &nbsp;</b>
+              <div key="mpc_name"> {source.mpc_name} </div>
+              <UpdateSourceMPC source={source} />
+            </div>
+            <div className={classes.rowInfo}>
+              <b>GCN Crossmatches: &nbsp;</b>
+              {source.gcn_crossmatch?.length > 0 && (
+                <SourceGCNCrossmatchList
+                  gcn_crossmatches={source.gcn_crossmatch}
+                />
+              )}
+              <UpdateSourceGCNCrossmatch source={source} />
+            </div>
+            <div className={classes.rowInfo}>
+              <DisplayPhotStats photstats={source.photstats[0]} />
+            </div>
           </div>
           <div className={`${classes.infoLine} ${classes.findingChart}`}>
             <b>Finding Chart:&nbsp;</b>

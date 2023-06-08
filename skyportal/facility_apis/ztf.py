@@ -328,6 +328,7 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
             payload={"obj_key": request.obj.internal_key},
         )
     except Exception as e:
+        session.rollback()
         log(f"Unable to commit photometry for {request_id}: {e}")
     finally:
         session.close()
@@ -362,33 +363,37 @@ class ZTFAPI(FollowUpAPI):
             session.commit()
             return
 
-        altdata = request.allocation.altdata
-        if not altdata:
-            raise ValueError('Missing allocation information.')
+        if request.payload["request_type"] == "triggered":
+            altdata = request.allocation.altdata
+            if not altdata:
+                raise ValueError('Missing allocation information.')
 
-        queue_name = "ToO_" + request.payload["queue_name"]
-        headers = {"Authorization": f"Bearer {altdata['access_token']}"}
+            queue_name = "ToO_" + request.payload["queue_name"]
 
-        payload = {'queue_name': queue_name, 'user': request.requester.username}
+            headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
-        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
-        s = Session()
-        req = Request('DELETE', url, json=payload, headers=headers)
-        prepped = req.prepare()
-        r = s.send(prepped)
-        if r.status_code == 200:
-            request.status = "deleted"
-        else:
-            request.status = f'rejected: {r.content}'
+            payload = {'queue_name': queue_name, 'user': request.requester.username}
 
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
+            url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
+            s = Session()
+            req = Request('DELETE', url, json=payload, headers=headers)
+            prepped = req.prepare()
+            r = s.send(prepped)
+            if r.status_code == 200:
+                request.status = "deleted"
+            else:
+                request.status = f'rejected: {r.content}'
 
-        session.add(transaction)
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(r.request),
+                response=http.serialize_requests_response(r),
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+            session.add(transaction)
+        elif request.payload["request_type"] == "forced_photometry":
+            # for forced photometry, we don't need to do delete anything from IPAC
+            pass
 
     @staticmethod
     def get(request, session):

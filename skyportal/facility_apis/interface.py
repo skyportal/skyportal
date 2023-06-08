@@ -146,6 +146,12 @@ class FollowUpAPI(_Base):
         """
         raise NotImplementedError
 
+    # subclasses should implement this if desired
+    @staticmethod
+    def retrieve_log():
+        """Retrieve the log of an instrument."""
+        raise NotImplementedError
+
     # jsonschema outlining the schema of the frontend form. See
     # https://github.com/rjsf-team/react-jsonschema-form
     # for examples.

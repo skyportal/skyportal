@@ -235,6 +235,8 @@ def query_kowalski(
 
         # Perform the query
         r = k.query(query=q)
+        if not r.get("default").get("status", "error") == "success":
+            raise ValueError("Query failed")
 
         objectId_list = []
         with_neg_sub = []
@@ -247,7 +249,7 @@ def query_kowalski(
         no_candidates = False
         while i <= 5:
             try:
-                if r['data'] == []:
+                if r.get("default").get("data") == []:
                     no_candidates = True
                 keys_list = list(r['data']['ZTF_alerts'].keys())
                 break
@@ -358,7 +360,9 @@ def query_kowalski(
         },
     }
     results_all = k.query(query=q)
-    results = results_all['data']
+    if not results_all.get("default").get("status", "error") == "success":
+        raise ValueError("Query failed")
+    results = results_all.get("default").get("data")
     sources = []
     for n in set_objectId_all:
         source = {}

@@ -84,7 +84,7 @@ from .healpix import HealpixUpdateHandler
 from .user_obj_list import UserObjListHandler
 from .group_admission_request import GroupAdmissionRequestHandler
 from .instrument import InstrumentHandler, InstrumentFieldHandler
-from .instrument_log import InstrumentLogHandler
+from .instrument_log import InstrumentLogHandler, InstrumentLogExternalAPIHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .mmadetector import (
@@ -102,6 +102,7 @@ from .observation import (
     ObservationSimSurveyHandler,
     ObservationSimSurveyPlotHandler,
 )
+from .obj import ObjHandler
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
     DefaultObservationPlanRequestHandler,

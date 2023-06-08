@@ -78,13 +78,26 @@ def perform_api_calls():
             else:
                 raise Exception('payload must be dictionary or string')
 
-            response_status, data = api(
-                recurring_api.method.upper(),
-                recurring_api.endpoint,
-                token=token,
-                host=host,
-                data=data,
-            )
+            if recurring_api.method.upper() == "POST":
+                response_status, data = api(
+                    recurring_api.method.upper(),
+                    recurring_api.endpoint,
+                    token=token,
+                    host=host,
+                    data=data,
+                )
+            elif recurring_api.method.upper() == "GET":
+                response_status, data = api(
+                    recurring_api.method.upper(),
+                    recurring_api.endpoint,
+                    token=token,
+                    host=host,
+                    params=data,
+                )
+            else:
+                log('Unable to execute recurring API calls that are not GET or POST')
+                continue
+
             while True:
                 recurring_api.next_call += timedelta(days=recurring_api.call_delay)
                 if recurring_api.next_call > Time(now, format='datetime'):

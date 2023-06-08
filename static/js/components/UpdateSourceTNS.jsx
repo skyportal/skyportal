@@ -30,6 +30,10 @@ const useStyles = makeStyles(() => ({
     height: "0.75rem",
     cursor: "pointer",
   },
+  text: {
+    margin: 0,
+    padding: 0,
+  },
 }));
 
 const UpdateSourceTNS = ({ source }) => {
@@ -74,7 +78,7 @@ const UpdateSourceTNS = ({ source }) => {
   // render to update it, so it can be null even if tnsrobotList is not
   // empty.
   if (tnsrobotList.length === 0 || !selectedTNSRobotId) {
-    return <h3>No TNS robots available...</h3>;
+    return <h4 className={classes.text}>No TNS robots available...</h4>;
   }
 
   const handleSubmit = async ({ formData }) => {
