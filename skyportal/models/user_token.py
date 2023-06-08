@@ -17,6 +17,7 @@ from baselayer.app.models import (
 )
 
 from .catalog import CatalogQuery
+from .gcn import DefaultGcnTag
 from .group import Group, GroupUser
 from .followup_request import DefaultFollowupRequest, FollowupRequest
 from .observation_plan import DefaultObservationPlanRequest, ObservationPlanRequest
@@ -225,6 +226,13 @@ User.default_observationplan_requests = relationship(
     passive_deletes=True,
     doc="The default observation plan requests this User has made.",
     foreign_keys=[DefaultObservationPlanRequest.requester_id],
+)
+User.default_gcntags = relationship(
+    'DefaultGcnTag',
+    back_populates='requester',
+    passive_deletes=True,
+    doc="The default gcn tags this User has made.",
+    foreign_keys=[DefaultGcnTag.requester_id],
 )
 User.catalog_queries = relationship(
     'CatalogQuery',

@@ -55,6 +55,7 @@ from ...models import (
     DBSession,
     Allocation,
     CatalogQuery,
+    DefaultGcnTag,
     DefaultObservationPlanRequest,
     EventObservationPlan,
     GcnEvent,
@@ -1652,6 +1653,11 @@ def add_tiles_and_properties_and_contour(
         session.add(localization)
         session.commit()
 
+        gcn_tags = add_default_gcn_tags(localization, user, session)
+        if gcn_tags is not None and len(gcn_tags) > 0:
+            session.add_all(gcn_tags)
+            session.commit()
+
         if url is not None:
             try:
                 r = requests.get(url, allow_redirects=True, timeout=15)
@@ -1678,6 +1684,63 @@ def add_tiles_and_properties_and_contour(
         if parent_session is None:
             session.close()
             Session.remove()
+
+
+def add_default_gcn_tags(localization, user, session):
+    gcn_tags = []
+    try:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == localization.dateobs)
+        ).first()
+        event_notice_types = [notice.notice_type for notice in event.gcn_notices]
+        event_tags = event.tags
+        localization_tags = [tag.text for tag in localization.tags]
+
+        default_gcn_tags = (
+            (
+                session.scalars(
+                    DefaultGcnTag.select(
+                        user,
+                    )
+                )
+            )
+            .unique()
+            .all()
+        )
+
+        for default_gcn_tag in default_gcn_tags:
+            try:
+                filters = default_gcn_tag.filters
+                if len(filters.get('gcn_tags', [])) > 0:
+                    if not any([tag in event_tags for tag in filters['gcn_tags']]):
+                        continue
+                if len(filters.get('notice_types', [])) > 0:
+                    if not any(
+                        [
+                            notice_type in event_notice_types
+                            for notice_type in filters['notice_type']
+                        ]
+                    ):
+                        continue
+                if len(filters.get('localization_tags', [])) > 0:
+                    if not any(
+                        [
+                            tag in localization_tags
+                            for tag in filters['localization_tags']
+                        ]
+                    ):
+                        continue
+                tag_name = default_gcn_tag.default_tag_name
+                gcn_tags.append(
+                    GcnTag(text=tag_name, dateobs=event.dateobs, sent_by_id=user.id)
+                )
+            except Exception:
+                pass
+    except Exception as e:
+        log(f"Unable to add default GCN tags: {str(e)}")
+        gcn_tags = []
+
+    return gcn_tags
 
 
 def add_observation_plans(localization_id, user_id, parent_session=None):
@@ -3755,3 +3818,171 @@ def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.
     finally:
         session.close()
         Session.remove()
+
+
+class DefaultGcnTagHandler(BaseHandler):
+    @permissions(['Manage GCNs'])
+    def post(self):
+        """
+        ---
+        description: Create default gcn tag.
+        tags:
+          - defaultgcntags
+        requestBody:
+          content:
+            application/json:
+              schema: DefaultGcnTagPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New default gcn tag ID
+        """
+        data = self.get_json()
+
+        with self.Session() as session:
+
+            if "default_tag_name" not in data:
+                return self.error('Missing default_tag_name')
+            else:
+                stmt = DefaultGcnTag.select(session.user_or_token).where(
+                    DefaultGcnTag.default_tag_name == data['default_tag_name']
+                )
+                existing_default_tag = session.scalars(stmt).first()
+                if existing_default_tag is not None:
+                    return self.error(
+                        f"A default tag called {data['default_tag_name']} already exists. That name must be unique."
+                    )
+
+            if 'filters' in data:
+                if not isinstance(data['filters'], dict):
+                    return self.error('filters must be a dictionary')
+                if not set(list(data['filters'].keys())).issubset(
+                    {'gcn_tags', 'notice_types', 'localization_tags'}
+                ):
+                    return self.error(
+                        'filters must be a dictionary with keys in ["gcn_tags", "notice_types", "localization_tags"]'
+                    )
+                for key in data['filters']:
+                    if not isinstance(data['filters'][key], list):
+                        return self.error(f'filters[{key}] must be a list')
+                    if not all(isinstance(item, str) for item in data['filters'][key]):
+                        return self.error(f'filters[{key}] must be a list of strings')
+
+            default_gcn_tag = DefaultGcnTag.__schema__().load(data)
+
+            session.add(default_gcn_tag)
+            session.commit()
+
+            self.push_all(action="skyportal/REFRESH_DEFAULT_GCN_TAGS")
+            return self.success(data={"id": default_gcn_tag.id})
+
+    @auth_or_token
+    def get(self, default_gcn_tag_id=None):
+        """
+        ---
+        single:
+          description: Retrieve a single default gcn tag
+          tags:
+            - defaultgcntags
+          parameters:
+            - in: path
+              name: default_gcn_tag_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleDefaultGcnTag
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all default gcn tags
+          tags:
+            - filters
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfDefaultGcnTags
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        with self.Session() as session:
+            if default_gcn_tag_id is not None:
+                default_gcn_tag = session.scalars(
+                    DefaultGcnTag.select(
+                        session.user_or_token,
+                    ).where(DefaultGcnTag.id == default_gcn_tag_id)
+                ).first()
+                if default_gcn_tag is None:
+                    return self.error(
+                        f'Cannot find DefaultGcnTag with ID {default_gcn_tag_id}'
+                    )
+                return self.success(data=default_gcn_tag)
+
+            default_gcn_tags = (
+                session.scalars(
+                    DefaultGcnTag.select(
+                        session.user_or_token,
+                    )
+                )
+                .unique()
+                .all()
+            )
+
+            return self.success(data=default_gcn_tags)
+
+    @permissions(['Manage GCNs'])
+    def delete(self, default_gcn_tag_id):
+        """
+        ---
+        description: Delete a default gcn tag
+        tags:
+          - defaultgcntags
+        parameters:
+          - in: path
+            name: default_gcn_tag_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        with self.Session() as session:
+
+            stmt = DefaultGcnTag.select(session.user_or_token).where(
+                DefaultGcnTag.id == default_gcn_tag_id
+            )
+            default_gcn_tag = session.scalars(stmt).first()
+
+            if default_gcn_tag is None:
+                return self.error(
+                    'Default observation plan with ID {default_observation_plan_id} is not available.'
+                )
+
+            session.delete(default_gcn_tag)
+            session.commit()
+            self.push_all(action="skyportal/REFRESH_DEFAULT_GCN_TAGS")
+            return self.success()

@@ -1138,6 +1138,10 @@ thumbnail:
     data:
       file: ./ZTFrlh6cyjh_new.png
 
+default_gcn_tag:
+  - default_tag_name: "Default Tag"
+    filters: {gcn_tags: ['Fermi']}
+
 gcn_event:
 #  - xml:
 #      file: ../skyportal/tests/data/GW190425_initial.xml
