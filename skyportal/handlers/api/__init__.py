@@ -53,6 +53,7 @@ from .galaxy import (
     ObjHostHandler,
 )
 from .gcn import (
+    DefaultGcnTagHandler,
     GcnEventHandler,
     GcnEventAliasesHandler,
     GcnEventObservationPlanRequestsHandler,
@@ -149,7 +150,7 @@ from .source import (
     SourceFinderHandler,
     SourceNotificationHandler,
     SourceObservabilityPlotHandler,
-    PS1ThumbnailHandler,
+    SurveyThumbnailHandler,
 )
 from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler

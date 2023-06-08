@@ -25,6 +25,7 @@ from skyportal.handlers.api import (
     CommentAttachmentHandler,
     CommentAttachmentUpdateHandler,
     DefaultAnalysisHandler,
+    DefaultGcnTagHandler,
     EarthquakeHandler,
     EarthquakeMeasurementHandler,
     EarthquakePredictionHandler,
@@ -170,7 +171,7 @@ from skyportal.handlers.api import (
     UnsourcedFinderHandler,
     WeatherHandler,
     AnalysisWebhookHandler,
-    PS1ThumbnailHandler,
+    SurveyThumbnailHandler,
     SourcesConfirmedInGCNHandler,
     SourcesConfirmedInGCNTNSHandler,
     GCNsAssociatedWithSourceHandler,
@@ -247,6 +248,10 @@ skyportal_handlers = [
     (
         r'/api/default_followup_request(/[0-9A-Za-z-_\.\+]+)?',
         DefaultFollowupRequestHandler,
+    ),
+    (
+        r'/api/default_gcn_tag(/[0-9A-Za-z-_\.\+]+)?',
+        DefaultGcnTagHandler,
     ),
     (
         r'/api/default_observation_plan(/[0-9A-Za-z-_\.\+]+)?',
@@ -548,7 +553,7 @@ skyportal_handlers = [
     (r'/api/internal/notifications(/[0-9]+)?', NotificationHandler),
     (r'/api/internal/notifications/all', BulkNotificationHandler),
     (r'/api/internal/notifications_test(/[0-9]+)?', NotificationTestHandler),
-    (r'/api/internal/ps1_thumbnail', PS1ThumbnailHandler),
+    (r'/api/internal/survey_thumbnail', SurveyThumbnailHandler),
     (r'/api/internal/recent_gcn_events', RecentGcnEventsHandler),
     (r'/api/.*', InvalidEndpointHandler),
     (r'/become_user(/.*)?', BecomeUserHandler),
