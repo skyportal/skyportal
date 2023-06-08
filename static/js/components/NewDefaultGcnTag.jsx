@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import makeStyles from "@mui/styles/makeStyles";
+import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
 import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
@@ -32,7 +33,7 @@ const useStyles = makeStyles(() => ({
     whiteSpace: "break-spaces",
   },
   container: {
-    width: "99%",
+    width: "100%",
     marginBottom: "1rem",
   },
 }));
@@ -80,6 +81,7 @@ const NewDefaultGcnTag = () => {
 
   return (
     <div className={classes.container}>
+      <Typography variant="h6">Add a New Default GcnTag</Typography>
       <GcnNoticeTypesSelect
         selectedGcnNoticeTypes={selectedGcnNoticeTypes}
         setSelectedGcnNoticeTypes={setSelectedGcnNoticeTypes}

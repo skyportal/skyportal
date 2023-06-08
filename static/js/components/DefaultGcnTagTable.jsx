@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { JSONTree } from "react-json-tree";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import Paper from "@mui/material/Paper";
 import {
   createTheme,
   ThemeProvider,
@@ -24,6 +23,7 @@ import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 const useStyles = makeStyles((theme) => ({
   container: {
     width: "100%",
+    minWidth: "40vw",
     overflow: "scroll",
   },
   eventTags: {
@@ -180,19 +180,17 @@ const DefaultGcnTagTable = ({ default_gcn_tags }) => {
   };
 
   return (
-    <div>
+    <div className={classes.container}>
       {default_gcn_tags ? (
-        <Paper className={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                data={default_gcn_tags}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-        </Paper>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              data={default_gcn_tags}
+              options={options}
+              columns={columns}
+            />
+          </ThemeProvider>
+        </StyledEngineProvider>
       ) : (
         <CircularProgress />
       )}
