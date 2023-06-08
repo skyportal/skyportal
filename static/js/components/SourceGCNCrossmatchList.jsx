@@ -20,7 +20,7 @@ const SourceGCNCrossmatchList = ({ gcn_crossmatches }) => {
   const classes = useStyles();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  if (gcn_crossmatches?.length === 1) {
+  if (gcn_crossmatches?.length > 1) {
     // show just the latest crossmatch, and a plus button to show the dialog with all of them
     return (
       <>
