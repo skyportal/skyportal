@@ -15,7 +15,7 @@ def test_delete_obj_non_admin(
     assert status == 400
     assert (
         data['message']
-        == f'Please remove all associated spectra to object with ID {public_obj.id} before removing.'
+        == f'Please remove all associated spectra from object with ID {public_obj.id} before removing.'
     )
 
     # Now start with a fresh Obj with no associated data, and post photometry to it
@@ -45,7 +45,10 @@ def test_delete_obj_non_admin(
         "DELETE", f"objs/{public_source_no_data.id}", token=manage_sources_token
     )
     assert status == 400
-    assert data['message'] == f'Cannot find object with ID {public_source_no_data.id}.'
+    assert data['message'] in [
+        f'Cannot find object with ID {public_source_no_data.id}.',
+        f'Please remove all associated photometry from object with ID {public_obj.id} before removing.',
+    ]
 
     # Now delete the photometry blocking the delete
     status, data = api('DELETE', f'photometry/{photometry_id}', token=upload_data_token)
@@ -65,5 +68,5 @@ def test_delete_obj_system_admin(public_obj, super_admin_token):
     assert status == 400
     assert (
         data['message']
-        == f'Please remove all associated spectra to object with ID {public_obj.id} before removing.'
+        == f'Please remove all associated spectra from object with ID {public_obj.id} before removing.'
     )

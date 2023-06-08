@@ -54,7 +54,7 @@ class ObjHandler(BaseHandler):
             total_annotations = session.execute(count_stmt).scalar()
             if total_annotations > 0:
                 return self.error(
-                    f"Please remove all associated annotations to object with ID {obj_id} before removing."
+                    f"Please remove all associated annotations from object with ID {obj_id} before removing."
                 )
 
             stmt = sa.select(Spectrum).where(Spectrum.obj_id == obj.id)
@@ -62,7 +62,7 @@ class ObjHandler(BaseHandler):
             total_spectrum = session.execute(count_stmt).scalar()
             if total_spectrum > 0:
                 return self.error(
-                    f"Please remove all associated spectra to object with ID {obj_id} before removing."
+                    f"Please remove all associated spectra from object with ID {obj_id} before removing."
                 )
 
             stmt = sa.select(Photometry).where(Photometry.obj_id == obj.id)
@@ -70,7 +70,7 @@ class ObjHandler(BaseHandler):
             total_photometry = session.execute(count_stmt).scalar()
             if total_photometry > 0:
                 return self.error(
-                    f"Please remove all associated photometry to object with ID {obj_id} before removing."
+                    f"Please remove all associated photometry from object with ID {obj_id} before removing."
                 )
 
             stmt = sa.select(PhotometricSeries).where(
@@ -80,7 +80,7 @@ class ObjHandler(BaseHandler):
             total_photometric_series = session.execute(count_stmt).scalar()
             if total_photometric_series > 0:
                 return self.error(
-                    f"Please remove all associated photometric series to object with ID {obj_id} before removing."
+                    f"Please remove all associated photometric series from object with ID {obj_id} before removing."
                 )
 
             stmt = sa.select(Comment).where(Comment.obj_id == obj.id)
