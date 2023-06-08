@@ -122,6 +122,12 @@ const AllocationTable = ({
     return label;
   };
 
+  const renderAllocationID = (dataIndex) => {
+    const allocation = allocations[dataIndex];
+
+    return <div>{allocation ? allocation.id : ""}</div>;
+  };
+
   const renderInstrumentName = (dataIndex) => {
     const allocation = allocations[dataIndex];
     const { instrument_id } = allocation;
@@ -282,6 +288,16 @@ const AllocationTable = ({
   };
 
   const columns = [
+    {
+      name: "id",
+      label: "ID",
+      options: {
+        filter: true,
+        // sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderAllocationID,
+      },
+    },
     {
       name: "instrument_name",
       label: "Instrument Name",
