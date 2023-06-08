@@ -415,6 +415,7 @@ def from_cone(ra, dec, error, n_sigma=4):
 def from_polygon(localization_name, polygon):
 
     xyz = [hp.ang2vec(r, d, lonlat=True) for r, d in polygon]
+    ipix = None
     nside = 1024  # order 10
     while nside < 2**30:  # until order 29
         try:
