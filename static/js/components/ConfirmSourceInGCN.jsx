@@ -16,12 +16,38 @@ import Typography from "@mui/material/Typography";
 import grey from "@mui/material/colors/grey";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 
 import Button from "./Button";
 
 import * as SourceInGcnAction from "../ducks/confirmedsourcesingcn";
 
 dayjs.extend(utc);
+
+const filter = createFilterOptions();
+
+const defaultExplanationsHighlight = [
+  "LOCAL",
+  "NEW - FP",
+  "RED - FP",
+  "FAST - FP",
+  "RED - ALERT",
+  "FAST - ALERT",
+];
+
+const defaultExplanationsReject = [
+  "FAR",
+  "OLD - FP",
+  "SLOW",
+  "ROCK",
+  "STELLAR",
+  "AGN",
+  "SpecReject",
+];
+
+const defaultExplanations = defaultExplanationsHighlight.concat(
+  defaultExplanationsReject
+);
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -98,12 +124,22 @@ const ConfirmSourceInGCN = ({
   const { permissions } = useSelector((state) => state.profile);
   const [open, setOpen] = useState(false);
 
-  const { control, getValues, register } = useForm();
+  const { control, getValues, register, reset } = useForm();
 
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
 
   const handleClose = () => {
     setOpen(false);
+  };
+
+  const getOptionTextColor = (option) => {
+    let color = "black";
+    if (defaultExplanationsHighlight.includes(option)) {
+      color = "green";
+    } else if (defaultExplanationsReject.includes(option)) {
+      color = "red";
+    }
+    return color;
   };
 
   let currentState = "not_vetted";
@@ -146,7 +182,11 @@ const ConfirmSourceInGCN = ({
         localizationName: localization_name,
         sourcesIdList: sources_id_list,
       })
-    );
+    ).then((response) => {
+      if (response.status === "success") {
+        reset();
+      }
+    });
   };
 
   const handleHighlight = () => {
@@ -297,17 +337,45 @@ const ConfirmSourceInGCN = ({
                     </Typography>
                     <Controller
                       render={({ field: { onChange, value } }) => (
-                        <TextField
-                          label="Explanation"
-                          name="explanation"
-                          inputRef={register("explanation")}
-                          onChange={onChange}
+                        <Autocomplete
+                          id="explanation"
+                          freeSolo
+                          disableClearable
+                          filterOptions={(options, params) => {
+                            const filtered = filter(options, params);
+
+                            if (params.inputValue !== "") {
+                              filtered.push(params.inputValue);
+                            }
+
+                            return filtered;
+                          }}
+                          // eslint-disable-next-line no-shadow
+                          onChange={(e, value) => onChange(value)}
+                          options={defaultExplanations}
                           value={value}
-                          defaultValue={currentExplanation}
+                          renderOption={(props, option) => (
+                            <Typography
+                              style={{ color: getOptionTextColor(option) }}
+                              {...props}
+                            >
+                              {option}
+                            </Typography>
+                          )}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="Explanation"
+                              variant="outlined"
+                              fullWidth
+                              onChange={(e) => onChange(e.target.value)}
+                            />
+                          )}
                         />
                       )}
                       name="explanation"
                       control={control}
+                      defaultValue={currentExplanation}
                     />
                     <Typography variant="subtitle2" className={classes.title}>
                       GCN Notes
