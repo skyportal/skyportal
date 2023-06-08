@@ -23,7 +23,6 @@ from baselayer.app.models import (
     AccessibleIfUserMatches,
     CustomUserAccessControl,
     UserAccessControl,
-    User,
     safe_aliased,
     join_model,
     restricted,
@@ -64,7 +63,7 @@ class DefaultGcnTag(Base):
     )
 
     requester = relationship(
-        User,
+        "User",
         back_populates='default_gcntags',
         doc="The User who requested the default gcn tag.",
         foreign_keys=[requester_id],
