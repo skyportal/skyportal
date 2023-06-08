@@ -27,7 +27,13 @@ def gcn_notification_content(target, session):
     stmt = sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
     gcn_event = session.execute(stmt).scalars().first()
 
-    tags = [tag.text for tag in target.tags]
+    localizations = gcn_event.localizations
+    tags = []
+    # get the latest localization
+    localization = None
+    if localizations is not None and len(localizations) > 0:
+        localization = localizations[-1]
+        tags = [tag.text for tag in localization.tags]
 
     time_since_dateobs = datetime.datetime.utcnow() - gcn_event.dateobs
     # remove the microseconds from the timedelta
@@ -42,7 +48,7 @@ def gcn_notification_content(target, session):
     # get the most recent notice for this event
     if gcn_event.gcn_notices is not None and len(gcn_event.gcn_notices) > 0:
         last_gcn_notice = gcn_event.gcn_notices[-1]
-        notice_type = last_gcn_notice.notice_type
+        notice_type = gcn.NoticeType(last_gcn_notice.notice_type).name
         notice_content = lxml.etree.fromstring(last_gcn_notice.content)
         name = notice_content.find('./Why/Inference/Name')
     else:
@@ -95,7 +101,7 @@ def gcn_notification_content(target, session):
     return {
         'dateobs': dateobs_txt,
         'source_name': source_name,
-        'notice_type': gcn.NoticeType(notice_type).name,
+        'notice_type': notice_type,
         'new_event': new_event,
         'time_since_dateobs': time_since_dateobs,
         'ra': ra,
@@ -104,7 +110,7 @@ def gcn_notification_content(target, session):
         'tags': tags,
         'links': links,
         'app_url': app_url,
-        'localization_name': target.localization_name,
+        'localization_name': localization.localization_name if localization else None,
     }
 
 
@@ -131,9 +137,13 @@ def gcn_slack_notification(target, data=None, new_tag=False):
         if data['error'] < SOURCE_RADIUS_THRESHOLD:
             localization_text += f"\n *-* Source Page Link: <{app_url}/source/{data['source_name']}|*{data['source_name']}*>"
 
-    else:
+    elif data['localization_name'] is not None:
         # the event has an associated skymap
         localization_text = f"*Localization*:\n *-* Localization Type: Skymap\n *-* Name: {data['localization_name']}"
+    else:
+        localization_text = (
+            "*Localization*:\n *-* No localization available for this event (yet)"
+        )
 
     external_links_text = None
     if len(data['links']):
@@ -142,7 +152,7 @@ def gcn_slack_notification(target, data=None, new_tag=False):
             external_links_text += f"\n *-* <{value}|*{key}*>"
 
     tags_text = None
-    if len(data['tags']):
+    if len(data['tags']) > 0:
         tags_text = f"*Event tags*: {','.join(data['tags'])}"
 
     blocks = [
@@ -190,9 +200,11 @@ def gcn_email_notification(target, data=None, new_tag=False):
         localization_text = f"<h4>Localization:</h4><ul><li>Localization Type: Point</li><li>Coordinates: ra={data['ra']}, dec={data['dec']}, error radius={data['error']} deg</li>"
         if data['error'] < SOURCE_RADIUS_THRESHOLD:
             localization_text += f"<li>Associated source Link: <a href='{app_url}/source/{data['source_name']}'>{data['source_name']}</a></li>"
-    else:
+    elif data['localization_name'] is not None:
         # the event has an associated skymap
         localization_text = f"<h4>Localization:</h4><ul><li>Localization Type: Skymap</li><li>Name: {data['localization_name']}</li>"
+    else:
+        localization_text = "<h4>Localization:</h4><ul><li>No localization available for this event (yet)</li>"
 
     localization_text = f"<div>{localization_text}</ul></div>"
 
@@ -204,7 +216,7 @@ def gcn_email_notification(target, data=None, new_tag=False):
         external_links_text += "</ul>"
 
     tags_text = None
-    if len(data['tags']):
+    if len(data['tags']) > 0:
         tags_text = f"<h4>Event tags: {','.join(data['tags'])}</h4><ul>"
 
     return subject, "".join(
@@ -356,3 +368,6 @@ def post_notification(request_body, timeout=2):
         log(
             f'Notification request failed for {request_body["target_class_name"]} with ID {request_body["target_id"]}: {resp.content}'
         )
+        return False
+    else:
+        return True

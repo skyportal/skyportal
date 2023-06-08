@@ -111,7 +111,7 @@ MAX_GCNEVENTS = 1000
 
 
 def post_gcnevent_from_xml(
-    payload, user_id, session, post_skymap=True, asynchronous=True
+    payload, user_id, session, post_skymap=True, asynchronous=True, notify=True
 ):
     """Post GcnEvent to database from voevent xml.
     payload: str
@@ -241,16 +241,44 @@ def post_gcnevent_from_xml(
         else:
             post_gracedb_data(event.dateobs, gracedb_id, user_id)
 
+    found_skymap = False
     if post_skymap:
         try:
-            post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous)
+            post_skymap_from_notice(
+                dateobs, notice_id, user_id, session, asynchronous, notify
+            )
+            found_skymap = True
         except Exception:
+            found_skymap = False
             pass
+
+    if not found_skymap and notify:
+        # if there is no skymap, we still want to add the default tags that might not need localization tags
+        gcn_tags = add_default_gcn_tags(user, session, dateobs=dateobs)
+        if gcn_tags is not None and len(gcn_tags) > 0:
+            session.add_all(gcn_tags)
+        try:
+            loop = asyncio.get_event_loop()
+        except Exception:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        request_body = {
+            'target_class_name': 'GcnNotice',
+            'target_id': notice_id,
+        }
+
+        IOLoop.current().run_in_executor(
+            None,
+            lambda: post_notification(request_body, timeout=30),
+        )
 
     return dateobs, event_id, notice_id
 
 
-def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=True):
+def post_skymap_from_notice(
+    dateobs, notice_id, user_id, session, asynchronous=True, notify=True
+):
     """Post skymap to database from gcn notice."""
     user = session.query(User).get(user_id)
 
@@ -299,12 +327,12 @@ def post_skymap_from_notice(dateobs, notice_id, user_id, session, asynchronous=T
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_tiles_properties_contour_and_obsplan(
-                    localization_id, user_id, url=url
+                    localization_id, user_id, url=url, notify=notify
                 ),
             )
         else:
             add_tiles_properties_contour_and_obsplan(
-                localization_id, user_id, session, url=url
+                localization_id, user_id, session, url=url, notify=notify
             )
 
         gcn_notice.localization_ingested = True
@@ -1602,7 +1630,7 @@ class GcnEventHandler(BaseHandler):
 
 
 def add_tiles_and_properties_and_contour(
-    localization_id, user_id, parent_session=None, url=None
+    localization_id, user_id, parent_session=None, url=None, notify=True
 ):
     if parent_session is None:
         if Session.registry.has():
@@ -1634,6 +1662,18 @@ def add_tiles_and_properties_and_contour(
         ]
         session.add_all(tags)
 
+        gcn_tags = add_default_gcn_tags(user, session, localization=localization)
+        if gcn_tags is not None and len(gcn_tags) > 0:
+            session.add_all(gcn_tags)
+            session.commit()
+
+        request_body = {
+            'target_class_name': 'Localization',
+            'target_id': localization_id,
+        }
+        if notify:
+            post_notification(request_body, timeout=30),
+
         tiles = [
             LocalizationTile(
                 localization_id=localization_id,
@@ -1652,11 +1692,6 @@ def add_tiles_and_properties_and_contour(
         localization = get_contour(localization)
         session.add(localization)
         session.commit()
-
-        gcn_tags = add_default_gcn_tags(localization, user, session)
-        if gcn_tags is not None and len(gcn_tags) > 0:
-            session.add_all(gcn_tags)
-            session.commit()
 
         if url is not None:
             try:
@@ -1686,15 +1721,25 @@ def add_tiles_and_properties_and_contour(
             Session.remove()
 
 
-def add_default_gcn_tags(localization, user, session):
+def add_default_gcn_tags(user, session, dateobs=None, localization=None):
     gcn_tags = []
     try:
-        event = session.scalars(
-            GcnEvent.select(user).where(GcnEvent.dateobs == localization.dateobs)
-        ).first()
+        if dateobs is None and localization is None:
+            return gcn_tags
+        if dateobs is None:
+            event = session.scalars(
+                GcnEvent.select(user).where(GcnEvent.dateobs == localization.dateobs)
+            ).first()
+        else:
+            event = session.scalars(
+                GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+            ).first()
         event_notice_types = [notice.notice_type for notice in event.gcn_notices]
         event_tags = event.tags
-        localization_tags = [tag.text for tag in localization.tags]
+        if localization is not None:
+            localization_tags = [tag.text for tag in localization.tags]
+        else:
+            localization_tags = []
 
         default_gcn_tags = (
             (
@@ -1731,11 +1776,19 @@ def add_default_gcn_tags(localization, user, session):
                     ):
                         continue
                 tag_name = default_gcn_tag.default_tag_name
-                gcn_tags.append(
-                    GcnTag(text=tag_name, dateobs=event.dateobs, sent_by_id=user.id)
-                )
+                if tag_name not in event_tags and tag_name not in gcn_tags:
+                    gcn_tags.append(tag_name)
             except Exception:
                 pass
+
+        gcn_tags = [
+            GcnTag(
+                text=text,
+                dateobs=event.dateobs,
+                sent_by_id=user.id,
+            )
+            for text in gcn_tags
+        ]
     except Exception as e:
         log(f"Unable to add default GCN tags: {str(e)}")
         gcn_tags = []
@@ -1915,7 +1968,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
 
 def add_tiles_properties_contour_and_obsplan(
-    localization_id, user_id, parent_session=None, url=None
+    localization_id, user_id, parent_session=None, url=None, notify=True
 ):
 
     if parent_session is None:
@@ -1927,7 +1980,9 @@ def add_tiles_properties_contour_and_obsplan(
         session = parent_session
 
     try:
-        add_tiles_and_properties_and_contour(localization_id, user_id, session, url=url)
+        add_tiles_and_properties_and_contour(
+            localization_id, user_id, session, url=url, notify=notify
+        )
         add_observation_plans(localization_id, user_id, session)
     except Exception as e:
         log(
