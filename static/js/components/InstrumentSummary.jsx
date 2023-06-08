@@ -1,7 +1,13 @@
 import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
+import Accordion from "@mui/material/Accordion";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import Grid from "@mui/material/Grid";
 import CircularProgress from "@mui/material/CircularProgress";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
@@ -12,6 +18,7 @@ import utc from "dayjs/plugin/utc";
 
 import withRouter from "./withRouter";
 
+import InstrumentLogForm from "./InstrumentLogForm";
 import * as Action from "../ducks/instrument";
 
 const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
@@ -28,6 +35,13 @@ const useStyles = makeStyles((theme) => ({
   center: {
     margin: "auto",
     padding: "0.625rem",
+  },
+  columnItem: {
+    marginBottom: theme.spacing(1),
+  },
+  accordionHeading: {
+    fontSize: "1.25rem",
+    fontWeight: theme.typography.fontWeightRegular,
   },
 }));
 
@@ -116,24 +130,59 @@ const InstrumentSummary = ({ route }) => {
 
   return (
     <div>
-      <div className={styles.center}>
-        {!instrument.log_exists ? (
-          <div> No logs exist </div>
-        ) : (
-          <InstrumentPlot
-            instrumentId={instrument.id}
-            startDate={startDate}
-            endDate={endDate}
-          />
-        )}
-      </div>
-      <div>
-        <Form
-          schema={InstrumentSummaryFormSchema}
-          validator={validator}
-          onSubmit={handleSubmit}
-        />
-      </div>
+      <Grid container spacing={2} className={styles.source}>
+        <Grid item xs={12}>
+          <div>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="instrument-log-content"
+                id="instrument-log-header"
+              >
+                <Typography className={styles.accordionHeading}>
+                  Instrument Log Display
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={styles.columnItem}>
+                  {!instrument.log_exists ? (
+                    <div> No logs exist </div>
+                  ) : (
+                    <InstrumentPlot
+                      instrumentId={instrument.id}
+                      startDate={startDate}
+                      endDate={endDate}
+                    />
+                  )}
+                </div>
+                <div>
+                  <Form
+                    schema={InstrumentSummaryFormSchema}
+                    validator={validator}
+                    onSubmit={handleSubmit}
+                  />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="instrument-log-query"
+                id="instrument-log-query"
+              >
+                <Typography className={styles.accordionHeading}>
+                  Instrument Log Query
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <InstrumentLogForm instrument={instrument} />
+              </AccordionDetails>
+            </Accordion>
+          </div>
+        </Grid>
+      </Grid>
     </div>
   );
 };
