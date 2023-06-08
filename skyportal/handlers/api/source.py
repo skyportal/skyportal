@@ -37,12 +37,12 @@ import time
 
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
+from ...utils.thumbnail import post_thumbnails
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.flow import Flow
-from baselayer.app.custom_exceptions import AccessError
 from baselayer.log import make_log
 
 from ..base import BaseHandler
@@ -50,7 +50,6 @@ from ...models import (
     Allocation,
     Annotation,
     Comment,
-    DBSession,
     GroupUser,
     Instrument,
     Obj,
@@ -96,7 +95,6 @@ from .candidate import (
     update_redshift_history_if_relevant,
     update_summary_history_if_relevant,
     update_healpix_if_relevant,
-    add_linked_thumbnails_and_push_ws_msg,
 )
 from .photometry import serialize, add_external_photometry
 from .color_mag import get_color_mag
@@ -286,19 +284,10 @@ async def get_source(
 
     if include_thumbnails:
         existing_thumbnail_types = [thumb.type for thumb in s.thumbnails]
-        if "ps1" not in existing_thumbnail_types:
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_ps1_thumbnail_and_push_ws_msg([obj_id], user_id),
-            )
-        if (
-            "sdss" not in existing_thumbnail_types
-            or "ls" not in existing_thumbnail_types
-        ):
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_linked_thumbnails_and_push_ws_msg(obj_id, user_id),
-            )
+        thumbnails = list({"ps1", "ls", "sdss"} - set(existing_thumbnail_types))
+        if len(thumbnails) > 0:
+            post_thumbnails([obj_id])
+
     if include_comments:
         comments = (
             session.scalars(
@@ -1788,15 +1777,7 @@ def post_source(data, user_id, session, refresh_source=True):
             break
 
     if not obj_already_exists:
-        if loop is None:
-            try:
-                loop = IOLoop.current()
-            except RuntimeError:
-                loop = IOLoop(make_current=True).current()
-        loop.run_in_executor(
-            None,
-            lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, user_id),
-        )
+        post_thumbnails([obj.id])
     else:
         if refresh_source:
             flow = Flow()
@@ -1820,40 +1801,6 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
             Source.requested.is_(True)
         )
     return query
-
-
-def add_ps1_thumbnail_and_push_ws_msg(obj_ids, user_id):
-
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
-
-    user = session.query(User).get(user_id)
-    for obj_id in obj_ids:
-        try:
-            user = session.query(User).get(user_id)
-            if Obj.get_if_accessible_by(obj_id, user) is None:
-                raise AccessError(
-                    f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
-                )
-            obj = session.query(Obj).get(obj_id)
-            obj.add_ps1_thumbnail(session=session)
-            flow = Flow()
-            flow.push(
-                '*',
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": obj.internal_key},
-            )
-            flow.push(
-                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-            )
-        except Exception as e:
-            log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
-            session.rollback()
-
-    session.close()
-    Session.remove()
 
 
 def paginate_summary_query(session, query, page, num_per_page, total_matches):
@@ -3570,7 +3517,7 @@ class SourceNotificationHandler(BaseHandler):
             return self.success(data={'id': new_notification.id})
 
 
-class PS1ThumbnailHandler(BaseHandler):
+class SurveyThumbnailHandler(BaseHandler):
     @auth_or_token  # We should allow these requests from view-only users (triggered on source page)
     def post(self):
         data = self.get_json()
@@ -3583,11 +3530,8 @@ class PS1ThumbnailHandler(BaseHandler):
         if obj_id is not None:
             obj_ids = [obj_id]
 
-        IOLoop.current().add_callback(
-            lambda: add_ps1_thumbnail_and_push_ws_msg(
-                obj_ids, self.associated_user_object.id
-            )
-        )
+        post_thumbnails(obj_ids)
+
         return self.success()
 
 

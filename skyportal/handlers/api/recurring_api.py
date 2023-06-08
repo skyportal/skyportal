@@ -19,7 +19,7 @@ log = make_log('app/recurring_api')
 
 _, cfg = load_env()
 
-ALLOWED_RECURRING_API_METHODS = ['POST']
+ALLOWED_RECURRING_API_METHODS = ['POST', 'GET']
 MAX_RETRIES = 10
 
 

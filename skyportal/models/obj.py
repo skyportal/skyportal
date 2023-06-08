@@ -462,18 +462,20 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Sources in a localization.",
     )
 
-    def add_linked_thumbnails(self, session=DBSession):
-        """Determine the URLs of the SDSS and Legacy Survey DR9
+    def add_linked_thumbnails(self, thumbnails, session=DBSession):
+        """Determine the URLs of the SDSS, Legacy Survey DR9, and
         thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
-        sdss_thumb = Thumbnail(obj=self, public_url=self.sdss_url, type='sdss')
-        ls_thumb = Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type='ls')
-        session.add_all([sdss_thumb, ls_thumb])
-        session.commit()
 
-    def add_ps1_thumbnail(self, session=DBSession):
-        ps1_thumb = Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1")
-        session.add(ps1_thumb)
+        if "sdss" in thumbnails:
+            session.add(Thumbnail(obj=self, public_url=self.sdss_url, type='sdss'))
+        if "ls" in thumbnails:
+            session.add(
+                Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type='ls')
+            )
+
+        if "ps1" in thumbnails:
+            session.add(Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1"))
         session.commit()
 
     @property
