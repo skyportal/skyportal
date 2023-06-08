@@ -1,5 +1,4 @@
 from astropy.time import Time, TimeDelta
-import astropy.units as u
 import functools
 import json
 import numpy as np
@@ -278,7 +277,7 @@ class SEDMV2API(FollowUpAPI):
         )
 
     @staticmethod
-    def retrieve_log(allocation):
+    def retrieve_log(allocation, start_date, end_date):
 
         """Retrieve SEDMv2 logs.
 
@@ -286,14 +285,25 @@ class SEDMV2API(FollowUpAPI):
         ----------
         allocation : skyportal.models.Allocation
             The allocation with queue information.
+        start_date : datetime.datetime
+            Minimum time for logs
+        end_date : datetime.datetime
+            Maximum time for logs
         """
 
         altdata = allocation.altdata
         if not altdata:
             raise ValueError('Missing allocation information.')
 
+        request_start = Time(start_date, format='datetime')
+        request_end = Time(end_date, format='datetime')
+
         fetch_logs = functools.partial(
-            fetch_nightly_logs, allocation.instrument.id, altdata
+            fetch_nightly_logs,
+            allocation.instrument.id,
+            altdata,
+            request_start,
+            request_end,
         )
         IOLoop.current().run_in_executor(None, fetch_logs)
 
@@ -408,12 +418,16 @@ class SEDMV2API(FollowUpAPI):
     }
 
 
-def fetch_nightly_logs(instrument_id, altdata):
+def fetch_nightly_logs(instrument_id, altdata, request_start, request_end):
     """Fetch nightly logs.
     instrument_id : int
         ID of the instrument
     altdata: dict
         Contains SEDMv2 login for the user
+    request_start : astropy.time.Time
+        Start time for the request.
+    request_end : astropy.time.Time
+        End time for the request.
     """
 
     from ..models import (
@@ -428,39 +442,45 @@ def fetch_nightly_logs(instrument_id, altdata):
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
-        day = (Time.now() - TimeDelta(1 * u.day)).strftime('%Y%m%d')
-        r = requests.get(
-            f"{altdata['url']}/Lastnight/robod.{day}.log",
-            auth=HTTPBasicAuth(altdata['user'], altdata['password']),
-        )
-        logs = read_logs(r.text)
+        days = np.arange(np.floor(request_start.mjd), np.ceil(request_end.mjd) + 1)
+        for day in days:
+            day = Time(day, format='mjd').strftime('%Y%m%d')
+            r = requests.get(
+                f"{altdata['url']}/Archive/{day}/robo_test.{day}.log",
+                auth=HTTPBasicAuth(altdata['user'], altdata['password']),
+            )
+            logs = read_logs(r.text)
 
-        start_date = None
-        end_date = None
+            if not logs['logs']:
+                log(f'Log for {day} unavailable for instrument with ID {instrument_id}')
+                continue
 
-        for log_dict in logs['logs']:
-            if start_date is None:
-                start_date = log_dict['mjd']
-            else:
-                start_date = np.min([start_date, log_dict['mjd']])
+            start_date = None
+            end_date = None
 
-            if end_date is None:
-                end_date = log_dict['mjd']
-            else:
-                end_date = np.max([end_date, log_dict['mjd']])
+            for log_dict in logs['logs']:
+                if start_date is None:
+                    start_date = log_dict['mjd']
+                else:
+                    start_date = np.min([start_date, log_dict['mjd']])
 
-        start_date = Time(start_date, format='mjd').datetime
-        end_date = Time(end_date, format='mjd').datetime
+                if end_date is None:
+                    end_date = log_dict['mjd']
+                else:
+                    end_date = np.max([end_date, log_dict['mjd']])
 
-        instrument_log = InstrumentLog(
-            log=logs,
-            start_date=start_date,
-            end_date=end_date,
-            instrument_id=instrument_id,
-        )
+            start_date = Time(start_date, format='mjd').datetime
+            end_date = Time(end_date, format='mjd').datetime
 
-        session.add(instrument_log)
-        session.commit()
+            instrument_log = InstrumentLog(
+                log=logs,
+                start_date=start_date,
+                end_date=end_date,
+                instrument_id=instrument_id,
+            )
+
+            session.add(instrument_log)
+            session.commit()
 
     except Exception as e:
         log(f"Unable to commit logs for instrument with ID {instrument_id}: {e}")

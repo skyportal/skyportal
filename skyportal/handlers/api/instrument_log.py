@@ -1,4 +1,6 @@
 import arrow
+from astropy.time import Time, TimeDelta
+import astropy.units as u
 
 from baselayer.app.access import permissions, auth_or_token
 
@@ -129,6 +131,22 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
               type: string
             description: |
               ID for the allocation to retrieve
+          - in: query
+            name: startDate
+            required: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01).
+              Defaults to now.
+          - in: query
+            name: endDate
+            required: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01).
+              Defaults to 72 hours ago.
         responses:
           200:
             content:
@@ -144,6 +162,18 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
         data['allocation_id'] = int(allocation_id)
+
+        start_date = self.get_query_argument('startDate')
+        end_date = self.get_query_argument('endDate')
+
+        if start_date is not None:
+            start_date = arrow.get(start_date.strip()).datetime
+        else:
+            start_date = (Time.now() - TimeDelta(3 * u.day)).datetime
+        if end_date is not None:
+            end_date = arrow.get(end_date.strip()).datetime
+        else:
+            end_date = Time.now().datetime
 
         with self.Session() as session:
             allocation = session.scalars(
@@ -171,6 +201,8 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
                 # instrument logs
                 instrument.api_class.retrieve_log(
                     allocation,
+                    start_date,
+                    end_date,
                 )
                 return self.success()
             except Exception as e:
