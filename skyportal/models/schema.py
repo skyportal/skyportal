@@ -1329,6 +1329,21 @@ class CatalogQueryPost(_Schema):
     )
 
 
+class DefaultGcnTagPost(_Schema):
+
+    filters = fields.Field(
+        required=True,
+        metadata={
+            'description': "Filters to determine which of the default gcn tags get executed for which events"
+        },
+    )
+
+    default_tag_name = fields.String(
+        required=True,
+        metadata={'description': "Default tag name."},
+    )
+
+
 class DefaultObservationPlanPost(_Schema):
 
     payload = fields.Field(

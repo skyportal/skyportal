@@ -25,6 +25,7 @@ from skyportal.handlers.api import (
     CommentAttachmentHandler,
     CommentAttachmentUpdateHandler,
     DefaultAnalysisHandler,
+    DefaultGcnTagHandler,
     EarthquakeHandler,
     EarthquakeMeasurementHandler,
     EarthquakePredictionHandler,
@@ -247,6 +248,10 @@ skyportal_handlers = [
     (
         r'/api/default_followup_request(/[0-9A-Za-z-_\.\+]+)?',
         DefaultFollowupRequestHandler,
+    ),
+    (
+        r'/api/default_gcn_tag(/[0-9A-Za-z-_\.\+]+)?',
+        DefaultGcnTagHandler,
     ),
     (
         r'/api/default_observation_plan(/[0-9A-Za-z-_\.\+]+)?',

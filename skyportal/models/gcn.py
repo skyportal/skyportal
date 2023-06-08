@@ -15,6 +15,7 @@ from baselayer.app.models import (
     AccessibleIfUserMatches,
     CustomUserAccessControl,
     UserAccessControl,
+    User,
     safe_aliased,
     join_model,
     restricted,
@@ -37,6 +38,36 @@ def gcn_update_delete_logic(cls, user_or_token):
         return restricted.query_accessible_rows(cls, user_or_token)
 
     return DBSession().query(cls)
+
+
+class DefaultGcnTag(Base):
+    """A default set of criteria to apply a GcnTag."""
+
+    # TODO: Make read-accessible via target groups
+    update = delete = AccessibleIfUserMatches('requester')
+
+    requester_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True,
+        doc="ID of the User who requested the default gcn tag.",
+    )
+
+    requester = relationship(
+        User,
+        back_populates='default_gcntags',
+        doc="The User who requested the default gcn tag.",
+        foreign_keys=[requester_id],
+    )
+
+    filters = sa.Column(
+        JSONB,
+        doc="Filters to determine which of the default gcn tags get executed for which events",
+    )
+
+    default_tag_name = sa.Column(
+        sa.String, unique=True, nullable=False, doc='Default tag name'
+    )
 
 
 class GcnSummary(Base):
