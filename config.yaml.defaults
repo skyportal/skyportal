@@ -648,6 +648,7 @@ ports:
   notification_queue: 64610
   observation_plan_queue: 64710
   tns_queue: 64810
+  thumbnail_queue: 64910
 
 gcn:
   server: gcn.nasa.gov
