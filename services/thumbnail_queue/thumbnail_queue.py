@@ -74,6 +74,7 @@ def service(queue):
                     )
 
             except Exception as e:
+                session.rollback()
                 log(f"Error processing thumbnail request for object {obj_id}: {str(e)}")
 
 
@@ -131,7 +132,7 @@ if __name__ == "__main__":
 
         while True:
             log(f"Current thumbnail queue length: {len(queue)}")
-            time.sleep(120)
+            time.sleep(60)
     except Exception as e:
         log(f"Error starting thumbnail queue: {str(e)}")
         raise e
