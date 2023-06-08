@@ -52,7 +52,8 @@ class AnnotationsInfoHandler(BaseHandler):
         # have min/max fields on the form.
 
         try:
-            cached = cache['annotations_info']
+            cache_key = f"annotations_info_{self.associated_user_object.id}"
+            cached = cache[cache_key]
             if cached is not None:
                 data = np.load(cached, allow_pickle=True)
                 return self.success(data=data.item())
@@ -87,7 +88,7 @@ class AnnotationsInfoHandler(BaseHandler):
 
                         keys_seen[annotation.origin].add(annotation.key)
 
-                    cache['annotations_info'] = dict_to_bytes(grouped)
+                    cache[cache_key] = dict_to_bytes(grouped)
                     return self.success(data=grouped)
 
         except Exception as e:
