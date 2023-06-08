@@ -3891,7 +3891,7 @@ class DefaultGcnTagHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfDefaultGcnTag
+                  schema: ArrayOfDefaultGcnTags
             400:
               content:
                 application/json:
