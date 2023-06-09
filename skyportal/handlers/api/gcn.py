@@ -193,12 +193,12 @@ def post_gcnevent_from_xml(
     session.commit()
     notice_id = gcn_notice.id
 
-    properties_dict = get_properties(root)
+    properties_dict, tags_list = get_properties(root)
     properties = GcnProperty(dateobs=dateobs, sent_by_id=user_id, data=properties_dict)
     session.add(properties)
     session.commit()
 
-    tags_text = get_tags(root)
+    tags_text = [text for text in get_tags(root)] + tags_list
     tags = [
         GcnTag(
             dateobs=dateobs,
@@ -292,9 +292,9 @@ def post_skymap_from_notice(
     root = lxml.etree.fromstring(gcn_notice.content)
     notice_type = gcn.get_notice_type(root)
 
-    skymap, url = None, None
+    skymap, url, properties = None, None, None
     try:
-        skymap, url = get_skymap(root, notice_type)
+        skymap, url, properties = get_skymap(root, notice_type)
     except Exception as e:
         raise ValueError(f"Failed to get skymap from gcn notice {gcn_notice.id}: {e}")
 
@@ -327,12 +327,21 @@ def post_skymap_from_notice(
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_tiles_properties_contour_and_obsplan(
-                    localization_id, user_id, url=url, notify=notify
+                    localization_id,
+                    user_id,
+                    url=url,
+                    notify=notify,
+                    properties=properties,
                 ),
             )
         else:
             add_tiles_properties_contour_and_obsplan(
-                localization_id, user_id, session, url=url, notify=notify
+                localization_id,
+                user_id,
+                session,
+                url=url,
+                notify=notify,
+                properties=properties,
             )
 
         gcn_notice.localization_ingested = True
@@ -1630,7 +1639,12 @@ class GcnEventHandler(BaseHandler):
 
 
 def add_tiles_and_properties_and_contour(
-    localization_id, user_id, parent_session=None, url=None, notify=True
+    localization_id,
+    user_id,
+    parent_session=None,
+    url=None,
+    notify=True,
+    properties=None,
 ):
     if parent_session is None:
         if Session.registry.has():
@@ -1647,6 +1661,9 @@ def add_tiles_and_properties_and_contour(
         )
 
         properties_dict, tags_list = get_skymap_properties(localization)
+        if properties is not None:
+            properties_dict.update(properties)
+
         properties = LocalizationProperty(
             localization_id=localization_id, sent_by_id=user.id, data=properties_dict
         )
@@ -1968,7 +1985,12 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
 
 def add_tiles_properties_contour_and_obsplan(
-    localization_id, user_id, parent_session=None, url=None, notify=True
+    localization_id,
+    user_id,
+    parent_session=None,
+    url=None,
+    notify=True,
+    properties=None,
 ):
 
     if parent_session is None:
@@ -1981,7 +2003,12 @@ def add_tiles_properties_contour_and_obsplan(
 
     try:
         add_tiles_and_properties_and_contour(
-            localization_id, user_id, session, url=url, notify=notify
+            localization_id,
+            user_id,
+            session,
+            url=url,
+            notify=notify,
+            properties=properties,
         )
         add_observation_plans(localization_id, user_id, session)
     except Exception as e:
