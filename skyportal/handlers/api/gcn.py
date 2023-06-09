@@ -467,6 +467,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
     if skymap is None:
         return event.id
 
+    localization_properties = None
     if type(skymap) is dict:
         required_keys = {'localization_name', 'uniq', 'probdensity'}
         if not required_keys.issubset(set(skymap.keys())):
@@ -503,7 +504,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
         try:
             skymap = from_bytes(skymap)
         except binascii.Error:
-            skymap = from_url(skymap)
+            skymap, localization_properties = from_url(skymap)
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
@@ -542,11 +543,15 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_tiles_properties_contour_and_obsplan(
-                    localization_id, user_id
+                    localization_id,
+                    user_id,
+                    properties=localization_properties,
                 ),
             )
         else:
-            add_tiles_properties_contour_and_obsplan(localization_id, user_id, session)
+            add_tiles_properties_contour_and_obsplan(
+                localization_id, user_id, session, properties=localization_properties
+            )
 
     return event.id
 
