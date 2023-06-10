@@ -176,7 +176,7 @@ def test_gcn_from_moc(super_admin_token):
     skymap = f'{os.path.dirname(__file__)}/../../data/GRB220617A_IPN_map_hpx.fits.gz'
     dateobs = '2022-06-18T18:31:12'
     tags = ['IPN', 'GRB', name]
-    skymap = from_url(skymap)
+    skymap, _ = from_url(skymap)
     properties = {'BNS': 0.9, 'NSBH': 0.1}
 
     event_data = {
@@ -188,7 +188,6 @@ def test_gcn_from_moc(super_admin_token):
 
     dateobs = "2022-06-18 18:31:12"
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
     if status == 404:
         status, data = api(
             'POST', 'gcn_event', data=event_data, token=super_admin_token
