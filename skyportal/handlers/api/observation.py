@@ -308,7 +308,6 @@ def get_observations(
         area: number
             Area covered in square degrees
     """
-
     if return_statistics and localization_dateobs is None:
         raise ValueError(
             'localization_dateobs must be specified if return_statistics=True'
@@ -458,6 +457,17 @@ def get_observations(
                 .where(InstrumentField.field_id.in_(field_ids))
                 .distinct()
             )
+            if telescope_name is not None and instrument_name is not None:
+                field_tiles_query = field_tiles_query.where(
+                    InstrumentField.instrument_id == instrument.id
+                )
+
+            field_tiles = session.scalars(field_tiles_query).all()
+            field_tiles_subquery = (
+                sa.select(InstrumentField.id)
+                .where(InstrumentField.id.in_(field_tiles))
+                .subquery()
+            )
         else:
             field_tiles_query = sa.select(InstrumentField.id).where(
                 localizationtilescls.localization_id == localization.id,
@@ -466,12 +476,12 @@ def get_observations(
                 InstrumentFieldTile.healpix.overlaps(localizationtilescls.healpix),
             )
 
-        if telescope_name is not None and instrument_name is not None:
-            field_tiles_query = field_tiles_query.where(
-                InstrumentFieldTile.instrument_id == instrument.id
-            )
+            if telescope_name is not None and instrument_name is not None:
+                field_tiles_query = field_tiles_query.where(
+                    InstrumentFieldTile.instrument_id == instrument.id
+                )
 
-        field_tiles_subquery = field_tiles_query.distinct().subquery()
+            field_tiles_subquery = field_tiles_query.distinct().subquery()
 
         obs_query = obs_query.join(
             field_tiles_subquery,
@@ -1507,7 +1517,7 @@ class ObservationTreasureMapHandler(BaseHandler):
     def post(self, instrument_id):
         """
         ---
-        description: Submit the observation plan to treasuremap.space
+        description: Submit the executed observations to treasuremap.space
         tags:
           - observation_plan_requests
         parameters:
