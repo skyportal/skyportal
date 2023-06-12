@@ -72,9 +72,6 @@ make;
 make install;
 ```
 
-psfex can be installed
-./configure --prefix=/Users/mcoughlin/Code/ZTF/psfex-build --with-fftw-libdir=/opt/homebrew/Cellar/fftw/3.3.10_1/lib --with-fftw-incdir=/opt/homebrew/Cellar/fftw/3.3.10_1/include --enable-openblas --with-openblas-libdir=/opt/homebrew/opt/openblas/lib --with-openblas-incdir=/opt/homebrew/opt/openblas/include
-
 ## Installing STDpipe
 
 As of right now, STDpipe is in development, and not available on pypi or conda yet.
