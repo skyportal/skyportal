@@ -1,12 +1,15 @@
+import json
+from datetime import datetime
+
 import arrow
-from astropy.time import Time, TimeDelta
 import astropy.units as u
+from astropy.time import Time, TimeDelta
 
-from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 
-from ..base import BaseHandler
 from ...models import Allocation, Instrument, InstrumentLog
 from ...utils.instrument_log import read_logs
+from ..base import BaseHandler
 
 
 class InstrumentLogHandler(BaseHandler):
@@ -207,3 +210,157 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
                 return self.success()
             except Exception as e:
                 return self.error(f"Error in querying instrument API: {e}")
+
+
+class InstrumentStatusHandler(BaseHandler):
+    # this will contain a POST method to call the instrument.api_class.update_status
+    # method, which will update the status of the instrument in the database
+
+    @permissions(['Upload data'])
+    def put(self, instrument_id):
+        """
+        ---
+        description: Update the status of an instrument
+        tags:
+          - instruments
+        parameters:
+          - in: path
+            name: instrument_id
+            required: true
+            schema:
+              type: integer
+            description: The instrument ID to update the status for
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: |
+                      The status of the instrument
+                required:
+                  - status
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        status = data.get('status', None)
+        if status in [None, '', {}, []]:
+            with self.Session() as session:
+                stmt = Instrument.select(session.user_or_token, mode="update").where(
+                    Instrument.id == int(instrument_id)
+                )
+                instrument = session.scalars(stmt).first()
+                if instrument is None:
+                    return self.error(f'Missing instrument with ID {instrument_id}')
+
+                if instrument.api_classname is None:
+                    return self.error('Instrument has no remote observation plan API.')
+
+                if not instrument.api_class.implements()['update_status']:
+                    return self.error(
+                        'Updating status of this Instrument is not available.'
+                    )
+
+                # we need to fetch allocation on the instrument that the user has access to
+                allocations = session.scalars(
+                    Allocation.select(session.user_or_token).where(
+                        Allocation.instrument_id == instrument_id
+                    )
+                ).all()
+                if len(allocations) == 0:
+                    return self.error(
+                        f"Cannot find any allocations for instrument with ID: {instrument_id}"
+                    )
+                # we look for the allocation that has a non empty altdata field and the keys:
+                # - ssh_host
+                # - ssh_username
+                # - ssh_password
+                # - ssh_port (optional)
+
+                allocation = None
+                for alloc in allocations:
+                    if alloc.altdata is not None:
+                        if set(list(alloc.altdata.keys())).issuperset(
+                            ["ssh_host", "ssh_username", "ssh_password"]
+                        ):
+                            allocation = alloc
+                            break
+                if allocation is None:
+                    return self.error(
+                        f"Cannot find any allocations with valid altdata (ssh_host, ssh_username, ssh_password) for instrument with ID: {instrument_id}"
+                    )
+
+                try:
+                    # we now retrieve and commit to the database the
+                    # instrument logs
+                    instrument.api_class.update_status(
+                        allocation,
+                        session,
+                    )
+                    self.push_all(
+                        action='skyportal/REFRESH_INSTRUMENT',
+                        payload={'instrument_id': instrument_id},
+                    )
+                    return self.success()
+                except Exception as e:
+                    return self.error(f"Error in querying instrument API: {e}")
+        else:
+            if isinstance(status, str):
+                try:
+                    status = json.loads(status)
+                except Exception:
+                    return self.error('Invalid status (must be non-empty JSON)')
+            if not isinstance(status, dict):
+                return self.error('Invalid status (must be non-empty JSON)')
+                # the status is provided in the request body
+            # if all the keys have empty values, we remove them
+            status = {
+                k: v
+                for k, v in status.items()
+                if v is not None and v not in [None, '', {}, []]
+            }
+            if len(status) == 0:
+                return self.error('Invalid status (must be non-empty JSON)')
+
+            with self.Session() as session:
+                try:
+                    instrument = session.scalars(
+                        Instrument.select(session.user_or_token).where(
+                            Instrument.id == int(instrument_id)
+                        )
+                    ).first()
+                    if instrument is None:
+                        return self.error(f'Missing instrument with ID {instrument_id}')
+
+                    if instrument.api_classname is None:
+                        return self.error(
+                            'Instrument has no remote observation plan API.'
+                        )
+
+                    if not instrument.api_class.implements()['update_status']:
+                        return self.error(
+                            'Updating status of this Instrument is not available.'
+                        )
+
+                    instrument.status = status
+                    instrument.last_status_update = datetime.utcnow()
+                    session.commit()
+
+                    self.push_all(
+                        action='skyportal/REFRESH_INSTRUMENT',
+                        payload={'instrument_id': instrument_id},
+                    )
+                    return self.success()
+                except Exception as e:
+                    return self.error(f"Error updating instrument status: {e}")

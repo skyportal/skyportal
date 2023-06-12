@@ -1,14 +1,15 @@
-import React, { useEffect, useState, Suspense } from "react";
-import PropTypes from "prop-types";
-import { useSelector, useDispatch } from "react-redux";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import Accordion from "@mui/material/Accordion";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
-import Grid from "@mui/material/Grid";
 import CircularProgress from "@mui/material/CircularProgress";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
+import PropTypes from "prop-types";
+import React, { Suspense, useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -16,10 +17,14 @@ import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import withRouter from "./withRouter";
+import { showNotification } from "baselayer/components/Notifications";
 
-import InstrumentLogForm from "./InstrumentLogForm";
+import { Paper } from "@mui/material";
+import IconButton from "@mui/material/IconButton";
+import JsonDashboard from "react-json-dashboard";
+import withRouter from "./withRouter";
 import * as Action from "../ducks/instrument";
+import InstrumentLogForm from "./InstrumentLogForm";
 
 const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
@@ -128,6 +133,27 @@ const InstrumentSummary = ({ route }) => {
     required: ["startDate", "endDate"],
   };
 
+  const refreshButton = (
+    <IconButton
+      color="primary"
+      aria-label="refresh"
+      style={{ margin: 0, padding: 0 }}
+      onClick={() => {
+        dispatch(Action.updateInstrumentStatus(route.id)).then((response) => {
+          if (response.status === "success") {
+            dispatch(showNotification("Instrument status updated"));
+          } else {
+            dispatch(
+              showNotification("Error updating instrument status", "error")
+            );
+          }
+        });
+      }}
+    >
+      <RefreshIcon />
+    </IconButton>
+  );
+
   return (
     <div>
       <Grid container spacing={2} className={styles.source}>
@@ -181,6 +207,15 @@ const InstrumentSummary = ({ route }) => {
               </AccordionDetails>
             </Accordion>
           </div>
+          <Paper elevation={3} style={{ marginTop: "1rem", padding: "1rem" }}>
+            <JsonDashboard
+              title={`${instrument?.name || "Instrument"} Status`}
+              data={instrument?.status || {}}
+              lastUpdated={instrument?.last_status_update}
+              refreshButton={refreshButton}
+              showTitle
+            />
+          </Paper>
         </Grid>
       </Grid>
     </div>
