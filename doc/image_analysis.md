@@ -3,7 +3,9 @@
 This feature allows users to upload FITS images from observations of a source, and then use STDPipe to **extract the photometry from the image**.
 As this feature requires additional system dependencies, we choose to make it optional.
 
-## Installing System Dependencies required by STDpipe (Debian-based Linux and WSL)
+## Installing System Dependencies required by STDpipe
+
+### Debian-based Linux and WSL
 
 ```
 sudo apt install sextractor scamp psfex swarp
@@ -15,6 +17,63 @@ Also, one needs to install `snid`. To install it, you can run the following comm
 git clone https://github.com/Theodlz/snid-install-ubuntu.git && \
 cd snid-install-ubuntu && sudo chmod +x install.sh && sudo bash ./install.sh
 ```
+
+### Mac OSX
+
+We can use Homebrew to install dependencies (Macports should also be possible in a similar fashion). We have written a short bash script that can be modified to build the dependencies:
+
+```
+#!/bin/bash
+
+INSTALL_DIR="FULL_DIRECTORY_PATH_HERE";
+mkdir $INSTALL_DIR;
+
+brew install sextractor
+brew install openblas
+brew install cfitsio
+brew install fftw
+
+cd $INSTALL_DIR;
+git clone git@github.com:astromatic/scamp.git
+cd scamp;
+sh autogen.sh
+mkdir $INSTALL_DIR/scamp-build
+./configure --prefix=$INSTALL_DIR/scamp-build \
+  --with-fftw-libdir=/opt/homebrew/Cellar/fftw/3.3.10_1/lib \
+  --with-fftw-incdir=/opt/homebrew/Cellar/fftw/3.3.10_1/include \
+  --enable-openblas \
+  --with-openblas-libdir=/opt/homebrew/opt/openblas/lib \
+  --with-openblas-incdir=/opt/homebrew/opt/openblas/include \
+make;
+make install;
+
+cd $INSTALL_DIR;
+git clone git@github.com:astromatic/swarp.git
+cd swarp;
+sh autogen.sh
+mkdir $INSTALL_DIR/swarp-build
+./configure --prefix=$INSTALL_DIR/swarp-build \
+    --with-cfitsio-incdir=/opt/homebrew/Cellar/cfitsio/4.2.0/include \
+    --with-cfitsio-libdir=/opt/homebrew/Cellar/cfitsio/4.2.0/lib
+make;
+make install;
+
+cd $INSTALL_DIR;
+git clone git@github.com:astromatic/psfex.git
+cd psfex;
+sh autogen.sh
+mkdir $INSTALL_DIR/psfex-build
+./configure --prefix=/Users/mcoughlin/Code/ZTF/psfex-build \
+    --with-fftw-libdir=/opt/homebrew/Cellar/fftw/3.3.10_1/lib \
+    --with-fftw-incdir=/opt/homebrew/Cellar/fftw/3.3.10_1/include \
+    --enable-openblas --with-openblas-libdir=/opt/homebrew/opt/openblas/lib \
+    --with-openblas-incdir=/opt/homebrew/opt/openblas/include
+make;
+make install;
+```
+
+psfex can be installed
+./configure --prefix=/Users/mcoughlin/Code/ZTF/psfex-build --with-fftw-libdir=/opt/homebrew/Cellar/fftw/3.3.10_1/lib --with-fftw-incdir=/opt/homebrew/Cellar/fftw/3.3.10_1/include --enable-openblas --with-openblas-libdir=/opt/homebrew/opt/openblas/lib --with-openblas-incdir=/opt/homebrew/opt/openblas/include
 
 ## Installing STDpipe
 
