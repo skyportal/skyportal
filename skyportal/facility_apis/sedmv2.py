@@ -1,19 +1,23 @@
-from astropy.time import Time, TimeDelta
+import ast
 import functools
 import json
+from datetime import datetime
+
 import numpy as np
 import requests
+from astropy.time import Time, TimeDelta
+from paramiko import AutoAddPolicy, SSHClient
 from requests.auth import HTTPBasicAuth
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
-from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from . import FollowUpAPI
 from ..utils import http
 from ..utils.instrument_log import read_logs
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
@@ -158,7 +162,7 @@ class SEDMV2API(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import DBSession, FollowupRequest, FacilityTransaction
+        from ..models import DBSession, FacilityTransaction, FollowupRequest
 
         if cfg['app.sedmv2_endpoint'] is not None:
             altdata = request.allocation.altdata
@@ -307,6 +311,54 @@ class SEDMV2API(FollowUpAPI):
         )
         IOLoop.current().run_in_executor(None, fetch_logs)
 
+    @staticmethod
+    def update_status(allocation, session):
+        """Update the status of SEDMv2 instruments."""
+
+        instrument = allocation.instrument
+
+        altdata = allocation.altdata
+
+        if altdata.get('ssh_host') is None:
+            log(f"Host not specified for instrument with ID {instrument.id}")
+            return
+        if altdata.get('ssh_port', 22) is None:
+            log(f"Port not specified for instrument with ID {instrument.id}")
+            return
+        if altdata.get('ssh_username') is None:
+            log(f"Username not specified for instrument with ID {instrument.id}")
+            return
+        if altdata.get('ssh_password') is None:
+            log(f"Password not specified for instrument with ID {instrument.id}")
+            return
+
+        try:
+            ssh = SSHClient()
+            ssh.load_system_host_keys()
+            ssh.set_missing_host_key_policy(AutoAddPolicy())
+            ssh.connect(
+                hostname=altdata['ssh_host'],
+                port=altdata['ssh_port'],
+                username=altdata['ssh_username'],
+                password=altdata['ssh_password'],
+            )
+            stdin, stdout, stderr = ssh.exec_command(
+                'cd /home/sedm/Queue/sedmv2; python read_config'
+            )
+
+            status = stdout.read().decode('utf-8')
+            status = ast.literal_eval(status)
+            status = {k: v for k, v in status.items() if v not in [None, '', {}, []]}
+
+            instrument.status = status
+            instrument.last_status_update = datetime.utcnow()
+            session.commit()
+
+        except Exception as e:
+            log(f"Unable to commit status for instrument with ID {instrument.id}: {e}")
+            session.rollback()
+            raise e
+
     form_json_schema = {
         "type": "object",
         "properties": {
@@ -430,10 +482,7 @@ def fetch_nightly_logs(instrument_id, altdata, request_start, request_end):
         End time for the request.
     """
 
-    from ..models import (
-        DBSession,
-        InstrumentLog,
-    )
+    from ..models import DBSession, InstrumentLog
 
     Session = scoped_session(sessionmaker())
     if Session.registry.has():

@@ -158,7 +158,7 @@ jobs:
         run: |
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make run &
-          sleep 60 && make load_demo_data
+          sleep 180 && make load_demo_data
           kill %1
 
       - name: Checkout PR branch

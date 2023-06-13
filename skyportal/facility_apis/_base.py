@@ -66,6 +66,7 @@ class _Base:
             "queued_skymap": cls._isimplemented('queued_skymap'),
             "remove_skymap": cls._isimplemented('remove_skymap'),
             "retrieve_log": cls._isimplemented('retrieve_log'),
+            "update_status": cls._isimplemented('update_status'),
         }
 
     # subclasses should not modify this

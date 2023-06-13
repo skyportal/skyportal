@@ -333,6 +333,18 @@ class Instrument(Base):
         doc="JSON describing instrument configuration properties such as instrument overhead, filter change time, readout, etc.",
     )
 
+    status = deferred(
+        sa.Column(
+            JSONB,
+            nullable=True,
+            doc="JSON describing the latest status of the instrument.",
+        )
+    )
+    last_status_update = sa.Column(
+        sa.DateTime,
+        nullable=True,
+        doc="The time at which the status was last updated.",
+    )
     allocations = relationship(
         'Allocation',
         back_populates="instrument",

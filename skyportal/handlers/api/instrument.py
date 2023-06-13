@@ -428,6 +428,8 @@ class InstrumentHandler(BaseHandler):
 
                 data = instrument.to_dict()
 
+                data['status'] = instrument.status
+
                 data['log_exists'] = (
                     session.scalars(
                         InstrumentLog.select(self.current_user).where(
