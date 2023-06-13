@@ -313,9 +313,7 @@ class SEDMV2API(FollowUpAPI):
 
     @staticmethod
     def update_status(allocation, session):
-        # this will require the altdata to have ssh host and password
-        # it will connect to the host, and grab the stdout from "python /home/sedm/Queue/sedmv2/read_config"
-        # it will then parse the output and save it to the database
+        """Update the status of SEDMv2 instruments."""
 
         instrument = allocation.instrument
 

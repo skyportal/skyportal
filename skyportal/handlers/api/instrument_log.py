@@ -213,9 +213,6 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
 
 
 class InstrumentStatusHandler(BaseHandler):
-    # this will contain a POST method to call the instrument.api_class.update_status
-    # method, which will update the status of the instrument in the database
-
     @permissions(['Upload data'])
     def put(self, instrument_id):
         """
@@ -272,7 +269,6 @@ class InstrumentStatusHandler(BaseHandler):
                         'Updating status of this Instrument is not available.'
                     )
 
-                # we need to fetch allocation on the instrument that the user has access to
                 allocations = session.scalars(
                     Allocation.select(session.user_or_token).where(
                         Allocation.instrument_id == instrument_id
@@ -282,12 +278,6 @@ class InstrumentStatusHandler(BaseHandler):
                     return self.error(
                         f"Cannot find any allocations for instrument with ID: {instrument_id}"
                     )
-                # we look for the allocation that has a non empty altdata field and the keys:
-                # - ssh_host
-                # - ssh_username
-                # - ssh_password
-                # - ssh_port (optional)
-
                 allocation = None
                 for alloc in allocations:
                     if alloc.altdata is not None:
@@ -302,8 +292,6 @@ class InstrumentStatusHandler(BaseHandler):
                     )
 
                 try:
-                    # we now retrieve and commit to the database the
-                    # instrument logs
                     instrument.api_class.update_status(
                         allocation,
                         session,
@@ -323,8 +311,7 @@ class InstrumentStatusHandler(BaseHandler):
                     return self.error('Invalid status (must be non-empty JSON)')
             if not isinstance(status, dict):
                 return self.error('Invalid status (must be non-empty JSON)')
-                # the status is provided in the request body
-            # if all the keys have empty values, we remove them
+
             status = {
                 k: v
                 for k, v in status.items()
