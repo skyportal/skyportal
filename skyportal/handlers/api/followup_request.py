@@ -904,6 +904,10 @@ class HourAngleConstraint(Constraint):
         ras = np.tile([target.ra.hour for target in targets], len(times))
         has = lst - ras
 
+        # Use hours from -12 to 12
+        idx = np.where(has > 12)[0]
+        has[idx] = has[idx] - 24
+
         if self.min is None and self.max is not None:
             mask = has <= self.max
         elif self.max is None and self.min is not None:
