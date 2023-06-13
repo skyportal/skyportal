@@ -152,6 +152,11 @@ class FollowUpAPI(_Base):
         """Retrieve the log of an instrument."""
         raise NotImplementedError
 
+    @staticmethod
+    def update_status():
+        """Retrieve the latest status of an instrument."""
+        raise NotImplementedError
+
     # jsonschema outlining the schema of the frontend form. See
     # https://github.com/rjsf-team/react-jsonschema-form
     # for examples.

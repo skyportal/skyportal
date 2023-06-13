@@ -16,6 +16,8 @@ const DELETE_INSTRUMENT = "skyportal/DELETE_INSTRUMENT";
 
 const FETCH_INSTRUMENT_SKYMAP = "skyportal/FETCH_INSTRUMENT_SKYMAP";
 
+const UPDATE_INSTRUMENT_STATUS = "skyportal/UPDATE_INSTRUMENT_STATUS";
+
 export const fetchInstrument = (id) =>
   API.GET(`/api/instrument/${id}`, FETCH_INSTRUMENT);
 
@@ -43,12 +45,15 @@ export function fetchInstrumentSkymap(id, localization, airmassTime = null) {
   );
 }
 
+export const updateInstrumentStatus = (id) =>
+  API.PUT(`/api/instrument/${id}/status`, UPDATE_INSTRUMENT_STATUS);
+
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { instrument } = getState();
   if (actionType === REFRESH_INSTRUMENT) {
     const { instrument_id } = payload;
-    if (instrument_id === instrument?.id) {
+    if (parseInt(instrument_id, 10) === instrument?.id) {
       dispatch(fetchInstrument(instrument_id));
     }
   }
