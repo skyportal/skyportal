@@ -306,7 +306,7 @@ const GcnEventPage = ({ route }) => {
                       marginRight: isSmall ? "1rem" : "0rem",
                     }}
                   >
-                    Social
+                    Interactions
                   </Button>
                   <Button
                     secondary
