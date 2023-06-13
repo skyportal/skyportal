@@ -53,7 +53,14 @@ const SourceAnnotationButtons = ({ source }) => {
   };
 
   return (
-    <div>
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        flexDirection: "row",
+        gap: "0.5rem",
+      }}
+    >
       {isSubmittingAnnotationGaia === source.id ? (
         <div>
           <CircularProgress />

@@ -494,6 +494,8 @@ const GcnSelectionForm = ({
     localizationCumprob: null,
   });
 
+  const [hasFetchedObservations, setHasFetchedObservations] = useState(false);
+
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
   };
@@ -588,11 +590,7 @@ const GcnSelectionForm = ({
   };
 
   const handleSubmitTreasureMap = async (id, filterParams) => {
-    if (
-      filterParams.localizationDateobs === null ||
-      filterParams.localizationDateobs === undefined ||
-      filterParams.localizationDateobs !== gcnEvent.dateobs
-    ) {
+    if (!hasFetchedObservations) {
       dispatch(
         showNotification(
           "Please fetch observations before submitting to treasure map",
@@ -607,7 +605,7 @@ const GcnSelectionForm = ({
       endDate: filterParams.endDate,
       localizationCumprob: filterParams.localizationCumprob,
       localizationName: filterParams.localizationName,
-      localizationDateobs: filterParams.localizationDateobs,
+      localizationDateobs: dateobs,
     };
     await dispatch(observationsActions.submitObservationsTreasureMap(id, data));
     setIsSubmittingTreasureMap(null);
@@ -721,12 +719,31 @@ const GcnSelectionForm = ({
     }
     formData.includeGeoJSON = true;
     if (formData.queryList.includes("observations")) {
+      if (
+        !instLookUp[selectedInstrumentId] ||
+        (instLookUp[selectedInstrumentId]
+          ? telLookUp[instLookUp[selectedInstrumentId].telescope_id]
+          : null) === null
+      ) {
+        dispatch(
+          showNotification(
+            "Please select an instrument and telescope before fetching observations",
+            "error"
+          )
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
       await dispatch(
-        observationsActions.fetchGcnEventObservations(
-          gcnEvent?.dateobs,
-          formData
-        )
+        observationsActions.fetchGcnEventObservations(gcnEvent?.dateobs, {
+          ...formData,
+          instrumentName: instLookUp[selectedInstrumentId]?.name,
+          telescopeName:
+            telLookUp[instLookUp[selectedInstrumentId]?.telescope_id]?.name,
+        })
       );
+      setHasFetchedObservations(true);
     }
     if (formData.queryList.includes("galaxies")) {
       await dispatch(

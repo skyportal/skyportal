@@ -307,7 +307,8 @@ def get_skymap(root, notice_type, url_timeout=10):
     status, skymap_metadata = get_skymap_metadata(root, notice_type, url_timeout)
 
     if status == "available":
-        return from_url(skymap_metadata["url"]), skymap_metadata["url"]
+        skymap, properties = from_url(skymap_metadata["url"])
+        return skymap, skymap_metadata["url"], properties
     elif status == "cone":
         return (
             from_cone(
@@ -316,9 +317,10 @@ def get_skymap(root, notice_type, url_timeout=10):
                 error=skymap_metadata["error"],
             ),
             None,
+            None,
         )
     else:
-        return None, None
+        return None, None, None
 
 
 def get_properties(root):
@@ -363,6 +365,16 @@ def get_properties(root):
             value = float(value)
             property_dict[property_name] = value
 
+    tags_list = []
+    if 'FAR' in property_dict:
+        thresholds = [1, 100]
+        for threshold in thresholds:
+            if property_dict['FAR'] * (365 * 86400) <= threshold:
+                if threshold == 1:
+                    tags_list.append("< 1 per year")
+                else:
+                    tags_list.append(f"< 1 per {threshold} years")
+
     # Get instruments if present.
     try:
         value = root.find(".//Param[@name='Instruments']").attrib['value']
@@ -372,7 +384,7 @@ def get_properties(root):
         instruments = value.split(",")
         property_dict["num_instruments"] = len(instruments)
 
-    return property_dict
+    return property_dict, tags_list
 
 
 def from_cone(ra, dec, error, n_sigma=4):
@@ -559,6 +571,19 @@ def from_url(url):
     filename = os.path.basename(urlparse(url).path)
 
     skymap = ligo.skymap.io.read_sky_map(url, moc=True)
+    meta = skymap.meta
+
+    property_names = [
+        # Gravitational waves
+        "log_bci",
+        "log_bsn",
+    ]
+
+    properties_dict = {}
+    for property_name in property_names:
+        if property_name in meta:
+            properties_dict[property_name] = meta[property_name]
+
     minval = 1e-300
     idx = np.where(skymap['PROBDENSITY'] < minval)[0]
     skymap['PROBDENSITY'][idx] = 0
@@ -583,7 +608,7 @@ def from_url(url):
         'distnorm': get_col(skymap, 'DISTNORM'),
     }
 
-    return skymap
+    return skymap, properties_dict
 
 
 def get_contour(localization):
@@ -638,7 +663,7 @@ def get_skymap_properties(localization):
 
     if not np.isnan(area):
         properties_dict["area_90"] = area
-        thresholds = [500, 1000]
+        thresholds = [200, 500, 1000]
         for threshold in thresholds:
             if properties_dict["area_90"] < threshold:
                 tags_list.append(f"< {threshold} sq. deg.")
@@ -660,8 +685,10 @@ def get_skymap_properties(localization):
         )
         if not np.isnan(distmean):
             properties_dict["distance"] = distmean
-            if distmean <= 150:
-                tags_list.append("< 150 Mpc")
+            thresholds = [150, 250]
+            for threshold in thresholds:
+                if distmean <= threshold:
+                    tags_list.append(f"< {threshold} Mpc")
             properties_dict["distance_error"] = distsigma
 
     return properties_dict, tags_list
