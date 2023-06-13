@@ -74,18 +74,7 @@ const ImageAnalysisForm = ({ obj_id }) => {
     setSelectedInstrumentId(e.target.value);
   };
 
-  const catalogs = [
-    "ps1",
-    "gaiadr2",
-    "gaiaedr3",
-    "skymapper",
-    "vsx",
-    "apass",
-    "sdss",
-    "atlas",
-    "usnob1",
-    "gsc",
-  ];
+  const catalogs = ["ps1", "gaiaedr3", "skymapper", "sdss", "usnob1", "gsc"];
   const astrometric_refinement_method = ["scamp", "astropy", "astrometrynet"];
   const templates = ["PanSTARRS/DR1/g", "PanSTARRS/DR1/r", "PanSTARRS/DR1/i"];
 
@@ -164,6 +153,120 @@ const ImageAnalysisForm = ({ obj_id }) => {
       },
     },
     required: ["obstime", "filter", "image_data"],
+    dependencies: {
+      crossmatch_catalog: {
+        oneOf: [
+          {
+            properties: {
+              crossmatch_catalog: {
+                enum: ["ps1"],
+              },
+              crossmatch_catalog_filter_1: {
+                type: "string",
+                enum: ["gmag", "rmag", "imag", "zmag"],
+                title: "Crossmatch catalog filter (in closest band)",
+              },
+              crossmatch_catalog_filter_2: {
+                type: "string",
+                enum: ["gmag", "rmag", "imag", "zmag"],
+                title:
+                  "Crossmatch catalog filter (in second band for color term)",
+              },
+            },
+          },
+          {
+            properties: {
+              crossmatch_catalog: {
+                enum: ["gaiaedr3"],
+              },
+              crossmatch_catalog_filter_1: {
+                type: "string",
+                enum: ["Gmag", "BPmag", "RPmag"],
+                title: "Crossmatch catalog filter (in closest band)",
+              },
+              crossmatch_catalog_filter_2: {
+                type: "string",
+                enum: ["Gmag", "BPmag", "RPmag"],
+                title:
+                  "Crossmatch catalog filter (in second band for color term)",
+              },
+            },
+          },
+          {
+            properties: {
+              crossmatch_catalog: {
+                enum: ["usnob1"],
+              },
+              crossmatch_catalog_filter_1: {
+                type: "string",
+                enum: ["R1mag", "B1mag"],
+                title: "Crossmatch catalog filter (in closest band)",
+              },
+              crossmatch_catalog_filter_2: {
+                type: "string",
+                enum: ["R1mag", "B1mag"],
+                title:
+                  "Crossmatch catalog filter (in second band for color term)",
+              },
+            },
+          },
+          {
+            properties: {
+              crossmatch_catalog: {
+                enum: ["gsc"],
+              },
+              crossmatch_catalog_filter_1: {
+                type: "string",
+                enum: ["Rmag", "Bjmag", "Vmag", "Imag"],
+                title: "Crossmatch catalog filter (in closest band)",
+              },
+              crossmatch_catalog_filter_2: {
+                type: "string",
+                enum: ["Rmag", "Bjmag", "Vmag", "Imag"],
+                title:
+                  "Crossmatch catalog filter (in second band for color term)",
+              },
+            },
+          },
+          {
+            properties: {
+              crossmatch_catalog: {
+                enum: ["skymapper"],
+              },
+              crossmatch_catalog_filter_1: {
+                type: "string",
+                enum: ["uPSF", "vPSF", "gPSF", "rPSF", "iPSF", "zPSF"],
+                title: "Crossmatch catalog filter (in closest band)",
+              },
+              crossmatch_catalog_filter_2: {
+                type: "string",
+                enum: ["uPSF", "vPSF", "gPSF", "rPSF", "iPSF", "zPSF"],
+                title:
+                  "Crossmatch catalog filter (in second band for color term)",
+              },
+            },
+          },
+          {
+            properties: {
+              crossmatch_catalog: {
+                enum: ["sdss"],
+              },
+              crossmatch_catalog_filter_1: {
+                type: "string",
+                enum: ["umag", "gmag", "rmag", "imag", "zmag"],
+                title: "Crossmatch catalog filter (in closest band)",
+              },
+              crossmatch_catalog_filter_2: {
+                type: "string",
+                enum: ["umag", "gmag", "rmag", "imag", "zmag"],
+                title:
+                  "Crossmatch catalog filter (in second band for color term)",
+              },
+            },
+          },
+        ],
+      },
+    },
   };
 
   return (
