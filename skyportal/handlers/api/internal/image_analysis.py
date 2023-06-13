@@ -44,18 +44,14 @@ for dir in os.listdir('/tmp'):
     if dir.startswith('sex') or dir.startswith('psfex'):
         shutil.rmtree(os.path.join('/tmp', dir))
 
-catalogs_enum = [
-    "ps1",
-    "gaiadr2",
-    "gaiaedr3",
-    "skymapper",
-    "vsx",
-    "apass",
-    "sdss",
-    "atlas",
-    "usnob1",
-    "gsc",
-]
+catalogs_enum = {
+    "ps1": ["gmag", "rmag", "imag", "zmag"],
+    "gaiaedr3": ["Gmag", "BPmag", "RPmag"],
+    "skymapper": ["uPSF", "vPSF", "gPSF", "rPSF", "iPSF", "zPSF"],
+    "sdss": ["umag", "gmag", "rmag", "imag", "zmag"],
+    "usnob1": ["R1mag", "B1mag"],
+    "gsc": ["Rmag", "Bjmag", "Vmag", "Imag"],
+}
 
 templates_enum = ["PanSTARRS/DR1/g", "PanSTARRS/DR1/r", "PanSTARRS/DR1/i"]
 
@@ -141,6 +137,8 @@ def reduce_image(
     matching_radius,
     catalog_name_refinement,
     catalog_name_crossmatch,
+    crossmatch_catalog_filter_1,
+    crossmatch_catalog_filter_2,
     catalog_limiting_magnitude,
     template_name,
     method,
@@ -178,6 +176,10 @@ def reduce_image(
         Name of the catalog used for astrometric refinement
     catalog_name_crossmatch: str
         Name of the catalog used for cross-matching
+    crossmatch_catalog_filter_1 : str
+        Crossmatch catalog filter (in closest band)
+    crossmatch_catalog_filter_2 : str
+        Crossmatch catalog filter (in second band)
     catalog_limiting_magnitude : float
         Limiting magnitude cutoff for catalog cross-match
     template_name: str
@@ -301,8 +303,13 @@ def reduce_image(
                 center_dec,
                 center_sr,
                 catalog_name_refinement,
-                filters={'rmag': f'<{catalog_limiting_magnitude}'},
+                filters={crossmatch_catalog_filter_1: f'<{catalog_limiting_magnitude}'},
             )
+
+            if cat_refinement is None:
+                raise ValueError(
+                    'No objects in catalog. Please try a different catalog.'
+                )
 
             # ## Astrometric refinement
             # Refining the astrometric solution based on the positions of detected objects and catalogue stars with scamp
@@ -312,7 +319,7 @@ def reduce_image(
                 sr=matching_radius,
                 wcs=wcs,
                 method=method,
-                cat_col_mag='rmag',
+                cat_col_mag=crossmatch_catalog_filter_1,
                 verbose=True,
             )
 
@@ -338,9 +345,9 @@ def reduce_image(
                 cat_refinement,
                 pixscale=pixscale,
                 sr=matching_radius,
-                cat_col_mag='rmag',
-                cat_col_mag1='gmag',
-                cat_col_mag2='rmag',
+                cat_col_mag=crossmatch_catalog_filter_1,
+                cat_col_mag1=crossmatch_catalog_filter_1,
+                cat_col_mag2=crossmatch_catalog_filter_2,
                 max_intrinsic_rms=0.02,
                 order=2,
                 robust=True,
@@ -351,10 +358,11 @@ def reduce_image(
 
             # Target
             target_obj = Table({'ra': [ra_obj], 'dec': [dec_obj]})
-            target_obj['x'], target_obj['y'] = wcs.all_world2pix(
-                target_obj['ra'], target_obj['dec'], 0
-            )
+            x, y = wcs.all_world2pix(target_obj['ra'], target_obj['dec'], 0)
+            if np.isnan(x) or np.isnan(y):
+                raise ValueError('Object position appears to be outside of the image.')
 
+            target_obj['x'], target_obj['y'] = x, y
             target_obj = photometry.measure_objects(
                 target_obj,
                 image,
@@ -542,9 +550,31 @@ class ImageAnalysisHandler(BaseHandler):
             catalog_name_crossmatch = data.get('crossmatch_catalog', 'ps1')
             if catalog_name_crossmatch is None:
                 return self.error(message='Missing crossmatch_catalog')
-            if catalog_name_crossmatch not in catalogs_enum:
+            if catalog_name_crossmatch not in list(catalogs_enum.keys()):
                 return self.error(
                     message=f'Invalid crossmatch_catalog, must be once of: {", ".join(catalogs_enum)}'
+                )
+
+            crossmatch_catalog_filter_1 = data.get('crossmatch_catalog_filter_1', 'ps1')
+            if crossmatch_catalog_filter_1 is None:
+                return self.error(message='crossmatch_catalog_filter_1')
+            if (
+                crossmatch_catalog_filter_1
+                not in catalogs_enum[catalog_name_crossmatch]
+            ):
+                return self.error(
+                    message=f'Invalid crossmatch_catalog_filter_1, must be once of: {", ".join(catalogs_enum[catalog_name_crossmatch])}'
+                )
+
+            crossmatch_catalog_filter_2 = data.get('crossmatch_catalog_filter_2', 'ps1')
+            if crossmatch_catalog_filter_2 is None:
+                return self.error(message='crossmatch_catalog_filter_2')
+            if (
+                crossmatch_catalog_filter_2
+                not in catalogs_enum[catalog_name_crossmatch]
+            ):
+                return self.error(
+                    message=f'Invalid crossmatch_catalog_filter_2, must be once of: {", ".join(catalogs_enum[catalog_name_crossmatch])}'
                 )
 
             catalog_limiting_magnitude = data.get('catalog_limiting_magnitude', 21)
@@ -658,6 +688,8 @@ class ImageAnalysisHandler(BaseHandler):
                         matching_radius,
                         catalog_name_refinement,
                         catalog_name_crossmatch,
+                        crossmatch_catalog_filter_1,
+                        crossmatch_catalog_filter_2,
                         catalog_limiting_magnitude,
                         template_name,
                         method,
