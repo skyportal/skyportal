@@ -292,9 +292,9 @@ def post_skymap_from_notice(
     root = lxml.etree.fromstring(gcn_notice.content)
     notice_type = gcn.get_notice_type(root)
 
-    skymap, url, properties = None, None, None
+    skymap, url, properties, tags = None, None, None, None
     try:
-        skymap, url, properties = get_skymap(root, notice_type)
+        skymap, url, properties, tags = get_skymap(root, notice_type)
     except Exception as e:
         raise ValueError(f"Failed to get skymap from gcn notice {gcn_notice.id}: {e}")
 
@@ -332,6 +332,7 @@ def post_skymap_from_notice(
                     url=url,
                     notify=notify,
                     properties=properties,
+                    tags=tags,
                 ),
             )
         else:
@@ -342,6 +343,7 @@ def post_skymap_from_notice(
                 url=url,
                 notify=notify,
                 properties=properties,
+                tags=tags,
             )
 
         gcn_notice.localization_ingested = True
@@ -467,7 +469,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
     if skymap is None:
         return event.id
 
-    localization_properties = None
+    localization_properties, localization_tags = None, None
     if type(skymap) is dict:
         required_keys = {'localization_name', 'uniq', 'probdensity'}
         if not required_keys.issubset(set(skymap.keys())):
@@ -502,9 +504,9 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
                 raise ValueError("ra, dec, and error must be in skymap to parse")
     else:
         try:
-            skymap = from_bytes(skymap)
+            skymap, localization_properties, localization_tags = from_bytes(skymap)
         except binascii.Error:
-            skymap, localization_properties = from_url(skymap)
+            skymap, localization_properties, localization_tags = from_url(skymap)
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
@@ -546,11 +548,16 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
                     localization_id,
                     user_id,
                     properties=localization_properties,
+                    tags=localization_tags,
                 ),
             )
         else:
             add_tiles_properties_contour_and_obsplan(
-                localization_id, user_id, session, properties=localization_properties
+                localization_id,
+                user_id,
+                session,
+                properties=localization_properties,
+                tags=localization_tags,
             )
 
     return event.id
@@ -1650,6 +1657,7 @@ def add_tiles_and_properties_and_contour(
     url=None,
     notify=True,
     properties=None,
+    tags=None,
 ):
     if parent_session is None:
         if Session.registry.has():
@@ -1668,6 +1676,8 @@ def add_tiles_and_properties_and_contour(
         properties_dict, tags_list = get_skymap_properties(localization)
         if properties is not None:
             properties_dict.update(properties)
+        if tags is not None:
+            tags_list.extend(tags)
 
         properties = LocalizationProperty(
             localization_id=localization_id, sent_by_id=user.id, data=properties_dict
@@ -1996,6 +2006,7 @@ def add_tiles_properties_contour_and_obsplan(
     url=None,
     notify=True,
     properties=None,
+    tags=None,
 ):
 
     if parent_session is None:
@@ -2014,6 +2025,7 @@ def add_tiles_properties_contour_and_obsplan(
             url=url,
             notify=notify,
             properties=properties,
+            tags=tags,
         )
         add_observation_plans(localization_id, user_id, session)
     except Exception as e:
