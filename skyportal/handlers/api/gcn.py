@@ -243,15 +243,14 @@ def post_gcnevent_from_xml(
 
     found_skymap = False
     if post_skymap:
-        # try:
-        if True:
+        try:
             post_skymap_from_notice(
                 dateobs, notice_id, user_id, session, asynchronous, notify
             )
             found_skymap = True
-        # except Exception:
-        #    found_skymap = False
-        #    pass
+        except Exception:
+            found_skymap = False
+            pass
 
     if not found_skymap and notify:
         # if there is no skymap, we still want to add the default tags that might not need localization tags
