@@ -24,7 +24,7 @@ TNS_URL = cfg['app.tns_endpoint']
 search_url = urllib.parse.urljoin(TNS_URL, 'api/get/search')
 object_url = urllib.parse.urljoin(TNS_URL, 'api/get/object')
 
-log = make_log('tns')
+log = make_log('tns_utils')
 
 # IDs here: https://www.wis-tns.org/api/values
 
