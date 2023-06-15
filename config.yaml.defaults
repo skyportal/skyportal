@@ -76,7 +76,7 @@ app:
     bot_id:
     bot_name:
     api_key:
-    look_back_days: 2
+    look_back_days: 1
 
   gracedb_endpoint: https://gracedb.ligo.org/api/
   # See https://computing.docs.ligo.org/guide/auth/x509/ for example
