@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from astropy.time import Time
+from bs4 import BeautifulSoup
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
@@ -20,8 +21,9 @@ env, cfg = load_env()
 
 app_url = get_app_base_url()
 
-TNS_URL = cfg['app.tns_endpoint']
+TNS_URL = cfg['app.tns.endpoint']
 search_url = urllib.parse.urljoin(TNS_URL, 'api/get/search')
+search_frontend_url = urllib.parse.urljoin(TNS_URL, 'search')
 object_url = urllib.parse.urljoin(TNS_URL, 'api/get/object')
 
 log = make_log('tns_utils')
@@ -335,3 +337,86 @@ def read_tns_spectrum(spectrum, session):
     data["instrument_id"] = instrument.id
 
     return data
+
+
+def get_objects_from_soup(soup):
+    objects = []
+    try:
+        table = soup.find('table', attrs={'class': 'results-table'})
+        table_rows = table.find('tbody').find_all('tr')
+    except Exception:
+        return objects  # no objects found in that soup
+    for row in table_rows:
+        try:
+            # if the row doesnt have the class class="row-odd public odd" then skip it
+            if not {"public", "odd"}.issubset(set(row.attrs.get('class', []))):
+                continue
+            name = str(
+                row.find('td', attrs={'class': 'cell-name'}).find('a').get("href")
+            ).split('/')[-1]
+            ra = row.find('td', attrs={'class': 'cell-ra'}).text
+            dec = row.find('td', attrs={'class': 'cell-decl'}).text
+            if name is None or ra is None or dec is None:
+                continue
+            objects.append({'name': name, 'ra': ra, 'dec': dec})
+        except Exception:
+            continue
+    return objects
+
+
+def get_objects_from_page(
+    headers, page=1, discovered_period_value=5, discovered_period_units='days'
+):
+    url = (
+        search_frontend_url
+        + f"?discovered_period_value={discovered_period_value}&discovered_period_units={discovered_period_units}&page={page}"
+    )
+    n_retries = 0
+    objects = []
+    total_pages = page
+    next_page = True
+    while n_retries < 6:
+        try:
+            response = requests.get(
+                url, headers=headers, allow_redirects=True, stream=True, timeout=10
+            )
+            if response.status_code != 200:
+                raise Exception(
+                    f"Request failed with status code {response.status_code}"
+                )
+            text = response.text
+            soup = BeautifulSoup(text, 'html.parser')
+            objects = get_objects_from_soup(soup)
+            try:
+                total_pages = len(
+                    soup.find('ul', attrs={'class': 'pager'}).find_all(
+                        'li', attrs={'class': 'pager-item'}
+                    )
+                )
+            except Exception:
+                pass
+            break
+        except Exception:
+            n_retries += 1
+            time.sleep(15)
+            continue
+
+    next_page = page < int(total_pages)
+    return objects, next_page
+
+
+def get_tns_objects(headers, discovered_period_value=5, discovered_period_units='days'):
+    all_objects = []
+    page = 0
+    next_page = True
+    while next_page:
+        try:
+            objects, next_page = get_objects_from_page(
+                headers, page, discovered_period_value, discovered_period_units
+            )
+            all_objects.extend(objects)
+            page += 1
+        except Exception:
+            pass
+        time.sleep(1)
+    return all_objects
