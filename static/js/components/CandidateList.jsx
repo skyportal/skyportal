@@ -343,9 +343,9 @@ const CandidateThumbnails = ({ sourceId }) => {
 
   const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
     useState([]);
-  const generatePS1Thumbnail = (objID) => {
+  const generateSurveyThumbnail = (objID) => {
     setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
-    dispatch(candidatesActions.generatePS1Thumbnail(objID));
+    dispatch(candidatesActions.generateSurveyThumbnail(objID));
   };
 
   let candidateObj = null;
@@ -381,7 +381,7 @@ const CandidateThumbnails = ({ sourceId }) => {
               disabled={ps1GenerationInProgressList.includes(candidateObj.id)}
               size="small"
               onClick={() => {
-                generatePS1Thumbnail(candidateObj.id);
+                generateSurveyThumbnail(candidateObj.id);
               }}
               data-testid={`generatePS1Button${candidateObj.id}`}
             >
@@ -874,7 +874,7 @@ const CandidateList = () => {
         ids.push(candidateObj.id);
       }
     });
-    dispatch(candidatesActions.generatePS1Thumbnails(ids));
+    dispatch(candidatesActions.generateSurveyThumbnails(ids));
     setBulkPS1GenerationInProgress(false);
   };
 
