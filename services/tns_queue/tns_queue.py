@@ -40,7 +40,7 @@ search_frontend_url = urllib.parse.urljoin(TNS_URL, 'search')
 bot_id = cfg.get('app.tns.bot_id', None)
 bot_name = cfg.get('app.tns.bot_name', None)
 api_key = cfg.get('app.tns.api_key', None)
-look_back_days = cfg.get('app.tns.look_back_days', 5)
+look_back_days = cfg.get('app.tns.look_back_days', 2)
 
 queue = []
 
