@@ -387,7 +387,7 @@ def tns_bulk_retrieval(
             if s is None:
                 log(f"Posting {source['id']} as source")
                 source['group_ids'] = group_ids
-                obj_id = post_source(source, user_id, session)
+                post_source(source, user_id, session)
 
             tns_retrieval(
                 source['id'],
@@ -400,7 +400,7 @@ def tns_bulk_retrieval(
         session.commit()
 
     except Exception as e:
-        log(f"Unable to retrieve TNS report for {obj_id}: {e}")
+        log(f"Unable to retrieve TNS report for objects since {start_date}: {e}")
     finally:
         session.close()
         Session.remove()
