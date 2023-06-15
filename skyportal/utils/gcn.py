@@ -307,8 +307,8 @@ def get_skymap(root, notice_type, url_timeout=10):
     status, skymap_metadata = get_skymap_metadata(root, notice_type, url_timeout)
 
     if status == "available":
-        skymap, properties = from_url(skymap_metadata["url"])
-        return skymap, skymap_metadata["url"], properties
+        skymap, properties, tags = from_url(skymap_metadata["url"])
+        return skymap, skymap_metadata["url"], properties, tags
     elif status == "cone":
         return (
             from_cone(
@@ -318,9 +318,10 @@ def get_skymap(root, notice_type, url_timeout=10):
             ),
             None,
             None,
+            None,
         )
     else:
-        return None, None, None
+        return None, None, None, None
 
 
 def get_properties(root):
@@ -514,6 +515,7 @@ def from_bytes(arr):
         f.flush()
 
         skymap = ligo.skymap.io.read_sky_map(f.name, moc=True)
+        properties_dict, tags_list = properties_tags_from_meta(skymap.meta)
 
         nside = 128
         occulted = get_occulted(f.name, nside=nside)
@@ -535,7 +537,7 @@ def from_bytes(arr):
             'distnorm': get_col(skymap, 'DISTNORM'),
         }
 
-    return skymap
+    return skymap, properties_dict, tags_list
 
 
 def get_occulted(url, nside=64):
@@ -559,6 +561,32 @@ def get_occulted(url, nside=64):
     return ipix
 
 
+def properties_tags_from_meta(meta):
+
+    property_names = [
+        # Gravitational waves
+        "log_bci",
+        "log_bsn",
+        "distmean",
+        "diststd",
+    ]
+
+    properties_dict = {}
+    tags_list = []
+    for property_name in property_names:
+        if property_name in meta:
+            properties_dict[property_name] = meta[property_name]
+
+    # Distance stats
+    if 'distmean' in properties_dict:
+        thresholds = [150, 250]
+        for threshold in thresholds:
+            if properties_dict["distmean"] <= threshold:
+                tags_list.append(f"< {threshold} Mpc")
+
+    return properties_dict, tags_list
+
+
 def from_url(url):
     def get_col(m, name):
         try:
@@ -571,18 +599,7 @@ def from_url(url):
     filename = os.path.basename(urlparse(url).path)
 
     skymap = ligo.skymap.io.read_sky_map(url, moc=True)
-    meta = skymap.meta
-
-    property_names = [
-        # Gravitational waves
-        "log_bci",
-        "log_bsn",
-    ]
-
-    properties_dict = {}
-    for property_name in property_names:
-        if property_name in meta:
-            properties_dict[property_name] = meta[property_name]
+    properties_dict, tags_list = properties_tags_from_meta(skymap.meta)
 
     minval = 1e-300
     idx = np.where(skymap['PROBDENSITY'] < minval)[0]
@@ -608,7 +625,7 @@ def from_url(url):
         'distnorm': get_col(skymap, 'DISTNORM'),
     }
 
-    return skymap, properties_dict
+    return skymap, properties_dict, tags_list
 
 
 def get_contour(localization):
@@ -671,24 +688,5 @@ def get_skymap_properties(localization):
         properties_dict["probability_500"] = prob
         if properties_dict["probability_500"] >= 0.9:
             tags_list.append("> 0.9 in 500 sq. deg.")
-
-    # Distance stats
-    if 'DISTMU' in sky_map.dtype.names:
-        # Calculate the cumulative area in deg2 and the cumulative probability.
-        dA = ligo.skymap.moc.uniq2pixarea(sky_map['UNIQ'])
-        dP = sky_map['PROBDENSITY'] * dA
-        mu = sky_map['DISTMU']
-        sigma = sky_map['DISTSIGMA']
-
-        distmean, distsigma = ligo.skymap.distance.parameters_to_marginal_moments(
-            dP, mu, sigma
-        )
-        if not np.isnan(distmean):
-            properties_dict["distance"] = distmean
-            thresholds = [150, 250]
-            for threshold in thresholds:
-                if distmean <= threshold:
-                    tags_list.append(f"< {threshold} Mpc")
-            properties_dict["distance_error"] = distsigma
 
     return properties_dict, tags_list
