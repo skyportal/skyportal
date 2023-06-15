@@ -427,7 +427,7 @@ def tns_retrieval(
         Include spectra available on TNS
     """
 
-    if parent_session is not None:
+    if parent_session is None:
         if Session.registry.has():
             session = Session()
         else:
