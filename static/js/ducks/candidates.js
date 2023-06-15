@@ -31,11 +31,13 @@ export const fetchCandidates = (filterParams = {}) => {
   return API.GET("/api/candidates", FETCH_CANDIDATES, filterParams);
 };
 
-export const generatePS1Thumbnail = (objID) =>
-  API.POST("/api/internal/ps1_thumbnail", GENERATE_PS1_THUMBNAIL, { objID });
+export const generateSurveyThumbnail = (objID) =>
+  API.POST("/api/internal/survey_thumbnail", GENERATE_PS1_THUMBNAIL, { objID });
 
-export const generatePS1Thumbnails = (objIDs) =>
-  API.POST("/api/internal/ps1_thumbnail", GENERATE_PS1_THUMBNAILS, { objIDs });
+export const generateSurveyThumbnails = (objIDs) =>
+  API.POST("/api/internal/survey_thumbnail", GENERATE_PS1_THUMBNAILS, {
+    objIDs,
+  });
 
 export const setCandidatesAnnotationSortOptions = (item) => ({
   type: SET_CANDIDATES_ANNOTATION_SORT_OPTIONS,
