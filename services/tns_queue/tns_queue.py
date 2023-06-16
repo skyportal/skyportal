@@ -15,6 +15,7 @@ import conesearch_alchemy as ca
 
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
+from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from skyportal.handlers.api.photometry import serialize
 from skyportal.models import DBSession, Instrument, Obj, Photometry, TNSRobot, User
@@ -370,6 +371,9 @@ def tns_watcher():
     tns_headers = {
         "User-Agent": f'tns_marker{{"tns_id": {bot_id},"type": "bot", "name": "{bot_name}"}}',
     }
+
+    flow = Flow()
+
     while True:
         try:
             tns_objects = get_tns_objects(
@@ -408,6 +412,11 @@ def tns_watcher():
                                 session.commit()
                                 log(
                                     f"Updated object {obj.id} with TNS name {tns_obj['name']}"
+                                )
+                                flow.push(
+                                    '*',
+                                    'skyportal/REFRESH_SOURCE',
+                                    payload={'obj_key': obj.internal_key},
                                 )
                     except Exception as e:
                         log(f"Error adding TNS name to object: {str(e)}")

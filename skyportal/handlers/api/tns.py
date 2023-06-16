@@ -566,7 +566,6 @@ def tns_retrieval(
             log(f'Failed to retrieve {obj_id} from TNS: {r.content}')
         session.commit()
 
-        flow = Flow()
         flow.push(
             '*',
             'skyportal/REFRESH_SOURCE',

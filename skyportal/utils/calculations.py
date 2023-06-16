@@ -1,32 +1,11 @@
-from math import pi
-
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 import numpy as np
 
 
-def radec_str2rad(_ra_str, _dec_str):
-    """
-    :param _ra_str: 'H:M:S'
-    :param _dec_str: 'D:M:S'
-    :return: ra, dec in rad
-    """
-    # convert to rad:
-    _ra = list(map(float, _ra_str.split(":")))
-    _ra = (_ra[0] + _ra[1] / 60.0 + _ra[2] / 3600.0) * pi / 12.0
-    _dec = list(map(float, _dec_str.split(":")))
-    _sign = -1 if _dec_str.strip()[0] == "-" else 1
-    _dec = (
-        _sign
-        * (abs(_dec[0]) + abs(_dec[1]) / 60.0 + abs(_dec[2]) / 3600.0)
-        * pi
-        / 180.0
-    )
-
-    return _ra, _dec
-
-
 def radec_str2deg(_ra_str, _dec_str):
-    ra, dec = radec_str2rad(_ra_str, _dec_str)
-    return ra * 180.0 / pi, dec * 180.0 / pi
+    c = SkyCoord(_ra_str, _dec_str, unit=(u.hourangle, u.deg))
+    return c.ra.deg, c.dec.deg
 
 
 def great_circle_distance(ra1_deg, dec1_deg, ra2_deg, dec2_deg):
