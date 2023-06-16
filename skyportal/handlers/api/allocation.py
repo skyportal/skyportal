@@ -1,25 +1,26 @@
-import astropy
-from astroplan.moon import moon_phase_angle
-from marshmallow.exceptions import ValidationError
-import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
-from sqlalchemy import func
 import io
+
+import astropy
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import sqlalchemy as sa
+from astroplan.moon import moon_phase_angle
+from marshmallow.exceptions import ValidationError
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
 
-from ..base import BaseHandler
 from ...models import (
-    FollowupRequest,
-    Group,
-    User,
     Allocation,
     AllocationUser,
+    FollowupRequest,
+    Group,
     Instrument,
+    User,
 )
+from ..base import BaseHandler
 
 
 class AllocationHandler(BaseHandler):
@@ -150,6 +151,15 @@ class AllocationHandler(BaseHandler):
                     )
 
             allocations = session.scalars(allocations).unique().all()
+            # order by allocation.instrument.telescope.name, then instrument.name, then pi
+            allocations = sorted(
+                allocations,
+                key=lambda x: (
+                    x.instrument.telescope.name,
+                    x.instrument.name,
+                    x.pi,
+                ),
+            )
             allocations = [
                 {
                     **allocation.to_dict(),

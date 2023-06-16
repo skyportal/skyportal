@@ -1699,12 +1699,21 @@ def add_tiles_and_properties_and_contour(
             session.add_all(gcn_tags)
             session.commit()
 
-        request_body = {
-            'target_class_name': 'Localization',
-            'target_id': localization_id,
-        }
         if notify:
-            post_notification(request_body, timeout=30),
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            request_body = {
+                'target_class_name': 'Localization',
+                'target_id': localization_id,
+            }
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: post_notification(request_body, timeout=30),
+            )
 
         tiles = [
             LocalizationTile(
