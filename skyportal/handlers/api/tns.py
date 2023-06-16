@@ -45,7 +45,7 @@ _, cfg = load_env()
 
 Session = scoped_session(sessionmaker())
 
-TNS_URL = cfg['app.tns_endpoint']
+TNS_URL = cfg['app.tns.endpoint']
 upload_url = urllib.parse.urljoin(TNS_URL, 'api/file-upload')
 report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
 search_url = urllib.parse.urljoin(TNS_URL, 'api/get/search')
@@ -566,7 +566,6 @@ def tns_retrieval(
             log(f'Failed to retrieve {obj_id} from TNS: {r.content}')
         session.commit()
 
-        flow = Flow()
         flow.push(
             '*',
             'skyportal/REFRESH_SOURCE',
