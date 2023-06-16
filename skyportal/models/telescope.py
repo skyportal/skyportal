@@ -267,51 +267,45 @@ class Telescope(Base):
         twilight_morning_nautical = self.next_twilight_morning_nautical(time=time)
         twilight_evening_nautical = self.next_twilight_evening_nautical(time=time)
 
+        sunset_utc, sunset_unix_ms = None, None
         if sunset is not None:
             sunset_utc = sunset.isot
             sunset_unix_ms = sunset.unix * 1000
-        else:
-            sunset_utc = None
-            sunset_unix_ms = None
 
+        sunrise_utc, sunrise_unix_ms = None, None
         if sunrise is not None:
             sunrise_utc = sunrise.isot
             sunrise_unix_ms = sunrise.unix * 1000
-        else:
-            sunrise_utc = None
-            sunrise_unix_ms = None
 
+        twilight_morning_astronomical_utc, twilight_morning_astronomical_unix_ms = (
+            None,
+            None,
+        )
         if twilight_morning_astronomical is not None:
             twilight_morning_astronomical_utc = twilight_morning_astronomical.isot
             twilight_morning_astronomical_unix_ms = (
                 twilight_morning_astronomical.unix * 1000
             )
-        else:
-            twilight_morning_astronomical_utc = None
-            twilight_morning_astronomical_unix_ms = None
 
+        twilight_evening_astronomical_utc, twilight_evening_astronomical_unix_ms = (
+            None,
+            None,
+        )
         if twilight_evening_astronomical is not None:
             twilight_evening_astronomical_utc = twilight_evening_astronomical.isot
             twilight_evening_astronomical_unix_ms = (
                 twilight_evening_astronomical.unix * 1000
             )
-        else:
-            twilight_evening_astronomical_utc = None
-            twilight_evening_astronomical_unix_ms = None
 
+        twilight_morning_nautical_utc, twilight_morning_nautical_unix_ms = None, None
         if twilight_morning_nautical is not None:
             twilight_morning_nautical_utc = twilight_morning_nautical.isot
             twilight_morning_nautical_unix_ms = twilight_morning_nautical.unix * 1000
-        else:
-            twilight_morning_nautical_utc = None
-            twilight_morning_nautical_unix_ms = None
 
+        twilight_evening_nautical_utc, twilight_evening_nautical_unix_ms = None, None
         if twilight_evening_nautical is not None:
             twilight_evening_nautical_utc = twilight_evening_nautical.isot
             twilight_evening_nautical_unix_ms = twilight_evening_nautical.unix * 1000
-        else:
-            twilight_evening_nautical_utc = None
-            twilight_evening_nautical_unix_ms = None
 
         return {
             'sunset_utc': sunset_utc,
