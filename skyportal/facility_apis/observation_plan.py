@@ -459,7 +459,7 @@ def generate_plan(
             # galactic latitude to exclude
             'galactic_limit': request.payload.get("galactic_latitude", 10),
             # Maximum number of fields to consider
-            'max_nb_tiles': [request.payload.get("max_nb_tiles", 100)]
+            'max_nb_tiles': request.payload.get("max_nb_tiles", 100)
             * len(request.payload["filters"].split(","))
             if request.payload.get("max_tiles", False)
             else None,
