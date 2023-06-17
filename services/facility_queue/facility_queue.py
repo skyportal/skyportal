@@ -35,7 +35,7 @@ request_session.trust_env = (
     False  # Otherwise pre-existing netrc config will override auth headers
 )
 
-WAIT_TIME_BETWEEN_QUERIES = timedelta(seconds=10)
+WAIT_TIME_BETWEEN_QUERIES = timedelta(seconds=120)
 
 queue = []
 

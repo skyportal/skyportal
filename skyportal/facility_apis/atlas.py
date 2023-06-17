@@ -301,9 +301,7 @@ class ATLASAPI(FollowUpAPI):
         "properties": {
             "start_date": {
                 "type": "string",
-                "default": str(datetime.utcnow() - timedelta(days=365)).replace(
-                    "T", ""
-                ),
+                "default": str(datetime.utcnow() - timedelta(days=30)).replace("T", ""),
                 "title": "Start Date (UT)",
             },
             "end_date": {
