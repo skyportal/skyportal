@@ -175,6 +175,31 @@ const FollowupRequestForm = ({
         errors.start_date.addError("Start Date must come before End Date");
       }
     }
+    if (formData?.advanced) {
+      if (
+        formData?.observation_type === "Mix 'n Match" &&
+        formData?.exposure_time
+      ) {
+        const exposure_times = formData.exposure_time.split(",").map(Number);
+        for (let i = 0; i < exposure_times.length; i += 1) {
+          if (exposure_times[i] < -1 || exposure_times[i] > 3600) {
+            errors.exposure_time.addError(
+              "Exposure times must be between -1 (to set by magnitude) and 3600 seconds"
+            );
+          }
+        }
+        if (
+          !(
+            exposure_times.length === formData.observation_choices.length ||
+            exposure_times.length === 1
+          )
+        ) {
+          errors.exposure_time.addError(
+            "Exposure times should either have one entry (same exposure time for all filters) or the same length as observation_choices"
+          );
+        }
+      }
+    }
 
     return errors;
   };

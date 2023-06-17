@@ -172,6 +172,27 @@ def prepare_payload_sedm(payload, existing_payload=None):
         "exposure_time",
         -1 if existing_payload is None else existing_payload["exposure_time"],
     )
+
+    if payload['observation_type'] == "Mix 'n Match":
+        if type(payload["exposure_time"]) == str:
+            payload["exposure_time"] = [
+                int(exposure_time)
+                for exposure_time in payload["exposure_time"].split(",")
+            ]
+
+            # All filters have same exposure time
+            if len(payload["exposure_time"]) == 1:
+                payload["exposure_time"] = payload["exposure_time"][0]
+            else:
+                # Confirm that number of exposure times matches number of
+                # observation choices
+                if not len(payload["exposure_time"]) == len(
+                    payload['observation_choices']
+                ):
+                    raise ValueError(
+                        "Exposure times should either have one entry (same exposure time for all filters) or the same length as observation_choices"
+                    )
+
     payload["maximum_airmass"] = payload.get(
         "maximum_airmass",
         2.8 if existing_payload is None else existing_payload["maximum_airmass"],
@@ -392,10 +413,8 @@ class SEDMAPI(FollowUpAPI):
                             "advanced": {"enum": [True]},
                             "exposure_time": {
                                 "title": "Exposure Time (Photometry) [s]",
-                                "type": "number",
-                                "default": -1,
-                                "minimum": -1,
-                                "maximum": 3600,
+                                "type": "string",
+                                "default": "-1",
                             },
                             "maximum_airmass": {
                                 "title": "Maximum Airmass (1-3)",
