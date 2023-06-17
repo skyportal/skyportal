@@ -173,25 +173,42 @@ def prepare_payload_sedm(payload, existing_payload=None):
         -1 if existing_payload is None else existing_payload["exposure_time"],
     )
 
-    if payload['observation_type'] == "Mix 'n Match":
-        if type(payload["exposure_time"]) == str:
-            payload["exposure_time"] = [
-                int(exposure_time)
-                for exposure_time in payload["exposure_time"].split(",")
-            ]
+    num_obs = {
+        '3-shot (gri)': 3,
+        '4-shot (ugri)': 4,
+        '4-shot+IFU': 5,
+        '3-shot+IFU': 4,
+        'IFU': 1,
+    }
 
-            # All filters have same exposure time
-            if len(payload["exposure_time"]) == 1:
-                payload["exposure_time"] = payload["exposure_time"][0]
-            else:
-                # Confirm that number of exposure times matches number of
-                # observation choices
-                if not len(payload["exposure_time"]) == len(
-                    payload['observation_choices']
-                ):
-                    raise ValueError(
-                        "Exposure times should either have one entry (same exposure time for all filters) or the same length as observation_choices"
-                    )
+    if type(payload["exposure_time"]) == str:
+        payload["exposure_time"] = [
+            int(exposure_time) for exposure_time in payload["exposure_time"].split(",")
+        ]
+
+    if payload['observation_type'] == "Mix 'n Match":
+        # All filters have same exposure time
+        if len(payload["exposure_time"]) == 1:
+            payload["exposure_time"] = payload["exposure_time"][0]
+        else:
+            # Confirm that number of exposure times matches number of
+            # observation choices
+            if not len(payload["exposure_time"]) == len(payload['observation_choices']):
+                raise ValueError(
+                    "Exposure times should either have one entry (same exposure time for all filters) or the same length as observation_choices"
+                )
+    else:
+        num_exposures = num_obs[payload['observation_type']]
+        # All filters have same exposure time
+        if len(payload["exposure_time"]) == 1:
+            payload["exposure_time"] = payload["exposure_time"][0]
+        else:
+            # Confirm that number of exposure times matches number of
+            # filters
+            if not len(payload["exposure_time"]) == num_exposures:
+                raise ValueError(
+                    f"Exposure times should either have one entry (same exposure time for all filters) or the same length as the number of filters: {num_exposures}"
+                )
 
     payload["maximum_airmass"] = payload.get(
         "maximum_airmass",
