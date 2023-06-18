@@ -737,7 +737,7 @@ const FilterCandidateList = ({
                           // eslint-disable-next-line no-shadow
                           onInputChange={(event, value) => {
                             if (
-                              event?.type === "onChange" &&
+                              event?.type === "change" &&
                               value !== null &&
                               value !== ""
                             ) {
