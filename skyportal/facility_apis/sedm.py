@@ -185,15 +185,16 @@ def prepare_payload_sedm(payload, existing_payload=None):
         payload["exposure_time"] = [
             int(exposure_time) for exposure_time in payload["exposure_time"].split(",")
         ]
+    elif type(payload["exposure_time"]) in [float, int]:
+        payload["exposure_time"] = [payload["exposure_time"]]
 
     if payload['observation_type'] == "Mix 'n Match":
         # All filters have same exposure time
-        if (
-            isinstance(payload["exposure_time"], list)
-            and len(payload["exposure_time"]) == 1
-        ):
-            payload["exposure_time"] = payload["exposure_time"][0]
-        elif isinstance(payload["exposure_time"], list):
+        if len(payload["exposure_time"]) == 1:
+            payload["exposure_time"] = payload["exposure_time"] * len(
+                payload['observation_choices']
+            )
+        else:
             # Confirm that number of exposure times matches number of
             # observation choices
             if not len(payload["exposure_time"]) == len(payload['observation_choices']):
@@ -203,12 +204,9 @@ def prepare_payload_sedm(payload, existing_payload=None):
     else:
         num_exposures = num_obs[payload['observation_type']]
         # All filters have same exposure time
-        if (
-            isinstance(payload["exposure_time"], list)
-            and len(payload["exposure_time"]) == 1
-        ):
-            payload["exposure_time"] = payload["exposure_time"][0]
-        elif isinstance(payload["exposure_time"], list):
+        if len(payload["exposure_time"]) == 1:
+            payload["exposure_time"] = payload["exposure_time"] * num_exposures
+        else:
             # Confirm that number of exposure times matches number of
             # filters
             if not len(payload["exposure_time"]) == num_exposures:
@@ -216,21 +214,15 @@ def prepare_payload_sedm(payload, existing_payload=None):
                     f"Exposure times should either have one entry (same exposure time for all filters) or the same length as the number of filters: {num_exposures}"
                 )
 
-    if isinstance(payload["exposure_time"], list):
-        if any(
-            [
-                (exposure_time > 3600) or (exposure_time < -1)
-                for exposure_time in payload["exposure_time"]
-            ]
-        ):
-            raise ValueError(
-                "Exposure times must be between -1 (to set by magnitude) and 3600 seconds"
-            )
-    else:
-        if (payload["exposure_time"] > 3600) or (payload["exposure_time"] < -1):
-            raise ValueError(
-                "Exposure times must be between -1 (to set by magnitude) and 3600 seconds"
-            )
+    if any(
+        [
+            (exposure_time > 3600) or (exposure_time < -1)
+            for exposure_time in payload["exposure_time"]
+        ]
+    ):
+        raise ValueError(
+            "Exposure times must be between -1 (to set by magnitude) and 3600 seconds"
+        )
 
     payload["maximum_airmass"] = payload.get(
         "maximum_airmass",
