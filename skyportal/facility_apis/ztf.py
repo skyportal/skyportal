@@ -203,7 +203,7 @@ class ZTFRequest:
         return json_data
 
 
-def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_id):
+def commit_photometry(url, altdata, request_id, instrument_id, user_id):
     """
     Commits ZTF forced photometry to the database
 
@@ -213,8 +213,6 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
         ZTF forced photometry service data file location.
     altdata: dict
         Contains ZTF photometry api_token for the user
-    df_request: pandas.DataFrame
-        DataFrame containing request parameters (ra, dec, start jd, end jd)
     request_id : int
         FollowupRequest SkyPortal ID
     instrument_id : int
@@ -262,8 +260,6 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
         }
         if not desired_columns.issubset(set(df.columns)):
             raise ValueError('Missing expected column')
-        df['ra'] = df_request['ra']
-        df['dec'] = df_request['dec']
         df.rename(
             columns={'diffmaglim': 'limiting_mag'},
             inplace=True,
@@ -395,122 +391,6 @@ class ZTFAPI(FollowUpAPI):
             # for forced photometry, we don't need to do delete anything from IPAC
             pass
 
-    @staticmethod
-    def get(request, session):
-
-        """Get a forced photometry request result from ZTF.
-
-        Parameters
-        ----------
-        request : skyportal.models.FollowupRequest
-            The request to retrieve ZTF forced photometry.
-        session : baselayer.DBSession
-            Database session to use for photometry
-        """
-
-        from ..models import (
-            FollowupRequest,
-            FacilityTransaction,
-            Allocation,
-            Instrument,
-        )
-
-        req = (
-            session.query(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .one()
-        )
-
-        instrument = (
-            Instrument.query_records_accessible_by(req.requester)
-            .join(Allocation)
-            .join(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .first()
-        )
-
-        altdata = request.allocation.altdata
-
-        if not altdata:
-            raise ValueError('Missing allocation information.')
-
-        keys = ['ra', 'dec', 'jdstart', 'jdend']
-
-        content = req.transactions[-1].response["content"]
-        df_request = pd.read_html(content)[0]
-        if df_request.shape[0] == 0:
-            raise ValueError('Missing response from forced photometry service.')
-        df_request.columns = df_request.columns.str.lower()
-        if not set(keys).issubset(df_request.columns):
-            raise ValueError("RA, Dec, jdstart, and jdend required in response.")
-        df_request = df_request.iloc[0]
-        df_request = df_request.replace({np.nan: None})
-
-        requestgroup = {
-            "email": altdata["ipac_email"],
-            "userpass": altdata["ipac_userpass"],
-            "option": "All recent jobs",
-            "action": "Query Database",
-        }
-        params = urllib.parse.urlencode(requestgroup)
-        url = f"{ZTF_FORCED_URL}/cgi-bin/getForcedPhotometryRequests.cgi?{params}"
-
-        r = requests.get(
-            url,
-            auth=HTTPBasicAuth(
-                altdata['ipac_http_user'], altdata['ipac_http_password']
-            ),
-        )
-        if r.status_code == 200:
-            df_result = pd.read_html(r.text)[0]
-            df_result.rename(
-                inplace=True, columns={'startJD': 'jdstart', 'endJD': 'jdend'}
-            )
-            df_result = df_result.replace({np.nan: None})
-            if not set(keys).issubset(df_result.columns):
-                raise ValueError("RA, Dec, jdstart, and jdend required in response.")
-            index_match = None
-            for index, row in df_result.iterrows():
-                if not all([np.isclose(row[key], df_request[key]) for key in keys]):
-                    continue
-                index_match = index
-            if index_match is None:
-                raise ValueError(
-                    'No matching response from forced photometry service. Please try again later.'
-                )
-            else:
-                row = df_result.loc[index_match]
-                if row['lightcurve'] is None:
-                    raise ValueError(
-                        'Light curve not yet available. Please try again later.'
-                    )
-                else:
-                    lightcurve = row['lightcurve']
-                    dataurl = f"{ZTF_FORCED_URL}/{lightcurve}"
-                    IOLoop.current().run_in_executor(
-                        None,
-                        lambda: commit_photometry(
-                            dataurl,
-                            altdata,
-                            df_request,
-                            req.id,
-                            instrument.id,
-                            request.requester.id,
-                        ),
-                    )
-        else:
-            req.status = f'error: {r.content}'
-
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
-            followup_request=req,
-            initiator_id=req.last_modified_by_id,
-        )
-
-        session.add(transaction)
-        session.commit()
-
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
@@ -569,6 +449,34 @@ class ZTFAPI(FollowUpAPI):
 
         if r.status_code == 200:
             request.status = 'submitted'
+
+            if request.payload["request_type"] == "forced_photometry":
+
+                params = urllib.parse.urlencode(
+                    {
+                        "email": altdata["ipac_email"],
+                        "userpass": altdata["ipac_userpass"],
+                        "option": "All recent jobs",
+                        "action": "Query Database",
+                    }
+                )
+                url = (
+                    f"{ZTF_FORCED_URL}/cgi-bin/getForcedPhotometryRequests.cgi?{params}"
+                )
+
+                request_body = {
+                    'method': 'GET',
+                    'endpoint': url,
+                    'data': requestgroup,
+                    'followup_request_id': request.id,
+                    'initiator_id': request.last_modified_by_id,
+                }
+
+                facility_microservice_url = (
+                    f'http://127.0.0.1:{cfg["ports.facility_queue"]}'
+                )
+                r = requests.post(facility_microservice_url, json=request_body)
+
         else:
             request.status = f'rejected: {r.content}'
 
@@ -644,7 +552,7 @@ class ZTFAPI(FollowUpAPI):
                             "start_date": {
                                 "type": "string",
                                 "default": str(
-                                    datetime.utcnow() - timedelta(days=365)
+                                    datetime.utcnow() - timedelta(days=30)
                                 ).replace("T", ""),
                                 "title": "Start Date (UT)",
                             },

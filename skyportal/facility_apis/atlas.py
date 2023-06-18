@@ -1,5 +1,4 @@
 import requests
-import json
 from datetime import datetime, timedelta
 from astropy.time import Time
 import numpy as np
@@ -216,58 +215,6 @@ class ATLASAPI(FollowUpAPI):
 
     """An interface to ATLAS forced photometry."""
 
-    @staticmethod
-    def get(request, session):
-
-        """Get a forced photometry request result from ATLAS.
-
-        Parameters
-        ----------
-        request : skyportal.models.FollowupRequest
-            The request to add to the queue and the SkyPortal database.
-        session : baselayer.DBSession
-            Database session to use for photometry
-        """
-
-        from ..models import FacilityTransaction
-
-        altdata = request.allocation.altdata
-
-        if not altdata:
-            raise ValueError('Missing allocation information.')
-
-        content = request.transactions[-1].response["content"]
-        content = json.loads(content)
-
-        request_body = {
-            'method': 'GET',
-            'endpoint': content["url"],
-            'headers': {
-                'Authorization': f"Token {altdata['api_token']}",
-                'Accept': 'application/json',
-            },
-            'followup_request_id': request.id,
-            'initiator_id': request.last_modified_by_id,
-        }
-
-        facility_microservice_url = f'http://127.0.0.1:{cfg["ports.facility_queue"]}'
-
-        r = requests.post(facility_microservice_url, json=request_body)
-        log(f'Response for request {request.id}: {r.text}')
-        data_out = r.json()
-        if 'message' in data_out:
-            request.status = data_out['message']
-
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
-
-        session.add(transaction)
-        session.commit()
-
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
@@ -299,9 +246,27 @@ class ATLASAPI(FollowUpAPI):
             },
             data=requestgroup,
         )
+        content = r.json()
 
         if r.status_code == 201:
             request.status = 'submitted'
+
+            request_body = {
+                'method': 'GET',
+                'endpoint': content["url"],
+                'headers': {
+                    'Authorization': f"Token {altdata['api_token']}",
+                    'Accept': 'application/json',
+                },
+                'followup_request_id': request.id,
+                'initiator_id': request.last_modified_by_id,
+            }
+
+            facility_microservice_url = (
+                f'http://127.0.0.1:{cfg["ports.facility_queue"]}'
+            )
+            r = requests.post(facility_microservice_url, json=request_body)
+
         elif r.status_code == 429:
             request.status = f'throttled: {r.content}'
         else:
@@ -336,9 +301,7 @@ class ATLASAPI(FollowUpAPI):
         "properties": {
             "start_date": {
                 "type": "string",
-                "default": str(datetime.utcnow() - timedelta(days=365)).replace(
-                    "T", ""
-                ),
+                "default": str(datetime.utcnow() - timedelta(days=30)).replace("T", ""),
                 "title": "Start Date (UT)",
             },
             "end_date": {
