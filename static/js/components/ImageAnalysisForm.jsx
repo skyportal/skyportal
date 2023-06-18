@@ -150,6 +150,11 @@ const ImageAnalysisForm = ({ obj_id }) => {
         title: "Saturation [counts]",
         default: 50000,
       },
+      retrieve_wcs: {
+        type: "boolean",
+        title: "Use Astrometry.net to solve wcs",
+        default: false,
+      },
       image_data: {
         type: "string",
         format: "data-url",

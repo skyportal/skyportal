@@ -59,6 +59,8 @@ methods_enum = ["scamp", "astropy", "astrometrynet"]
 
 DEFAULT_INSTRUMENT_GAINS = {'KAO': 2.14}
 
+ASTROMETRY_NET_API_KEY = cfg.get('image_analysis.astrometry_net_api_key')
+
 
 def spherical_match(ra1, dec1, ra2, dec2, sr=1 / 3600):
     """
@@ -151,6 +153,7 @@ def reduce_image(
     bkgann=[5, 7],
     r0=0.5,
     saturation=50000,
+    retrieve_wcs=False,
 ):
     """
     Reduce an image: Perform astrometric and photometric calibration,
@@ -202,6 +205,8 @@ def reduce_image(
         Smoothing kernel size (sigma) to be used for improving object detection.
     saturation : float
         Counts above which saturation is assumed
+    retrieve_wcs : boolean
+        Use astrometry.net to solve WCS
     Returns
     -------
     None
@@ -292,9 +297,30 @@ def reduce_image(
 
             # ## Astrometric calibration
             # Getting the center position, size and pixel scale for the image
-            center_ra, center_dec, center_sr = astrometry.get_frame_center(
-                header=header, width=image.shape[1], height=image.shape[0]
-            )
+
+            if retrieve_wcs:
+                # Should be sufficient for most images
+                pixscale_low = 0.3
+                pixscale_upp = 3
+
+                # We will use brightest objects with SNR > 10 to solve
+                wcs = astrometry.blind_match_astrometrynet(
+                    obj,
+                    center_ra=ra_obj,
+                    center_dec=dec_obj,
+                    radius=1,
+                    scale_lower=pixscale_low,
+                    scale_upper=pixscale_upp,
+                    sn=10,
+                    api_key=ASTROMETRY_NET_API_KEY,
+                )
+                center_ra, center_dec, center_sr = astrometry.get_frame_center(
+                    wcs=wcs, width=image.shape[1], height=image.shape[0]
+                )
+            else:
+                center_ra, center_dec, center_sr = astrometry.get_frame_center(
+                    header=header, width=image.shape[1], height=image.shape[0]
+                )
             pixscale = astrometry.get_pixscale(wcs=wcs)
             log(
                 f'{file_name}: Field center is at {center_ra:.3f} {center_dec:.3f}, radius {center_sr:.2f} deg, scale {3600*pixscale:.2f} arcsec/pix'
@@ -680,6 +706,10 @@ class ImageAnalysisHandler(BaseHandler):
                     message='Invalid saturation, must be a positive integer'
                 )
 
+            retrieve_wcs = data.get("retrieve_wcs", False)
+            if retrieve_wcs is None:
+                return self.error(message='Missing retrieve_wcs')
+
             file_data = file_data.split('base64,')
             file_name = file_data[0].split('name=')[1].split(';')[0]
 
@@ -754,6 +784,7 @@ class ImageAnalysisHandler(BaseHandler):
                         s_n_detection,
                         s_n_blind_match,
                         saturation=saturation,
+                        retrieve_wcs=retrieve_wcs,
                     ),
                 )
                 return self.success()
