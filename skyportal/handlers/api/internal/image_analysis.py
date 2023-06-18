@@ -57,6 +57,8 @@ templates_enum = ["PanSTARRS/DR1/g", "PanSTARRS/DR1/r", "PanSTARRS/DR1/i"]
 
 methods_enum = ["scamp", "astropy", "astrometrynet"]
 
+DEFAULT_INSTRUMENT_GAINS = {'KAO': 2.14}
+
 
 def spherical_match(ra1, dec1, ra2, dec2, sr=1 / 3600):
     """
@@ -225,6 +227,9 @@ def reduce_image(
 
             wcs = WCS(header)
 
+            # subtract off median (to deal with biases)
+            image -= np.nanmedian(image)
+
             # Fill value for image
             v, c = np.unique(image, return_counts=True)
             fill = v[c == np.max(c)][0]
@@ -258,16 +263,15 @@ def reduce_image(
                 minarea=5,
                 _workdir=workdir_sextractor_obj,
             )
-            log(f'{len(obj)} objects retrieved')
-
             if obj is None:
                 raise ValueError(
                     'No objects detected. If this is unexpected, check source extractor installation.'
                 )
+            log(f'{file_name}: {len(obj)} objects retrieved')
 
             # First rough estimation of average FWHM of detected objects, taking into account only unflagged ones
             fwhm = np.median(obj['fwhm'][obj['flags'] == 0])
-            log(f'FWHM: {fwhm}')
+            log(f'{file_name}: FWHM: {fwhm}')
 
             # We will pass this FWHM to measurement function so that aperture and background radii will be relative to it.
             # We will also reject all objects with measured S/N < 5
@@ -284,7 +288,7 @@ def reduce_image(
                 bg_size=256,
                 verbose=True,
             )
-            log(f'{len(obj)} objects properly measured')
+            log(f'{file_name}: {len(obj)} objects properly measured')
 
             # ## Astrometric calibration
             # Getting the center position, size and pixel scale for the image
@@ -293,7 +297,7 @@ def reduce_image(
             )
             pixscale = astrometry.get_pixscale(wcs=wcs)
             log(
-                f'Field center is at {center_ra:.3f} {center_dec:.3f}, radius {center_sr:.2f} deg, scale {3600*pixscale:.2f} arcsec/pix'
+                f'{file_name}: Field center is at {center_ra:.3f} {center_dec:.3f}, radius {center_sr:.2f} deg, scale {3600*pixscale:.2f} arcsec/pix'
             )
 
             # ## Reference catalogue
@@ -332,6 +336,9 @@ def reduce_image(
                     remove_history=True,
                 )
                 header.update(wcs.to_header(relax=True))
+            else:
+                raise ValueError('Need WCS to reduce image.')
+
             pixscale = astrometry.get_pixscale(wcs=wcs)
 
             # ## Photometric calibration
@@ -340,21 +347,34 @@ def reduce_image(
             # Then building the photometric model for their instrumental magnitudes
 
             # Photometric calibration using 2 arcsec matching radius, r magnitude, g-r color and second order spatial variations
-            m = pipeline.calibrate_photometry(
-                obj,
-                cat_refinement,
-                pixscale=pixscale,
-                sr=matching_radius,
-                cat_col_mag=crossmatch_catalog_filter_1,
-                cat_col_mag1=crossmatch_catalog_filter_1,
-                cat_col_mag2=crossmatch_catalog_filter_2,
-                max_intrinsic_rms=0.02,
-                order=2,
-                robust=True,
-                scale_noise=True,
-                accept_flags=0x02,
-                verbose=True,
-            )
+
+            robusts = [True, False]
+            m = None
+            for robust in robusts:
+                try:
+                    m = pipeline.calibrate_photometry(
+                        obj,
+                        cat_refinement,
+                        pixscale=pixscale,
+                        sr=matching_radius,
+                        cat_col_mag=crossmatch_catalog_filter_1,
+                        cat_col_mag1=crossmatch_catalog_filter_1,
+                        cat_col_mag2=crossmatch_catalog_filter_2,
+                        max_intrinsic_rms=0.02,
+                        order=2,
+                        robust=robust,
+                        scale_noise=True,
+                        accept_flags=0x02,
+                        verbose=True,
+                    )
+                    break
+                except Exception as e:
+                    log(
+                        f'{file_name}: photometry with robust=True failed (str({e}). Trying with robust=False instead.'
+                    )
+
+            if m is None:
+                raise ValueError('Photometry calibration failed')
 
             # Target
             target_obj = Table({'ra': [ra_obj], 'dec': [dec_obj]})
@@ -363,17 +383,37 @@ def reduce_image(
                 raise ValueError('Object position appears to be outside of the image.')
 
             target_obj['x'], target_obj['y'] = x, y
-            target_obj = photometry.measure_objects(
-                target_obj,
-                image,
-                mask=mask,
-                fwhm=fwhm,
-                aper=1,
-                bkgann=bkgann,
-                sn=None,
-                verbose=True,
-                gain=gain,
-            )
+
+            # try multiple form of background estimation
+            bkganns = [bkgann, None]
+
+            for bkgannulus in bkganns:
+                try:
+                    target_obj = photometry.measure_objects(
+                        target_obj,
+                        image,
+                        mask=mask,
+                        fwhm=fwhm,
+                        aper=1,
+                        bkgann=bkgannulus,
+                        sn=None,
+                        verbose=True,
+                        gain=gain,
+                    )
+                    break
+                except Exception as e:
+                    log(
+                        f'{file_name}: background annulus with {bkgannulus} failed (str({e}). Using global background instead.'
+                    )
+
+            x_size, y_size = image.shape
+            if (
+                (target_obj['x'] < 0)
+                or (target_obj['x'] > x_size)
+                or (target_obj['y'] < 0)
+                or (target_obj['y'] > y_size)
+            ):
+                raise ValueError('Object is outside of the image')
 
             obj['mag_calib'] = obj['mag'] + m['zero_fn'](obj['x'], obj['y'], obj['mag'])
             target_obj['mag_calib'] = target_obj['mag'] + m['zero_fn'](
@@ -385,9 +425,14 @@ def reduce_image(
                     target_obj['x'], target_obj['y'], target_obj['mag'], get_err=True
                 ),
             )
-            target_obj['mag_limit'] = -2.5 * np.log10(5 * target_obj['fluxerr']) + m[
-                'zero_fn'
-            ](target_obj['x'], target_obj['y'], target_obj['mag'])
+
+            # use faintest object if object not detectable
+            if np.isnan(target_obj['fluxerr']):
+                target_obj['mag_limit'] = np.percentile(obj['mag_calib'], 95)
+            else:
+                target_obj['mag_limit'] = -2.5 * np.log10(
+                    5 * target_obj['fluxerr']
+                ) + m['zero_fn'](target_obj['x'], target_obj['y'], target_obj['mag'])
 
             fig = plt.figure(figsize=(10, 30))
             gs = fig.add_gridspec(5, 3)
@@ -447,11 +492,13 @@ def reduce_image(
                 'dec': [dec_obj],
                 'magsys': ['ab'],
                 'mjd': [time.mjd],
-                'mag': [target_obj['mag_calib'][0]],
-                'magerr': [target_obj['mag_calib_err'][0]],
                 'limiting_mag': [target_obj['mag_limit'][0]],
                 'filter': [filt],
             }
+            if target_obj['mag_limit'][0] > target_obj['mag_calib'][0]:
+                # only report detection if limiting magnitude supports it
+                data['mag'] = [target_obj['mag_calib'][0]]
+                data['magerr'] = [target_obj['mag_calib_err'][0]]
 
             data_out = {
                 'obj_id': obj_id,
@@ -475,8 +522,8 @@ def reduce_image(
             if workdir_sextractor_obj1 is not None:
                 shutil.rmtree(workdir_sextractor_obj1)
         except Exception as e2:
-            log(e2)
-        log(e)
+            log(f'{file_name}: {str(e2)}')
+        log(f'{file_name}: {str(e)}')
 
 
 class ImageAnalysisHandler(BaseHandler):
@@ -625,6 +672,14 @@ class ImageAnalysisHandler(BaseHandler):
                     message='Invalid s_n_blind_match, must be a positive integer'
                 )
 
+            saturation = data.get("saturation", 50000)
+            if saturation is None:
+                return self.error(message='Missing saturation')
+            if not isinstance(saturation, int) or int(saturation) < 0:
+                return self.error(
+                    message='Invalid saturation, must be a positive integer'
+                )
+
             file_data = file_data.split('base64,')
             file_name = file_data[0].split('name=')[1].split(';')[0]
 
@@ -668,7 +723,10 @@ class ImageAnalysisHandler(BaseHandler):
                 if gain is None:
                     gain = header.get('GAIN')
                     if gain is None:
-                        return self.error(message='Missing gain')
+                        if instrument.name in DEFAULT_INSTRUMENT_GAINS:
+                            gain = DEFAULT_INSTRUMENT_GAINS[instrument.name]
+                        else:
+                            return self.error(message='Missing gain')
 
                 try:
                     gain = float(gain)
@@ -695,9 +753,10 @@ class ImageAnalysisHandler(BaseHandler):
                         method,
                         s_n_detection,
                         s_n_blind_match,
+                        saturation=saturation,
                     ),
                 )
                 return self.success()
         except Exception as e:
-            log(e)
-            return self.error(str(e))
+            log(f'{file_name}: reduction failed: {str(e)}')
+            return self.error(f'Reduction failed: {str(e)}')

@@ -333,6 +333,14 @@ telescope:
     =id: TESS
     skycam_link: null
     fixed_location: false
+  - name: KAO Telescope
+    nickname: KAO-1p9m
+    lat: 29.9340
+    lon: 31.8277
+    elevation: 500
+    robotic: true
+    diameter: 1.9
+    =id: KAO-1p9m
 
 instrument:
   - name: ZTF
@@ -548,6 +556,13 @@ instrument:
     telescope_id: =TESS
     type: imager
     filters: ['tess']
+  - band: optical
+    name: KAO
+    telescope_id: =KAO-1p9m
+    type: imager
+    =id: KAO
+    api_classname: GENERICAPI
+    filters: ["ps1::open", "sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
 
 instrument/=SEDMv2/log:
   - start_date: "2023-06-02T22:00:00"

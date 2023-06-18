@@ -145,6 +145,11 @@ const ImageAnalysisForm = ({ obj_id }) => {
         default: "PanSTARRS/DR1/g",
         enum: templates,
       },
+      saturation: {
+        type: "number",
+        title: "Saturation [counts]",
+        default: 50000,
+      },
       image_data: {
         type: "string",
         format: "data-url",
