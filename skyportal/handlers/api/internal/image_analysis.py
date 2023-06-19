@@ -471,16 +471,23 @@ def reduce_image(
             cutout = cutouts.get_cutout(image, target_obj, 20, mask=mask, header=header)
             # We may directly download the template image for this cutout from HiPS server - same scale and orientation
             cutout['template'] = templates.get_hips_image(
-                template_name, header=cutout['header']
+                template_name,
+                header=cutout['header'],
             )[0]
+            cutout['template'][~np.isfinite(cutout['template'])] = 0.0
+            cutout['template'][np.abs(cutout['template']) > saturation] = 0.0
+
             # We do not have difference image, so it will only display original one, template and mask
             plots.plot_cutout(
                 cutout,
                 planes=['image', 'template', 'mask'],
                 qq=[0.5, 99.9],
-                stretch='linear',
+                stretch='asinh',
                 fig=fig,
                 axs=axs,
+                mark_x=cutout['image'].shape[0] // 2,
+                mark_y=cutout['image'].shape[1] // 2,
+                mark_r=fwhm,
             )
 
             ax = fig.add_subplot(gs[1, :])
