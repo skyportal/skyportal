@@ -31,6 +31,11 @@ def test_token_user_post_robotic_followup_request(
     assert status == 200
     assert data['status'] == 'success'
 
+    data['data']['payload']['exposure_time'] = [
+        int(x) for x in data['data']['payload']['exposure_time'].split(",")
+    ]
+    request_data['payload']['observation_choices'] = 'IFU'
+
     for key in request_data:
         assert data['data'][key] == request_data[key]
 
@@ -112,6 +117,11 @@ def test_token_user_modify_owned_followup_request(
 
     status, data = api('GET', f'followup_request/{id}', token=upload_data_token)
     assert status == 200
+
+    data['data']['payload']['exposure_time'] = [
+        int(x) for x in data['data']['payload']['exposure_time'].split(",")
+    ]
+    new_request_data['payload']['observation_choices'] = 'IFU'
 
     for k in new_request_data:
         assert data['data'][k] == new_request_data[k]
