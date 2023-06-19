@@ -329,6 +329,12 @@ User.gcnnotices = relationship(
     passive_deletes=True,
     doc='The GcnNotices saved by this user',
 )
+User.gcnpublications = relationship(
+    'GcnPublication',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The gcnpublications saved by this user',
+)
 User.gcnsummaries = relationship(
     'GcnSummary',
     back_populates='sent_by',

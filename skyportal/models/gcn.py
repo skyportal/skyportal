@@ -3,6 +3,7 @@ __all__ = [
     'GcnTag',
     'GcnEvent',
     'GcnProperty',
+    'GcnPublication',
     'GcnSummary',
     'GcnTrigger',
     'DefaultGcnTag',
@@ -76,6 +77,62 @@ class DefaultGcnTag(Base):
 
     default_tag_name = sa.Column(
         sa.String, unique=True, nullable=False, doc='Default tag name'
+    )
+
+
+class GcnPublication(Base):
+    """Store GCN publication for events."""
+
+    create = read = accessible_by_group_members
+
+    update = delete = AccessibleIfUserMatches('sent_by') | CustomUserAccessControl(
+        gcn_update_delete_logic
+    )
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnPublication.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcnpublications",
+        doc="The user that saved this GcnPublication",
+    )
+
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # have a relationship to a group
+    group_id = sa.Column(
+        sa.ForeignKey('groups.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the Group that this GcnPublication is associated with.",
+    )
+
+    group = relationship(
+        "Group",
+        foreign_keys=group_id,
+        back_populates="gcnpublications",
+        doc="The group that this GcnPublication is associated with.",
+    )
+
+    data = sa.Column(JSONB, doc="Event properties in JSON format.")
+
+    publication_name = sa.Column(sa.String, nullable=False)
+
+    publish = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default='false',
+        doc='Whether GcnPublication should be published',
     )
 
 
@@ -285,6 +342,14 @@ class GcnEvent(Base):
         passive_deletes=True,
         order_by="GcnProperty.created_at",
         doc="Properties associated with this GCN event.",
+    )
+
+    publications = relationship(
+        'GcnPublication',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="GcnPublication.created_at",
+        doc="Publications associated with this GCN event.",
     )
 
     summaries = relationship(

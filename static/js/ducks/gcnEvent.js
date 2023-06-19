@@ -59,6 +59,11 @@ const POST_GCNEVENT_SUMMARY = "skyportal/POST_GCNEVENT_SUMMARY";
 const FETCH_GCNEVENT_SUMMARY = "skyportal/FETCH_GCNEVENT_SUMMARY";
 const DELETE_GCNEVENT_SUMMARY = "skyportal/DELETE_GCNEVENT_SUMMARY";
 
+const POST_GCNEVENT_PUBLICATION = "skyportal/POST_GCNEVENT_PUBLICATION";
+const FETCH_GCNEVENT_PUBLICATION = "skyportal/FETCH_GCNEVENT_PUBLICATION";
+const DELETE_GCNEVENT_PUBLICATION = "skyportal/DELETE_GCNEVENT_PUBLICATION";
+const PATCH_GCNEVENT_PUBLICATION = "skyportal/PATCH_GCNEVENT_PUBLICATION";
+
 const POST_GCN_TACH = "skyportal/POST_GCN_TACH";
 const FETCH_GCN_TACH = "skyportal/FETCH_GCN_TACH";
 const FETCH_GCN_TACH_OK = "skyportal/FETCH_GCN_TACH_OK";
@@ -279,6 +284,36 @@ export function patchGcnEventSummary(dateobs, summaryID, formData) {
   return API.PATCH(
     `/api/gcn_event/${dateobs}/summary/${summaryID}`,
     PATCH_GCNEVENT_SUMMARY,
+    formData
+  );
+}
+
+export function postGcnEventPublication({ dateobs, params }) {
+  return API.POST(
+    `/api/gcn_event/${dateobs}/publication`,
+    POST_GCNEVENT_PUBLICATION,
+    params
+  );
+}
+
+export function fetchGcnEventPublication({ dateobs, publicationID }) {
+  return API.GET(
+    `/api/gcn_event/${dateobs}/publication/${publicationID}`,
+    FETCH_GCNEVENT_PUBLICATION
+  );
+}
+
+export function deleteGcnEventPublication({ dateobs, publicationID }) {
+  return API.DELETE(
+    `/api/gcn_event/${dateobs}/publication/${publicationID}`,
+    DELETE_GCNEVENT_PUBLICATION
+  );
+}
+
+export function patchGcnEventPublication(dateobs, publicationID, formData) {
+  return API.PATCH(
+    `/api/gcn_event/${dateobs}/publication/${publicationID}`,
+    PATCH_GCNEVENT_PUBLICATION,
     formData
   );
 }

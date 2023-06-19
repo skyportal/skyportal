@@ -44,6 +44,7 @@ import datetime
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.json_util import to_json
 from baselayer.log import make_log
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -61,6 +62,7 @@ from ...models import (
     GcnEvent,
     GcnNotice,
     GcnProperty,
+    GcnPublication,
     GcnSummary,
     GcnTag,
     GcnTrigger,
@@ -2573,7 +2575,7 @@ def add_gcn_summary(
                             df_phot.insert(
                                 loc=0,
                                 column='obj_id',
-                                value=[p["obj_id"] for p in photometry],
+                                value=[p.obj_id for p in photometry],
                             )
                         df_phot = df_phot.fillna("--")
                         sources_text.append(
@@ -2785,26 +2787,24 @@ def add_gcn_summary(
                                 ],
                             )
                         df_obs = df_obs.fillna("--")
+                        floatfmt = [".2f", ".5f", ".5f", ".5f", "%s", "%d", ".2f"]
+                        if no_text:
+                            floatfmt.insert(0, "%s")
+
                         observations_text.append(
                             tabulate(
                                 df_obs,
                                 headers='keys',
                                 tablefmt='psql',
                                 showindex=False,
-                                floatfmt=(
-                                    ".2f",
-                                    ".5f",
-                                    ".5f",
-                                    ".5f",
-                                    "%s",
-                                    "%d",
-                                    ".2f",
-                                ),
+                                floatfmt=floatfmt,
                             )
                             + "\n"
                         )
                 if len(observations_text) > 0 and not no_text:
-                    observations_text = ["\nObservations:"] + observations_text
+                    observations_text.insert(0, "\nObservations:")
+
+                if len(observations_text) > 0:
                     contents.extend(observations_text)
 
         gcn_summary.text = "\n".join(contents)
@@ -3266,6 +3266,550 @@ class GcnSummaryHandler(BaseHandler):
                 )
 
             session.delete(summary)
+            session.commit()
+
+            self.push(
+                action="skyportal/REFRESH_GCN_EVENT",
+                payload={"gcnEvent_dateobs": dateobs},
+            )
+
+        return self.success()
+
+
+def add_gcn_publication(
+    publication_id,
+    user_id,
+    dateobs,
+    publication_name,
+    group_id,
+    start_date,
+    end_date,
+    localization_name,
+    localization_cumprob=0.90,
+    number_of_detections=1,
+    show_sources=True,
+    show_observations=False,
+    photometry_in_window=True,
+    stats_method='python',
+    instrument_ids=None,
+):
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    try:
+        user = session.query(User).get(user_id)
+        session.user_or_token = user
+
+        gcn_publication = session.query(GcnPublication).get(publication_id)
+        group = session.query(Group).get(group_id)
+        event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
+        start_date_mjd = Time(arrow.get(start_date).datetime).mjd
+        end_date_mjd = Time(arrow.get(end_date).datetime).mjd
+
+        contents = {}
+        if show_sources:
+            source_page_number = 1
+            sources = []
+            while True:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                # get the sources in the event
+                coroutine = get_sources(
+                    user_id=user.id,
+                    session=session,
+                    group_ids=[group.id],
+                    user_accessible_group_ids=[g.id for g in user.accessible_groups],
+                    first_detected_date=start_date,
+                    last_detected_date=end_date,
+                    localization_dateobs=dateobs,
+                    localization_name=localization_name,
+                    localization_cumprob=localization_cumprob,
+                    number_of_detections=number_of_detections,
+                    page_number=source_page_number,
+                    num_per_page=MAX_SOURCES_PER_PAGE,
+                )
+                sources_data = loop.run_until_complete(coroutine)
+                sources.extend(sources_data['sources'])
+                source_page_number += 1
+
+                if len(sources_data['sources']) < MAX_SOURCES_PER_PAGE:
+                    break
+            if len(sources) > 0:
+                obj_ids = [source['id'] for source in sources]
+                sources_with_status = session.scalars(
+                    SourcesConfirmedInGCN.select(user).where(
+                        SourcesConfirmedInGCN.obj_id.in_(obj_ids),
+                        SourcesConfirmedInGCN.dateobs == dateobs,
+                    )
+                ).all()
+                for source in sources:
+                    source["source_in_gcn"] = next(
+                        (
+                            source_in_gcn.to_dict()
+                            for source_in_gcn in sources_with_status
+                            if source_in_gcn.obj_id == source['id']
+                        ),
+                        None,
+                    )
+
+                    stmt = Photometry.select(user).where(
+                        Photometry.obj_id == source['id']
+                    )
+                    if photometry_in_window:
+                        stmt = stmt.where(
+                            Photometry.mjd >= start_date_mjd,
+                            Photometry.mjd <= end_date_mjd,
+                        )
+                    photometry = session.scalars(stmt).all()
+                    if len(photometry) > 0:
+                        source["photometry"] = [
+                            serialize(phot, 'ab', 'mag') for phot in photometry
+                        ]
+
+            contents["sources"] = sources
+
+        if show_observations:
+            # get the executed obs, by instrument
+            observations = []
+
+            start_date = arrow.get(start_date).datetime
+            end_date = arrow.get(end_date).datetime
+
+            if instrument_ids is not None:
+                stmt = Instrument.select(user).where(Instrument.id.in_(instrument_ids))
+            else:
+                stmt = Instrument.select(user).options(joinedload(Instrument.telescope))
+            instruments = session.scalars(stmt).all()
+            if instruments is not None:
+                for instrument in instruments:
+                    data = get_observations(
+                        session,
+                        start_date,
+                        end_date,
+                        telescope_name=instrument.telescope.name,
+                        instrument_name=instrument.name,
+                        localization_dateobs=dateobs,
+                        localization_name=localization_name,
+                        localization_cumprob=localization_cumprob,
+                        return_statistics=True,
+                        stats_method=stats_method,
+                        n_per_page=MAX_OBSERVATIONS,
+                        page_number=1,
+                    )
+
+                    observations.extend(data["observations"])
+
+            for o in observations:
+                del o["field"]
+                del o["instrument"]
+
+            contents["observations"] = observations
+
+        gcn_publication.data = to_json(contents)
+        session.commit()
+
+        flow = Flow()
+        flow.push(
+            user_id=user.id,
+            action_type="skyportal/REFRESH_GCN_EVENT",
+            payload={"gcnEvent_dateobs": event.dateobs},
+        )
+
+        notification = UserNotification(
+            user=user,
+            text=f"GCN publication *{gcn_publication.publication_name}* on *{event.dateobs}* created.",
+            notification_type="gcn_publication",
+            url=f"/gcn_events/{event.dateobs}",
+        )
+        session.add(notification)
+        session.commit()
+
+        log(f"Successfully generated GCN publication {gcn_publication.id}")
+
+    except Exception as e:
+        log(f"Unable to create GCN publication: {str(e)}")
+        raise e
+    finally:
+        session.close()
+        Session.remove()
+
+
+class GcnPublicationHandler(BaseHandler):
+    @auth_or_token
+    async def post(self, dateobs, summary_id=None):
+        """
+        ---
+          description: Post publication data of a GCN event.
+          tags:
+            - gcnpublications
+          parameters:
+            - in: body
+              name: publication_name
+              schema:
+                type: string
+            - in: body
+              name: groupId
+              required: true
+              schema:
+                type: string
+              description: id of the group that creates the summary.
+            - in: body
+              name: startDate
+              required: true
+              schema:
+                type: string
+              description: Filter by start date
+            - in: body
+              name: endDate
+              required: true
+              schema:
+                type: string
+              description: Filter by end date
+            - in: body
+              name: localizationName
+              schema:
+                type: string
+              description: Name of localization / skymap to use.
+            - in: body
+              name: localizationCumprob
+              schema:
+                type: number
+              description: Cumulative probability up to which to include fields. Defaults to 0.95.
+            - in: body
+              name: numberDetections
+              nullable: true
+              schema:
+                type: number
+              description: Return only sources who have at least numberDetections detections. Defaults to 2.
+            - in: body
+              name: showSources
+              required: true
+              schema:
+                type: bool
+              description: Show sources in the summary
+            - in: body
+              name: showObservations
+              required: true
+              schema:
+                type: bool
+              description: Show observations in the summary
+            - in: body
+              name: noText
+              schema:
+                type: bool
+              description: Do not include text in the summary, only tables.
+            - in: body
+              name: photometryInWindow
+              schema:
+                type: bool
+              description: Limit photometry to that within startDate and endDate.
+            - in: body
+              name: statsMethod
+              schema:
+                type: string
+              description: Method to use for calculating statistics. Defaults to python. Options are python and db.
+            - in: body
+              name: instrumentIds
+              schema:
+                type: string
+              description: List of instrument ids to include in the summary. Defaults to all instruments if not specified.
+
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: string
+                            description: GCN summary
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        data = self.get_json()
+        publication_name = data.get("publicationName", None)
+        group_id = data.get("groupId", None)
+        start_date = data.get("startDate", None)
+        end_date = data.get("endDate", None)
+        localization_name = data.get("localizationName", None)
+        localization_cumprob = data.get("localizationCumprob", 0.95)
+        number_of_detections = data.get("numberDetections", 2)
+        show_sources = data.get("showSources", False)
+        show_observations = data.get("showObservations", False)
+        photometry_in_window = data.get("photometryInWindow", False)
+        stats_method = data.get("statsMethod", "python")
+        instrument_ids = data.get("instrumentIds", None)
+
+        class Validator(Schema):
+            start_date = UTCTZnaiveDateTime(required=False, missing=None)
+            end_date = UTCTZnaiveDateTime(required=False, missing=None)
+
+        validator_instance = Validator()
+        params_to_be_validated = {}
+        if start_date is not None:
+            params_to_be_validated['start_date'] = start_date
+        if end_date is not None:
+            params_to_be_validated['end_date'] = end_date
+
+        try:
+            validated = validator_instance.load(params_to_be_validated)
+        except ValidationError as e:
+            return self.error(f'Error parsing query params: {e.args[0]}.')
+
+        start_date = validated['start_date']
+        end_date = validated['end_date']
+
+        if publication_name is None:
+            return self.error("publicationName is required")
+
+        if group_id is None:
+            return self.error("Group ID is required")
+
+        if stats_method not in ["db", "python"]:
+            return self.error(
+                "statsMethod for observations querying must be 'db' or 'python'"
+            )
+
+        if instrument_ids is not None:
+            try:
+                instrument_ids = [
+                    int(instrument_id) for instrument_id in instrument_ids
+                ]
+                if len(instrument_ids) == 0:
+                    instrument_ids = None
+            except ValueError:
+                return self.error("Instrument IDs must be a list of integers")
+
+        try:
+            number_of_detections = int(number_of_detections)
+        except ValueError:
+            return self.error("numberDetections must be an integer")
+
+        with self.Session() as session:
+            stmt = GcnEvent.select(session.user_or_token).where(
+                GcnEvent.dateobs == dateobs
+            )
+            event = session.scalars(stmt).first()
+
+            if event is None:
+                return self.error("Event not found", status=404)
+
+            stmt = Group.select(session.user_or_token).where(Group.id == group_id)
+            group = session.scalars(stmt).first()
+            if group is None:
+                return self.error(f"Group not found with ID {group_id}")
+
+            # verify that the user doesn't already have a summary with this title for this event
+            stmt = GcnPublication.select(session.user_or_token, mode="read").where(
+                GcnPublication.dateobs == dateobs,
+                GcnPublication.publication_name == publication_name,
+                GcnPublication.group_id == group_id,
+                GcnPublication.sent_by_id == self.associated_user_object.id,
+            )
+            existing_publication = session.scalars(stmt).first()
+            if existing_publication is not None:
+                return self.error(
+                    "A publication with the same name, group, and event already exists for this user"
+                )
+
+            gcn_publication = GcnPublication(
+                dateobs=event.dateobs,
+                publication_name=publication_name,
+                data={},
+                sent_by_id=self.associated_user_object.id,
+                group_id=group_id,
+            )
+            session.add(gcn_publication)
+            session.commit()
+
+            publication_id = gcn_publication.id
+            user_id = self.associated_user_object.id
+
+            try:
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: add_gcn_publication(
+                        publication_id=publication_id,
+                        user_id=user_id,
+                        dateobs=dateobs,
+                        publication_name=publication_name,
+                        group_id=group_id,
+                        start_date=start_date,
+                        end_date=end_date,
+                        localization_name=localization_name,
+                        localization_cumprob=localization_cumprob,
+                        number_of_detections=number_of_detections,
+                        show_sources=show_sources,
+                        show_observations=show_observations,
+                        photometry_in_window=photometry_in_window,
+                        stats_method=stats_method,
+                        instrument_ids=instrument_ids,
+                    ),
+                )
+                return self.success({"id": summary_id})
+            except Exception as e:
+                return self.error(f"Error generating publication: {e}")
+
+    @auth_or_token
+    def get(self, dateobs, publication_id):
+        """
+        ---
+        description: Retrieve a GCN publication
+        tags:
+          - gcn
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: summary_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleGcnPublication
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        if publication_id is None:
+            return self.error("Publication ID is required")
+
+        with self.Session() as session:
+            stmt = GcnPublication.select(session.user_or_token, mode="read").where(
+                GcnPublication.id == publication_id,
+                GcnPublication.dateobs == dateobs,
+            )
+            publication = session.scalars(stmt).first()
+            if publication is None:
+                return self.error("Publication not found", status=404)
+
+            return self.success(data=publication)
+
+    @auth_or_token
+    def patch(self, dateobs, publication_id):
+        """
+        description: Update a GCN publication
+        tags:
+          - gcn
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: publication_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleGcnPublication
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+        if data is None or data == {}:
+            return self.error("No data provided")
+
+        if publication_id is None:
+            return self.error("Publication ID is required")
+
+        with self.Session() as session:
+            stmt = GcnPublication.select(session.user_or_token, mode="update").where(
+                GcnPublication.id == publication_id,
+                GcnPublication.dateobs == dateobs,
+            )
+            publication = session.scalars(stmt).first()
+            if publication is None:
+                return self.error("Publication not found", status=404)
+
+            if data["data"] != {}:
+                publication.data = to_json(data["data"])
+            else:
+                return self.error("data not found")
+
+            session.commit()
+
+            self.push(
+                action="skyportal/REFRESH_GCN_EVENT",
+                payload={"gcnEvent_dateobs": dateobs},
+            )
+
+            return self.success(data=publication)
+
+    @auth_or_token
+    def delete(self, dateobs, publication_id):
+        """
+        ---
+        description: Delete a GCN publication
+        tags:
+          - gcn
+        parameters:
+          - in: path
+            name: publication_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        if publication_id is None:
+            return self.error("Publication ID is required")
+
+        with self.Session() as session:
+            stmt = GcnPublication.select(session.user_or_token, mode="delete").where(
+                GcnPublication.id == publication_id,
+                GcnPublication.dateobs == dateobs,
+            )
+            publication = session.scalars(stmt).first()
+            if publication is None:
+                return self.error("Publication not found", status=404)
+
+            if (
+                publication.text.strip().lower() == "pending"
+                and datetime.datetime.now()
+                < (publication.created_at + datetime.timedelta(hours=1))
+            ):
+                return self.error(
+                    "Cannot delete a recently created publication (less than 1 hour) that is still pending"
+                )
+
+            session.delete(publication)
             session.commit()
 
             self.push(
