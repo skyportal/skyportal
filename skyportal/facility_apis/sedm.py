@@ -173,12 +173,12 @@ def prepare_payload_sedm(payload, existing_payload=None):
         -1 if existing_payload is None else existing_payload["exposure_time"],
     )
 
-    num_obs = {
-        '3-shot (gri)': 3,
-        '4-shot (ugri)': 4,
-        '4-shot+IFU': 5,
-        '3-shot+IFU': 4,
-        'IFU': 1,
+    obs = {
+        '3-shot (gri)': ['g', 'r', 'i'],
+        '4-shot (ugri)': ['u', 'g', 'r', 'i'],
+        '4-shot+IFU': ['u', 'g', 'r', 'i', 'IFU'],
+        '3-shot+IFU': ['u', 'g', 'r', 'i', 'IFU'],
+        'IFU': ['IFU'],
     }
 
     if type(payload["exposure_time"]) == str:
@@ -202,7 +202,8 @@ def prepare_payload_sedm(payload, existing_payload=None):
                     "Exposure times should either have one entry (same exposure time for all filters) or the same length as observation_choices"
                 )
     else:
-        num_exposures = num_obs[payload['observation_type']]
+        payload['observation_choices'] = obs[payload['observation_type']]
+        num_exposures = len(payload['observation_choices'])
         # All filters have same exposure time
         if len(payload["exposure_time"]) == 1:
             payload["exposure_time"] = payload["exposure_time"] * num_exposures
@@ -223,6 +224,17 @@ def prepare_payload_sedm(payload, existing_payload=None):
         raise ValueError(
             "Exposure times must be between -1 (to set by magnitude) and 3600 seconds"
         )
+
+    preferred_ordering = ['IFU', 'u', 'g', 'r', 'i']
+    idx = [
+        preferred_ordering.index(choice) for choice in payload['observation_choices']
+    ]
+    payload['observation_choices'] = [
+        x for _, x in sorted(zip(idx, payload['observation_choices']))
+    ]
+    payload['exposure_time'] = [
+        x for _, x in sorted(zip(idx, payload['exposure_time']))
+    ]
 
     payload["maximum_airmass"] = payload.get(
         "maximum_airmass",
