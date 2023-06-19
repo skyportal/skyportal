@@ -474,8 +474,6 @@ def reduce_image(
                 template_name[-1],
                 header=cutout['header'],
             )[0]
-            cutout['template'][~np.isfinite(cutout['template'])] = 0.0
-            cutout['template'][np.abs(cutout['template']) > saturation] = 0.0
 
             # We do not have difference image, so it will only display original one, template and mask
             plots.plot_cutout(
