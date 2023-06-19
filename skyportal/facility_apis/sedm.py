@@ -177,7 +177,7 @@ def prepare_payload_sedm(payload, existing_payload=None):
         '3-shot (gri)': ['g', 'r', 'i'],
         '4-shot (ugri)': ['u', 'g', 'r', 'i'],
         '4-shot+IFU': ['u', 'g', 'r', 'i', 'IFU'],
-        '3-shot+IFU': ['u', 'g', 'r', 'i', 'IFU'],
+        '3-shot+IFU': ['g', 'r', 'i', 'IFU'],
         'IFU': ['IFU'],
     }
 
@@ -230,11 +230,14 @@ def prepare_payload_sedm(payload, existing_payload=None):
         preferred_ordering.index(choice) for choice in payload['observation_choices']
     ]
     payload['observation_choices'] = [
-        x for _, x in sorted(zip(idx, payload['observation_choices']))
+        str(x) for _, x in sorted(zip(idx, payload['observation_choices']))
     ]
     payload['exposure_time'] = [
-        x for _, x in sorted(zip(idx, payload['exposure_time']))
+        str(x) for _, x in sorted(zip(idx, payload['exposure_time']))
     ]
+
+    payload['observation_choices'] = ",".join(payload['observation_choices'])
+    payload['exposure_time'] = ",".join(payload['exposure_time'])
 
     payload["maximum_airmass"] = payload.get(
         "maximum_airmass",
