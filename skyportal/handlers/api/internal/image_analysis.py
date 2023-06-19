@@ -470,8 +470,8 @@ def reduce_image(
             # Create the cutout from image based on the candidate
             cutout = cutouts.get_cutout(image, target_obj, 20, mask=mask, header=header)
             # We may directly download the template image for this cutout from HiPS server - same scale and orientation
-            cutout['template'] = templates.get_hips_image(
-                template_name,
+            cutout['template'] = templates.get_ps1_image_and_mask(
+                template_name[-1],
                 header=cutout['header'],
             )[0]
             cutout['template'][~np.isfinite(cutout['template'])] = 0.0
