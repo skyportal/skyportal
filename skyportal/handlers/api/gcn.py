@@ -2785,26 +2785,24 @@ def add_gcn_summary(
                                 ],
                             )
                         df_obs = df_obs.fillna("--")
+                        floatfmt = [".2f", ".5f", ".5f", ".5f", "%s", "%d", ".2f"]
+                        if no_text:
+                            floatfmt.insert(0, "%s")
+
                         observations_text.append(
                             tabulate(
                                 df_obs,
                                 headers='keys',
                                 tablefmt='psql',
                                 showindex=False,
-                                floatfmt=(
-                                    ".2f",
-                                    ".5f",
-                                    ".5f",
-                                    ".5f",
-                                    "%s",
-                                    "%d",
-                                    ".2f",
-                                ),
+                                floatfmt=floatfmt,
                             )
                             + "\n"
                         )
                 if len(observations_text) > 0 and not no_text:
-                    observations_text = ["\nObservations:"] + observations_text
+                    observations_text.insert(0, "\nObservations:")
+
+                if len(observations_text) > 0:
                     contents.extend(observations_text)
 
         gcn_summary.text = "\n".join(contents)
