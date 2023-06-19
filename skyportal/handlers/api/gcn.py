@@ -2573,7 +2573,7 @@ def add_gcn_summary(
                             df_phot.insert(
                                 loc=0,
                                 column='obj_id',
-                                value=[p["obj_id"] for p in photometry],
+                                value=[p.obj_id for p in photometry],
                             )
                         df_phot = df_phot.fillna("--")
                         sources_text.append(
