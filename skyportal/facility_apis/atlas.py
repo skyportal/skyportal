@@ -66,7 +66,9 @@ class ATLASRequest:
         return target
 
 
-def commit_photometry(json_response, altdata, request_id, instrument_id, user_id):
+def commit_photometry(
+    json_response, altdata, request_id, instrument_id, user_id, parent_session=None
+):
     """
     Commits ATLAS photometry to the database
 
@@ -82,6 +84,8 @@ def commit_photometry(json_response, altdata, request_id, instrument_id, user_id
         Instrument SkyPortal ID
     user_id : int
         User SkyPortal ID
+    parent_session : sqlalchemy.orm.session.Session
+        Session to use for database transactions. If None, a new session will be created.
     """
 
     from ..models import (
@@ -91,11 +95,14 @@ def commit_photometry(json_response, altdata, request_id, instrument_id, user_id
         User,
     )
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
+    if parent_session is None:
+        Session = scoped_session(sessionmaker())
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = parent_session
 
     try:
         request = session.query(FollowupRequest).get(request_id)
@@ -206,9 +213,11 @@ def commit_photometry(json_response, altdata, request_id, instrument_id, user_id
     except Exception as e:
         session.rollback()
         log(f"Unable to commit photometry for {request_id}: {e}")
+        raise Exception(f"Unable to commit photometry for {request_id}: {e}")
     finally:
-        session.close()
-        Session.remove()
+        if parent_session is None:
+            session.close()
+            Session.remove()
 
 
 class ATLASAPI(FollowUpAPI):
@@ -229,7 +238,7 @@ class ATLASAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import FacilityTransaction, FacilityTransactionRequest
 
         req = ATLASRequest()
         requestgroup = req._build_payload(request)
@@ -261,11 +270,20 @@ class ATLASAPI(FollowUpAPI):
                 'followup_request_id': request.id,
                 'initiator_id': request.last_modified_by_id,
             }
+            req = FacilityTransactionRequest(**request_body)
+            session.add(req)
+            session.commit()
 
             facility_microservice_url = (
                 f'http://127.0.0.1:{cfg["ports.facility_queue"]}'
             )
-            r = requests.post(facility_microservice_url, json=request_body)
+            requests.post(
+                facility_microservice_url,
+                json={
+                    'request_id': req.id,
+                    'followup_request_id': req.followup_request_id,
+                },
+            )
 
         elif r.status_code == 429:
             request.status = f'throttled: {r.content}'

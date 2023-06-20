@@ -14,8 +14,8 @@ from requests.auth import HTTPBasicAuth
 
 import sqlalchemy as sa
 
-from baselayer.app.models import init_db
 from baselayer.app.env import load_env
+from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.models import (
     DBSession,
@@ -40,18 +40,28 @@ WAIT_TIME_BETWEEN_QUERIES = timedelta(seconds=120)
 queue = []
 
 
-def retrieve_old_requests():
-    with DBSession() as session:
-        requests = (
-            session.query(FacilityTransactionRequest)
-            .where(FacilityTransactionRequest.status != "complete")
-            .all()
-        )
-        for req in requests:
-            queue.append(req.id)
-
-
 def service(queue):
+    try:
+        with DBSession() as session:
+            requests = (
+                session.query(FacilityTransactionRequest)
+                .where(
+                    FacilityTransactionRequest.status != "complete",
+                    FacilityTransactionRequest.status.not_like("error:%"),
+                )
+                .all()
+            )
+            for req in requests:
+                followup_request = session.scalars(
+                    sa.select(FollowupRequest).where(
+                        FollowupRequest.id == req.followup_request_id
+                    )
+                ).first()
+                if followup_request is not None:
+                    queue.append(req.id)
+    except Exception as e:
+        log(f"Error retrieving older requests: {e}")
+
     while True:
         if len(queue) == 0:
             time.sleep(1)
@@ -60,171 +70,234 @@ def service(queue):
         if req_id is None:
             continue
 
-        try:
-            execute_request(req_id)
-        except Exception as e:
-            log(f"Error processing follow-up request {req_id}: {str(e)}")
-
-
-def execute_request(req_id):
-    with DBSession() as session:
-        req = session.query(FacilityTransactionRequest).get(req_id)
-        dt = datetime.utcnow() - req.last_query
-        if dt < WAIT_TIME_BETWEEN_QUERIES:
-            queue.append(req.id)
-        else:
-            log(f"Executing request {req.id}")
-            followup_request = session.query(FollowupRequest).get(
-                req.followup_request_id
-            )
-            instrument = followup_request.allocation.instrument
-            altdata = followup_request.allocation.altdata
-
-            if instrument.name == "ATLAS":
-                from skyportal.facility_apis.atlas import commit_photometry
-
-                response = request_session.request(
-                    req.method,
-                    req.endpoint,
-                    json=req.data,
-                    params=req.params,
-                    headers=req.headers,
-                )
-
-                if response.status_code == 200:
-                    try:
-                        json_response = response.json()
-                    except Exception:
-                        raise ('No JSON data returned in request')
-
-                    if json_response['finishtimestamp']:
-                        followup_request.status = "Committing photometry to database"
-                        commit_photometry(
-                            json_response,
-                            altdata,
-                            followup_request.id,
-                            instrument.id,
-                            followup_request.requester.id,
-                        )
-                        followup_request.status = 'complete'
-                        req.status = 'complete'
-                        session.add(req)
-                        log(f"Job with ID {req.id} completed")
-
-                    elif json_response['starttimestamp']:
-                        log(
-                            f"Job {req.id}: running (started at {json_response['starttimestamp']})"
-                        )
-                        followup_request.status = f"Job is running (started at {json_response['starttimestamp']})"
-                        req.last_query = datetime.utcnow()
-                        session.add(req)
-                        queue.append(req.id)
-                    else:
-                        log(
-                            f"Job {req.id}: Waiting for job to start (queued at {json_response['timestamp']})"
-                        )
-                        followup_request.status = f"Waiting for job to start (queued at {json_response['timestamp']})"
-                        req.last_query = datetime.utcnow()
-                        session.add(req)
-                        queue.append(req.id)
-                else:
-                    log(f"Job {req.id}: error: {response.content}")
-                    followup_request.status = f'error: {response.content}'
-
-                session.add(followup_request)
-                session.commit()
-            elif instrument.name == "ZTF":
-                from skyportal.facility_apis.ztf import commit_photometry
-
-                keys = ['ra', 'dec', 'jdstart', 'jdend']
-
-                response = request_session.request(
-                    req.method,
-                    req.endpoint,
-                    json=req.data,
-                    params=req.params,
-                    headers=req.headers,
-                    auth=HTTPBasicAuth(
-                        altdata['ipac_http_user'], altdata['ipac_http_password']
-                    ),
-                )
-
-                if response.status_code == 200:
-                    df_result = pd.read_html(response.text)[0]
-                    df_result.rename(
-                        inplace=True, columns={'startJD': 'jdstart', 'endJD': 'jdend'}
+        with DBSession() as session:
+            try:
+                req = session.scalars(
+                    sa.select(FacilityTransactionRequest).where(
+                        FacilityTransactionRequest.id == req_id
                     )
-                    df_result = df_result.replace({np.nan: None})
-                    if not set(keys).issubset(df_result.columns):
-                        status = 'In progress: RA, Dec, jdstart, and jdend required in response.'
-                        followup_request.status = status
-                        log(f'Job {req.id}: {status}')
-                        req.last_query = datetime.utcnow()
-                        session.add(req)
-                        session.commit()
-                        queue.append(req.id)
-                        return
+                ).first()
+                dt = datetime.utcnow() - req.last_query
+                if dt < WAIT_TIME_BETWEEN_QUERIES:
+                    queue.append(req_id)
+                else:
+                    log(f"Executing request {req.id}")
+                    followup_request = session.scalars(
+                        sa.select(FollowupRequest).where(
+                            FollowupRequest.id == req.followup_request_id
+                        )
+                    ).first()
+                    if followup_request is None:
+                        log(
+                            f"Follow-up request {req.followup_request_id} not found. Removing request {req_id} from queue."
+                        )
+                        continue
+                    instrument = followup_request.allocation.instrument
+                    altdata = followup_request.allocation.altdata
 
-                    index_match = None
-                    for index, row in df_result.iterrows():
-                        if not all(
-                            [np.isclose(row[key], req.data[key]) for key in keys]
-                        ):
-                            continue
-                        index_match = index
-                    if index_match is None:
-                        status = 'In progress: No matching response from forced photometry service. Waiting for database update.'
-                        followup_request.status = status
-                        log(f'Job {req.id}: {status}')
-                        req.last_query = datetime.utcnow()
-                        session.add(req)
-                        session.commit()
-                        queue.append(req.id)
-                        return
-                    else:
-                        row = df_result.loc[index_match]
-                        if row['lightcurve'] is None:
-                            status = 'In progress: Light curve not yet available. Waiting for it to complete.'
+                    if instrument.name == "ATLAS":
+                        from skyportal.facility_apis.atlas import commit_photometry
+
+                        response = request_session.request(
+                            req.method,
+                            req.endpoint,
+                            json=req.data,
+                            params=req.params,
+                            headers=req.headers,
+                        )
+
+                        if response.status_code == 200:
+                            try:
+                                json_response = response.json()
+                            except Exception:
+                                raise ('No JSON data returned in request')
+
+                            if json_response['finishtimestamp']:
+                                followup_request.status = (
+                                    "Committing photometry to database"
+                                )
+                                try:
+                                    commit_photometry(
+                                        json_response,
+                                        altdata,
+                                        followup_request.id,
+                                        instrument.id,
+                                        followup_request.requester.id,
+                                        parent_session=session,
+                                    )
+                                    req.status = 'complete'
+                                    session.add(req)
+                                    session.commit()
+                                    log(f"Job with ID {req.id} completed")
+                                    continue
+                                except Exception as e:
+                                    log(f"Error committing photometry: {str(e)}")
+                                    followup_request.status = f"error: {str(e)}"
+                                    req.status = f"error: {e}"
+                                    session.add(req)
+                                    session.add(followup_request)
+                                    session.commit()
+                                    continue
+
+                            elif json_response['starttimestamp']:
+                                log(
+                                    f"Job {req.id}: running (started at {json_response['starttimestamp']})"
+                                )
+                                status = f"Job is running (started at {json_response['starttimestamp']})"
+                                followup_request.status = status
+                                req.last_query = datetime.utcnow()
+                                session.add(req)
+                                session.add(followup_request)
+                                session.commit()
+                                queue.append(req_id)
+                            else:
+                                status = f"Waiting for job to start (queued at {json_response['timestamp']})"
+                                followup_request.status = status
+                                req.last_query = datetime.utcnow()
+                                session.add(req)
+                                session.add(followup_request)
+                                session.commit()
+                                queue.append(req_id)
+                                log(f"Job {req.id}: {status}")
+                        else:
+                            status = f"error: {response.content}"
                             followup_request.status = status
-                            log(f'Job {req.id}: {status}')
                             req.last_query = datetime.utcnow()
                             session.add(req)
+                            session.add(followup_request)
                             session.commit()
-                            queue.append(req.id)
-                            return
-                        else:
+                            queue.append(req_id)
+                            log(f"Job {req.id}: {status}")
+
+                    elif instrument.name == "ZTF":
+                        from skyportal.facility_apis.ztf import commit_photometry
+
+                        keys = ['ra', 'dec', 'jdstart', 'jdend']
+
+                        response = request_session.request(
+                            req.method,
+                            req.endpoint,
+                            json=req.data,
+                            params=req.params,
+                            headers=req.headers,
+                            auth=HTTPBasicAuth(
+                                altdata['ipac_http_user'], altdata['ipac_http_password']
+                            ),
+                        )
+
+                        if response.status_code == 200:
+                            df_result = pd.read_html(response.text)[0]
+                            df_result.rename(
+                                inplace=True,
+                                columns={'startJD': 'jdstart', 'endJD': 'jdend'},
+                            )
+                            df_result = df_result.replace({np.nan: None})
+                            if not set(keys).issubset(df_result.columns):
+                                status = 'In progress: RA, Dec, jdstart, and jdend required in response.'
+                                followup_request.status = status
+                                req.last_query = datetime.utcnow()
+                                session.add(req)
+                                session.add(followup_request)
+                                session.commit()
+                                queue.append(req_id)
+                                log(f'Job {req.id}: {status}')
+                                continue
+
+                            index_match = None
+                            for index, row in df_result.iterrows():
+                                if all(
+                                    [
+                                        np.isclose(row[key], req.data[key])
+                                        for key in keys
+                                    ]
+                                ):
+                                    index_match = index
+                                    break
+                            if index_match is None:
+                                status = 'In progress: No matching response from forced photometry service. Waiting for database update.'
+                                followup_request.status = status
+                                log(f'Job {req.id}: {status}')
+                                req.last_query = datetime.utcnow()
+                                session.add(req)
+                                session.add(followup_request)
+                                session.commit()
+                                queue.append(req_id)
+                                continue
+
+                            row = df_result.loc[index_match]
+                            if row['lightcurve'] is None:
+                                status = 'In progress: Light curve not yet available. Waiting for it to complete.'
+                                followup_request.status = status
+                                log(f'Job {req.id}: {status}')
+                                req.last_query = datetime.utcnow()
+                                session.add(req)
+                                session.add(followup_request)
+                                session.commit()
+                                queue.append(req_id)
+                                continue
+
                             lightcurve = row['lightcurve']
                             dataurl = f"{ZTF_FORCED_URL}/{lightcurve}"
-                            commit_photometry(
-                                dataurl,
-                                altdata,
-                                req.id,
-                                instrument.id,
-                                followup_request.requester.id,
-                            )
-                            req.status = 'complete'
+                            try:
+                                commit_photometry(
+                                    dataurl,
+                                    altdata,
+                                    req.id,
+                                    instrument.id,
+                                    followup_request.requester.id,
+                                    session,
+                                )
+                                req.status = 'complete'
+                                session.add(req)
+                                session.commit()
+                                log(f"Job with ID {req.id} completed")
+                            except Exception:
+                                status = 'In progress: Light curve not yet available. Waiting for it to complete.'
+                                followup_request.status = status
+                                log(f'Job {req.id}: {status}')
+                                req.last_query = datetime.utcnow()
+                                session.add(req)
+                                session.commit()
+                                queue.append(req_id)
+
+                        elif (
+                            'Error: database is busy; try again a minute later.'
+                            in str(response.content)
+                        ):
+                            status = 'In progress: forced photometry database is busy; trying again in 2 minutes.'
+                            followup_request.status = status
+                            req.last_query = datetime.utcnow()
                             session.add(req)
-
-                else:
-                    status = f'error: {response.content}'
-                    followup_request.status = status
-                    log(f'Job {req.id}: {status}')
-                    req.last_query = datetime.utcnow()
-                    session.add(req)
-                    queue.append(req.id)
-
-                session.add(followup_request)
-                session.commit()
-            else:
-                log(f'Job {req.id}: API for {instrument.name} unknown')
-                queue.append(req.id)
+                            session.add(followup_request)
+                            session.commit()
+                            queue.append(req_id)
+                            log(f'Job {req.id}: {status}')
+                        else:
+                            status = f'error: {response.content}'
+                            followup_request.status = status
+                            req.last_query = datetime.utcnow()
+                            session.add(req)
+                            session.add(followup_request)
+                            session.commit()
+                            queue.append(req_id)
+                            log(f'Job {req.id}: {status}')
+                    else:
+                        queue.append(req_id)
+                        log(f'Job {req.id}: API for {instrument.name} unknown')
+            except Exception as e:
+                queue.append(req_id)
+                log(f"Error processing follow-up request {req_id}: {str(e)}")
+                try:
+                    session.rollback()
+                except Exception:
+                    pass
 
 
 def api(queue):
     class QueueHandler(tornado.web.RequestHandler):
         def get(self):
             self.set_header("Content-Type", "application/json")
-            self.write({"status": "success", "data": {"queue_length": queue.qsize()}})
+            self.write({"status": "success", "data": {"queue_length": len(queue)}})
 
         async def post(self):
 
@@ -234,62 +307,24 @@ def api(queue):
                 self.set_status(400)
                 return self.write({"status": "error", "message": "Malformed JSON data"})
 
-            # validate data here and return 400 if invalid
             try:
-                req = FacilityTransactionRequest(**data)
-            except TypeError:
-                self.set_status(400)
-                return self.write(
-                    {
-                        "status": "error",
-                        "message": "Invalid arguments; cannot construct facility request",
-                    }
-                )
-
-            with DBSession() as session:
-
-                current_req = session.execute(
-                    sa.select(FacilityTransactionRequest).where(
-                        FacilityTransactionRequest.followup_request_id
-                        == req.followup_request_id
-                    )
-                ).first()
-                if current_req is not None:
-                    self.set_status(400)
-                    return self.write(
-                        {
-                            "status": "error",
-                            "message": f"Facility request {req.followup_request_id} already in the queue and/or complete",
-                            "data": {"followup_request_id": req.followup_request_id},
-                        }
-                    )
-
-                endpoint_req = session.execute(
-                    sa.select(FacilityTransactionRequest).where(
-                        FacilityTransactionRequest.endpoint == req.endpoint
-                    )
-                ).first()
-                if endpoint_req is not None:
-                    self.set_status(400)
-                    return self.write(
-                        {
-                            "status": "error",
-                            "message": f"Facility request {req.followup_request_id} already reaches same endpoint {req.endpoint} as {endpoint_req.id}",
-                            "data": {"followup_request_id": req.followup_request_id},
-                        }
-                    )
-
-                session.add(req)
-                session.commit()
-
-                queue.append(req.id)
-
+                queue.append(data["request_id"])
                 self.set_status(200)
                 return self.write(
                     {
                         "status": "success",
                         "message": "Facility request accepted into queue",
                         "data": {"queue_length": len(queue)},
+                    }
+                )
+            except Exception as e:
+                log(f"Error adding facility request to queue: {str(e)}")
+                self.set_status(500)
+                return self.write(
+                    {
+                        "status": "error",
+                        "message": f"Error adding facility request to queue: {str(e)}",
+                        "data": {"followup_request_id": data["followup_request_id"]},
                     }
                 )
 
@@ -305,8 +340,6 @@ def api(queue):
 
 if __name__ == "__main__":
     try:
-        retrieve_old_requests()
-
         t = Thread(target=service, args=(queue,))
         t2 = Thread(target=api, args=(queue,))
         t.start()
