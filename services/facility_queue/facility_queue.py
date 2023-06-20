@@ -261,8 +261,11 @@ def service(queue):
                             exitcode_text = ZTF_PHOTOMETRY_CODES[exitcode]
 
                             if exitcode in [63, 64, 65, 255]:
-                                req.status = f'No photometry available: {exitcode_text}'
+                                status = f'No photometry available: {exitcode_text}'
+                                followup_request.status = status
+                                req.status = 'complete'
                                 session.add(req)
+                                session.add(followup_request)
                                 session.commit()
                                 log(
                                     f"Job with ID {req.id} has no forced photometry: {exitcode_text}"
@@ -273,10 +276,10 @@ def service(queue):
                                     commit_photometry(
                                         dataurl,
                                         altdata,
-                                        req.id,
+                                        followup_request.id,
                                         instrument.id,
                                         followup_request.requester.id,
-                                        session,
+                                        parent_session=session,
                                     )
                                     req.status = 'complete'
                                     session.add(req)
