@@ -101,6 +101,8 @@ To increase the maximum request size, change the `max_body_size: 10` parameter i
 Also, as mentioned earlier, you need to add `image_analysis: ` in the `config.yaml` file. By default, it is not present.
 Later, this field of the config file will be used to configure the image analysis feature.
 
+If you want access to astrometry.net, you need to add astrometry_net_api_key: followed by your astronomy.net API key.
+
 Moreover, in the app.routes, uncomment the following lines:
 ```
 - path: "/source/:id/image_analysis"
