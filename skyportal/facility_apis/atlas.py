@@ -1,6 +1,7 @@
 import requests
 from datetime import datetime, timedelta
 from astropy.time import Time
+from marshmallow.exceptions import ValidationError
 import numpy as np
 import pandas as pd
 from io import StringIO
@@ -270,7 +271,13 @@ class ATLASAPI(FollowUpAPI):
                 'followup_request_id': request.id,
                 'initiator_id': request.last_modified_by_id,
             }
-            req = FacilityTransactionRequest(**request_body)
+
+            try:
+                req = FacilityTransactionRequest(**request_body)
+            except ValidationError as e:
+                raise ValidationError(
+                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                )
             session.add(req)
             session.commit()
 
@@ -312,7 +319,19 @@ class ATLASAPI(FollowUpAPI):
             Database session for this transaction
         """
 
+        from ..models import FacilityTransactionRequest
+
+        transaction = (
+            session.query(FacilityTransactionRequest)
+            .filter(FacilityTransactionRequest.followup_request_id == request.id)
+            .first()
+        )
+        if transaction is not None:
+            if transaction.status == "complete":
+                raise ValueError('Request already complete. Cannot delete.')
+            session.delete(transaction)
         session.delete(request)
+        session.commit()
 
     form_json_schema = {
         "type": "object",

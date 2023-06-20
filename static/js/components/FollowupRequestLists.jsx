@@ -178,7 +178,7 @@ const FollowupRequestLists = ({
   }, {});
 
   Object.values(requestsGroupedByInstId).forEach((value) => {
-    value.sort();
+    value.sort((a, b) => (a.created_at > b.created_at ? 1 : -1));
   });
 
   const getDataTableColumns = (keys, instrument_id) => {
@@ -286,6 +286,7 @@ const FollowupRequestLists = ({
             )}
             {!isDone &&
               isSubmitted &&
+              implementsGet &&
               !hasRetrieved.includes(followupRequest.id) && (
                 <div>
                   {implementsGet && isGetting === followupRequest.id ? (

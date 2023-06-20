@@ -29,6 +29,20 @@ log = make_log('facility_queue')
 init_db(**cfg['database'])
 
 ZTF_FORCED_URL = cfg['app.ztf_forced_endpoint']
+ZTF_PHOTOMETRY_CODES = {
+    0: "Successful execution",
+    56: "One or more epochs have photometry measurements that may be impacted by bad (including NaN'd) pixels",
+    57: "One or more epochs had no reference image catalog source falling with 5 arcsec",
+    58: "One or more epochs had a reference image PSF-catalog that does not exist in the archive",
+    59: "One or more epochs may have suspect photometric uncertainties due to early creation date of difference image in production",
+    60: "One or more epochs had upsampled diff-image PSF dimensions that were not odd integers",
+    61: "One or more epochs had diff-image cutouts that were off the image or too close to an edge",
+    62: "Requested start JD was before official survey start date [3/17/18] and was reset to 2018-03-17T00:00:00.0 UT",
+    63: "No records (epochs) returned by database query",
+    64: "Catastrophic error (see log output)",
+    65: "Requested end JD is before official survey start date [3/17/18]",
+    255: "Database connection or query execution error (see log output)",
+}
 
 request_session = requests.Session()
 request_session.trust_env = (
@@ -77,6 +91,12 @@ def service(queue):
                         FacilityTransactionRequest.id == req_id
                     )
                 ).first()
+                if req is None:
+                    log(
+                        f"Facility transaction request {req_id} not found. Removing request {req_id} from queue."
+                    )
+                    continue
+
                 dt = datetime.utcnow() - req.last_query
                 if dt < WAIT_TIME_BETWEEN_QUERIES:
                     queue.append(req_id)
@@ -237,29 +257,39 @@ def service(queue):
                                 continue
 
                             lightcurve = row['lightcurve']
-                            dataurl = f"{ZTF_FORCED_URL}/{lightcurve}"
-                            try:
-                                commit_photometry(
-                                    dataurl,
-                                    altdata,
-                                    req.id,
-                                    instrument.id,
-                                    followup_request.requester.id,
-                                    session,
-                                )
-                                req.status = 'complete'
-                                session.add(req)
-                                session.commit()
-                                log(f"Job with ID {req.id} completed")
-                            except Exception:
-                                status = 'In progress: Light curve not yet available. Waiting for it to complete.'
-                                followup_request.status = status
-                                log(f'Job {req.id}: {status}')
-                                req.last_query = datetime.utcnow()
-                                session.add(req)
-                                session.commit()
-                                queue.append(req_id)
+                            exitcode = row['exitcode']
+                            exitcode_text = ZTF_PHOTOMETRY_CODES[exitcode]
 
+                            if exitcode in [63, 64, 65, 255]:
+                                req.status = f'No photometry available: {exitcode_text}'
+                                session.add(req)
+                                session.commit()
+                                log(
+                                    f"Job with ID {req.id} has no forced photometry: {exitcode_text}"
+                                )
+                            else:
+                                dataurl = f"{ZTF_FORCED_URL}/{lightcurve}"
+                                try:
+                                    commit_photometry(
+                                        dataurl,
+                                        altdata,
+                                        req.id,
+                                        instrument.id,
+                                        followup_request.requester.id,
+                                        session,
+                                    )
+                                    req.status = 'complete'
+                                    session.add(req)
+                                    session.commit()
+                                    log(f"Job with ID {req.id} completed")
+                                except Exception:
+                                    status = 'In progress: Light curve not yet available. Waiting for it to complete.'
+                                    followup_request.status = status
+                                    log(f'Job {req.id}: {status}')
+                                    req.last_query = datetime.utcnow()
+                                    session.add(req)
+                                    session.commit()
+                                    queue.append(req_id)
                         elif (
                             'Error: database is busy; try again a minute later.'
                             in str(response.content)

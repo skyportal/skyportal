@@ -7,6 +7,7 @@ from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
 from astropy.time import Time
 import functools
+from marshmallow.exceptions import ValidationError
 import numpy as np
 from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
@@ -356,7 +357,11 @@ class ZTFAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FollowupRequest, FacilityTransaction
+        from ..models import (
+            FollowupRequest,
+            FacilityTransaction,
+            FacilityTransactionRequest,
+        )
 
         # this happens for failed submissions
         # just go ahead and delete
@@ -396,8 +401,17 @@ class ZTFAPI(FollowUpAPI):
             )
             session.add(transaction)
         elif request.payload["request_type"] == "forced_photometry":
-            # for forced photometry, we don't need to do delete anything from IPAC
-            pass
+            transaction = (
+                session.query(FacilityTransactionRequest)
+                .filter(FacilityTransactionRequest.followup_request_id == request.id)
+                .first()
+            )
+            if transaction is not None:
+                if transaction.status == "complete":
+                    raise ValueError('Request already complete. Cannot delete.')
+                session.delete(transaction)
+            session.delete(request)
+            session.commit()
 
     # subclasses *must* implement the method below
     @staticmethod
@@ -479,7 +493,13 @@ class ZTFAPI(FollowUpAPI):
                     'followup_request_id': request.id,
                     'initiator_id': request.last_modified_by_id,
                 }
-                req = FacilityTransactionRequest(**request_body)
+                try:
+                    req = FacilityTransactionRequest(**request_body)
+                except ValidationError as e:
+                    raise ValidationError(
+                        'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    )
+
                 session.add(req)
                 session.commit()
 
