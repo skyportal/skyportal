@@ -9,6 +9,9 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
+
+import { showNotification } from "baselayer/components/Notifications";
+
 import * as sourceActions from "../ducks/source";
 import * as allocationActions from "../ducks/allocations";
 import * as instrumentsActions from "../ducks/instruments";
@@ -165,8 +168,11 @@ const FollowupRequestForm = ({
       target_group_ids: selectedGroupIds,
       payload: formData,
     };
-    await dispatch(sourceActions.submitFollowupRequest(json));
+    const result = await dispatch(sourceActions.submitFollowupRequest(json));
     setIsSubmitting(false);
+    if (result.status === "success") {
+      dispatch(showNotification("Photometry successfully requested."));
+    }
   };
 
   const validate = (formData, errors) => {
