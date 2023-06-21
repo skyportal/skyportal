@@ -7,6 +7,7 @@ from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
 from astropy.time import Time
 import functools
+from marshmallow.exceptions import ValidationError
 import numpy as np
 from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
@@ -203,7 +204,9 @@ class ZTFRequest:
         return json_data
 
 
-def commit_photometry(url, altdata, request_id, instrument_id, user_id):
+def commit_photometry(
+    url, altdata, request_id, instrument_id, user_id, parent_session=None
+):
     """
     Commits ZTF forced photometry to the database
 
@@ -219,6 +222,8 @@ def commit_photometry(url, altdata, request_id, instrument_id, user_id):
         Instrument SkyPortal ID
     user_id : int
         User SkyPortal ID
+    parent_session : sqlalchemy.orm.session.Session
+        SQLAlchemy session object. If None, a new session is created.
     """
 
     from ..models import (
@@ -228,11 +233,14 @@ def commit_photometry(url, altdata, request_id, instrument_id, user_id):
         User,
     )
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
+    if parent_session is None:
+        Session = scoped_session(sessionmaker())
+        if Session.registry.has():
+            session = Session()
+        else:
+            session = Session(bind=DBSession.session_factory.kw["bind"])
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = parent_session
 
     try:
         request = session.query(FollowupRequest).get(request_id)
@@ -325,10 +333,11 @@ def commit_photometry(url, altdata, request_id, instrument_id, user_id):
         )
     except Exception as e:
         session.rollback()
-        log(f"Unable to commit photometry for {request_id}: {e}")
+        raise Exception(f"Unable to commit photometry for {request_id}: {e}")
     finally:
-        session.close()
-        Session.remove()
+        if parent_session is None:
+            session.close()
+            Session.remove()
 
 
 class ZTFAPI(FollowUpAPI):
@@ -348,7 +357,11 @@ class ZTFAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FollowupRequest, FacilityTransaction
+        from ..models import (
+            FollowupRequest,
+            FacilityTransaction,
+            FacilityTransactionRequest,
+        )
 
         # this happens for failed submissions
         # just go ahead and delete
@@ -388,8 +401,17 @@ class ZTFAPI(FollowUpAPI):
             )
             session.add(transaction)
         elif request.payload["request_type"] == "forced_photometry":
-            # for forced photometry, we don't need to do delete anything from IPAC
-            pass
+            transaction = (
+                session.query(FacilityTransactionRequest)
+                .filter(FacilityTransactionRequest.followup_request_id == request.id)
+                .first()
+            )
+            if transaction is not None:
+                if transaction.status == "complete":
+                    raise ValueError('Request already complete. Cannot delete.')
+                session.delete(transaction)
+            session.delete(request)
+            session.commit()
 
     # subclasses *must* implement the method below
     @staticmethod
@@ -405,7 +427,7 @@ class ZTFAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import FacilityTransaction, FacilityTransactionRequest
 
         req = ZTFRequest()
 
@@ -471,11 +493,26 @@ class ZTFAPI(FollowUpAPI):
                     'followup_request_id': request.id,
                     'initiator_id': request.last_modified_by_id,
                 }
+                try:
+                    req = FacilityTransactionRequest(**request_body)
+                except ValidationError as e:
+                    raise ValidationError(
+                        'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    )
+
+                session.add(req)
+                session.commit()
 
                 facility_microservice_url = (
                     f'http://127.0.0.1:{cfg["ports.facility_queue"]}'
                 )
-                r = requests.post(facility_microservice_url, json=request_body)
+                requests.post(
+                    facility_microservice_url,
+                    json={
+                        'request_id': req.id,
+                        'followup_request_id': req.followup_request_id,
+                    },
+                )
 
         else:
             request.status = f'rejected: {r.content}'
