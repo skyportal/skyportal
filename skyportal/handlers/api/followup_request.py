@@ -900,9 +900,13 @@ class HourAngleConstraint(Constraint):
         GMST = np.mod(GMST, 24)
 
         lon = observer.location.lon.value / 15
-        lst = np.tile(np.mod(GMST + lon, 24), (len(targets), 1))
-        ras = np.tile([target.ra.hour for target in targets], len(times))
-        has = lst - ras
+        if targets.size == 1:
+            lst = np.mod(GMST + lon, 24)
+            ras = np.tile([targets.ra.hour], len(times))
+        else:
+            lst = np.tile(np.mod(GMST + lon, 24), (len(targets), 1))
+            ras = np.tile([target.ra.hour for target in targets], len(times))
+        has = np.mod(lst - ras, 24)
 
         # Use hours from -12 to 12
         idx = np.where(has > 12)[0]
