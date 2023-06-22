@@ -1568,7 +1568,7 @@ class GcnEventHandler(BaseHandler):
                     )
 
             total_matches = session.scalar(
-                sa.select(sa.func.count()).select_from(query)
+                sa.select(sa.func.count()).select_from(query.distinct())
             )
 
             order_by = None
