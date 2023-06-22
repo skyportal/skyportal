@@ -155,6 +155,7 @@ const GcnSummary = ({ dateobs }) => {
   const [localizationName, setLocalizationName] = useState(null);
   const [localizationCumprob, setLocalizationCumprob] = useState("0.95");
   const [numberDetections, setNumberDetections] = useState("2");
+  const [numberObservations, setNumberObservations] = useState("1");
   const [showSources, setShowSources] = useState(false);
   const [showGalaxies, setShowGalaxies] = useState(false);
   const [showObservations, setShowObservations] = useState(false);
@@ -351,6 +352,7 @@ const GcnSummary = ({ dateobs }) => {
         localizationName,
         localizationCumprob,
         numberDetections,
+        numberObservations,
         showSources,
         showGalaxies,
         showObservations,
@@ -503,6 +505,12 @@ const GcnSummary = ({ dateobs }) => {
                     label="Minimum Number of Detections"
                     value={numberDetections}
                     onChange={(e) => setNumberDetections(e.target.value)}
+                  />
+                  <TextField
+                    id="numberObservations"
+                    label="Minimum Number of Observations (per field)"
+                    value={numberObservations}
+                    onChange={(e) => setNumberObservations(e.target.value)}
                   />
                   <div className={classes.checkboxes}>
                     <FormControlLabel

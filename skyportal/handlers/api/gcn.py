@@ -28,7 +28,10 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import cast
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm.attributes import flag_modified
-from marshmallow import Schema
+from marshmallow import Schema, validate
+from marshmallow.fields import (
+    Integer,
+)
 from marshmallow.exceptions import ValidationError
 import numpy as np
 import operator  # noqa: F401
@@ -2274,6 +2277,17 @@ class LocalizationTagsHandler(BaseHandler):
             return self.success(data=tags)
 
 
+def nb_obs_to_word(nb_obs):
+    if nb_obs < 1:
+        raise ValueError('nb_obs must be >= 1')
+    if nb_obs == 1:
+        return 'once'
+    elif nb_obs == 2:
+        return 'twice'
+    elif nb_obs > 2:
+        return f'{nb_obs} times'
+
+
 def add_gcn_summary(
     summary_id,
     user_id,
@@ -2288,6 +2302,7 @@ def add_gcn_summary(
     localization_name,
     localization_cumprob=0.90,
     number_of_detections=1,
+    number_of_observations=1,
     show_sources=True,
     show_galaxies=False,
     show_observations=False,
@@ -2709,6 +2724,7 @@ def add_gcn_summary(
                         localization_dateobs=dateobs,
                         localization_name=localization_name,
                         localization_cumprob=localization_cumprob,
+                        min_observations_per_field=number_of_observations,
                         return_statistics=True,
                         stats_method=stats_method,
                         n_per_page=MAX_OBSERVATIONS,
@@ -2730,7 +2746,7 @@ def add_gcn_summary(
                         dt = start_observation.datetime - event.dateobs
                         before_after = "after" if dt.total_seconds() > 0 else "before"
                         observations_text.append(
-                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format='datetime').isot} UTC.  We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.\nThe table below shows the photometry for each observation.\n"""
+                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format='datetime').isot} UTC.  We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees of the localization at least {nb_obs_to_word(number_of_observations)}, beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.\nThe table below shows the photometry for each observation.\n"""
                         ) if not no_text else None
                         t0s, mjds, ras, decs, filters, exposures, limmags = (
                             [],
@@ -2968,6 +2984,7 @@ class GcnSummaryHandler(BaseHandler):
         localization_name = data.get("localizationName", None)
         localization_cumprob = data.get("localizationCumprob", 0.95)
         number_of_detections = data.get("numberDetections", 2)
+        number_of_observations = data.get("numberObservations", 1)
         show_sources = data.get("showSources", False)
         show_galaxies = data.get("showGalaxies", False)
         show_observations = data.get("showObservations", False)
@@ -2979,6 +2996,12 @@ class GcnSummaryHandler(BaseHandler):
         class Validator(Schema):
             start_date = UTCTZnaiveDateTime(required=False, missing=None)
             end_date = UTCTZnaiveDateTime(required=False, missing=None)
+            number_of_detections = Integer(
+                required=False, missing=2, validate=validate.Range(min=1)
+            )
+            number_of_observations = Integer(
+                required=False, missing=1, validate=validate.Range(min=1)
+            )
 
         validator_instance = Validator()
         params_to_be_validated = {}
@@ -2986,6 +3009,10 @@ class GcnSummaryHandler(BaseHandler):
             params_to_be_validated['start_date'] = start_date
         if end_date is not None:
             params_to_be_validated['end_date'] = end_date
+        if number_of_detections is not None:
+            params_to_be_validated['number_of_detections'] = number_of_detections
+        if number_of_observations is not None:
+            params_to_be_validated['number_of_observations'] = number_of_observations
 
         try:
             validated = validator_instance.load(params_to_be_validated)
@@ -2994,6 +3021,8 @@ class GcnSummaryHandler(BaseHandler):
 
         start_date = validated['start_date']
         end_date = validated['end_date']
+        number_of_detections = validated['number_of_detections']
+        number_of_observations = validated['number_of_observations']
 
         if title is None:
             return self.error("Title is required")
@@ -3097,6 +3126,7 @@ class GcnSummaryHandler(BaseHandler):
                         localization_name=localization_name,
                         localization_cumprob=localization_cumprob,
                         number_of_detections=number_of_detections,
+                        number_of_observations=number_of_observations,
                         show_sources=show_sources,
                         show_galaxies=show_galaxies,
                         show_observations=show_observations,
