@@ -612,6 +612,7 @@ class BulkTNSHandler(BaseHandler):
                       List of IDs of groups to indicate labelling for
                 required:
                   - tnsrobotID
+                  - groupIds
         responses:
           200:
             content:
@@ -626,7 +627,11 @@ class BulkTNSHandler(BaseHandler):
         data = self.get_json()
         group_ids = data.get("groupIds", None)
         if group_ids is None:
-            group_ids = [g.id for g in self.current_user.accessible_groups]
+            return self.error('group_ids is required')
+        elif type(group_ids) == str:
+            group_ids = [int(x) for x in group_ids.split(",")]
+        elif not type(group_ids) == list:
+            return self.error('group_ids type not understood')
 
         start_date = data.get('startDate', None)
         if start_date is None:
