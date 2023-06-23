@@ -741,6 +741,7 @@ const GcnSelectionForm = ({
           instrumentName: instLookUp[selectedInstrumentId]?.name,
           telescopeName:
             telLookUp[instLookUp[selectedInstrumentId]?.telescope_id]?.name,
+          numberObservations: formData?.numberDetections || 1,
         })
       );
       setHasFetchedObservations(true);
@@ -786,7 +787,7 @@ const GcnSelectionForm = ({
       },
       numberDetections: {
         type: "number",
-        title: "Minimum Number of Detections",
+        title: "Min Number of Detections/Observations",
         default: 2,
       },
       localizationCumprob: {
