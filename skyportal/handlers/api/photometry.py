@@ -499,6 +499,9 @@ def standardize_photometry_data(data):
             raise ValidationError(f'Invalid instrument ID: {iid}')
         instrument_cache[iid] = instrument
 
+    # convert the object IDs to str datatype
+    df['obj_id'] = df['obj_id'].astype(str)
+
     for oid in df['obj_id'].unique():
         obj = Obj.query.get(oid)
         if not obj:
