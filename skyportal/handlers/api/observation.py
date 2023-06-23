@@ -243,6 +243,7 @@ def get_observations(
     localization_dateobs=None,
     localization_name=None,
     localization_cumprob=0.95,
+    min_observations_per_field=1,
     return_statistics=False,
     stats_method='python',
     stats_logging=False,
@@ -281,6 +282,8 @@ def get_observations(
     localization_cumprob : number
         Cumulative probability up to which to include fields.
         Defaults to 0.95.
+    min_observations_per_field : int
+        Minimum number of observations per field required to include observations.
     return_statistics: bool
         Boolean indicating whether to include integrated probability and area.
         Defaults to false.
@@ -487,6 +490,23 @@ def get_observations(
             field_tiles_subquery,
             Observation.instrument_field_id == field_tiles_subquery.c.id,
         ).distinct()
+
+        if min_observations_per_field > 1:
+            min_obs_subquery = (
+                sa.select(
+                    Observation.instrument_field_id,
+                    sa.func.count(Observation.id).label('nobs'),
+                )
+                .group_by(Observation.instrument_field_id)
+                .having(sa.func.count(Observation.id) >= min_observations_per_field)
+                .subquery()
+            )
+            obs_query = obs_query.join(
+                min_obs_subquery,
+                Observation.instrument_field_id
+                == min_obs_subquery.c.instrument_field_id,
+            )
+
         obs_subquery = obs_query.subquery()
 
         if return_statistics:
@@ -779,6 +799,9 @@ def get_observations(
                 **data,
                 "probability": intprob,
                 "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees
+                "min_observations_per_field": min_observations_per_field
+                if min_observations_per_field is not None
+                else 1,
             }
     return data
 
@@ -1045,6 +1068,7 @@ class ObservationHandler(BaseHandler):
         localization_dateobs = self.get_query_argument('localizationDateobs', None)
         localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        min_observations_per_field = self.get_query_argument("numberObservations", 1)
         return_statistics = self.get_query_argument("returnStatistics", False)
         stats_method = self.get_query_argument("statsMethod", "python")
         stats_logging = self.get_query_argument("statsLogging", False)
@@ -1076,6 +1100,16 @@ class ObservationHandler(BaseHandler):
         if end_date is None:
             return self.error(message="Missing end_date")
 
+        if min_observations_per_field is not None:
+            try:
+                min_observations_per_field = int(min_observations_per_field)
+            except ValueError:
+                return self.error(message="numberObservations must be an integer")
+            if min_observations_per_field < 1:
+                return self.error(
+                    message="numberObservations must be greater than 0 if specified"
+                )
+
         start_date = arrow.get(start_date.strip()).datetime
         end_date = arrow.get(end_date.strip()).datetime
 
@@ -1089,6 +1123,7 @@ class ObservationHandler(BaseHandler):
                 localization_dateobs=localization_dateobs,
                 localization_name=localization_name,
                 localization_cumprob=localization_cumprob,
+                min_observations_per_field=min_observations_per_field,
                 return_statistics=return_statistics,
                 stats_method=stats_method,
                 stats_logging=stats_logging,
@@ -1584,12 +1619,23 @@ class ObservationTreasureMapHandler(BaseHandler):
         localization_dateobs = data.get('localizationDateobs', None)
         localization_name = data.get('localizationName', None)
         localization_cumprob = data.get("localizationCumprob", 0.95)
+        min_observations_per_field = self.get_query_argument("numberObservations", 1)
 
         if start_date is None:
             return self.error(message="Missing start_date")
 
         if end_date is None:
             return self.error(message="Missing end_date")
+
+        if min_observations_per_field is not None:
+            try:
+                min_observations_per_field = int(min_observations_per_field)
+            except ValueError:
+                return self.error(message="numberObservations must be an integer")
+            if min_observations_per_field < 1:
+                return self.error(
+                    message="numberObservations must be greater than 0 if specified"
+                )
 
         start_date = arrow.get(start_date.strip()).datetime
         end_date = arrow.get(end_date.strip()).datetime
@@ -1624,6 +1670,7 @@ class ObservationTreasureMapHandler(BaseHandler):
                 localization_dateobs=localization_dateobs,
                 localization_name=localization_name,
                 localization_cumprob=localization_cumprob,
+                min_observations_per_field=min_observations_per_field,
                 return_statistics=False,
                 n_per_page=MAX_OBSERVATIONS,
                 page_number=1,
