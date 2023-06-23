@@ -32,12 +32,15 @@ log = make_log('tns_utils')
 
 TNS_INSTRUMENT_IDS = {
     'ALFOSC': 41,
-    'ATLAS': [159, 160, 255, 167],
+    'ASAS-SN': [
+        195,
+    ],
+    'ATLAS': [153, 159, 160, 255, 256, 167],
     'DECam': 172,
     'EFOSC2': 30,
     'Gaia': 163,
     'Goodman': 136,
-    'PS1': 155,
+    'PS1': [98, 154, 155],
     'SEDM': 225,
     'SPRAT': 156,
     'ZTF': 196,
@@ -57,6 +60,10 @@ SNCOSMO_TO_TNSFILTER = {
     'desi': 23,
     'desz': 24,
     'desy': 81,
+    'gaia::g': 75,
+    'ps1::r': 57,
+    'ps1::w': 26,
+    'ps1::z': 59,
     'ztfg': 110,
     'ztfr': 111,
     'ztfi': 112,
