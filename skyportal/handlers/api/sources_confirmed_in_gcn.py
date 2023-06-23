@@ -368,6 +368,33 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                             source_in_gcn.notes = notes
                         session.commit()
                         source_in_gcn_id = source_in_gcn.id
+                        if confirmed is True:
+                            crossmatches = source_in_gcn.obj.gcn_crossmatch
+                            if crossmatches is None:
+                                crossmatches = [dateobs]
+                            elif dateobs not in crossmatches:
+                                crossmatches.append(dateobs)
+                            setattr(source_in_gcn.obj, 'gcn_crossmatch', crossmatches)
+                            session.commit()
+                        else:
+                            crossmatches = source_in_gcn.obj.gcn_crossmatch
+                            if (
+                                crossmatches is not None
+                                and dateobs.strftime("%Y-%m-%d %H:%M:%S")
+                                in crossmatches
+                            ):
+                                crossmatches.remove(
+                                    dateobs.strftime("%Y-%m-%d %H:%M:%S")
+                                )
+                                if len(crossmatches) == 0:
+                                    setattr(source_in_gcn.obj, 'gcn_crossmatch', None)
+                                else:
+                                    setattr(
+                                        source_in_gcn.obj,
+                                        'gcn_crossmatch',
+                                        crossmatches,
+                                    )
+                                session.commit()
                 else:
                     source_in_gcn = SourcesConfirmedInGCN(
                         obj_id=source_id,
@@ -382,6 +409,29 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     session.add(source_in_gcn)
                     session.commit()
                     source_in_gcn_id = source_in_gcn.id
+                    if confirmed is True:
+                        crossmatches = source_in_gcn.obj.gcn_crossmatch
+                        if crossmatches is None:
+                            crossmatches = [dateobs]
+                        elif dateobs not in crossmatches:
+                            crossmatches.append(dateobs)
+                        setattr(source_in_gcn.obj, 'gcn_crossmatch', crossmatches)
+                        session.commit()
+                    else:
+                        crossmatches = source_in_gcn.obj.gcn_crossmatch
+                        if (
+                            crossmatches is not None
+                            and dateobs.strftime("%Y-%m-%d %H:%M:%S") in crossmatches
+                        ):
+                            crossmatches.remove(dateobs.strftime("%Y-%m-%d %H:%M:%S"))
+                            if len(crossmatches) == 0:
+                                setattr(source_in_gcn.obj, 'gcn_crossmatch', None)
+                            else:
+                                setattr(
+                                    source_in_gcn.obj, 'gcn_crossmatch', crossmatches
+                                )
+                            session.commit()
+
             except Exception as e:
                 session.rollback()
                 return self.error(str(e))
@@ -485,6 +535,26 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     source_in_gcn.notes = notes
                 session.commit()
                 source_in_gcn_id = source_in_gcn.id
+                if confirmed is True:
+                    crossmatches = source_in_gcn.obj.gcn_crossmatch
+                    if crossmatches is None:
+                        crossmatches = [dateobs]
+                    elif dateobs not in crossmatches:
+                        crossmatches.append(dateobs)
+                    setattr(source_in_gcn.obj, 'gcn_crossmatch', crossmatches)
+                    session.commit()
+                else:
+                    crossmatches = source_in_gcn.obj.gcn_crossmatch
+                    if (
+                        crossmatches is not None
+                        and dateobs.strftime("%Y-%m-%d %H:%M:%S") in crossmatches
+                    ):
+                        crossmatches.remove(dateobs.strftime("%Y-%m-%d %H:%M:%S"))
+                        if len(crossmatches) == 0:
+                            setattr(source_in_gcn.obj, 'gcn_crossmatch', None)
+                        else:
+                            setattr(source_in_gcn.obj, 'gcn_crossmatch', crossmatches)
+                        session.commit()
             except Exception as e:
                 session.rollback()
                 return self.error(str(e))
@@ -563,6 +633,17 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     return self.error(
                         "Source is not confirmed or rejected in this GCN event"
                     )
+                crossmatches = source_in_gcn.obj.gcn_crossmatch
+                if (
+                    crossmatches is not None
+                    and dateobs.strftime("%Y-%m-%d %H:%M:%S") in crossmatches
+                ):
+                    crossmatches.remove(dateobs.strftime("%Y-%m-%d %H:%M:%S"))
+                    if len(crossmatches) == 0:
+                        setattr(source_in_gcn.obj, 'gcn_crossmatch', None)
+                    else:
+                        setattr(source_in_gcn.obj, 'gcn_crossmatch', crossmatches)
+                    session.commit()
                 session.delete(source_in_gcn)
                 session.commit()
             except Exception as e:
