@@ -1005,7 +1005,7 @@ def test_gcn_summary_observations(
     obs_summary_text = (
         'We observed the localization region of LVC trigger 2019-08-14T21:10:39.000 UTC.  '
         'We obtained a total of 9 images covering ztfr bands for a total of 270 seconds. '
-        'The observations covered 26.5 square degrees beginning at 2019-08-17T01:00:00.288 '
+        'The observations covered 26.5 square degrees of the localization at least once, beginning at 2019-08-17T01:00:00.288 '
         '(2 days after the burst trigger time) corresponding to ~9% '
         'of the probability enclosed in the localization region.'
     )
