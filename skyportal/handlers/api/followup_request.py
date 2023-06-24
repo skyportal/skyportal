@@ -914,6 +914,7 @@ class HourAngleConstraint(Constraint):
                     (len(jds), 1),
                 ).T
         has = np.mod(lst - ras, 24)
+        has = np.squeeze(has)
 
         # Use hours from -12 to 12
         idx = np.where(has > 12)[0]
