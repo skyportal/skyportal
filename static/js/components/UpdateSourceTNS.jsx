@@ -77,6 +77,11 @@ const UpdateSourceTNS = ({ source }) => {
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if tnsrobotList is not
   // empty.
+
+  if ((tnsrobotList.length === 0 || !selectedTNSRobotId) && source.tns_name) {
+    return <></>;
+  }
+
   if (tnsrobotList.length === 0 || !selectedTNSRobotId) {
     return <h4 className={classes.text}>No TNS robots available...</h4>;
   }
