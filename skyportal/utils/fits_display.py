@@ -46,14 +46,19 @@ def get_fits_preview(
     fig = plt.figure(figsize=figsize, constrained_layout=False)
 
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix=file_type) as f:
-            cube = pysedm.sedm.load_sedmcube(image_data)
-            cube.show(savefile=f.name)
+        with tempfile.NamedTemporaryFile(suffix=file_type, mode="wb", delete=True) as f:
+            f.write(image_data)
             f.flush()
-            with open(f.name, mode='rb') as g:
-                data = g.read()
-            return data
+            cube = pysedm.sedm.load_sedmcube(f.name)
 
+            with tempfile.NamedTemporaryFile(
+                suffix=f".{output_format}", mode="wb", delete=True
+            ) as h:
+                cube.show(savefile=h.name)
+                h.flush()
+                with open(h.name, mode='rb') as g:
+                    data = g.read()
+            return data
     except Exception:
         with tempfile.NamedTemporaryFile(suffix=file_type, mode="wb", delete=True) as f:
             f.write(image_data)
