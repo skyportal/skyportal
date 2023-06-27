@@ -77,7 +77,7 @@ SNCOSMO_TO_TNSFILTER = {
 TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
 
 
-def get_recent_TNS(api_key, headers, public_timestamp):
+def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
     """Query TNS to get IAU name (if exists)
     Parameters
     ----------
@@ -110,48 +110,58 @@ def get_recent_TNS(api_key, headers, public_timestamp):
     reply = json_response['data']['reply']
 
     sources = []
-    for obj in reply:
-        data = {
-            'api_key': api_key,
-            'data': json.dumps(
-                {
-                    "objname": obj["objname"],
-                }
-            ),
-        }
-
-        r = requests.post(
-            object_url,
-            headers=headers,
-            data=data,
-            allow_redirects=True,
-            stream=True,
-            timeout=10,
-        )
-
-        count = 0
-        count_limit = 5
-        while r.status_code == 429 and count < count_limit:
-            log(
-                f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
-            )
-            time.sleep(30)
-            r = requests.post(object_url, headers=headers, data=data)
-            count += 1
-
-        if count == count_limit:
-            raise ValueError('TNS request failed: request rate exceeded.')
-
-        if r.status_code == 200:
-            source_data = r.json().get("data", dict()).get("reply", dict())
-            if source_data:
-                sources.append(
+    log(f'Found {len(reply)} recent sources from TNS since {str(public_timestamp)}')
+    for i, obj in enumerate(reply):
+        if get_data:
+            data = {
+                'api_key': api_key,
+                'data': json.dumps(
                     {
-                        'id': obj["objname"],
-                        'ra': source_data['radeg'],
-                        'dec': source_data['decdeg'],
+                        "objname": obj["objname"],
                     }
+                ),
+            }
+
+            r = requests.post(
+                object_url,
+                headers=headers,
+                data=data,
+                allow_redirects=True,
+                stream=True,
+                timeout=10,
+            )
+
+            count = 0
+            count_limit = 5
+            while r.status_code == 429 and count < count_limit:
+                log(
+                    f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
                 )
+                time.sleep(30)
+                r = requests.post(object_url, headers=headers, data=data)
+                count += 1
+
+            if count == count_limit:
+                raise ValueError('TNS request failed: request rate exceeded.')
+
+            if r.status_code == 200:
+                source_data = r.json().get("data", dict()).get("reply", dict())
+                if source_data:
+                    sources.append(
+                        {
+                            'id': obj["objname"],
+                            'ra': source_data['radeg'],
+                            'dec': source_data['decdeg'],
+                        }
+                    )
+            if i % 10 == 0 and get_data:
+                log(f'Fetched data of {i+1}/{len(reply)} recent TNS sources')
+        else:
+            sources.append(
+                {
+                    'id': obj["objname"],
+                }
+            )
     return sources
 
 

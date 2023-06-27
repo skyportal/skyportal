@@ -103,7 +103,9 @@ def tns_bulk_retrieval(
             'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
         }
 
-        tns_sources = get_recent_TNS(altdata['api_key'], tns_headers, start_date)
+        tns_sources = get_recent_TNS(
+            altdata['api_key'], tns_headers, start_date, get_data=False
+        )
         if len(tns_sources) == 0:
             raise ValueError(f'No objects posted to TNS since {start_date}.')
 
@@ -111,6 +113,44 @@ def tns_bulk_retrieval(
             s = session.scalars(Obj.select(user).where(Obj.id == source['id'])).first()
             if s is None:
                 log(f"Posting {source['id']} as source")
+                data = {
+                    'api_key': api_key,
+                    'data': json.dumps(
+                        {
+                            "objname": source["id"],
+                        }
+                    ),
+                }
+
+                r = requests.post(
+                    object_url,
+                    headers=tns_headers,
+                    data=data,
+                    allow_redirects=True,
+                    stream=True,
+                    timeout=10,
+                )
+
+                count = 0
+                count_limit = 5
+                while r.status_code == 429 and count < count_limit:
+                    log(
+                        f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
+                    )
+                    time.sleep(30)
+                    r = requests.post(object_url, headers=tns_headers, data=data)
+                    count += 1
+
+                if count == count_limit:
+                    log(f"TNS request rate limited. Skipping {source['id']}.")
+                    continue
+
+                if r.status_code == 200:
+                    source_data = r.json().get("data", dict()).get("reply", dict())
+                    if source_data:
+                        source["ra"] = source_data.get("radeg", None)
+                        source["dec"] = source_data.get("decdeg", None)
+
                 source['group_ids'] = group_ids
                 post_source(source, user_id, session)
 
