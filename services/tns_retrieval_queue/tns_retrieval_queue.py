@@ -246,8 +246,8 @@ def tns_retrieval(
 
                     failed_photometry = []
                     failed_photometry_errors = []
-
                     for phot in photometry:
+                        read_photometry = False
                         try:
                             df, instrument_id = read_tns_photometry(phot, session)
                             data_out = {
@@ -256,16 +256,30 @@ def tns_retrieval(
                                 'group_ids': group_ids,
                                 **df.to_dict(orient='list'),
                             }
-                            add_external_photometry(data_out, user)
+                            read_photometry = True
                         except Exception as e:
                             failed_photometry.append(phot)
                             failed_photometry_errors.append(str(e))
                             log(f'Cannot read TNS photometry {str(phot)}: {str(e)}')
                             continue
+                        if read_photometry:
+                            try:
+                                add_external_photometry(
+                                    data_out, user, parent_session=session
+                                )
+                            except Exception as e:
+                                failed_photometry.append(phot)
+                                failed_photometry_errors.append(str(e))
+                                continue
                     if len(failed_photometry) > 0:
                         log(
-                            f'Failed to retrieve {len(failed_photometry)}/{len(photometry)} TNS photometry for {obj_id} from TNS as {tns_name}: {str(list(set(failed_photometry_errors)))}'
+                            f'Failed to retrieve {len(failed_photometry)}/{len(photometry)} TNS photometry points for {obj_id} from TNS as {tns_name}: {str(list(set(failed_photometry_errors)))}'
                         )
+                    else:
+                        log(
+                            f'Successfully retrieved {len(photometry)} TNS photometry points for {obj_id} from TNS as {tns_name}'
+                        )
+
                 if include_spectra and 'spectra' in source_data:
                     group_ids = [g.id for g in user.accessible_groups]
                     spectra = source_data['spectra']
@@ -286,6 +300,10 @@ def tns_retrieval(
                     if len(failed_spectra) > 0:
                         log(
                             f'Failed to retrieve {len(failed_spectra)}/{len(spectra)} TNS spectra for {obj_id} from TNS as {tns_name}: {str(list(set(failed_spectra_errors)))}'
+                        )
+                    else:
+                        log(
+                            f'Successfully retrieved {len(spectra)} TNS spectra for {obj_id} from TNS as {tns_name}'
                         )
 
             log(f'Successfully retrieved {obj_id} from TNS as {tns_name}')

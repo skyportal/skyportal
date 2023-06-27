@@ -40,7 +40,7 @@ TNS_INSTRUMENT_IDS = {
     'Goodman': 136,
     'GOTO': [218, 264, 265, 266],
     'PS1': [98, 154, 155, 257],
-    'SEDM': 225,
+    'SEDM': [149, 225],
     'SPRAT': 156,
     'ZTF': 196,
 }
@@ -326,8 +326,10 @@ def read_tns_photometry(photometry, session):
     if photometry['limflux'] == '':
         data_out = {
             'mjd': [Time(photometry['jd'], format='jd').mjd],
-            'mag': None,
-            'magerr': None,
+            'mag': [photometry['flux']],
+            'magerr': [photometry['fluxerr']]
+            if photometry['fluxerr'] not in ['', None]
+            else 0.0,
             'limiting_mag': [photometry['flux']],
             'filter': [filter_name],
             'magsys': ['ab'],
@@ -335,8 +337,8 @@ def read_tns_photometry(photometry, session):
     else:
         data_out = {
             'mjd': [Time(photometry['jd'], format='jd').mjd],
-            'mag': [photometry['flux']],
-            'magerr': [photometry['fluxerr']],
+            'mag': None,
+            'magerr': None,
             'limiting_mag': [photometry['limflux']],
             'filter': [filter_name],
             'magsys': ['ab'],
