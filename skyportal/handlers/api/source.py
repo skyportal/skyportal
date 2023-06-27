@@ -697,7 +697,7 @@ async def get_sources(
     if origin is not None:
         obj_query = obj_query.where(Obj.origin.contains(origin.strip()))
     if has_tns_name:
-        obj_query = obj_query.where(Obj.altdata['tns']['name'].isnot(None))
+        obj_query = obj_query.where(Obj.tns_name.isnot(None))
     if has_spectrum:
         spectrum_subquery = Spectrum.select(user).subquery()
         obj_query = obj_query.join(
