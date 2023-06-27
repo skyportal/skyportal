@@ -606,6 +606,7 @@ const GcnSelectionForm = ({
       localizationCumprob: filterParams.localizationCumprob,
       localizationName: filterParams.localizationName,
       localizationDateobs: dateobs,
+      numberObservations: filterParams?.numberDetections || 1,
     };
     await dispatch(observationsActions.submitObservationsTreasureMap(id, data));
     setIsSubmittingTreasureMap(null);
