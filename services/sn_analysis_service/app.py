@@ -93,6 +93,42 @@ def run_sn_model(data_dict):
         data.rename_column('filter', 'band')
         data.rename_column('magsys', 'zpsys')
 
+        # Need to remove limits between first and last detection
+        # as sncosmo does not intrinsically understand them
+
+        filts = list(set(data['band']))
+        data.add_index('time')
+
+        data_slices = {}
+        for filt in filts:
+            data_slices[filt] = {}
+            data_slices[filt]["first_detection"] = np.inf
+            data_slices[filt]["last_detection"] = -np.inf
+
+        for row in data:
+            if hasattr(row['flux'], 'mask') and row['flux'].mask:
+                continue
+            filt = row['band']
+
+            if row['time'] < data_slices[filt]["first_detection"]:
+                data_slices[filt]["first_detection"] = row['time']
+
+            if row['time'] > data_slices[filt]["last_detection"]:
+                data_slices[filt]["last_detection"] = row['time']
+
+        idx_to_keep = []
+        for ii, row in enumerate(data):
+            if hasattr(row['flux'], 'mask') and row['flux'].mask:
+                filt = row['band']
+                first_detection = data_slices[filt]["first_detection"]
+                last_detection = data_slices[filt]["last_detection"]
+
+                if (row['time'] > first_detection) and (row['time'] < last_detection):
+                    continue
+            idx_to_keep.append(ii)
+
+        data = data.iloc[idx_to_keep]
+
         data['flux'].fill_value = 1e-6
         data = data.filled()
         data.sort("time")
