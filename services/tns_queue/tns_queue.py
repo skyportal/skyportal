@@ -25,7 +25,7 @@ from skyportal.utils.tns import (
     get_IAUname,
     get_tns_objects,
 )
-from skyportal.utils.calculations import great_circle_distance, radec_str2deg
+from skyportal.utils.calculations import radec_str2deg
 
 env, cfg = load_env()
 log = make_log('tns_queue')
@@ -396,30 +396,24 @@ def tns_watcher():
                             )
                         ).all()
                         if len(obj_query) > 0:
-                            closest_obj = obj_query[0]
-                            closest_obj_dist = great_circle_distance(
-                                tns_ra, tns_dec, closest_obj.ra, closest_obj.dec
-                            )
                             for obj in obj_query:
-                                dist = great_circle_distance(
-                                    tns_ra, tns_dec, obj.ra, obj.dec
-                                )
-                                if dist < closest_obj_dist:
-                                    closest_obj = obj
-                                    closest_obj_dist = dist
-                            if obj.tns_name is None or obj.tns_name == "":
-                                obj.tns_name = str(tns_obj["name"]).strip()
-                                session.commit()
-                                log(
-                                    f"Updated object {obj.id} with TNS name {tns_obj['name']}"
-                                )
-                                flow.push(
-                                    '*',
-                                    'skyportal/REFRESH_SOURCE',
-                                    payload={'obj_key': obj.internal_key},
-                                )
+                                try:
+                                    if obj.tns_name is None or obj.tns_name == "":
+                                        obj.tns_name = str(tns_obj["name"]).strip()
+                                        session.commit()
+                                        log(
+                                            f"Updated object {obj.id} with TNS name {tns_obj['name']}"
+                                        )
+                                        flow.push(
+                                            '*',
+                                            'skyportal/REFRESH_SOURCE',
+                                            payload={'obj_key': obj.internal_key},
+                                        )
+                                except Exception as e:
+                                    log(f"Error updating object: {str(e)}")
+                                    session.rollback()
                     except Exception as e:
-                        log(f"Error adding TNS name to object: {str(e)}")
+                        log(f"Error adding TNS name to objects: {str(e)}")
                         session.rollback()
                     finally:
                         session.close()
