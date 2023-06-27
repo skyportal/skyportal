@@ -1319,9 +1319,6 @@ class GcnEventHandler(BaseHandler):
                                 Localization.properties
                             ),
                             joinedload(GcnEvent.gcn_notices).undefer(GcnNotice.content),
-                            joinedload(GcnEvent.observationplan_requests)
-                            .joinedload(ObservationPlanRequest.allocation)
-                            .joinedload(Allocation.instrument),
                             joinedload(GcnEvent.comments),
                             joinedload(GcnEvent.detectors),
                             joinedload(GcnEvent.properties),
