@@ -249,12 +249,45 @@ def post_tns(
         'archival_comment': archival_comment,
     }
 
-    tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_queue"]}'
+    tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_submission_queue"]}'
 
     resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
     if resp.status_code != 200:
         log(
             f'TNS request failed for {str(request_body["obj_ids"])} by user ID {request_body["user_id"]}: {resp.content}'
+        )
+
+
+def get_tns(
+    tnsrobot_id,
+    user_id,
+    include_photometry=False,
+    include_spectra=False,
+    timeout=2,
+    obj_id=None,
+    start_date=None,
+    group_ids=None,
+):
+
+    if obj_id is None and start_date is None:
+        raise ValueError('obj_id or start_date must be specified')
+
+    request_body = {
+        'obj_id': obj_id,
+        'start_date': start_date,
+        'tnsrobot_id': tnsrobot_id,
+        'user_id': user_id,
+        'group_ids': group_ids,
+        'include_photometry': include_photometry,
+        'include_spectra': include_spectra,
+    }
+
+    tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_retrieval_queue"]}'
+
+    resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
+    if resp.status_code != 200:
+        log(
+            f'TNS request failed for {str(request_body["obj_id"])}/{str(request_body["start_date"])} by user ID {request_body["user_id"]}: {resp.content}'
         )
 
 
