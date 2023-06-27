@@ -1,3 +1,5 @@
+from astropy.time import Time, TimeDelta
+import astropy.units as u
 from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
@@ -57,11 +59,13 @@ queue = []
 def service(queue):
     try:
         with DBSession() as session:
+            cutoff_time = Time.now() - TimeDelta(3 * u.day)
             requests = (
                 session.query(FacilityTransactionRequest)
                 .where(
                     FacilityTransactionRequest.status != "complete",
                     FacilityTransactionRequest.status.not_like("error:%"),
+                    FacilityTransactionRequest.created_at >= cutoff_time.datetime,
                 )
                 .all()
             )
