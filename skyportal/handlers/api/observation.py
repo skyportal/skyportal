@@ -1023,6 +1023,13 @@ class ObservationHandler(BaseHandler):
                  Whether to include queued or executed observations.
                  Defaults to executed.
             - in: query
+              name: numberObservations
+              schema:
+                type: number
+              description: |
+                Minimum number of observations of a field required to include.
+                Defaults to 1.
+            - in: query
               name: numPerPage
               nullable: true
               schema:
@@ -1602,6 +1609,13 @@ class ObservationTreasureMapHandler(BaseHandler):
             description: |
               Cumulative probability up to which to include fields.
               Defaults to 0.95.
+          - in: query
+            name: numberObservations
+            schema:
+              type: number
+            description: |
+              Minimum number of observations of a field required to include.
+              Defaults to 1.
         responses:
           200:
             content:
