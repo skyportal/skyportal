@@ -11,11 +11,9 @@ import tornado.escape
 import tornado.ioloop
 import tornado.web
 from sqlalchemy.orm import scoped_session, sessionmaker
-import conesearch_alchemy as ca
 
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
-from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from skyportal.handlers.api.photometry import serialize
 from skyportal.models import DBSession, Instrument, Obj, Photometry, TNSRobot, User
@@ -23,9 +21,7 @@ from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
     TNS_INSTRUMENT_IDS,
     get_IAUname,
-    get_tns_objects,
 )
-from skyportal.utils.calculations import radec_str2deg
 
 env, cfg = load_env()
 log = make_log('tns_queue')
@@ -37,11 +33,6 @@ Session = scoped_session(sessionmaker())
 TNS_URL = cfg['app.tns.endpoint']
 report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
 search_frontend_url = urllib.parse.urljoin(TNS_URL, 'search')
-
-bot_id = cfg.get('app.tns.bot_id', None)
-bot_name = cfg.get('app.tns.bot_name', None)
-api_key = cfg.get('app.tns.api_key', None)
-look_back_days = cfg.get('app.tns.look_back_days', 1)
 
 queue = []
 
@@ -354,86 +345,20 @@ def api(queue):
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-    app.listen(cfg["ports.tns_queue"])
+    app.listen(cfg["ports.tns_submission_queue"])
     loop.run_forever()
-
-
-def tns_watcher():
-    if (
-        TNS_URL is None
-        or bot_id is None
-        or bot_name is None
-        or api_key is None
-        or look_back_days is None
-    ):
-        log("TNS watcher not configured, skipping")
-        return
-    tns_headers = {
-        "User-Agent": f'tns_marker{{"tns_id": {bot_id},"type": "bot", "name": "{bot_name}"}}',
-    }
-
-    flow = Flow()
-
-    while True:
-        try:
-            tns_objects = get_tns_objects(
-                tns_headers,
-                discovered_period_value=look_back_days,
-                discovered_period_units='days',
-            )
-            if len(tns_objects) > 0:
-                for tns_obj in tns_objects:
-                    tns_ra, tns_dec = radec_str2deg(tns_obj["ra"], tns_obj["dec"])
-                    if Session.registry.has():
-                        session = Session()
-                    else:
-                        session = Session(bind=DBSession.session_factory.kw["bind"])
-                    try:
-                        other = ca.Point(ra=tns_ra, dec=tns_dec)
-                        obj_query = session.scalars(
-                            sa.select(Obj).where(
-                                Obj.within(other, 0.000555556)  # 2 arcseconds
-                            )
-                        ).all()
-                        if len(obj_query) > 0:
-                            for obj in obj_query:
-                                try:
-                                    if obj.tns_name is None or obj.tns_name == "":
-                                        obj.tns_name = str(tns_obj["name"]).strip()
-                                        session.commit()
-                                        log(
-                                            f"Updated object {obj.id} with TNS name {tns_obj['name']}"
-                                        )
-                                        flow.push(
-                                            '*',
-                                            'skyportal/REFRESH_SOURCE',
-                                            payload={'obj_key': obj.internal_key},
-                                        )
-                                except Exception as e:
-                                    log(f"Error updating object: {str(e)}")
-                                    session.rollback()
-                    except Exception as e:
-                        log(f"Error adding TNS name to objects: {str(e)}")
-                        session.rollback()
-                    finally:
-                        session.close()
-        except Exception as e:
-            log(f"Error getting TNS objects: {str(e)}")
-        time.sleep(60 * 4)
 
 
 if __name__ == "__main__":
     try:
         t = Thread(target=service, args=(queue,))
         t2 = Thread(target=api, args=(queue,))
-        t3 = Thread(target=tns_watcher)
         t.start()
         t2.start()
-        t3.start()
 
         while True:
-            log(f"Current TNS queue length: {len(queue)}")
+            log(f"Current TNS submission queue length: {len(queue)}")
             time.sleep(120)
     except Exception as e:
-        log(f"Error starting TNS queue: {str(e)}")
+        log(f"Error starting TNS submission queue: {str(e)}")
         raise e

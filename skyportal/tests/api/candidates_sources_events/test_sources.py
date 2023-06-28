@@ -1684,8 +1684,8 @@ def test_sources_filter_by_has_tns_name(
             "id": obj_id1,
             "ra": 234.22,
             "dec": -22.33,
-            "altdata": {"tns": {"name": "test_tns_name"}},
             "group_ids": [public_group.id],
+            "tns_name": "test_tns_name",
         },
         token=upload_data_token,
     )
