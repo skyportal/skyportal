@@ -567,10 +567,7 @@ async def get_sources(
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
-    if (localization_dateobs is not None) or (spatial_catalog_name is not None):
-        obj_query = Obj.select(user, columns=[Obj.id])
-    else:
-        obj_query = Obj.select(user, columns=[Obj.id])
+    obj_query = Obj.select(user, columns=[Obj.id])
     source_query = Source.select(user)
 
     if sourceID:
