@@ -331,7 +331,7 @@ def read_tns_photometry(photometry, session):
     filter_name = TNSFILTER_TO_SNCOSMO[tns_filter_id]
 
     if filter_name not in instrument.filters:
-        raise ValueError(f'{filter_name} not in {instrument.nickname}')
+        raise ValueError(f'{filter_name} not in {instrument.name}')
 
     if photometry['limflux'] == '':
         data_out = {
