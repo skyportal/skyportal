@@ -1118,10 +1118,6 @@ async def get_sources(
         if len(obj_ids) > MAX_LOCALIZATION_SOURCES:
             raise ValueError('Need fewer sources for efficient cross-match.')
 
-        obj_query = Obj.select(user, options=obj_query_options).where(
-            Obj.id.in_(obj_ids)
-        )
-
         if localization_name is None:
             localization = session.scalars(
                 Localization.select(
@@ -1239,10 +1235,6 @@ async def get_sources(
         if len(obj_ids) > MAX_LOCALIZATION_SOURCES:
             raise ValueError('Need fewer sources for efficient cross-match.')
 
-        obj_query = Obj.select(user, options=obj_query_options).where(
-            Obj.id.in_(obj_ids)
-        )
-
         catalog = session.scalars(
             SpatialCatalog.select(
                 user,
@@ -1288,12 +1280,15 @@ async def get_sources(
         )
 
         obj_ids = list(
-            set(session.scalars(obj_query).all()).union(
-                set(session.scalars(obj_include_query).all())
+            set(session.scalars(obj_query).unique().all()).union(
+                set(session.scalars(obj_include_query).unique().all())
             )
         )
 
         obj_query = Obj.select(user, columns=[Obj.id]).where(Obj.id.in_(obj_ids))
+
+    if (localization_dateobs is not None) or (spatial_catalog_name is not None):
+        obj_query = obj_query.options(*obj_query_options)
 
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
