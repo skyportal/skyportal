@@ -567,16 +567,10 @@ async def get_sources(
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
-    obj_query_options = []
-    if include_thumbnails and not remove_nested:
-        obj_query_options.append(joinedload(Obj.thumbnails))
-    if include_detection_stats:
-        obj_query_options.append(joinedload(Obj.photstats))
-
     if (localization_dateobs is not None) or (spatial_catalog_name is not None):
         obj_query = Obj.select(user, columns=[Obj.id])
     else:
-        obj_query = Obj.select(user, options=obj_query_options)
+        obj_query = Obj.select(user, columns=[Obj.id])
     source_query = Source.select(user)
 
     if sourceID:
@@ -1286,9 +1280,6 @@ async def get_sources(
         )
 
         obj_query = Obj.select(user, columns=[Obj.id]).where(Obj.id.in_(obj_ids))
-
-    if (localization_dateobs is not None) or (spatial_catalog_name is not None):
-        obj_query = obj_query.options(*obj_query_options)
 
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
