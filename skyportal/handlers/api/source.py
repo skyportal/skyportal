@@ -544,6 +544,7 @@ async def get_sources(
     localization_name=None,
     localization_cumprob=None,
     localization_reject_sources=False,
+    include_sources_in_gcn=False,
     spatial_catalog_name=None,
     spatial_catalog_entry_name=None,
     page_number=1,
@@ -1279,6 +1280,20 @@ async def get_sources(
             tiles_subquery,
             Obj.id == tiles_subquery.c.id,
         )
+
+    if include_sources_in_gcn and localization_dateobs is not None:
+        obj_include_query = sa.select(SourcesConfirmedInGCN.obj_id).where(
+            SourcesConfirmedInGCN.dateobs == localization_dateobs,
+            SourcesConfirmedInGCN.confirmed.is_not(False),
+        )
+
+        obj_ids = list(
+            set(session.scalars(obj_query).all()).union(
+                set(session.scalars(obj_include_query).all())
+            )
+        )
+
+        obj_query = Obj.select(user, columns=[Obj.id]).where(Obj.id.in_(obj_ids))
 
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
@@ -2577,6 +2592,7 @@ class SourceHandler(BaseHandler):
         localization_reject_sources = self.get_query_argument(
             "localizationRejectSources", False
         )
+        include_sources_in_gcn = self.get_query_argument("includeSourcesInGcn", False)
         spatial_catalog_name = self.get_query_argument("spatialCatalogName", None)
         spatial_catalog_entry_name = self.get_query_argument(
             "spatialCatalogEntryName", None
@@ -2719,7 +2735,8 @@ class SourceHandler(BaseHandler):
                 return self.success(data=source_info)
 
         with self.Session() as session:
-            try:
+            # try:
+            if True:
                 query_results = await get_sources(
                     self.associated_user_object.id,
                     session,
@@ -2783,6 +2800,7 @@ class SourceHandler(BaseHandler):
                     localization_name=localization_name,
                     localization_cumprob=localization_cumprob,
                     localization_reject_sources=localization_reject_sources,
+                    include_sources_in_gcn=include_sources_in_gcn,
                     spatial_catalog_name=spatial_catalog_name,
                     spatial_catalog_entry_name=spatial_catalog_entry_name,
                     page_number=page_number,
@@ -2795,8 +2813,8 @@ class SourceHandler(BaseHandler):
                     total_matches=total_matches,
                     includeGeoJSON=includeGeoJSON,
                 )
-            except Exception as e:
-                return self.error(f'Cannot retrieve sources: {str(e)}')
+            # except Exception as e:
+            #    return self.error(f'Cannot retrieve sources: {str(e)}')
 
             query_size = sizeof(query_results)
             if query_size >= SIZE_WARNING_THRESHOLD:
