@@ -16,7 +16,9 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Tooltip from "@mui/material/Tooltip";
-import DatePicker from "@mui/lab/DatePicker";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { LocalizationProvider } from "@mui/x-date-pickers";
 import {
   createTheme,
   ThemeProvider,
@@ -1191,18 +1193,20 @@ const UserManagement = () => {
           <form onSubmit={handleSubmit(handleEditUserExpirationDate)}>
             <Controller
               render={({ field: { onChange, value } }) => (
-                <DatePicker
-                  value={value}
-                  onChange={(date) =>
-                    date ? onChange(dayjs.utc(date)) : onChange(date)
-                  }
-                  label="Expiration date (UTC)"
-                  showTodayButton={false}
-                  renderInput={(params) => (
-                    /* eslint-disable-next-line react/jsx-props-no-spreading */
-                    <TextField id="expirationDatePicker" {...params} />
-                  )}
-                />
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DatePicker
+                    value={value}
+                    onChange={(date) =>
+                      date ? onChange(dayjs.utc(date)) : onChange(date)
+                    }
+                    label="Expiration date (UTC)"
+                    showTodayButton={false}
+                    renderInput={(params) => (
+                      /* eslint-disable-next-line react/jsx-props-no-spreading */
+                      <TextField id="expirationDatePicker" {...params} />
+                    )}
+                  />
+                </LocalizationProvider>
               )}
               name="date"
               control={control}
