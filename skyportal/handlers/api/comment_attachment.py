@@ -115,20 +115,26 @@ class CommentAttachmentUpdateHandler(BaseHandler):
             )
 
         with self.Session() as session:
-            stmt = sa.select(Comment).where(Comment.attachment_bytes.isnot(None))
-            # select only comments that have attachment_bytes
-            count_stmt = sa.select(func.count()).select_from(stmt)
-            total_matches = session.execute(count_stmt).scalar()
-            stmt = stmt.offset((page_number - 1) * num_per_page)
-            stmt = stmt.limit(num_per_page)
-            comments = session.execute(stmt).scalars().unique().all()
+            try:
+                stmt = sa.select(Comment).where(Comment.attachment_bytes.isnot(None))
+                # select only comments that have attachment_bytes
+                count_stmt = sa.select(func.count()).select_from(stmt)
+                total_matches = session.execute(count_stmt).scalar()
+                stmt = stmt.offset((page_number - 1) * num_per_page)
+                stmt = stmt.limit(num_per_page)
+                comments = session.execute(stmt).scalars().unique().all()
 
-            for i, comment in enumerate(comments):
-                attachment_name = comment.attachment_name
-                data_to_disk = comment.attachment_bytes
-                comment.save_data(attachment_name, data_to_disk)
-                comment.attachment_bytes = None
-            session.commit()
+                for i, comment in enumerate(comments):
+                    attachment_name = comment.attachment_name
+                    data_to_disk = comment.attachment_bytes
+                    comment.save_data(attachment_name, data_to_disk)
+                    comment.attachment_bytes = None
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                return self.error(
+                    f'Error updating comments with attachment_bytes: {str(e)}'
+                )
 
         results = {
             'totalMatches': total_matches,
