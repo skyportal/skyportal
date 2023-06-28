@@ -157,7 +157,7 @@ def commit_photometry(
         cyan = df['filter'] == 'c'
         orange = df['filter'] == 'o'
 
-        snr = df['uJy'] / df['duJy'] < 5
+        snr = df['uJy'] / df['duJy'] < 3
 
         df.loc[cyan, 'filter'] = 'atlasc'
         df.loc[orange, 'filter'] = 'atlaso'
