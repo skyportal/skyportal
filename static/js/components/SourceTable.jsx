@@ -9,8 +9,12 @@ import TableRow from "@mui/material/TableRow";
 import IconButton from "@mui/material/IconButton";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Grid from "@mui/material/Grid";
+import AddIcon from "@mui/icons-material/Add";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import ThumbUp from "@mui/icons-material/ThumbUp";
 import ThumbDown from "@mui/icons-material/ThumbDown";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
@@ -62,6 +66,7 @@ import { filterOutEmptyValues } from "../API";
 import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
+import NewSource from "./NewSource";
 
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
 const VegaHR = React.lazy(() => import("./VegaHR"));
@@ -209,6 +214,16 @@ const useStyles = makeStyles((theme) => ({
   },
   classificationDeleteDisabled: {
     opacity: 0,
+  },
+  widgetIcon: {
+    display: "none",
+  },
+  widgetPaperDiv: {
+    padding: "1rem",
+    height: "100%",
+  },
+  widgetPaperFillSpace: {
+    height: "100%",
   },
 }));
 
@@ -683,6 +698,8 @@ const SourceTable = ({
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const classes = useStyles();
   const theme = useTheme();
+
+  const [openNew, setOpenNew] = useState(false);
 
   if (favoritesRemoveButton) {
     defaultDisplayedColumns = defaultDisplayedColumns?.filter(
@@ -1473,6 +1490,10 @@ const SourceTable = ({
     }
   };
 
+  const handleClose = () => {
+    setOpenNew(false);
+  };
+
   const customFilterDisplay = () =>
     filterFormSubmitted ? (
       <div className={classes.filterAlert}>
@@ -1805,6 +1826,18 @@ const SourceTable = ({
     search: true,
     onSearchChange: handleSearchChange,
     download: true,
+    customToolbar: () => (
+      <>
+        <IconButton
+          name="new_source"
+          onClick={() => {
+            setOpenNew(true);
+          }}
+        >
+          <AddIcon />
+        </IconButton>
+      </>
+    ),
     rowsExpanded: openedRows,
     onRowExpansionChange: (_, allRowsExpanded) => {
       setOpenedRows(allRowsExpanded.map((i) => i.dataIndex));
@@ -2049,6 +2082,21 @@ const SourceTable = ({
             </Grid>
           )}
         </Grid>
+      </div>
+      <div>
+        {openNew && (
+          <Dialog
+            open={openNew}
+            onClose={handleClose}
+            style={{ position: "fixed" }}
+            maxWidth="md"
+          >
+            <DialogTitle onClose={handleClose}>New Source</DialogTitle>
+            <DialogContent dividers>
+              <NewSource classes={classes} />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );
