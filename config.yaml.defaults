@@ -654,7 +654,7 @@ ports:
   observation_plan_queue: 64710
   tns_retrieval_queue: 64810
   thumbnail_queue: 64910
-  tns_submission_queue: 65010
+  tns_submission_queue: 64812
 
 gcn:
   server: gcn.nasa.gov
