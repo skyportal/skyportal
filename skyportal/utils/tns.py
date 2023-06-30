@@ -32,13 +32,15 @@ log = make_log('tns_utils')
 
 TNS_INSTRUMENT_IDS = {
     'ALFOSC': 41,
-    'ATLAS': [159, 160, 255, 167],
+    'ASAS-SN': 195,
+    'ATLAS': [153, 159, 160, 255, 256, 167],
     'DECam': 172,
     'EFOSC2': 30,
     'Gaia': 163,
     'Goodman': 136,
-    'PS1': 155,
-    'SEDM': 225,
+    'GOTO': [218, 264, 265, 266],
+    'PS1': [98, 154, 155, 257],
+    'SEDM': [149, 225],
     'SPRAT': 156,
     'ZTF': 196,
 }
@@ -57,6 +59,16 @@ SNCOSMO_TO_TNSFILTER = {
     'desi': 23,
     'desz': 24,
     'desy': 81,
+    'gaia::g': 75,
+    'gotol': 121,
+    'gotor': 122,
+    'gotog': 123,
+    'gotob': 124,
+    'ps1::g': 56,
+    'ps1::r': 57,
+    'ps1::i': 58,
+    'ps1::z': 59,
+    'ps1::w': 26,
     'ztfg': 110,
     'ztfr': 111,
     'ztfi': 112,
@@ -65,7 +77,7 @@ SNCOSMO_TO_TNSFILTER = {
 TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
 
 
-def get_recent_TNS(api_key, headers, public_timestamp):
+def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
     """Query TNS to get IAU name (if exists)
     Parameters
     ----------
@@ -98,48 +110,58 @@ def get_recent_TNS(api_key, headers, public_timestamp):
     reply = json_response['data']['reply']
 
     sources = []
-    for obj in reply:
-        data = {
-            'api_key': api_key,
-            'data': json.dumps(
-                {
-                    "objname": obj["objname"],
-                }
-            ),
-        }
-
-        r = requests.post(
-            object_url,
-            headers=headers,
-            data=data,
-            allow_redirects=True,
-            stream=True,
-            timeout=10,
-        )
-
-        count = 0
-        count_limit = 5
-        while r.status_code == 429 and count < count_limit:
-            log(
-                f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
-            )
-            time.sleep(30)
-            r = requests.post(object_url, headers=headers, data=data)
-            count += 1
-
-        if count == count_limit:
-            raise ValueError('TNS request failed: request rate exceeded.')
-
-        if r.status_code == 200:
-            source_data = r.json().get("data", dict()).get("reply", dict())
-            if source_data:
-                sources.append(
+    log(f'Found {len(reply)} recent sources from TNS since {str(public_timestamp)}')
+    for i, obj in enumerate(reply):
+        if get_data:
+            data = {
+                'api_key': api_key,
+                'data': json.dumps(
                     {
-                        'id': obj["objname"],
-                        'ra': source_data['radeg'],
-                        'dec': source_data['decdeg'],
+                        "objname": obj["objname"],
                     }
+                ),
+            }
+
+            r = requests.post(
+                object_url,
+                headers=headers,
+                data=data,
+                allow_redirects=True,
+                stream=True,
+                timeout=10,
+            )
+
+            count = 0
+            count_limit = 5
+            while r.status_code == 429 and count < count_limit:
+                log(
+                    f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
                 )
+                time.sleep(30)
+                r = requests.post(object_url, headers=headers, data=data)
+                count += 1
+
+            if count == count_limit:
+                raise ValueError('TNS request failed: request rate exceeded.')
+
+            if r.status_code == 200:
+                source_data = r.json().get("data", dict()).get("reply", dict())
+                if source_data:
+                    sources.append(
+                        {
+                            'id': obj["objname"],
+                            'ra': source_data['radeg'],
+                            'dec': source_data['decdeg'],
+                        }
+                    )
+            if i % 10 == 0 and get_data:
+                log(f'Fetched data of {i+1}/{len(reply)} recent TNS sources')
+        else:
+            sources.append(
+                {
+                    'id': obj["objname"],
+                }
+            )
     return sources
 
 
@@ -237,12 +259,45 @@ def post_tns(
         'archival_comment': archival_comment,
     }
 
-    tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_queue"]}'
+    tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_submission_queue"]}'
 
     resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
     if resp.status_code != 200:
         log(
             f'TNS request failed for {str(request_body["obj_ids"])} by user ID {request_body["user_id"]}: {resp.content}'
+        )
+
+
+def get_tns(
+    tnsrobot_id,
+    user_id,
+    include_photometry=False,
+    include_spectra=False,
+    timeout=2,
+    obj_id=None,
+    start_date=None,
+    group_ids=None,
+):
+
+    if obj_id is None and start_date is None:
+        raise ValueError('obj_id or start_date must be specified')
+
+    request_body = {
+        'obj_id': obj_id,
+        'start_date': start_date,
+        'tnsrobot_id': tnsrobot_id,
+        'user_id': user_id,
+        'group_ids': group_ids,
+        'include_photometry': include_photometry,
+        'include_spectra': include_spectra,
+    }
+
+    tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_retrieval_queue"]}'
+
+    resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
+    if resp.status_code != 200:
+        log(
+            f'TNS request failed for {str(request_body["obj_id"])}/{str(request_body["start_date"])} by user ID {request_body["user_id"]}: {resp.content}'
         )
 
 
@@ -276,13 +331,15 @@ def read_tns_photometry(photometry, session):
     filter_name = TNSFILTER_TO_SNCOSMO[tns_filter_id]
 
     if filter_name not in instrument.filters:
-        raise ValueError(f'{filter_name} not in {instrument.nickname}')
+        raise ValueError(f'{filter_name} not in {instrument.name}')
 
     if photometry['limflux'] == '':
         data_out = {
             'mjd': [Time(photometry['jd'], format='jd').mjd],
-            'mag': None,
-            'magerr': None,
+            'mag': [photometry['flux']],
+            'magerr': [photometry['fluxerr']]
+            if photometry['fluxerr'] not in ['', None]
+            else 0.0,
             'limiting_mag': [photometry['flux']],
             'filter': [filter_name],
             'magsys': ['ab'],
@@ -290,8 +347,8 @@ def read_tns_photometry(photometry, session):
     else:
         data_out = {
             'mjd': [Time(photometry['jd'], format='jd').mjd],
-            'mag': [photometry['flux']],
-            'magerr': [photometry['fluxerr']],
+            'mag': None,
+            'magerr': None,
             'limiting_mag': [photometry['limflux']],
             'filter': [filter_name],
             'magsys': ['ab'],

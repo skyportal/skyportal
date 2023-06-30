@@ -544,6 +544,7 @@ async def get_sources(
     localization_name=None,
     localization_cumprob=None,
     localization_reject_sources=False,
+    include_sources_in_gcn=False,
     spatial_catalog_name=None,
     spatial_catalog_entry_name=None,
     page_number=1,
@@ -566,16 +567,7 @@ async def get_sources(
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
-    obj_query_options = []
-    if include_thumbnails and not remove_nested:
-        obj_query_options.append(joinedload(Obj.thumbnails))
-    if include_detection_stats:
-        obj_query_options.append(joinedload(Obj.photstats))
-
-    if (localization_dateobs is not None) or (spatial_catalog_name is not None):
-        obj_query = Obj.select(user, columns=[Obj.id])
-    else:
-        obj_query = Obj.select(user, options=obj_query_options)
+    obj_query = Obj.select(user, columns=[Obj.id])
     source_query = Source.select(user)
 
     if sourceID:
@@ -697,7 +689,7 @@ async def get_sources(
     if origin is not None:
         obj_query = obj_query.where(Obj.origin.contains(origin.strip()))
     if has_tns_name:
-        obj_query = obj_query.where(Obj.altdata['tns']['name'].isnot(None))
+        obj_query = obj_query.where(Obj.tns_name.isnot(None))
     if has_spectrum:
         spectrum_subquery = Spectrum.select(user).subquery()
         obj_query = obj_query.join(
@@ -1117,10 +1109,6 @@ async def get_sources(
         if len(obj_ids) > MAX_LOCALIZATION_SOURCES:
             raise ValueError('Need fewer sources for efficient cross-match.')
 
-        obj_query = Obj.select(user, options=obj_query_options).where(
-            Obj.id.in_(obj_ids)
-        )
-
         if localization_name is None:
             localization = session.scalars(
                 Localization.select(
@@ -1238,10 +1226,6 @@ async def get_sources(
         if len(obj_ids) > MAX_LOCALIZATION_SOURCES:
             raise ValueError('Need fewer sources for efficient cross-match.')
 
-        obj_query = Obj.select(user, options=obj_query_options).where(
-            Obj.id.in_(obj_ids)
-        )
-
         catalog = session.scalars(
             SpatialCatalog.select(
                 user,
@@ -1279,6 +1263,20 @@ async def get_sources(
             tiles_subquery,
             Obj.id == tiles_subquery.c.id,
         )
+
+    if include_sources_in_gcn and localization_dateobs is not None:
+        obj_include_query = sa.select(SourcesConfirmedInGCN.obj_id).where(
+            SourcesConfirmedInGCN.dateobs == localization_dateobs,
+            SourcesConfirmedInGCN.confirmed.is_not(False),
+        )
+
+        obj_ids = list(
+            set(session.scalars(obj_query).unique().all()).union(
+                set(session.scalars(obj_include_query).unique().all())
+            )
+        )
+
+        obj_query = Obj.select(user, columns=[Obj.id]).where(Obj.id.in_(obj_ids))
 
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
@@ -2577,6 +2575,7 @@ class SourceHandler(BaseHandler):
         localization_reject_sources = self.get_query_argument(
             "localizationRejectSources", False
         )
+        include_sources_in_gcn = self.get_query_argument("includeSourcesInGcn", False)
         spatial_catalog_name = self.get_query_argument("spatialCatalogName", None)
         spatial_catalog_entry_name = self.get_query_argument(
             "spatialCatalogEntryName", None
@@ -2783,6 +2782,7 @@ class SourceHandler(BaseHandler):
                     localization_name=localization_name,
                     localization_cumprob=localization_cumprob,
                     localization_reject_sources=localization_reject_sources,
+                    include_sources_in_gcn=include_sources_in_gcn,
                     spatial_catalog_name=spatial_catalog_name,
                     spatial_catalog_entry_name=spatial_catalog_entry_name,
                     page_number=page_number,

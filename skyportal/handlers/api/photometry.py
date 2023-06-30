@@ -499,6 +499,9 @@ def standardize_photometry_data(data):
             raise ValidationError(f'Invalid instrument ID: {iid}')
         instrument_cache[iid] = instrument
 
+    # convert the object IDs to str datatype
+    df['obj_id'] = df['obj_id'].astype(str)
+
     for oid in df['obj_id'].unique():
         obj = Obj.query.get(oid)
         if not obj:
@@ -756,7 +759,12 @@ def insert_new_photometry_data(
     return ids, upload_id
 
 
-def get_group_ids(data, user):
+def get_group_ids(data, user, parent_session=None):
+    if parent_session is None:
+        session = DBSession()
+    else:
+        session = parent_session
+
     group_ids = data.pop("group_ids", [])
     if isinstance(group_ids, (list, tuple)):
         for group_id in group_ids:
@@ -766,13 +774,12 @@ def get_group_ids(data, user):
                 raise ValidationError(
                     f"Invalid format for group id {group_id}, must be an integer."
                 )
-            group = Group.query.get(group_id)
+            group = session.get(Group, group_id)
             if group is None:
                 raise ValidationError(f'No group with ID {group_id}')
     elif group_ids == 'all':
         public_group = (
-            DBSession()
-            .execute(
+            session.execute(
                 sa.select(Group).filter(Group.name == cfg["misc.public_group_name"])
             )
             .scalars()
@@ -791,7 +798,11 @@ def get_group_ids(data, user):
     return group_ids
 
 
-def get_stream_ids(data, user):
+def get_stream_ids(data, user, parent_session=None):
+    if parent_session is None:
+        session = DBSession()
+    else:
+        session = parent_session
     stream_ids = data.pop("stream_ids", [])
     if isinstance(stream_ids, (list, tuple)):
         for stream_id in stream_ids:
@@ -801,7 +812,7 @@ def get_stream_ids(data, user):
                 raise ValidationError(
                     f"Invalid format for stream id {stream_id}, must be an integer."
                 )
-            stream = Stream.get_if_accessible_by(stream_id, user)
+            stream = session.scalar(Stream.select(user).where(Stream.id == stream_id))
 
             if stream is None:
                 raise ValidationError(f'No stream with ID {stream_id}')
@@ -814,7 +825,7 @@ def get_stream_ids(data, user):
     return stream_ids
 
 
-def add_external_photometry(json, user):
+def add_external_photometry(json, user, parent_session=None):
     """
     Posts external photometry to the database (as from
     another API)
@@ -826,10 +837,17 @@ def add_external_photometry(json, user):
         schemas/PhotMagFlexible or schemas/PhotFluxFlexible.
     user : SingleUser
         User posting the photometry
+    parent_session : sqlalchemy.orm.session.Session
+        Session to use for the database transaction (optional)
     """
 
-    group_ids = get_group_ids(json, user)
-    stream_ids = get_stream_ids(json, user)
+    if parent_session is None:
+        session = DBSession()
+    else:
+        session = parent_session
+
+    group_ids = get_group_ids(json, user, session)
+    stream_ids = get_stream_ids(json, user, session)
     df, instrument_cache = standardize_photometry_data(json)
 
     if len(df.index) > MAX_NUMBER_ROWS:
@@ -847,24 +865,26 @@ def add_external_photometry(json, user):
     # From the psql docs: This mode protects a table against concurrent
     # data changes, and is self-exclusive so that only one session can
     # hold it at a time.
-    with DBSession() as session:
-        try:
-            session.execute(
-                sa.text(
-                    f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
-                )
+    try:
+        session.execute(
+            sa.text(
+                f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
             )
-            ids, upload_id = insert_new_photometry_data(
-                df, instrument_cache, group_ids, stream_ids, user, session
-            )
-            log(
-                f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
-            )
-            return ids, upload_id
-        except Exception as e:
-            session.rollback()
-            log(f"Unable to post photometry: {e}")
-            return None, None
+        )
+        ids, upload_id = insert_new_photometry_data(
+            df, instrument_cache, group_ids, stream_ids, user, session
+        )
+        log(
+            f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
+        )
+        return ids, upload_id
+    except Exception as e:
+        session.rollback()
+        log(f"Unable to post photometry: {e}")
+        return None, None
+    finally:
+        if parent_session is None:
+            session.close()
 
 
 class PhotometryHandler(BaseHandler):

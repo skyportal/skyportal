@@ -346,15 +346,15 @@ export function editComment(commentID, formData) {
     };
   }
   if (formData.spectrum_id) {
-    return API.POST(
-      `/api/spectra/${formData.spectrum_id}/comments`,
-      ADD_COMMENT,
+    return API.PUT(
+      `/api/spectra/${formData.spectrum_id}/comments/${commentID}`,
+      EDIT_COMMENT,
       formData
     );
   }
-  return API.POST(
-    `/api/sources/${formData.obj_id}/comments`,
-    ADD_COMMENT,
+  return API.PUT(
+    `/api/sources/${formData.obj_id}/comments/${commentID}`,
+    EDIT_COMMENT,
     formData
   );
 }

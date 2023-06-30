@@ -145,6 +145,16 @@ const ImageAnalysisForm = ({ obj_id }) => {
         default: "PanSTARRS/DR1/g",
         enum: templates,
       },
+      saturation: {
+        type: "number",
+        title: "Saturation [counts]",
+        default: 50000,
+      },
+      retrieve_wcs: {
+        type: "boolean",
+        title: "Use Astrometry.net to solve wcs",
+        default: false,
+      },
       image_data: {
         type: "string",
         format: "data-url",
