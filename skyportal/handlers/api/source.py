@@ -493,6 +493,7 @@ async def get_sources(
     include_detection_stats=False,
     include_labellers=False,
     include_hosts=False,
+    exclude_forced_photometry=False,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -596,30 +597,57 @@ async def get_sources(
 
     if first_detected_date:
         first_detected_date = arrow.get(first_detected_date).datetime
-        photstat_subquery = (
-            PhotStat.select(user)
-            .where(PhotStat.first_detected_mjd >= Time(first_detected_date).mjd)
-            .subquery()
-        )
+        if exclude_forced_photometry:
+            photstat_subquery = (
+                PhotStat.select(user)
+                .where(
+                    PhotStat.first_detected_no_forced_phot_mjd
+                    >= Time(first_detected_date).mjd
+                )
+                .subquery()
+            )
+        else:
+            photstat_subquery = (
+                PhotStat.select(user)
+                .where(PhotStat.first_detected_mjd >= Time(first_detected_date).mjd)
+                .subquery()
+            )
         obj_query = obj_query.join(
             photstat_subquery, Obj.id == photstat_subquery.c.obj_id
         )
     if last_detected_date:
         last_detected_date = arrow.get(last_detected_date).datetime
-        photstat_subquery = (
-            PhotStat.select(user)
-            .where(PhotStat.last_detected_mjd <= Time(last_detected_date).mjd)
-            .subquery()
-        )
+        if exclude_forced_photometry:
+            photstat_subquery = (
+                PhotStat.select(user)
+                .where(
+                    PhotStat.last_detected_no_forced_phot_mjd
+                    <= Time(last_detected_date).mjd
+                )
+                .subquery()
+            )
+        else:
+            photstat_subquery = (
+                PhotStat.select(user)
+                .where(PhotStat.last_detected_mjd <= Time(last_detected_date).mjd)
+                .subquery()
+            )
         obj_query = obj_query.join(
             photstat_subquery, Obj.id == photstat_subquery.c.obj_id
         )
     if number_of_detections:
-        photstat_subquery = (
-            PhotStat.select(user)
-            .where(PhotStat.num_det_global >= number_of_detections)
-            .subquery()
-        )
+        if exclude_forced_photometry:
+            photstat_subquery = (
+                PhotStat.select(user)
+                .where(PhotStat.num_det_no_forced_phot_global >= number_of_detections)
+                .subquery()
+            )
+        else:
+            photstat_subquery = (
+                PhotStat.select(user)
+                .where(PhotStat.num_det_global >= number_of_detections)
+                .subquery()
+            )
         obj_query = obj_query.join(
             photstat_subquery, Obj.id == photstat_subquery.c.obj_id
         )
@@ -2530,6 +2558,9 @@ class SourceHandler(BaseHandler):
         include_period_exists = self.get_query_argument("includePeriodExists", False)
         include_labellers = self.get_query_argument("includeLabellers", False)
         include_hosts = self.get_query_argument("includeHosts", False)
+        exclude_forced_photometry = self.get_query_argument(
+            "excludeForcedPhotometry", False
+        )
         remove_nested = self.get_query_argument("removeNested", False)
         include_detection_stats = self.get_query_argument(
             "includeDetectionStats", False
@@ -2731,6 +2762,7 @@ class SourceHandler(BaseHandler):
                     include_detection_stats=include_detection_stats,
                     include_labellers=include_labellers,
                     include_hosts=include_hosts,
+                    exclude_forced_photometry=exclude_forced_photometry,
                     is_token_request=is_token_request,
                     include_requested=include_requested,
                     requested_only=requested_only,

@@ -44,6 +44,7 @@ class PhotStat(Base):
         self.num_obs_global = 0
         self.num_obs_per_filter = {}
         self.num_det_global = 0
+        self.num_det_no_forced_phot_global = 0
         self.num_det_per_filter = {}
         self.first_detected_mjd = None
         self.first_detected_mag = None
@@ -128,6 +129,15 @@ class PhotStat(Base):
         default=0,
         index=True,
         doc='Number of detections (measurements above threshold) '
+        'of this object, in all filters combined. ',
+    )
+
+    num_det_no_forced_phot_global = sa.Column(
+        sa.Integer,
+        nullable=False,
+        default=0,
+        index=True,
+        doc='Number of detections (measurements above threshold) but ignoring forced photometry '
         'of this object, in all filters combined. ',
     )
 
@@ -602,6 +612,9 @@ class PhotStat(Base):
 
             # update the number of detections
             self.num_det_global += 1
+            if origin not in ['fp', 'forced photometry', 'forcedphot']:
+                self.num_det_no_forced_phot_global += 1
+
             if filt in self.num_det_per_filter:
                 self.num_det_per_filter[filt] += 1
             else:
@@ -662,7 +675,7 @@ class PhotStat(Base):
         mjds = []
         mags = []
         dets = []
-        forced_phot_dets = []
+        dets_no_forced_phot = []
         lims = []
         for phot in phot_list:
             if isinstance(phot, Photometry):
@@ -689,12 +702,12 @@ class PhotStat(Base):
             dets.append(is_detected)
 
             if (
-                phot.get('origin') in ['fp', 'forced phot', 'forced photometry']
+                not phot.get('origin') in ['fp', 'forced phot', 'forced photometry']
                 and is_detected
             ):
-                forced_phot_dets.append(True)
+                dets_no_forced_phot.append(True)
             else:
-                forced_phot_dets.append(False)
+                dets_no_forced_phot.append(False)
 
             if not is_detected:
                 if (
@@ -717,7 +730,7 @@ class PhotStat(Base):
         mags = np.array(mags)
         dets = np.array(dets)
         lims = np.array(lims)
-        forced_phot_dets = np.array(forced_phot_dets)
+        dets_no_forced_phot = np.array(dets_no_forced_phot)
 
         # make sure all non-detections have limiting magnitudes
         bad_idx = ~dets & np.isnan(lims)
@@ -726,7 +739,7 @@ class PhotStat(Base):
         mags = mags[~bad_idx]
         dets = dets[~bad_idx]
         lims = lims[~bad_idx]
-        forced_phot_dets = forced_phot_dets[~bad_idx]
+        dets_no_forced_phot = dets_no_forced_phot[~bad_idx]
 
         # verification over, add the new data
         # total number of points
@@ -762,30 +775,24 @@ class PhotStat(Base):
             self.last_detected_mag = good_mags[idx]
             self.last_detected_filter = good_filters[idx]
 
-            if not np.all(forced_phot_dets):
+            if np.any(dets_no_forced_phot):
+                good_mjds_no_fp = mjds[dets_no_forced_phot]
+                good_mags_no_fp = mags[dets_no_forced_phot]
+                good_filters_no_fp = filters[dets_no_forced_phot]
+
+                self.num_det_no_forced_phot_global = len(good_mjds_no_fp)
+
                 # index of first detection that is not forced photometry
-                idx = np.argmin(good_mjds[~forced_phot_dets])
-                self.first_detected_no_forced_phot_mjd = good_mjds[~forced_phot_dets][
-                    idx
-                ]
-                self.first_detected_no_forced_phot_mag = good_mags[~forced_phot_dets][
-                    idx
-                ]
-                self.first_detected_no_forced_phot_filter = good_filters[
-                    ~forced_phot_dets
-                ][idx]
+                idx = np.argmin(good_mjds_no_fp)
+                self.first_detected_no_forced_phot_mjd = good_mjds_no_fp[idx]
+                self.first_detected_no_forced_phot_mag = good_mags_no_fp[idx]
+                self.first_detected_no_forced_phot_filter = good_filters_no_fp[idx]
 
                 # index of last detection that is not forced photometry
-                idx = np.argmax(good_mjds[~forced_phot_dets])
-                self.last_detected_no_forced_phot_mjd = good_mjds[~forced_phot_dets][
-                    idx
-                ]
-                self.last_detected_no_forced_phot_mag = good_mags[~forced_phot_dets][
-                    idx
-                ]
-                self.last_detected_no_forced_phot_filter = good_filters[
-                    ~forced_phot_dets
-                ][idx]
+                idx = np.argmax(good_mjds_no_fp)
+                self.last_detected_no_forced_phot_mjd = good_mjds_no_fp[idx]
+                self.last_detected_no_forced_phot_mag = good_mags_no_fp[idx]
+                self.last_detected_no_forced_phot_filter = good_filters_no_fp[idx]
 
             # other statistics
             self.mean_mag_global = np.nanmean(good_mags)
