@@ -124,7 +124,7 @@ class GcnPublication(Base):
         doc="The group that this GcnPublication is associated with.",
     )
 
-    data = sa.Column(JSONB, doc="Event properties in JSON format.")
+    data = deferred(sa.Column(JSONB, nullable=False, doc="Publication data in JSON."))
 
     publication_name = sa.Column(sa.String, nullable=False)
 

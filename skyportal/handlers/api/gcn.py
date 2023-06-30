@@ -2825,7 +2825,7 @@ def add_gcn_summary(
 
         flow = Flow()
         flow.push(
-            user_id=user.id,
+            user_id='*',
             action_type="skyportal/REFRESH_GCN_EVENT",
             payload={"gcnEvent_dateobs": event.dateobs},
         )
@@ -3307,7 +3307,6 @@ def add_gcn_publication(
     publication_id,
     user_id,
     dateobs,
-    publication_name,
     group_id,
     start_date,
     end_date,
@@ -3439,8 +3438,8 @@ def add_gcn_publication(
 
         flow = Flow()
         flow.push(
-            user_id=user.id,
-            action_type="skyportal/REFRESH_GCN_EVENT",
+            user_id='*',
+            action_type="skyportal/REFRESH_GCNEVENT_PUBLICATIONS",
             payload={"gcnEvent_dateobs": event.dateobs},
         )
 
@@ -3667,7 +3666,6 @@ class GcnPublicationHandler(BaseHandler):
                         publication_id=publication_id,
                         user_id=user_id,
                         dateobs=dateobs,
-                        publication_name=publication_name,
                         group_id=group_id,
                         start_date=start_date,
                         end_date=end_date,
@@ -3686,7 +3684,7 @@ class GcnPublicationHandler(BaseHandler):
                 return self.error(f"Error generating publication: {e}")
 
     @auth_or_token
-    def get(self, dateobs, publication_id):
+    def get(self, dateobs, publication_id=None):
         """
         ---
         description: Retrieve a GCN publication
@@ -3714,7 +3712,24 @@ class GcnPublicationHandler(BaseHandler):
                 schema: Error
         """
         if publication_id is None:
-            return self.error("Publication ID is required")
+            with self.Session() as session:
+                stmt = GcnPublication.select(session.user_or_token, mode="read").where(
+                    GcnPublication.dateobs == dateobs
+                )
+                publications = session.scalars(stmt).all()
+                publications = sorted(
+                    (
+                        {
+                            **p.to_dict(),
+                            "sent_by": p.sent_by.to_dict(),
+                            "group": p.group.to_dict(),
+                        }
+                        for p in publications
+                    ),
+                    key=lambda x: x["created_at"],
+                    reverse=True,
+                )
+                return self.success(data=publications)
 
         with self.Session() as session:
             stmt = GcnPublication.select(session.user_or_token, mode="read").where(
@@ -3722,6 +3737,7 @@ class GcnPublicationHandler(BaseHandler):
                 GcnPublication.dateobs == dateobs,
             )
             publication = session.scalars(stmt).first()
+            publication.data  # get the data column (deferred)
             if publication is None:
                 return self.error("Publication not found", status=404)
 
@@ -3778,6 +3794,8 @@ class GcnPublicationHandler(BaseHandler):
             if publication is None:
                 return self.error("Publication not found", status=404)
 
+            publication_id = publication.id
+
             if data["data"] != {}:
                 publication.data = to_json(data["data"])
             else:
@@ -3785,9 +3803,9 @@ class GcnPublicationHandler(BaseHandler):
 
             session.commit()
 
-            self.push(
-                action="skyportal/REFRESH_GCN_EVENT",
-                payload={"gcnEvent_dateobs": dateobs},
+            self.push_all(
+                action="skyportal/REFRESH_GCNEVENT_PUBLICATION",
+                payload={"publication_id": publication_id},
             )
 
             return self.success(data=publication)
@@ -3827,10 +3845,8 @@ class GcnPublicationHandler(BaseHandler):
             if publication is None:
                 return self.error("Publication not found", status=404)
 
-            if (
-                publication.text.strip().lower() == "pending"
-                and datetime.datetime.now()
-                < (publication.created_at + datetime.timedelta(hours=1))
+            if len(publication.data.keys()) == 0 and datetime.datetime.now() < (
+                publication.created_at + datetime.timedelta(hours=1)
             ):
                 return self.error(
                     "Cannot delete a recently created publication (less than 1 hour) that is still pending"

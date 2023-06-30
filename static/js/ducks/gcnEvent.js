@@ -61,6 +61,12 @@ const DELETE_GCNEVENT_SUMMARY = "skyportal/DELETE_GCNEVENT_SUMMARY";
 
 const POST_GCNEVENT_PUBLICATION = "skyportal/POST_GCNEVENT_PUBLICATION";
 const FETCH_GCNEVENT_PUBLICATION = "skyportal/FETCH_GCNEVENT_PUBLICATION";
+const FETCH_GCNEVENT_PUBLICATION_OK = "skyportal/FETCH_GCNEVENT_PUBLICATION_OK";
+const FETCH_GCNEVENT_PUBLICATIONS = "skyportal/FETCH_GCNEVENT_PUBLICATIONS";
+const FETCH_GCNEVENT_PUBLICATIONS_OK =
+  "skyportal/FETCH_GCNEVENT_PUBLICATIONS_OK";
+const REFRESH_GCNEVENT_PUBLICATION = "skyportal/REFRESH_GCNEVENT_PUBLICATION";
+const REFRESH_GCNEVENT_PUBLICATIONS = "skyportal/REFRESH_GCNEVENT_PUBLICATIONS";
 const DELETE_GCNEVENT_PUBLICATION = "skyportal/DELETE_GCNEVENT_PUBLICATION";
 const PATCH_GCNEVENT_PUBLICATION = "skyportal/PATCH_GCNEVENT_PUBLICATION";
 
@@ -303,6 +309,13 @@ export function fetchGcnEventPublication({ dateobs, publicationID }) {
   );
 }
 
+export function fetchGcnEventPublications(dateobs) {
+  return API.GET(
+    `/api/gcn_event/${dateobs}/publication`,
+    FETCH_GCNEVENT_PUBLICATIONS
+  );
+}
+
 export function deleteGcnEventPublication({ dateobs, publicationID }) {
   return API.DELETE(
     `/api/gcn_event/${dateobs}/publication/${publicationID}`,
@@ -310,7 +323,7 @@ export function deleteGcnEventPublication({ dateobs, publicationID }) {
   );
 }
 
-export function patchGcnEventPublication(dateobs, publicationID, formData) {
+export function patchGcnEventPublication({ dateobs, publicationID, formData }) {
   return API.PATCH(
     `/api/gcn_event/${dateobs}/publication/${publicationID}`,
     PATCH_GCNEVENT_PUBLICATION,
@@ -384,6 +397,9 @@ export function fetchGcnEventCatalogQueries({ gcnID }) {
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { gcnEvent } = getState();
+  const loaded_gcnevent_key = gcnEvent?.dateobs;
+  const loaded_publication_key = gcnEvent?.publication?.id;
+
   if (actionType === FETCH_GCNEVENT) {
     dispatch(fetchGcnEvent(gcnEvent.dateobs)).then((response) => {
       if (response.status === "success") {
@@ -392,8 +408,6 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     });
   }
   if (actionType === REFRESH_GCN_EVENT) {
-    const loaded_gcnevent_key = gcnEvent?.dateobs;
-
     if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
       dispatch(fetchGcnEvent(gcnEvent.dateobs)).then((response) => {
         if (response.status === "success") {
@@ -403,15 +417,28 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     }
   }
   if (actionType === REFRESH_GCN_TRIGGERED) {
-    const loaded_gcnevent_key = gcnEvent?.dateobs;
     if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
       dispatch(fetchGcnTrigger({ dateobs: gcnEvent.dateobs }));
     }
   }
   if (actionType === REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS) {
-    const loaded_gcnevent_key = gcnEvent?.dateobs;
     if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
       dispatch(fetchObservationPlanRequests(gcnEvent?.id));
+    }
+  }
+  if (actionType === REFRESH_GCNEVENT_PUBLICATION) {
+    if (loaded_publication_key === payload?.publication_id) {
+      dispatch(
+        fetchGcnEventPublication({
+          dateobs: loaded_gcnevent_key,
+          publicationID: loaded_publication_key,
+        })
+      );
+    }
+  }
+  if (actionType === REFRESH_GCNEVENT_PUBLICATIONS) {
+    if (loaded_gcnevent_key === payload?.gcnEvent_dateobs) {
+      dispatch(fetchGcnEventPublications(loaded_gcnevent_key));
     }
   }
 });
@@ -485,6 +512,18 @@ const reducer = (state = null, action) => {
       return {
         ...state,
         observation_plan: action.data,
+      };
+    }
+    case FETCH_GCNEVENT_PUBLICATION_OK: {
+      return {
+        ...state,
+        publication: action.data,
+      };
+    }
+    case FETCH_GCNEVENT_PUBLICATIONS_OK: {
+      return {
+        ...state,
+        publications: action.data,
       };
     }
     default:
