@@ -108,7 +108,7 @@
     "versor": "0.1.2"
   },
   "devDependencies": {
-    "@babel/core": "7.21.4",
+    "@babel/core": "7.22.5",
     "@babel/eslint-parser": "7.18.9",
     "@babel/plugin-proposal-class-properties": "7.18.6",
     "@babel/plugin-proposal-export-namespace-from": "7.18.9",
