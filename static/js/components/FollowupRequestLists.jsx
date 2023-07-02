@@ -184,7 +184,8 @@ const FollowupRequestLists = ({
   const getDataTableColumns = (keys, instrument_id) => {
     const columns = [
       { name: "requester.username", label: "Requester" },
-      { name: "allocation.group.name", label: "Allocation" },
+      { name: "allocation.group.name", label: "Group" },
+      { name: "allocation.pi", label: "Allocation PI" },
     ];
 
     if (!(instrument_id in instrumentFormParams)) {
