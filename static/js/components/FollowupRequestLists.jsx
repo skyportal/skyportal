@@ -185,7 +185,7 @@ const FollowupRequestLists = ({
     const columns = [
       { name: "requester.username", label: "Requester" },
       { name: "allocation.group.name", label: "Group" },
-      { name: "allocation.pi", label: "Allocation PI" },
+      { name: "allocation.pi", label: "PI" },
     ];
 
     if (!(instrument_id in instrumentFormParams)) {
