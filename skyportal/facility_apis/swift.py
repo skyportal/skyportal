@@ -619,6 +619,7 @@ class UVOTXRTAPI(FollowUpAPI):
                                 "title": "Exposure Counts",
                                 "type": "number",
                                 "default": 1,
+                                "minimum": 1,
                             },
                             "monitoring_freq": {
                                 "title": "Monitoring Frequency [day]",
