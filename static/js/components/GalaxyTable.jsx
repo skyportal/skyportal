@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import {
   createTheme,
@@ -6,9 +7,14 @@ import {
   StyledEngineProvider,
   useTheme,
 } from "@mui/material/styles";
+import InfoIcon from "@mui/icons-material/Info";
 import CircularProgress from "@mui/material/CircularProgress";
-
 import MUIDataTable from "mui-datatables";
+
+import GalaxyTableFilterForm from "./GalaxyTableFilterForm";
+import { filterOutEmptyValues } from "../API";
+
+import * as galaxiesActions from "../ducks/galaxies";
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
@@ -51,8 +57,11 @@ const GalaxyTable = ({
   showTitle = false,
 }) => {
   const theme = useTheme();
+  const dispatch = useDispatch();
 
-  if (!galaxies || galaxies.length === 0) {
+  const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
+
+  if (!galaxies) {
     return <p>No galaxies available...</p>;
   }
 
@@ -120,6 +129,55 @@ const GalaxyTable = ({
     const galaxy = galaxies[dataIndex];
     return galaxy.mag_nuv ? galaxy.mag_nuv.toFixed(2) : "";
   };
+
+  const handleFilterSubmit = async (formData) => {
+    // Remove empty position
+    if (
+      formData?.position &&
+      !formData?.position?.ra &&
+      !formData?.position?.dec &&
+      !formData?.position?.radius
+    ) {
+      delete formData.position;
+    }
+
+    const data = filterOutEmptyValues(formData);
+    // Expand cone search params
+    if ("position" in data) {
+      data.ra = data.position.ra;
+      data.dec = data.position.dec;
+      data.radius = data.position.radius;
+      delete data.position;
+    }
+
+    await dispatch(galaxiesActions.fetchGalaxies(data));
+    setFilterFormSubmitted(true);
+  };
+
+  const handleSearchChange = (searchText) => {
+    const params = {
+      pageNumber: 1,
+    };
+    if (searchText?.length > 0) {
+      params.galaxyName = searchText;
+    }
+    handleFilterSubmit(params);
+  };
+
+  const handleFilterReset = () => {
+    handleFilterSubmit({});
+  };
+
+  const customFilterDisplay = () => (
+    <>
+      {filterFormSubmitted && (
+        <div>
+          <InfoIcon /> &nbsp; Filters submitted to server!
+        </div>
+      )}
+      <GalaxyTableFilterForm handleFilterSubmit={handleFilterSubmit} />
+    </>
+  );
 
   const columns = [
     {
@@ -264,6 +322,7 @@ const GalaxyTable = ({
 
   const options = {
     search: true,
+    onSearchChange: handleSearchChange,
     selectableRows: "none",
     elevation: 0,
     page: pageNumber - 1,
@@ -273,6 +332,9 @@ const GalaxyTable = ({
     serverSide,
     pagination: true,
     count: totalMatches,
+    filter: true,
+    onFilterChange: handleFilterReset,
+    customFilterDialogFooter: customFilterDisplay,
   };
   if (typeof handleTableChange === "function") {
     options.onTableChange = handleTableChange;

@@ -5,6 +5,7 @@ from io import StringIO
 
 import astropy.units as u
 import arrow
+import conesearch_alchemy as ca
 import healpix_alchemy as ha
 import healpy as hp
 import numpy as np
@@ -36,6 +37,10 @@ MAX_GALAXIES = 10000
 def get_galaxies(
     session,
     catalog_name=None,
+    galaxy_name=None,
+    ra=None,
+    dec=None,
+    radius=None,
     min_redshift=None,
     max_redshift=None,
     min_distance=None,
@@ -49,6 +54,7 @@ def get_galaxies(
     num_per_page=MAX_GALAXIES,
     return_probability=False,
 ):
+
     if catalog_names_only:
         stmt = Galaxy.select(
             session.user_or_token, columns=[Galaxy.catalog_name]
@@ -202,6 +208,28 @@ def get_galaxies(
 
     if catalog_name is not None:
         query = query.where(Galaxy.catalog_name == catalog_name)
+
+    if galaxy_name is not None:
+        query = query.where(
+            func.lower(Galaxy.name).contains(func.lower(galaxy_name.strip()))
+        )
+
+    if any([ra, dec, radius]):
+        if not all([ra, dec, radius]):
+            raise ValueError(
+                "If any of 'ra', 'dec' or 'radius' are "
+                "provided, all three are required."
+            )
+        try:
+            ra = float(ra)
+            dec = float(dec)
+            radius = float(radius)
+        except ValueError:
+            raise ValueError(
+                "Invalid values for ra, dec or radius - could not convert to float"
+            )
+        other = ca.Point(ra=ra, dec=dec)
+        query = query.where(Galaxy.within(other, radius))
 
     if min_redshift is not None:
         query = query.where(Galaxy.redshift >= min_redshift)
@@ -371,6 +399,30 @@ class GalaxyCatalogHandler(BaseHandler):
                 type: string
               description: Filter by catalog name (exact match)
             - in: query
+              name: ra
+              nullable: true
+              schema:
+                type: number
+              description: RA for spatial filtering (in decimal degrees)
+            - in: query
+              name: dec
+              nullable: true
+              schema:
+                type: number
+              description: Declination for spatial filtering (in decimal degrees)
+            - in: query
+              name: radius
+              nullable: true
+              schema:
+                type: number
+              description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
+            - in: query
+              name: galaxyName
+              nullable: true
+              schema:
+                type: string
+              description: Portion of name to filter on
+            - in: query
               name: minDistance
               nullable: true
               schema:
@@ -466,6 +518,12 @@ class GalaxyCatalogHandler(BaseHandler):
         """
 
         catalog_name = self.get_query_argument("catalog_name", None)
+        ra = self.get_query_argument('ra', None)
+        dec = self.get_query_argument('dec', None)
+        radius = self.get_query_argument('radius', None)
+        galaxy_name = self.get_query_argument(
+            'galaxyName', None
+        )  # Partial name to match
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
@@ -493,6 +551,10 @@ class GalaxyCatalogHandler(BaseHandler):
                 data = get_galaxies(
                     session,
                     catalog_name=catalog_name,
+                    galaxy_name=galaxy_name,
+                    ra=ra,
+                    dec=dec,
+                    radius=radius,
                     min_redshift=min_redshift,
                     max_redshift=max_redshift,
                     min_distance=min_distance,

@@ -214,7 +214,7 @@ const GcnEvents = () => {
   };
 
   const handleFilterSubmit = async (formData) => {
-    const data = filterOutEmptyValues(formData);
+    const data = filterOutEmptyValues(formData, false);
     if ("property" in data) {
       data.propertiesFilter = `${data.property}: ${data.propertyComparatorValue}: ${data.propertyComparator}`;
     }
