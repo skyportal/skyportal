@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import Grid from "@mui/material/Grid";
 
 import Button from "./Button";
 import CatalogQueryForm from "./CatalogQueryForm";
@@ -46,15 +47,18 @@ const AddCatalogQueryPage = () => {
         open={dialogOpen}
         onClose={closeDialog}
         style={{ position: "fixed" }}
+        maxWidth="xlg"
       >
         <DialogTitle>Catalog Query</DialogTitle>
         <DialogContent>
-          <div>
-            <CatalogQueryForm gcnevent={gcnEvent} />
-            {catalogQueryList?.length > 0 && (
-              <CatalogQueryLists catalog_queries={catalogQueryList} />
-            )}
-          </div>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={4}>
+              <CatalogQueryForm gcnevent={gcnEvent} />
+            </Grid>
+            <Grid item xs={12} md={8}>
+              <CatalogQueryLists catalog_queries={catalogQueryList || []} />
+            </Grid>
+          </Grid>
         </DialogContent>
       </Dialog>
     </>

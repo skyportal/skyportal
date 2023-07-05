@@ -13,6 +13,7 @@ import tempfile
 import time
 from tornado.ioloop import IOLoop
 
+from baselayer.app.flow import Flow
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
@@ -41,6 +42,7 @@ from ...models import (
     PhotometricSeries,
     Telescope,
     User,
+    UserNotification,
 )
 from ...models.schema import CatalogQueryPost
 from ...utils.catalog import get_conesearch_centers, query_kowalski, query_fink
@@ -116,6 +118,16 @@ class CatalogQueryHandler(BaseHandler):
             )
 
             IOLoop.current().run_in_executor(None, fetch_tr)
+
+            try:
+                self.push_all(
+                    action='skyportal/REFRESH_GCNEVENT_CATALOG_QUERIES',
+                    payload={
+                        'gcnEvent_dateobs': data['payload']['localizationDateobs']
+                    },
+                )
+            except Exception:
+                pass
 
             return self.success()
 
@@ -194,13 +206,20 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                 max_days=dt,
                 within_days=dt,
             )
+
             if sources is None:
                 catalog_query.status = 'failed'
                 session.commit()
                 return
 
+            if len(sources) == 0:
+                catalog_query.status = 'no sources found'
+                session.commit()
+                return
+
             catalog_query.status = f'found {len(sources)} sources, posting...'
             session.commit()
+
             obj_ids = []
             log(f"Found {len(sources)} sources, posting...")
             for source in sources:
@@ -323,6 +342,36 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
         else:
             catalog_query.status = f'completed: Added {",".join(obj_ids)}'
         session.commit()
+
+        flow = Flow()
+
+        # frontend notification
+        try:
+            user_notification = UserNotification(
+                user_id=user_id,
+                text=f"Catalog query on *{payload['localizationDateobs']}*: {catalog_query.status}",
+                notification_type="gcnevent_catalog_query",
+                url=f"/gcn_events/{payload['localizationDateobs']}",
+            )
+            session.add(user_notification)
+            session.commit()
+            flow.push(
+                user_id=user_id,
+                action_type="skyportal/FETCH_NOTIFICATIONS",
+                payload={},
+            )
+        except Exception as e:
+            log(f"Could not add notification: {e}")
+
+        # frontend refresh
+        try:
+            flow.push(
+                user_id='*',
+                action_type='skyportal/REFRESH_GCNEVENT_CATALOG_QUERIES',
+                payload={'gcnEvent_dateobs': payload['localizationDateobs']},
+            )
+        except Exception:
+            pass
 
     except Exception as e:
         return log(f"Unable to commit transient catalog: {e}")
