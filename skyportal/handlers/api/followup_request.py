@@ -586,6 +586,8 @@ class FollowupRequestHandler(BaseHandler):
                     joinedload(FollowupRequest.requester),
                     joinedload(FollowupRequest.obj),
                     joinedload(FollowupRequest.watchers),
+                    joinedload(FollowupRequest.transaction_requests),
+                    joinedload(FollowupRequest.transactions),
                 )
                 followup_request = session.scalars(followup_requests).first()
                 if followup_request is None:

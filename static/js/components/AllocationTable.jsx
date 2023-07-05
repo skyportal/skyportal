@@ -78,6 +78,7 @@ const AllocationTable = ({
   numPerPage,
   sortingCallback,
   hideTitle = false,
+  telescopeInfo = true,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -135,11 +136,7 @@ const AllocationTable = ({
 
     return (
       <div>
-        <Link
-          to={`/allocation/${allocation.id}`}
-          role="link"
-          className={classes.hover}
-        >
+        <Link to={`/allocation/${allocation.id}`} role="link">
           {instrument ? instrument.name : ""}
         </Link>
       </div>
@@ -157,11 +154,7 @@ const AllocationTable = ({
 
     return (
       <div>
-        <Link
-          to={`/allocation/${allocation.id}`}
-          role="link"
-          className={classes.hover}
-        >
+        <Link to={`/allocation/${allocation.id}`} role="link">
           {telescope ? telescope.nickname : ""}
         </Link>
       </div>
@@ -308,7 +301,9 @@ const AllocationTable = ({
         customBodyRenderLite: renderInstrumentName,
       },
     },
-    {
+  ];
+  if (telescopeInfo === true) {
+    columns.push({
       name: "telescope_name",
       label: "Telescope Name",
       options: {
@@ -317,75 +312,75 @@ const AllocationTable = ({
         sortThirdClickReset: true,
         customBodyRenderLite: renderTelescopeName,
       },
+    });
+  }
+  columns.push({
+    name: "start_date",
+    label: "Start Date",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderStartDate,
     },
-    {
-      name: "start_date",
-      label: "Start Date",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderStartDate,
-      },
+  });
+  columns.push({
+    name: "end_date",
+    label: "End Date",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderEndDate,
     },
-    {
-      name: "end_date",
-      label: "End Date",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderEndDate,
-      },
+  });
+  columns.push({
+    name: "PI",
+    label: "PI",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderPI,
     },
-    {
-      name: "PI",
-      label: "PI",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderPI,
-      },
+  });
+  columns.push({
+    name: "Group",
+    label: "Group",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderGroup,
     },
-    {
-      name: "Group",
-      label: "Group",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderGroup,
-      },
+  });
+  columns.push({
+    name: "default_share_group",
+    label: "Default Share Groups",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderShareGroups,
     },
-    {
-      name: "default_share_group",
-      label: "Default Share Groups",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderShareGroups,
-      },
+  });
+  columns.push({
+    name: "admins",
+    label: "Admins",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderAllocationUsers,
     },
-    {
-      name: "admins",
-      label: "Admins",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderAllocationUsers,
-      },
+  });
+  columns.push({
+    name: "delete",
+    label: " ",
+    options: {
+      customBodyRenderLite: renderDelete,
     },
-    {
-      name: "delete",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderDelete,
-      },
-    },
-  ];
+  });
 
   const options = {
     search: false,
@@ -437,6 +432,7 @@ AllocationTable.propTypes = {
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
   hideTitle: PropTypes.bool,
+  telescopeInfo: PropTypes.bool,
   filter: PropTypes.func.isRequired,
 };
 
@@ -445,6 +441,7 @@ AllocationTable.defaultProps = {
   numPerPage: 10,
   sortingCallback: null,
   hideTitle: false,
+  telescopeInfo: true,
 };
 
 export default AllocationTable;
