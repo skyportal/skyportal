@@ -135,7 +135,7 @@ class PhotStat(Base):
     num_det_no_forced_phot_global = sa.Column(
         sa.Integer,
         nullable=False,
-        default=0,
+        server_default='0',
         index=True,
         doc='Number of detections (measurements above threshold) but ignoring forced photometry '
         'of this object, in all filters combined. ',
