@@ -177,7 +177,16 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
   const { handleSubmit, register, control, reset } = useForm();
 
   const handleClickReset = () => {
-    reset();
+    reset({
+      startDate: "",
+      endDate: "",
+    });
+    setSelectedGcnTags([]);
+    setRejectedGcnTags([]);
+    setSelectedGcnProperties([]);
+    setSelectedLocalizationTags([]);
+    setRejectedLocalizationTags([]);
+    setSelectedLocalizationProperties([]);
   };
 
   const handleFilterPreSubmit = (formData) => {
