@@ -61,7 +61,7 @@ const GalaxyTable = ({
 
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
 
-  if (!galaxies || galaxies.length === 0) {
+  if (!galaxies) {
     return <p>No galaxies available...</p>;
   }
 
@@ -133,9 +133,10 @@ const GalaxyTable = ({
   const handleFilterSubmit = async (formData) => {
     // Remove empty position
     if (
-      !formData.position.ra &&
-      !formData.position.dec &&
-      !formData.position.radius
+      formData?.position &&
+      !formData?.position?.ra &&
+      !formData?.position?.dec &&
+      !formData?.position?.radius
     ) {
       delete formData.position;
     }
@@ -153,14 +154,30 @@ const GalaxyTable = ({
     setFilterFormSubmitted(true);
   };
 
-  const customFilterDisplay = () =>
-    filterFormSubmitted ? (
-      <div>
-        <InfoIcon /> &nbsp; Filters submitted to server!
-      </div>
-    ) : (
+  const handleSearchChange = (searchText) => {
+    const params = {
+      pageNumber: 1,
+    };
+    if (searchText?.length > 0) {
+      params.galaxyName = searchText;
+    }
+    handleFilterSubmit(params);
+  };
+
+  const handleFilterReset = () => {
+    handleFilterSubmit({});
+  };
+
+  const customFilterDisplay = () => (
+    <>
+      {filterFormSubmitted && (
+        <div>
+          <InfoIcon /> &nbsp; Filters submitted to server!
+        </div>
+      )}
       <GalaxyTableFilterForm handleFilterSubmit={handleFilterSubmit} />
-    );
+    </>
+  );
 
   const columns = [
     {
@@ -305,6 +322,7 @@ const GalaxyTable = ({
 
   const options = {
     search: true,
+    onSearchChange: handleSearchChange,
     selectableRows: "none",
     elevation: 0,
     page: pageNumber - 1,
@@ -315,6 +333,7 @@ const GalaxyTable = ({
     pagination: true,
     count: totalMatches,
     filter: true,
+    onFilterChange: handleFilterReset,
     customFilterDialogFooter: customFilterDisplay,
   };
   if (typeof handleTableChange === "function") {

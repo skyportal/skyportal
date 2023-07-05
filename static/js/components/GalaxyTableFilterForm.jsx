@@ -112,7 +112,22 @@ const GalaxyTableFilterForm = ({ handleFilterSubmit }) => {
   const { handleSubmit, register, control, reset, getValues } = useForm();
 
   const handleClickReset = () => {
-    reset();
+    reset({
+      galaxyName: "",
+      position: {
+        ra: "",
+        dec: "",
+        radius: "",
+      },
+      minRedshift: "",
+      maxRedshift: "",
+      minDistance: "",
+      maxDistance: "",
+      localizationDateobs: "",
+      localizationName: "",
+      localizationid: "",
+      gcneventid: "",
+    });
   };
 
   const gcnEventsLookUp = {};
