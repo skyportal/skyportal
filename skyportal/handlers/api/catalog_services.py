@@ -190,14 +190,23 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
 
             log("Querying kowalski for sources")
             # Query kowalski
+            log(str(payload))
             sources = query_kowalski(
-                altdata['access_token'],
-                jd_trigger,
-                ra_center,
-                dec_center,
+                token=altdata['access_token'],
+                dateobs=localization.dateobs,
+                localization_name=localization.localization_name,
+                contour=payload['localizationCumprob'] * 100,
+                localization_file=localization.get_localization_path(),
                 max_days=dt,
                 within_days=dt,
             )
+            if sources is None:
+                catalog_query.status = 'failed'
+                session.commit()
+                return
+
+            catalog_query.status = f'found {len(sources)} sources, posting...'
+            session.commit()
             obj_ids = []
             log("Looping over sources")
             for source in sources:
