@@ -281,3 +281,5 @@ WeatherView.defaultProps = {
 };
 
 export default WeatherWidget;
+
+export { WeatherView };
