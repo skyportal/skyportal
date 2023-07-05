@@ -76,6 +76,7 @@ const InstrumentTable = ({
   numPerPage,
   sortingCallback,
   hideTitle = false,
+  telescopeInfo = true,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -290,7 +291,9 @@ const InstrumentTable = ({
         customBodyRenderLite: renderInstrumentName,
       },
     },
-    {
+  ];
+  if (telescopeInfo === true) {
+    columns.push({
       name: "telescope_name",
       label: "Telescope Name",
       options: {
@@ -299,8 +302,8 @@ const InstrumentTable = ({
         sortThirdClickReset: true,
         customBodyRenderLite: renderTelescopeName,
       },
-    },
-    {
+    });
+    columns.push({
       name: "Latitude",
       label: "Latitude",
       options: {
@@ -309,8 +312,8 @@ const InstrumentTable = ({
         sortThirdClickReset: true,
         customBodyRenderLite: renderTelescopeLat,
       },
-    },
-    {
+    });
+    columns.push({
       name: "Longitude",
       label: "Longitude",
       options: {
@@ -319,92 +322,93 @@ const InstrumentTable = ({
         sortThirdClickReset: true,
         customBodyRenderLite: renderTelescopeLon,
       },
+    });
+  }
+
+  columns.push({
+    name: "filters",
+    label: "Filters",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderFilters,
     },
-    {
-      name: "filters",
-      label: "Filters",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderFilters,
-      },
+  });
+  columns.push({
+    name: "API_classname",
+    label: "API Classname",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderAPIClassname,
     },
-    {
-      name: "API_classname",
-      label: "API Classname",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderAPIClassname,
-      },
+  });
+  columns.push({
+    name: "API_classname_obsplan",
+    label: "API Observation Plan Classname",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderAPIClassnameObsPlan,
     },
-    {
-      name: "API_classname_obsplan",
-      label: "API Observation Plan Classname",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderAPIClassnameObsPlan,
-      },
+  });
+  columns.push({
+    name: "Band",
+    label: "Band",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderBand,
     },
-    {
-      name: "Band",
-      label: "Band",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderBand,
-      },
+  });
+  columns.push({
+    name: "Type",
+    label: "Type",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderType,
     },
-    {
-      name: "Type",
-      label: "Type",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderType,
-      },
+  });
+  columns.push({
+    name: "FOV Region?",
+    label: "FOV Region?",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderRegion,
     },
-    {
-      name: "FOV Region?",
-      label: "FOV Region?",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderRegion,
-      },
+  });
+  columns.push({
+    name: "Fields",
+    label: "Fields",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderFields,
     },
-    {
-      name: "Fields",
-      label: "Fields",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderFields,
-      },
+  });
+  columns.push({
+    name: "logs",
+    label: " ",
+    options: {
+      customBodyRenderLite: renderLogs,
     },
-    {
-      name: "logs",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderLogs,
-      },
+  });
+  columns.push({
+    name: "delete",
+    label: " ",
+    options: {
+      customBodyRenderLite: renderDelete,
     },
-    {
-      name: "delete",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderDelete,
-      },
-    },
-  ];
+  });
 
   const options = {
     search: true,
@@ -455,6 +459,7 @@ InstrumentTable.propTypes = {
   numPerPage: PropTypes.number,
   hideTitle: PropTypes.bool,
   filter: PropTypes.func.isRequired,
+  telescopeInfo: PropTypes.bool,
   deletePermission: PropTypes.bool.isRequired,
 };
 
@@ -463,6 +468,7 @@ InstrumentTable.defaultProps = {
   numPerPage: 10,
   sortingCallback: null,
   hideTitle: false,
+  telescopeInfo: true,
 };
 
 export default InstrumentTable;

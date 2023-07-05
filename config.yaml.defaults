@@ -126,6 +126,8 @@ app:
       component: AllocationSummary
     - path: "/instrument/:id"
       component: InstrumentSummary
+    - path: "/telescope/:id"
+      component: TelescopeSummary
     - path: "/observations"
       component: ObservationPage
     - path: "/galaxies"

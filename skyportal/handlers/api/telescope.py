@@ -167,7 +167,19 @@ class TelescopeHandler(BaseHandler):
                     return self.error(
                         f"Could not load telescope with ID {telescope_id}"
                     )
-                return self.success(data=t)
+                instruments = []
+                allocations = []
+                for instrument in t.instruments:
+                    instruments.append(instrument.to_dict())
+                    allocations.extend(
+                        [allocation.to_dict() for allocation in instrument.allocations]
+                    )
+                data = {
+                    **t.to_dict(),
+                    'instruments': instruments,
+                    'allocations': allocations,
+                }
+                return self.success(data=data)
 
             stmt = Telescope.select(session.user_or_token)
             if tel_name is not None:
