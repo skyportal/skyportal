@@ -105,14 +105,14 @@ def query_kowalski(
     """Query kowalski and apply the selection criteria
     token : str
         Kowalski token
-    jd_trigger : float
-        Time of the event (in JD)
-    ra_center : list of float
-        Right ascensions (in degrees) to use for cone search(es)
-    dec_center : list of float
-        Declinations (in degrees) to use for cone search(es)
-    radius : float
-        Radius (in arcminutes) for the cone search. Defaults to 60.
+    dateobs : float
+        Time of the event (in datetime format)
+    localization_name : str
+        Name of the localization region
+    localization_file : str
+        Path to the localization file, if needs to be uploaded to kowalski
+    contour : float
+        Contour level (credible region) of the localization region to use
     min_days : float
         Time in days after trigger for first detection. Defaults to 0.
     max_days : float
@@ -142,24 +142,27 @@ def query_kowalski(
     # Correct the minimum number of detections
     ndethist_min_corrected = int(ndethist_min - 1)
 
-    dateobs_str = dateobs.strftime('%Y%m%dT%H%M%S')
+    dateobs_str = dateobs.strftime('%Y-%m-%dT%H:%M:%S')
     exists = k.api(
-        'head',
+        'get',
         'api/skymap',
         data={
             'dateobs': dateobs_str,
             'localization_name': localization_name,
-            contour: contour,
+            'contours': [contour],
         },
     )
-    print(exists)
-    if exists['status'] != 'success':
-        # post the skymap
-        with open(localization_file, 'rb') as f:
-            skymap = f.read()
+    if exists['status'] not in ['success']:
+        ra, dec, radius = None, None, None
+        try:
+            ra, dec, radius = map(float, localization_name.split('_'))
+        except ValueError:
+            pass
+        if ra is not None and dec is not None and radius is not None:
             skymap_data = {
-                'localization_name': localization_name,
-                'content': base64.b64encode(skymap).decode('utf-8'),
+                'ra': ra,
+                'dec': dec,
+                'error': radius,
             }
             posted = k.api(
                 'put',
@@ -170,17 +173,33 @@ def query_kowalski(
                     'contours': [contour],
                 },
             )
-            print(posted)
-            if posted['status'] != 'success':
-                print('Failed to post skymap')
-                return
+            if posted['status'] not in ['success', 'already_exists']:
+                raise ValueError('Failed to post skymap to kowalski')
+        else:
+            with open(localization_file, 'rb') as f:
+                skymap = f.read()
+                skymap_data = {
+                    'localization_name': localization_name,
+                    'content': base64.b64encode(skymap).decode('utf-8'),
+                }
+                posted = k.api(
+                    'put',
+                    'api/skymap',
+                    data={
+                        'dateobs': dateobs_str,
+                        'skymap': skymap_data,
+                        'contours': [contour],
+                    },
+                )
+                if posted['status'] not in ['success', 'already_exists']:
+                    raise ValueError('Failed to post skymap to kowalski')
 
     # Correct the jd_trigger if the user specifies to query
     # also before the trigger
     if after_trigger is False:
         jd_trigger = 0
     else:
-        jd_trigger = dateobs
+        jd_trigger = Time(dateobs).jd
 
     q = {
         "query_type": "skymap",
@@ -233,12 +252,15 @@ def query_kowalski(
         },
     }
 
+    if after_trigger is True:
+        q['query']['filter']['candidate.jd'] = {
+            '$gt': jd_trigger,
+            '$lt': jd_trigger + within_days,
+        }
     # Perform the query
     r = k.query(query=q)
     if not r.get("default").get("status", "error") == "success":
         raise ValueError("Query failed")
-
-    print(r.get("default").get("data"))
 
     objectId_list = []
     with_neg_sub = []
@@ -246,7 +268,7 @@ def query_kowalski(
     out_of_time_window = []
     stellar_list = []
 
-    candidates = r.get("default", {}).get("data", {}).get('ZTF_alerts', [])
+    candidates = r.get("default", {}).get("data", {})
     for info in candidates:
         if info['objectId'] in old:
             continue

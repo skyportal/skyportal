@@ -163,11 +163,6 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             )
         ).first()
 
-        healpix = localization.flat_2d
-        ra_center, dec_center = get_conesearch_centers(
-            healpix, level=payload['localizationCumprob']
-        )
-
         start_date = Time(arrow.get(payload['startDate'].strip()).datetime)
         end_date = Time(arrow.get(payload['endDate'].strip()).datetime)
 
@@ -190,7 +185,6 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
 
             log("Querying kowalski for sources")
             # Query kowalski
-            log(str(payload))
             sources = query_kowalski(
                 token=altdata['access_token'],
                 dateobs=localization.dateobs,
@@ -208,7 +202,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             catalog_query.status = f'found {len(sources)} sources, posting...'
             session.commit()
             obj_ids = []
-            log("Looping over sources")
+            log(f"Found {len(sources)} sources, posting...")
             for source in sources:
                 log(f"Retrieving {source['id']}")
                 s = session.scalars(
@@ -238,6 +232,11 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             ).first()
             if instrument is None:
                 raise ValueError('Expected an Instrument named ZTF')
+
+            healpix = localization.flat_2d
+            ra_center, dec_center = get_conesearch_centers(
+                healpix, level=payload['localizationCumprob']
+            )
 
             log("Querying Fink for sources")
             sources = query_fink(
