@@ -805,6 +805,11 @@ const GcnSelectionForm = ({
         type: "boolean",
         title: "Do not display rejected sources",
       },
+      excludeForcedPhotometry: {
+        type: "boolean",
+        title: "Exclude forced photometry",
+        default: true,
+      },
       queryList: {
         type: "array",
         items: {
@@ -842,7 +847,8 @@ const GcnSelectionForm = ({
         maxDistance: 4,
       },
       {
-        localizationRejectSources: 12,
+        localizationRejectSources: 6,
+        excludeForcedPhotometry: 6,
       },
       {
         queryList: 6,
