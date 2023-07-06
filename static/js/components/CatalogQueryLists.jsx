@@ -1,10 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import Typography from "@mui/material/Typography";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
   createTheme,
   ThemeProvider,
@@ -13,21 +9,19 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Button from "./Button";
 
 const useStyles = makeStyles(() => ({
-  observationplanRequestTable: {
-    borderSpacing: "0.7em",
-  },
-  actionButtons: {
-    display: "flex",
-    flexFlow: "row wrap",
-    gap: "0.2rem",
-  },
-  accordion: {
-    width: "99%",
-  },
   container: {
-    margin: "1rem 0",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    maxWidth: "100%",
+    "& > *": {
+      maxWidth: "inherit",
+    },
   },
 }));
 
@@ -75,6 +69,60 @@ const getMuiTheme = (theme) =>
     },
   });
 
+const SourcesList = ({ sources }) => {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
+  const handleClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  // reorder the sources list alphabetically descending
+  sources.sort((a, b) => (a > b ? 1 : -1));
+
+  return (
+    <div>
+      <Button
+        size="small"
+        id="basic-button"
+        aria-controls={open ? "basic-menu" : undefined}
+        aria-haspopup="true"
+        aria-expanded={open ? "true" : undefined}
+        onClick={handleClick}
+      >
+        Added {sources.length} sources
+      </Button>
+      <Menu
+        id="basic-menu"
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        MenuListProps={{
+          "aria-labelledby": "basic-button",
+        }}
+      >
+        {sources.map((source) => (
+          <MenuItem key={source}>
+            <Link
+              to={`/source/${source}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {source}
+            </Link>
+          </MenuItem>
+        ))}
+      </Menu>
+    </div>
+  );
+};
+
+SourcesList.propTypes = {
+  sources: PropTypes.arrayOf(PropTypes.string).isRequired,
+};
+
 const CatalogQueryLists = ({ catalog_queries }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -84,12 +132,33 @@ const CatalogQueryLists = ({ catalog_queries }) => {
   }
 
   const getDataTableColumns = () => {
-    const columns = [{ name: "status", label: "Status" }];
+    const columns = [];
+
+    const renderStatus = (dataIndex) => {
+      let text = <div>{catalog_queries[dataIndex]?.status}</div>;
+      if (catalog_queries[dataIndex]?.status?.includes("completed: Added ")) {
+        let transients =
+          catalog_queries[dataIndex]?.status?.split("completed: Added ")[1];
+        // split by commas
+        transients = transients.split(",");
+        text = <SourcesList sources={transients} />;
+      }
+      return text;
+    };
 
     const renderPayload = (dataIndex) => {
       const analysis = catalog_queries[dataIndex];
       return <div>{JSON.stringify(analysis.payload)}</div>;
     };
+
+    columns.push({
+      name: "status",
+      label: "Status",
+      options: {
+        customBodyRenderLite: renderStatus,
+      },
+    });
+
     columns.push({
       name: "ntransients",
       label: "Payload",
@@ -115,26 +184,15 @@ const CatalogQueryLists = ({ catalog_queries }) => {
 
   return (
     <div className={classes.container}>
-      <Accordion className={classes.accordion} key="catalog_query_table_div">
-        <AccordionSummary
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls="catalog-query-requests"
-          data-testid="catalog-query-header"
-        >
-          <Typography variant="subtitle1">Catalog Query Requests</Typography>
-        </AccordionSummary>
-        <AccordionDetails data-testid="catalogQueryRequestsTable">
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                data={catalog_queries}
-                options={options}
-                columns={getDataTableColumns()}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-        </AccordionDetails>
-      </Accordion>
+      <StyledEngineProvider injectFirst>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            data={catalog_queries}
+            options={options}
+            columns={getDataTableColumns()}
+          />
+        </ThemeProvider>
+      </StyledEngineProvider>
     </div>
   );
 };
