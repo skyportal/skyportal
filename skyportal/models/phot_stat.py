@@ -721,16 +721,16 @@ class PhotStat(Base):
                     if fivesigma > 0:
                         lims.append(-2.5 * np.log10(fivesigma) + PHOT_ZP)
                     else:
-                        lims.append(None)
+                        lims.append(np.nan)
             else:
                 lims.append(np.nan)
 
-        filters = np.array(filters)
-        mjds = np.array(mjds)
-        mags = np.array(mags)
-        dets = np.array(dets)
-        lims = np.array(lims)
-        dets_no_forced_phot = np.array(dets_no_forced_phot)
+        filters = np.array(filters, dtype=str)
+        mjds = np.array(mjds, dtype=float)
+        mags = np.array(mags, dtype=float)
+        dets = np.array(dets, dtype=bool)
+        lims = np.array(lims, dtype=float)
+        dets_no_forced_phot = np.array(dets_no_forced_phot, dtype=bool)
 
         # make sure all non-detections have limiting magnitudes
         bad_idx = ~dets & np.isnan(lims)
