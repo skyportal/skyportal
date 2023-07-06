@@ -436,7 +436,7 @@ def query_fink(
             objectId = obj['i:objectId']
             ra_obj, dec_obj = obj['i:ra'], obj['i:dec']
             jdstarthist = obj['i:jdstarthist']
-            jdendhist = obj['i:jdendhist']
+            jdendhist = obj['i:jd']
             if (jdstarthist < time_min.jd) or (jdendhist > time_max.jd):
                 continue
             if objectId in sources:
