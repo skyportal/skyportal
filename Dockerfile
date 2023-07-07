@@ -15,6 +15,7 @@ RUN apt-get update && \
     libpq-dev supervisor \
     git nginx nodejs postgresql-client vim nano htop \
     libcurl4-gnutls-dev libgnutls28-dev && \
+    screen && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     useradd --create-home --shell /bin/bash skyportal
