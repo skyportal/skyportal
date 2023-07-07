@@ -1,12 +1,12 @@
-import numpy as np
-from astropy import units as u
-from astropy.coordinates import SkyCoord
-from astropy.time import Time
-import healpy as hp
-import pandas as pd
-from penquins import Kowalski
-import requests
+import base64
 import urllib
+
+import healpy as hp
+import numpy as np
+import pandas as pd
+import requests
+from astropy.time import Time
+from penquins import Kowalski
 
 from baselayer.app.env import load_env
 from skyportal.facility_apis.ztf import inv_bands
@@ -91,13 +91,12 @@ def select_sources_in_level(sources, skymap, level=0.95):
 
 def query_kowalski(
     token,
-    jd_trigger,
-    ra_center,
-    dec_center,
-    radius=60.0,
+    dateobs,
+    localization_name,
+    localization_file,
+    contour,
     min_days=0.0,
     max_days=7.0,
-    slices=10,
     ndethist_min=2,
     within_days=7.0,
     after_trigger=True,
@@ -106,20 +105,18 @@ def query_kowalski(
     """Query kowalski and apply the selection criteria
     token : str
         Kowalski token
-    jd_trigger : float
-        Time of the event (in JD)
-    ra_center : list of float
-        Right ascensions (in degrees) to use for cone search(es)
-    dec_center : list of float
-        Declinations (in degrees) to use for cone search(es)
-    radius : float
-        Radius (in arcminutes) for the cone search. Defaults to 60.
+    dateobs : float
+        Time of the event (in datetime format)
+    localization_name : str
+        Name of the localization region
+    localization_file : str
+        Path to the localization file, if needs to be uploaded to kowalski
+    contour : float
+        Contour level (credible region) of the localization region to use
     min_days : float
         Time in days after trigger for first detection. Defaults to 0.
     max_days : float
         Time in days after trigger for final detection. Defaults to 7.
-    slices : int
-        Number of slices for parallelizing the cone search. Defaults to 10.
     ndethist_min : int
         Minimum number of detections for an object. Defaults to 2.
     within_days : float
@@ -141,199 +138,208 @@ def query_kowalski(
     )
     # Initialize a set for the results
     set_objectId_all = set()
-    slices = slices + 1
 
-    for slice_lim, i in zip(
-        np.linspace(0, len(ra_center), slices)[:-1],
-        np.arange(len(np.linspace(0, len(ra_center), slices)[:-1])),
-    ):
+    # Correct the minimum number of detections
+    ndethist_min_corrected = int(ndethist_min - 1)
+
+    dateobs_str = dateobs.strftime('%Y-%m-%dT%H:%M:%S')
+    exists = k.api(
+        'get',
+        'api/skymap',
+        data={
+            'dateobs': dateobs_str,
+            'localization_name': localization_name,
+            'contours': [contour],
+        },
+    )
+    if exists['status'] not in ['success']:
+        ra, dec, radius = None, None, None
         try:
-            ra_center_slice = ra_center[
-                int(slice_lim) : int(np.linspace(0, len(ra_center), slices)[:-1][i + 1])
-            ]
-            dec_center_slice = dec_center[
-                int(slice_lim) : int(
-                    np.linspace(0, len(dec_center), slices)[:-1][i + 1]
+            ra, dec, radius = map(float, localization_name.split('_'))
+        except ValueError:
+            pass
+        if ra is not None and dec is not None and radius is not None:
+            skymap_data = {
+                'ra': ra,
+                'dec': dec,
+                'error': radius,
+            }
+            posted = k.api(
+                'put',
+                'api/skymap',
+                data={
+                    'dateobs': dateobs_str,
+                    'skymap': skymap_data,
+                    'contours': [contour],
+                },
+            )
+            if posted['status'] not in ['success', 'already_exists']:
+                raise ValueError('Failed to post skymap to kowalski')
+        else:
+            with open(localization_file, 'rb') as f:
+                skymap = f.read()
+                skymap_data = {
+                    'localization_name': localization_name,
+                    'content': base64.b64encode(skymap).decode('utf-8'),
+                }
+                posted = k.api(
+                    'put',
+                    'api/skymap',
+                    data={
+                        'dateobs': dateobs_str,
+                        'skymap': skymap_data,
+                        'contours': [contour],
+                    },
                 )
-            ]
-        except IndexError:
-            ra_center_slice = ra_center[int(slice_lim) :]
-            dec_center_slice = dec_center[int(slice_lim) :]
-        coords_arr = []
-        for ra, dec in zip(ra_center_slice, dec_center_slice):
-            try:
-                # Remove points too far south for ZTF.
-                # Say, keep only Dec>-40 deg to be conservative
-                if dec < -40.0:
-                    continue
-                coords = SkyCoord(ra=float(ra) * u.deg, dec=float(dec) * u.deg)
-                coords_arr.append((coords.ra.deg, coords.dec.deg))
-            except ValueError:
-                print("Problems with the galaxy coordinates?")
-                continue
+                if posted['status'] not in ['success', 'already_exists']:
+                    raise ValueError('Failed to post skymap to kowalski')
 
-        # Correct the minimum number of detections
-        ndethist_min_corrected = int(ndethist_min - 1)
+    # Correct the jd_trigger if the user specifies to query
+    # also before the trigger
+    if after_trigger is False:
+        jd_trigger = 0
+    else:
+        jd_trigger = Time(dateobs).jd
 
-        # Correct the jd_trigger if the user specifies to query
-        # also before the trigger
-        if after_trigger is False:
-            jd_trigger = 0
-        q = {
-            "query_type": "cone_search",
-            "query": {
-                "object_coordinates": {
-                    "radec": f"{coords_arr}",
-                    "cone_search_radius": f"{radius}",
-                    "cone_search_unit": "arcmin",
-                },
-                "catalogs": {
-                    "ZTF_alerts": {
-                        "filter": {
-                            "candidate.jd": {'$gt': jd_trigger},
-                            "candidate.drb": {'$gt': 0.8},
-                            "candidate.ndethist": {'$gt': ndethist_min_corrected},
-                            "candidate.jdstarthist": {
-                                '$gt': jd_trigger,
-                                '$lt': jd_trigger + within_days,
-                            },
-                        },
-                        "projection": {
-                            "objectId": 1,
-                            "candidate.rcid": 1,
-                            "candidate.ra": 1,
-                            "candidate.dec": 1,
-                            "candidate.jd": 1,
-                            "candidate.ndethist": 1,
-                            "candidate.jdstarthist": 1,
-                            "candidate.jdendhist": 1,
-                            "candidate.jdendhist": 1,
-                            "candidate.magpsf": 1,
-                            "candidate.sigmapsf": 1,
-                            "candidate.fid": 1,
-                            "candidate.programid": 1,
-                            "candidate.isdiffpos": 1,
-                            "candidate.ndethist": 1,
-                            "candidate.ssdistnr": 1,
-                            "candidate.rb": 1,
-                            "candidate.drb": 1,
-                            "candidate.distpsnr1": 1,
-                            "candidate.sgscore1": 1,
-                            "candidate.srmag1": 1,
-                            "candidate.distpsnr2": 1,
-                            "candidate.sgscore2": 1,
-                            "candidate.srmag2": 1,
-                            "candidate.distpsnr3": 1,
-                            "candidate.sgscore3": 1,
-                            "candidate.srmag3": 1,
-                        },
-                    }
-                },
-                "kwargs": {"hint": "gw01"},
+    q = {
+        "query_type": "skymap",
+        "query": {
+            "skymap": {
+                "localization_name": localization_name,
+                "dateobs": dateobs_str,
+                "contour": contour,
             },
+            "catalog": "ZTF_alerts",
+            "filter": {
+                "candidate.jd": {'$gt': jd_trigger},
+                "candidate.drb": {'$gt': 0.8},
+                "candidate.ndethist": {'$gt': ndethist_min_corrected},
+                "candidate.jdstarthist": {
+                    '$gt': jd_trigger,
+                    '$lt': jd_trigger + within_days,
+                },
+            },
+            "projection": {
+                "objectId": 1,
+                "candidate.rcid": 1,
+                "candidate.ra": 1,
+                "candidate.dec": 1,
+                "candidate.jd": 1,
+                "candidate.ndethist": 1,
+                "candidate.jdstarthist": 1,
+                "candidate.jdendhist": 1,
+                "candidate.jdendhist": 1,
+                "candidate.magpsf": 1,
+                "candidate.sigmapsf": 1,
+                "candidate.fid": 1,
+                "candidate.programid": 1,
+                "candidate.isdiffpos": 1,
+                "candidate.ndethist": 1,
+                "candidate.ssdistnr": 1,
+                "candidate.rb": 1,
+                "candidate.drb": 1,
+                "candidate.distpsnr1": 1,
+                "candidate.sgscore1": 1,
+                "candidate.srmag1": 1,
+                "candidate.distpsnr2": 1,
+                "candidate.sgscore2": 1,
+                "candidate.srmag2": 1,
+                "candidate.distpsnr3": 1,
+                "candidate.sgscore3": 1,
+                "candidate.srmag3": 1,
+            },
+            "kwargs": {"hint": "gw01"},
+        },
+    }
+
+    if after_trigger is True:
+        q['query']['filter']['candidate.jd'] = {
+            '$gt': jd_trigger,
+            '$lt': jd_trigger + within_days,
         }
+    # Perform the query
+    r = k.query(query=q)
+    if not r.get("default").get("status", "error") == "success":
+        raise ValueError("Query failed")
 
-        # Perform the query
-        r = k.query(query=q)
-        if not r.get("default").get("status", "error") == "success":
-            raise ValueError("Query failed")
+    objectId_list = []
+    with_neg_sub = []
+    old = []
+    out_of_time_window = []
+    stellar_list = []
 
-        objectId_list = []
-        with_neg_sub = []
-        old = []
-        out_of_time_window = []
-        stellar_list = []
-
-        # Try to query kowalski up to 5 times
-        i = 1
-        no_candidates = False
-        while i <= 5:
-            try:
-                if r.get("default").get("data") == []:
-                    no_candidates = True
-                keys_list = list(r['data']['ZTF_alerts'].keys())
-                break
-            except (AttributeError, KeyError, TypeError, ConnectionError):
-                i += 1
-        if i > 5:
+    candidates = r.get("default", {}).get("data", {})
+    for info in candidates:
+        if info['objectId'] in old:
             continue
-        if no_candidates is True:
+        if info['objectId'] in stellar_list:
             continue
-        for key in keys_list:
-            all_info = r['data']['ZTF_alerts'][key]
+        if np.abs(info['candidate']['ssdistnr']) < 10:
+            continue
+        if info['candidate']['isdiffpos'] in ['f', 0]:
+            with_neg_sub.append(info['objectId'])
+        if (
+            info['candidate']['jdendhist'] - info['candidate']['jdstarthist']
+        ) < min_days:
+            continue
+        if (
+            info['candidate']['jdendhist'] - info['candidate']['jdstarthist']
+        ) > max_days:
+            old.append(info['objectId'])
+        if (info['candidate']['jdstarthist'] - jd_trigger) > within_days:
+            old.append(info['objectId'])
+        # REMOVE!  Only for O3a paper
+        # if (info['candidate']['jdendhist'] -
+        # info['candidate']['jdstarthist']) >= 72./24. and info['candidate']['ndethist'] <= 2.:
+        #    out_of_time_window.append(info['objectId'])
+        if after_trigger is True:
+            if (info['candidate']['jdendhist'] - jd_trigger) > max_days:
+                out_of_time_window.append(info['objectId'])
+        else:
+            if (
+                info['candidate']['jdendhist'] - info['candidate']['jdstarthist']
+            ) > max_days:
+                out_of_time_window.append(info['objectId'])
+        try:
+            if (
+                np.abs(info['candidate']['distpsnr1']) < 1.5
+                and info['candidate']['sgscore1'] > 0.50
+            ):
+                stellar_list.append(info['objectId'])
+        except (KeyError, ValueError):
+            pass
+        try:
+            if (
+                np.abs(info['candidate']['distpsnr1']) < 15.0
+                and info['candidate']['srmag1'] < 15.0
+                and info['candidate']['srmag1'] > 0.0
+                and info['candidate']['sgscore1'] >= 0.5
+            ):
+                continue
+        except (KeyError, ValueError):
+            pass
+        try:
+            if (
+                np.abs(info['candidate']['distpsnr2']) < 15.0
+                and info['candidate']['srmag2'] < 15.0
+                and info['candidate']['srmag2'] > 0.0
+                and info['candidate']['sgscore2'] >= 0.5
+            ):
+                continue
+        except (KeyError, ValueError):
+            pass
+        try:
+            if (
+                np.abs(info['candidate']['distpsnr3']) < 15.0
+                and info['candidate']['srmag3'] < 15.0
+                and info['candidate']['srmag3'] > 0.0
+                and info['candidate']['sgscore3'] >= 0.5
+            ):
+                continue
+        except (KeyError, ValueError):
+            pass
 
-            for info in all_info:
-                if info['objectId'] in old:
-                    continue
-                if info['objectId'] in stellar_list:
-                    continue
-                if np.abs(info['candidate']['ssdistnr']) < 10:
-                    continue
-                if info['candidate']['isdiffpos'] in ['f', 0]:
-                    with_neg_sub.append(info['objectId'])
-                if (
-                    info['candidate']['jdendhist'] - info['candidate']['jdstarthist']
-                ) < min_days:
-                    continue
-                if (
-                    info['candidate']['jdendhist'] - info['candidate']['jdstarthist']
-                ) > max_days:
-                    old.append(info['objectId'])
-                if (info['candidate']['jdstarthist'] - jd_trigger) > within_days:
-                    old.append(info['objectId'])
-                # REMOVE!  Only for O3a paper
-                # if (info['candidate']['jdendhist'] -
-                # info['candidate']['jdstarthist']) >= 72./24. and info['candidate']['ndethist'] <= 2.:
-                #    out_of_time_window.append(info['objectId'])
-                if after_trigger is True:
-                    if (info['candidate']['jdendhist'] - jd_trigger) > max_days:
-                        out_of_time_window.append(info['objectId'])
-                else:
-                    if (
-                        info['candidate']['jdendhist']
-                        - info['candidate']['jdstarthist']
-                    ) > max_days:
-                        out_of_time_window.append(info['objectId'])
-                try:
-                    if (
-                        np.abs(info['candidate']['distpsnr1']) < 1.5
-                        and info['candidate']['sgscore1'] > 0.50
-                    ):
-                        stellar_list.append(info['objectId'])
-                except (KeyError, ValueError):
-                    pass
-                try:
-                    if (
-                        np.abs(info['candidate']['distpsnr1']) < 15.0
-                        and info['candidate']['srmag1'] < 15.0
-                        and info['candidate']['srmag1'] > 0.0
-                        and info['candidate']['sgscore1'] >= 0.5
-                    ):
-                        continue
-                except (KeyError, ValueError):
-                    pass
-                try:
-                    if (
-                        np.abs(info['candidate']['distpsnr2']) < 15.0
-                        and info['candidate']['srmag2'] < 15.0
-                        and info['candidate']['srmag2'] > 0.0
-                        and info['candidate']['sgscore2'] >= 0.5
-                    ):
-                        continue
-                except (KeyError, ValueError):
-                    pass
-                try:
-                    if (
-                        np.abs(info['candidate']['distpsnr3']) < 15.0
-                        and info['candidate']['srmag3'] < 15.0
-                        and info['candidate']['srmag3'] > 0.0
-                        and info['candidate']['sgscore3'] >= 0.5
-                    ):
-                        continue
-                except (KeyError, ValueError):
-                    pass
-
-                objectId_list.append(info['objectId'])
+        objectId_list.append(info['objectId'])
 
         set_objectId = (
             set(objectId_list)
@@ -345,33 +351,15 @@ def query_kowalski(
 
         set_objectId_all = set_objectId_all | set_objectId
 
-    q = {
-        "query_type": "find",
-        "query": {
-            "catalog": "ZTF_alerts",
-            "filter": {"objectId": {"$in": list(set_objectId_all)}},
-            "projection": {
-                "_id": 0,
-                "candid": 1,
-                "objectId": 1,
-                "candidate.ra": 1,
-                "candidate.dec": 1,
-            },
-        },
-    }
-    results_all = k.query(query=q)
-    if not results_all.get("default").get("status", "error") == "success":
-        raise ValueError("Query failed")
-    results = results_all.get("default").get("data")
     sources = []
     for n in set_objectId_all:
         source = {}
         source["id"] = n
         source["ra"] = list(
-            r["candidate"]["ra"] for r in results if r["objectId"] == n
+            r["candidate"]["ra"] for r in candidates if r["objectId"] == n
         )[0]
         source["dec"] = list(
-            r["candidate"]["dec"] for r in results if r["objectId"] == n
+            r["candidate"]["dec"] for r in candidates if r["objectId"] == n
         )[0]
         sources.append(source)
 
@@ -436,7 +424,7 @@ def query_fink(
             objectId = obj['i:objectId']
             ra_obj, dec_obj = obj['i:ra'], obj['i:dec']
             jdstarthist = obj['i:jdstarthist']
-            jdendhist = obj['i:jdendhist']
+            jdendhist = obj['i:jd']
             if (jdstarthist < time_min.jd) or (jdendhist > time_max.jd):
                 continue
             if objectId in sources:

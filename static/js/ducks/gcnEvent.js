@@ -94,6 +94,8 @@ const FETCH_GCNEVENT_CATALOG_QUERIES =
   "skyportal/FETCH_GCNEVENT_CATALOG_QUERIES";
 const FETCH_GCNEVENT_CATALOG_QUERIES_OK =
   "skyportal/FETCH_GCNEVENT_CATALOG_QUERIES_OK";
+const REFRESH_GCNEVENT_CATALOG_QUERIES =
+  "skyportal/REFRESH_GCNEVENT_CATALOG_QUERIES";
 
 const FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS =
   "skyportal/FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS";
@@ -424,6 +426,11 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   if (actionType === REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS) {
     if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
       dispatch(fetchObservationPlanRequests(gcnEvent?.id));
+    }
+  }
+  if (actionType === REFRESH_GCNEVENT_CATALOG_QUERIES) {
+    if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
+      dispatch(fetchGcnEventCatalogQueries({ gcnID: gcnEvent?.id }));
     }
   }
   if (actionType === REFRESH_GCNEVENT_PUBLICATION) {

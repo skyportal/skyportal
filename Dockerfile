@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -8,12 +8,12 @@ RUN apt-get update && \
 
 RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common && \
-    curl -sL https://deb.nodesource.com/setup_17.x | bash - && \
+    curl -sL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get update && \
     apt-get -y upgrade && \
     apt-get install -y python3 python3-venv python3-dev \
     libpq-dev supervisor \
-    git nginx nodejs postgresql-client vim nano htop \
+    git nginx nodejs postgresql-client vim nano screen htop \
     libcurl4-gnutls-dev libgnutls28-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \

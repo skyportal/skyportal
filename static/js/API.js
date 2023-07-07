@@ -69,7 +69,7 @@ function API(endpoint, actionType, method = "GET", body = {}, otherArgs = {}) {
   };
 }
 
-export const filterOutEmptyValues = (params) => {
+export const filterOutEmptyValues = (params, removeEmptyArrays = true) => {
   const filteredParams = {};
   // Filter out empty fields from an object (form data)
   Object.keys(params).forEach((key) => {
@@ -77,7 +77,11 @@ export const filterOutEmptyValues = (params) => {
     // Also, the number 0 may be a valid input but evaluate to false,
     // so just let numbers through
     if (
-      (!(Array.isArray(params[key]) && params[key].length === 0) &&
+      (!(
+        Array.isArray(params[key]) &&
+        params[key].length === 0 &&
+        removeEmptyArrays
+      ) &&
         params[key]) ||
       typeof key === "number"
     ) {
