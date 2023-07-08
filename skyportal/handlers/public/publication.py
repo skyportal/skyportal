@@ -34,7 +34,7 @@ class PublicationHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Publication
+                schema: GcnPublication
           400:
             content:
               application/json:
