@@ -202,6 +202,7 @@ from skyportal.handlers.api.internal import (
     RecentGcnEventsHandler,
     FilterWavelengthHandler,
 )
+from skyportal.handlers.public import PublicationHandler
 
 from . import model_util, openapi
 from .models import init_db
@@ -560,6 +561,10 @@ skyportal_handlers = [
     (r'/api/internal/survey_thumbnail', SurveyThumbnailHandler),
     (r'/api/internal/recent_gcn_events', RecentGcnEventsHandler),
     (r'/api/.*', InvalidEndpointHandler),
+    # Public pages.
+    (r'/public/(gcn)/publication/([0-9]+)', PublicationHandler),
+    (r'/public/.*', InvalidEndpointHandler),
+    # Debug and logout pages.
     (r'/become_user(/.*)?', BecomeUserHandler),
     (r'/logout', LogoutHandler),
     # User-facing pages.

@@ -3796,10 +3796,22 @@ class GcnPublicationHandler(BaseHandler):
 
             publication_id = publication.id
 
-            if data["data"] != {}:
-                publication.data = to_json(data["data"])
+            if "data" in data:
+                if data["data"] != {}:
+                    publication.data = to_json(data["data"])
+                else:
+                    return self.error("data not found")
+
+            if data.get("published", None) is not None and isinstance(
+                data.get("published", None), bool
+            ):
+                publish = data["published"]
+                if publish:
+                    publication.publish()
+                else:
+                    publication.unpublish()
             else:
-                return self.error("data not found")
+                publication.generate_html()
 
             session.commit()
 
@@ -3851,6 +3863,8 @@ class GcnPublicationHandler(BaseHandler):
                 return self.error(
                     "Cannot delete a recently created publication (less than 1 hour) that is still pending"
                 )
+
+            publication.unpublish()
 
             session.delete(publication)
             session.commit()

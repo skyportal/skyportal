@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import { withStyles, makeStyles, useTheme } from "@mui/styles";
+import { withStyles, makeStyles } from "@mui/styles";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import MuiDialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
-import SaveIcon from "@mui/icons-material/Save";
 import Close from "@mui/icons-material/Close";
 import Typography from "@mui/material/Typography";
 import grey from "@mui/material/colors/grey";
@@ -22,7 +21,6 @@ import LoadingButton from "@mui/lab/LoadingButton";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import ReactJson from "react-json-view";
 
 import { showNotification } from "baselayer/components/Notifications";
 import {
@@ -38,10 +36,10 @@ import {
   fetchGcnEventPublications,
   fetchGcnEventPublication,
   deleteGcnEventPublication,
-  patchGcnEventPublication,
 } from "../ducks/gcnEvent";
 import Button from "./Button";
 import GcnPublicationTable from "./GcnPublicationTable";
+import GcnPublicationEdit from "./GcnPublicationEdit";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -139,8 +137,6 @@ const DialogTitle = withStyles(dialogTitleStyles)(
 
 const GcnPublication = ({ dateobs }) => {
   const classes = useStyles();
-  const theme = useTheme();
-  const darkTheme = theme.palette.mode === "dark";
   const groups = useSelector((state) => state.groups.userAccessible);
   const { instrumentList } = useSelector((state) => state.instruments);
   const dispatch = useDispatch();
@@ -159,7 +155,6 @@ const GcnPublication = ({ dateobs }) => {
   const [selectedInstruments, setSelectedInstruments] = useState([]);
   const [selectedGcnPublicationId, setSelectedGcnPublicationId] =
     useState(null);
-  const [jsonData, setJsonData] = useState({});
 
   const [loading, setLoading] = useState(false);
 
@@ -217,16 +212,6 @@ const GcnPublication = ({ dateobs }) => {
     if (gcnEvent?.localizations?.length > 0) {
       setLocalizationName(gcnEvent?.localizations[0]?.localization_name);
     }
-    if (gcnEvent?.publication?.id === selectedGcnPublicationId) {
-      setJsonData();
-      let data = gcnEvent?.publication?.data || {};
-      try {
-        data = JSON.parse(data);
-      } catch (e) {
-        console.log(e);
-      }
-      setJsonData(data);
-    }
   }, [gcnEvent]);
 
   useEffect(() => {
@@ -239,33 +224,16 @@ const GcnPublication = ({ dateobs }) => {
     const fetchPublication = (publicationID) => {
       dispatch(fetchGcnEventPublication({ dateobs, publicationID })).then(
         (response) => {
-          if (response.status === "success") {
-            let data = response?.data?.data || {};
-            try {
-              data = JSON.parse(data);
-            } catch (e) {
-              console.log(e);
-            }
-            setJsonData(data);
-          } else {
-            setJsonData({});
+          if (response.status !== "success") {
             dispatch(showNotification("Error fetching publication", "error"));
           }
         }
       );
     };
-    if (gcnEvent?.publications?.length > 0) {
-      if (
-        selectedGcnPublicationId &&
-        selectedGcnPublicationId !== gcnEvent?.publication?.id
-      ) {
+    if (gcnEvent?.publications?.length > 0 && selectedGcnPublicationId) {
+      if (selectedGcnPublicationId !== gcnEvent?.publication?.id) {
         fetchPublication(selectedGcnPublicationId);
-        setDisplayList(false);
-      } else if (
-        selectedGcnPublicationId === gcnEvent?.publication?.id &&
-        Object.keys(jsonData).length === 0
-      ) {
-        setJsonData(gcnEvent?.publication?.data || {});
+      } else {
         setDisplayList(false);
       }
     }
@@ -531,50 +499,10 @@ const GcnPublication = ({ dateobs }) => {
                     Publication {dateobs}:{" "}
                     {gcnEvent?.publication?.publication_name}
                   </DialogTitle>
-                  <IconButton
-                    aria-label="save"
-                    onClick={() => {
-                      dispatch(
-                        patchGcnEventPublication({
-                          dateobs,
-                          publicationID: selectedGcnPublicationId,
-                          formData: {
-                            ...gcnEvent.publication,
-                            data: jsonData,
-                          },
-                        })
-                      ).then((response) => {
-                        if (response.status === "success") {
-                          dispatch(showNotification("Publication updated"));
-                        } else {
-                          dispatch(
-                            showNotification(
-                              "Error updating publication",
-                              "error"
-                            )
-                          );
-                        }
-                      });
-                    }}
-                  >
-                    <SaveIcon />
-                  </IconButton>
                   <DialogContent dividers>
-                    <ReactJson
-                      src={jsonData}
-                      theme={darkTheme ? "monokai" : "rjv-default"}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        overflow: "auto",
-                      }}
-                      onEdit={(edit) => {
-                        if (edit.new_value === "") {
-                          delete edit.new_value;
-                        }
-                        setJsonData(edit.updated_src);
-                      }}
-                    />
+                    {gcnEvent.publication?.data && (
+                      <GcnPublicationEdit publication={gcnEvent.publication} />
+                    )}
                   </DialogContent>
                 </Dialog>
               </Grid>

@@ -8,28 +8,39 @@ __all__ = [
     'GcnTrigger',
     'DefaultGcnTag',
 ]
-
-import sqlalchemy as sa
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import deferred
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.hybrid import hybrid_property
+import json
 
 import gcn
 import lxml
+import numpy as np
+import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import deferred, relationship
 
+from baselayer.app.env import load_env
 from baselayer.app.models import (
-    Base,
-    DBSession,
     AccessibleIfUserMatches,
+    Base,
     CustomUserAccessControl,
+    DBSession,
     UserAccessControl,
-    safe_aliased,
     join_model,
     restricted,
+    safe_aliased,
 )
-from .group import accessible_by_group_members
+
+from ..utils.cache import Cache, dict_to_bytes
 from .allocation import Allocation, AllocationUser
+from .group import accessible_by_group_members
+
+env, cfg = load_env()
+
+cache_dir = "cache/publications"
+cache = Cache(
+    cache_dir=cache_dir,
+    max_age=cfg["misc.minutes_to_keep_publications_cache"] * 60,
+)
 
 SOURCE_RADIUS_THRESHOLD = 5 / 60.0  # 5 arcmin in degrees
 
@@ -128,12 +139,132 @@ class GcnPublication(Base):
 
     publication_name = sa.Column(sa.String, nullable=False)
 
-    publish = sa.Column(
+    published = sa.Column(
         sa.Boolean,
         nullable=False,
         server_default='false',
         doc='Whether GcnPublication should be published',
     )
+
+    def publish(self):
+        """Publish GcnPublication."""
+        self.published = True
+        return self.generate_html()
+
+    def generate_html(self):
+        """Publish GcnPublication."""
+        # TODO: create the hmtl and cache it
+        cache_key = f"gcn_{self.id}"
+        data = self.data
+        if isinstance(data, str):
+            data = json.loads(data)
+        # TODO: use a proper template (like with jinja)
+        html = "<!DOCTYPE html>"
+        html += "<html>"
+
+        html += "<body>"
+        html += "<h1>GCN Publication</h1>"
+        html += "<br>"
+        html += "<div style='display: flex; flex-direction: row; justify-content: space-between; align-items: center;'><h2>Sources</h2>"
+        if len(data.get("sources", [])) == 0:
+            html += "</div><p>No sources</p>"
+        else:
+            html += "<button type='button' onclick='tableToCSV(\"sources\")' style='max-height: 30px;'>Download CSV</button></div>"
+            html += "<table style='width:100%' border='1' align='center' id='sources'>"
+            html += "<tr><th>Source ID</th><th>RA</th><th>Dec</th><th>Redshift</th><th>Comment</th></tr>"
+            for source in data["sources"]:
+                html += f"<tr><td>{source['id']}</td><td>{source['ra']}</td><td>{source['dec']}</td><td>{source['redshift']}</td><td>{source.get('comment', '')}</td></tr>"
+            html += "</table>"
+            html += "<br>"
+            html += "<div style='display: flex; flex-direction: row; justify-content: space-between; align-items: center;'><h2>Observations</h2>"
+
+        if len(data.get("observations", [])) == 0:
+            html += "</div><p>No observations</p>"
+        else:
+            html += "<button type='button' onclick='tableToCSV(\"observations\")' style='max-height: 30px;'>download as CSV</button></div>"
+            html += (
+                "<table style='width:100%' border='1' align='center' id='observations'>"
+            )
+            html += "<tr><th>Observation ID</th><th>Time</th><th>Instrument ID</th><th>Field ID</th><th>Filter</th><th>Exp. Time</th><th>Limiting Mag.</th><th>Airmass%</th><th>Processed %</th></tr>"
+            for observation in data["observations"]:
+                html += f"<tr><td>{observation['observation_id']}</td><td>{observation['obstime']}</td><td>{observation['instrument_id']}</td><td>{observation['instrument_field_id']}</td><td>{observation['filt']}</td><td>{observation['exposure_time']}</td><td>{observation['limmag']}</td><td>{observation['airmass']}</td><td>{observation['processed_fraction']}</td></tr>"
+            html += "</table>"
+
+        html += "<script type='text/javascript'>"
+        html += """
+        function tableToCSV(type) {
+
+            // Variable to store the final csv data
+            var csv_data = [];
+
+            // Get each row data
+            var table = document.getElementById(type);
+            var rows = table.querySelectorAll("tr");
+            for (var i = 0; i < rows.length; i++) {
+
+                // Get each column data
+                var cols = rows[i].querySelectorAll('td,th');
+
+                // Stores each csv row data
+                var csvrow = [];
+                for (var j = 0; j < cols.length; j++) {
+
+                    // Get the text data of each cell of
+                    // a row and push it to csvrow
+                    csvrow.push(cols[j].innerHTML);
+                }
+
+                // Combine each column value with comma
+                csv_data.push(csvrow.join(","));
+            }
+            // combine each row data with new line character
+            csv_data = csv_data.join('\\n');
+
+            downloadCSVFile(type, csv_data);
+        }
+
+        function downloadCSVFile(type, csv_data) {
+
+            // Create CSV file object and feed our
+            // csv_data into it
+            CSVFile = new Blob([csv_data], { type: "text/csv" });
+
+            // Create to temporary link to initiate
+            // download process
+            var temp_link = document.createElement('a');
+
+            // Download csv file
+            temp_link.download = type + ".csv";
+            var url = window.URL.createObjectURL(CSVFile);
+            temp_link.href = url;
+
+            // This link should not be displayed
+            temp_link.style.display = "none";
+            document.body.appendChild(temp_link);
+
+            // Automatically click the link to trigger download
+            temp_link.click();
+            document.body.removeChild(temp_link);
+        }
+        """
+        html += "</script>"
+
+        html += "</body></html>"
+        cache[cache_key] = dict_to_bytes({"published": self.published, "html": html})
+        return html
+
+    def unpublish(self):
+        """Unpublish GcnPublication."""
+        self.published = False
+        # TODO: delete the html from cache
+        cache_key = f"gcn_{self.id}"
+        cached = cache[cache_key]
+        if cached is not None:
+            data = np.load(cached, allow_pickle=True)
+            data = data.item()
+            cache[cache_key] = dict_to_bytes({"published": False, "html": data["html"]})
+        else:
+            cache[cache_key] = dict_to_bytes({"published": False, "html": None})
 
 
 class GcnSummary(Base):
