@@ -46,6 +46,8 @@ class PublicationHandler(BaseHandler):
                 f"Invalid publication type {publication_type}, must be one of {ALLOWED_PUBLICATION_TYPES}"
             )
 
+        plot = self.get_query_argument('plot', False)
+
         if publication_id is not None:
             publication_id = int(publication_id)
             cache_key = f"{publication_type}_{publication_id}"
@@ -77,9 +79,12 @@ class PublicationHandler(BaseHandler):
                         f"GCN publication {publication_id} not yet published"
                     )
 
-                html = publication.publish()
-                self.set_header("Content-Type", "text/html; charset=utf-8")
-                return self.write(html)
+                if plot:
+                    publication.generate_plot()
+                else:
+                    html = publication.publish()
+                    self.set_header("Content-Type", "text/html; charset=utf-8")
+                    return self.write(html)
         else:
             return self.error("Must specify publication ID")
         # TODO: display a list of publications if no publication ID is specified

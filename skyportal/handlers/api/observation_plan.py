@@ -1388,7 +1388,7 @@ def observation_animations(
                 ]
                 ras = np.array(coords)[:, 0]
                 # cannot handle 0-crossing well
-                if len(np.where(ras > 180)[0]) > 0 and len(np.where(ras < 180)) > 0:
+                if len(np.where(ras > 180)[0]) > 0 and len(np.where(ras < 180)[0]) > 0:
                     continue
                 poly = plt.Polygon(
                     coords,

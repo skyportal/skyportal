@@ -11,8 +11,14 @@ __all__ = [
 import json
 
 import gcn
+import io
+from ligo.skymap import plot  # noqa: F401 F811
 import lxml
+import matplotlib
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 import numpy as np
+import random
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -32,6 +38,7 @@ from baselayer.app.models import (
 
 from ..utils.cache import Cache, dict_to_bytes
 from .allocation import Allocation, AllocationUser
+from .localization import Localization
 from .group import accessible_by_group_members
 
 env, cfg = load_env()
@@ -145,6 +152,104 @@ class GcnPublication(Base):
         server_default='false',
         doc='Whether GcnPublication should be published',
     )
+
+    def generate_plot(self, figsize=(10, 8), output_format='png'):
+        """GcnPublication plot.
+        Parameters
+        ----------
+        figsize : tuple, optional
+            Matplotlib figsize of the plot created
+        output_format : str
+            Figure extension, either png or pdf.
+        """
+
+        # cache_key = f"gcn_{self.id}"
+        data = self.data
+        if isinstance(data, str):
+            data = json.loads(data)
+
+        localization = (
+            DBSession()
+            .query(Localization)
+            .where(Localization.dateobs == self.dateobs)
+            .first()
+        )
+
+        matplotlib.use("Agg")
+        fig = plt.figure(figsize=figsize, constrained_layout=False)
+        ax = plt.axes(projection='astro mollweide')
+        ax.imshow_hpx(localization.flat_2d, cmap='cylon')
+
+        if "observations" in data and len(data["observations"]) > 0:
+            surveyColors = {
+                "ztfg": "#28A745",
+                "ztfr": "#DC3545",
+                "ztfi": "#F3DC11",
+                "AllWISE": "#2F5492",
+                "Gaia_DR3": "#FF7F0E",
+                "PS1_DR1": "#3BBED5",
+                "GALEX": "#6607C2",
+                "TNS": "#ED6CF6",
+            }
+
+            observations = data["observations"]
+            filters = list({obs["filt"] for obs in observations})
+            for filt in filters:
+                if filt in surveyColors:
+                    continue
+                surveyColors[filt] = "#" + ''.join(
+                    [random.choice('0123456789ABCDEF') for i in range(6)]
+                )
+
+            for i, obs in enumerate(observations):
+
+                coords = obs["field_coordinates"][0]
+                ras = np.array(coords)[:, 0]
+                # cannot handle 0-crossing well
+                if (len(np.where(ras > 180)[0]) > 0) and (
+                    len(np.where(ras < 180)[0]) > 0
+                ):
+                    continue
+                poly = plt.Polygon(
+                    coords,
+                    alpha=1.0,
+                    facecolor=surveyColors[obs["filt"]],
+                    edgecolor='black',
+                    transform=ax.get_transform('world'),
+                )
+                ax.add_patch(poly)
+
+            patches = []
+            for filt in filters:
+                patches.append(mpatches.Patch(color=surveyColors[filt], label=filt))
+            plt.legend(handles=patches)
+
+        if "sources" in data and len(data["sources"]) > 0:
+            for source in data["sources"]:
+                ax.scatter(
+                    source['ra'],
+                    source['dec'],
+                    transform=ax.get_transform('world'),
+                    color='w',
+                    zorder=2,
+                    s=70,
+                )
+                ax.text(
+                    source['ra'] + 5.5,
+                    source['dec'] + 5.5,
+                    source['id'],
+                    transform=ax.get_transform('world'),
+                    color='k',
+                    fontsize=8,
+                    zorder=3,
+                )
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format=output_format)
+        plt.close(fig)
+        buf.seek(0)
+
+        return io.BytesIO(buf.read())
 
     def publish(self):
         """Publish GcnPublication."""

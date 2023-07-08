@@ -7,6 +7,7 @@ from astropy.table import Table
 import binascii
 import healpy as hp
 import io
+import json
 import os
 import gcn
 import ligo.skymap.bayestar as ligo_bayestar
@@ -3420,6 +3421,7 @@ def add_gcn_publication(
                         localization_name=localization_name,
                         localization_cumprob=localization_cumprob,
                         return_statistics=True,
+                        includeGeoJSON=True,
                         stats_method=stats_method,
                         n_per_page=MAX_OBSERVATIONS,
                         page_number=1,
@@ -3428,6 +3430,9 @@ def add_gcn_publication(
                     observations.extend(data["observations"])
 
             for o in observations:
+                o["field_coordinates"] = o["field"]["contour_summary"]["features"][0][
+                    "geometry"
+                ]["coordinates"]
                 del o["field"]
                 del o["instrument"]
 
@@ -3857,7 +3862,11 @@ class GcnPublicationHandler(BaseHandler):
             if publication is None:
                 return self.error("Publication not found", status=404)
 
-            if len(publication.data.keys()) == 0 and datetime.datetime.now() < (
+            data = publication.data
+            if isinstance(data, str):
+                data = json.loads(data)
+
+            if len(data.keys()) == 0 and datetime.datetime.now() < (
                 publication.created_at + datetime.timedelta(hours=1)
             ):
                 return self.error(
