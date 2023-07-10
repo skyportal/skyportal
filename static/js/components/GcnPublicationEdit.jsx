@@ -221,7 +221,7 @@ export default function GcnPublicationEdit() {
   };
 
   const processSourceRowUpdate = (newRow) => {
-    const updatedRow = { ...newRow, isNew: false };
+    let updatedRow = { ...newRow, isNew: false };
     const existingRow = sourceRows.find((row) => row?.id === newRow?.id);
     if (existingRow?.obj_id !== newRow?.obj_id && existingRow?.obj_id !== "") {
       dispatch(
@@ -231,6 +231,7 @@ export default function GcnPublicationEdit() {
         )
       );
       handleCancelClick(newRow?.id, "source")();
+      updatedRow = existingRow;
     } else {
       setSourceRows(
         sourceRows.map((row) => (row?.id === newRow?.id ? updatedRow : row))
