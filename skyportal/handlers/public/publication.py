@@ -24,7 +24,7 @@ ALLOWED_PUBLICATION_TYPES = ["gcn"]
 
 
 class PublicationHandler(BaseHandler):
-    def get(self, publication_type, publication_id):
+    def get(self, publication_type, publication_id=None, option=None):
         """
         ---
         description: Retrieve all publications
@@ -46,21 +46,11 @@ class PublicationHandler(BaseHandler):
                 f"Invalid publication type {publication_type}, must be one of {ALLOWED_PUBLICATION_TYPES}"
             )
 
-        plot = self.get_query_argument('plot', False)
-
         if publication_id is not None:
             publication_id = int(publication_id)
             cache_key = f"{publication_type}_{publication_id}"
             cached = cache[cache_key]
-            if cached is not None:
-                data = np.load(cached, allow_pickle=True)
-                data = data.item()
-                if data['published']:
-                    self.set_header("Content-Type", "text/html; charset=utf-8")
-                    return self.write(data['html'])
-                else:
-                    return self.error(f"Publication {publication_id} not yet published")
-            else:
+            if cached is None:
                 if Session.registry.has():
                     session = Session()
                 else:
@@ -78,13 +68,39 @@ class PublicationHandler(BaseHandler):
                     return self.error(
                         f"GCN publication {publication_id} not yet published"
                     )
+                publication.generate_publication()
+                cached = cache[cache_key]
 
-                if plot:
-                    publication.generate_plot()
+            data = np.load(cached, allow_pickle=True)
+            data = data.item()
+            if data['published']:
+                if option == "plot":
+                    self.set_header("Content-Type", "image/png")
+                    return self.write(data['plot'])
                 else:
-                    html = publication.publish()
                     self.set_header("Content-Type", "text/html; charset=utf-8")
-                    return self.write(html)
+                    return self.write(data['html'])
+            else:
+                return self.error(f"Publication {publication_id} not yet published")
         else:
-            return self.error("Must specify publication ID")
-        # TODO: display a list of publications if no publication ID is specified
+            if Session.registry.has():
+                session = Session()
+            else:
+                session = Session(bind=DBSession.session_factory.kw["bind"])
+
+            if publication_type == "gcn":
+                publications = session.scalars(
+                    sa.select(GcnPublication)
+                    .where(GcnPublication.published is True)
+                    .order_by(GcnPublication.dateobs.desc())
+                ).all()
+                publications = [
+                    {
+                        **publication.to_dict(),
+                        "group_name": publication.group.name,
+                    }
+                    for publication in publications
+                ]
+                return self.render(
+                    "publications/gcn_publications.html", publications=publications
+                )

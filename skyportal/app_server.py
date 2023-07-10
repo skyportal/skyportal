@@ -562,7 +562,7 @@ skyportal_handlers = [
     (r'/api/internal/recent_gcn_events', RecentGcnEventsHandler),
     (r'/api/.*', InvalidEndpointHandler),
     # Public pages.
-    (r'/public/(gcn)/publication/([0-9]+)', PublicationHandler),
+    (r'/public/publications/(gcn)(/[0-9]+)?(/.*)?', PublicationHandler),
     (r'/public/.*', InvalidEndpointHandler),
     # Debug and logout pages.
     (r'/become_user(/.*)?', BecomeUserHandler),

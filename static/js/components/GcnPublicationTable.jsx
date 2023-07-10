@@ -68,6 +68,20 @@ const GcnPublicationTable = ({
     return <p>No entries available...</p>;
   }
 
+  const renderName = (dataIndex) => {
+    const publication = publications[dataIndex];
+    // return a link to the publication that opens in a new tab
+    return (
+      <a
+        href={`/public/publications/gcn/${publication.id}`}
+        target="_blank"
+        rel="noreferrer"
+      >
+        {publication.publication_name}
+      </a>
+    );
+  };
+
   const renderSentBy = (dataIndex) => {
     const publication = publications[dataIndex];
     return <div>{publication.sent_by.username}</div>;
@@ -112,6 +126,10 @@ const GcnPublicationTable = ({
     {
       name: "publication_name",
       label: "Name",
+      options: {
+        customBodyRenderLite: renderName,
+        download: false,
+      },
     },
     {
       name: "created_at",
@@ -184,6 +202,7 @@ GcnPublicationTable.propTypes = {
   publications: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number,
+      publication_name: PropTypes.string,
       created_at: PropTypes.string,
       sent_by: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
       group: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,

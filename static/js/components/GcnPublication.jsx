@@ -158,8 +158,6 @@ const GcnPublication = ({ dateobs }) => {
 
   const [loading, setLoading] = useState(false);
 
-  const [displayList, setDisplayList] = useState(true);
-
   const groups_list = groups.map((group) => ({
     id: group.id,
     label: group.name,
@@ -230,12 +228,12 @@ const GcnPublication = ({ dateobs }) => {
         }
       );
     };
-    if (gcnEvent?.publications?.length > 0 && selectedGcnPublicationId) {
-      if (selectedGcnPublicationId !== gcnEvent?.publication?.id) {
-        fetchPublication(selectedGcnPublicationId);
-      } else {
-        setDisplayList(false);
-      }
+    if (
+      gcnEvent?.publications?.length > 0 &&
+      selectedGcnPublicationId &&
+      selectedGcnPublicationId !== gcnEvent?.publication?.id
+    ) {
+      fetchPublication(selectedGcnPublicationId);
     }
   }, [gcnEvent, selectedGcnPublicationId]);
 
@@ -471,12 +469,12 @@ const GcnPublication = ({ dateobs }) => {
                   <Button
                     primary
                     id="gcn-publication-list"
-                    onClick={() => setDisplayList(true)}
+                    onClick={() => setSelectedGcnPublicationId(null)}
                   >
                     GCN Publications List
                   </Button>
                 </Paper>
-                {displayList && (
+                {!selectedGcnPublicationId && (
                   <Paper elevation={1} className={classes.content}>
                     <div>
                       <GcnPublicationTable
@@ -490,14 +488,24 @@ const GcnPublication = ({ dateobs }) => {
                   </Paper>
                 )}
                 <Dialog
-                  open={!displayList}
-                  onClose={() => setDisplayList(true)}
+                  open={selectedGcnPublicationId !== null}
+                  onClose={() => setSelectedGcnPublicationId(null)}
                   style={{ position: "fixed" }}
                   fullScreen
                 >
-                  <DialogTitle onClose={() => setDisplayList(true)}>
+                  <DialogTitle
+                    onClose={() => setSelectedGcnPublicationId(null)}
+                  >
                     Publication {dateobs}:{" "}
-                    {gcnEvent?.publication?.publication_name}
+                    {gcnEvent?.publication?.id && (
+                      <a
+                        href={`/public/publications/gcn/${gcnEvent?.publication?.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {gcnEvent?.publication?.publication_name}
+                      </a>
+                    )}
                   </DialogTitle>
                   <DialogContent dividers>
                     {gcnEvent.publication?.data && (

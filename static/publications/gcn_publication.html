@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>GCN Publications</title>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/static/publications/publications.css"
+    />
+  </head>
+  <body>
+    <h1 style="margin-bottom: 0">
+      GCN Publication for
+      <a href="{{ host }}/gcn_events/{{ dateobs }}">{{ dateobs }}</a>: {{
+      publication_name }}
+    </h1>
+    <img
+      src="{{ host }}/public/publications/gcn/{{ publication_id }}/plot"
+      alt="Plot"
+      width="800"
+      style="max-width: 90vw"
+    />
+
+    <div
+      style="
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      "
+    >
+      <h2 style="margin-top: 0">Sources</h2>
+      {% if data.get("sources", [])|length == 0 %}
+      <p style="margin-top: 0">No sources</p>
+      {% else %}
+      <button
+        type="button"
+        onclick="tableToCSV('sources')"
+        style="max-height: 30px"
+      >
+        Download CSV
+      </button>
+      <table class="table" style="width: 100%" id="sources">
+        <thead>
+          <tr>
+            <th style="border-left-width: 0">Source ID</th>
+            <th>Alias</th>
+            <th>RA</th>
+            <th>Dec</th>
+            <th>RA Err</th>
+            <th>Dec Err</th>
+            <th>Redshift</th>
+            <th>Host</th>
+            <th>Comment</th>
+          </tr>
+        </thead>
+        {% for source in data["sources"] %}
+        <tbody>
+          <tr>
+            <td style="border-left-width: 0">
+              <a href="{{ host ~ '/source/' ~ source['id'] }}"
+                >{{ source['id'] }}</a
+              >
+            </td>
+            <td>{{ source['alias'] }}</td>
+            <td>{{ source['ra'] }}</td>
+            <td>{{ source['dec'] }}</td>
+            <td>{{ source['ra_err'] }}</td>
+            <td>{{ source['dec_err'] }}</td>
+            <td>{{ source['redshift'] }}</td>
+            <td>{{ source['host_id'] }}</td>
+            <td>{{ source.get('comment', '') }}</td>
+          </tr>
+        </tbody>
+        {% endfor %}
+      </table>
+      <br />
+      {% endif %}
+    </div>
+
+    <div
+      style="
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      "
+    >
+      <h2 style="margin-top: 0">Observations</h2>
+      {% if data.get("observations", [])|length == 0 %}
+      <p style="margin-top: 0">No observations</p>
+      {% else %}
+      <button
+        type="button"
+        onclick="tableToCSV('observations')"
+        style="max-height: 30px"
+      >
+        Download as CSV
+      </button>
+      <table class="table" style="width: 100%" id="observations">
+        <thead>
+          <tr>
+            <th style="border-left-width: 0">Observation ID</th>
+            <th>Time</th>
+            <th>Instrument ID</th>
+            <th>Field ID</th>
+            <th>Filter</th>
+            <th>Exp. Time</th>
+            <th>Limiting Mag.</th>
+            <th>Airmass</th>
+            <th>Processed Fraction</th>
+          </tr>
+        </thead>
+        {% for observation in data["observations"] %}
+        <tbody>
+          <tr>
+            <td style="border-left-width: 0">
+              {{ observation['observation_id'] }}
+            </td>
+            <td>{{ observation['obstime'] }}</td>
+            <td>{{ observation['instrument_id'] }}</td>
+            <td>{{ observation['instrument_field_id'] }}</td>
+            <td>{{ observation['filt'] }}</td>
+            <td>{{ observation['exposure_time'] }}</td>
+            <td>{{ observation['limmag'] }}</td>
+            <td>{{ observation['airmass'] }}</td>
+            <td>{{ observation['processed_fraction'] }}</td>
+          </tr>
+        </tbody>
+        {% endfor %}
+      </table>
+      {% endif %}
+    </div>
+
+    <script type="text/javascript">
+      function tableToCSV(type) {
+        var csv_data = [];
+        var table = document.getElementById(type);
+        var rows = table.querySelectorAll("tr");
+        for (var i = 0; i < rows.length; i++) {
+          var cols = rows[i].querySelectorAll("td,th");
+          var csvrow = [];
+          for (var j = 0; j < cols.length; j++) {
+            if (cols[j].querySelector("a")) {
+              csvrow.push(cols[j].querySelector("a").text);
+            } else {
+              csvrow.push(cols[j].innerHTML);
+            }
+          }
+          csv_data.push(csvrow.join(","));
+        }
+        csv_data = csv_data.join("\n");
+        downloadCSVFile(type, csv_data);
+      }
+
+      function downloadCSVFile(type, csv_data) {
+        var CSVFile = new Blob([csv_data], { type: "text/csv" });
+        var temp_link = document.createElement("a");
+        temp_link.download = type + ".csv";
+        var url = window.URL.createObjectURL(CSVFile);
+        temp_link.href = url;
+        temp_link.style.display = "none";
+        document.body.appendChild(temp_link);
+        temp_link.click();
+        document.body.removeChild(temp_link);
+      }
+    </script>
+  </body>
+</html>

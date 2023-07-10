@@ -40,7 +40,7 @@ import operator  # noqa: F401
 from skyportal.models.photometry import Photometry
 
 from .observation import get_observations, MAX_OBSERVATIONS
-from .source import get_sources, serialize, MAX_SOURCES_PER_PAGE
+from .source import get_source, get_sources, serialize, MAX_SOURCES_PER_PAGE
 from .galaxy import get_galaxies, get_galaxies_completeness, MAX_GALAXIES
 import pandas as pd
 from tabulate import tabulate
@@ -3749,7 +3749,7 @@ class GcnPublicationHandler(BaseHandler):
             return self.success(data=publication)
 
     @auth_or_token
-    def patch(self, dateobs, publication_id):
+    async def patch(self, dateobs, publication_id):
         """
         description: Update a GCN publication
         tags:
@@ -3803,7 +3803,60 @@ class GcnPublicationHandler(BaseHandler):
 
             if "data" in data:
                 if data["data"] != {}:
-                    publication.data = to_json(data["data"])
+                    new_data = data["data"]
+                    if len(new_data.get('sources', [])) > 0:
+                        try:
+                            loop = asyncio.get_event_loop()
+                        except Exception:
+                            loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+
+                        old_data = publication.data
+                        old_data = (
+                            json.loads(old_data) if type(old_data) == str else old_data
+                        )
+
+                        # if there is any duplicate source, return error
+                        if len(new_data.get('sources', [])) != len(
+                            {
+                                source.get('id', None)
+                                for source in new_data.get('sources', [])
+                            }
+                        ):
+                            return self.error(
+                                "Duplicate sources in publication, please remove duplicates and try again"
+                            )
+                        for i, source in enumerate(new_data.get('sources', [])):
+                            if source not in old_data.get('sources', []):
+                                # check if source exists in the database
+                                source_id = source.get('id', None)
+                                source = await get_source(
+                                    source_id,
+                                    self.associated_user_object.id,
+                                    session,
+                                    include_photometry=True,
+                                )
+                                if source is None:
+                                    return self.error(
+                                        f"Source {source_id} not found in the database, not updating publication"
+                                    )
+
+                                source["source_in_gcn"] = session.scalar(
+                                    SourcesConfirmedInGCN.select(
+                                        session.user_or_token
+                                    ).where(
+                                        SourcesConfirmedInGCN.obj_id == source_id,
+                                        SourcesConfirmedInGCN.dateobs == dateobs,
+                                    )
+                                )
+
+                                source["comment"] = new_data['sources'][i].get(
+                                    'comment', ""
+                                )
+                                # add source to publication
+                                new_data['sources'][i] = source
+
+                    publication.data = to_json(new_data)
                 else:
                     return self.error("data not found")
 

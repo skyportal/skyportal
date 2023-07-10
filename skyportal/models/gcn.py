@@ -8,18 +8,19 @@ __all__ = [
     'GcnTrigger',
     'DefaultGcnTag',
 ]
+import io
 import json
+import random
 
 import gcn
-import io
-from ligo.skymap import plot  # noqa: F401 F811
+import jinja2
 import lxml
 import matplotlib
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-import random
 import sqlalchemy as sa
+from ligo.skymap import plot  # noqa: F401 F811
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import deferred, relationship
@@ -38,10 +39,14 @@ from baselayer.app.models import (
 
 from ..utils.cache import Cache, dict_to_bytes
 from .allocation import Allocation, AllocationUser
-from .localization import Localization
 from .group import accessible_by_group_members
+from .localization import Localization
 
 env, cfg = load_env()
+
+host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
+    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
+)
 
 cache_dir = "cache/publications"
 cache = Cache(
@@ -153,7 +158,7 @@ class GcnPublication(Base):
         doc='Whether GcnPublication should be published',
     )
 
-    def generate_plot(self, figsize=(10, 8), output_format='png'):
+    def generate_plot(self, figsize=(10, 5), output_format='png'):
         """GcnPublication plot.
         Parameters
         ----------
@@ -232,7 +237,7 @@ class GcnPublication(Base):
                     transform=ax.get_transform('world'),
                     color='w',
                     zorder=2,
-                    s=70,
+                    s=30,
                 )
                 ax.text(
                     source['ra'] + 5.5,
@@ -249,114 +254,38 @@ class GcnPublication(Base):
         plt.close(fig)
         buf.seek(0)
 
-        return io.BytesIO(buf.read())
+        return buf.read()
 
     def publish(self):
         """Publish GcnPublication."""
         self.published = True
-        return self.generate_html()
+        return self.generate_publication()
 
     def generate_html(self):
         """Publish GcnPublication."""
         # TODO: create the hmtl and cache it
-        cache_key = f"gcn_{self.id}"
         data = self.data
         if isinstance(data, str):
             data = json.loads(data)
-        # TODO: use a proper template (like with jinja)
-        html = "<!DOCTYPE html>"
-        html += "<html>"
-
-        html += "<body>"
-        html += "<h1>GCN Publication</h1>"
-        html += "<br>"
-        html += "<div style='display: flex; flex-direction: row; justify-content: space-between; align-items: center;'><h2>Sources</h2>"
-        if len(data.get("sources", [])) == 0:
-            html += "</div><p>No sources</p>"
-        else:
-            html += "<button type='button' onclick='tableToCSV(\"sources\")' style='max-height: 30px;'>Download CSV</button></div>"
-            html += "<table style='width:100%' border='1' align='center' id='sources'>"
-            html += "<tr><th>Source ID</th><th>RA</th><th>Dec</th><th>Redshift</th><th>Comment</th></tr>"
-            for source in data["sources"]:
-                html += f"<tr><td>{source['id']}</td><td>{source['ra']}</td><td>{source['dec']}</td><td>{source['redshift']}</td><td>{source.get('comment', '')}</td></tr>"
-            html += "</table>"
-            html += "<br>"
-            html += "<div style='display: flex; flex-direction: row; justify-content: space-between; align-items: center;'><h2>Observations</h2>"
-
-        if len(data.get("observations", [])) == 0:
-            html += "</div><p>No observations</p>"
-        else:
-            html += "<button type='button' onclick='tableToCSV(\"observations\")' style='max-height: 30px;'>download as CSV</button></div>"
-            html += (
-                "<table style='width:100%' border='1' align='center' id='observations'>"
-            )
-            html += "<tr><th>Observation ID</th><th>Time</th><th>Instrument ID</th><th>Field ID</th><th>Filter</th><th>Exp. Time</th><th>Limiting Mag.</th><th>Airmass%</th><th>Processed %</th></tr>"
-            for observation in data["observations"]:
-                html += f"<tr><td>{observation['observation_id']}</td><td>{observation['obstime']}</td><td>{observation['instrument_id']}</td><td>{observation['instrument_field_id']}</td><td>{observation['filt']}</td><td>{observation['exposure_time']}</td><td>{observation['limmag']}</td><td>{observation['airmass']}</td><td>{observation['processed_fraction']}</td></tr>"
-            html += "</table>"
-
-        html += "<script type='text/javascript'>"
-        html += """
-        function tableToCSV(type) {
-
-            // Variable to store the final csv data
-            var csv_data = [];
-
-            // Get each row data
-            var table = document.getElementById(type);
-            var rows = table.querySelectorAll("tr");
-            for (var i = 0; i < rows.length; i++) {
-
-                // Get each column data
-                var cols = rows[i].querySelectorAll('td,th');
-
-                // Stores each csv row data
-                var csvrow = [];
-                for (var j = 0; j < cols.length; j++) {
-
-                    // Get the text data of each cell of
-                    // a row and push it to csvrow
-                    csvrow.push(cols[j].innerHTML);
-                }
-
-                // Combine each column value with comma
-                csv_data.push(csvrow.join(","));
-            }
-            // combine each row data with new line character
-            csv_data = csv_data.join('\\n');
-
-            downloadCSVFile(type, csv_data);
-        }
-
-        function downloadCSVFile(type, csv_data) {
-
-            // Create CSV file object and feed our
-            // csv_data into it
-            CSVFile = new Blob([csv_data], { type: "text/csv" });
-
-            // Create to temporary link to initiate
-            // download process
-            var temp_link = document.createElement('a');
-
-            // Download csv file
-            temp_link.download = type + ".csv";
-            var url = window.URL.createObjectURL(CSVFile);
-            temp_link.href = url;
-
-            // This link should not be displayed
-            temp_link.style.display = "none";
-            document.body.appendChild(temp_link);
-
-            // Automatically click the link to trigger download
-            temp_link.click();
-            document.body.removeChild(temp_link);
-        }
-        """
-        html += "</script>"
-
-        html += "</body></html>"
-        cache[cache_key] = dict_to_bytes({"published": self.published, "html": html})
+        template = jinja2.Template(
+            open("./static/publications/gcn_publication.html").read()
+        )
+        html = template.render(
+            host=host,
+            dateobs=self.dateobs,
+            publication_id=self.id,
+            publication_name=self.publication_name,
+            data=data,
+        )
         return html
+
+    def generate_publication(self):
+        cache_key = f"gcn_{self.id}"
+        pub_html = self.generate_html()
+        pub_plot = self.generate_plot()
+        cache[cache_key] = dict_to_bytes(
+            {"published": True, "html": pub_html, "plot": pub_plot}
+        )
 
     def unpublish(self):
         """Unpublish GcnPublication."""
@@ -367,9 +296,13 @@ class GcnPublication(Base):
         if cached is not None:
             data = np.load(cached, allow_pickle=True)
             data = data.item()
-            cache[cache_key] = dict_to_bytes({"published": False, "html": data["html"]})
+            cache[cache_key] = dict_to_bytes(
+                {"published": False, "html": data["html"], "plot": data["plot"]}
+            )
         else:
-            cache[cache_key] = dict_to_bytes({"published": False, "html": None})
+            cache[cache_key] = dict_to_bytes(
+                {"published": False, "html": None, "plot": None}
+            )
 
 
 class GcnSummary(Base):

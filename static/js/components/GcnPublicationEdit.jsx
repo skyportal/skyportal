@@ -9,6 +9,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Close";
+import Typography from "@mui/material/Typography";
 import {
   GridRowModes,
   DataGrid,
@@ -52,7 +53,7 @@ function EditSourceToolbar(props) {
   return (
     <GridToolbarContainer>
       <Button color="primary" startIcon={<AddIcon />} onClick={handleClick}>
-        Add record
+        Add Source Manually (by name)
       </Button>
     </GridToolbarContainer>
   );
@@ -286,7 +287,7 @@ export default function GcnPublicationEdit() {
       field: "redshift",
       headerName: "Redshift",
       type: "number",
-      width: 80,
+      width: 120,
       align: "left",
       headerAlign: "left",
       editable: true,
@@ -294,8 +295,10 @@ export default function GcnPublicationEdit() {
     {
       field: "host_id",
       headerName: "Host",
+      align: "left",
       type: "string",
       width: 180,
+      headerAlign: "left",
       editable: true,
     },
     {
@@ -304,6 +307,7 @@ export default function GcnPublicationEdit() {
       type: "string",
       width: 300,
       editable: true,
+      align: "left",
     },
     {
       field: "actions",
@@ -360,11 +364,13 @@ export default function GcnPublicationEdit() {
 
   const observationColumns = [
     {
-      field: "obs_id",
+      field: "observation_id",
       headerName: "observation ID",
       type: "string",
       width: 180,
       editable: false,
+      align: "left",
+      headerAlign: "left",
     },
     {
       field: "obstime",
@@ -372,6 +378,8 @@ export default function GcnPublicationEdit() {
       type: "string",
       width: 200,
       editable: false,
+      align: "left",
+      headerAlign: "left",
     },
     {
       field: "instrument_id",
@@ -379,6 +387,8 @@ export default function GcnPublicationEdit() {
       type: "string",
       width: 120,
       editable: false,
+      align: "left",
+      headerAlign: "left",
     },
     {
       field: "instrument_field_id",
@@ -386,6 +396,8 @@ export default function GcnPublicationEdit() {
       type: "number",
       width: 120,
       editable: false,
+      align: "left",
+      headerAlign: "left",
     },
     {
       field: "filt",
@@ -393,6 +405,8 @@ export default function GcnPublicationEdit() {
       type: "string",
       width: 120,
       editable: false,
+      align: "left",
+      headerAlign: "left",
     },
     {
       field: "exposure_time",
@@ -400,6 +414,8 @@ export default function GcnPublicationEdit() {
       type: "number",
       width: 120,
       editable: false,
+      align: "left",
+      headerAlign: "left",
     },
     {
       field: "limmag",
@@ -407,6 +423,8 @@ export default function GcnPublicationEdit() {
       type: "number",
       width: 120,
       editable: false,
+      align: "left",
+      headerAlign: "left",
     },
     {
       field: "airmass",
@@ -414,13 +432,17 @@ export default function GcnPublicationEdit() {
       type: "number",
       width: 120,
       editable: false,
+      align: "left",
+      headerAlign: "left",
     },
     {
       field: "processed_fraction",
-      headerName: "Processed %",
+      headerName: "Processed Fraction",
       type: "number",
-      width: 120,
+      width: 160,
       editable: false,
+      align: "left",
+      headerAlign: "left",
     },
   ];
 
@@ -462,12 +484,13 @@ export default function GcnPublicationEdit() {
           onClick={() => {
             handleSave();
           }}
-          sx={{ mb: 2 }}
         >
           Save
         </Button>
-        <div style={{ display: "flex", direction: "row" }}>
-          <h4>Published:</h4>
+        <div
+          style={{ display: "flex", direction: "row", alignItems: "center" }}
+        >
+          <h4 style={{ margin: 0 }}>Make it public:</h4>
           <CheckBox
             checked={publication?.published || false}
             onChange={handlePublishedChange}
@@ -475,6 +498,10 @@ export default function GcnPublicationEdit() {
           />
         </div>
       </div>
+      <div style={{ height: 20 }} />
+      <Typography variant="h6" gutterBottom component="div">
+        Sources
+      </Typography>
       <Box
         sx={{
           height: 500,
@@ -503,6 +530,10 @@ export default function GcnPublicationEdit() {
           }}
         />
       </Box>
+      <div style={{ height: 20 }} />
+      <Typography variant="h6" gutterBottom component="div">
+        Observations
+      </Typography>
       <Box
         sx={{
           height: 500,

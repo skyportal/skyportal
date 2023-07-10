@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>GCN Publications</title>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/static/publications/publications.css"
+    />
+  </head>
+  <body>
+    <!-- this is using a template with tornado. it gets a variable alles publications which is a list of all publications -->
+    <!-- we loop over the publications and print the publication if it is for the event -->
+    <h1>GCN Publications</h1>
+    <table
+      id="publications"
+      class="table"
+      style="width: 100%; border-collapse: collapse; border-spacing: 0"
+    >
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Event Dateobs</th>
+          <th>Program</th>
+          <th>Created At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pub in publications %}
+        <tr>
+          <td style="border-left-width: 0">
+            <a href="/public/publications/gcn/{{ pub['id'] }}"
+              >{{ pub["publication_name"] }}</a
+            >
+          </td>
+          <td>{{ pub["dateobs"] }}</td>
+          <td>{{ pub["group_name"] }}</td>
+          <td>{{ pub["created_at"] }}</td>
+          {% end %}
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
