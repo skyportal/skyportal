@@ -222,9 +222,20 @@ export default function GcnPublicationEdit() {
 
   const processSourceRowUpdate = (newRow) => {
     const updatedRow = { ...newRow, isNew: false };
-    setSourceRows(
-      sourceRows.map((row) => (row?.id === newRow?.id ? updatedRow : row))
-    );
+    const existingRow = sourceRows.find((row) => row?.id === newRow?.id);
+    if (existingRow?.obj_id !== newRow?.obj_id && existingRow?.obj_id !== "") {
+      dispatch(
+        showNotification(
+          "You can't change the obj_id of a source, canceling row update",
+          "warning"
+        )
+      );
+      handleCancelClick(newRow?.id, "source")();
+    } else {
+      setSourceRows(
+        sourceRows.map((row) => (row?.id === newRow?.id ? updatedRow : row))
+      );
+    }
     return updatedRow;
   };
 

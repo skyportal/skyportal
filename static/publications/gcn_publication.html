@@ -23,25 +23,29 @@
       style="max-width: 90vw"
     />
 
-    <div
-      style="
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-      "
-    >
-      <h2 style="margin-top: 0">Sources</h2>
+    <div style="display: flex; flex-direction: column; margin-bottom: 30px">
       {% if data.get("sources", [])|length == 0 %}
+      <h2 style="margin-top: 0; margin-bottom: 10px">Sources</h2>
       <p style="margin-top: 0">No sources</p>
       {% else %}
-      <button
-        type="button"
-        onclick="tableToCSV('sources')"
-        style="max-height: 30px"
+      <div
+        style="
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        "
       >
-        Download CSV
-      </button>
+        <h2 style="margin-top: 0; margin-bottom: 0">Sources</h2>
+        <button
+          type="button"
+          onclick="tableToCSV('sources')"
+          style="max-height: 30px"
+        >
+          Download CSV
+        </button>
+      </div>
       <table class="table" style="width: 100%" id="sources">
         <thead>
           <tr>
@@ -80,25 +84,29 @@
       {% endif %}
     </div>
 
-    <div
-      style="
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-      "
-    >
-      <h2 style="margin-top: 0">Observations</h2>
+    <div style="display: flex; flex-direction: column; margin-bottom: 30px">
       {% if data.get("observations", [])|length == 0 %}
+      <h2 style="margin-top: 0; margin-bottom: 10px">Observations</h2>
       <p style="margin-top: 0">No observations</p>
       {% else %}
-      <button
-        type="button"
-        onclick="tableToCSV('observations')"
-        style="max-height: 30px"
+      <div
+        style="
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        "
       >
-        Download as CSV
-      </button>
+        <h2 style="margin-top: 0; margin-bottom: 0">Observations</h2>
+        <button
+          type="button"
+          onclick="tableToCSV('observations')"
+          style="max-height: 30px"
+        >
+          Download as CSV
+        </button>
+      </div>
       <table class="table" style="width: 100%" id="observations">
         <thead>
           <tr>
