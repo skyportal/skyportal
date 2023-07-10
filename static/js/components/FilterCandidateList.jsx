@@ -381,6 +381,9 @@ const FilterCandidateList = ({
       if (formData.numberDetections) {
         data.numberDetections = formData.numberDetections;
       }
+      if (formData.excludeForcedPhotometry) {
+        data.excludeForcedPhotometry = formData.excludeForcedPhotometry;
+      }
     }
     if (formData.sortingOrigin) {
       data.sortByAnnotationOrigin = formData.sortingOrigin;
@@ -867,6 +870,26 @@ const FilterCandidateList = ({
                       )}
                       name="numberDetections"
                       control={control}
+                    />
+                  </div>
+                  <div className={classes.gcnFormRow}>
+                    <FormControlLabel
+                      control={
+                        <Controller
+                          render={({ field: { onChange, value } }) => (
+                            <Checkbox
+                              onChange={(event) => {
+                                onChange(event.target.checked);
+                              }}
+                              checked={value}
+                            />
+                          )}
+                          name="excludeForcedPhotometry"
+                          control={control}
+                          defaultValue
+                        />
+                      }
+                      label="Exclude Forced Photometry"
                     />
                   </div>
                 </>
