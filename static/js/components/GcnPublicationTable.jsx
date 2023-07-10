@@ -64,7 +64,7 @@ const GcnPublicationTable = ({
   const classes = useStyles();
   const theme = useTheme();
 
-  if (!publications || publications.length === 0) {
+  if (!publications || publications?.length === 0) {
     return <p>No entries available...</p>;
   }
 
@@ -73,23 +73,23 @@ const GcnPublicationTable = ({
     // return a link to the publication that opens in a new tab
     return (
       <a
-        href={`/public/publications/gcn/${publication.id}`}
+        href={`/public/publications/gcn/${publication?.id}`}
         target="_blank"
         rel="noreferrer"
       >
-        {publication.publication_name}
+        {publication?.publication_name}
       </a>
     );
   };
 
   const renderSentBy = (dataIndex) => {
     const publication = publications[dataIndex];
-    return <div>{publication.sent_by.username}</div>;
+    return <div>{publication?.sent_by?.username}</div>;
   };
 
   const renderGroup = (dataIndex) => {
     const publication = publications[dataIndex];
-    return <div>{publication.group.name}</div>;
+    return <div>{publication?.group?.name}</div>;
   };
 
   const renderRetrieveDeletePublication = (dataIndex) => {
@@ -99,22 +99,22 @@ const GcnPublicationTable = ({
         <Button
           primary
           onClick={() => {
-            setSelectedGcnPublicationId(publication.id);
+            setSelectedGcnPublicationId(publication?.id);
           }}
           size="small"
           type="submit"
-          data-testid={`retrievePublication_${publication.id}`}
+          data-testid={`retrievePublication_${publication?.id}`}
         >
           Retrieve
         </Button>
         <Button
           primary
           onClick={() => {
-            deleteGcnPublication(publication.id);
+            deleteGcnPublication(publication?.id);
           }}
           size="small"
           type="submit"
-          data-testid={`deletePublication_${publication.id}`}
+          data-testid={`deletePublication_${publication?.id}`}
         >
           Delete
         </Button>

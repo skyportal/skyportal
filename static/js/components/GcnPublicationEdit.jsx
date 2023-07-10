@@ -81,7 +81,7 @@ export default function GcnPublicationEdit() {
     const initialSourceRows = (data?.sources || []).map((source) => ({
       ...source,
       id: randomId(),
-      obj_id: source.id,
+      obj_id: source?.id,
     }));
     setSourceRows(initialSourceRows);
     setSourceRowModesModel({});
@@ -117,30 +117,30 @@ export default function GcnPublicationEdit() {
     sourceRows.forEach((sourceRow) => {
       const source = data.sources.find((s) => s.id === sourceRow.obj_id);
       if (source) {
-        source.alias = sourceRow.alias;
-        source.ra = sourceRow.ra;
-        source.dec = sourceRow.dec;
-        source.ra_err = sourceRow.ra_err;
-        source.dec_err = sourceRow.dec_err;
-        source.host_id = sourceRow.host_id;
-        source.redshift = sourceRow.redshift;
-        source.comment = sourceRow.comment;
+        source.alias = sourceRow?.alias;
+        source.ra = sourceRow?.ra;
+        source.dec = sourceRow?.dec;
+        source.ra_err = sourceRow?.ra_err;
+        source.dec_err = sourceRow?.dec_err;
+        source.host_id = sourceRow?.host_id;
+        source.redshift = sourceRow?.redshift;
+        source.comment = sourceRow?.comment;
       } else {
         data.sources.push({
           ...sourceRow,
-          id: sourceRow.obj_id,
+          id: sourceRow?.obj_id,
         });
       }
     });
     // remove the sources that are no longer in the sourceRows
-    data.sources = data.sources.filter((source) =>
-      sourceRows.find((sourceRow) => sourceRow.obj_id === source.id)
+    data.sources = (data?.sources || []).filter((source) =>
+      sourceRows.find((sourceRow) => sourceRow?.obj_id === source?.id)
     );
     // TODO: update observations (not needed for now as they can't be edited)
     dispatch(
       patchGcnEventPublication({
-        dateobs: publication.dateobs,
-        publicationID: publication.id,
+        dateobs: publication?.dateobs,
+        publicationID: publication?.id,
         formData: {
           ...publication,
           data,
@@ -190,9 +190,9 @@ export default function GcnPublicationEdit() {
 
   const handleDeleteClick = (id, type) => () => {
     if (type === "source") {
-      setSourceRows(sourceRows.filter((row) => row.id !== id));
+      setSourceRows(sourceRows.filter((row) => row?.id !== id));
     } else if (type === "observation") {
-      setObservationRows(observationRows.filter((row) => row.id !== id));
+      setObservationRows(observationRows.filter((row) => row?.id !== id));
     }
   };
 
@@ -203,9 +203,9 @@ export default function GcnPublicationEdit() {
         [id]: { mode: GridRowModes.View, ignoreModifications: true },
       });
 
-      const editedRow = sourceRows.find((row) => row.id === id);
+      const editedRow = sourceRows.find((row) => row?.id === id);
       if (editedRow.isNew) {
-        setSourceRows(sourceRows.filter((row) => row.id !== id));
+        setSourceRows(sourceRows.filter((row) => row?.id !== id));
       }
     } else if (type === "observation") {
       setObservationRowModesModel({
@@ -213,9 +213,9 @@ export default function GcnPublicationEdit() {
         [id]: { mode: GridRowModes.View, ignoreModifications: true },
       });
 
-      const editedRow = observationRows.find((row) => row.id === id);
+      const editedRow = observationRows.find((row) => row?.id === id);
       if (editedRow.isNew) {
-        setObservationRows(observationRows.filter((row) => row.id !== id));
+        setObservationRows(observationRows.filter((row) => row?.id !== id));
       }
     }
   };
@@ -223,7 +223,7 @@ export default function GcnPublicationEdit() {
   const processSourceRowUpdate = (newRow) => {
     const updatedRow = { ...newRow, isNew: false };
     setSourceRows(
-      sourceRows.map((row) => (row.id === newRow.id ? updatedRow : row))
+      sourceRows.map((row) => (row?.id === newRow?.id ? updatedRow : row))
     );
     return updatedRow;
   };
@@ -450,8 +450,8 @@ export default function GcnPublicationEdit() {
     const published = event.target.checked;
     dispatch(
       patchGcnEventPublication({
-        dateobs: publication.dateobs,
-        publicationID: publication.id,
+        dateobs: publication?.dateobs,
+        publicationID: publication?.id,
         formData: {
           published,
         },

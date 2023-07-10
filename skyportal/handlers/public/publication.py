@@ -91,7 +91,7 @@ class PublicationHandler(BaseHandler):
             if publication_type == "gcn":
                 publications = session.scalars(
                     sa.select(GcnPublication)
-                    .where(GcnPublication.published is True)
+                    .where(GcnPublication.published.is_(True))
                     .order_by(GcnPublication.dateobs.desc())
                 ).all()
                 publications = [

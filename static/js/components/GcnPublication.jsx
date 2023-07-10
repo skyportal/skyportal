@@ -159,8 +159,8 @@ const GcnPublication = ({ dateobs }) => {
   const [loading, setLoading] = useState(false);
 
   const groups_list = groups.map((group) => ({
-    id: group.id,
-    label: group.name,
+    id: group?.id,
+    label: group?.name,
   }));
 
   let sortedInstrumentList = [...instrumentList];
@@ -177,7 +177,7 @@ const GcnPublication = ({ dateobs }) => {
   // to each sortedInstrument, add a label field with the instrument name
   sortedInstrumentList = sortedInstrumentList.map((instrument) => ({
     ...instrument,
-    label: instrument.name,
+    label: instrument?.name,
   }));
 
   useEffect(() => {
@@ -250,14 +250,14 @@ const GcnPublication = ({ dateobs }) => {
     event.target.value.forEach((instrument) => {
       if (
         !new_selected_instruments.some(
-          (selected_instrument) => selected_instrument.id === instrument.id
+          (selected_instrument) => selected_instrument?.id === instrument?.id
         )
       ) {
         new_selected_instruments.push(instrument);
       } else {
         // remove the user from the list
         new_selected_instruments = new_selected_instruments.filter(
-          (selected_instrument) => selected_instrument.id !== instrument.id
+          (selected_instrument) => selected_instrument?.id !== instrument?.id
         );
       }
     });
@@ -301,9 +301,11 @@ const GcnPublication = ({ dateobs }) => {
         showSources,
         showObservations,
         photometryInWindow,
-        instrumentIds: selectedInstruments.map((instrument) => instrument.id),
+        instrumentIds: (selectedInstruments || []).map(
+          (instrument) => instrument?.id
+        ),
       };
-      if (params.instrumentIds?.length === 0) {
+      if (params?.instrumentIds?.length === 0) {
         delete params.instrumentIds;
       }
       dispatch(postGcnEventPublication({ dateobs, params })).then(
@@ -395,10 +397,10 @@ const GcnPublication = ({ dateobs }) => {
                     >
                       {gcnEvent.localizations?.map((localization) => (
                         <MenuItem
-                          value={localization.localization_name}
-                          key={localization.localization_name}
+                          value={localization?.localization_name}
+                          key={localization?.localization_name}
                         >
-                          {`${localization.localization_name}`}
+                          {`${localization?.localization_name}`}
                         </MenuItem>
                       ))}
                     </Select>
@@ -508,8 +510,8 @@ const GcnPublication = ({ dateobs }) => {
                     )}
                   </DialogTitle>
                   <DialogContent dividers>
-                    {gcnEvent.publication?.data && (
-                      <GcnPublicationEdit publication={gcnEvent.publication} />
+                    {gcnEvent?.publication?.data && (
+                      <GcnPublicationEdit publication={gcnEvent?.publication} />
                     )}
                   </DialogContent>
                 </Dialog>
