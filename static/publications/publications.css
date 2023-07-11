@@ -110,7 +110,12 @@ a {
     max-width: 100%;
   }
   .divider {
-    display: none;
+    height: 1px;
+    width: 100%;
+    margin-top: 30px;
+    margin-bottom: 30px;
+    margin-left: 0;
+    margin-right: 0;
   }
   .plot {
     max-width: 90vw;

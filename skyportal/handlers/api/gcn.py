@@ -3461,6 +3461,8 @@ def add_gcn_publication(
 
         contents["event"] = {
             "name": name,
+            "localization_name": localization_name,
+            "cumulative_probability": float(localization_cumprob) * 100,
             "tags": list(set(tags)),
             "aliases": list(set(aliases)),
             "event_properties": event_properties,
