@@ -270,8 +270,6 @@ class GcnPublication(Base):
         template = jinja2.Template(
             open("./static/publications/gcn_publication.html").read()
         )
-        # the dateobs is of format 2020-01-01 00:00:00.000
-        # we want a T between the date and time
         html = template.render(
             host=host,
             dateobs=str(self.dateobs).replace(" ", "T"),
