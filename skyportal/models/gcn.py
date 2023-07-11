@@ -275,6 +275,7 @@ class GcnPublication(Base):
             dateobs=self.dateobs,
             publication_id=self.id,
             publication_name=self.publication_name,
+            program=self.group.name,
             data=data,
         )
         return html

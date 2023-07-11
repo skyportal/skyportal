@@ -1,5 +1,24 @@
 body {
   font-family: "Roboto", Helvetica, Ariel, sans-serif;
+  padding: 1rem;
+  padding-top: 0;
+}
+
+a {
+  text-decoration: none;
+  color: #457b9d;
+}
+
+.logo {
+  height: 60px;
+  padding: 0 0.5em;
+}
+
+@media (prefers-color-scheme: light) {
+  /* set the color of the logo to #457B9D; */
+  .logo {
+    filter: invert(0.5);
+  }
 }
 
 .table {
@@ -43,4 +62,57 @@ body {
   vertical-align: middle;
   padding: 4px;
   margin: 0;
+}
+
+.tag {
+  /* here we want some sort of rounded chip */
+  border-radius: 12px;
+  background-color: #dddddd;
+  padding: 4px;
+  padding-left: 8px;
+  padding-right: 8px;
+  margin-right: 4px;
+  font-size: 0.8em;
+}
+
+.section {
+  display: flex;
+  flex-direction: row;
+  max-width: 100%;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  max-width: 50%;
+  overflow: auto;
+  overflow-x: scroll;
+}
+
+.divider {
+  width: 1px;
+  background-color: #000000;
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+.plot {
+  max-width: 50vw;
+  object-fit: cover;
+}
+
+/* if the screen is smaller than 1200px, we want to make the container full width */
+@media (max-width: 1000px) {
+  .section {
+    flex-direction: column;
+  }
+  .container {
+    max-width: 100%;
+  }
+  .divider {
+    display: none;
+  }
+  .plot {
+    max-width: 90vw;
+  }
 }

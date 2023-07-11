@@ -3332,6 +3332,14 @@ def add_gcn_publication(
         gcn_publication = session.query(GcnPublication).get(publication_id)
         group = session.query(Group).get(group_id)
         event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
+        localization = (
+            session.query(Localization)
+            .filter(
+                Localization.dateobs == dateobs,
+                Localization.localization_name == localization_name,
+            )
+            .first()
+        )
         start_date_mjd = Time(arrow.get(start_date).datetime).mjd
         end_date_mjd = Time(arrow.get(end_date).datetime).mjd
 
@@ -3439,6 +3447,25 @@ def add_gcn_publication(
                 del o["instrument"]
 
             contents["observations"] = observations
+
+        tags = event.tags
+        aliases = event.aliases
+        event_properties = event.properties
+        localization_properties = localization.properties
+
+        name = None
+        for alias in aliases:
+            if alias.startswith("LVC#") or alias.startswith("Fermi#"):
+                name = alias.split("#")[1]
+                break
+
+        contents["event"] = {
+            "name": name,
+            "tags": list(set(tags)),
+            "aliases": list(set(aliases)),
+            "event_properties": event_properties,
+            "localization_properties": localization_properties,
+        }
 
         gcn_publication.data = to_json(contents)
         session.commit()
