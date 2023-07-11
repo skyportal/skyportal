@@ -56,6 +56,13 @@ const ScanningPageCandidateAnnotations = ({
 
   const dispatch = useDispatch();
 
+  annotations?.sort((a, b) => a.origin.localeCompare(b.origin));
+  annotations?.forEach((annotation) => {
+    annotation.data = Object.fromEntries(
+      Object.entries(annotation.data).sort((a, b) => a[0].localeCompare(b[0]))
+    );
+  });
+
   const initState = {};
   annotations?.forEach((annotation) => {
     initState[annotation.origin] = true;
