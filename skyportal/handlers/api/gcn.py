@@ -3394,6 +3394,8 @@ def add_gcn_publication(
                         source["photometry"] = [
                             serialize(phot, 'ab', 'mag') for phot in photometry
                         ]
+                    else:
+                        source["photometry"] = []
 
             contents["sources"] = sources
 
@@ -3834,12 +3836,24 @@ class GcnPublicationHandler(BaseHandler):
                                     source_id,
                                     self.associated_user_object.id,
                                     session,
-                                    include_photometry=True,
+                                    include_photometry=False,
                                 )
                                 if source is None:
                                     return self.error(
                                         f"Source {source_id} not found in the database, not updating publication"
                                     )
+
+                                stmt = Photometry.select(session.user_or_token).where(
+                                    Photometry.obj_id == source['id']
+                                )
+                                photometry = session.scalars(stmt).all()
+                                if len(photometry) > 0:
+                                    source["photometry"] = [
+                                        serialize(phot, 'ab', 'mag')
+                                        for phot in photometry
+                                    ]
+                                else:
+                                    source["photometry"] = []
 
                                 source["source_in_gcn"] = session.scalar(
                                     SourcesConfirmedInGCN.select(

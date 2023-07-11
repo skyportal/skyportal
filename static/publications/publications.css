@@ -28,6 +28,10 @@ body {
   margin: 0;
 }
 
+.table > tbody > tr {
+  display: table-row;
+}
+
 .table > tbody > tr > td {
   border-left-width: 2px;
   border-left-style: solid;
