@@ -3,7 +3,7 @@ __all__ = [
     'GcnTag',
     'GcnEvent',
     'GcnProperty',
-    'GcnPublication',
+    'GcnReport',
     'GcnSummary',
     'GcnTrigger',
     'DefaultGcnTag',
@@ -48,10 +48,10 @@ host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
     f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
 )
 
-cache_dir = "cache/publications"
+cache_dir = "cache/reports"
 cache = Cache(
     cache_dir=cache_dir,
-    max_age=cfg["misc.minutes_to_keep_publications_cache"] * 60,
+    max_age=cfg["misc.minutes_to_keep_reports_cache"] * 60,
 )
 
 SOURCE_RADIUS_THRESHOLD = 5 / 60.0  # 5 arcmin in degrees
@@ -103,8 +103,8 @@ class DefaultGcnTag(Base):
     )
 
 
-class GcnPublication(Base):
-    """Store GCN publication for events."""
+class GcnReport(Base):
+    """Store GCN report for events."""
 
     create = read = accessible_by_group_members
 
@@ -116,14 +116,14 @@ class GcnPublication(Base):
         sa.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
-        doc="The ID of the User who created this GcnPublication.",
+        doc="The ID of the User who created this GcnReport.",
     )
 
     sent_by = relationship(
         "User",
         foreign_keys=sent_by_id,
-        back_populates="gcnpublications",
-        doc="The user that saved this GcnPublication",
+        back_populates="gcnreports",
+        doc="The user that saved this GcnReport",
     )
 
     dateobs = sa.Column(
@@ -137,29 +137,29 @@ class GcnPublication(Base):
         sa.ForeignKey('groups.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
-        doc="The ID of the Group that this GcnPublication is associated with.",
+        doc="The ID of the Group that this GcnReport is associated with.",
     )
 
     group = relationship(
         "Group",
         foreign_keys=group_id,
-        back_populates="gcnpublications",
-        doc="The group that this GcnPublication is associated with.",
+        back_populates="gcnreports",
+        doc="The group that this GcnReport is associated with.",
     )
 
-    data = deferred(sa.Column(JSONB, nullable=False, doc="Publication data in JSON."))
+    data = deferred(sa.Column(JSONB, nullable=False, doc="Report data in JSON."))
 
-    publication_name = sa.Column(sa.String, nullable=False)
+    report_name = sa.Column(sa.String, nullable=False)
 
     published = sa.Column(
         sa.Boolean,
         nullable=False,
         server_default='false',
-        doc='Whether GcnPublication should be published',
+        doc='Whether GcnReport should be published',
     )
 
     def generate_plot(self, figsize=(10, 5), output_format='png'):
-        """GcnPublication plot.
+        """GcnReport plot.
         Parameters
         ----------
         figsize : tuple, optional
@@ -256,31 +256,34 @@ class GcnPublication(Base):
 
         return buf.read()
 
-    def publish(self):
-        """Publish GcnPublication."""
-        self.published = True
-        return self.generate_publication()
-
     def generate_html(self):
-        """Publish GcnPublication."""
+        """Publish GcnReport."""
         # TODO: create the hmtl and cache it
         data = self.data
         if isinstance(data, str):
             data = json.loads(data)
-        template = jinja2.Template(
-            open("./static/publications/gcn_publication.html").read()
-        )
+        template = jinja2.Template(open("./static/reports/gcn_report.html").read())
         html = template.render(
             host=host,
             dateobs=str(self.dateobs).replace(" ", "T"),
-            publication_id=self.id,
-            publication_name=self.publication_name,
+            report_id=self.id,
+            report_name=self.report_name,
             program=self.group.name,
             data=data,
         )
         return html
 
-    def generate_publication(self):
+    def generate_report(self):
+        data = self.data
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except Exception:
+                data = {"status": "error", "message": "Invalid JSON data."}
+        if data.get("status") == "error":
+            raise ValueError(data.get("message", "Invalid JSON data."))
+        elif data.get("status") == "pending":
+            raise ValueError("Report is still being generated.")
         cache_key = f"gcn_{self.id}"
         pub_html = self.generate_html()
         pub_plot = self.generate_plot()
@@ -288,8 +291,13 @@ class GcnPublication(Base):
             {"published": True, "html": pub_html, "plot": pub_plot}
         )
 
+    def publish(self):
+        """Publish GcnReport."""
+        self.generate_report()
+        self.published = True
+
     def unpublish(self):
-        """Unpublish GcnPublication."""
+        """Unpublish GcnReport."""
         self.published = False
         # TODO: delete the html from cache
         cache_key = f"gcn_{self.id}"
@@ -514,12 +522,12 @@ class GcnEvent(Base):
         doc="Properties associated with this GCN event.",
     )
 
-    publications = relationship(
-        'GcnPublication',
+    reports = relationship(
+        'GcnReport',
         cascade='save-update, merge, refresh-expire, expunge, delete',
         passive_deletes=True,
-        order_by="GcnPublication.created_at",
-        doc="Publications associated with this GCN event.",
+        order_by="GcnReport.created_at",
+        doc="Reports associated with this GCN event.",
     )
 
     summaries = relationship(

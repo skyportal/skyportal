@@ -32,14 +32,14 @@ import { fetchGroup } from "../ducks/group";
 import { fetchGroups } from "../ducks/groups";
 import { fetchInstruments } from "../ducks/instruments";
 import {
-  postGcnEventPublication,
-  fetchGcnEventPublications,
-  fetchGcnEventPublication,
-  deleteGcnEventPublication,
+  postGcnEventReport,
+  fetchGcnEventReports,
+  fetchGcnEventReport,
+  deleteGcnEventReport,
 } from "../ducks/gcnEvent";
 import Button from "./Button";
-import GcnPublicationTable from "./GcnPublicationTable";
-import GcnPublicationEdit from "./GcnPublicationEdit";
+import GcnReportTable from "./GcnReportTable";
+import GcnReportEdit from "./GcnReportEdit";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -135,7 +135,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
   )
 );
 
-const GcnPublication = ({ dateobs }) => {
+const GcnReport = ({ dateobs }) => {
   const classes = useStyles();
   const groups = useSelector((state) => state.groups.userAccessible);
   const { instrumentList } = useSelector((state) => state.instruments);
@@ -143,7 +143,7 @@ const GcnPublication = ({ dateobs }) => {
   const [open, setOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const gcnEvent = useSelector((state) => state.gcnEvent);
-  const [publicationName, setPublicationName] = useState("");
+  const [reportName, setReportName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [localizationName, setLocalizationName] = useState(null);
@@ -153,8 +153,7 @@ const GcnPublication = ({ dateobs }) => {
   const [showObservations, setShowObservations] = useState(false);
   const [photometryInWindow, setPhotometryInWindow] = useState(false);
   const [selectedInstruments, setSelectedInstruments] = useState([]);
-  const [selectedGcnPublicationId, setSelectedGcnPublicationId] =
-    useState(null);
+  const [selectedGcnReportId, setSelectedGcnReportId] = useState(null);
 
   const [loading, setLoading] = useState(false);
 
@@ -214,28 +213,26 @@ const GcnPublication = ({ dateobs }) => {
 
   useEffect(() => {
     if (dateobs !== null && dateobs !== undefined) {
-      dispatch(fetchGcnEventPublications(dateobs));
+      dispatch(fetchGcnEventReports(dateobs));
     }
   }, [dateobs, dispatch]);
 
   useEffect(() => {
-    const fetchPublication = (publicationID) => {
-      dispatch(fetchGcnEventPublication({ dateobs, publicationID })).then(
-        (response) => {
-          if (response.status !== "success") {
-            dispatch(showNotification("Error fetching publication", "error"));
-          }
+    const fetchReport = (reportID) => {
+      dispatch(fetchGcnEventReport({ dateobs, reportID })).then((response) => {
+        if (response.status !== "success") {
+          dispatch(showNotification("Error fetching report", "error"));
         }
-      );
+      });
     };
     if (
-      gcnEvent?.publications?.length > 0 &&
-      selectedGcnPublicationId &&
-      selectedGcnPublicationId !== gcnEvent?.publication?.id
+      gcnEvent?.reports?.length > 0 &&
+      selectedGcnReportId &&
+      selectedGcnReportId !== gcnEvent?.report?.id
     ) {
-      fetchPublication(selectedGcnPublicationId);
+      fetchReport(selectedGcnReportId);
     }
-  }, [gcnEvent, selectedGcnPublicationId]);
+  }, [gcnEvent, selectedGcnReportId]);
 
   const handleClose = () => {
     setOpen(false);
@@ -287,11 +284,11 @@ const GcnPublication = ({ dateobs }) => {
     return valid;
   };
 
-  const handleSubmitGcnPublication = async () => {
+  const handleSubmitGcnReport = async () => {
     if (validateSubmit()) {
       setLoading(true);
       const params = {
-        publicationName,
+        reportName,
         groupId: selectedGroup?.id,
         startDate,
         endDate,
@@ -308,37 +305,31 @@ const GcnPublication = ({ dateobs }) => {
       if (params?.instrumentIds?.length === 0) {
         delete params.instrumentIds;
       }
-      dispatch(postGcnEventPublication({ dateobs, params })).then(
-        (response) => {
-          if (response.status === "success") {
-            dispatch(
-              showNotification("Publication is being generated, please wait")
-            );
-          } else {
-            dispatch(showNotification("Error generating publication", "error"));
-          }
-          setLoading(false);
+      dispatch(postGcnEventReport({ dateobs, params })).then((response) => {
+        if (response.status === "success") {
+          dispatch(showNotification("Report is being generated, please wait"));
+        } else {
+          dispatch(showNotification("Error generating report", "error"));
         }
-      );
+        setLoading(false);
+      });
     }
   };
 
-  const handleDeleteGcnPublication = (publicationID) => {
-    dispatch(deleteGcnEventPublication({ dateobs, publicationID })).then(
-      (response) => {
-        if (response.status === "success") {
-          dispatch(showNotification("Publication deleted"));
-        } else {
-          dispatch(showNotification("Error deleting publication", "error"));
-        }
+  const handleDeleteGcnReport = (reportID) => {
+    dispatch(deleteGcnEventReport({ dateobs, reportID })).then((response) => {
+      if (response.status === "success") {
+        dispatch(showNotification("Report deleted"));
+      } else {
+        dispatch(showNotification("Error deleting report", "error"));
       }
-    );
+    });
   };
 
   return (
     <>
-      <Button secondary name="gcn_publication" onClick={() => setOpen(true)}>
-        Publication
+      <Button secondary name="gcn_report" onClick={() => setOpen(true)}>
+        Report
       </Button>
       {open && (
         <Dialog
@@ -353,10 +344,10 @@ const GcnPublication = ({ dateobs }) => {
               <Grid item md={4} sm={12}>
                 <Paper elevation={1} className={classes.form}>
                   <TextField
-                    id="publicationName"
-                    label="Publication Name"
-                    value={publicationName}
-                    onChange={(e) => setPublicationName(e.target.value)}
+                    id="reportName"
+                    label="Report Name"
+                    value={reportName}
+                    onChange={(e) => setReportName(e.target.value)}
                   />
                   <SelectSingleLabelWithChips
                     label="Group"
@@ -393,7 +384,7 @@ const GcnPublication = ({ dateobs }) => {
                       labelId="localizationSelectLabel"
                       value={localizationName || ""}
                       onChange={(e) => setLocalizationName(e.target.value)}
-                      name="gcnPublicationLocalizationSelect"
+                      name="gcnReportLocalizationSelect"
                     >
                       {gcnEvent.localizations?.map((localization) => (
                         <MenuItem
@@ -455,7 +446,7 @@ const GcnPublication = ({ dateobs }) => {
                   </div>
                   <div className={classes.buttons}>
                     <LoadingButton
-                      onClick={() => handleSubmitGcnPublication()}
+                      onClick={() => handleSubmitGcnReport()}
                       loading={loading}
                       loadingPosition="end"
                       variant="contained"
@@ -467,51 +458,38 @@ const GcnPublication = ({ dateobs }) => {
                 </Paper>
               </Grid>
               <Grid item md={8} sm={12}>
-                <Paper className={classes.menu}>
-                  <Button
-                    primary
-                    id="gcn-publication-list"
-                    onClick={() => setSelectedGcnPublicationId(null)}
-                  >
-                    GCN Publications List
-                  </Button>
-                </Paper>
-                {!selectedGcnPublicationId && (
+                {!selectedGcnReportId && (
                   <Paper elevation={1} className={classes.content}>
                     <div>
-                      <GcnPublicationTable
-                        publications={gcnEvent?.publications}
-                        setSelectedGcnPublicationId={
-                          setSelectedGcnPublicationId
-                        }
-                        deleteGcnPublication={handleDeleteGcnPublication}
+                      <GcnReportTable
+                        reports={gcnEvent?.reports}
+                        setSelectedGcnReportId={setSelectedGcnReportId}
+                        deleteGcnReport={handleDeleteGcnReport}
                       />
                     </div>
                   </Paper>
                 )}
                 <Dialog
-                  open={selectedGcnPublicationId !== null}
-                  onClose={() => setSelectedGcnPublicationId(null)}
+                  open={selectedGcnReportId !== null}
+                  onClose={() => setSelectedGcnReportId(null)}
                   style={{ position: "fixed" }}
                   fullScreen
                 >
-                  <DialogTitle
-                    onClose={() => setSelectedGcnPublicationId(null)}
-                  >
-                    Publication {dateobs}:{" "}
-                    {gcnEvent?.publication?.id && (
+                  <DialogTitle onClose={() => setSelectedGcnReportId(null)}>
+                    Report {dateobs}:{" "}
+                    {gcnEvent?.report?.id && (
                       <a
-                        href={`/public/publications/gcn/${gcnEvent?.publication?.id}`}
+                        href={`/public/reports/gcn/${gcnEvent?.report?.id}`}
                         target="_blank"
                         rel="noreferrer"
                       >
-                        {gcnEvent?.publication?.publication_name}
+                        {gcnEvent?.report?.report_name}
                       </a>
                     )}
                   </DialogTitle>
                   <DialogContent dividers>
-                    {gcnEvent?.publication?.data && (
-                      <GcnPublicationEdit publication={gcnEvent?.publication} />
+                    {gcnEvent?.report?.data && (
+                      <GcnReportEdit report={gcnEvent?.report} />
                     )}
                   </DialogContent>
                 </Dialog>
@@ -524,8 +502,8 @@ const GcnPublication = ({ dateobs }) => {
   );
 };
 
-GcnPublication.propTypes = {
+GcnReport.propTypes = {
   dateobs: PropTypes.string.isRequired,
 };
 
-export default GcnPublication;
+export default GcnReport;

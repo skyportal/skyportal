@@ -411,12 +411,12 @@ class Group(Base):
         passive_deletes=True,
         doc="TNS Robots associated with this group.",
     )
-    gcnpublications = relationship(
-        'GcnPublication',
+    gcnreports = relationship(
+        'GcnReport',
         back_populates="group",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc="Gcn Publications associated with this group.",
+        doc="Gcn Reports associated with this group.",
     )
     gcnsummaries = relationship(
         'GcnSummary',

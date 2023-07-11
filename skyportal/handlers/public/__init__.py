@@ -1,1 +1,1 @@
-from .publication import PublicationHandler
+from .report import ReportHandler

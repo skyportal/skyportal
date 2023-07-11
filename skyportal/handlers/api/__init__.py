@@ -62,7 +62,7 @@ from .gcn import (
     GcnEventCatalogQueryHandler,
     GcnEventInstrumentFieldHandler,
     GcnEventTagsHandler,
-    GcnPublicationHandler,
+    GcnReportHandler,
     GcnSummaryHandler,
     GcnEventTriggerHandler,
     LocalizationHandler,

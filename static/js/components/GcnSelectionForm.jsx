@@ -38,7 +38,7 @@ import AddCatalogQueryPage from "./AddCatalogQueryPage";
 import AddSurveyEfficiencyObservationsPage from "./AddSurveyEfficiencyObservationsPage";
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import GalaxyTable from "./GalaxyTable";
-import GcnPublication from "./GcnPublication";
+import GcnReport from "./GcnReport";
 import GcnSummary from "./GcnSummary";
 import LocalizationPlot from "./LocalizationPlot";
 import SourceTable from "./SourceTable";
@@ -1099,7 +1099,7 @@ const GcnSelectionForm = ({
                 <Grid item xs={11} sm={12}>
                   <div className={classes.buttons}>
                     <GcnSummary dateobs={dateobs} />
-                    <GcnPublication dateobs={dateobs} />
+                    <GcnReport dateobs={dateobs} />
                     <AddSurveyEfficiencyObservationsPage />
                     <AddCatalogQueryPage />
                     {isSubmittingTreasureMap === selectedInstrumentId ? (

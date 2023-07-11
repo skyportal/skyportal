@@ -52,10 +52,10 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const GcnPublicationTable = ({
-  publications,
-  setSelectedGcnPublicationId,
-  deleteGcnPublication,
+const GcnReportTable = ({
+  reports,
+  setSelectedGcnReportId,
+  deleteGcnReport,
   pageNumber = 1,
   numPerPage = 10,
   serverSide = false,
@@ -64,57 +64,57 @@ const GcnPublicationTable = ({
   const classes = useStyles();
   const theme = useTheme();
 
-  if (!publications || publications?.length === 0) {
+  if (!reports || reports?.length === 0) {
     return <p>No entries available...</p>;
   }
 
   const renderName = (dataIndex) => {
-    const publication = publications[dataIndex];
-    // return a link to the publication that opens in a new tab
+    const report = reports[dataIndex];
+    // return a link to the report that opens in a new tab
     return (
       <a
-        href={`/public/publications/gcn/${publication?.id}`}
+        href={`/public/reports/gcn/${report?.id}`}
         target="_blank"
         rel="noreferrer"
       >
-        {publication?.publication_name}
+        {report?.report_name}
       </a>
     );
   };
 
   const renderSentBy = (dataIndex) => {
-    const publication = publications[dataIndex];
-    return <div>{publication?.sent_by?.username}</div>;
+    const report = reports[dataIndex];
+    return <div>{report?.sent_by?.username}</div>;
   };
 
   const renderGroup = (dataIndex) => {
-    const publication = publications[dataIndex];
-    return <div>{publication?.group?.name}</div>;
+    const report = reports[dataIndex];
+    return <div>{report?.group?.name}</div>;
   };
 
-  const renderRetrieveDeletePublication = (dataIndex) => {
-    const publication = publications[dataIndex];
+  const renderRetrieveDeleteReport = (dataIndex) => {
+    const report = reports[dataIndex];
     return (
       <div style={{ display: "flex", gap: "0.5rem" }}>
         <Button
           primary
           onClick={() => {
-            setSelectedGcnPublicationId(publication?.id);
+            setSelectedGcnReportId(report?.id);
           }}
           size="small"
           type="submit"
-          data-testid={`retrievePublication_${publication?.id}`}
+          data-testid={`retrieveReport_${report?.id}`}
         >
           Retrieve
         </Button>
         <Button
           primary
           onClick={() => {
-            deleteGcnPublication(publication?.id);
+            deleteGcnReport(report?.id);
           }}
           size="small"
           type="submit"
-          data-testid={`deletePublication_${publication?.id}`}
+          data-testid={`deleteReport_${report?.id}`}
         >
           Delete
         </Button>
@@ -124,7 +124,7 @@ const GcnPublicationTable = ({
 
   const columns = [
     {
-      name: "publication_name",
+      name: "report_name",
       label: "Name",
       options: {
         customBodyRenderLite: renderName,
@@ -158,7 +158,7 @@ const GcnPublicationTable = ({
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderRetrieveDeletePublication,
+        customBodyRenderLite: renderRetrieveDeleteReport,
         download: false,
       },
     },
@@ -178,13 +178,13 @@ const GcnPublicationTable = ({
 
   return (
     <div>
-      {publications ? (
+      {reports ? (
         <Paper className={classes.container}>
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
               <MUIDataTable
-                title={!hideTitle ? "GCN Publications" : ""}
-                data={publications}
+                title={!hideTitle ? "GCN Reports" : ""}
+                data={reports}
                 options={options}
                 columns={columns}
               />
@@ -198,30 +198,30 @@ const GcnPublicationTable = ({
   );
 };
 
-GcnPublicationTable.propTypes = {
-  publications: PropTypes.arrayOf(
+GcnReportTable.propTypes = {
+  reports: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number,
-      publication_name: PropTypes.string,
+      report_name: PropTypes.string,
       created_at: PropTypes.string,
       sent_by: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
       group: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
     })
   ),
-  setSelectedGcnPublicationId: PropTypes.func.isRequired,
-  deleteGcnPublication: PropTypes.func.isRequired,
+  setSelectedGcnReportId: PropTypes.func.isRequired,
+  deleteGcnReport: PropTypes.func.isRequired,
   pageNumber: PropTypes.number,
   numPerPage: PropTypes.number,
   hideTitle: PropTypes.bool,
   serverSide: PropTypes.bool,
 };
 
-GcnPublicationTable.defaultProps = {
-  publications: null,
+GcnReportTable.defaultProps = {
+  reports: null,
   pageNumber: 1,
   numPerPage: 10,
   hideTitle: false,
   serverSide: false,
 };
 
-export default GcnPublicationTable;
+export default GcnReportTable;

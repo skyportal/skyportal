@@ -3,19 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="robots" content="noindex" />
-    <title>GCN Publications</title>
-    <link
-      rel="stylesheet"
-      type="text/css"
-      href="/static/publications/publications.css"
-    />
+    <title>GCN Reports</title>
+    <link rel="stylesheet" type="text/css" href="/static/reports/reports.css" />
   </head>
   <body>
-    <!-- this is using a template with tornado. it gets a variable alles publications which is a list of all publications -->
-    <!-- we loop over the publications and print the publication if it is for the event -->
-    <h1>GCN Publications</h1>
+    <!-- this is using a template with tornado. it gets a variable alles reports which is a list of all reports -->
+    <!-- we loop over the reports and print the report if it is for the event -->
+    <h1>GCN Reports</h1>
     <table
-      id="publications"
+      id="reports"
       class="table"
       style="width: 100%; border-collapse: collapse; border-spacing: 0"
     >
@@ -28,11 +24,11 @@
         </tr>
       </thead>
       <tbody>
-        {% for pub in publications %}
+        {% for pub in reports %}
         <tr>
           <td style="border-left-width: 0">
-            <a href="/public/publications/gcn/{{ pub['id'] }}"
-              >{{ pub["publication_name"] }}</a
+            <a href="/public/reports/gcn/{{ pub['id'] }}"
+              >{{ pub["report_name"] }}</a
             >
           </td>
           <td>{{ pub["dateobs"] }}</td>

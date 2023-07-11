@@ -20,7 +20,7 @@ import {
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import { patchGcnEventPublication } from "../ducks/gcnEvent";
+import { patchGcnEventReport } from "../ducks/gcnEvent";
 
 const randomId = () => Math.random().toString(36).substr(2, 5);
 
@@ -64,10 +64,10 @@ EditSourceToolbar.propTypes = {
   setSourceRowModesModel: PropTypes.func.isRequired,
 };
 
-export default function GcnPublicationEdit() {
+export default function GcnReportEdit() {
   const dispatch = useDispatch();
 
-  const { publication } = useSelector((state) => state.gcnEvent);
+  const { report } = useSelector((state) => state.gcnEvent);
 
   const [sourceRows, setSourceRows] = React.useState([]);
   const [sourceRowModesModel, setSourceRowModesModel] = React.useState({});
@@ -76,7 +76,12 @@ export default function GcnPublicationEdit() {
     React.useState({});
 
   React.useEffect(() => {
-    const data = publication?.data ? JSON.parse(publication?.data) : null;
+    let data;
+    try {
+      data = report?.data ? JSON.parse(report?.data) : null;
+    } catch (e) {
+      data = { status: "error", message: "Invalid report data" };
+    }
 
     const initialSourceRows = (data?.sources || []).map((source) => ({
       ...source,
@@ -94,10 +99,10 @@ export default function GcnPublicationEdit() {
     );
     setObservationRows(initialObservationRows);
     setObservationRowModesModel({});
-  }, [publication]);
+  }, [report]);
 
   const handleSave = () => {
-    let data = publication?.data ? JSON.parse(publication?.data) : null;
+    let data = report?.data ? JSON.parse(report?.data) : null;
     if (!data) {
       data = {
         sources: [],
@@ -138,19 +143,19 @@ export default function GcnPublicationEdit() {
     );
     // TODO: update observations (not needed for now as they can't be edited)
     dispatch(
-      patchGcnEventPublication({
-        dateobs: publication?.dateobs,
-        publicationID: publication?.id,
+      patchGcnEventReport({
+        dateobs: report?.dateobs,
+        reportID: report?.id,
         formData: {
-          ...publication,
+          ...report,
           data,
         },
       })
     ).then((response) => {
       if (response.status === "success") {
-        dispatch(showNotification("Publication updated"));
+        dispatch(showNotification("Report updated"));
       } else {
-        dispatch(showNotification("Error updating publication", "error"));
+        dispatch(showNotification("Error updating report", "error"));
       }
     });
   };
@@ -461,9 +466,9 @@ export default function GcnPublicationEdit() {
   const handlePublishedChange = (event) => {
     const published = event.target.checked;
     dispatch(
-      patchGcnEventPublication({
-        dateobs: publication?.dateobs,
-        publicationID: publication?.id,
+      patchGcnEventReport({
+        dateobs: report?.dateobs,
+        reportID: report?.id,
         formData: {
           published,
         },
@@ -471,15 +476,45 @@ export default function GcnPublicationEdit() {
     ).then((response) => {
       if (response.status === "success") {
         if (published) {
-          dispatch(showNotification("Publication published"));
+          dispatch(showNotification("Report published"));
         } else {
-          dispatch(showNotification("Publication unpublished"));
+          dispatch(showNotification("Report unpublished"));
         }
       } else {
-        dispatch(showNotification("Error updating publication", "error"));
+        dispatch(showNotification("Error updating report", "error"));
       }
     });
   };
+
+  let data;
+  try {
+    data = report?.data ? JSON.parse(report?.data) : null;
+  } catch (e) {
+    data = { status: "error", message: "Invalid report data" };
+  }
+
+  if (data?.status === "error") {
+    return (
+      <div>
+        <Typography variant="h6" gutterBottom component="div">
+          Error loading report
+        </Typography>
+        <Typography variant="body1" gutterBottom component="div">
+          {data?.message}
+        </Typography>
+      </div>
+    );
+  }
+
+  if (data?.status === "pending") {
+    return (
+      <div>
+        <Typography variant="h6" gutterBottom component="div">
+          Report is still being generated. Please wait and try again.
+        </Typography>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -504,7 +539,7 @@ export default function GcnPublicationEdit() {
         >
           <h4 style={{ margin: 0 }}>Make it public:</h4>
           <CheckBox
-            checked={publication?.published || false}
+            checked={report?.published || false}
             onChange={handlePublishedChange}
             inputProps={{ "aria-label": "controlled" }}
           />

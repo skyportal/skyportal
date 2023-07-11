@@ -3,12 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="robots" content="noindex" />
-    <title>GCN Publications</title>
-    <link
-      rel="stylesheet"
-      type="text/css"
-      href="/static/publications/publications.css"
-    />
+    <title>GCN Reports</title>
+    <link rel="stylesheet" type="text/css" href="/static/reports/reports.css" />
   </head>
   <body>
     <div
@@ -25,9 +21,9 @@
           <a href="{{ host }}/gcn_events/{{ dateobs }}"
             >{{ data['event']['name'] }}</a
           >
-          ({{ dateobs }}): {{ publication_name }} {% else %}
+          ({{ dateobs }}): {{ report_name }} {% else %}
           <a href="{{ host }}/gcn_events/{{ dateobs }}">{{ dateobs }}</a>: {{
-          publication_name }} {% endif %}
+          report_name }} {% endif %}
         </h1>
         <p style="margin: 0">Program: {{ program }}</p>
         <div
@@ -133,7 +129,7 @@
           Localization: {{data.get("event", {}).get("localization_name", None)}}
         </h3>
         <img
-          src="{{ host }}/public/publications/gcn/{{ publication_id }}/plot"
+          src="{{ host }}/public/reports/gcn/{{ report_id }}/plot"
           alt="Plot"
           width="100%"
           class="plot"
