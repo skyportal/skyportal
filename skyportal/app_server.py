@@ -58,6 +58,7 @@ from skyportal.handlers.api import (
     GcnEventCatalogQueryHandler,
     GcnEventInstrumentFieldHandler,
     GcnEventTriggerHandler,
+    GcnReportHandler,
     GcnSummaryHandler,
     GcnTachHandler,
     GcnGraceDBHandler,
@@ -201,6 +202,7 @@ from skyportal.handlers.api.internal import (
     RecentGcnEventsHandler,
     FilterWavelengthHandler,
 )
+from skyportal.handlers.public import ReportHandler
 
 from . import model_util, openapi
 from .models import init_db
@@ -323,6 +325,7 @@ skyportal_handlers = [
     (r'/api/gcn_event(/.*)/alias', GcnEventAliasesHandler),
     (r'/api/gcn_event(/.*)/triggered(/.*)?', GcnEventTriggerHandler),
     (r'/api/gcn_event(/.*)/gracedb', GcnGraceDBHandler),
+    (r'/api/gcn_event/(.*)/report(/.*)?', GcnReportHandler),
     (r'/api/gcn_event(/.*)/tach', GcnTachHandler),
     (r'/api/gcn_event/(.*)/summary(/.*)?', GcnSummaryHandler),
     (r'/api/gcn_event/(.*)/instrument(/.*)?', GcnEventInstrumentFieldHandler),
@@ -558,6 +561,10 @@ skyportal_handlers = [
     (r'/api/internal/survey_thumbnail', SurveyThumbnailHandler),
     (r'/api/internal/recent_gcn_events', RecentGcnEventsHandler),
     (r'/api/.*', InvalidEndpointHandler),
+    # Public pages.
+    (r'/public/reports/(gcn)(/[0-9]+)?(/.*)?', ReportHandler),
+    (r'/public/.*', InvalidEndpointHandler),
+    # Debug and logout pages.
     (r'/become_user(/.*)?', BecomeUserHandler),
     (r'/logout', LogoutHandler),
     # User-facing pages.

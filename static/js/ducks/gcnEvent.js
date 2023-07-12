@@ -59,6 +59,16 @@ const POST_GCNEVENT_SUMMARY = "skyportal/POST_GCNEVENT_SUMMARY";
 const FETCH_GCNEVENT_SUMMARY = "skyportal/FETCH_GCNEVENT_SUMMARY";
 const DELETE_GCNEVENT_SUMMARY = "skyportal/DELETE_GCNEVENT_SUMMARY";
 
+const POST_GCNEVENT_REPORT = "skyportal/POST_GCNEVENT_REPORT";
+const FETCH_GCNEVENT_REPORT = "skyportal/FETCH_GCNEVENT_REPORT";
+const FETCH_GCNEVENT_REPORT_OK = "skyportal/FETCH_GCNEVENT_REPORT_OK";
+const FETCH_GCNEVENT_REPORTS = "skyportal/FETCH_GCNEVENT_REPORTS";
+const FETCH_GCNEVENT_REPORTS_OK = "skyportal/FETCH_GCNEVENT_REPORTS_OK";
+const REFRESH_GCNEVENT_REPORT = "skyportal/REFRESH_GCNEVENT_REPORT";
+const REFRESH_GCNEVENT_REPORTS = "skyportal/REFRESH_GCNEVENT_REPORTS";
+const DELETE_GCNEVENT_REPORT = "skyportal/DELETE_GCNEVENT_REPORT";
+const PATCH_GCNEVENT_REPORT = "skyportal/PATCH_GCNEVENT_REPORT";
+
 const POST_GCN_TACH = "skyportal/POST_GCN_TACH";
 const FETCH_GCN_TACH = "skyportal/FETCH_GCN_TACH";
 const FETCH_GCN_TACH_OK = "skyportal/FETCH_GCN_TACH_OK";
@@ -285,6 +295,40 @@ export function patchGcnEventSummary(dateobs, summaryID, formData) {
   );
 }
 
+export function postGcnEventReport({ dateobs, params }) {
+  return API.POST(
+    `/api/gcn_event/${dateobs}/report`,
+    POST_GCNEVENT_REPORT,
+    params
+  );
+}
+
+export function fetchGcnEventReport({ dateobs, reportID }) {
+  return API.GET(
+    `/api/gcn_event/${dateobs}/report/${reportID}`,
+    FETCH_GCNEVENT_REPORT
+  );
+}
+
+export function fetchGcnEventReports(dateobs) {
+  return API.GET(`/api/gcn_event/${dateobs}/report`, FETCH_GCNEVENT_REPORTS);
+}
+
+export function deleteGcnEventReport({ dateobs, reportID }) {
+  return API.DELETE(
+    `/api/gcn_event/${dateobs}/report/${reportID}`,
+    DELETE_GCNEVENT_REPORT
+  );
+}
+
+export function patchGcnEventReport({ dateobs, reportID, formData }) {
+  return API.PATCH(
+    `/api/gcn_event/${dateobs}/report/${reportID}`,
+    PATCH_GCNEVENT_REPORT,
+    formData
+  );
+}
+
 export function postGcnAlias(dateobs, params = {}) {
   return API.POST(`/api/gcn_event/${dateobs}/alias`, POST_GCN_ALIAS, params);
 }
@@ -351,6 +395,9 @@ export function fetchGcnEventCatalogQueries({ gcnID }) {
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { gcnEvent } = getState();
+  const loaded_gcnevent_key = gcnEvent?.dateobs;
+  const loaded_report_key = gcnEvent?.report?.id;
+
   if (actionType === FETCH_GCNEVENT) {
     dispatch(fetchGcnEvent(gcnEvent.dateobs)).then((response) => {
       if (response.status === "success") {
@@ -359,8 +406,6 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     });
   }
   if (actionType === REFRESH_GCN_EVENT) {
-    const loaded_gcnevent_key = gcnEvent?.dateobs;
-
     if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
       dispatch(fetchGcnEvent(gcnEvent.dateobs)).then((response) => {
         if (response.status === "success") {
@@ -370,21 +415,33 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     }
   }
   if (actionType === REFRESH_GCN_TRIGGERED) {
-    const loaded_gcnevent_key = gcnEvent?.dateobs;
     if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
       dispatch(fetchGcnTrigger({ dateobs: gcnEvent.dateobs }));
     }
   }
   if (actionType === REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS) {
-    const loaded_gcnevent_key = gcnEvent?.dateobs;
     if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
       dispatch(fetchObservationPlanRequests(gcnEvent?.id));
     }
   }
   if (actionType === REFRESH_GCNEVENT_CATALOG_QUERIES) {
-    const loaded_gcnevent_key = gcnEvent?.dateobs;
     if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
       dispatch(fetchGcnEventCatalogQueries({ gcnID: gcnEvent?.id }));
+    }
+  }
+  if (actionType === REFRESH_GCNEVENT_REPORT) {
+    if (loaded_report_key === payload?.report_id) {
+      dispatch(
+        fetchGcnEventReport({
+          dateobs: loaded_gcnevent_key,
+          reportID: loaded_report_key,
+        })
+      );
+    }
+  }
+  if (actionType === REFRESH_GCNEVENT_REPORTS) {
+    if (loaded_gcnevent_key === payload?.gcnEvent_dateobs) {
+      dispatch(fetchGcnEventReports(loaded_gcnevent_key));
     }
   }
 });
@@ -458,6 +515,18 @@ const reducer = (state = null, action) => {
       return {
         ...state,
         observation_plan: action.data,
+      };
+    }
+    case FETCH_GCNEVENT_REPORT_OK: {
+      return {
+        ...state,
+        report: action.data,
+      };
+    }
+    case FETCH_GCNEVENT_REPORTS_OK: {
+      return {
+        ...state,
+        reports: action.data,
       };
     }
     default:

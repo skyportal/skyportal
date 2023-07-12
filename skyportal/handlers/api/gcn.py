@@ -7,6 +7,7 @@ from astropy.table import Table
 import binascii
 import healpy as hp
 import io
+import json
 import os
 import gcn
 import ligo.skymap.bayestar as ligo_bayestar
@@ -39,7 +40,7 @@ import operator  # noqa: F401
 from skyportal.models.photometry import Photometry
 
 from .observation import get_observations, MAX_OBSERVATIONS
-from .source import get_sources, serialize, MAX_SOURCES_PER_PAGE
+from .source import get_source, get_sources, serialize, MAX_SOURCES_PER_PAGE
 from .galaxy import get_galaxies, get_galaxies_completeness, MAX_GALAXIES
 import pandas as pd
 from tabulate import tabulate
@@ -47,6 +48,7 @@ import datetime
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.json_util import to_json
 from baselayer.log import make_log
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -64,6 +66,7 @@ from ...models import (
     GcnEvent,
     GcnNotice,
     GcnProperty,
+    GcnReport,
     GcnSummary,
     GcnTag,
     GcnTrigger,
@@ -2823,7 +2826,7 @@ def add_gcn_summary(
 
         flow = Flow()
         flow.push(
-            user_id=user.id,
+            user_id='*',
             action_type="skyportal/REFRESH_GCN_EVENT",
             payload={"gcnEvent_dateobs": event.dateobs},
         )
@@ -3291,6 +3294,703 @@ class GcnSummaryHandler(BaseHandler):
                 )
 
             session.delete(summary)
+            session.commit()
+
+            self.push(
+                action="skyportal/REFRESH_GCN_EVENT",
+                payload={"gcnEvent_dateobs": dateobs},
+            )
+
+        return self.success()
+
+
+def add_gcn_report(
+    report_id,
+    user_id,
+    dateobs,
+    group_id,
+    start_date,
+    end_date,
+    localization_name,
+    localization_cumprob=0.90,
+    number_of_detections=1,
+    show_sources=True,
+    show_observations=False,
+    photometry_in_window=True,
+    stats_method='python',
+    instrument_ids=None,
+):
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+
+    try:
+        user = session.query(User).get(user_id)
+        session.user_or_token = user
+
+        gcn_report = session.query(GcnReport).get(report_id)
+
+        try:
+            group = session.query(Group).get(group_id)
+            event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
+            localization = (
+                session.query(Localization)
+                .filter(
+                    Localization.dateobs == dateobs,
+                    Localization.localization_name == localization_name,
+                )
+                .first()
+            )
+            start_date_mjd = Time(arrow.get(start_date).datetime).mjd
+            end_date_mjd = Time(arrow.get(end_date).datetime).mjd
+
+            contents = {}
+            if show_sources:
+                source_page_number = 1
+                sources = []
+                while True:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    # get the sources in the event
+                    coroutine = get_sources(
+                        user_id=user.id,
+                        session=session,
+                        group_ids=[group.id],
+                        user_accessible_group_ids=[
+                            g.id for g in user.accessible_groups
+                        ],
+                        first_detected_date=start_date,
+                        last_detected_date=end_date,
+                        localization_dateobs=dateobs,
+                        localization_name=localization_name,
+                        localization_cumprob=localization_cumprob,
+                        number_of_detections=number_of_detections,
+                        page_number=source_page_number,
+                        num_per_page=MAX_SOURCES_PER_PAGE,
+                    )
+                    sources_data = loop.run_until_complete(coroutine)
+                    sources.extend(sources_data['sources'])
+                    source_page_number += 1
+
+                    if len(sources_data['sources']) < MAX_SOURCES_PER_PAGE:
+                        break
+                if len(sources) > 0:
+                    obj_ids = [source['id'] for source in sources]
+                    sources_with_status = session.scalars(
+                        SourcesConfirmedInGCN.select(user).where(
+                            SourcesConfirmedInGCN.obj_id.in_(obj_ids),
+                            SourcesConfirmedInGCN.dateobs == dateobs,
+                        )
+                    ).all()
+                    for source in sources:
+                        source["source_in_gcn"] = next(
+                            (
+                                source_in_gcn.to_dict()
+                                for source_in_gcn in sources_with_status
+                                if source_in_gcn.obj_id == source['id']
+                            ),
+                            None,
+                        )
+
+                        stmt = Photometry.select(user).where(
+                            Photometry.obj_id == source['id']
+                        )
+                        if photometry_in_window:
+                            stmt = stmt.where(
+                                Photometry.mjd >= start_date_mjd,
+                                Photometry.mjd <= end_date_mjd,
+                            )
+                        photometry = session.scalars(stmt).all()
+                        if len(photometry) > 0:
+                            source["photometry"] = [
+                                serialize(phot, 'ab', 'mag') for phot in photometry
+                            ]
+                        else:
+                            source["photometry"] = []
+
+                contents["sources"] = sources
+
+            if show_observations:
+                # get the executed obs, by instrument
+                observations = []
+
+                start_date = arrow.get(start_date).datetime
+                end_date = arrow.get(end_date).datetime
+
+                if instrument_ids is not None:
+                    stmt = Instrument.select(user).where(
+                        Instrument.id.in_(instrument_ids)
+                    )
+                else:
+                    stmt = Instrument.select(user).options(
+                        joinedload(Instrument.telescope)
+                    )
+                instruments = session.scalars(stmt).all()
+                if instruments is not None:
+                    for instrument in instruments:
+                        data = get_observations(
+                            session,
+                            start_date,
+                            end_date,
+                            telescope_name=instrument.telescope.name,
+                            instrument_name=instrument.name,
+                            localization_dateobs=dateobs,
+                            localization_name=localization_name,
+                            localization_cumprob=localization_cumprob,
+                            return_statistics=True,
+                            includeGeoJSON=True,
+                            stats_method=stats_method,
+                            n_per_page=MAX_OBSERVATIONS,
+                            page_number=1,
+                        )
+
+                        observations.extend(data["observations"])
+
+                for o in observations:
+                    o["field_coordinates"] = o["field"]["contour_summary"]["features"][
+                        0
+                    ]["geometry"]["coordinates"]
+                    del o["field"]
+                    del o["instrument"]
+
+                contents["observations"] = observations
+
+            tags = event.tags
+            aliases = event.aliases
+            event_properties = event.properties
+            localization_properties = localization.properties
+
+            name = None
+            for alias in aliases:
+                if alias.startswith("LVC#") or alias.startswith("FERMI#"):
+                    name = alias.split("#")[1]
+                    break
+
+            contents["event"] = {
+                "status": "success",
+                "name": name,
+                "localization_name": localization_name,
+                "cumulative_probability": float(localization_cumprob) * 100,
+                "tags": list(set(tags)),
+                "aliases": list(set(aliases)),
+                "event_properties": event_properties,
+                "localization_properties": localization_properties,
+            }
+
+            gcn_report.data = to_json(contents)
+            session.commit()
+        except Exception as e:
+            try:
+                session.rollback()
+                gcn_report = session.query(GcnReport).get(report_id)
+                gcn_report.data = to_json({"status": "error", "message": str(e)})
+                session.commit()
+            except Exception:
+                session.rollback()
+                pass
+            log(f"Unable to update GCN report: {str(e)}")
+
+        flow = Flow()
+        flow.push(
+            user_id='*',
+            action_type="skyportal/REFRESH_GCNEVENT_REPORTS",
+            payload={"gcnEvent_dateobs": event.dateobs},
+        )
+
+        notification = UserNotification(
+            user=user,
+            text=f"GCN report *{gcn_report.report_name}* on *{event.dateobs}* created.",
+            notification_type="gcn_report",
+            url=f"/gcn_events/{event.dateobs}",
+        )
+        session.add(notification)
+        session.commit()
+
+        log(f"Successfully generated GCN report {gcn_report.id}")
+
+    except Exception as e:
+        log(f"Unable to create GCN report: {str(e)}")
+        raise e
+    finally:
+        session.close()
+        Session.remove()
+
+
+class GcnReportHandler(BaseHandler):
+    @auth_or_token
+    async def post(self, dateobs, summary_id=None):
+        """
+        ---
+          description: Post report data of a GCN event.
+          tags:
+            - gcnreports
+          parameters:
+            - in: body
+              name: report_name
+              schema:
+                type: string
+            - in: body
+              name: groupId
+              required: true
+              schema:
+                type: string
+              description: id of the group that creates the summary.
+            - in: body
+              name: startDate
+              required: true
+              schema:
+                type: string
+              description: Filter by start date
+            - in: body
+              name: endDate
+              required: true
+              schema:
+                type: string
+              description: Filter by end date
+            - in: body
+              name: localizationName
+              schema:
+                type: string
+              description: Name of localization / skymap to use.
+            - in: body
+              name: localizationCumprob
+              schema:
+                type: number
+              description: Cumulative probability up to which to include fields. Defaults to 0.95.
+            - in: body
+              name: numberDetections
+              nullable: true
+              schema:
+                type: number
+              description: Return only sources who have at least numberDetections detections. Defaults to 2.
+            - in: body
+              name: showSources
+              required: true
+              schema:
+                type: bool
+              description: Show sources in the summary
+            - in: body
+              name: showObservations
+              required: true
+              schema:
+                type: bool
+              description: Show observations in the summary
+            - in: body
+              name: noText
+              schema:
+                type: bool
+              description: Do not include text in the summary, only tables.
+            - in: body
+              name: photometryInWindow
+              schema:
+                type: bool
+              description: Limit photometry to that within startDate and endDate.
+            - in: body
+              name: statsMethod
+              schema:
+                type: string
+              description: Method to use for calculating statistics. Defaults to python. Options are python and db.
+            - in: body
+              name: instrumentIds
+              schema:
+                type: string
+              description: List of instrument ids to include in the summary. Defaults to all instruments if not specified.
+
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: string
+                            description: GCN summary
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+
+        data = self.get_json()
+        report_name = data.get("reportName", None)
+        group_id = data.get("groupId", None)
+        start_date = data.get("startDate", None)
+        end_date = data.get("endDate", None)
+        localization_name = data.get("localizationName", None)
+        localization_cumprob = data.get("localizationCumprob", 0.95)
+        number_of_detections = data.get("numberDetections", 2)
+        show_sources = data.get("showSources", False)
+        show_observations = data.get("showObservations", False)
+        photometry_in_window = data.get("photometryInWindow", False)
+        stats_method = data.get("statsMethod", "python")
+        instrument_ids = data.get("instrumentIds", None)
+
+        class Validator(Schema):
+            start_date = UTCTZnaiveDateTime(required=False, missing=None)
+            end_date = UTCTZnaiveDateTime(required=False, missing=None)
+
+        validator_instance = Validator()
+        params_to_be_validated = {}
+        if start_date is not None:
+            params_to_be_validated['start_date'] = start_date
+        if end_date is not None:
+            params_to_be_validated['end_date'] = end_date
+
+        try:
+            validated = validator_instance.load(params_to_be_validated)
+        except ValidationError as e:
+            return self.error(f'Error parsing query params: {e.args[0]}.')
+
+        start_date = validated['start_date']
+        end_date = validated['end_date']
+
+        if report_name is None:
+            return self.error("reportName is required")
+
+        if group_id is None:
+            return self.error("Group ID is required")
+
+        if stats_method not in ["db", "python"]:
+            return self.error(
+                "statsMethod for observations querying must be 'db' or 'python'"
+            )
+
+        if instrument_ids is not None:
+            try:
+                instrument_ids = [
+                    int(instrument_id) for instrument_id in instrument_ids
+                ]
+                if len(instrument_ids) == 0:
+                    instrument_ids = None
+            except ValueError:
+                return self.error("Instrument IDs must be a list of integers")
+
+        try:
+            number_of_detections = int(number_of_detections)
+        except ValueError:
+            return self.error("numberDetections must be an integer")
+
+        with self.Session() as session:
+            stmt = GcnEvent.select(session.user_or_token).where(
+                GcnEvent.dateobs == dateobs
+            )
+            event = session.scalars(stmt).first()
+
+            if event is None:
+                return self.error("Event not found", status=404)
+
+            stmt = Group.select(session.user_or_token).where(Group.id == group_id)
+            group = session.scalars(stmt).first()
+            if group is None:
+                return self.error(f"Group not found with ID {group_id}")
+
+            # verify that the user doesn't already have a summary with this title for this event
+            stmt = GcnReport.select(session.user_or_token, mode="read").where(
+                GcnReport.dateobs == dateobs,
+                GcnReport.report_name == report_name,
+                GcnReport.group_id == group_id,
+                GcnReport.sent_by_id == self.associated_user_object.id,
+            )
+            existing_report = session.scalars(stmt).first()
+            if existing_report is not None:
+                return self.error(
+                    "A report with the same name, group, and event already exists for this user"
+                )
+
+            gcn_report = GcnReport(
+                dateobs=event.dateobs,
+                report_name=report_name,
+                data={"status": "pending"},
+                sent_by_id=self.associated_user_object.id,
+                group_id=group_id,
+            )
+            session.add(gcn_report)
+            session.commit()
+
+            report_id = gcn_report.id
+            user_id = self.associated_user_object.id
+
+            try:
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: add_gcn_report(
+                        report_id=report_id,
+                        user_id=user_id,
+                        dateobs=dateobs,
+                        group_id=group_id,
+                        start_date=start_date,
+                        end_date=end_date,
+                        localization_name=localization_name,
+                        localization_cumprob=localization_cumprob,
+                        number_of_detections=number_of_detections,
+                        show_sources=show_sources,
+                        show_observations=show_observations,
+                        photometry_in_window=photometry_in_window,
+                        stats_method=stats_method,
+                        instrument_ids=instrument_ids,
+                    ),
+                )
+                return self.success({"id": summary_id})
+            except Exception as e:
+                return self.error(f"Error generating report: {e}")
+
+    @auth_or_token
+    def get(self, dateobs, report_id=None):
+        """
+        ---
+        description: Retrieve a GCN report
+        tags:
+          - gcn
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: summary_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleGcnReport
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        if report_id is None:
+            with self.Session() as session:
+                stmt = GcnReport.select(session.user_or_token, mode="read").where(
+                    GcnReport.dateobs == dateobs
+                )
+                reports = session.scalars(stmt).all()
+                reports = sorted(
+                    (
+                        {
+                            **p.to_dict(),
+                            "sent_by": p.sent_by.to_dict(),
+                            "group": p.group.to_dict(),
+                        }
+                        for p in reports
+                    ),
+                    key=lambda x: x["created_at"],
+                    reverse=True,
+                )
+                return self.success(data=reports)
+
+        with self.Session() as session:
+            stmt = GcnReport.select(session.user_or_token, mode="read").where(
+                GcnReport.id == report_id,
+                GcnReport.dateobs == dateobs,
+            )
+            report = session.scalars(stmt).first()
+            report.data  # get the data column (deferred)
+            if report is None:
+                return self.error("Report not found", status=404)
+
+            return self.success(data=report)
+
+    @auth_or_token
+    async def patch(self, dateobs, report_id):
+        """
+        description: Update a GCN report
+        tags:
+          - gcn
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: report_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleGcnReport
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+        if data is None or data == {}:
+            return self.error("No data provided")
+
+        if report_id is None:
+            return self.error("Report ID is required")
+
+        with self.Session() as session:
+            stmt = GcnReport.select(session.user_or_token, mode="update").where(
+                GcnReport.id == report_id,
+                GcnReport.dateobs == dateobs,
+            )
+            report = session.scalars(stmt).first()
+            if report is None:
+                return self.error("Report not found", status=404)
+
+            report_id = report.id
+
+            if "data" in data:
+                if data["data"] != {}:
+                    new_data = data["data"]
+                    if len(new_data.get('sources', [])) > 0:
+                        try:
+                            loop = asyncio.get_event_loop()
+                        except Exception:
+                            loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+
+                        old_data = report.data
+                        old_data = (
+                            json.loads(old_data) if type(old_data) == str else old_data
+                        )
+
+                        # if there is any duplicate source, return error
+                        if len(new_data.get('sources', [])) != len(
+                            {
+                                source.get('id', None)
+                                for source in new_data.get('sources', [])
+                            }
+                        ):
+                            return self.error(
+                                "Duplicate sources in report, please remove duplicates and try again"
+                            )
+                        for i, source in enumerate(new_data.get('sources', [])):
+                            if source not in old_data.get('sources', []):
+                                # check if source exists in the database
+                                source_id = source.get('id', None)
+                                source = await get_source(
+                                    source_id,
+                                    self.associated_user_object.id,
+                                    session,
+                                    include_photometry=False,
+                                )
+                                if source is None:
+                                    return self.error(
+                                        f"Source {source_id} not found in the database, not updating report"
+                                    )
+
+                                stmt = Photometry.select(session.user_or_token).where(
+                                    Photometry.obj_id == source['id']
+                                )
+                                photometry = session.scalars(stmt).all()
+                                if len(photometry) > 0:
+                                    source["photometry"] = [
+                                        serialize(phot, 'ab', 'mag')
+                                        for phot in photometry
+                                    ]
+                                else:
+                                    source["photometry"] = []
+
+                                source["source_in_gcn"] = session.scalar(
+                                    SourcesConfirmedInGCN.select(
+                                        session.user_or_token
+                                    ).where(
+                                        SourcesConfirmedInGCN.obj_id == source_id,
+                                        SourcesConfirmedInGCN.dateobs == dateobs,
+                                    )
+                                )
+
+                                source["comment"] = new_data['sources'][i].get(
+                                    'comment', ""
+                                )
+                                # add source to report
+                                new_data['sources'][i] = source
+
+                    report.data = to_json(new_data)
+                else:
+                    return self.error("data not found")
+
+            if data.get("published", None) is not None and isinstance(
+                data.get("published", None), bool
+            ):
+                publish = data["published"]
+                if publish:
+                    report.publish()
+                else:
+                    report.unpublish()
+            else:
+                report.generate_html()
+
+            session.commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_GCNEVENT_REPORT",
+                payload={"report_id": report_id},
+            )
+
+            return self.success(data=report)
+
+    @auth_or_token
+    def delete(self, dateobs, report_id):
+        """
+        ---
+        description: Delete a GCN report
+        tags:
+          - gcn
+        parameters:
+          - in: path
+            name: report_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        if report_id is None:
+            return self.error("Report ID is required")
+
+        with self.Session() as session:
+            stmt = GcnReport.select(session.user_or_token, mode="delete").where(
+                GcnReport.id == report_id,
+                GcnReport.dateobs == dateobs,
+            )
+            report = session.scalars(stmt).first()
+            if report is None:
+                return self.error("Report not found", status=404)
+
+            data = report.data
+            if isinstance(data, str):
+                data = json.loads(data)
+
+            if len(data.keys()) == 0 and datetime.datetime.now() < (
+                report.created_at + datetime.timedelta(hours=1)
+            ):
+                return self.error(
+                    "Cannot delete a recently created report (less than 1 hour) that is still pending"
+                )
+
+            report.unpublish()
+
+            session.delete(report)
             session.commit()
 
             self.push(
