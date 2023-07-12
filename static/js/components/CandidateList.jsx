@@ -249,7 +249,6 @@ const getMuiPopoverTheme = () =>
 const defaultNumPerPage = 25;
 
 const CustomSortToolbar = ({
-  selectedAnnotationSortOptions,
   rowsPerPage,
   filterGroups,
   filterFormData,
@@ -259,8 +258,11 @@ const CustomSortToolbar = ({
   setSortOrder,
 }) => {
   const classes = useStyles();
-
   const dispatch = useDispatch();
+  const { selectedAnnotationSortOptions } = useSelector(
+    (state) => state.candidates
+  );
+
   const handleSort = async () => {
     const newSortOrder =
       sortOrder === null || sortOrder === "desc" ? "asc" : "desc";
@@ -317,11 +319,6 @@ const CustomSortToolbar = ({
 };
 
 CustomSortToolbar.propTypes = {
-  selectedAnnotationSortOptions: PropTypes.shape({
-    origin: PropTypes.string.isRequired,
-    key: PropTypes.string.isRequired,
-    order: PropTypes.string,
-  }),
   setQueryInProgress: PropTypes.func.isRequired,
   rowsPerPage: PropTypes.number.isRequired,
   filterGroups: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
@@ -332,7 +329,6 @@ CustomSortToolbar.propTypes = {
 };
 
 CustomSortToolbar.defaultProps = {
-  selectedAnnotationSortOptions: null,
   filterFormData: null,
   sortOrder: null,
 };
@@ -1229,7 +1225,6 @@ const CandidateList = () => {
     // eslint-disable-next-line react/display-name
     customToolbar: () => (
       <CustomSortToolbar
-        selectedAnnotationSortOptions={selectedAnnotationSortOptions}
         rowsPerPage={rowsPerPage}
         filterGroups={filterGroups}
         filterFormData={filterFormData}
