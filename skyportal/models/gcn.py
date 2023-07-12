@@ -3,32 +3,56 @@ __all__ = [
     'GcnTag',
     'GcnEvent',
     'GcnProperty',
+    'GcnReport',
     'GcnSummary',
     'GcnTrigger',
     'DefaultGcnTag',
 ]
-
-import sqlalchemy as sa
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import deferred
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.hybrid import hybrid_property
+import io
+import json
+import random
 
 import gcn
+import jinja2
 import lxml
+import matplotlib
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
+import sqlalchemy as sa
+from ligo.skymap import plot  # noqa: F401 F811
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import deferred, relationship
 
+from baselayer.app.env import load_env
 from baselayer.app.models import (
-    Base,
-    DBSession,
     AccessibleIfUserMatches,
+    Base,
     CustomUserAccessControl,
+    DBSession,
     UserAccessControl,
-    safe_aliased,
     join_model,
     restricted,
+    safe_aliased,
 )
-from .group import accessible_by_group_members
+
+from ..utils.cache import Cache, dict_to_bytes
 from .allocation import Allocation, AllocationUser
+from .group import accessible_by_group_members
+from .localization import Localization
+
+env, cfg = load_env()
+
+host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
+    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
+)
+
+cache_dir = "cache/reports"
+cache = Cache(
+    cache_dir=cache_dir,
+    max_age=cfg["misc.minutes_to_keep_reports_cache"] * 60,
+)
 
 SOURCE_RADIUS_THRESHOLD = 5 / 60.0  # 5 arcmin in degrees
 
@@ -77,6 +101,217 @@ class DefaultGcnTag(Base):
     default_tag_name = sa.Column(
         sa.String, unique=True, nullable=False, doc='Default tag name'
     )
+
+
+class GcnReport(Base):
+    """Store GCN report for events."""
+
+    create = read = accessible_by_group_members
+
+    update = delete = AccessibleIfUserMatches('sent_by') | CustomUserAccessControl(
+        gcn_update_delete_logic
+    )
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnReport.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcnreports",
+        doc="The user that saved this GcnReport",
+    )
+
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # have a relationship to a group
+    group_id = sa.Column(
+        sa.ForeignKey('groups.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the Group that this GcnReport is associated with.",
+    )
+
+    group = relationship(
+        "Group",
+        foreign_keys=group_id,
+        back_populates="gcnreports",
+        doc="The group that this GcnReport is associated with.",
+    )
+
+    data = deferred(sa.Column(JSONB, nullable=False, doc="Report data in JSON."))
+
+    report_name = sa.Column(sa.String, nullable=False)
+
+    published = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default='false',
+        doc='Whether GcnReport should be published',
+    )
+
+    def generate_plot(self, figsize=(10, 5), output_format='png'):
+        """GcnReport plot.
+        Parameters
+        ----------
+        figsize : tuple, optional
+            Matplotlib figsize of the plot created
+        output_format : str
+            Figure extension, either png or pdf.
+        """
+
+        # cache_key = f"gcn_{self.id}"
+        data = self.data
+        if isinstance(data, str):
+            data = json.loads(data)
+
+        localization = (
+            DBSession()
+            .query(Localization)
+            .where(Localization.dateobs == self.dateobs)
+            .first()
+        )
+
+        matplotlib.use("Agg")
+        fig = plt.figure(figsize=figsize, constrained_layout=False)
+        ax = plt.axes(projection='astro mollweide')
+        ax.imshow_hpx(localization.flat_2d, cmap='cylon')
+
+        if "observations" in data and len(data["observations"]) > 0:
+            surveyColors = {
+                "ztfg": "#28A745",
+                "ztfr": "#DC3545",
+                "ztfi": "#F3DC11",
+                "AllWISE": "#2F5492",
+                "Gaia_DR3": "#FF7F0E",
+                "PS1_DR1": "#3BBED5",
+                "GALEX": "#6607C2",
+                "TNS": "#ED6CF6",
+            }
+
+            observations = data["observations"]
+            filters = list({obs["filt"] for obs in observations})
+            for filt in filters:
+                if filt in surveyColors:
+                    continue
+                surveyColors[filt] = "#" + ''.join(
+                    [random.choice('0123456789ABCDEF') for i in range(6)]
+                )
+
+            for i, obs in enumerate(observations):
+
+                coords = obs["field_coordinates"][0]
+                ras = np.array(coords)[:, 0]
+                # cannot handle 0-crossing well
+                if (len(np.where(ras > 180)[0]) > 0) and (
+                    len(np.where(ras < 180)[0]) > 0
+                ):
+                    continue
+                poly = plt.Polygon(
+                    coords,
+                    alpha=1.0,
+                    facecolor=surveyColors[obs["filt"]],
+                    edgecolor='black',
+                    transform=ax.get_transform('world'),
+                )
+                ax.add_patch(poly)
+
+            patches = []
+            for filt in filters:
+                patches.append(mpatches.Patch(color=surveyColors[filt], label=filt))
+            plt.legend(handles=patches)
+
+        if "sources" in data and len(data["sources"]) > 0:
+            for source in data["sources"]:
+                ax.scatter(
+                    source['ra'],
+                    source['dec'],
+                    transform=ax.get_transform('world'),
+                    color='w',
+                    zorder=2,
+                    s=30,
+                )
+                ax.text(
+                    source['ra'] + 5.5,
+                    source['dec'] + 5.5,
+                    source['id'],
+                    transform=ax.get_transform('world'),
+                    color='k',
+                    fontsize=8,
+                    zorder=3,
+                )
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format=output_format)
+        plt.close(fig)
+        buf.seek(0)
+
+        return buf.read()
+
+    def generate_html(self):
+        """Publish GcnReport."""
+        # TODO: create the hmtl and cache it
+        data = self.data
+        if isinstance(data, str):
+            data = json.loads(data)
+        template = jinja2.Template(open("./static/reports/gcn_report.html").read())
+        html = template.render(
+            host=host,
+            dateobs=str(self.dateobs).replace(" ", "T"),
+            report_id=self.id,
+            report_name=self.report_name,
+            program=self.group.name,
+            data=data,
+        )
+        return html
+
+    def generate_report(self):
+        data = self.data
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except Exception:
+                data = {"status": "error", "message": "Invalid JSON data."}
+        if data.get("status") == "error":
+            raise ValueError(data.get("message", "Invalid JSON data."))
+        elif data.get("status") == "pending":
+            raise ValueError("Report is still being generated.")
+        cache_key = f"gcn_{self.id}"
+        pub_html = self.generate_html()
+        pub_plot = self.generate_plot()
+        cache[cache_key] = dict_to_bytes(
+            {"published": True, "html": pub_html, "plot": pub_plot}
+        )
+
+    def publish(self):
+        """Publish GcnReport."""
+        self.generate_report()
+        self.published = True
+
+    def unpublish(self):
+        """Unpublish GcnReport."""
+        self.published = False
+        # TODO: delete the html from cache
+        cache_key = f"gcn_{self.id}"
+        cached = cache[cache_key]
+        if cached is not None:
+            data = np.load(cached, allow_pickle=True)
+            data = data.item()
+            cache[cache_key] = dict_to_bytes(
+                {"published": False, "html": data["html"], "plot": data["plot"]}
+            )
+        else:
+            cache[cache_key] = dict_to_bytes(
+                {"published": False, "html": None, "plot": None}
+            )
 
 
 class GcnSummary(Base):
@@ -285,6 +520,14 @@ class GcnEvent(Base):
         passive_deletes=True,
         order_by="GcnProperty.created_at",
         doc="Properties associated with this GCN event.",
+    )
+
+    reports = relationship(
+        'GcnReport',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="GcnReport.created_at",
+        doc="Reports associated with this GCN event.",
     )
 
     summaries = relationship(
