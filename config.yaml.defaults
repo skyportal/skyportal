@@ -769,7 +769,7 @@ colors:
       "GRB": "#f89406",
       "AMON": "#3a87ad",
       "Significant": "#8B008B",
-      "retracted": "#333333",
+      "retracted": "#ffffff",
     }
 
   summary_sources:
