@@ -16,6 +16,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import urllib
 from astropy.time import Time, TimeDelta
+from astropy.coordinates import SkyCoord
 import astropy.units as u
 import io
 from io import StringIO
@@ -2017,9 +2018,24 @@ def retrieve_observations_and_simsurvey(
             'Missing field {obs_dict["field"]["id"]} required to estimate field size'
         )
     contour_summary = field.to_dict()["contour_summary"]["features"][0]
-    coordinates = np.array(contour_summary["geometry"]["coordinates"])
-    width = np.max(coordinates[:, 0]) - np.min(coordinates[:, 0])
-    height = np.max(coordinates[:, 1]) - np.min(coordinates[:, 1])
+    coordinates = np.squeeze(np.array(contour_summary["geometry"]["coordinates"]))
+    coords = SkyCoord(
+        coordinates[:, 0] * u.deg, coordinates[:, 1] * u.deg, frame='icrs'
+    )
+    width, height = None, None
+    for c1 in coords:
+        for c2 in coords:
+            dra, ddec = c1.spherical_offsets_to(c2)
+            dra = dra.to(u.deg)
+            ddec = ddec.to(u.deg)
+            if width is None and height is None:
+                width = dra
+                height = ddec
+            else:
+                if dra > width:
+                    width = dra
+                if ddec > height:
+                    height = ddec
 
     observation_simsurvey(
         observations,
@@ -2027,8 +2043,8 @@ def retrieve_observations_and_simsurvey(
         instrument.id,
         survey_efficiency_analysis_id,
         survey_efficiency_analysis_type,
-        width=width,
-        height=height,
+        width=width.value,
+        height=height.value,
         number_of_injections=payload['number_of_injections'],
         number_of_detections=payload['number_of_detections'],
         detection_threshold=payload['detection_threshold'],
@@ -2305,6 +2321,42 @@ class ObservationSimSurveyHandler(BaseHandler):
             IOLoop.current().run_in_executor(None, simsurvey_analysis)
 
             return self.success(data={"id": survey_efficiency_analysis.id})
+
+    def delete(self, survey_efficiency_analysis_id):
+        """
+        ---
+        description: Delete a simsurvey efficiency calculation.
+        tags:
+          - survey_efficiency_for_observations
+        parameters:
+          - in: path
+            name: survey_efficiency_analysis_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        with self.Session() as session:
+            survey_efficiency_analysis = session.scalars(
+                SurveyEfficiencyForObservations.select(
+                    session.user_or_token, mode="delete"
+                ).where(
+                    SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
+                )
+            ).first()
+            if survey_efficiency_analysis is None:
+                return self.error(
+                    f'Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
+                )
+            session.delete(survey_efficiency_analysis)
+            session.commit()
+
+            return self.success()
 
 
 class ObservationSimSurveyPlotHandler(BaseHandler):
