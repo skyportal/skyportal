@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import { useSelector } from "react-redux";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
+import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
@@ -14,7 +15,11 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
+
+import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
+
+import * as surveyEfficiencyObservationsActions from "../ducks/survey_efficiency_observations";
 
 const useStyles = makeStyles(() => ({
   observationplanRequestTable: {
@@ -79,13 +84,26 @@ const getMuiTheme = (theme) =>
 
 const SurveyEfficiencyLists = ({ survey_efficiency_analyses }) => {
   const classes = useStyles();
+  const dispatch = useDispatch();
   const theme = useTheme();
 
   const { instrumentList } = useSelector((state) => state.instruments);
+  const [isDeleting, setIsDeleting] = useState(null);
 
   if (!survey_efficiency_analyses || survey_efficiency_analyses.length === 0) {
     return <p>No survey efficiency analyses for this event...</p>;
   }
+
+  const handleDelete = async (id) => {
+    setIsDeleting(id);
+    const result = await dispatch(
+      surveyEfficiencyObservationsActions.deleteSurveyEfficiencyObservations(id)
+    );
+    setIsDeleting(null);
+    if (result.status === "success") {
+      dispatch(showNotification("Survey efficiency successfully deleted."));
+    }
+  };
 
   const instLookUp = instrumentList.reduce((r, a) => {
     r[a.id] = a;
@@ -217,6 +235,42 @@ const SurveyEfficiencyLists = ({ survey_efficiency_analyses }) => {
       label: "Plot",
       options: {
         customBodyRenderLite: renderPlot,
+      },
+    });
+
+    const renderDelete = (dataIndex) => {
+      const analysis = survey_efficiency_analyses[dataIndex];
+      return (
+        <div>
+          <div>
+            {isDeleting === analysis.id ? (
+              <div>
+                <CircularProgress />
+              </div>
+            ) : (
+              <div>
+                <Button
+                  primary
+                  onClick={() => {
+                    handleDelete(analysis.id);
+                  }}
+                  size="small"
+                  type="submit"
+                  data-testid={`deleteRequest_${analysis.id}`}
+                >
+                  Delete
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+    columns.push({
+      name: "delete",
+      label: "Delete",
+      options: {
+        customBodyRenderLite: renderDelete,
       },
     });
 

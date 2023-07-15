@@ -34,7 +34,7 @@ from astroplan import (
     is_event_observable,
 )
 from astropy import units as u
-from astropy.coordinates import EarthLocation
+from astropy.coordinates import SkyCoord, EarthLocation
 from astropy.time import Time
 from ligo.skymap import plot  # noqa: F401 F811
 from ligo.skymap.bayestar import rasterize
@@ -264,9 +264,26 @@ def post_survey_efficiency_analysis(
                     f'Missing field {obs_dict["field"]["id"]} required to estimate field size'
                 )
             contour_summary = field.contour_summary["features"][0]
-            coordinates = np.array(contour_summary["geometry"]["coordinates"])
-            width = np.max(coordinates[:, 0]) - np.min(coordinates[:, 0])
-            height = np.max(coordinates[:, 1]) - np.min(coordinates[:, 1])
+            coordinates = np.squeeze(
+                np.array(contour_summary["geometry"]["coordinates"])
+            )
+            coords = SkyCoord(
+                coordinates[:, 0] * u.deg, coordinates[:, 1] * u.deg, frame='icrs'
+            )
+            width, height = None, None
+            for c1 in coords:
+                for c2 in coords:
+                    dra, ddec = c1.spherical_offsets_to(c2)
+                    dra = dra.to(u.deg)
+                    ddec = ddec.to(u.deg)
+                    if width is None and height is None:
+                        width = dra
+                        height = ddec
+                    else:
+                        if dra > width:
+                            width = dra
+                        if ddec > height:
+                            height = ddec
 
     log(
         f'Simsurvey analysis in progress for ID {survey_efficiency_analysis.id}. Should be available soon.'
@@ -285,8 +302,8 @@ def post_survey_efficiency_analysis(
             instrument.id,
             survey_efficiency_analysis.id,
             "SurveyEfficiencyForObservationPlan",
-            width=width,
-            height=height,
+            width=width.value,
+            height=height.value,
             number_of_injections=payload['numberInjections'],
             number_of_detections=payload['numberDetections'],
             detection_threshold=payload['detectionThreshold'],
@@ -304,8 +321,8 @@ def post_survey_efficiency_analysis(
             instrument.id,
             survey_efficiency_analysis.id,
             "SurveyEfficiencyForObservationPlan",
-            width=width,
-            height=height,
+            width=width.value,
+            height=height.value,
             number_of_injections=payload['numberInjections'],
             number_of_detections=payload['numberDetections'],
             detection_threshold=payload['detectionThreshold'],
@@ -3033,9 +3050,28 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                             message=f'Missing field {obs_dict["field"]["id"]} required to estimate field size'
                         )
                     contour_summary = field.to_dict()["contour_summary"]["features"][0]
-                    coordinates = np.array(contour_summary["geometry"]["coordinates"])
-                    width = np.max(coordinates[:, 0]) - np.min(coordinates[:, 0])
-                    height = np.max(coordinates[:, 1]) - np.min(coordinates[:, 1])
+                    coordinates = np.squeeze(
+                        np.array(contour_summary["geometry"]["coordinates"])
+                    )
+                    coords = SkyCoord(
+                        coordinates[:, 0] * u.deg,
+                        coordinates[:, 1] * u.deg,
+                        frame='icrs',
+                    )
+                    width, height = None, None
+                    for c1 in coords:
+                        for c2 in coords:
+                            dra, ddec = c1.spherical_offsets_to(c2)
+                            dra = dra.to(u.deg)
+                            ddec = ddec.to(u.deg)
+                            if width is None and height is None:
+                                width = dra
+                                height = ddec
+                            else:
+                                if dra > width:
+                                    width = dra
+                                if ddec > height:
+                                    height = ddec
 
             self.push_notification(
                 f'Simsurvey analysis in progress for ID {survey_efficiency_analysis.id}. Should be available soon.'
@@ -3047,8 +3083,8 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                 instrument.id,
                 survey_efficiency_analysis.id,
                 "SurveyEfficiencyForObservationPlan",
-                width=width,
-                height=height,
+                width=width.value,
+                height=height.value,
                 number_of_injections=payload['number_of_injections'],
                 number_of_detections=payload['number_of_detections'],
                 detection_threshold=payload['detection_threshold'],
@@ -3061,6 +3097,43 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
             IOLoop.current().run_in_executor(None, simsurvey_analysis)
 
             return self.success(data={"id": survey_efficiency_analysis.id})
+
+    def delete(self, survey_efficiency_analysis_id):
+        """
+        ---
+        description: Delete a simsurvey efficiency calculation.
+        tags:
+          - survey_efficiency_for_observation_plans
+        parameters:
+          - in: path
+            name: survey_efficiency_analysis_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        with self.Session() as session:
+            survey_efficiency_analysis = session.scalars(
+                SurveyEfficiencyForObservationPlan.select(
+                    session.user_or_token, mode="delete"
+                ).where(
+                    SurveyEfficiencyForObservationPlan.id
+                    == survey_efficiency_analysis_id
+                )
+            ).first()
+            if survey_efficiency_analysis is None:
+                return self.error(
+                    f'Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
+                )
+            session.delete(survey_efficiency_analysis)
+            session.commit()
+
+            return self.success()
 
 
 class ObservationPlanSimSurveyPlotHandler(BaseHandler):
