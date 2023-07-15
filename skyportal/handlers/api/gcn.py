@@ -85,6 +85,7 @@ from ...models import (
     UserNotification,
     Source,
     SourcesConfirmedInGCN,
+    SurveyEfficiencyForObservations,
 )
 from ...utils.gcn import (
     get_dateobs,
@@ -3316,6 +3317,7 @@ def add_gcn_report(
     number_of_detections=1,
     show_sources=True,
     show_observations=False,
+    show_survey_efficiencies=False,
     photometry_in_window=True,
     stats_method='python',
     instrument_ids=None,
@@ -3455,6 +3457,21 @@ def add_gcn_report(
                     del o["instrument"]
 
                 contents["observations"] = observations
+
+            if show_survey_efficiencies:
+                if instrument_ids is not None:
+                    stmt = SurveyEfficiencyForObservations.select(user).where(
+                        SurveyEfficiencyForObservations.instrument_id.in_(
+                            instrument_ids
+                        )
+                    )
+                else:
+                    stmt = SurveyEfficiencyForObservations.select(user)
+                survey_efficiency_analyses = session.scalars(stmt).all()
+
+                contents["survey_efficiency_analyses"] = [
+                    analysis.to_dict() for analysis in survey_efficiency_analyses
+                ]
 
             tags = event.tags
             aliases = event.aliases
@@ -3625,6 +3642,7 @@ class GcnReportHandler(BaseHandler):
         number_of_detections = data.get("numberDetections", 2)
         show_sources = data.get("showSources", False)
         show_observations = data.get("showObservations", False)
+        show_survey_efficiencies = data.get("showSurveyEfficiencies", False)
         photometry_in_window = data.get("photometryInWindow", False)
         stats_method = data.get("statsMethod", "python")
         instrument_ids = data.get("instrumentIds", None)
@@ -3729,6 +3747,7 @@ class GcnReportHandler(BaseHandler):
                         number_of_detections=number_of_detections,
                         show_sources=show_sources,
                         show_observations=show_observations,
+                        show_survey_efficiencies=show_survey_efficiencies,
                         photometry_in_window=photometry_in_window,
                         stats_method=stats_method,
                         instrument_ids=instrument_ids,
