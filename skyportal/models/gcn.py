@@ -14,13 +14,14 @@ import random
 
 import gcn
 import jinja2
+from ligo.skymap import plot  # noqa: F401 F811
+from ligo.skymap import postprocess
 import lxml
 import matplotlib
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import sqlalchemy as sa
-from ligo.skymap import plot  # noqa: F401 F811
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import deferred, relationship
@@ -180,9 +181,12 @@ class GcnReport(Base):
             .first()
         )
 
+        center = postprocess.posterior_max(localization.flat_2d)
+
         matplotlib.use("Agg")
         fig = plt.figure(figsize=figsize, constrained_layout=False)
-        ax = plt.axes(projection='astro mollweide')
+        ax = plt.axes(projection='astro globe', center=center)
+        ax.grid()
         ax.imshow_hpx(localization.flat_2d, cmap='cylon')
 
         if "observations" in data and len(data["observations"]) > 0:

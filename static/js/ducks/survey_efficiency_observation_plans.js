@@ -14,6 +14,9 @@ const FETCH_SURVEY_EFFICIENCY_OBSERVATION_PLANS_OK =
 const SUBMIT_SURVEY_EFFICIENCY_OBSERVATION_PLAN =
   "skyportal/SUBMIT_SURVEY_EFFICIENCY_OBSERVATION_PLAN";
 
+const DELETE_SURVEY_EFFICIENCY_OBSERVATION_PLAN =
+  "skyportal/DELETE_SURVEY_EFFICIENCY_OBSERVATION_PLAN";
+
 // eslint-disable-next-line import/prefer-default-export
 export const fetchSurveyEfficiencyObservationPlans = () =>
   API.GET(
@@ -26,6 +29,13 @@ export function submitSurveyEfficiencyObservationPlan(id, data = {}) {
     `/api/observation_plan/${id}/simsurvey`,
     SUBMIT_SURVEY_EFFICIENCY_OBSERVATION_PLAN,
     data
+  );
+}
+
+export function deleteSurveyEfficiencyObservationPlan(id) {
+  return API.DELETE(
+    `/api/observation_plan/${id}/simsurvey`,
+    DELETE_SURVEY_EFFICIENCY_OBSERVATION_PLAN
   );
 }
 
