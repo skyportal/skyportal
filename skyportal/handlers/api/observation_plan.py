@@ -3103,7 +3103,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
         ---
         description: Delete a simsurvey efficiency calculation.
         tags:
-          - survey_efficiency_for_observations
+          - survey_efficiency_for_observation_plans
         parameters:
           - in: path
             name: survey_efficiency_analysis_id
