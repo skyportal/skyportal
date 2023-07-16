@@ -82,7 +82,7 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const SurveyEfficiencyLists = ({ survey_efficiency_analyses }) => {
+const SurveyEfficiencyObservationsLists = ({ survey_efficiency_analyses }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
@@ -127,7 +127,7 @@ const SurveyEfficiencyLists = ({ survey_efficiency_analyses }) => {
       return <div>{JSON.stringify(analysis.payload)}</div>;
     };
     columns.push({
-      name: "ntransients",
+      name: "payload",
       label: "Payload",
       options: {
         customBodyRenderLite: renderPayload,
@@ -366,7 +366,7 @@ const SurveyEfficiencyLists = ({ survey_efficiency_analyses }) => {
   );
 };
 
-SurveyEfficiencyLists.propTypes = {
+SurveyEfficiencyObservationsLists.propTypes = {
   survey_efficiency_analyses: PropTypes.arrayOf(
     PropTypes.shape({
       instrument_id: PropTypes.number,
@@ -381,4 +381,4 @@ SurveyEfficiencyLists.propTypes = {
   ).isRequired,
 };
 
-export default SurveyEfficiencyLists;
+export default SurveyEfficiencyObservationsLists;

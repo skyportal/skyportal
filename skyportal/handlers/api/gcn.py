@@ -3416,6 +3416,7 @@ def add_gcn_report(
             if show_observations:
                 # get the executed obs, by instrument
                 observations = []
+                observation_statistics = []
 
                 start_date = arrow.get(start_date).datetime
                 end_date = arrow.get(end_date).datetime
@@ -3446,7 +3447,14 @@ def add_gcn_report(
                             n_per_page=MAX_OBSERVATIONS,
                             page_number=1,
                         )
-
+                        observation_statistics.append(
+                            {
+                                'telescope_name': instrument.telescope.name,
+                                'instrument_name': instrument.name,
+                                'probability': data['probability'],
+                                'area': data['area'],
+                            }
+                        )
                         observations.extend(data["observations"])
 
                 for o in observations:
@@ -3457,6 +3465,7 @@ def add_gcn_report(
                     del o["instrument"]
 
                 contents["observations"] = observations
+                contents["observation_statistics"] = observation_statistics
 
             if show_survey_efficiencies:
                 if instrument_ids is not None:
@@ -3470,7 +3479,14 @@ def add_gcn_report(
                 survey_efficiency_analyses = session.scalars(stmt).all()
 
                 contents["survey_efficiency_analyses"] = [
-                    analysis.to_dict() for analysis in survey_efficiency_analyses
+                    {
+                        **analysis.to_dict(),
+                        'number_of_transients': analysis.number_of_transients,
+                        'number_in_covered': analysis.number_in_covered,
+                        'number_detected': analysis.number_detected,
+                        'efficiency': analysis.efficiency,
+                    }
+                    for analysis in survey_efficiency_analyses
                 ]
 
             tags = event.tags
