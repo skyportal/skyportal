@@ -912,6 +912,7 @@ classification:
     probability: 0.9
     classification: "Time-domain Source"
     origin: "SCoPe"
+    ml: True
   - taxonomy_id: 2
     obj_id: ZTF18aabcvnq
     probability: 0.02

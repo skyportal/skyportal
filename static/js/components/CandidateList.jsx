@@ -469,9 +469,20 @@ const CandidateInfo = ({
     );
   };
 
-  const recentClassification =
+  const recentHumanClassification =
     candidateObj.classifications && candidateObj.classifications.length > 0
-      ? getMostRecentClassification(candidateObj.classifications)
+      ? getMostRecentClassification(
+          candidateObj.classifications.filter(
+            (c) => c?.ml === false || c?.ml === null
+          )
+        )
+      : null;
+
+  const recentMLClassification =
+    candidateObj.classifications && candidateObj.classifications.length > 0
+      ? getMostRecentClassification(
+          candidateObj.classifications.filter((c) => c?.ml === true)
+        )
       : null;
 
   return (
@@ -618,20 +629,44 @@ const CandidateInfo = ({
           <div className={classes.infoItem}>
             <CandidatePlugins candidate={candidateObj} />
           </div>
-          {candidateObj.classifications && recentClassification && (
-            <div className={classes.infoItemPadded}>
-              <b>Classification: </b>
-              <br />
-              <span>
-                <Chip
-                  size="small"
-                  label={recentClassification}
-                  color="primary"
-                  className={classes.chip}
-                />
-              </span>
-            </div>
-          )}
+          {candidateObj.classifications &&
+            (recentHumanClassification || recentMLClassification) && (
+              <div className={classes.infoItemPadded}>
+                <b>Latest Classification(s): </b>
+                <br />
+                {recentHumanClassification && (
+                  <span>
+                    <Chip
+                      size="small"
+                      label={recentHumanClassification}
+                      color="primary"
+                      className={classes.chip}
+                    />
+                  </span>
+                )}
+                {recentMLClassification && (
+                  <span>
+                    <Chip
+                      size="small"
+                      label={
+                        <span
+                          style={{
+                            display: "flex",
+                            direction: "row",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Tooltip title="classification from an ML classifier">
+                            <span>{`ML: ${recentMLClassification}`}</span>
+                          </Tooltip>
+                        </span>
+                      }
+                      className={classes.chip}
+                    />
+                  </span>
+                )}
+              </div>
+            )}
           {selectedAnnotationSortOptions !== null &&
             candidateHasAnnotationWithSelectedKey(candidateObj) && (
               <div className={classes.infoItem}>

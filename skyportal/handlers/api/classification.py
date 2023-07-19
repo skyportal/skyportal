@@ -41,6 +41,16 @@ def post_classification(data, user_id, session):
 
     origin = data.get('origin')
 
+    ml = data.get('ml', False)
+    if ml in [True, "True", "t", "true"]:
+        ml = True
+    elif ml in [False, "False", "f", "false"]:
+        ml = False
+    else:
+        raise ValueError(
+            f"If provided, ml must be one of True, False, 'True', 'False', 't', 'f', 'true', 'false' (got {ml})"
+        )
+
     # check the taxonomy
     taxonomy_id = data["taxonomy_id"]
     taxonomy = session.scalars(
@@ -81,6 +91,7 @@ def post_classification(data, user_id, session):
         obj_id=obj_id,
         origin=origin,
         probability=probability,
+        ml=ml,
         taxonomy_id=data["taxonomy_id"],
         author=user,
         author_name=user.username,
@@ -446,6 +457,17 @@ class ClassificationHandler(BaseHandler):
             data = self.get_json()
             group_ids = data.pop("group_ids", None)
             data['id'] = classification_id
+
+            ml = data.get('ml', False)
+            if ml in [True, "True", "t", "true"]:
+                ml = True
+            elif ml in [False, "False", "f", "false"]:
+                ml = False
+            else:
+                raise ValueError(
+                    f"If provided, ml must be one of True, False, 'True', 'False', 't', 'f', 'true', 'false' (got {ml})"
+                )
+            data['ml'] = ml
 
             schema = Classification.__schema__()
             try:
