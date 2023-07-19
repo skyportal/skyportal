@@ -240,6 +240,54 @@
     </div>
 
     <div style="display: flex; flex-direction: column; margin-bottom: 30px">
+      {% if data.get("observation_statistics", [])|length == 0 %}
+      <h2 style="margin-top: 0; margin-bottom: 10px">Observation Statistics</h2>
+      <p style="margin-top: 0">No observation statistics</p>
+      {% else %}
+      <div
+        style="
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        "
+      >
+        <h2 style="margin-top: 0; margin-bottom: 0">Observation Statistics</h2>
+        <button
+          type="button"
+          onclick="tableToCSV('observation_statistics')"
+          style="max-height: 30px"
+        >
+          Download as CSV
+        </button>
+      </div>
+      <table class="table" style="width: 100%" id="observation_statistics">
+        <thead>
+          <tr>
+            <th style="border-left-width: 0">Telescope</th>
+            <th>Instrument</th>
+            <th>Probability</th>
+            <th>Area [sq. deg.]</th>
+          </tr>
+        </thead>
+        {% for observation_statistic in data["observation_statistics"] %}
+        <tbody>
+          <tr>
+            <td style="border-left-width: 0">
+              {{ observation_statistic['telescope_name'] }}
+            </td>
+            <td>{{ observation_statistic['instrument_name'] }}</td>
+            <td>{{ observation_statistic['probability'] }}</td>
+            <td>{{ observation_statistic['area'] }}</td>
+          </tr>
+        </tbody>
+        {% endfor %}
+      </table>
+      {% endif %}
+    </div>
+
+    <div style="display: flex; flex-direction: column; margin-bottom: 30px">
       {% if data.get("observations", [])|length == 0 %}
       <h2 style="margin-top: 0; margin-bottom: 10px">Observations</h2>
       <p style="margin-top: 0">No observations</p>
@@ -297,6 +345,54 @@
       {% endif %}
     </div>
 
+    <div style="display: flex; flex-direction: column; margin-bottom: 30px">
+      {% if data.get("survey_efficiency_analyses", [])|length == 0 %}
+      <h2 style="margin-top: 0; margin-bottom: 10px">Simulation Analyses</h2>
+      <p style="margin-top: 0">No simulation analyses</p>
+      {% else %}
+      <div
+        style="
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        "
+      >
+        <h2 style="margin-top: 0; margin-bottom: 0">Simulation Analyses</h2>
+        <button
+          type="button"
+          onclick="tableToCSV('survey_efficiency_analyses')"
+          style="max-height: 30px"
+        >
+          Download as CSV
+        </button>
+      </div>
+      <table class="table" style="width: 100%" id="survey_efficiency_analyses">
+        <thead>
+          <tr>
+            <th style="border-left-width: 0">Payload</th>
+            <th>Number of Transients</th>
+            <th>Number in Covered Region</th>
+            <th>Number Detected</th>
+            <th>Efficiency</th>
+          </tr>
+        </thead>
+        {% for analysis in data["survey_efficiency_analyses"] %}
+        <tbody>
+          <tr>
+            <td style="border-left-width: 0">{{ analysis['payload'] }}</td>
+            <td>{{ analysis['number_of_transients'] }}</td>
+            <td>{{ analysis['number_in_covered'] }}</td>
+            <td>{{ analysis['number_detected'] }}</td>
+            <td>{{ analysis['efficiency'] }}</td>
+          </tr>
+        </tbody>
+        {% endfor %}
+      </table>
+      {% endif %}
+    </div>
+
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script type="text/javascript">
       function tableToCSV(type) {
@@ -332,6 +428,7 @@
       }
     </script>
     <script type="text/javascript">
+        {% if data.get("sources", [])|length > 0 %}
       sources = JSON.parse('{{ data["sources"] | tojson | safe}}');
 
       function toggleVisibility(id) {
@@ -480,5 +577,6 @@
         downloadCSVFile(id, csv_data);
       }
     </script>
+    {% endif %}
   </body>
 </html>
