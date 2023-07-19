@@ -27,6 +27,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import deferred, relationship
 
 from baselayer.app.env import load_env
+from baselayer.app.json_util import to_json
 from baselayer.app.models import (
     AccessibleIfUserMatches,
     Base,
@@ -266,7 +267,11 @@ class GcnReport(Base):
         data = self.data
         if isinstance(data, str):
             data = json.loads(data)
-        template = jinja2.Template(open("./static/reports/gcn_report.html").read())
+
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader("./static/reports"))
+        env.policies['json.dumps_function'] = to_json
+
+        template = env.get_template("gcn_report.html")
         html = template.render(
             host=host,
             dateobs=str(self.dateobs).replace(" ", "T"),

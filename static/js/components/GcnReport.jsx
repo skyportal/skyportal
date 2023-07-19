@@ -151,6 +151,7 @@ const GcnReport = ({ dateobs }) => {
   const [numberDetections, setNumberDetections] = useState("2");
   const [showSources, setShowSources] = useState(false);
   const [showObservations, setShowObservations] = useState(false);
+  const [showSurveyEfficiencies, setShowSurveyEfficiencies] = useState(false);
   const [photometryInWindow, setPhotometryInWindow] = useState(false);
   const [selectedInstruments, setSelectedInstruments] = useState([]);
   const [selectedGcnReportId, setSelectedGcnReportId] = useState(null);
@@ -272,10 +273,10 @@ const GcnReport = ({ dateobs }) => {
       dispatch(showNotification("Please select an end date", "error"));
       valid = false;
     }
-    if (!showSources && !showObservations) {
+    if (!showSources && !showObservations && !showSurveyEfficiencies) {
       dispatch(
         showNotification(
-          "Please select at least one type to publish: sources or observations",
+          "Please select at least one type to publish: sources, observations, or survey efficiencies",
           "error"
         )
       );
@@ -297,6 +298,7 @@ const GcnReport = ({ dateobs }) => {
         numberDetections,
         showSources,
         showObservations,
+        showSurveyEfficiencies,
         photometryInWindow,
         instrumentIds: (selectedInstruments || []).map(
           (instrument) => instrument?.id
@@ -430,6 +432,18 @@ const GcnReport = ({ dateobs }) => {
                         />
                       }
                       label="Show Observations"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          label="Show Survey Efficiencies"
+                          checked={showSurveyEfficiencies}
+                          onChange={(e) =>
+                            setShowSurveyEfficiencies(e.target.checked)
+                          }
+                        />
+                      }
+                      label="Show Survey Efficiencies"
                     />
                     <FormControlLabel
                       control={

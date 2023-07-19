@@ -82,7 +82,9 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const SurveyEfficiencyLists = ({ survey_efficiency_analyses }) => {
+const SurveyEfficiencyObservationPlanLists = ({
+  survey_efficiency_analyses,
+}) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
@@ -301,7 +303,7 @@ const SurveyEfficiencyLists = ({ survey_efficiency_analyses }) => {
   );
 };
 
-SurveyEfficiencyLists.propTypes = {
+SurveyEfficiencyObservationPlanLists.propTypes = {
   survey_efficiency_analyses: PropTypes.arrayOf(
     PropTypes.shape({
       instrument_id: PropTypes.number,
@@ -316,4 +318,4 @@ SurveyEfficiencyLists.propTypes = {
   ).isRequired,
 };
 
-export default SurveyEfficiencyLists;
+export default SurveyEfficiencyObservationPlanLists;
