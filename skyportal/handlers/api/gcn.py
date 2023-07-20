@@ -103,6 +103,7 @@ from ...utils.gcn import (
     from_polygon,
     has_skymap,
 )
+from .observation_plan import post_observation_plan
 from ...utils.notifications import post_notification
 
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
@@ -1853,12 +1854,6 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
     try:
         user = session.scalar(sa.select(User).where(User.id == user_id))
         localization = session.query(Localization).get(localization_id)
-        localization_tags = [
-            tags.text
-            for tags in session.query(LocalizationTag)
-            .filter(LocalizationTag.localization_id == localization_id)
-            .all()
-        ]
         dateobs = localization.dateobs
         config_gcn_observation_plans_all = [
             observation_plan for observation_plan in cfg["gcn.observation_plans"]
@@ -1901,14 +1896,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                 'allocation_id': plan.allocation_id,
                 'filters': plan.filters,
                 'payload': plan.payload,
-                'survey_efficiencies': [
-                    {
-                        **survey_efficiency.to_dict(),
-                        'modified': Time(survey_efficiency.modified).isot,
-                        'created_at': Time(survey_efficiency.created_at).isot,
-                    }
-                    for survey_efficiency in plan.default_survey_efficiencies
-                ],
+                'default': plan.id,
             }
             gcn_observation_plans.append(gcn_observation_plan)
         gcn_observation_plans = gcn_observation_plans + config_gcn_observation_plans
@@ -1939,6 +1927,8 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     'end_date': end_date,
                     'queue_name': f'{allocation.instrument.name}-{start_date}-{ii}',
                 }
+                if 'default' in gcn_observation_plan:
+                    payload['default'] = gcn_observation_plan['default']
                 plan = {
                     'payload': payload,
                     'allocation_id': allocation.id,
@@ -1946,60 +1936,13 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     'localization_id': localization_id,
                 }
 
-                if 'filters' in gcn_observation_plan:
-                    filters = gcn_observation_plan['filters']
-                    if filters is not None:
-                        if 'gcn_notices' in filters and len(filters['gcn_notices']) > 0:
-                            if not any(
-                                [
-                                    gcn.NoticeType(notice.notice_type).name
-                                    in filters['gcn_notices']
-                                    for notice in event.gcn_notices
-                                ]
-                            ):
-                                continue
-
-                        if 'gcn_tags' in filters and len(filters['gcn_tags']) > 0:
-                            intersection = list(
-                                set(event.tags) & set(filters["gcn_tags"])
-                            )
-                            if len(intersection) == 0:
-                                continue
-
-                        if (
-                            "localization_tags" in filters
-                            and len(filters["localization_tags"]) > 0
-                        ):
-                            intersection = list(
-                                set(localization_tags)
-                                & set(filters["localization_tags"])
-                            )
-                            if len(intersection) == 0:
-                                continue
-
-                request_body = {
-                    'plan': plan,
-                    'survey_efficiencies': gcn_observation_plan['survey_efficiencies'],
-                    'user_id': user_id,
-                    'default_plan': True,
-                }
-
-                observation_plans_microservice_url = (
-                    f'http://127.0.0.1:{cfg["ports.observation_plan_queue"]}'
+                post_observation_plan(
+                    plan,
+                    user_id=user.id,
+                    session=session,
+                    default_plan=True,
+                    asynchronous=False,
                 )
-
-                resp = requests.post(
-                    observation_plans_microservice_url, json=request_body, timeout=10
-                )
-
-                if resp.status_code == 200:
-                    log(
-                        f'Observation plan requested for Localization with ID {localization_id}'
-                    )
-                else:
-                    log(
-                        f'Observation plan request failed for Localization with ID {localization_id}: {resp.content}'
-                    )
         log(f"Triggered observation plans for localization {localization_id}")
     except Exception as e:
         log(
@@ -4394,7 +4337,6 @@ class GcnEventTriggerHandler(BaseHandler):
                 )
                 return self.success(data=gcn_triggered)
             except Exception as e:
-                raise e
                 return self.error(f'Failed to set triggered status: str({e})')
 
     @permissions(['Manage allocations'])
