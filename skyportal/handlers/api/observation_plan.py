@@ -6,6 +6,7 @@ import random
 import tempfile
 import time
 import urllib
+import uuid
 from datetime import datetime, timedelta
 
 import afterglowpy
@@ -34,7 +35,7 @@ from astroplan import (
     is_event_observable,
 )
 from astropy import units as u
-from astropy.coordinates import SkyCoord, EarthLocation
+from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
 from ligo.skymap import plot  # noqa: F401 F811
 from ligo.skymap.bayestar import rasterize
@@ -231,7 +232,7 @@ def post_survey_efficiency_analysis(
 
     payload = survey_efficiency_analysis["payload"]
     payload["optionalInjectionParameters"] = json.loads(
-        payload["optionalInjectionParameters"]
+        payload.get("optionalInjectionParameters", "{}")
     )
     payload["optionalInjectionParameters"] = get_simsurvey_parameters(
         payload["modelName"], payload["optionalInjectionParameters"]
@@ -356,6 +357,10 @@ def post_observation_plans(
 
     user = session.query(User).get(user_id)
 
+    # generate a uuid that will be used to identify this set of observation plans
+    # and will be used to group them together
+    combined_id = str(uuid.uuid4())
+
     observation_plan_requests = []
     for plan in plans:
 
@@ -371,6 +376,7 @@ def post_observation_plans(
         data['allocation_id'] = int(data['allocation_id'])
         data['localization_id'] = int(data['localization_id'])
         data['default_plan'] = default_plan
+        data['combined_id'] = combined_id
 
         allocation = session.scalars(
             Allocation.select(user).where(Allocation.id == data['allocation_id'])
@@ -414,20 +420,8 @@ def post_observation_plans(
         observation_plan_request = ObservationPlanRequest.__schema__().load(data)
         observation_plan_request.target_groups = target_groups
         session.add(observation_plan_request)
-        session.commit()
-
         observation_plan_requests.append(observation_plan_request)
-
-    try:
-        instrument.api_class_obsplan.submit_multiple(
-            observation_plan_requests, asynchronous=asynchronous
-        )
-    except Exception as e:
-        for observation_plan_request in observation_plan_requests:
-            observation_plan_request.status = 'failed to submit'
-        raise AttributeError(f'Error submitting observation plan: {e.args[0]}')
-    finally:
-        session.commit()
+    session.commit()
 
     flow = Flow()
     for observation_plan_request in observation_plan_requests:
@@ -523,14 +517,6 @@ def post_observation_plan(
         payload={"gcnEvent_dateobs": dateobs},
     )
 
-    try:
-        instrument.api_class_obsplan.submit(
-            observation_plan_request_id, asynchronous=asynchronous
-        )
-    except Exception as e:
-        observation_plan_request.status = 'failed to submit'
-        raise AttributeError(f'Error submitting observation plan: {e.args[0]}')
-
     flow.push(
         '*',
         "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
@@ -612,23 +598,29 @@ class ObservationPlanRequestHandler(BaseHandler):
                         f'Filters in payload must be a subset of instrument filters: {allocation.instrument.filters}'
                     )
 
-        request_body = {
-            'plans': observation_plans,
-            'user_id': self.associated_user_object.id,
-            'combine_plans': combine_plans,
-            'default_plan': False,
-        }
-
-        resp = requests.post(
-            observation_plans_microservice_url, json=request_body, timeout=10
-        )
-        if resp.status_code != 200:
-            log(
-                f'Error submitting observation plan request to the queue: {resp.content}'
-            )
-            return self.error(
-                f'Error submitting observation plan request to the queue: {resp.content}'
-            )
+            if len(observation_plans) == 1:
+                post_observation_plan(
+                    observation_plans[0],
+                    self.associated_user_object.id,
+                    session,
+                    asynchronous=True,
+                )
+            else:
+                if combine_plans:
+                    post_observation_plans(
+                        observation_plans,
+                        self.associated_user_object.id,
+                        session,
+                        asynchronous=True,
+                    )
+                else:
+                    for plan in observation_plans:
+                        post_observation_plan(
+                            plan,
+                            self.associated_user_object.id,
+                            session,
+                            asynchronous=True,
+                        )
 
         return self.success(
             "Observation plan request submitted successfully to the queue successfully."

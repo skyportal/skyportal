@@ -48,7 +48,8 @@ const AddSurveyEfficiencyObservationPlanPage = ({
     };
     if (
       !fetchingSurveyEfficiencyAnalysisList &&
-      !surveyEfficiencyAnalysisList
+      !surveyEfficiencyAnalysisList &&
+      observationplanRequest?.status === "complete"
     ) {
       fetchSurveyEfficiencyAnalysisList();
     }
@@ -101,6 +102,7 @@ AddSurveyEfficiencyObservationPlanPage.propTypes = {
   }).isRequired,
   observationplanRequest: PropTypes.shape({
     id: PropTypes.number,
+    status: PropTypes.string,
   }).isRequired,
 };
 

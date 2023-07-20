@@ -189,6 +189,12 @@ class ObservationPlanRequest(Base):
     )
     allocation = relationship('Allocation', back_populates='observation_plans')
 
+    combined_id = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="The unique UUID used to identify combined requests.",
+    )
+
     default_plan = sa.Column(
         sa.Boolean,
         default=False,
