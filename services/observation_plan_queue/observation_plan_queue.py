@@ -161,7 +161,8 @@ class ObservationPlanQueue:
                 try:
                     stmt = sa.select(ObservationPlanRequest).where(
                         ObservationPlanRequest.status == "pending submission",
-                        # ObservationPlanRequest.created_at > arrow.now().shift(days=-1).datetime,
+                        ObservationPlanRequest.created_at
+                        > arrow.utcnow().shift(days=-1).datetime,
                         # we only want to process plans that have been created in the last 24 hours
                     )
                     single_requests = session.execute(stmt).scalars().all()
