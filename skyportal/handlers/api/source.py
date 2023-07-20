@@ -979,9 +979,13 @@ async def get_sources(
         obj_query = obj_query.where(Obj.id.notin_(nonclassification_id_subquery))
 
     if unclassified:
-        unclassified_subquery = Classification.select(
-            session.user_or_token, columns=[Classification.obj_id]
-        ).subquery()
+        unclassified_subquery = (
+            Classification.select(
+                session.user_or_token, columns=[Classification.obj_id]
+            )
+            .where(Classification.ml.is_(False))
+            .subquery()
+        )
         obj_query = obj_query.where(Obj.id.notin_(unclassified_subquery))
 
     if annotations_filter is not None:

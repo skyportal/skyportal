@@ -16,6 +16,7 @@ const UIPreferences = () => {
   const useAMPM = preferences?.useAMPM || false;
   const useRefMag = preferences?.useRefMag || false;
   const showBotComments = preferences?.showBotComments || false;
+  const hideMLClassifications = preferences?.hideMLClassifications || false;
   const dispatch = useDispatch();
 
   const themeToggled = (event) => {
@@ -57,6 +58,13 @@ const UIPreferences = () => {
   const showBotCommentsToggled = (event) => {
     const prefs = {
       showBotComments: event.target.checked,
+    };
+    dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
+  const hideMLClassificationsToggled = (event) => {
+    const prefs = {
+      hideMLClassifications: event.target.checked,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
@@ -109,6 +117,14 @@ const UIPreferences = () => {
     />
   );
 
+  const hideMLClassificationsSwitch = (
+    <Switch
+      value="Hide ML-based Classifications by default"
+      checked={hideMLClassifications}
+      onChange={hideMLClassificationsToggled}
+    />
+  );
+
   /* To get hold of the current theme:
 
   const themeCtx = useTheme();
@@ -137,6 +153,10 @@ const UIPreferences = () => {
         <FormControlLabel
           control={showBotCommentsSwitch}
           label="Bot Comments"
+        />
+        <FormControlLabel
+          control={hideMLClassificationsSwitch}
+          label="Hide ML-based Classifications"
         />
       </FormGroup>
     </div>

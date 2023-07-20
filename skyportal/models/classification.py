@@ -46,6 +46,13 @@ class Classification(Base):
         nullable=True,
         index=True,
     )
+    ml = sa.Column(
+        sa.Boolean,
+        doc='Whether this classification was made by a machine learning algorithm, or a human',
+        nullable=False,
+        server_default='false',
+        index=True,
+    )
 
     author_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
