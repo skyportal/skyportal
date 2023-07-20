@@ -224,10 +224,18 @@ const ClassificationList = () => {
                     >
                       {ml ? (
                         <Tooltip title="classification from an ML classifier">
-                          <span>{`ML: ${classification}`}</span>
+                          <span>
+                            {probability < 0.1
+                              ? `ML: ${classification}?`
+                              : `ML: ${classification}`}
+                          </span>
                         </Tooltip>
                       ) : (
-                        classification
+                        <span>
+                          {probability < 0.1
+                            ? `${classification}?`
+                            : `${classification}`}
+                        </span>
                       )}
                     </span>
                   ) : (
@@ -241,10 +249,18 @@ const ClassificationList = () => {
                     >
                       {ml ? (
                         <Tooltip title="classification from an ML classifier">
-                          <span>{`ML: ${classification}`}</span>
+                          <span>
+                            {probability < 0.1
+                              ? `ML: ${classification}?`
+                              : `ML: ${classification}`}
+                          </span>
                         </Tooltip>
                       ) : (
-                        classification
+                        <span>
+                          {probability < 0.1
+                            ? `${classification}?`
+                            : `${classification}`}
+                        </span>
                       )}
                     </span>
                   )}
