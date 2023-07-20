@@ -1,7 +1,7 @@
 """classification_ml
 
 Revision ID: 0620901b0a2d
-Revises: 42f18fbf914d
+Revises: 849e70f9a857
 Create Date: 2023-07-20 10:55:33.259729
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '0620901b0a2d'
-down_revision = '42f18fbf914d'
+down_revision = '849e70f9a857'
 branch_labels = None
 depends_on = None
 
