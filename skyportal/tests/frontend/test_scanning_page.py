@@ -299,9 +299,7 @@ def test_submit_annotations_sorting(
     driver.click_xpath('//button[text()="Search"]')
     driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
 
-    # Check to see that selected annotation appears in info column
-    driver.click_xpath("//p[text()='numeric_field: 2.0000']")
-
+    # the annotation selected on the form should be selected in the table as well, no need to click it
     # Check to see that sorting button has become enabled, and click
     driver.wait_for_xpath_to_be_clickable(
         "//button[@data-testid='sortOnAnnotationButton']"
