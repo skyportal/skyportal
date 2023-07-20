@@ -156,7 +156,7 @@ const UIPreferences = () => {
         />
         <FormControlLabel
           control={hideMLClassificationsSwitch}
-          label="Hide ML Classifications"
+          label="Hide ML-based Classifications"
         />
       </FormGroup>
     </div>

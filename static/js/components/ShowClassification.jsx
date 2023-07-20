@@ -251,8 +251,8 @@ const ClassificationRow = ({ classifications }) => {
                 {classification.ml ? (
                   <span>
                     {classification.probability < 0.1
-                      ? `ML-${classification.classification}?`
-                      : `ML-${classification.classification}`}
+                      ? `ML: ${classification.classification}?`
+                      : `ML: ${classification.classification}`}
                   </span>
                 ) : (
                   <span>
@@ -285,8 +285,8 @@ const ClassificationRow = ({ classifications }) => {
                 {classification.ml ? (
                   <span>
                     {classification.probability < 0.1
-                      ? `ML-${classification.classification}?`
-                      : `ML-${classification.classification}`}
+                      ? `ML: ${classification.classification}?`
+                      : `ML: ${classification.classification}`}
                   </span>
                 ) : (
                   <span>

@@ -224,7 +224,7 @@ const ClassificationList = () => {
                     >
                       {ml ? (
                         <Tooltip title="classification from an ML classifier">
-                          <span>{`ML-${classification}`}</span>
+                          <span>{`ML: ${classification}`}</span>
                         </Tooltip>
                       ) : (
                         classification
@@ -241,7 +241,7 @@ const ClassificationList = () => {
                     >
                       {ml ? (
                         <Tooltip title="classification from an ML classifier">
-                          <span>{`ML-${classification}`}</span>
+                          <span>{`ML: ${classification}`}</span>
                         </Tooltip>
                       ) : (
                         classification
@@ -301,11 +301,11 @@ const ClassificationList = () => {
         {Row}
       </FixedSizeList>
       <FormControlLabel
-        label="Hide ML based?"
+        label="Hide ML-based?"
         control={
           <Checkbox
             color="primary"
-            title="Hide ML based?"
+            title="Hide ML-based?"
             type="checkbox"
             onChange={(event) => setHideML(event.target.checked)}
             checked={hideML}
