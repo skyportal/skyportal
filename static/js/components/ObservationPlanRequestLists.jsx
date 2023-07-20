@@ -124,7 +124,9 @@ const ObservationPlanGlobe = ({ observationplanRequest }) => {
       );
       setObsList(response.data);
     };
-    fetchObsList();
+    if (observationplanRequest?.status === "complete") {
+      fetchObsList();
+    }
   }, [dispatch, setObsList, observationplanRequest]);
 
   const handleDeleteObservationPlanFields = async (obsPlanList) => {

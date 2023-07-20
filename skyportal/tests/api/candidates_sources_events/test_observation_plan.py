@@ -121,7 +121,7 @@ def test_observation_plan_tiling(super_admin_token, public_group):
                 'GET',
                 f'instrument/{instrument_id}',
                 token=super_admin_token,
-                params={'localizationDateobs': dateobs},
+                params={'localizationDateobs': dateobs, 'ignoreCache': True},
             )
             assert status == 200
             assert data['status'] == 'success'
@@ -377,10 +377,11 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
                 'GET',
                 f'instrument/{instrument_id}',
                 token=super_admin_token,
+                params={'localizationDateobs': dateobs, 'ignoreCache': True},
             )
             assert status == 200
             assert data['status'] == 'success'
-            assert data['data']['band'] == 'NIR'
+            assert data['data']['band'] == 'Optical'
 
             assert len(data['data']['fields']) == 5
             fields_loaded = True
