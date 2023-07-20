@@ -1875,20 +1875,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                 allocation_id = None
 
         default_observation_plans = (
-            (
-                session.scalars(
-                    DefaultObservationPlanRequest.select(
-                        user,
-                        options=[
-                            joinedload(
-                                DefaultObservationPlanRequest.default_survey_efficiencies
-                            )
-                        ],
-                    )
-                )
-            )
-            .unique()
-            .all()
+            session.scalars(DefaultObservationPlanRequest.select(user)).unique().all()
         )
         gcn_observation_plans = []
         for plan in default_observation_plans:

@@ -232,7 +232,7 @@ def post_survey_efficiency_analysis(
 
     payload = survey_efficiency_analysis["payload"]
     payload["optionalInjectionParameters"] = json.loads(
-        payload["optionalInjectionParameters"]
+        payload.get("optionalInjectionParameters", "{}")
     )
     payload["optionalInjectionParameters"] = get_simsurvey_parameters(
         payload["modelName"], payload["optionalInjectionParameters"]
@@ -420,9 +420,8 @@ def post_observation_plans(
         observation_plan_request = ObservationPlanRequest.__schema__().load(data)
         observation_plan_request.target_groups = target_groups
         session.add(observation_plan_request)
-        session.commit()
-
         observation_plan_requests.append(observation_plan_request)
+    session.commit()
 
     flow = Flow()
     for observation_plan_request in observation_plan_requests:

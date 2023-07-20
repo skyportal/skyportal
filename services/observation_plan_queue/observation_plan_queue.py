@@ -1,6 +1,5 @@
 import itertools
 import time
-
 import arrow
 import sqlalchemy as sa
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -186,10 +185,11 @@ class ObservationPlanQueue:
                         if request.combined_id is None
                     ]
 
-                    if len(requests) > 0:
-                        log(
-                            f"Prioritizing {len(requests)} observation plan requests..."
-                        )
+                    if len(requests) == 0:
+                        time.sleep(2)
+                        continue
+
+                    log(f"Prioritizing {len(requests)} observation plan requests...")
 
                     index = self.prioritize_requests(requests)
 
@@ -256,7 +256,7 @@ class ObservationPlanQueue:
                                         defaultobsplanrequest.default_survey_efficiencies
                                     ):
                                         post_survey_efficiency_analysis(
-                                            default_survey_efficiency.payload,
+                                            default_survey_efficiency.to_dict(),
                                             plan.id,
                                             1,
                                             session,
