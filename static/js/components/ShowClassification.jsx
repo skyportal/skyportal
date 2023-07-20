@@ -126,6 +126,14 @@ const ClassificationRow = ({ classifications }) => {
     }
   });
 
+  const defaultColor = (isML) => {
+    let color = "#000000";
+    if (isML) {
+      color = "#3063ab";
+    }
+    return color;
+  };
+
   const permission =
     currentUser.permissions.includes("System admin") ||
     currentUser.permissions.includes("Manage groups") ||
@@ -224,15 +232,36 @@ const ClassificationRow = ({ classifications }) => {
                 </font>
               </Button>
             </div>
+            {classification.ml && (
+              <span>PS: This classification comes from a ML classifier.</span>
+            )}
           </div>
         }
       >
         {classifications_classes?.origin && classification.origin ? (
           <Chip
             label={
-              classification.probability < 0.1
-                ? `${classification.classification}?`
-                : classification.classification
+              <span
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                {classification.ml ? (
+                  <span>
+                    {classification.probability < 0.1
+                      ? `ML: ${classification.classification}?`
+                      : `ML: ${classification.classification}`}
+                  </span>
+                ) : (
+                  <span>
+                    {classification.probability < 0.1
+                      ? `${classification.classification}?`
+                      : classification.classification}
+                  </span>
+                )}
+              </span>
             }
             key={`${classification.modified}tb`}
             size="small"
@@ -240,15 +269,33 @@ const ClassificationRow = ({ classifications }) => {
             style={{
               color: classifications_classes?.origin
                 ? classifications_classes.origin[classification.origin]
-                : "#999999",
+                : defaultColor(classification?.ml),
             }}
           />
         ) : (
           <Chip
             label={
-              classification.probability < 0.1
-                ? `${classification.classification}?`
-                : classification.classification
+              <span
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                {classification.ml ? (
+                  <span>
+                    {classification.probability < 0.1
+                      ? `ML: ${classification.classification}?`
+                      : `ML: ${classification.classification}`}
+                  </span>
+                ) : (
+                  <span>
+                    {classification.probability < 0.1
+                      ? `${classification.classification}?`
+                      : classification.classification}
+                  </span>
+                )}
+              </span>
             }
             key={`${classification.modified}tb`}
             size="small"
@@ -259,6 +306,7 @@ const ClassificationRow = ({ classifications }) => {
                     classification.classification
                   ]
                 : "#999999",
+              color: defaultColor(classification?.ml),
             }}
           />
         )}
@@ -276,6 +324,7 @@ ClassificationRow.propTypes = {
       author_name: PropTypes.string,
       modified: PropTypes.string,
       probability: PropTypes.number,
+      ml: PropTypes.bool,
       origin: PropTypes.string,
       groups: PropTypes.arrayOf(
         PropTypes.shape({

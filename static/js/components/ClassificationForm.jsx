@@ -90,6 +90,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       obj_id,
       classification,
       probability: formData.probability,
+      ml: formData.ml || false,
     };
     if (formData.groupIDs) {
       data.group_ids = formData.groupIDs?.map((id) => parseInt(id, 10));
@@ -274,6 +275,11 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
           type: "number",
           name: "probability",
           title: "Probability",
+        },
+        ml: {
+          type: "boolean",
+          name: "ml",
+          title: "ML based classification?",
         },
       },
     });

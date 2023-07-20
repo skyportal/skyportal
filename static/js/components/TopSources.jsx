@@ -117,9 +117,9 @@ const TopSourcesList = ({ sources, styles }) => {
         {sources?.map((source) => {
           let topsourceName = `${source.obj_id}`;
           if (source.classifications.length > 0) {
-            // Display the most recent non-zero probability class
+            // Display the most recent non-zero probability class, and that isn't a ml classifier
             const filteredClasses = source.classifications?.filter(
-              (i) => i.probability > 0
+              (i) => i.probability > 0 && i.ml === false
             );
             const sortedClasses = filteredClasses.sort((a, b) =>
               a.modified < b.modified ? 1 : -1

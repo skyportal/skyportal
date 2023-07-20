@@ -613,7 +613,7 @@ const SourceTableFilterForm = ({
         </div>
         <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
-            Unclassified Sources
+            Only unclassified (by humans)
           </Typography>
           <FormControlLabel
             control={

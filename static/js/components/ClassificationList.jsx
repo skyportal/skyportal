@@ -4,7 +4,10 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import Tooltip from "@mui/material/Tooltip";
 import GroupIcon from "@mui/icons-material/Group";
 import ListItem from "@mui/material/ListItem";
+import Divider from "@mui/material/Divider";
 import makeStyles from "@mui/styles/makeStyles";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
 import { FixedSizeList } from "react-window";
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -44,7 +47,7 @@ const useStyles = makeStyles(() => ({
     fontSize: "80%",
   },
   classificationMessage: {
-    maxWidth: "20em",
+    maxWidth: "30em",
   },
   classificationUserDomain: {
     color: "lightgray",
@@ -57,7 +60,7 @@ const useStyles = makeStyles(() => ({
     justifyContent: "space-between",
     alignItems: "start",
     minHeight: "1.6875rem",
-    maxWidth: "20em",
+    maxWidth: "30em",
   },
   classificationDelete: {
     height: "2.1875rem",
@@ -84,6 +87,15 @@ const ClassificationList = () => {
   )[0];
   // const acls = useSelector((state) => state.profile.acls);
   let { classifications } = obj;
+  const [hideML, setHideML] = useState(false);
+
+  const { hideMLClassifications } = useSelector(
+    (state) => state.profile.preferences
+  );
+
+  useEffect(() => {
+    setHideML(hideMLClassifications);
+  }, [hideMLClassifications]);
 
   useEffect(() => {
     if (
@@ -126,9 +138,24 @@ const ClassificationList = () => {
   classifications = classifications || [];
 
   // newest classifications on top reverse sort the classifications by created_at
-  const sorted_classifications = classifications.sort((a, b) =>
+  let sorted_classifications = classifications.sort((a, b) =>
     a.created_at > b.created_at ? -1 : 1
   );
+
+  if (hideML) {
+    // remove ML based classifications
+    sorted_classifications = sorted_classifications.filter(
+      (classification) => classification?.ml === false
+    );
+  }
+
+  const defaultColor = (isML) => {
+    let color = "#000000";
+    if (isML) {
+      color = "#3063ab";
+    }
+    return color;
+  };
 
   const items = sorted_classifications.map(
     ({
@@ -138,6 +165,7 @@ const ClassificationList = () => {
       classification,
       probability,
       origin,
+      ml,
       taxonomy_id,
       groups,
     }) => {
@@ -153,69 +181,121 @@ const ClassificationList = () => {
         isGroupAdmin ||
         userProfile.username === author_name;
       return (
-        <ListItem key={id} className={styles.classification}>
-          <div className={styles.classificationHeader}>
-            <span className={styles.classificationUser}>
-              <span>{author_name}</span>
-            </span>
-            &nbsp;
-            <span className={styles.classificationTime}>
-              {dayjs().to(dayjs.utc(`${created_at}Z`))}
-            </span>
-            &nbsp;
-            <Tooltip title={groups?.map((group) => group.name)?.join(", ")}>
-              <GroupIcon
-                fontSize="small"
-                style={{ paddingTop: "6px", paddingBottom: "0px" }}
-              />
-            </Tooltip>
-          </div>
-          <div className={styles.wrap} data-testid={`classificationDiv_${id}`}>
-            <div className={styles.classificationMessage}>
-              {origin && classifications_classes?.origin ? (
-                <span
+        <>
+          <ListItem key={id} className={styles.classification}>
+            <div className={styles.classificationHeader}>
+              <span className={styles.classificationUser}>
+                <span>{author_name}</span>
+              </span>
+              &nbsp;
+              <span className={styles.classificationTime}>
+                {dayjs().to(dayjs.utc(`${created_at}Z`))}
+              </span>
+              &nbsp;
+              <Tooltip title={groups?.map((group) => group.name)?.join(", ")}>
+                <GroupIcon
+                  fontSize="small"
+                  style={{ paddingTop: "6px", paddingBottom: "0px" }}
+                />
+              </Tooltip>
+            </div>
+            <div
+              className={styles.wrap}
+              data-testid={`classificationDiv_${id}`}
+            >
+              <div className={styles.classificationMessage}>
+                <div
                   style={{
-                    fontWeight: "bold",
-                    fontSize: "120%",
-                    color: classifications_classes.origin[origin] || "black",
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
                   }}
                 >
-                  {classification}
-                </span>
-              ) : (
-                <span style={{ fontWeight: "bold", fontSize: "120%" }}>
-                  {classification}
-                </span>
-              )}{" "}
-              {origin ? (
-                <span>{`(P=${probability}, origin=${origin})`}</span>
-              ) : (
-                <span>{`(P=${probability})`}</span>
-              )}
+                  {origin && classifications_classes?.origin ? (
+                    <span
+                      style={{
+                        fontWeight: "bold",
+                        fontSize: "120%",
+                        color:
+                          classifications_classes.origin[origin] ||
+                          defaultColor(ml),
+                        marginRight: "0.1em",
+                      }}
+                    >
+                      {ml ? (
+                        <Tooltip title="classification from an ML classifier">
+                          <span>
+                            {probability < 0.1
+                              ? `ML: ${classification}?`
+                              : `ML: ${classification}`}
+                          </span>
+                        </Tooltip>
+                      ) : (
+                        <span>
+                          {probability < 0.1
+                            ? `${classification}?`
+                            : `${classification}`}
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        fontWeight: "bold",
+                        fontSize: "120%",
+                        marginRight: "0.1em",
+                        color: defaultColor(ml),
+                      }}
+                    >
+                      {ml ? (
+                        <Tooltip title="classification from an ML classifier">
+                          <span>
+                            {probability < 0.1
+                              ? `ML: ${classification}?`
+                              : `ML: ${classification}`}
+                          </span>
+                        </Tooltip>
+                      ) : (
+                        <span>
+                          {probability < 0.1
+                            ? `${classification}?`
+                            : `${classification}`}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {origin ? (
+                    <span>{`(P=${probability}, origin=${origin})`}</span>
+                  ) : (
+                    <span>{`(P=${probability})`}</span>
+                  )}
+                </div>
+                <div>
+                  <i>{taxname}</i>
+                </div>
+              </div>
               <div>
-                <i>{taxname}</i>
+                <Button
+                  size="small"
+                  type="button"
+                  name={`deleteClassificationButton${id}`}
+                  onClick={() => openDialog(id)}
+                  disabled={!permission}
+                  className={styles.classificationDelete}
+                >
+                  <DeleteIcon />
+                </Button>
+                <ConfirmDeletionDialog
+                  deleteFunction={deleteClassification}
+                  dialogOpen={dialogOpen}
+                  closeDialog={closeDialog}
+                  resourceName="classification"
+                />
               </div>
             </div>
-          </div>
-          <div>
-            <Button
-              size="small"
-              type="button"
-              name={`deleteClassificationButton${id}`}
-              onClick={() => openDialog(id)}
-              disabled={!permission}
-              className={styles.classificationDelete}
-            >
-              <DeleteIcon />
-            </Button>
-            <ConfirmDeletionDialog
-              deleteFunction={deleteClassification}
-              dialogOpen={dialogOpen}
-              closeDialog={closeDialog}
-              resourceName="classification"
-            />
-          </div>
-        </ListItem>
+          </ListItem>
+          <Divider />
+        </>
       );
     }
   );
@@ -230,12 +310,24 @@ const ClassificationList = () => {
       <FixedSizeList
         className={styles.classifications}
         height={Math.min(360, parseInt(classifications.length * 100, 10))}
-        width={350}
+        width="100%"
         itemSize={150}
         itemCount={items.length}
       >
         {Row}
       </FixedSizeList>
+      <FormControlLabel
+        label="Hide ML-based?"
+        control={
+          <Checkbox
+            color="primary"
+            title="Hide ML-based?"
+            type="checkbox"
+            onChange={(event) => setHideML(event.target.checked)}
+            checked={hideML}
+          />
+        }
+      />
     </div>
   );
 };
