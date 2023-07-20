@@ -506,6 +506,10 @@ def generate_plan(
             'doChipGaps': False,
         }
 
+        # TODO: understand why this is required for combined plans
+        if len(requests) > 1:
+            params['doOrderByObservability'] = True
+
         config = {}
         for request in requests:
             if "field_ids" in request.payload and len(request.payload["field_ids"]) > 0:
@@ -836,13 +840,12 @@ def generate_plan(
             planned_observations.append(planned_observation)
 
         session.add_all(planned_observations)
+        session.commit()
+
         for plan in plans:
             setattr(plan, 'status', 'complete')
             session.merge(plan)
 
-        for request in requests:
-            setattr(request, 'status', 'complete')
-            session.merge(request)
         session.commit()
 
         log(f"Generating statistics for ID(s): {','.join(observation_plan_id_strings)}")
@@ -1049,6 +1052,8 @@ class MMAAPI(FollowUpAPI):
                 user_id=requester_id,
             )
 
+        return plan_ids
+
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request_id, asynchronous=True):
@@ -1066,6 +1071,7 @@ class MMAAPI(FollowUpAPI):
         from tornado.ioloop import IOLoop
         from ..models import DBSession, EventObservationPlan, ObservationPlanRequest
 
+        log(f"request_id: {request_id}")
         with DBSession() as session:
             request = session.scalar(
                 sa.select(ObservationPlanRequest).where(
@@ -1135,6 +1141,8 @@ class MMAAPI(FollowUpAPI):
                 session.add(plan)
                 session.commit()
 
+                plan_id = plan.id
+
                 request.status = 'running'
                 session.merge(request)
                 session.commit()
@@ -1174,6 +1182,9 @@ class MMAAPI(FollowUpAPI):
                         request_ids=[request.id],
                         user_id=requester_id,
                     )
+
+                return plan_id
+
             else:
                 raise ValueError(
                     f'plan_name {request.payload["queue_name"]} already exists.'

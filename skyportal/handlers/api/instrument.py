@@ -343,6 +343,14 @@ class InstrumentHandler(BaseHandler):
                 Boolean indicating whether to include associated DS9 region. Defaults to
                 false.
             - in: query
+              name: ignoreCache
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to ignore field caching. Defaults to
+                false.
+            - in: query
               name: localizationDateobs
               schema:
                 type: string
@@ -398,6 +406,8 @@ class InstrumentHandler(BaseHandler):
         includeRegion = self.get_query_argument("includeRegion", False)
 
         airmass_time = self.get_query_argument('airmassTime', None)
+        ignore_cache = self.get_query_argument("ignoreCache", False)
+
         if airmass_time is None:
             if localization_dateobs is not None:
                 airmass_time = Time(arrow.get(localization_dateobs).datetime)
@@ -522,7 +532,7 @@ class InstrumentHandler(BaseHandler):
                             undefer_column = InstrumentField.contour_summary
 
                         cache_filename = cache[query_id]
-                        if cache_filename is not None:
+                        if cache_filename is not None and not ignore_cache:
                             field_ids = np.load(cache_filename).tolist()
                             tiles = (
                                 session.scalars(
@@ -564,7 +574,7 @@ class InstrumentHandler(BaseHandler):
                                 )
                     else:
                         cache_filename = cache[query_id]
-                        if cache_filename is not None:
+                        if cache_filename is not None and not ignore_cache:
                             field_ids = np.load(cache_filename).tolist()
                             tiles = (
                                 session.scalars(

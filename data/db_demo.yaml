@@ -1211,6 +1211,19 @@ default_observation_plan:
   - allocation_id: =ZTF_allocation
     default_plan_name: "ZTF-Default-Plan"
     payload: {'filter_strategy': 'block', 'schedule_type': 'greedy', 'schedule_strategy': 'tiling', 'galaxy_catalog': 'CLU_mini', 'exposure_time': 300, 'filters': 'ztfg,ztfr,ztfg', 'maximum_airmass': 2, 'integrated_probability': 90, 'minimum_time_difference': 30, 'program_id': 'Partnership', 'subprogram_name': 'GRB', 'galactic_plane': True, 'galactic_latitude': 10}
+    =id: ZTF_default_plan
+
+default_survey_efficiency:
+  - default_observationplan_request_id: =ZTF_default_plan
+    payload: {
+        'localizationCumprob': 0.95,
+        'numberInjections': 1000,
+        'numberDetections': 1,
+        'detectionThreshold': 5.0,
+        'minimumPhase': 0.0,
+        'maximumPhase': 3.0,
+        'modelName': 'kilonova',
+    }
 
 default_followup_request:
   - allocation_id: =SEDMv2_allocation
