@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
@@ -9,12 +9,14 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 import NewShift from "./NewShift";
 import MyCalendar from "./ShiftCalendar";
-import { CurrentShiftMenu, CommentOnShift } from "./ShiftManagement";
+import ShiftManagement from "./ShiftManagement";
 import ShiftSummary from "./ShiftSummary";
 import Reminders from "./Reminders";
 
 import { getShiftsSummary, fetchShift } from "../ducks/shift";
 import * as shiftsActions from "../ducks/shifts";
+
+const CommentList = React.lazy(() => import("./CommentList"));
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -25,6 +27,13 @@ const useStyles = makeStyles((theme) => ({
   paperContent: {
     marginBottom: theme.spacing(2),
     padding: "1rem",
+  },
+  comments: {
+    paddingTop: "0.5rem",
+    paddingBottom: "1rem",
+    marginBottom: "1rem",
+    marginLeft: "1rem",
+    marginRight: "1rem",
   },
 }));
 
@@ -113,11 +122,20 @@ const ShiftPage = ({ route }) => {
         </Paper>
         <Paper elevation={1}>
           {shiftList && !show && currentShift?.id ? (
-            <CurrentShiftMenu currentShift={currentShift} />
+            <ShiftManagement currentShift={currentShift} />
           ) : null}
         </Paper>
         <Paper elevation={1}>
-          {shiftList && !show && currentShift?.id ? <CommentOnShift /> : null}
+          {shiftList && !show && currentShift?.id ? (
+            <div id="current_shift_comment" className={classes.comments}>
+              <Suspense fallback={<CircularProgress />}>
+                <CommentList
+                  associatedResourceType="shift"
+                  shiftID={currentShift?.id}
+                />
+              </Suspense>
+            </div>
+          ) : null}
         </Paper>
         <Paper elevation={1}>
           {shiftList && !show && currentShift?.id ? (

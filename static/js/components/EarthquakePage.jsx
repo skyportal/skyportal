@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
@@ -225,10 +225,12 @@ const EarthquakePage = ({ route }) => {
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                  <CommentList
-                    associatedResourceType="earthquake"
-                    earthquakeID={earthquake.id.toString()}
-                  />
+                  <Suspense fallback={<div>Loading comments...</div>}>
+                    <CommentList
+                      associatedResourceType="earthquake"
+                      earthquakeID={earthquake.id.toString()}
+                    />
+                  </Suspense>
                 </AccordionDetails>
               </Accordion>
             </div>
