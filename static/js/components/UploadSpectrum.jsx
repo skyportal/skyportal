@@ -177,15 +177,21 @@ const UploadSpectrumForm = ({ route }) => {
         mjd: searchParams.get("mjd")
           ? parseFloat(searchParams.get("mjd"))
           : undefined,
-        wave_column: 0,
-        flux_column: 1,
-        has_fluxerr: "No",
+        wave_column: searchParams.get("wave_column")
+          ? parseInt(searchParams.get("wave_column"), 10)
+          : 0,
+        flux_column: searchParams.get("flux_column")
+          ? parseInt(searchParams.get("flux_column"), 10)
+          : 1,
+        has_fluxerr: searchParams.get("has_fluxerr") || "No",
         instrument_id: searchParams.get("instrument_id")
           ? parseInt(searchParams.get("instrument_id"), 10)
           : undefined,
         spectrum_type: searchParams.get("spectrum_type") || "source",
         user_label: searchParams.get("user_label") || undefined,
-        fluxerr_column: undefined,
+        fluxerr_column: searchParams.get("fluxerr_column")
+          ? parseInt(searchParams.get("fluxerr_column"), 10)
+          : undefined,
         observed_by: searchParams.get("observed_by")
           ? searchParams
               .get("observed_by")
