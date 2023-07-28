@@ -1,7 +1,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import MUIDataTable from "mui-datatables";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
@@ -127,30 +127,75 @@ const UploadSpectrumForm = ({ route }) => {
     (state) => state.config.defaultSpectrumType
   );
 
+  const [searchParams] = useSearchParams();
+
   // on page load or refresh, block until state.spectra.parsed is reset
   useEffect(() => {
     const blockingFunc = async () => {
       dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
       dispatch(fetchUsers());
       const result = await dispatch(fetchSource(route.id));
+
+      const file_url = searchParams.get("file_url");
+      const file_name = searchParams.get("file_name");
+      // the user passed in a file_path, so we need to fetch the file from its location on his machine
+      let file;
+      if (file_url) {
+        const response = await fetch(file_url);
+        const blob = await response.blob();
+        // we want to set file to a data url, so we can pass it to the form
+        file = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            resolve(reader.result);
+          };
+          reader.readAsDataURL(blob);
+        });
+        // if file doesnt have 'name' in it, we need to add it
+        if (!file.includes("name=")) {
+          const file_type = file.split(";")[0].split(":")[1];
+          file = file.replace(file_type, `${file_type};name=${file_name}`);
+        }
+      }
+
       const defaultFormData = {
-        file: undefined,
-        group_ids: result.data.groups?.map((group) => group.id),
-        mjd: undefined,
+        file,
+        group_ids: searchParams.get("group_ids")
+          ? searchParams
+              .get("group_ids")
+              .split(",")
+              .map((id) => parseInt(id, 10))
+          : result.data.groups?.map((group) => group.id),
+        mjd: searchParams.get("mjd")
+          ? parseFloat(searchParams.get("mjd"))
+          : undefined,
         wave_column: 0,
         flux_column: 1,
         has_fluxerr: "No",
-        instrument_id: undefined,
-        spectrum_type: "source",
-        user_label: undefined,
+        instrument_id: searchParams.get("instrument_id")
+          ? parseInt(searchParams.get("instrument_id"), 10)
+          : undefined,
+        spectrum_type: searchParams.get("spectrum_type") || "source",
+        user_label: searchParams.get("user_label") || undefined,
         fluxerr_column: undefined,
-        observed_by: undefined,
-        reduced_by: undefined,
+        observed_by: searchParams.get("observed_by")
+          ? searchParams
+              .get("observed_by")
+              .split(",")
+              .map((id) => parseInt(id, 10))
+          : undefined,
+        reduced_by: searchParams.get("reduced_by")
+          ? searchParams
+              .get("reduced_by")
+              .split(",")
+              .map((id) => parseInt(id, 10))
+          : undefined,
       };
+
       setPersistentFormData(defaultFormData);
     };
     blockingFunc();
-  }, [dispatch, route.id]);
+  }, [dispatch, route.id, searchParams]);
 
   if (
     !groups ||
