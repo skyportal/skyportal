@@ -129,6 +129,8 @@ const UploadSpectrumForm = ({ route }) => {
 
   const [searchParams] = useSearchParams();
 
+  const [uploadedFromURL, setUploadedFromURL] = useState(false);
+
   // on page load or refresh, block until state.spectra.parsed is reset
   useEffect(() => {
     const blockingFunc = async () => {
@@ -136,9 +138,15 @@ const UploadSpectrumForm = ({ route }) => {
       dispatch(fetchUsers());
       const result = await dispatch(fetchSource(route.id));
 
-      const file_url = searchParams.get("file_url");
-      const file_name = searchParams.get("file_name");
-      // the user passed in a file_path, so we need to fetch the file from its location on his machine
+      let file_url = searchParams.get("file_url");
+      if (file_url && file_url.startsWith('"') && file_url.endsWith('"')) {
+        file_url = file_url.slice(1, -1);
+      }
+      let file_name = searchParams.get("file_name");
+      if (file_name && file_name.startsWith('"') && file_name.endsWith('"')) {
+        file_name = file_name.slice(1, -1);
+      }
+
       let file;
       if (file_url) {
         const response = await fetch(file_url);
@@ -151,11 +159,11 @@ const UploadSpectrumForm = ({ route }) => {
           };
           reader.readAsDataURL(blob);
         });
-        // if file doesnt have 'name' in it, we need to add it
         if (!file.includes("name=")) {
           const file_type = file.split(";")[0].split(":")[1];
           file = file.replace(file_type, `${file_type};name=${file_name}`);
         }
+        setUploadedFromURL(true);
       }
 
       const defaultFormData = {
@@ -657,6 +665,18 @@ const UploadSpectrumForm = ({ route }) => {
             Upload Spectrum ASCII File for&nbsp;
             <Link to={`/source/${route.id}`}>{route.id}</Link>
           </Typography>
+          {uploadedFromURL && (
+            <Typography
+              variant="body1"
+              color="textSecondary"
+              fontStyle="italic"
+            >
+              <b>
+                Form prefilled from URL parameters (the ascii file was
+                downloaded, no need to upload manually).
+              </b>
+            </Typography>
+          )}
           <Form
             schema={uploadFormSchema}
             validator={validator}
@@ -666,6 +686,7 @@ const UploadSpectrumForm = ({ route }) => {
               if (formData.file !== persistentFormData.file) {
                 setFormKey(Date.now());
                 dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
+                setUploadedFromURL(false);
               }
               setPersistentFormData(formData);
             }}
