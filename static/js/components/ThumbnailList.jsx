@@ -75,6 +75,9 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale, header }) => {
     case "sub":
       alt = `subtracted image`;
       break;
+    case "ztf":
+      alt = "ZTF public science image";
+      break;
     case "sdss":
       alt = "Link to SDSS Navigate tool";
       link = `https://skyserver.sdss.org/dr16/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.25`;
@@ -165,7 +168,7 @@ const ThumbnailList = ({
   thumbnails,
   useGrid = true,
   size = "13rem",
-  displayTypes = ["new", "ref", "sub", "sdss", "ls", "ps1"],
+  displayTypes = ["new", "ref", "sub", "ztf", "sdss", "ls", "ps1"],
 }) => {
   thumbnails
     ?.filter((thumbnail) => displayTypes.includes(thumbnail.type))
@@ -175,7 +178,7 @@ const ThumbnailList = ({
     ?.map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
     ?.filter((thumbnail) => thumbnail !== undefined);
 
-  const thumbnail_order = ["new", "ref", "sub", "sdss", "ls", "ps1"];
+  const thumbnail_order = ["new", "ref", "sub", "ztf", "sdss", "ls", "ps1"];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   latestThumbnails?.sort((a, b) =>
     thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
@@ -249,7 +252,7 @@ ThumbnailList.propTypes = {
 
 ThumbnailList.defaultProps = {
   size: "13rem",
-  displayTypes: ["new", "ref", "sub", "sdss", "ls", "ps1"],
+  displayTypes: ["new", "ref", "sub", "ztf", "sdss", "ls", "ps1"],
   useGrid: true,
 };
 

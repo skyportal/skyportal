@@ -1,24 +1,26 @@
-from threading import Thread
+import asyncio
+import io
+import json
+import re
 import time
+import traceback
+from threading import Thread
 
+import pandas as pd
+import requests
+import sqlalchemy as sa
+import tornado.escape
 import tornado.ioloop
 import tornado.web
-import asyncio
-import tornado.escape
-import json
+from sqlalchemy.orm import scoped_session, sessionmaker
 
-import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
-
-from baselayer.app.models import init_db
 from baselayer.app.env import load_env
-from baselayer.log import make_log
 from baselayer.app.flow import Flow
-
-from skyportal.models import (
-    DBSession,
-    Obj,
-)
+from baselayer.app.models import init_db
+from baselayer.log import make_log
+from skyportal.handlers.api.thumbnail import post_thumbnail
+from skyportal.models import DBSession, Obj
+from skyportal.utils.thumbnail import make_thumbnail
 
 env, cfg = load_env()
 log = make_log('thumbnail_queue')
@@ -28,6 +30,12 @@ init_db(**cfg['database'])
 Session = scoped_session(sessionmaker())
 
 queue = []
+
+thumbnail_types = {
+    "sci": "Science",
+    "ref": "Reference",
+    "diff": "Difference",
+}
 
 
 def service(queue):
@@ -60,6 +68,48 @@ def service(queue):
                         continue
 
                     obj.add_linked_thumbnails(thumbnails, session)
+
+                    try:
+                        if not re.match(r"ZTF\d{2}[a-z]{7}", obj_id):
+                            # we'll grab a science image from IPAC
+                            ra, dec = obj.ra, obj.dec
+                            url = f"https://irsa.ipac.caltech.edu/ibe/search/ztf/products/sci?POS={ra},{dec}&mcen&ct=csv"
+                            r = requests.get(url)
+                            if r.status_code != 200:
+                                log(f"Failed to fetch cutout for {obj_id} from IPAC")
+                                continue
+
+                            df = pd.read_csv(io.BytesIO(r.content))
+
+                            meta = df.iloc[0].to_dict()
+                            # the url will look like 'https://irsa.ipac.caltech.edu/ibe/data/ztf/products/sci/'+year+'/'+month+day+'/'+fracday+'/ztf_'+filefracday+'_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_'+imgtypecode+'_q'+qid+'_'+suffix
+                            year = str(meta["filefracday"])[:4]
+                            month_day = str(meta["filefracday"])[4:8]
+                            fracday = str(meta["filefracday"])[8:]
+                            padded_field = str(meta["field"]).zfill(6)
+                            padded_ccdid = str(meta["ccdid"]).zfill(2)
+                            cutout_url = f"https://irsa.ipac.caltech.edu/ibe/data/ztf/products/sci/{year}/{month_day}/{fracday}/ztf_{meta['filefracday']}_{padded_field}_{meta['filtercode']}_c{padded_ccdid}_{meta['imgtypecode']}_q{meta['qid']}_sciimg.fits"
+
+                            # we want a (63,63) image centered on the object
+                            cutout_url += f"?center={ra},{dec}&size=63arcsec"
+
+                            r = requests.get(cutout_url)
+                            if r.status_code != 200:
+                                log(r.content)
+                                log(f"Failed to fetch cutout for {obj_id} from IPAC")
+                                continue
+                            a = {
+                                "cutoutScience": {
+                                    "stampData": r.content,
+                                },
+                                "objectId": obj_id,
+                            }
+                            thumb = make_thumbnail(a, "ztf", "Science")
+                            if thumb is not None:
+                                post_thumbnail(thumb, 1, session)
+                    except Exception as e:
+                        log(f"Error fetching cutout for {obj_id} from IPAC: {str(e)}")
+                        traceback.print_exc()
 
                     flow = Flow()
                     flow.push(

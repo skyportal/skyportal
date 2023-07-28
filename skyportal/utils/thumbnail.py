@@ -1,5 +1,17 @@
 from PIL import Image, ImageStat, UnidentifiedImageError
 import requests
+import gzip
+import io
+import base64
+import numpy as np
+import matplotlib.pyplot as plt
+from astropy.io import fits
+from astropy.visualization import (
+    ImageNormalize,
+    LinearStretch,
+    LogStretch,
+    AsymmetricPercentileInterval,
+)
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
@@ -66,3 +78,52 @@ def image_is_grayscale(
         return True
     else:
         return False  # Assume colored by default
+
+
+def make_thumbnail(a, ttype, instrument_type):
+
+    if f"cutout{instrument_type}" not in a:
+        return None
+
+    cutout_data = a[f"cutout{instrument_type}"]["stampData"]
+    with gzip.open(io.BytesIO(cutout_data), "rb") as f:
+        with fits.open(io.BytesIO(f.read()), ignore_missing_simple=True) as hdu:
+            # header = hdu[0].header
+            data_flipped_y = np.flipud(hdu[0].data)
+    plt.close("all")
+    fig = plt.figure()
+    fig.set_size_inches(4, 4, forward=False)
+    ax = plt.Axes(fig, [0.0, 0.0, 1.0, 1.0])
+    ax.set_axis_off()
+    fig.add_axes(ax)
+
+    # replace nans with median:
+    img = np.array(data_flipped_y)
+    # replace dubiously large values
+    xl = np.greater(np.abs(img), 1e20, where=~np.isnan(img))
+    if img[xl].any():
+        img[xl] = np.nan
+    if np.isnan(img).any():
+        median = float(np.nanmean(img.flatten()))
+        img = np.nan_to_num(img, nan=median)
+
+    norm = ImageNormalize(
+        img,
+        stretch=LinearStretch() if instrument_type == "Difference" else LogStretch(),
+    )
+    img_norm = norm(img)
+    normalizer = AsymmetricPercentileInterval(lower_percentile=1, upper_percentile=100)
+    vmin, vmax = normalizer.get_limits(img_norm)
+    ax.imshow(img_norm, cmap="bone", origin="lower", vmin=vmin, vmax=vmax)
+    buff = io.BytesIO()
+    plt.savefig(buff, format="png", dpi=42)
+    plt.close(fig)
+    buff.seek(0)
+
+    thumb = {
+        "obj_id": a["objectId"],
+        "data": base64.b64encode(buff.read()).decode("utf-8"),
+        "ttype": ttype,
+    }
+
+    return thumb
