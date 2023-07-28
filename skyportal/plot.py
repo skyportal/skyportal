@@ -1866,6 +1866,7 @@ def make_photometry_panel(
         legend_row_height,
         legend_items_per_row,
     ) = get_dimensions_by_device(device, width)
+
     height = (
         500
         if device == "browser"
@@ -1873,6 +1874,8 @@ def make_photometry_panel(
         + legend_row_height * int(len(grouped_data) / legend_items_per_row)
         + 30  # 30 is the height of the toolbar
     )
+    if device == "browser" and len(grouped_data) > 16:
+        height += legend_row_height * int(len(grouped_data) - 16 - 1)
     active_drag = None if "mobile" in device or "tablet" in device else "box_zoom"
     tools = (
         'box_zoom,pan,reset'
