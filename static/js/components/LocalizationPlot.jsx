@@ -372,9 +372,6 @@ const GeoJSONGlobePlot = ({
         .style("visibility", (d) => (visibleOnSphere(d) ? "visible" : "hidden"))
         .text((d) => d.properties.name);
 
-      // sun is a geojson object with a geometry and properties field
-      // the properties field contains the radius to use to draw the sun
-      // draw it as a yellow circle
       if (data.sun?.geometry) {
         svg
           .selectAll("sun")
@@ -382,9 +379,12 @@ const GeoJSONGlobePlot = ({
           .enter()
           .append("circle")
           .attr("fill", "yellow")
+          .attr("opacity", 0.99)
           .attr("cx", (d) => projection(d.geometry.coordinates)[0])
           .attr("cy", (d) => projection(d.geometry.coordinates)[1])
-          .attr("r", (d) => (d.properties.radius * projection.scale()) / 5)
+          .attr("r", (d) => (d.properties.radius * projection.scale()) / 4)
+          .attr("stroke", "black")
+          .attr("stroke-width", 0.4)
           .style("visibility", (d) =>
             visibleOnSphere(d) ? "visible" : "hidden"
           )
@@ -399,7 +399,18 @@ const GeoJSONGlobePlot = ({
           );
       }
 
-      // same thing for the moon but with an opacity of 0.5
+      svg
+        .selectAll(".label")
+        .data([data.sun])
+        .enter()
+        .append("text")
+        .attr("transform", translate)
+        .attr("dy", "1em")
+        .attr("text-anchor", "middle")
+        .style("font-size", "0.75rem")
+        .style("visibility", (d) => (visibleOnSphere(d) ? "visible" : "hidden"))
+        .text("Sun");
+
       if (data.moon?.geometry) {
         svg
           .selectAll("moon")
@@ -410,7 +421,9 @@ const GeoJSONGlobePlot = ({
           .attr("opacity", 0.99)
           .attr("cx", (d) => projection(d.geometry.coordinates)[0])
           .attr("cy", (d) => projection(d.geometry.coordinates)[1])
-          .attr("r", (d) => (d.properties.radius * projection.scale()) / 5)
+          .attr("r", (d) => (d.properties.radius * projection.scale()) / 4)
+          .attr("stroke", "black")
+          .attr("stroke-width", 0.4)
           .style("visibility", (d) =>
             visibleOnSphere(d) ? "visible" : "hidden"
           )
@@ -424,6 +437,18 @@ const GeoJSONGlobePlot = ({
             `
           );
       }
+
+      svg
+        .selectAll(".label")
+        .data([data.moon])
+        .enter()
+        .append("text")
+        .attr("transform", translate)
+        .attr("dy", "1em")
+        .attr("text-anchor", "middle")
+        .style("font-size", "0.75rem")
+        .style("visibility", (d) => (visibleOnSphere(d) ? "visible" : "hidden"))
+        .text("Moon");
 
       if (data.skymap?.features && data.options.localization) {
         const x = (d) => projection(d.geometry.coordinates)[0];
