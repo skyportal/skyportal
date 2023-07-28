@@ -21,7 +21,6 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Button from "./Button";
 
-import CommentList from "./CommentList";
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
@@ -65,6 +64,8 @@ import SourcePlugins from "./SourcePlugins";
 
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
+
+const CommentList = React.lazy(() => import("./CommentList"));
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
@@ -881,7 +882,9 @@ const SourceDesktop = ({ source }) => {
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <CommentList />
+                <Suspense fallback={<CircularProgress />}>
+                  <CommentList />
+                </Suspense>
               </AccordionDetails>
             </Accordion>
           </div>

@@ -2,7 +2,7 @@
 import { Notifications } from "baselayer/components/Notifications";
 
 // React and Redux
-import React, { useEffect } from "react";
+import React, { useEffect, Suspense } from "react";
 import PropTypes from "prop-types";
 import { Provider, useSelector } from "react-redux";
 import ReactDOM from "react-dom";
@@ -19,6 +19,7 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import { isMobile } from "react-device-detect";
+import Spinner from "./Spinner";
 
 import DayJSUtils from "@date-io/dayjs";
 import clsx from "clsx";
@@ -35,10 +36,9 @@ import hydrate from "../actions";
 import * as rotateLogoActions from "../ducks/logo";
 
 import NoMatchingRoute from "./NoMatchingRoute";
-import Responsive from "./Responsive";
 
 {% for route in app.routes -%}
-import {{ route.component }} from "./{{ route.component }}";
+const {{ route.component }} = React.lazy(() => import("./{{ route.component }}"));
 {% endfor %}
 
 import Theme from "./Theme";
@@ -132,7 +132,7 @@ const MainContentInternal = ({ root }) => {
           <Routes>
 
             {%- for route in app.routes %}
-            <Route path="{{ route.path }}" element={{ "{<" }}{{ route.component }}{{ "/>}" }} />
+            <Route path="{{ route.path }}" element={{ "{<Suspense fallback={<Spinner />}><" }}{{ route.component }}{{ "/></Suspense>}" }} />
             {%- endfor %}
 
             <Route path="*" element={<NoMatchingRoute/>} />

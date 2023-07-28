@@ -7,6 +7,7 @@ import SelectWithChips from "./SelectWithChips";
 
 const OriginSelect = ({ onOriginSelectChange, initValue, parent }) => {
   const dispatch = useDispatch();
+  const photometry = useSelector((state) => state.photometry);
 
   useEffect(() => {
     // const fetchOrigins = async () => {
@@ -15,11 +16,9 @@ const OriginSelect = ({ onOriginSelectChange, initValue, parent }) => {
     // fetchOrigins(); //TODO: uncomment this line when the API is fixed. For now this times out.
   }, [dispatch]);
 
-  const originsList = ["Clear selections"].concat(
-    useSelector((state) => state.photometry.origins)?.filter(
-      (origin) => origin !== "None"
-    )
-  );
+  const originsList = ["Clear selections"]
+    .concat(photometry?.origins || [])
+    ?.filter((origin) => origin !== "None");
 
   return (
     <>
