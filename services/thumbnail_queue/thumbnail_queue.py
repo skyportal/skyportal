@@ -71,9 +71,9 @@ def service(queue):
 
                     try:
                         if not re.match(r"ZTF\d{2}[a-z]{7}", obj_id):
-                            # we'll grab a science image from IPAC
+                            # we'll grab the list of images from IPAC which contains the object, and ~63 arcsec around it
                             ra, dec = obj.ra, obj.dec
-                            url = f"https://irsa.ipac.caltech.edu/ibe/search/ztf/products/sci?POS={ra},{dec}&mcen&ct=csv"
+                            url = f"https://irsa.ipac.caltech.edu/ibe/search/ztf/products/sci?POS={ra},{dec}&SIZE=0.018&INTERSECT=covers&ct=csv"
                             r = requests.get(url)
                             if r.status_code != 200:
                                 log(f"Failed to fetch cutout for {obj_id} from IPAC")
@@ -81,7 +81,19 @@ def service(queue):
 
                             df = pd.read_csv(io.BytesIO(r.content))
 
+                            # if the dataframe is empty, there are no images
+                            if df.empty:
+                                log(f"No images found for {obj_id} from IPAC")
+                                continue
+
+                            # we sort the rows by filefracday descending, so the first row is the most recent observation
+                            df = df.sort_values(by=["filefracday"], ascending=False)
+                            log(f"Found {len(df)} images for {obj_id} from IPAC")
+
                             meta = df.iloc[0].to_dict()
+                            log(
+                                f"Most recent image for {obj_id} is from {meta['filefracday']}"
+                            )
                             # the url will look like 'https://irsa.ipac.caltech.edu/ibe/data/ztf/products/sci/'+year+'/'+month+day+'/'+fracday+'/ztf_'+filefracday+'_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_'+imgtypecode+'_q'+qid+'_'+suffix
                             year = str(meta["filefracday"])[:4]
                             month_day = str(meta["filefracday"])[4:8]
