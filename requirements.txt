@@ -24,7 +24,7 @@ marshmallow==3.19.0
 marshmallow-sqlalchemy==0.29.0
 marshmallow-enum==1.5.1
 Pillow>=8.4.0
-pyproj==3.5.0
+pyproj==3.6.0
 pytest==7.1.0
 git+https://github.com/sncosmo/sncosmo.git@master#egg=sncosmo
 tdtax==0.1.4
