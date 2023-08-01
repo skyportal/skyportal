@@ -32,6 +32,9 @@ const useStyles = makeStyles(() => ({
     marginTop: "1rem",
     width: "99%",
   },
+  selectItems: {
+    marginBottom: "1rem",
+  },
 }));
 
 const SkymapTriggerAPIDisplay = () => {
@@ -179,12 +182,14 @@ const SkymapTriggerAPIDisplay = () => {
           </MenuItem>
         ))}
       </Select>
-      <FindGcnEvents
-        selectedGcnEventId={selectedGcnEventId}
-        setSelectedGcnEventId={setSelectedGcnEventId}
-        selectedLocalizationId={selectedLocalizationId}
-        setSelectedLocalizationId={setSelectedLocalizationId}
-      />
+      <div className={classes.selectItems}>
+        <FindGcnEvents
+          selectedGcnEventId={selectedGcnEventId}
+          setSelectedGcnEventId={setSelectedGcnEventId}
+          selectedLocalizationId={selectedLocalizationId}
+          setSelectedLocalizationId={setSelectedLocalizationId}
+        />
+      </div>
       <InputLabel id="triggerNameSelectLabel">Trigger Name</InputLabel>
       <Select
         inputProps={{ MenuProps: { disableScrollLock: true } }}

@@ -31,7 +31,6 @@ const useStyles = makeStyles(() => ({
   },
   select: {
     width: "100%",
-    height: "3rem",
   },
   selectItems: {
     marginLeft: "0.5rem",
