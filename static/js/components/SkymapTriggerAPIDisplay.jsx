@@ -5,15 +5,15 @@ import makeStyles from "@mui/styles/makeStyles";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-import { useForm, Controller } from "react-hook-form";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "./Button";
 
+import FindGcnEvents from "./FindGcnEvents";
+
 import * as skymapTriggerActions from "../ducks/skymap_triggers";
 import * as allocationActions from "../ducks/allocations";
-import * as gcnEventsActions from "../ducks/gcnEvents";
 
 dayjs.extend(utc);
 
@@ -32,6 +32,9 @@ const useStyles = makeStyles(() => ({
     marginTop: "1rem",
     width: "99%",
   },
+  selectItems: {
+    marginBottom: "1rem",
+  },
 }));
 
 const SkymapTriggerAPIDisplay = () => {
@@ -41,8 +44,8 @@ const SkymapTriggerAPIDisplay = () => {
   const [triggerList, setTriggerList] = useState(["None"]);
   const [selectedTriggerName, setSelectedTriggerName] = useState("None");
 
-  const gcnEvents = useSelector((state) => state.gcnEvents);
   const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
+  const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
 
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
@@ -50,8 +53,6 @@ const SkymapTriggerAPIDisplay = () => {
     (state) => state.allocations
   );
   const allGroups = useSelector((state) => state.groups.all);
-
-  const { control, reset, getValues } = useForm();
 
   const dispatch = useDispatch();
 
@@ -75,13 +76,6 @@ const SkymapTriggerAPIDisplay = () => {
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
-
-  useEffect(() => {
-    if (gcnEvents?.length > 0 || !gcnEvents) {
-      dispatch(gcnEventsActions.fetchGcnEvents());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     const getTriggers = async () => {
@@ -114,22 +108,6 @@ const SkymapTriggerAPIDisplay = () => {
     return <h3>No allocations with an observation plan API...</h3>;
   }
 
-  const gcnEventsLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
-  gcnEvents?.events.forEach((gcnEvent) => {
-    gcnEventsLookUp[gcnEvent.id] = gcnEvent;
-  });
-
-  const gcnEventsSelect = gcnEvents
-    ? [
-        {
-          id: -1,
-          dateobs: "Clear Selection",
-        },
-        ...gcnEvents.events,
-      ]
-    : [];
-
   const groupLookUp = {};
   // eslint-disable-next-line no-unused-expressions
   allGroups?.forEach((group) => {
@@ -157,7 +135,7 @@ const SkymapTriggerAPIDisplay = () => {
   const handleAdd = async () => {
     const data = {
       allocation_id: selectedAllocationId,
-      localization_id: getValues().localizationid,
+      localization_id: selectedLocalizationId,
     };
 
     await dispatch(skymapTriggerActions.postAPISkymapTrigger(data));
@@ -204,72 +182,12 @@ const SkymapTriggerAPIDisplay = () => {
           </MenuItem>
         ))}
       </Select>
-      <InputLabel id="gcnEventSelectLabel">GCN Event</InputLabel>
       <div className={classes.selectItems}>
-        <Controller
-          render={({ field: { value } }) => (
-            <Select
-              inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="gcnEventSelectLabel"
-              value={value || ""}
-              onChange={(event) => {
-                reset({
-                  ...getValues(),
-                  gcneventid:
-                    event.target.value === -1 ? "" : event.target.value,
-                  localizationid:
-                    event.target.value === -1
-                      ? ""
-                      : gcnEventsLookUp[event.target.value]?.localizations[0]
-                          ?.id || "",
-                });
-                setSelectedGcnEventId(event.target.value);
-              }}
-              className={classes.select}
-            >
-              {gcnEventsSelect?.map((gcnEvent) => (
-                <MenuItem
-                  value={gcnEvent.id}
-                  key={gcnEvent.id}
-                  className={classes.selectItem}
-                >
-                  {`${gcnEvent.dateobs}`}
-                </MenuItem>
-              ))}
-            </Select>
-          )}
-          name="gcneventid"
-          control={control}
-          defaultValue=""
-        />
-        <Controller
-          render={({ field: { onChange, value } }) => (
-            <Select
-              inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="localizationSelectLabel"
-              value={value || ""}
-              onChange={(event) => {
-                onChange(event.target.value);
-              }}
-              className={classes.select}
-              disabled={!selectedGcnEventId}
-            >
-              {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
-                (localization) => (
-                  <MenuItem
-                    value={localization.id}
-                    key={localization.id}
-                    className={classes.selectItem}
-                  >
-                    {`${localization.localization_name}`}
-                  </MenuItem>
-                )
-              )}
-            </Select>
-          )}
-          name="localizationid"
-          control={control}
-          defaultValue=""
+        <FindGcnEvents
+          selectedGcnEventId={selectedGcnEventId}
+          setSelectedGcnEventId={setSelectedGcnEventId}
+          selectedLocalizationId={selectedLocalizationId}
+          setSelectedLocalizationId={setSelectedLocalizationId}
         />
       </div>
       <InputLabel id="triggerNameSelectLabel">Trigger Name</InputLabel>
