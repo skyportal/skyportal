@@ -53,7 +53,8 @@ def service(queue):
 
                     existing_thumbnail_types = [thumb.type for thumb in obj.thumbnails]
                     thumbnails = list(
-                        {"ps1", "ls", "sdss"} - set(existing_thumbnail_types)
+                        {"ps1", "ls", "sdss", "hst", "chandra"}
+                        - set(existing_thumbnail_types)
                     )
                     if len(thumbnails) == 0:
                         log(f"Source {obj_id} has all thumbnails.")

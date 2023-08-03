@@ -284,7 +284,9 @@ async def get_source(
 
     if include_thumbnails:
         existing_thumbnail_types = [thumb.type for thumb in s.thumbnails]
-        thumbnails = list({"ps1", "ls", "sdss"} - set(existing_thumbnail_types))
+        thumbnails = list(
+            {"ps1", "ls", "sdss", "hst", "chandra"} - set(existing_thumbnail_types)
+        )
         if len(thumbnails) > 0:
             post_thumbnails([obj_id])
 

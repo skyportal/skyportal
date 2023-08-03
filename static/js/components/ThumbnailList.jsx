@@ -87,6 +87,12 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale, header }) => {
       alt = "Link to PanSTARRS-1 Image Access";
       link = `https://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=${ra}+${dec}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=`;
       break;
+    case "hst":
+      alt = "HST Image";
+      break;
+    case "chandra":
+      alt = "Chandra Image";
+      break;
     default:
       alt = "";
       link = "";
@@ -165,7 +171,7 @@ const ThumbnailList = ({
   thumbnails,
   useGrid = true,
   size = "13rem",
-  displayTypes = ["new", "ref", "sub", "sdss", "ls", "ps1"],
+  displayTypes = ["new", "ref", "sub", "sdss", "ls", "ps1", "hst", "chandra"],
 }) => {
   thumbnails
     ?.filter((thumbnail) => displayTypes.includes(thumbnail.type))
@@ -175,7 +181,7 @@ const ThumbnailList = ({
     ?.map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
     ?.filter((thumbnail) => thumbnail !== undefined);
 
-  const thumbnail_order = ["new", "ref", "sub", "sdss", "ls", "ps1"];
+  const thumbnail_order = ["new", "ref", "sub", "sdss", "ls", "ps1", "hst"];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   latestThumbnails?.sort((a, b) =>
     thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
@@ -186,6 +192,8 @@ const ThumbnailList = ({
   );
   thumbnail_display.ls = "Legacy Survey DR9";
   thumbnail_display.ps1 = "PanSTARRS DR2";
+  thumbnail_display.hst = "Hubble";
+  thumbnail_display.chandra = "Chandra";
 
   if (useGrid) {
     return (
@@ -249,7 +257,7 @@ ThumbnailList.propTypes = {
 
 ThumbnailList.defaultProps = {
   size: "13rem",
-  displayTypes: ["new", "ref", "sub", "sdss", "ls", "ps1"],
+  displayTypes: ["new", "ref", "sub", "sdss", "ls", "ps1", "hst", "chandra"],
   useGrid: true,
 };
 
