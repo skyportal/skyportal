@@ -99,6 +99,7 @@ User Guide
    slack
    followup
    mma
+   period
    spatial_catalog
    advanced_usage
    photometric_series
