@@ -14,7 +14,7 @@
 
 import sys
 import os
-import eralchemy
+import eralchemy2
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -133,9 +133,9 @@ todo_include_todos = False
 # Per https://github.com/snide/sphinx_rtd_theme: specify theme if not on RTD
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 if not on_rtd:  # only import and set the theme if we're building docs locally
-    import sphinx_rtd_theme  # noqa
+    import furo  # noqa
 
-    html_theme = 'sphinx_rtd_theme'
+    html_theme = 'furo'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -317,7 +317,7 @@ texinfo_documents = [
 
 # create entity relationship diagram for skyportal
 erd_path = os.path.join(os.path.dirname(__file__), 'images/erd.png')
-eralchemy.render_er(models.Base, erd_path)
+eralchemy2.render_er(models.Base, erd_path)
 
 
 def setup(app):
