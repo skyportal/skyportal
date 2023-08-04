@@ -4,6 +4,5 @@ recommonmark
 numpydoc
 notedown
 jsx-lexer
-# need a fix for SQLA1.4
-git+https://github.com/sturzaam/eralchemy@Sturzaam-patch-1#egg=eralchemy
+eralchemy2
 jinja2<3.2.0

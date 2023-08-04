@@ -91,6 +91,7 @@ User Guide
    data_loader
    contributing
    adding_features
+   adding_comments_annotation_types
    styling
    database
    migrations

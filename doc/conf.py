@@ -14,7 +14,7 @@
 
 import sys
 import os
-import eralchemy
+import eralchemy2
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -317,7 +317,7 @@ texinfo_documents = [
 
 # create entity relationship diagram for skyportal
 erd_path = os.path.join(os.path.dirname(__file__), 'images/erd.png')
-eralchemy.render_er(models.Base, erd_path)
+eralchemy2.render_er(models.Base, erd_path)
 
 
 def setup(app):
