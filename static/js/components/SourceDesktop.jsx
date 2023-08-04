@@ -65,10 +65,10 @@ import SourcePlugins from "./SourcePlugins";
 
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
+import PhotometryPlot from "./PhotometryPlot";
+import SpectraPlot from "./SpectraPlot";
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
-
-const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -85,11 +85,12 @@ export const useSourceStyles = makeStyles((theme) => ({
     fontSize: "1.25rem",
     fontWeight: theme.typography.fontWeightRegular,
   },
-  photometryContainer: {
-    display: "flex",
-    overflowX: "scroll",
-    flexDirection: "column",
+  plotContainer: {
     padding: "0.5rem",
+    paddingTop: 0,
+    minWidth: "100%",
+    height: "100%",
+    marginBottom: "1rem",
   },
   buttonContainer: {
     "& button": {
@@ -246,7 +247,6 @@ const SourceDesktop = ({ source }) => {
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
   const [rightPaneVisible, setRightPaneVisible] = useState(true);
-  const plotWidth = rightPaneVisible ? 800 : 1200;
   const image_analysis = useSelector((state) => state.config.image_analysis);
 
   const { instrumentList, instrumentFormParams } = useSelector(
@@ -687,12 +687,18 @@ const SourceDesktop = ({ source }) => {
               </Typography>
               <PhotometryToolTip />
             </AccordionSummary>
-            <AccordionDetails>
+            <AccordionDetails style={{ paddingTop: 0, marginTop: 0 }}>
               <Grid container id="photometry-container">
-                <div className={classes.photometryContainer}>
-                  {!source.photometry_exists ? (
-                    <div> No photometry exists </div>
-                  ) : (
+                <div className={classes.plotContainer}>
+                  {!source.photometry_exists &&
+                    (!photometry || photometry?.length === 0) && (
+                      <div> No photometry exists </div>
+                    )}
+                  {source.photometry_exists &&
+                    (!photometry || photometry?.length === 0) && (
+                      <CircularProgress color="secondary" />
+                    )}
+                  {source?.photometry_exists && photometry?.length > 0 && (
                     <Suspense
                       fallback={
                         <div>
@@ -700,8 +706,9 @@ const SourceDesktop = ({ source }) => {
                         </div>
                       }
                     >
-                      <Plot
-                        url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&height=500`}
+                      <PhotometryPlot
+                        photometry={photometry}
+                        annotations={source?.annotations || []}
                       />
                     </Suspense>
                   )}
@@ -752,12 +759,18 @@ const SourceDesktop = ({ source }) => {
                 Spectroscopy
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
+            <AccordionDetails style={{ paddingTop: 0, marginTop: 0 }}>
               <Grid container>
-                <div className={classes.photometryContainer}>
-                  {!source.spectrum_exists ? (
-                    <div> No spectra exist </div>
-                  ) : (
+                <div className={classes.plotContainer}>
+                  {!source.spectrum_exists &&
+                    (!spectra || spectra?.length === 0) && (
+                      <div> No spectrum exists </div>
+                    )}
+                  {source.spectrum_exists &&
+                    (!spectra || spectra?.length === 0) && (
+                      <CircularProgress color="secondary" />
+                    )}
+                  {source?.spectrum_exists && spectra?.length > 0 && (
                     <Suspense
                       fallback={
                         <div>
@@ -765,12 +778,9 @@ const SourceDesktop = ({ source }) => {
                         </div>
                       }
                     >
-                      <Plot
-                        url={`/api/internal/plot/spectroscopy/${
-                          source.id
-                        }?width=${
-                          plotWidth !== 0 ? plotWidth : 800
-                        }&height=600`}
+                      <SpectraPlot
+                        spectra={spectra}
+                        redshift={source.redshift || 0}
                       />
                     </Suspense>
                   )}
