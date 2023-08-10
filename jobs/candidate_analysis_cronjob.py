@@ -54,7 +54,7 @@ def api(
             continue
 
     return response
-    
+
 
 def run_analysis(service, model):
     services_response = api('GET', 'api/analysis_service')
@@ -63,7 +63,7 @@ def run_analysis(service, model):
     except Exception as e:
         print(f"Error querying available services: {e}")
         return
-    
+
     service_id = None
     if services_data is not None:
         for srv in services_data:
@@ -73,10 +73,16 @@ def run_analysis(service, model):
     else:
         print("No available analysis services.")
         return
-    
+
     if service_id is not None:
-        print(f"Found service under ID {service_id}. Running {service} using {model} model...")
-        api('POST', f'api/obj/ZTF21aaqjmps/analysis/{service_id}', {'analysis_parameters': {'source':model}}).json()
+        print(
+            f"Found service under ID {service_id}. Running {service} using {model} model..."
+        )
+        api(
+            'POST',
+            f'api/obj/ZTF21aaqjmps/analysis/{service_id}',
+            {'analysis_parameters': {'source': model}},
+        ).json()
 
 
 if __name__ == '__main__':
@@ -95,5 +101,5 @@ if __name__ == '__main__':
     )
 
     args = parser.parse_args()
-    
+
     run_analysis(service=args.service, model=args.model)
