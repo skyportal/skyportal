@@ -78,11 +78,14 @@ def run_analysis(service, model):
         print(
             f"Found service under ID {service_id}. Running {service} using {model} model..."
         )
-        api(
+        analysis_response = api(
             'POST',
             f'api/obj/ZTF21aaqjmps/analysis/{service_id}',
             {'analysis_parameters': {'source': model}},
-        ).json()
+        )
+        return analysis_response
+    else:
+        print(f"Service {service} not found.")
 
 
 if __name__ == '__main__':
