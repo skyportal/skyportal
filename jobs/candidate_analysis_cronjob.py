@@ -83,7 +83,7 @@ def run_analysis(service, model):
             f'api/obj/ZTF21aaqjmps/analysis/{service_id}',
             {'analysis_parameters': {'source': model}},
         )
-        return analysis_response
+        print(analysis_response)
     else:
         print(f"Service {service} not found.")
 
