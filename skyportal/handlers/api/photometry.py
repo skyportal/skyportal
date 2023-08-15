@@ -548,7 +548,7 @@ def get_values_table_and_condition(df):
                     row.Index,
                     row.obj_id,
                     row.instrument_id,
-                    row.origin,
+                    str(row.origin),
                     float(row.mjd),
                     float(row.standardized_fluxerr),
                     float(row.standardized_flux),
