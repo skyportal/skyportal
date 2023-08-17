@@ -467,7 +467,8 @@ const SourceDesktop = ({ source }) => {
               <div className={classes.sourceInfo}>
                 <b>
                   Host galaxy: {source.host.name} Offset:{" "}
-                  {source.host_offset.toFixed(3)} [arcsec]
+                  {source.host_offset.toFixed(3)} [arcsec] Distance:{" "}
+                  {source.host_distance.toFixed(1)} [kpc]
                 </b>
                 &nbsp;
                 <Button
@@ -1084,6 +1085,7 @@ SourceDesktop.propTypes = {
       btc: PropTypes.number,
     }),
     host_offset: PropTypes.number,
+    host_distance: PropTypes.number,
     galaxies: PropTypes.arrayOf(
       PropTypes.shape({
         catalog_name: PropTypes.string,
