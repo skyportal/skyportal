@@ -720,6 +720,7 @@ const SourceMobile = WidthProvider(
                         }
                       >
                         <PhotometryPlot
+                          obj_id={source.id}
                           photometry={photometry}
                           annotations={source?.annotations || []}
                           mode="mobile"

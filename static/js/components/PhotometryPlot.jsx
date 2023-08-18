@@ -3,18 +3,28 @@ import PropTypes from "prop-types";
 
 import Plot from "react-plotly.js";
 
-import TextField from "@mui/material/TextField";
+import Slider from "@mui/material/Slider";
+import MuiInput from "@mui/material/Input";
+import Typography from "@mui/material/Typography";
+import SaveAsIcon from "@mui/icons-material/SaveAs";
+
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 
-import Button from "./Button";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 
-// mapper from filter to RGB color tuples
-const filter2color = {
-  ztfr: [255, 0, 0],
-  ztfg: [0, 255, 0],
-  ztfi: [255, 255, 0],
-};
+import { useSelector, useDispatch } from "react-redux";
+
+import { IconButton } from "@mui/material";
+
+import { showNotification } from "baselayer/components/Notifications";
+import { addAnnotation } from "../ducks/source";
+import Button from "./Button";
 
 function ModifiedJulianDateFromUnixTime(t) {
   return t / 86400000 + 40587;
@@ -24,7 +34,14 @@ function ModifiedJulianDateNow() {
   return ModifiedJulianDateFromUnixTime(new Date().getTime());
 }
 
-const PhotometryPlot = ({ photometry, annotations = [], mode = "desktop" }) => {
+const PhotometryPlot = ({
+  obj_id,
+  photometry,
+  annotations = [],
+  mode = "desktop",
+}) => {
+  const dispatch = useDispatch();
+
   const [data, setData] = React.useState(null);
   const [binnedData, setBinnedData] = React.useState(null);
   const [plotData, setPlotData] = React.useState(null);
@@ -32,6 +49,66 @@ const PhotometryPlot = ({ photometry, annotations = [], mode = "desktop" }) => {
   const [tabIndex, setTabIndex] = React.useState(0);
   const [period, setPeriod] = React.useState(1);
   const [binSize, setBinSize] = React.useState(0);
+
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+
+  const filter2color = useSelector(
+    (state) => state.config.bandpassesColors || {}
+  );
+  const groups = useSelector((state) => state.groups.userAccessible);
+
+  // to save a period as an annotation, we'll need the user to provide an origin
+  // and also to pick groups to save the annotation to
+  const schema = {
+    type: "object",
+    properties: {
+      period: { type: "number", title: "Period", default: period },
+      origin: { type: "string", title: "Origin" },
+      groupIDs: {
+        type: "array",
+        items: {
+          type: "string",
+          enum: groups?.map((group) => group.id.toString()),
+          enumNames: groups?.map((group) => group.name),
+        },
+        uniqueItems: true,
+      },
+    },
+    required: ["period", "origin", "groupIDs"],
+  };
+
+  const validate = (formData, errors) => {
+    if (formData.period <= 0) {
+      errors.period.addError("Period must be greater than 0");
+    }
+    if (formData.origin?.replaceAll(" ", "") === "") {
+      errors.origin.addError("Origin must not be empty");
+    }
+    if (formData.groupIDs?.length === 0) {
+      errors.groupIDs.addError("Must select at least one group");
+    }
+    return errors;
+  };
+
+  const submitPeriodAnnotation = async ({ formData }) => {
+    const periodData = {
+      obj_id,
+      origin: formData.origin,
+      data: {
+        period: formData.period,
+      },
+      groups: formData.groupIDs,
+    };
+    dispatch(addAnnotation(obj_id, periodData)).then((result) => {
+      if (result.status === "success") {
+        setDialogOpen(false);
+        dispatch(showNotification("Period saved as annotation"));
+      } else {
+        dispatch(showNotification("Failed to save period as annotation"));
+      }
+    });
+  };
+
   // tab 0 is mag, tab 1 is flux, tab 2 is period
 
   const preparePhotometry = (photometryData) => {
@@ -91,7 +168,7 @@ const PhotometryPlot = ({ photometry, annotations = [], mode = "desktop" }) => {
             0, 0, 0,
           ];
           const colorBorder = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 1)`;
-          const colorInterior = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 0.2)`;
+          const colorInterior = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 0.5)`;
           const colorError = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 0.5)`;
 
           const upperLimitsTrace = {
@@ -169,7 +246,7 @@ const PhotometryPlot = ({ photometry, annotations = [], mode = "desktop" }) => {
 
         const colorRGB = filter2color[groupedPhotometry[key][0].filter];
         const colorBorder = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 1)`;
-        const colorInterior = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 0.2)`;
+        const colorInterior = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 0.5)`;
 
         const phases = detections.map((point) => {
           const phase = (point.mjd % p) / p;
@@ -618,7 +695,6 @@ const PhotometryPlot = ({ photometry, annotations = [], mode = "desktop" }) => {
           alignItems: "center",
           gap: "0.5rem",
           width: "100%",
-          margin: "0.5rem",
           marginTop: "1rem",
           marginBottom: "1rem",
         }}
@@ -639,77 +715,203 @@ const PhotometryPlot = ({ photometry, annotations = [], mode = "desktop" }) => {
         >
           Hide All
         </Button>
-        <TextField
-          label="Marker Size"
-          type="number"
-          value={markerSize}
-          onChange={(event) => setMarkerSize(event.target.value)}
-          InputLabelProps={{
-            shrink: true,
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridAutoFlow: "row",
+          gridTemplateColumns: "repeat(2, 1fr)",
+          rowGap: "0.5rem",
+          columnGap: "2rem",
+          width: "100%",
+          padding: "0.5rem",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
+            alignItems: "left",
+            gap: 0,
+            width: "100%",
           }}
-          variant="outlined"
-          size="small"
-        />
-        {tabIndex in [0, 1] === true && (
-          <TextField
-            label="Bin Size (days)"
-            type="number"
-            value={binSize}
-            onChange={(event) => setBinSize(event.target.value)}
-            InputLabelProps={{
-              shrink: true,
+        >
+          <Typography id="input-slider">Marker Size</Typography>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "flex-start",
+              alignItems: "center",
+              gap: "1rem",
+              width: "100%",
             }}
-            variant="outlined"
-            size="small"
-          />
-        )}
-        {tabIndex === 2 && (
-          <>
-            <TextField
-              label="Period"
-              type="number"
-              value={period}
-              onChange={(event) => setPeriod(event.target.value)}
-              InputLabelProps={{
-                shrink: true,
-              }}
-              variant="outlined"
-              size="small"
+          >
+            <Slider
+              value={markerSize}
+              onChange={(e, newValue) => setMarkerSize(newValue)}
+              aria-labelledby="input-slider"
+              valueLabelDisplay="auto"
+              step={1}
+              min={1}
+              max={20}
             />
-            <Button
-              onClick={() => {
-                const periodFloat = parseFloat(period, 10);
-                if (Number.isNaN(periodFloat) === false) {
-                  setPeriod(periodFloat * 2);
-                }
+            <MuiInput
+              value={markerSize}
+              onChange={(e) => setMarkerSize(e.target.value)}
+              margin="dense"
+              inputProps={{
+                step: 1,
+                min: 1,
+                max: 20,
+                type: "number",
+                "aria-labelledby": "input-slider",
               }}
-              variant="contained"
-              color="primary"
-              size="small"
-            >
-              x2
-            </Button>
-            <Button
-              onClick={() => {
-                const periodFloat = parseFloat(period, 10);
-                if (Number.isNaN(periodFloat) === false) {
-                  setPeriod(periodFloat / 2);
-                }
+              style={{ width: "7rem" }}
+            />
+          </div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
+            alignItems: "left",
+            gap: 0,
+            width: "100%",
+          }}
+        >
+          <Typography id="input-slider">Bin Size (days)</Typography>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "flex-start",
+              alignItems: "center",
+              gap: "1rem",
+              width: "100%",
+            }}
+          >
+            <Slider
+              value={binSize}
+              onChange={(e, newValue) => setBinSize(newValue)}
+              aria-labelledby="input-slider"
+              valueLabelDisplay="auto"
+              step={1}
+              min={0}
+              max={365}
+            />
+            <MuiInput
+              value={binSize}
+              onChange={(e) => setBinSize(e.target.value)}
+              margin="dense"
+              inputProps={{
+                step: 1,
+                min: 0,
+                max: 365,
+                type: "number",
+                "aria-labelledby": "input-slider",
               }}
-              variant="contained"
-              color="primary"
-              size="small"
+              style={{ width: "7rem" }}
+            />
+          </div>
+        </div>
+        {tabIndex === 2 && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-start",
+              alignItems: "left",
+              gap: 0,
+              width: "100%",
+              gridColumnStart: 1,
+              gridColumnEnd: 3,
+            }}
+          >
+            <Typography id="input-slider">Period</Typography>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "flex-start",
+                alignItems: "center",
+                gap: "1rem",
+                width: "100%",
+              }}
             >
-              /2
-            </Button>
-          </>
+              <Slider
+                value={period}
+                onChange={(e, newValue) => setPeriod(newValue)}
+                aria-labelledby="input-slider"
+                valueLabelDisplay="auto"
+                step={0.1}
+                min={0.1}
+                max={365}
+              />
+              <MuiInput
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                margin="dense"
+                inputProps={{
+                  step: 0.1,
+                  min: 0.1,
+                  max: 365,
+                  type: "number",
+                  "aria-labelledby": "input-slider",
+                }}
+                style={{ width: "7rem" }}
+              />
+              <Button
+                onClick={() => setPeriod(period * 2)}
+                variant="contained"
+                color="primary"
+                size="small"
+              >
+                x2
+              </Button>
+              <Button
+                onClick={() => setPeriod(period / 2)}
+                variant="contained"
+                color="primary"
+                size="small"
+              >
+                /2
+              </Button>
+              <IconButton
+                onClick={() => setDialogOpen(true)}
+                size="small"
+                color="primary"
+              >
+                <SaveAsIcon />
+              </IconButton>
+            </div>
+          </div>
         )}
       </div>
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        style={{ position: "fixed" }}
+        maxWidth="lg"
+      >
+        <DialogTitle>Save Period as Annotation</DialogTitle>
+        <DialogContent>
+          <Form
+            schema={schema}
+            validator={validator}
+            customValidate={validate}
+            onSubmit={submitPeriodAnnotation}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
 PhotometryPlot.propTypes = {
+  obj_id: PropTypes.string.isRequired,
   photometry: PropTypes.arrayOf(
     PropTypes.shape({
       mjd: PropTypes.number.isRequired,

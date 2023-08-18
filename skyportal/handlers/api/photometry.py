@@ -12,6 +12,8 @@ import pandas as pd
 import sncosmo
 from sncosmo.photdata import PhotometricData
 import arrow
+from matplotlib import cm
+from matplotlib.colors import rgb2hex
 
 import sqlalchemy as sa
 from sqlalchemy.sql import column, Values
@@ -44,7 +46,7 @@ from ...models.schema import (
     PhotMagFlexible,
     PhotometryRangeQuery,
 )
-from ...enum_types import ALLOWED_MAGSYSTEMS
+from ...enum_types import ALLOWED_MAGSYSTEMS, ALLOWED_BANDPASSES, sncosmo as snc
 
 _, cfg = load_env()
 
@@ -52,6 +54,80 @@ _, cfg = load_env()
 log = make_log('api/photometry')
 
 MAX_NUMBER_ROWS = 10000
+
+cmap_ir = cm.get_cmap('autumn')
+
+
+def hex2rgb(hex):
+    return tuple(int(hex[i : i + 2], 16) for i in (0, 2, 4))
+
+
+def get_effective_wavelength(bandpass_name):
+    try:
+        bandpass = snc.get_bandpass(bandpass_name)
+    except ValueError as e:
+        raise ValueError(
+            f"Could not get bandpass for {bandpass_name} due to sncosmo error: {e}"
+        )
+
+    return float(bandpass.wave_eff)
+
+
+def get_color(bandpass, format="hex"):
+
+    wavelength = get_effective_wavelength(bandpass)
+
+    if 0 < wavelength <= 1500:  # EUV
+        bandcolor = '#4B0082'
+    elif 1500 < wavelength <= 2100:  # uvw2
+        bandcolor = '#6A5ACD'
+    elif 2100 < wavelength <= 2400:  # uvm2
+        bandcolor = '#9400D3'
+    elif 2400 < wavelength <= 3000:  # uvw1
+        bandcolor = '#FF00FF'
+    elif 3000 < wavelength <= 4000:  # U, sdss u
+        bandcolor = '#0000FF'
+    elif 4000 < wavelength <= 5000:  # B, sdss g
+        bandcolor = '#008000'
+    elif 5000 < wavelength <= 6000:  # V
+        bandcolor = '#9ACD32'
+    elif 6000 < wavelength <= 7000:  # sdss r
+        bandcolor = '#FF0000'
+    elif 7000 < wavelength <= 8000:  # sdss i
+        bandcolor = '#FFA500'
+    elif 8000 < wavelength <= 9000:  # sdss z
+        bandcolor = '#A52A2A'
+    elif 9000 < wavelength <= 10000:  # PS1 y
+        bandcolor = '#B8860B'
+    elif 10000 < wavelength <= 13000:  # 2MASS J
+        bandcolor = '#000000'
+    elif 13000 < wavelength <= 17000:  # 2MASS H
+        bandcolor = '#9370D8'
+    elif 17000 < wavelength < 1e5:  # mm to Radio
+        wavelength = np.log10(wavelength)
+        cmap = cmap_ir
+        cmap_limits = (4, 5)
+        rgb = cmap((cmap_limits[1] - wavelength) / (cmap_limits[1] - cmap_limits[0]))[
+            :3
+        ]
+        bandcolor = rgb2hex(rgb)
+    else:  # TODO: handle the JWST miri and miri-tophat bands that span between > 1e5 and 3 * < 1e5
+        log(
+            f'{bandpass} with effective wavelength {wavelength} is out of range for color maps, using black'
+        )
+        bandcolor = '#000000'
+
+    if format == "rgb":
+        return hex2rgb(bandcolor[1:])
+    elif format not in ["hex", "rgb"]:
+        raise ValueError(f"Invalid color format: {format}")
+
+    return bandcolor
+
+
+BANDPASSES_COLORS = {
+    bandpass: get_color(bandpass, "rgb") for bandpass in ALLOWED_BANDPASSES
+}
 
 
 def save_data_using_copy(rows, table, columns):

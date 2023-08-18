@@ -14,6 +14,8 @@ from ...enum_types import (
 from .recurring_api import ALLOWED_RECURRING_API_METHODS
 from .source import MAX_NUM_DAYS_USING_LOCALIZATION
 
+from .photometry import BANDPASSES_COLORS
+
 from skyportal.models import cosmo
 
 _, cfg = load_env()
@@ -91,5 +93,6 @@ class ConfigHandler(BaseHandler):
                 "colorPalette": getattr(
                     palettes, cfg.get("misc.bokeh_color_palette", "Turbo256")
                 ),
+                "bandpassesColors": BANDPASSES_COLORS,
             }
         )

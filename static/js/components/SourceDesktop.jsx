@@ -707,6 +707,7 @@ const SourceDesktop = ({ source }) => {
                       }
                     >
                       <PhotometryPlot
+                        obj_id={source.id}
                         photometry={photometry}
                         annotations={source?.annotations || []}
                       />

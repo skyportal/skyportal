@@ -25,6 +25,8 @@ const ADD_SOURCE_TNS = "skyportal/ADD_SOURCE_TNS";
 
 const ADD_COMMENT = "skyportal/ADD_COMMENT";
 
+const ADD_ANNOTATION = "skyportal/ADD_ANNOTATION";
+
 const DELETE_ANNOTATION = "skyportal/DELETE_ANNOTATION";
 
 const EDIT_COMMENT = "skyportal/EDIT_COMMENT";
@@ -286,6 +288,14 @@ export function addComment(formData) {
   return API.POST(
     `/api/sources/${formData.obj_id}/comments`,
     ADD_COMMENT,
+    formData
+  );
+}
+
+export function addAnnotation(sourceID, formData) {
+  return API.POST(
+    `/api/sources/${sourceID}/annotations`,
+    ADD_ANNOTATION,
     formData
   );
 }

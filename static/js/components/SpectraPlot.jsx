@@ -176,13 +176,38 @@ function median(values) {
   return (sorted[half - 1] + sorted[half]) / 2.0;
 }
 
+const smoothing_func = (values, window_size) => {
+  if (values === undefined || values === null) {
+    return null;
+  }
+  const output = new Array(values.length).fill(0);
+  const under = parseInt((window_size + 1) / 2, 10) - 1;
+  const over = parseInt(window_size / 2, 10);
+
+  for (let i = 0; i < values.length; i += 1) {
+    const idx_low = i - under >= 0 ? i - under : 0;
+    const idx_high = i + over < values.length ? i + over : values.length - 1;
+    let N = 0;
+    for (let j = idx_low; j <= idx_high; j += 1) {
+      if (Number.isNaN(values[j]) === false) {
+        N += 1;
+        output[i] += values[j];
+      }
+    }
+    output[i] /= N;
+  }
+  return output;
+};
+
 const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
   const [data, setData] = React.useState(null);
-  // const [binnedData, setBinnedData] = React.useState(null);
   const [plotData, setPlotData] = React.useState(null);
   const [selectedLines, setSelectedLines] = React.useState([]);
   const [vExpInput, setVExpInput] = React.useState(0);
   const [redshiftInput, setRedshiftInput] = React.useState(redshift || 0);
+  const [smoothingInput, setSmoothingInput] = React.useState(0);
+  const [customWavelengthInput, setCustomWavelengthInput] = React.useState(0);
+
   const [types, setTypes] = React.useState([]);
   const [tabIndex, setTabIndex] = React.useState(0);
 
@@ -230,7 +255,12 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
     return newSpectra;
   };
 
-  const createTraces = (spectraData, spectrumTypes, tabValue) => {
+  const createTraces = (
+    spectraData,
+    spectrumTypes,
+    tabValue,
+    smoothing = 0
+  ) => {
     // for now (testing), we just grab the first spectrum
 
     if (spectraData !== null) {
@@ -240,7 +270,10 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
         }`;
         const trace = {
           x: spectrum.wavelengths,
-          y: spectrum.fluxes_normed,
+          y:
+            smoothing === 0
+              ? spectrum.fluxes_normed
+              : smoothing_func(spectrum.fluxes_normed, smoothing),
           type: "scatter",
           mode: "lines",
           name,
@@ -279,9 +312,22 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
     setTypes(spectrumTypes);
     const newSpectra = prepareSpectra(spectra);
     setData(newSpectra);
-    const traces = createTraces(newSpectra, spectrumTypes, 0);
+    const traces = createTraces(newSpectra, spectrumTypes, 0, smoothingInput);
     setPlotData(traces);
   }, [spectra]);
+
+  useEffect(() => {
+    if (plotData !== null) {
+      const newPlotData = [...plotData];
+      for (let i = 0; i < newPlotData.length; i += 1) {
+        newPlotData[i].y =
+          smoothingInput < 1
+            ? data[i].fluxes_normed
+            : smoothing_func(data[i].fluxes_normed, smoothingInput);
+      }
+      setPlotData(newPlotData);
+    }
+  }, [smoothingInput]);
 
   useEffect(() => {
     if (plotData !== null && types?.length > 0) {
@@ -370,28 +416,53 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
             },
             // plot_bgcolor: '#EFF2F5',
             // paper_bgcolor: '#EFF2F5'
-            shapes: selectedLines
-              .map((line) =>
-                line.x.map((x) => {
-                  const shiftedX =
-                    (x * (1 + parseFloat(redshiftInput, 10))) /
-                    (1 + parseFloat(vExpInput, 10) / c);
-                  return {
-                    type: "line",
-                    xref: "x",
-                    yref: "y",
-                    x0: shiftedX,
-                    y0: 0,
-                    x1: shiftedX,
-                    y1: maxFlux(),
-                    line: {
-                      color: line.color,
-                      width: 1,
+            shapes:
+              selectedLines
+                .map((line) =>
+                  line.x.map((x) => {
+                    const shiftedX =
+                      (x * (1 + parseFloat(redshiftInput, 10))) /
+                      (1 + parseFloat(vExpInput, 10) / c);
+                    return {
+                      type: "line",
+                      xref: "x",
+                      yref: "y",
+                      x0: shiftedX,
+                      y0: 0,
+                      x1: shiftedX,
+                      y1: maxFlux(),
+                      line: {
+                        color: line.color,
+                        width: 1,
+                      },
+                    };
+                  })
+                )
+                .flat() +
+                customWavelengthInput >
+              0
+                ? [
+                    {
+                      type: "line",
+                      xref: "x",
+                      yref: "y",
+                      x0:
+                        (customWavelengthInput *
+                          (1 + parseFloat(redshiftInput, 10))) /
+                        (1 + parseFloat(vExpInput, 10) / c),
+                      y0: 0,
+                      x1:
+                        (customWavelengthInput *
+                          (1 + parseFloat(redshiftInput, 10))) /
+                        (1 + parseFloat(vExpInput, 10) / c),
+                      y1: maxFlux(),
+                      line: {
+                        color: "#000000",
+                        width: 1,
+                      },
                     },
-                  };
-                })
-              )
-              .flat(),
+                  ]
+                : [],
           }}
           config={{
             // scrollZoom: true,
@@ -404,14 +475,11 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
       <div
         style={{
           display: "grid",
-          gridAutoFlow: "column",
-          gridTemplateRows:
-            mode === "desktop" ? "repeat(7, 1fr)" : "repeat(14, 1fr)",
+          gridAutoFlow: "row",
+          gridTemplateColumns: "repeat(auto-fit, minmax(5rem, auto))",
           gap: "0.5rem",
           width: "100%",
-          margin: "0.5rem",
-          marginTop: "1rem",
-          marginBottom: "1rem",
+          padding: "0.5rem",
         }}
       >
         {/* we want to display a grid with buttons to toggle each of the lines */}
@@ -424,6 +492,7 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
               justifyContent: "flex-start",
               alignItems: "center",
               width: "fit-content",
+              gridColumn: line.name.length > 8 ? "span 2" : "span 1",
             }}
             key={line.name}
           >
@@ -463,16 +532,15 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
       </div>
       <div
         style={{
-          minHeight: "2rem",
-          display: "flex",
-          flexDirection: mode === "desktop" ? "row" : "column",
-          justifyContent: "flex-start",
-          alignItems: "center",
-          gap: "2rem",
+          display: "grid",
+          gridAutoFlow: "row",
+          // we want to display a grid with divs that contain a slider and an input
+          // each of the columns should be 12rem wide, and we want to have as many columns as possible
+          gridTemplateColumns: "repeat(auto-fit, minmax(14rem, 1fr))",
+          rowGap: "0.5rem",
+          columnGap: "2rem",
           width: "100%",
-          margin: "0.5rem",
-          marginTop: "1rem",
-          marginBottom: "1rem",
+          padding: "0.5rem",
         }}
       >
         <div
@@ -562,6 +630,100 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
                 step: 0.0001,
                 min: 0,
                 max: 3.0,
+                type: "number",
+                "aria-labelledby": "input-slider",
+              }}
+              style={{ width: "7rem" }}
+            />
+          </div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
+            alignItems: "left",
+            gap: 0,
+            width: "100%",
+            margin: "0.5rem",
+            marginBottom: 0,
+          }}
+        >
+          <Typography id="input-slider">Smoothing</Typography>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "flex-start",
+              alignItems: "center",
+              gap: "1rem",
+              width: "100%",
+            }}
+          >
+            <Slider
+              value={smoothingInput}
+              onChange={(e, newValue) => setSmoothingInput(newValue)}
+              aria-labelledby="input-slider"
+              valueLabelDisplay="auto"
+              step={1}
+              min={0}
+              max={100}
+            />
+            <MuiInput
+              value={smoothingInput}
+              onChange={(e) => setSmoothingInput(e.target.value)}
+              margin="dense"
+              inputProps={{
+                step: 1,
+                min: 0,
+                max: 100,
+                type: "number",
+                "aria-labelledby": "input-slider",
+              }}
+              style={{ width: "7rem" }}
+            />
+          </div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
+            alignItems: "left",
+            gap: 0,
+            width: "100%",
+            margin: "0.5rem",
+            marginBottom: 0,
+          }}
+        >
+          <Typography id="input-slider">Custom Wavelength</Typography>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "flex-start",
+              alignItems: "center",
+              gap: "1rem",
+              width: "100%",
+            }}
+          >
+            <Slider
+              value={customWavelengthInput}
+              onChange={(e, newValue) => setCustomWavelengthInput(newValue)}
+              aria-labelledby="input-slider"
+              valueLabelDisplay="auto"
+              step={0.001}
+              min={0}
+              max={50000}
+            />
+            <MuiInput
+              value={customWavelengthInput}
+              onChange={(e) => setCustomWavelengthInput(e.target.value)}
+              margin="dense"
+              inputProps={{
+                step: 0.001,
+                min: 0,
+                max: 50000,
                 type: "number",
                 "aria-labelledby": "input-slider",
               }}
