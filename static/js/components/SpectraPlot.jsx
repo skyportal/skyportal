@@ -786,3 +786,5 @@ SpectraPlot.defaultProps = {
 };
 
 export default SpectraPlot;
+
+export { smoothing_func };

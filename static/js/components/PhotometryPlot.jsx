@@ -26,6 +26,8 @@ import { showNotification } from "baselayer/components/Notifications";
 import { addAnnotation } from "../ducks/source";
 import Button from "./Button";
 
+import { smoothing_func } from "./SpectraPlot";
+
 function ModifiedJulianDateFromUnixTime(t) {
   return t / 86400000 + 40587;
 }
@@ -49,6 +51,8 @@ const PhotometryPlot = ({
   const [tabIndex, setTabIndex] = React.useState(0);
   const [period, setPeriod] = React.useState(1);
   const [binSize, setBinSize] = React.useState(0);
+  const [smoothing, setSmoothing] = React.useState(0);
+  const [phase, setPhase] = React.useState(1);
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
 
@@ -151,7 +155,13 @@ const PhotometryPlot = ({
     return groupedPhotometry;
   };
 
-  const createTraces = (groupedPhotometry, tabValue, p) => {
+  const createTraces = (
+    groupedPhotometry,
+    tabValue,
+    periodValue,
+    smoothingValue,
+    phaseValue
+  ) => {
     // if the tabValue is 0 or 1
     if (tabValue in [0, 1] === true) {
       const newPlotData = Object.keys(groupedPhotometry)
@@ -248,14 +258,33 @@ const PhotometryPlot = ({
         const colorBorder = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 1)`;
         const colorInterior = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 0.5)`;
 
-        const phases = detections.map((point) => {
-          const phase = (point.mjd % p) / p;
-          return phase;
-        });
+        const phases = detections.map(
+          (point) => (point.mjd % periodValue) / periodValue
+        );
+
+        let y = detections.map((point) => point.mag);
+        // reorder the points in y by increasing phase
+        // to do so, we need to create an array of indices
+        let indices = [];
+        for (let i = 0; i < phases.length; i += 1) {
+          indices.push(i);
+        }
+        indices = indices.sort((a, b) => phases[a] - phases[b]);
+        y = indices.map((i) => y[i]);
+        let x = indices.map((i) => phases[i]);
+
+        if (smoothingValue > 0) {
+          y = smoothing_func(y, smoothingValue);
+        }
+
+        if (phaseValue === 2) {
+          x = x.concat(x.map((p) => p + 1));
+          y = y.concat(y);
+        }
 
         const detectionsTrace = {
-          x: phases,
-          y: detections.map((point) => point.mag),
+          x,
+          y,
           mode: "markers",
           type: "scatter",
           name: key,
@@ -496,19 +525,38 @@ const PhotometryPlot = ({
           (point) => point.mag !== null
         );
         if (detections.length > 0) {
-          const phases = detections.map((point) => {
-            const phase = (point.mjd % period) / period;
-            return phase;
-          });
+          const phases = detections.map(
+            (point) => (point.mjd % period) / period
+          );
           const newTrace = { ...plotData[index] };
-          newTrace.x = phases;
+          let y = detections.map((point) => point.mag);
+          // reorder the points in y by increasing phase
+          // to do so, we need to create an array of indices
+          let indices = [];
+          for (let i = 0; i < phases.length; i += 1) {
+            indices.push(i);
+          }
+          indices = indices.sort((a, b) => phases[a] - phases[b]);
+          y = indices.map((i) => y[i]);
+          let x = indices.map((i) => phases[i]);
+
+          if (smoothing > 0) {
+            y = smoothing_func(y, smoothing);
+          }
+
+          if (phase === 2) {
+            x = x.concat(x.map((p) => p + 1));
+            y = y.concat(y);
+          }
+          newTrace.x = x;
+          newTrace.y = y;
           newPlotData.push(newTrace);
         }
       }
 
       setPlotData(newPlotData);
     }
-  }, [period]);
+  }, [period, smoothing, phase]);
 
   useEffect(() => {
     // photometry is an array of objects
@@ -526,7 +574,13 @@ const PhotometryPlot = ({
 
     setData(groupedPhotometry);
 
-    const traces = createTraces(groupedPhotometry, tabIndex);
+    const traces = createTraces(
+      groupedPhotometry,
+      tabIndex,
+      period,
+      smoothing,
+      phase
+    );
     setPlotData(traces);
   }, [photometry]);
 
@@ -546,7 +600,7 @@ const PhotometryPlot = ({
   };
 
   const handleChangeTab = (event, newValue) => {
-    const traces = createTraces(data, newValue, period);
+    const traces = createTraces(data, newValue, period, smoothing, phase);
     setPlotData(traces);
     setTabIndex(newValue);
     setBinSize(0);
@@ -655,7 +709,7 @@ const PhotometryPlot = ({
             layout={{
               xaxis: {
                 title: "Phase",
-                range: [0, 1],
+                range: [0, phase],
               },
               yaxis: {
                 title: "AB Mag",
@@ -772,51 +826,53 @@ const PhotometryPlot = ({
             />
           </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "flex-start",
-            alignItems: "left",
-            gap: 0,
-            width: "100%",
-          }}
-        >
-          <Typography id="input-slider">Bin Size (days)</Typography>
+        {tabIndex in [0, 1] === true && (
           <div
             style={{
               display: "flex",
-              flexDirection: "row",
+              flexDirection: "column",
               justifyContent: "flex-start",
-              alignItems: "center",
-              gap: "1rem",
+              alignItems: "left",
+              gap: 0,
               width: "100%",
             }}
           >
-            <Slider
-              value={binSize}
-              onChange={(e, newValue) => setBinSize(newValue)}
-              aria-labelledby="input-slider"
-              valueLabelDisplay="auto"
-              step={1}
-              min={0}
-              max={365}
-            />
-            <MuiInput
-              value={binSize}
-              onChange={(e) => setBinSize(e.target.value)}
-              margin="dense"
-              inputProps={{
-                step: 1,
-                min: 0,
-                max: 365,
-                type: "number",
-                "aria-labelledby": "input-slider",
+            <Typography id="input-slider">Bin Size (days)</Typography>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "flex-start",
+                alignItems: "center",
+                gap: "1rem",
+                width: "100%",
               }}
-              style={{ width: "7rem" }}
-            />
+            >
+              <Slider
+                value={binSize}
+                onChange={(e, newValue) => setBinSize(newValue)}
+                aria-labelledby="input-slider"
+                valueLabelDisplay="auto"
+                step={1}
+                min={0}
+                max={365}
+              />
+              <MuiInput
+                value={binSize}
+                onChange={(e) => setBinSize(e.target.value)}
+                margin="dense"
+                inputProps={{
+                  step: 1,
+                  min: 0,
+                  max: 365,
+                  type: "number",
+                  "aria-labelledby": "input-slider",
+                }}
+                style={{ width: "7rem" }}
+              />
+            </div>
           </div>
-        </div>
+        )}
         {tabIndex === 2 && (
           <div
             style={{
@@ -826,8 +882,53 @@ const PhotometryPlot = ({
               alignItems: "left",
               gap: 0,
               width: "100%",
-              gridColumnStart: 1,
-              gridColumnEnd: 3,
+            }}
+          >
+            <Typography id="input-slider">Smoothing</Typography>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "flex-start",
+                alignItems: "center",
+                gap: "1rem",
+                width: "100%",
+              }}
+            >
+              <Slider
+                value={smoothing}
+                onChange={(e, newValue) => setSmoothing(newValue)}
+                aria-labelledby="input-slider"
+                valueLabelDisplay="auto"
+                step={1}
+                min={0}
+                max={100}
+              />
+              <MuiInput
+                value={smoothing}
+                onChange={(e) => setSmoothing(e.target.value)}
+                margin="dense"
+                inputProps={{
+                  step: 1,
+                  min: 0,
+                  max: 100,
+                  type: "number",
+                  "aria-labelledby": "input-slider",
+                }}
+                style={{ width: "7rem" }}
+              />
+            </div>
+          </div>
+        )}
+        {tabIndex === 2 && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-start",
+              alignItems: "left",
+              gap: 0,
+              width: "100%",
             }}
           >
             <Typography id="input-slider">Period</Typography>
@@ -841,27 +942,18 @@ const PhotometryPlot = ({
                 width: "100%",
               }}
             >
-              <Slider
-                value={period}
-                onChange={(e, newValue) => setPeriod(newValue)}
-                aria-labelledby="input-slider"
-                valueLabelDisplay="auto"
-                step={0.1}
-                min={0.1}
-                max={365}
-              />
               <MuiInput
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
                 margin="dense"
                 inputProps={{
                   step: 0.1,
-                  min: 0.1,
+                  min: 0,
                   max: 365,
                   type: "number",
                   "aria-labelledby": "input-slider",
                 }}
-                style={{ width: "7rem" }}
+                style={{ width: "10rem" }}
               />
               <Button
                 onClick={() => setPeriod(period * 2)}
@@ -886,6 +978,47 @@ const PhotometryPlot = ({
               >
                 <SaveAsIcon />
               </IconButton>
+            </div>
+          </div>
+        )}
+        {tabIndex === 2 && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-start",
+              alignItems: "left",
+              gap: 0,
+              width: "100%",
+            }}
+          >
+            <Typography id="input-slider">Phase</Typography>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "flex-start",
+                alignItems: "center",
+                gap: "1rem",
+                width: "100%",
+              }}
+            >
+              <Button
+                onClick={() => setPhase(1)}
+                variant="contained"
+                color={phase === 1 ? "primary" : "secondary"}
+                size="small"
+              >
+                1
+              </Button>
+              <Button
+                onClick={() => setPhase(2)}
+                variant="contained"
+                color={phase === 2 ? "primary" : "secondary"}
+                size="small"
+              >
+                2
+              </Button>
             </div>
           </div>
         )}
