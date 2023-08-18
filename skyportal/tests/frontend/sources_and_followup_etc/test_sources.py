@@ -757,8 +757,6 @@ def test_obj_page_unsaved_source(public_obj, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_obj.id}")
 
-    # wait for the plots to load
-    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=30)
     # this waits for the spectroscopy plot by looking for the element Fe III
     num_panels = 0
     nretries = 0

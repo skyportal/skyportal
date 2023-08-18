@@ -14,8 +14,7 @@ def test_add_remove_favorites(driver, user, public_source):
 
     # go to source page, wait until it finishes loading
     driver.get(f"/source/{public_source.id}")
-    # wait for the plots to load
-    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=30)
+
     # this waits for the spectroscopy plot by looking for the element Fe III
     num_panels = 0
     nretries = 0
