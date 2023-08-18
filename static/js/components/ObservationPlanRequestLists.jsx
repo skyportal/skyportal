@@ -124,7 +124,11 @@ const ObservationPlanGlobe = ({ observationplanRequest }) => {
       );
       setObsList(response.data);
     };
-    if (observationplanRequest?.status === "complete") {
+    if (
+      ["complete", "submitted to telescope queue"].includes(
+        observationplanRequest?.status
+      )
+    ) {
       fetchObsList();
     }
   }, [dispatch, setObsList, observationplanRequest]);

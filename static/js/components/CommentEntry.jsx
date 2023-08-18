@@ -30,7 +30,9 @@ const useStyles = makeStyles(() => ({
 
 const CommentEntry = ({ addComment, editComment }) => {
   const styles = useStyles();
+  const users = useSelector((state) => state.users);
   const { userAccessible: groups } = useSelector((state) => state.groups);
+  const { instrumentList } = useSelector((state) => state.instruments);
   const [textValue, setTextValue] = useState("");
   const [textInputCursorIndex, setTextInputCursorIndex] = useState(0);
   const [autosuggestVisible, setAutosuggestVisible] = useState(false);
@@ -39,12 +41,10 @@ const CommentEntry = ({ addComment, editComment }) => {
   const [instrumentPrefixMatches, setInstrumentPrefixMatches] = useState({});
   const textAreaRef = useRef(null);
   const autoSuggestRootItem = useRef(null);
-  const { users } = useSelector((state) => state.users);
-  const { instrumentList } = useSelector((state) => state.instruments);
 
   const usernameTrie = useMemo(() => {
     const trie = UsernameTrie();
-    users.forEach((user) => {
+    (users?.users || []).forEach((user) => {
       trie.insertUser({
         username: user.username,
         firstName: user.first_name || "",

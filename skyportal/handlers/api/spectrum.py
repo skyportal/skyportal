@@ -819,6 +819,12 @@ class SpectrumHandler(BaseHandler):
         if group_ids == 'all':
             group_ids = [g.id for g in self.current_user.accessible_groups]
 
+        reduced_by = data.pop("reduced_by", None)
+        observed_by = data.pop("observed_by", None)
+
+        external_reducer = data.pop("external_reducer", None)
+        external_observer = data.pop("external_observer", None)
+
         with self.Session() as session:
             stmt = Spectrum.select(self.current_user).where(Spectrum.id == spectrum_id)
             spectrum = session.scalars(stmt).first()
@@ -838,6 +844,67 @@ class SpectrumHandler(BaseHandler):
 
                 if groups:
                     spectrum.groups = spectrum.groups + groups
+
+            if reduced_by:
+                existing_reducers = spectrum.reducers
+                reducers = []
+                for reducer_id in reduced_by:
+                    stmt = User.select(session.user_or_token).where(
+                        User.id == reducer_id
+                    )
+                    reducer = session.scalars(stmt).first()
+                    if reducer is None:
+                        raise ValueError(f'Invalid reducer ID: {reducer_id}.')
+                    reducer_association = SpectrumReducer(
+                        external_reducer=external_reducer
+                    )
+                    reducer_association.user = reducer
+                    reducers.append(reducer_association)
+
+                if len(reducers) == 0 and external_reducer is not None:
+                    raise ValueError(
+                        "At least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
+                    )
+
+                # remove any existing reducers that are not in the new list
+                for reducer in existing_reducers:
+                    if reducer.user_id not in [r.user_id for r in reducers]:
+                        session.delete(reducer)
+
+                for reducer in reducers:
+                    reducer.spectr_id = spectrum.id
+                    session.add(reducer)
+
+            if observed_by:
+                existing_observers = spectrum.observers
+                observers = []
+                for observer_id in observed_by:
+                    stmt = User.select(session.user_or_token).where(
+                        User.id == observer_id
+                    )
+                    observer = session.scalars(stmt).first()
+                    if observer is None:
+                        raise ValueError(f'Invalid observer ID: {observer_id}.')
+                    observer_association = SpectrumObserver(
+                        external_observer=external_observer
+                    )
+                    observer_association.user = observer
+                    observers.append(observer_association)
+
+                if len(observers) == 0 and external_observer is not None:
+                    raise ValueError(
+                        "At least one valid user must be provided as an "
+                        "observer point of contact via the 'observed_by' parameter."
+                    )
+
+                # remove any existing observers that are not in the new list
+                for observer in existing_observers:
+                    if observer.user_id not in [o.user_id for o in observers]:
+                        session.delete(observer)
+
+                for observer in observers:
+                    observer.spectr_id = spectrum.id
+                    session.add(observer)
 
             for k in data:
                 setattr(spectrum, k, data[k])

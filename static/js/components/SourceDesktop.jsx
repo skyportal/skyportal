@@ -21,7 +21,6 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Button from "./Button";
 
-import CommentList from "./CommentList";
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
@@ -68,6 +67,8 @@ import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
 import PhotometryPlot from "./PhotometryPlot";
 import SpectraPlot from "./SpectraPlot";
+
+const CommentList = React.lazy(() => import("./CommentList"));
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
@@ -467,7 +468,8 @@ const SourceDesktop = ({ source }) => {
               <div className={classes.sourceInfo}>
                 <b>
                   Host galaxy: {source.host.name} Offset:{" "}
-                  {source.host_offset.toFixed(3)} [arcsec]
+                  {source.host_offset.toFixed(3)} [arcsec] Distance:{" "}
+                  {source.host_distance.toFixed(1)} [kpc]
                 </b>
                 &nbsp;
                 <Button
@@ -897,7 +899,9 @@ const SourceDesktop = ({ source }) => {
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <CommentList />
+                <Suspense fallback={<CircularProgress />}>
+                  <CommentList />
+                </Suspense>
               </AccordionDetails>
             </Accordion>
           </div>
@@ -1097,6 +1101,7 @@ SourceDesktop.propTypes = {
       btc: PropTypes.number,
     }),
     host_offset: PropTypes.number,
+    host_distance: PropTypes.number,
     galaxies: PropTypes.arrayOf(
       PropTypes.shape({
         catalog_name: PropTypes.string,

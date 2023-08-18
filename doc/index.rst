@@ -91,6 +91,7 @@ User Guide
    data_loader
    contributing
    adding_features
+   adding_comments_annotation_types
    styling
    database
    migrations
@@ -99,6 +100,7 @@ User Guide
    slack
    followup
    mma
+   period
    spatial_catalog
    advanced_usage
    photometric_series

@@ -183,11 +183,13 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
             sm={6}
           >
             <Typography variant="h6">Comments</Typography>
-            <CommentList
-              associatedResourceType="spectra"
-              objID={route.id}
-              spectrumID={spectrumID}
-            />
+            <Suspense fallback={<CircularProgress />}>
+              <CommentList
+                associatedResourceType="spectra"
+                objID={route.id}
+                spectrumID={spectrumID}
+              />
+            </Suspense>
           </Grid>
           <Grid item sm={6}>
             <Typography variant="h6">Annotations</Typography>

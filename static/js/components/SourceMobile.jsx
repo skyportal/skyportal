@@ -415,7 +415,8 @@ const SourceMobile = WidthProvider(
                       <div className={classes.sourceInfo}>
                         <b>
                           Host galaxy: {source.host.name} Offset:{" "}
-                          {source.host_offset.toFixed(3)} [arcsec]
+                          {source.host_offset.toFixed(3)} [arcsec] Distance:{" "}
+                          {source.host_distance.toFixed(1)} [kpc]
                         </b>
                         &nbsp;
                         <Button

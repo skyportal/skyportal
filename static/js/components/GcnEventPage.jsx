@@ -1,11 +1,11 @@
 import PropTypes from "prop-types";
-import React, { useEffect, useRef, useState } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import Cancel from "@mui/icons-material/Cancel";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import GetAppIcon from "@mui/icons-material/GetApp";
-import { useMediaQuery } from "@mui/material";
+import { CircularProgress, useMediaQuery } from "@mui/material";
 import Accordion from "@mui/material/Accordion";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -454,11 +454,13 @@ const GcnEventPage = ({ route }) => {
                 </AccordionSummary>
                 <AccordionDetails>
                   {route?.dateobs === gcnEvent?.dateobs && route?.dateobs ? (
-                    <CommentList
-                      associatedResourceType="gcn_event"
-                      gcnEventID={gcnEvent.id}
-                      maxHeightList="60vh"
-                    />
+                    <Suspense fallback={<CircularProgress />}>
+                      <CommentList
+                        associatedResourceType="gcn_event"
+                        gcnEventID={gcnEvent.id}
+                        maxHeightList="60vh"
+                      />
+                    </Suspense>
                   ) : (
                     <p> Fetching event... </p>
                   )}

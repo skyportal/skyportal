@@ -269,6 +269,7 @@ async def get_source(
     if s.host_id:
         source_info["host"] = s.host.to_dict()
         source_info["host_offset"] = s.host_offset.deg * 3600.0
+        source_info["host_distance"] = s.host_distance.value
 
     if is_token_request:
         # Logic determining whether to register front-end request as view lives in front-end

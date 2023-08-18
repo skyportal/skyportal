@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
@@ -31,7 +31,6 @@ const useStyles = makeStyles(() => ({
   },
   select: {
     width: "100%",
-    height: "3rem",
   },
   selectItems: {
     marginLeft: "0.5rem",
@@ -57,13 +56,21 @@ const FindGcnEvents = ({
 
   const [selectedEvent, setSelectedEvent] = React.useState(null);
 
+  useEffect(() => {
+    if (!gcnEvents?.events || gcnEvents?.events?.length === 0) {
+      dispatch(gcnEventsActions.fetchGcnEvents());
+    }
+  }, []);
+
   const gcnEventsLookUp = {};
   // eslint-disable-next-line no-unused-expressions
-  gcnEvents?.events.forEach((gcnEvent) => {
-    gcnEventsLookUp[gcnEvent.id] = gcnEvent;
-  });
+  if (gcnEvents?.events) {
+    gcnEvents?.events.forEach((gcnEvent) => {
+      gcnEventsLookUp[gcnEvent.id] = gcnEvent;
+    });
+  }
 
-  const gcnEventsList = [...gcnEvents?.events];
+  const gcnEventsList = gcnEvents?.events ? [...gcnEvents?.events] : [];
   if (selectedEvent !== null && selectedEvent !== undefined) {
     gcnEventsList.push(selectedEvent);
     gcnEventsLookUp[selectedEvent?.id] = selectedEvent;
