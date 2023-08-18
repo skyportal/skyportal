@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 
 import Plot from "react-plotly.js";
@@ -200,16 +200,16 @@ const smoothing_func = (values, window_size) => {
 };
 
 const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
-  const [data, setData] = React.useState(null);
-  const [plotData, setPlotData] = React.useState(null);
-  const [selectedLines, setSelectedLines] = React.useState([]);
-  const [vExpInput, setVExpInput] = React.useState(0);
-  const [redshiftInput, setRedshiftInput] = React.useState(redshift || 0);
-  const [smoothingInput, setSmoothingInput] = React.useState(0);
-  const [customWavelengthInput, setCustomWavelengthInput] = React.useState(0);
+  const [data, setData] = useState(null);
+  const [plotData, setPlotData] = useState(null);
+  const [selectedLines, setSelectedLines] = useState([]);
+  const [vExpInput, setVExpInput] = useState(0);
+  const [redshiftInput, setRedshiftInput] = useState(redshift || 0);
+  const [smoothingInput, setSmoothingInput] = useState(0);
+  const [customWavelengthInput, setCustomWavelengthInput] = useState(0);
 
-  const [types, setTypes] = React.useState([]);
-  const [tabIndex, setTabIndex] = React.useState(0);
+  const [types, setTypes] = useState([]);
+  const [tabIndex, setTabIndex] = useState(0);
 
   const findTypes = (spectraData) => {
     let spectrumTypes = [];

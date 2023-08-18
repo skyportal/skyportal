@@ -58,6 +58,7 @@ import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
+import PhotometryDownload from "./PhotometryDownload";
 import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
@@ -745,6 +746,10 @@ const SourceMobile = WidthProvider(
                     >
                       Show Photometry Table
                     </Button>
+                    <PhotometryDownload
+                      obj_id={source.id}
+                      photometry={photometry}
+                    />
                     <IconButton
                       aria-label="help"
                       size="small"

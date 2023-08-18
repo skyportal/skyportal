@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 
 import Plot from "react-plotly.js";
@@ -44,17 +44,17 @@ const PhotometryPlot = ({
 }) => {
   const dispatch = useDispatch();
 
-  const [data, setData] = React.useState(null);
-  const [binnedData, setBinnedData] = React.useState(null);
-  const [plotData, setPlotData] = React.useState(null);
-  const [markerSize, setMarkerSize] = React.useState(6);
-  const [tabIndex, setTabIndex] = React.useState(0);
-  const [period, setPeriod] = React.useState(1);
-  const [binSize, setBinSize] = React.useState(0);
-  const [smoothing, setSmoothing] = React.useState(0);
-  const [phase, setPhase] = React.useState(1);
+  const [data, setData] = useState(null);
+  const [binnedData, setBinnedData] = useState(null);
+  const [plotData, setPlotData] = useState(null);
+  const [markerSize, setMarkerSize] = useState(6);
+  const [tabIndex, setTabIndex] = useState(0);
+  const [period, setPeriod] = useState(1);
+  const [binSize, setBinSize] = useState(0);
+  const [smoothing, setSmoothing] = useState(0);
+  const [phase, setPhase] = useState(1);
 
-  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const filter2color = useSelector(
     (state) => state.config.bandpassesColors || {}
