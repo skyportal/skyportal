@@ -368,6 +368,52 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
     setTabIndex(newValue);
   };
 
+  const shapes = selectedLines
+    .map((line) =>
+      line.x.map((x) => {
+        const shiftedX =
+          (x * (1 + parseFloat(redshiftInput, 10))) /
+          (1 + parseFloat(vExpInput, 10) / c);
+        return {
+          type: "line",
+          xref: "x",
+          yref: "y",
+          x0: shiftedX,
+          y0: 0,
+          x1: shiftedX,
+          y1: maxFlux(),
+          line: {
+            color: line.color,
+            width: 1,
+          },
+        };
+      })
+    )
+    .flat()
+    .concat(
+      customWavelengthInput > 0
+        ? [
+            {
+              type: "line",
+              xref: "x",
+              yref: "y",
+              x0:
+                (customWavelengthInput * (1 + parseFloat(redshiftInput, 10))) /
+                (1 + parseFloat(vExpInput, 10) / c),
+              y0: 0,
+              x1:
+                (customWavelengthInput * (1 + parseFloat(redshiftInput, 10))) /
+                (1 + parseFloat(vExpInput, 10) / c),
+              y1: maxFlux(),
+              line: {
+                color: "#000000",
+                width: 1,
+              },
+            },
+          ]
+        : []
+    );
+
   return (
     <div style={{ width: "100%", height: "100%" }}>
       {types?.length > 0 && (
@@ -416,53 +462,7 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
             },
             // plot_bgcolor: '#EFF2F5',
             // paper_bgcolor: '#EFF2F5'
-            shapes:
-              selectedLines
-                .map((line) =>
-                  line.x.map((x) => {
-                    const shiftedX =
-                      (x * (1 + parseFloat(redshiftInput, 10))) /
-                      (1 + parseFloat(vExpInput, 10) / c);
-                    return {
-                      type: "line",
-                      xref: "x",
-                      yref: "y",
-                      x0: shiftedX,
-                      y0: 0,
-                      x1: shiftedX,
-                      y1: maxFlux(),
-                      line: {
-                        color: line.color,
-                        width: 1,
-                      },
-                    };
-                  })
-                )
-                .flat() +
-                customWavelengthInput >
-              0
-                ? [
-                    {
-                      type: "line",
-                      xref: "x",
-                      yref: "y",
-                      x0:
-                        (customWavelengthInput *
-                          (1 + parseFloat(redshiftInput, 10))) /
-                        (1 + parseFloat(vExpInput, 10) / c),
-                      y0: 0,
-                      x1:
-                        (customWavelengthInput *
-                          (1 + parseFloat(redshiftInput, 10))) /
-                        (1 + parseFloat(vExpInput, 10) / c),
-                      y1: maxFlux(),
-                      line: {
-                        color: "#000000",
-                        width: 1,
-                      },
-                    },
-                  ]
-                : [],
+            shapes,
           }}
           config={{
             // scrollZoom: true,
