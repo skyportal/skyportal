@@ -26,8 +26,6 @@ import withRouter from "./withRouter";
 import * as Action from "../ducks/instrument";
 import InstrumentLogForm from "./InstrumentLogForm";
 
-const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
-
 dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
@@ -50,7 +48,9 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+// eslint-disable-next-line no-unused-vars
 const InstrumentPlot = ({ instrumentId, startDate, endDate }) => {
+  // eslint-disable-next-line no-unused-vars
   const plotWidth = 1600;
   const plot = (
     <Suspense
@@ -60,9 +60,7 @@ const InstrumentPlot = ({ instrumentId, startDate, endDate }) => {
         </div>
       }
     >
-      <Plot
-        url={`/api/internal/plot/instrument_log/${instrumentId}?width=${plotWidth}&height=500&startDate=${startDate}&endDate=${endDate}`}
-      />
+      <div>TODO</div>
     </Suspense>
   );
   return plot;

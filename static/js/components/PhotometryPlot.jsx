@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 
-import Plot from "react-plotly.js";
+import Plotly from "plotly.js-basic-dist";
+import createPlotlyComponent from "react-plotly.js/factory";
 
 import Slider from "@mui/material/Slider";
 import MuiInput from "@mui/material/Input";
@@ -27,6 +28,8 @@ import { addAnnotation } from "../ducks/source";
 import Button from "./Button";
 
 import { smoothing_func } from "./SpectraPlot";
+
+const Plot = createPlotlyComponent(Plotly);
 
 function ModifiedJulianDateFromUnixTime(t) {
   return t / 86400000 + 40587;

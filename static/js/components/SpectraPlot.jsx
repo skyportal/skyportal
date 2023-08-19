@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 
-import Plot from "react-plotly.js";
+import Plotly from "plotly.js-basic-dist";
+import createPlotlyComponent from "react-plotly.js/factory";
 
 import Slider from "@mui/material/Slider";
 import MuiInput from "@mui/material/Input";
@@ -10,6 +11,8 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 
 import Button from "./Button";
+
+const Plot = createPlotlyComponent(Plotly);
 
 const c = 299792.458; // km/s
 
