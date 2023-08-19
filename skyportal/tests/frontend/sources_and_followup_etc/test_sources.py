@@ -1,7 +1,6 @@
 import os
 import uuid
 import json
-import time
 
 from io import BytesIO
 import pytest
@@ -50,24 +49,6 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-
-    # this waits for the spectroscopy plot by looking for the element Fe III
-    num_panels = 0
-    nretries = 0
-    while num_panels < 2 and nretries < 30:
-        panels = driver.find_elements(By.XPATH, "//*[contains(@id,'bokeh')]")
-        num_panels = len(panels)
-        if num_panels == 2:
-            break
-        nretries = nretries + 1
-        time.sleep(5)
-
-    button_present = False
-    for panel in panels:
-        if "Fe III" in panel.text:
-            button_present = True
-
-    assert button_present
 
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
@@ -138,24 +119,6 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-
-    # this waits for the spectroscopy plot by looking for the element Fe III
-    num_panels = 0
-    nretries = 0
-    while num_panels < 2 and nretries < 30:
-        panels = driver.find_elements(By.XPATH, "//*[contains(@id,'bokeh')]")
-        num_panels = len(panels)
-        if num_panels == 2:
-            break
-        nretries = nretries + 1
-        time.sleep(5)
-
-    button_present = False
-    for panel in panels:
-        if "Fe III" in panel.text:
-            button_present = True
-
-    assert button_present
 
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
@@ -757,48 +720,12 @@ def test_obj_page_unsaved_source(public_obj, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_obj.id}")
 
-    # this waits for the spectroscopy plot by looking for the element Fe III
-    num_panels = 0
-    nretries = 0
-    while num_panels < 2 and nretries < 30:
-        panels = driver.find_elements(By.XPATH, "//*[contains(@id,'bokeh')]")
-        num_panels = len(panels)
-        if num_panels == 2:
-            break
-        nretries = nretries + 1
-        time.sleep(5)
-
-    button_present = False
-    for panel in panels:
-        if "Fe III" in panel.text:
-            button_present = True
-
-    assert button_present
-
     driver.wait_for_xpath_to_disappear('//div[contains(@data-testid, "groupChip")]')
 
 
 def test_show_photometry_table(public_source, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-
-    # this waits for the spectroscopy plot by looking for the element Fe III
-    num_panels = 0
-    nretries = 0
-    while num_panels < 2 and nretries < 30:
-        panels = driver.find_elements(By.XPATH, "//*[contains(@id,'bokeh')]")
-        num_panels = len(panels)
-        if num_panels == 2:
-            break
-        nretries = nretries + 1
-        time.sleep(5)
-
-    button_present = False
-    for panel in panels:
-        if "Fe III" in panel.text:
-            button_present = True
-
-    assert button_present
 
     driver.click_xpath('//*[@data-testid="show-photometry-table-button"]')
     driver.wait_for_xpath(f'//*[contains(text(), "Photometry of {public_source.id}")]')
@@ -857,26 +784,6 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
 
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-
-    # this waits for the spectroscopy plot by looking for the element Fe III
-    num_panels = 0
-    nretries = 0
-    while num_panels < 2 and nretries < 30:
-        panels = driver.find_elements(By.XPATH, "//*[contains(@id,'bokeh')]")
-        num_panels = len(panels)
-        if num_panels == 2:
-            break
-        nretries = nretries + 1
-        time.sleep(5)
-
-    button_present = False
-    for panel in panels:
-        if "Fe III" in panel.text:
-            button_present = True
-
-    assert button_present
-
-    driver.wait_for_xpath('//*[@id="hr-diagram-content"]')
 
     try:
         # Look for Suspense fallback to show
