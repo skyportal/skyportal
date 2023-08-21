@@ -1,4 +1,3 @@
-from bokeh import palettes
 import copy
 
 from baselayer.app.env import load_env
@@ -9,6 +8,7 @@ from ...enum_types import (
     default_spectrum_type,
     ALLOWED_SPECTRUM_TYPES,
     GCN_NOTICE_TYPES,
+    COLOR_PALETTE,
 )
 
 from .recurring_api import ALLOWED_RECURRING_API_METHODS
@@ -90,9 +90,7 @@ class ConfigHandler(BaseHandler):
                 "classificationsClasses": cfg["colors.classifications"],
                 "summary_sourcesClasses": cfg["colors.summary_sources"],
                 "gcnTagsClasses": cfg["colors.gcnTags"],
-                "colorPalette": getattr(
-                    palettes, cfg.get("misc.bokeh_color_palette", "Turbo256")
-                ),
+                "colorPalette": COLOR_PALETTE,
                 "bandpassesColors": BANDPASSES_COLORS,
             }
         )

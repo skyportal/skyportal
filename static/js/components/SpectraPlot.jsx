@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
+import { useSelector } from "react-redux";
 
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
@@ -211,6 +212,18 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
   const [smoothingInput, setSmoothingInput] = useState(0);
   const [customWavelengthInput, setCustomWavelengthInput] = useState(0);
 
+  const { preferences } = useSelector((state) => state.profile);
+
+  // the user preferences' spectroscopyButtons is an object with the name of the button as the key, and the value is an object with the color and the wavelengths
+  // transform that into a list of objects with the name, color and wavelengths
+  const userCustomLines = Object.keys(
+    preferences?.spectroscopyButtons || {}
+  ).map((key) => ({
+    name: key,
+    color: preferences?.spectroscopyButtons[key].color,
+    x: preferences?.spectroscopyButtons[key].wavelengths,
+  }));
+
   const [types, setTypes] = useState([]);
   const [tabIndex, setTabIndex] = useState(0);
 
@@ -372,8 +385,11 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
   };
 
   const shapes = selectedLines
-    .map((line) =>
-      line.x.map((x) => {
+    .map((line_name) => {
+      const line = lines
+        .concat(userCustomLines)
+        .find((l) => l.name === line_name);
+      return line.x.map((x) => {
         const shiftedX =
           (x * (1 + parseFloat(redshiftInput, 10))) /
           (1 + parseFloat(vExpInput, 10) / c);
@@ -390,8 +406,8 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
             width: 1,
           },
         };
-      })
-    )
+      });
+    })
     .flat()
     .concat(
       customWavelengthInput > 0
@@ -487,7 +503,7 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
       >
         {/* we want to display a grid with buttons to toggle each of the lines */}
         {/* the buttons should have a rectangle of the color of the lines, and then the button itself with the name of the line */}
-        {lines.map((line) => (
+        {lines.concat(userCustomLines).map((line) => (
           <div
             style={{
               display: "flex",
@@ -510,10 +526,12 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
             <Button
               key={line.wavelength}
               onClick={() => {
-                if (selectedLines.includes(line)) {
-                  setSelectedLines(selectedLines.filter((l) => l !== line));
+                if (selectedLines.includes(line.name)) {
+                  setSelectedLines(
+                    selectedLines.filter((l) => l !== line.name)
+                  );
                 } else {
-                  setSelectedLines([...selectedLines, line]);
+                  setSelectedLines([...selectedLines, line.name]);
                 }
               }}
               variant="contained"
@@ -522,10 +540,12 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
               style={{
                 whiteSpace: "nowrap",
                 maxHeight: "1.4rem",
-                backgroundColor: selectedLines.includes(line)
+                backgroundColor: selectedLines.includes(line.name)
                   ? line.color
                   : "#ffffff",
-                color: selectedLines.includes(line) ? "#ffffff" : "#000000",
+                color: selectedLines.includes(line.name)
+                  ? "#ffffff"
+                  : "#000000",
               }}
             >
               {line.name}

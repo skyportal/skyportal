@@ -1887,62 +1887,6 @@ def test_spectrum_external_reducer_and_observer(
     assert data['data']['external_observer'] == "Test external observer"
 
 
-def test_spectrum_plot_only_some_spectra(
-    upload_data_token, public_source, public_group, lris, sedm
-):
-    # upload spectrum 1
-    status, data = api(
-        'POST',
-        'spectrum',
-        data={
-            'obj_id': str(public_source.id),
-            'observed_at': str(datetime.datetime.now()),
-            'instrument_id': lris.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [234.2, 232.1, 235.3],
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-    spec_id1 = data['data']['id']
-
-    # upload spectrum 2
-    status, data = api(
-        'POST',
-        'spectrum',
-        data={
-            'obj_id': str(public_source.id),
-            'observed_at': str(datetime.datetime.now()),
-            'instrument_id': sedm.id,
-            'wavelengths': [664, 665, 666],
-            'fluxes': [134.2, 132.1, 135.3],
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
-
-    assert status == 200
-    assert data['status'] == 'success'
-    spec_id2 = data['data']['id']
-
-    status, data = api(
-        'GET', f'internal/plot/spectroscopy/{public_source.id}', token=upload_data_token
-    )
-    assert status == 200
-
-    # now ask for the same plot but with only one spectrum
-    status, data = api(
-        'GET',
-        f'internal/plot/spectroscopy/{public_source.id}',
-        params={'spectrumID': f'{spec_id1},{spec_id2}'},
-        token=upload_data_token,
-    )
-
-    assert status == 200
-
-
 def test_post_get_spectrum_type(upload_data_token, public_source, public_group, lris):
 
     # post this spectrum without a type (should default to "source")
