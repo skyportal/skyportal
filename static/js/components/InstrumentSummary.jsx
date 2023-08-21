@@ -25,6 +25,7 @@ import JsonDashboard from "react-json-dashboard";
 import withRouter from "./withRouter";
 import * as Action from "../ducks/instrument";
 import InstrumentLogForm from "./InstrumentLogForm";
+import InstrumentLogsPlot from "./InstrumentLogsPlot";
 
 dayjs.extend(utc);
 
@@ -82,8 +83,7 @@ const InstrumentSummary = ({ route }) => {
   const styles = useStyles();
   const instrument = useSelector((state) => state.instrument);
 
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const defaultStartDate = dayjs
     .utc()
@@ -94,8 +94,19 @@ const InstrumentSummary = ({ route }) => {
   // Load the instrument if needed
   useEffect(() => {
     dispatch(Action.fetchInstrument(route.id));
-    setStartDate(defaultStartDate);
-    setEndDate(defaultEndDate);
+
+    setLoading(true);
+    dispatch(
+      Action.fetchInstrumentLogs(route.id, {
+        startDate: defaultStartDate,
+        endDate: defaultEndDate,
+      })
+    ).then((response) => {
+      if (response.status !== "success") {
+        dispatch(showNotification("Error fetching instrument logs", "error"));
+      }
+      setLoading(false);
+    });
   }, [route.id, dispatch]);
 
   if (!("id" in instrument && instrument.id === parseInt(route.id, 10))) {
@@ -108,8 +119,15 @@ const InstrumentSummary = ({ route }) => {
   }
 
   const handleSubmit = async ({ formData }) => {
-    setStartDate(formData.startDate.replace("+00:00", "").replace(".000Z", ""));
-    setEndDate(formData.endDate.replace("+00:00", "").replace(".000Z", ""));
+    setLoading(true);
+    dispatch(Action.fetchInstrumentLogs(route.id, formData)).then(
+      (response) => {
+        if (response.status !== "success") {
+          dispatch(showNotification("Error fetching instrument logs", "error"));
+        }
+        setLoading(false);
+      }
+    );
   };
 
   const InstrumentSummaryFormSchema = {
@@ -169,15 +187,22 @@ const InstrumentSummary = ({ route }) => {
               </AccordionSummary>
               <AccordionDetails>
                 <div className={styles.columnItem}>
-                  {!instrument.log_exists ? (
+                  {loading && <CircularProgress color="secondary" />}
+                  {!loading && !instrument.log_exists && (
                     <div> No logs exist </div>
-                  ) : (
-                    <InstrumentPlot
-                      instrumentId={instrument.id}
-                      startDate={startDate}
-                      endDate={endDate}
-                    />
                   )}
+                  {!loading &&
+                    instrument.log_exists &&
+                    instrument?.logs?.length === 0 && (
+                      <div> No logs exist in the specified time range </div>
+                    )}
+                  {!loading &&
+                    instrument.log_exists &&
+                    instrument?.logs?.length > 0 && (
+                      <InstrumentLogsPlot
+                        instrument_logs={instrument?.logs || []}
+                      />
+                    )}
                 </div>
                 <div>
                   <Form
