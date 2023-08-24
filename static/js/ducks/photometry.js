@@ -13,6 +13,8 @@ const DELETE_PHOTOMETRY = "skyportal/DELETE_PHOTOMETRY";
 
 const SUBMIT_PHOTOMETRY = "skyportal/SUBMIT_PHOTOMETRY";
 
+const UPDATE_PHOTOMETRY = "skyportal/UPDATE_PHOTOMETRY";
+
 // eslint-disable-next-line import/prefer-default-export
 export function fetchSourcePhotometry(id) {
   return API.GET(`/api/sources/${id}/photometry`, FETCH_SOURCE_PHOTOMETRY);
@@ -36,6 +38,10 @@ export function deletePhotometry(id) {
 
 export function submitPhotometry(photometry) {
   return API.POST("/api/photometry", SUBMIT_PHOTOMETRY, photometry);
+}
+
+export function updatePhotometry(id, photometry) {
+  return API.PATCH(`/api/photometry/${id}`, UPDATE_PHOTOMETRY, photometry);
 }
 
 // Websocket message handler
