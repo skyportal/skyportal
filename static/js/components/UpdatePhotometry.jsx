@@ -46,6 +46,7 @@ const UpdatePhotometry = ({ phot }) => {
       mjd: phot.mjd,
       mag: phot.mag,
       magerr: phot.magerr,
+      limiting_mag: phot.limiting_mag,
     });
   }, [phot, setInvalid]);
 
@@ -66,6 +67,7 @@ const UpdatePhotometry = ({ phot }) => {
     newState.mjd = subState.mjd;
     newState.mag = subState.mag;
     newState.magerr = subState.magerr;
+    newState.limiting_mag = subState.limiting_mag;
 
     // preserved quantities
     newState.obj_id = phot.obj_id;
@@ -75,7 +77,6 @@ const UpdatePhotometry = ({ phot }) => {
     newState.dec_unc = phot.dec_unc;
     newState.filter = phot.filter;
     newState.magsys = phot.magsys;
-    newState.limiting_mag = phot.limiting_mag;
     newState.assignment_id = phot.assignment_id;
     newState.instrument_id = phot.instrument_id;
 
@@ -150,6 +151,19 @@ const UpdatePhotometry = ({ phot }) => {
               label="magerr"
               value={state.magerr}
               name="magerr"
+              onChange={handleChange}
+              type="number"
+              variant="outlined"
+            />
+          </div>
+          <p />
+          <div>
+            <TextField
+              data-testid="updatePhotometryLimitingMagTextfield"
+              size="small"
+              label="limiting_mag"
+              value={state.limiting_mag}
+              name="limiting_mag"
               onChange={handleChange}
               type="number"
               variant="outlined"
