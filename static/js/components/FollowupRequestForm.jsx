@@ -218,8 +218,9 @@ const FollowupRequestForm = ({
         groupIDs={selectedGroupIds}
       />
       <div data-testid="followup-request-form">
-        {allocationLookUp[selectedAllocationId].instrument_id in
-        instrumentFormParams ? (
+        {allocationLookUp[selectedAllocationId] !== undefined &&
+        allocationLookUp[selectedAllocationId]?.instrument_id in
+          instrumentFormParams ? (
           <Form
             schema={
               instrumentFormParams[
