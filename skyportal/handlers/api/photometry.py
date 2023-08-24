@@ -1243,9 +1243,9 @@ class PhotometryHandler(BaseHandler):
 
             original_user_data = copy.deepcopy(data)
 
-            nan_if_none_keys = {'mag', 'magerr'}
+            nan_if_none_keys = {'flux', 'fluxerr', 'mag', 'magerr'}
             for key in nan_if_none_keys:
-                if data[key] is None:
+                if key in data and data[key] is None:
                     data[key] = np.nan
 
             optional_keys = {'ra', 'dec', 'ra_unc', 'dec_unc', 'assignment_id'}
