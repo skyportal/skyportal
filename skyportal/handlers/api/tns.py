@@ -516,6 +516,8 @@ class ObjTNSHandler(BaseHandler):
             reporters = data.get('reporters', '')
             archival = data.get('archival', False)
             archival_comment = data.get('archivalComment', '')
+            instrument_id = data.get('instrument_id')
+            stream_id = data.get('stream_id')
 
             if tnsrobotID is None:
                 return self.error('tnsrobotID is required')
@@ -563,6 +565,8 @@ class ObjTNSHandler(BaseHandler):
                     reporters=reporters,
                     archival=archival,
                     archival_comment=archival_comment,
+                    instrument_id=instrument_id,
+                    stream_id=stream_id,
                     timeout=30,
                 ),
             )

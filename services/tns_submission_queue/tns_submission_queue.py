@@ -44,6 +44,8 @@ def tns_submission(
     reporters="",
     archival=False,
     archival_comment="",
+    instrument_id=None,
+    stream_id=None,
     parent_session=None,
 ):
     """Submit objects to TNS.
@@ -113,20 +115,37 @@ def tns_submission(
                 log(f'No object available with ID {obj_id}')
                 continue
 
-            photometry = session.scalars(
-                Photometry.select(user).where(
-                    Photometry.obj_id == obj_id,
-                    Photometry.instrument_id.in_(
-                        [instrument.id for instrument in instruments]
-                    ),
-                )
-            ).all()
+            if instrument_id is None:
+                photometry = session.scalars(
+                    Photometry.select(user).where(
+                        Photometry.obj_id == obj_id,
+                        Photometry.instrument_id.in_(
+                            [instrument.id for instrument in instruments]
+                        ),
+                    )
+                ).all()
+            else:
+                photometry = session.scalars(
+                    Photometry.select(user).where(
+                        Photometry.obj_id == obj_id,
+                        Photometry.instrument_id == instrument_id,
+                    )
+                ).all()
 
             if len(photometry) == 0:
                 log(
                     f'No photometry from instrument that can be submitted to TNS) available for {obj_id}.'
                 )
                 continue
+
+            if stream_id is not None:
+                phot_to_keep = []
+                for phot in photometry:
+                    for stream in phot.streams:
+                        if stream.id == stream_id:
+                            phot_to_keep.append(phot)
+                            break
+                photometry = phot_to_keep
 
             photometry = [serialize(phot, 'ab', 'mag') for phot in photometry]
 
@@ -288,6 +307,8 @@ def service(queue):
                 reporters = data.get("reporters", "")
                 archival = data.get("archival", False)
                 archival_comment = data.get("archival_comment", "")
+                instrument_id = data.get("instrument_id", None)
+                stream_id = data.get("stream_id", None)
 
                 tns_submission(
                     obj_ids,
@@ -296,6 +317,8 @@ def service(queue):
                     reporters=reporters,
                     archival=archival,
                     archival_comment=archival_comment,
+                    instrument_id=instrument_id,
+                    stream_id=stream_id,
                     parent_session=session,
                 )
             except Exception as e:
