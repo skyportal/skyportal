@@ -922,8 +922,12 @@ class ZTFMMAAPI(MMAAPI):
     def custom_json_schema(instrument, user):
         form_json_schema = MMAAPI.custom_json_schema(instrument, user)
 
+        # we make sure that all the boolean properties come last, which helps with the display
+        non_boolean_properties = {k: v for k, v in form_json_schema["properties"].items() if v["type"] != "boolean"}
+        boolean_properties = {k: v for k, v in form_json_schema["properties"].items() if v["type"] == "boolean"}
+
         form_json_schema["properties"] = {
-            **form_json_schema["properties"],
+            **non_boolean_properties,
             "program_id": {
                 "type": "string",
                 "enum": ["Partnership", "Caltech"],
@@ -938,12 +942,16 @@ class ZTFMMAAPI(MMAAPI):
             "use_primary": {
                 "title": "Use primary grid only?",
                 "type": "boolean",
+                "default": True,
             },
             "use_secondary": {
                 "title": "Use secondary grid only?",
                 "type": "boolean",
+                "default": False,
             },
+            **boolean_properties,
         }
+
         form_json_schema["required"] = form_json_schema["required"] + [
             "subprogram_name",
             "program_id",
