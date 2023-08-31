@@ -24,7 +24,7 @@ const LocalizationPlot = ({
   galaxies,
   instrument,
   observations,
-  airmass_threshold=2.5,
+  airmass_threshold = 2.5,
   options,
   height,
   width,
@@ -549,7 +549,11 @@ const GeoJSONGlobePlot = ({
             })
             .append("title")
             .text(
-              `field ID: ${field_id} \nra: ${f.ra} \ndec: ${f.dec} \nfilters: ${data.instrument.filters.join(", ")}${airmass ? ` \nairmass: ${airmass}` : ""}${has_ref ? ` \nreferences: ${(references).join(", ")}` : ""}
+              `field ID: ${field_id} \nra: ${f.ra} \ndec: ${
+                f.dec
+              } \nfilters: ${data.instrument.filters.join(", ")}${
+                airmass ? ` \nairmass: ${airmass}` : ""
+              }${has_ref ? ` \nreferences: ${references.join(", ")}` : ""}
               `
             );
         });

@@ -29,8 +29,12 @@ import requests
 import simsurvey
 import sncosmo
 import sqlalchemy as sa
-from astroplan import (AirmassConstraint, AtNightConstraint, Observer,
-                       is_event_observable)
+from astroplan import (
+    AirmassConstraint,
+    AtNightConstraint,
+    Observer,
+    is_event_observable,
+)
 from astropy import units as u
 from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
@@ -53,21 +57,33 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from skyportal.enum_types import ALLOWED_BANDPASSES
-from skyportal.facility_apis.observation_plan import \
-    generate_observation_plan_statistics
+from skyportal.facility_apis.observation_plan import (
+    generate_observation_plan_statistics,
+)
 from skyportal.handlers.api.followup_request import post_assignment
 from skyportal.handlers.api.observingrun import post_observing_run
 from skyportal.handlers.api.source import post_source
 
-from ...models import (Allocation, DBSession, DefaultObservationPlanRequest,
-                       EventObservationPlan, GcnEvent, GcnTrigger, Group,
-                       Instrument, InstrumentField, Localization,
-                       ObservationPlanRequest, PlannedObservation,
-                       SurveyEfficiencyForObservationPlan,
-                       SurveyEfficiencyForObservations, Telescope, User)
+from ...models import (
+    Allocation,
+    DBSession,
+    DefaultObservationPlanRequest,
+    EventObservationPlan,
+    GcnEvent,
+    GcnTrigger,
+    Group,
+    Instrument,
+    InstrumentField,
+    Localization,
+    ObservationPlanRequest,
+    PlannedObservation,
+    SurveyEfficiencyForObservationPlan,
+    SurveyEfficiencyForObservations,
+    Telescope,
+    User,
+)
 from ...models.schema import ObservationPlanPost
-from ...utils.simsurvey import (get_simsurvey_parameters,
-                                random_parameters_notheta)
+from ...utils.simsurvey import get_simsurvey_parameters, random_parameters_notheta
 from ..base import BaseHandler
 
 env, cfg = load_env()
@@ -2294,9 +2310,7 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
             data = io.BytesIO(content)
             # we remove special characters and extensions other than .pdf
             # otherwise, some browsers won't save the file as a PDF
-            filename = (
-                f"{re.sub(r'[^a-zA-Z0-9]', '_', localization.localization_name).replace('.fits', '').replace('.fit', '')}-{telescope.nickname}.{output_format}"
-            )
+            filename = f"{re.sub(r'[^a-zA-Z0-9]', '_', localization.localization_name).replace('.fits', '').replace('.fit', '')}-{telescope.nickname}.{output_format}"
 
             await self.send_file(data, filename, output_type=output_format)
 

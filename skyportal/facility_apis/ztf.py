@@ -923,8 +923,16 @@ class ZTFMMAAPI(MMAAPI):
         form_json_schema = MMAAPI.custom_json_schema(instrument, user)
 
         # we make sure that all the boolean properties come last, which helps with the display
-        non_boolean_properties = {k: v for k, v in form_json_schema["properties"].items() if v["type"] != "boolean"}
-        boolean_properties = {k: v for k, v in form_json_schema["properties"].items() if v["type"] == "boolean"}
+        non_boolean_properties = {
+            k: v
+            for k, v in form_json_schema["properties"].items()
+            if v["type"] != "boolean"
+        }
+        boolean_properties = {
+            k: v
+            for k, v in form_json_schema["properties"].items()
+            if v["type"] == "boolean"
+        }
 
         form_json_schema["properties"] = {
             **non_boolean_properties,

@@ -575,7 +575,9 @@ def generate_plan(
 
             if request.payload.get("use_references", False):
                 config[request.instrument.name]["reference_images"] = {
-                    field.field_id: field.reference_filters if field.reference_filters is not None else []
+                    field.field_id: field.reference_filters
+                    if field.reference_filters is not None
+                    else []
                     for field in fields
                 }
 
@@ -977,9 +979,14 @@ class MMAAPI(FollowUpAPI):
 
                 if not required_parameters.issubset(set(request.payload.keys())):
                     raise ValueError('Missing required planning parameter')
-                
-                if request.payload["filter_strategy"] is "integrated" and "minimum_time_difference" not in request.payload:
-                    raise ValueError('minimum_time_difference must be defined for integrated scheduling')
+
+                if (
+                    request.payload["filter_strategy"] == "integrated"
+                    and "minimum_time_difference" not in request.payload
+                ):
+                    raise ValueError(
+                        'minimum_time_difference must be defined for integrated scheduling'
+                    )
 
                 if request.payload["schedule_type"] not in [
                     "greedy",
@@ -1109,9 +1116,14 @@ class MMAAPI(FollowUpAPI):
 
                 if not required_parameters.issubset(set(request.payload.keys())):
                     raise ValueError('Missing required planning parameter')
-                
-                if request.payload["filter_strategy"] is "integrated" and "minimum_time_difference" not in request.payload:
-                    raise ValueError('minimum_time_difference must be defined for integrated scheduling')
+
+                if (
+                    request.payload["filter_strategy"] == "integrated"
+                    and "minimum_time_difference" not in request.payload
+                ):
+                    raise ValueError(
+                        'minimum_time_difference must be defined for integrated scheduling'
+                    )
 
                 if request.payload["schedule_type"] not in [
                     "greedy",
@@ -1247,10 +1259,16 @@ class MMAAPI(FollowUpAPI):
             end_date = Time(end_date, format='jd').iso
 
         # we add a use_references boolean to the schema if any of the instrument's fields has reference filters
-        has_references = DBSession().query(InstrumentField).filter(
-            InstrumentField.instrument_id == instrument.id,
-            InstrumentField.reference_filters != '{}'
-        ).count() > 0
+        has_references = (
+            DBSession()
+            .query(InstrumentField)
+            .filter(
+                InstrumentField.instrument_id == instrument.id,
+                InstrumentField.reference_filters != '{}',
+            )
+            .count()
+            > 0
+        )
 
         form_json_schema = {
             "type": "object",
@@ -1341,109 +1359,115 @@ class MMAAPI(FollowUpAPI):
             "dependencies": {
                 "galactic_plane": {
                     "oneOf": [
-                    {
-                        "properties": {
-                            "galactic_plane": {
-                                "enum": [True],
+                        {
+                            "properties": {
+                                "galactic_plane": {
+                                    "enum": [True],
+                                },
+                                "galactic_latitude": {
+                                    "title": "Galactic latitude to exclude",
+                                    "type": "number",
+                                    "default": 10.0,
+                                    "minimum": 0,
+                                    "maximum": 90,
+                                },
                             },
-                            "galactic_latitude": {
-                                "title": "Galactic latitude to exclude",
-                                "type": "number",
-                                "default": 10.0,
-                                "minimum": 0,
-                                "maximum": 90,
-                            },
-                            },
-                        "required": ["galactic_latitude"],
-                    },
+                            "required": ["galactic_latitude"],
+                        },
                     ],
                 },
                 "max_tiles": {
                     "oneOf": [
-                    {
-                        "properties": {
-                            "max_tiles": {
-                                "enum": [True],
+                        {
+                            "properties": {
+                                "max_tiles": {
+                                    "enum": [True],
+                                },
+                                "max_nb_tiles": {
+                                    "title": "Maximum number of fields",
+                                    "type": "number",
+                                    "default": 100.0,
+                                    "minimum": 0,
+                                    "maximum": 1000,
+                                },
                             },
-                            "max_nb_tiles": {
-                                "title": "Maximum number of fields",
-                                "type": "number",
-                                "default": 100.0,
-                                "minimum": 0,
-                                "maximum": 1000,
-                            },
+                            "required": ["max_nb_tiles"],
                         },
-                        "required": ["max_nb_tiles"],
-                    },
                     ],
                 },
                 "ra_slice": {
                     "oneOf": [
-                    {
-                        "properties": {
-                            "ra_slice": {
-                                "enum": [True],
+                        {
+                            "properties": {
+                                "ra_slice": {
+                                    "enum": [True],
+                                },
+                                "ra_slice_min": {
+                                    "title": "Minimum RA",
+                                    "type": "number",
+                                    "default": 0.0,
+                                    "minimum": 0,
+                                    "maximum": 360,
+                                },
+                                "ra_slice_max": {
+                                    "title": "Maximum RA",
+                                    "type": "number",
+                                    "default": 360.0,
+                                    "minimum": 0.0,
+                                    "maximum": 360,
+                                },
                             },
-                            "ra_slice_min": {
-                                "title": "Minimum RA",
-                                "type": "number",
-                                "default": 0.0,
-                                "minimum": 0,
-                                "maximum": 360,
-                            },
-                            "ra_slice_max": {
-                                "title": "Maximum RA",
-                                "type": "number",
-                                "default": 360.0,
-                                "minimum": 0.0,
-                                "maximum": 360,
-                            },
+                            "required": ["ra_slice_min", "ra_slice_max"],
                         },
-                        "required": ["ra_slice_min", "ra_slice_max"],
-                    },
                     ],
                 },
                 "filter_strategy": {
                     # we want to show min_time_difference only if filter_strategy is integrated
                     "oneOf": [
-                    {
-                        "properties": {
-                            "filter_strategy": {
-                                "enum": ["integrated"],
+                        {
+                            "properties": {
+                                "filter_strategy": {
+                                    "enum": ["integrated"],
+                                },
+                                "minimum_time_difference": {
+                                    "title": "Minimum time difference [min] (0-180)",
+                                    "type": "number",
+                                    "default": 30.0,
+                                    "minimum": 0,
+                                    "maximum": 180,
+                                },
                             },
-                            "minimum_time_difference": {
-                                "title": "Minimum time difference [min] (0-180)",
-                                "type": "number",
-                                "default": 30.0,
-                                "minimum": 0,
-                                "maximum": 180,
-                            },
+                            "required": ["minimum_time_difference"],
                         },
-                        "required": ["minimum_time_difference"],
-                    },
                     ],
                 },
                 # we want to show galaxy_catalog and galaxy_sorting only if schedule_strategy is galaxy
                 "schedule_strategy": {
                     "oneOf": [
-                    {
-                        "properties": {
-                            "schedule_strategy": {
-                                "enum": ["galaxy"],
+                        {
+                            "properties": {
+                                "schedule_strategy": {
+                                    "enum": ["galaxy"],
+                                },
+                                "galaxy_catalog": {
+                                    "type": "string",
+                                    "enum": galaxies,
+                                    "default": galaxies[0] if len(galaxies) > 0 else "",
+                                },
+                                "galaxy_sorting": {
+                                    "type": "string",
+                                    "enum": [
+                                        "equal",
+                                        "sfr_fuv",
+                                        "mstar",
+                                        "magb",
+                                        "magk",
+                                    ],
+                                    "default": "equal",
+                                },
                             },
-                            "galaxy_catalog": {
-                                "type": "string",
-                                "enum": galaxies,
-                                "default": galaxies[0] if len(galaxies) > 0 else "",
-                            },
-                            "galaxy_sorting": {
-                                "type": "string",
-                                "enum": ["equal", "sfr_fuv", "mstar", "magb", "magk"],
-                                "default": "equal",
-                            },
+                            "required": ["galaxy_catalog", "galaxy_sorting"],
                         },
-                        "required": ["galaxy_catalog", "galaxy_sorting"],
-                    },
                     ],
                 },
             },

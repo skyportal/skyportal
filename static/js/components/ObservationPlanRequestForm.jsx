@@ -615,9 +615,21 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                   </MenuItem>
                 ))}
               </Select>
-              <InputLabel id="airmassTimeSelectLabel" style={{marginBottom: "0.5rem"}}>Airmass Time</InputLabel>
+              <InputLabel
+                id="airmassTimeSelectLabel"
+                style={{ marginBottom: "0.5rem" }}
+              >
+                Airmass Time
+              </InputLabel>
               <Grid container spacing={1} alignItems="center">
-                <Grid item style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: "0.2rem" }}>
+                <Grid
+                  item
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "3fr 1fr",
+                    gap: "0.2rem",
+                  }}
+                >
                   <LocalizationProvider dateAdapter={AdapterDateFns}>
                     <DateTimePicker
                       value={temporaryAirmassTime}
@@ -819,7 +831,8 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
               onDelete={() => {
                 setPlanQueues(
                   planQueues.filter(
-                    (queue) => queue.payload.queue_name !== plan.payload.queue_name
+                    (queue) =>
+                      queue.payload.queue_name !== plan.payload.queue_name
                   )
                 );
               }}
