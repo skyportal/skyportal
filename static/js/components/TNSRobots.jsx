@@ -49,6 +49,9 @@ const TNSRobots = ({ group_id }) => {
 
   const { tnsrobotList } = useSelector((state) => state.tnsrobots);
   const { instrumentList } = useSelector((state) => state.instruments);
+  const tnsAllowedInstruments = useSelector(
+    (state) => state.config.tnsAllowedInstruments
+  );
   const streams = useSelector((state) => state.streams);
 
   const [selectedFormData, setSelectedFormData] = useState({
@@ -60,6 +63,10 @@ const TNSRobots = ({ group_id }) => {
     auto_report_instrument_ids: [],
     auto_report_stream_ids: [],
   });
+
+  const allowedInstruments = instrumentList.filter((instrument) =>
+    (tnsAllowedInstruments || []).includes(instrument.name)
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -279,10 +286,10 @@ const TNSRobots = ({ group_id }) => {
                 type: "array",
                 items: {
                   type: "integer",
-                  enum: (instrumentList || []).map(
+                  enum: (allowedInstruments || []).map(
                     (instrument) => instrument.id
                   ),
-                  enumNames: (instrumentList || []).map(
+                  enumNames: (allowedInstruments || []).map(
                     (instrument) => instrument.name
                   ),
                 },

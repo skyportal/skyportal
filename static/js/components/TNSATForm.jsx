@@ -43,6 +43,10 @@ const TNSATForm = ({ obj_id }) => {
   const currentUser = useSelector((state) => state.profile);
   const streams = useSelector((state) => state.streams);
 
+  const tnsAllowedInstruments = useSelector(
+    (state) => state.config.tnsAllowedInstruments
+  );
+
   const { tnsrobotList } = useSelector((state) => state.tnsrobots);
   const [selectedTNSRobotId, setSelectedTNSRobotId] = useState(null);
 
@@ -57,6 +61,10 @@ const TNSATForm = ({ obj_id }) => {
   groups?.forEach((g) => {
     groupIDToName[g.id] = g.name;
   });
+
+  const allowedInstruments = instrumentList.filter((instrument) =>
+    (tnsAllowedInstruments || []).includes(instrument.name)
+  );
 
   useEffect(() => {
     const getTNSRobots = async () => {
@@ -142,7 +150,7 @@ const TNSATForm = ({ obj_id }) => {
       },
       instrument_id: {
         type: "integer",
-        oneOf: instrumentList.map((instrument) => ({
+        oneOf: allowedInstruments.map((instrument) => ({
           enum: [instrument.id],
           title: `${
             telescopeList.find(
