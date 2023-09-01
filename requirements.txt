@@ -1,6 +1,6 @@
 astroscrappy==1.1.0
 numpy==1.23.4
-scipy==1.11.1
+scipy==1.11.2
 pandas==2.0.1
 dask==2023.4.1
 geopandas==0.13.2
