@@ -10,9 +10,15 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
-from baselayer.app.models import (AccessibleIfUserMatches, Base,
-                                  CustomUserAccessControl, DBSession, User,
-                                  join_model, restricted)
+from baselayer.app.models import (
+    AccessibleIfUserMatches,
+    Base,
+    CustomUserAccessControl,
+    DBSession,
+    User,
+    join_model,
+    restricted,
+)
 
 from .group import Group, accessible_by_stream_members
 from .invitation import Invitation

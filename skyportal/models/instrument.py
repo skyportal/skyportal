@@ -12,13 +12,22 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import deferred, relationship
 
 from baselayer.app.env import load_env
-from baselayer.app.models import (Base, CustomUserAccessControl, DBSession,
-                                  join_model, public)
+from baselayer.app.models import (
+    Base,
+    CustomUserAccessControl,
+    DBSession,
+    join_model,
+    public,
+)
 from baselayer.log import make_log
 from skyportal import facility_apis
 
-from ..enum_types import (allowed_bandpasses, api_classnames, instrument_types,
-                          listener_classnames)
+from ..enum_types import (
+    allowed_bandpasses,
+    api_classnames,
+    instrument_types,
+    listener_classnames,
+)
 from .tns import TNSRobot
 
 _, cfg = load_env()
@@ -510,6 +519,7 @@ def _instrument_region_append(target, value, oldvalue, initiator):
 @event.listens_for(Instrument.region, 'remove')
 def _instrument_region_remove(target, value, initiator):
     target.has_region = False
+
 
 StreamTNSRobot = join_model("instrument_tnsrobots", Instrument, TNSRobot)
 StreamTNSRobot.__doc__ = "Join table mapping Streams to TNSRobots."

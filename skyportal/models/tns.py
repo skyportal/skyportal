@@ -6,8 +6,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils.types import JSONType
-from sqlalchemy_utils.types.encrypted.encrypted_type import (AesEngine,
-                                                             EncryptedType)
+from sqlalchemy_utils.types.encrypted.encrypted_type import AesEngine, EncryptedType
 
 from baselayer.app.env import load_env
 from baselayer.app.models import Base
@@ -69,8 +68,6 @@ class TNSRobot(Base):
         passive_deletes=True,
         doc="Streams to restrict the photometry to when auto-reporting.",
     )
-
-
 
     @property
     def altdata(self):

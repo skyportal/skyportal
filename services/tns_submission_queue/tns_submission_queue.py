@@ -117,7 +117,7 @@ def tns_submission(
         }
 
         if len(instrument_ids) > 0 and not set(instrument_ids).issubset(
-            set([instrument.id for instrument in instruments])
+            {instrument.id for instrument in instruments}
         ):
             log(
                 f'Not all instrument IDs {instrument_ids} are available for TNS submission.'
@@ -176,7 +176,7 @@ def tns_submission(
                         if stream.id in stream_ids:
                             phot_to_keep.append(phot)
                             break
-                
+
                 if len(phot_to_keep) == 0:
                     log(
                         f'No photometry with streams {stream_ids} that can be submitted to TNS is available for {obj_id}.'
@@ -194,7 +194,6 @@ def tns_submission(
                 photometry = phot_to_keep
 
             photometry = [serialize(phot, 'ab', 'mag') for phot in photometry]
-
 
             _, tns_name = get_IAUname(altdata['api_key'], tns_headers, obj_id=obj_id)
             if tns_name is not None:

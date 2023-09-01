@@ -95,16 +95,17 @@ const TNSRobots = ({ group_id }) => {
       bot_name: tnsrobotListLookup[id]?.bot_name || "",
       bot_id: tnsrobotListLookup[id]?.bot_id || "",
       source_group_id: tnsrobotListLookup[id]?.source_group_id || "",
-      auto_report: tnsrobotListLookup[id]?.auto_report_group_ids?.includes(
-        group_id
-      ),
+      auto_report:
+        tnsrobotListLookup[id]?.auto_report_group_ids?.includes(group_id),
       auto_reporters: tnsrobotListLookup[id]?.auto_reporters || "",
-      auto_report_instrument_ids: tnsrobotListLookup[id]?.auto_report_instruments.map(
-        (instrument) => instrument.id
-      ) || [],
-      auto_report_stream_ids: tnsrobotListLookup[id]?.auto_report_streams.map(
-        (stream) => stream.id
-      ) || [],
+      auto_report_instrument_ids:
+        tnsrobotListLookup[id]?.auto_report_instruments.map(
+          (instrument) => instrument.id
+        ) || [],
+      auto_report_stream_ids:
+        tnsrobotListLookup[id]?.auto_report_streams.map(
+          (stream) => stream.id
+        ) || [],
     });
     setEditDialogOpen(true);
     setTnsrobotToManage(id);
@@ -121,8 +122,15 @@ const TNSRobots = ({ group_id }) => {
   };
 
   const addTNSRobot = (formData) => {
-    const { bot_name, bot_id, source_group_id, auto_report, auto_reporters, auto_report_instrument_ids, auto_report_stream_ids } =
-      formData.formData;
+    const {
+      bot_name,
+      bot_id,
+      source_group_id,
+      auto_report,
+      auto_reporters,
+      auto_report_instrument_ids,
+      auto_report_stream_ids,
+    } = formData.formData;
 
     const auto_report_group_ids = [];
     if (auto_report) {
@@ -164,8 +172,15 @@ const TNSRobots = ({ group_id }) => {
   };
 
   const editTNSRobot = (formData) => {
-    const { bot_name, bot_id, source_group_id, auto_report, auto_reporters, auto_report_instrument_ids, auto_report_stream_ids } =
-      formData.formData;
+    const {
+      bot_name,
+      bot_id,
+      source_group_id,
+      auto_report,
+      auto_reporters,
+      auto_report_instrument_ids,
+      auto_report_stream_ids,
+    } = formData.formData;
 
     const auto_report_group_ids = [];
     if (auto_report) {
@@ -180,7 +195,6 @@ const TNSRobots = ({ group_id }) => {
       auto_reporters,
       auto_report_instrument_ids,
       auto_report_stream_ids,
-
     };
 
     dispatch(tnsrobotsActions.editTNSRobot(tnsrobotToManage, data)).then(
@@ -258,14 +272,19 @@ const TNSRobots = ({ group_id }) => {
               auto_reporters: {
                 type: "string",
                 title: "Auto reporters",
-                default: tnsrobotListLookup[tnsrobotToManage]?.auto_reporters || "",
+                default:
+                  tnsrobotListLookup[tnsrobotToManage]?.auto_reporters || "",
               },
               auto_report_instrument_ids: {
                 type: "array",
                 items: {
                   type: "integer",
-                  enum: (instrumentList || []).map((instrument) => instrument.id),
-                  enumNames: (instrumentList || []).map((instrument) => instrument.name),
+                  enum: (instrumentList || []).map(
+                    (instrument) => instrument.id
+                  ),
+                  enumNames: (instrumentList || []).map(
+                    (instrument) => instrument.name
+                  ),
                 },
                 uniqueItems: true,
                 default: [],
@@ -291,11 +310,8 @@ const TNSRobots = ({ group_id }) => {
   };
 
   const validate = (formData, errors) => {
-    const { source_group_id } =
-      formData;
-    if (
-      source_group_id !== "" && Number.isNaN(source_group_id)
-    ) {
+    const { source_group_id } = formData;
+    if (source_group_id !== "" && Number.isNaN(source_group_id)) {
       errors.source_group_id.addError("Source group ID must be a number.");
     }
     return errors;
@@ -417,20 +433,18 @@ const TNSRobots = ({ group_id }) => {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) => {
-          const auto_report_instruments = tnsrobotList[dataIndex].auto_report_instruments;
+          const { auto_report_instruments } = tnsrobotList[dataIndex];
           if (auto_report_instruments?.length > 0) {
             return (
               <span>
-                {
-                  auto_report_instruments.map((instrument) => {
-                      return instrument.name;
-                  }).join(", ")
-                }
+                {auto_report_instruments
+                  .map((instrument) => instrument.name)
+                  .join(", ")}
               </span>
             );
           }
           return <span />;
-        }
+        },
       },
     },
     {
@@ -440,19 +454,16 @@ const TNSRobots = ({ group_id }) => {
         filter: false,
         sort: true,
         customBodyRenderLite: (dataIndex) => {
-          const auto_report_streams = tnsrobotList[dataIndex].auto_report_streams;
+          const { auto_report_streams } = tnsrobotList[dataIndex];
           if (auto_report_streams?.length > 0) {
             return (
               <span>
-                {
-                  auto_report_streams.map((stream) => {
-                      return stream.name;
-                  }).join(", ")
-                }
+                {auto_report_streams.map((stream) => stream.name).join(", ")}
               </span>
             );
           }
-        }
+          return <span />;
+        },
       },
     },
     {
