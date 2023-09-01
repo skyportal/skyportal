@@ -104,7 +104,7 @@
     "underscore.template": "0.1.7",
     "use-count-up": "3.0.1",
     "vega": "5.25.0",
-    "vega-embed": "6.21.3",
+    "vega-embed": "6.22.2",
     "vega-lite": "5.12.0",
     "versor": "0.1.2"
   },
