@@ -8,7 +8,7 @@ import astropy.units as u
 import requests
 from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, sessionmaker, joinedload
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -23,11 +23,14 @@ from ...models import (
     SpectrumObserver,
     SpectrumReducer,
     TNSRobot,
+    Instrument,
+    Stream,
 )
 from ...utils.tns import (
     get_IAUname,
     get_tns,
     post_tns,
+    TNS_INSTRUMENT_IDS
 )
 from ..base import BaseHandler
 
@@ -92,7 +95,7 @@ class TNSRobotHandler(BaseHandler):
         with self.Session() as session:
             try:
                 # get owned tnsrobots
-                stmt = TNSRobot.select(session.user_or_token)
+                stmt = TNSRobot.select(session.user_or_token).options(joinedload(TNSRobot.auto_report_streams), joinedload(TNSRobot.auto_report_instruments))
 
                 if tnsrobot_id is not None:
                     try:
@@ -113,7 +116,7 @@ class TNSRobotHandler(BaseHandler):
                         return self.error("Group ID must be an integer (if specified).")
                     stmt = stmt.where(TNSRobot.group_id == group_id)
 
-                tns_robots = session.scalars(stmt).all()
+                tns_robots = session.scalars(stmt).unique().all()
                 return self.success(data=tns_robots)
             except Exception as e:
                 return self.error(f'Failed to retrieve TNS robots: {e}')
@@ -148,6 +151,9 @@ class TNSRobotHandler(BaseHandler):
 
         data = self.get_json()
 
+        auto_report_instrument_ids = data.pop('auto_report_instrument_ids', [])
+        auto_report_stream_ids = data.pop('auto_report_stream_ids', [])
+
         with self.Session() as session:
 
             try:
@@ -162,6 +168,47 @@ class TNSRobotHandler(BaseHandler):
             ).first()
             if group is None:
                 return self.error(f'No group with specified ID: {tnsrobot.group_id}')
+            
+            if len(auto_report_instrument_ids) > 0:
+                try:
+                    instrument_ids = [int(x) for x in auto_report_instrument_ids]
+                    if isinstance(instrument_ids, str):
+                        instrument_ids = [int(x) for x in instrument_ids.split(",")]
+                    else:
+                        instrument_ids = [int(x) for x in instrument_ids]
+                except ValueError:
+                    return self.error('instrument_ids must be a comma-separated list of integers')
+                instrument_ids = list(set(instrument_ids))
+                instruments = session.scalars(
+                    Instrument.select(session.user_or_token).where(
+                        Instrument.id.in_(instrument_ids)
+                    )
+                ).all()
+                if len(instruments) != len(instrument_ids):
+                    return self.error(f'One or more instruments not found: {instrument_ids}')
+                for instrument in instruments:
+                    if instrument.name not in TNS_INSTRUMENT_IDS:
+                        return self.error(f'Instrument {instrument.name} not supported for TNS reporting')
+                tnsrobot.auto_report_instruments = instruments
+            
+            if len(auto_report_stream_ids) > 0:
+                try:
+                    stream_ids = [int(x) for x in auto_report_stream_ids]
+                    if isinstance(stream_ids, str):
+                        stream_ids = [int(x) for x in stream_ids.split(",")]
+                    else:
+                        stream_ids = [int(x) for x in stream_ids]
+                except ValueError:
+                    return self.error('stream_ids must be a comma-separated list of integers')
+                stream_ids = list(set(stream_ids))
+                streams = session.scalars(
+                    Stream.select(session.user_or_token).where(
+                        Stream.id.in_(stream_ids)
+                    )
+                ).all()
+                if len(streams) != len(stream_ids):
+                    return self.error(f'One or more streams not found: {stream_ids}')
+                tnsrobot.auto_report_streams = streams
 
             session.add(tnsrobot)
             session.commit()
@@ -244,6 +291,29 @@ class TNSRobotHandler(BaseHandler):
             if len(data['auto_report_group_ids']) == 0:
                 data['auto_reporters'] = ''
 
+            if 'auto_report_instrument_ids' in data:
+                try:
+                    instrument_ids = [int(x) for x in data['auto_report_instrument_ids']]
+                    if isinstance(instrument_ids, str):
+                        instrument_ids = [int(x) for x in instrument_ids.split(",")]
+                    else:
+                        instrument_ids = [int(x) for x in instrument_ids]
+                except ValueError:
+                    return self.error('instrument_ids must be a comma-separated list of integers')
+                instrument_ids = list(set(instrument_ids))
+
+            if 'auto_report_stream_ids' in data:
+                try:
+                    stream_ids = [int(x) for x in data['auto_report_stream_ids']]
+                    if isinstance(stream_ids, str):
+                        stream_ids = [int(x) for x in stream_ids.split(",")]
+                    else:
+                        stream_ids = [int(x) for x in stream_ids]
+                except ValueError:
+                    return self.error('stream_ids must be a comma-separated list of integers')
+                stream_ids = list(set(stream_ids))
+
+
         with self.Session() as session:
             try:
                 tnsrobot = session.scalars(
@@ -263,8 +333,36 @@ class TNSRobotHandler(BaseHandler):
                         "TNS auto reporters must be a non-empty string when auto report group IDs are specified."
                     )
 
+                auto_report_instrument_ids = data.pop('auto_report_instrument_ids', [])
+                auto_report_stream_ids = data.pop('auto_report_stream_ids', [])
+
                 for key, val in data.items():
                     setattr(tnsrobot, key, val)
+
+                if len(auto_report_instrument_ids) > 0:
+                    instruments = session.scalars(
+                        Instrument.select(session.user_or_token).where(
+                            Instrument.id.in_(instrument_ids)
+                        )
+                    ).all()
+                    if len(instruments) != len(instrument_ids):
+                        return self.error(f'One or more instruments not found: {instrument_ids}')
+                    
+                    for instrument in instruments:
+                        if instrument.name not in TNS_INSTRUMENT_IDS:
+                            return self.error(f'Instrument {instrument.name} not supported for TNS reporting')
+                    tnsrobot.auto_report_instruments = instruments
+
+                if len(auto_report_stream_ids) > 0:
+                    streams = session.scalars(
+                        Stream.select(session.user_or_token).where(
+                            Stream.id.in_(stream_ids)
+                        )
+                    ).all()
+                    if len(streams) != len(stream_ids):
+                        return self.error(f'One or more streams not found: {stream_ids}')
+                    tnsrobot.auto_report_streams = streams
+                
                 session.commit()
                 self.push(
                     action='skyportal/REFRESH_TNSROBOTS',
@@ -516,8 +614,8 @@ class ObjTNSHandler(BaseHandler):
             reporters = data.get('reporters', '')
             archival = data.get('archival', False)
             archival_comment = data.get('archivalComment', '')
-            instrument_id = data.get('instrument_id')
-            stream_id = data.get('stream_id')
+            instrument_ids = data.get('instrument_ids', [])
+            stream_ids = data.get('stream_ids', [])
 
             if tnsrobotID is None:
                 return self.error('tnsrobotID is required')
@@ -525,6 +623,40 @@ class ObjTNSHandler(BaseHandler):
                 return self.error(
                     'reporters is required and must be a non-empty string'
                 )
+            if len(instrument_ids) > 0:
+                try:
+                    instrument_ids = [int(x) for x in instrument_ids]
+                except ValueError:
+                    return self.error('instrument_ids must be a comma-separated list of integers')
+                instrument_ids = list(set(instrument_ids))
+                instruments = session.scalars(
+                    Instrument.select(session.user_or_token).where(
+                        Instrument.id.in_(instrument_ids)
+                    )
+                ).all()
+                if len(instruments) != len(instrument_ids):
+                    return self.error(f'One or more instruments not found: {instrument_ids}')
+
+                for instrument in instruments:
+                    if instrument.name not in TNS_INSTRUMENT_IDS:
+                        return self.error(f'Instrument {instrument.name} not supported for TNS reporting')
+                
+            if stream_ids is not None:
+                try:
+                    if isinstance(stream_ids, str):
+                        stream_ids = [int(x) for x in stream_ids.split(",")]
+                    else:
+                        stream_ids = [int(x) for x in stream_ids]
+                except ValueError:
+                    return self.error('stream_ids must be a comma-separated list of integers')
+                stream_ids = list(set(stream_ids))
+                streams = session.scalars(
+                    Stream.select(session.user_or_token).where(
+                        Stream.id.in_(stream_ids)
+                    )
+                ).all()
+                if len(streams) != len(stream_ids):
+                    return self.error(f'One or more streams not found: {stream_ids}')
 
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
@@ -565,8 +697,8 @@ class ObjTNSHandler(BaseHandler):
                     reporters=reporters,
                     archival=archival,
                     archival_comment=archival_comment,
-                    instrument_id=instrument_id,
-                    stream_id=stream_id,
+                    instrument_ids=instrument_ids,
+                    stream_ids=stream_ids,
                     timeout=30,
                 ),
             )

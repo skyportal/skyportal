@@ -109,7 +109,7 @@ const TNSATForm = ({ obj_id }) => {
     const result = await dispatch(sourceActions.addSourceTNS(obj_id, formData));
     setSubmissionRequestInProcess(false);
     if (result.status === "success") {
-      dispatch(showNotification("TNS saved"));
+      dispatch(showNotification("added to TNS submission queue"));
     }
   };
 
@@ -152,13 +152,16 @@ const TNSATForm = ({ obj_id }) => {
         })),
         title: "Instrument",
       },
-      stream_id: {
-        type: "integer",
-        oneOf: streams.map((stream) => ({
-          enum: [stream.id],
-          title: `${stream.name}`,
-        })),
-        title: "Stream",
+      stream_ids: {
+        type: "array",
+        items: {
+          type: "integer",
+          enum: streams.map((stream) => stream.id),
+          enumNames: streams.map((stream) => stream.name),
+        },
+        uniqueItems: true,
+        default: [],
+        title: "Streams (optional)",
       },
     },
   };

@@ -1800,6 +1800,8 @@ def post_source(data, user_id, session, refresh_source=True):
                     tnsrobot_id=tnsrobot.id,
                     user_id=user.id,
                     reporters=tnsrobot.auto_reporters,
+                    instrument_ids=[instrument.id for instrument in tnsrobot.auto_report_instruments],
+                    stream_ids=[stream.id for stream in tnsrobot.auto_report_streams],
                     timeout=30,
                 ),
             )
