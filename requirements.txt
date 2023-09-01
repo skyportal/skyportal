@@ -49,7 +49,7 @@ sendgrid==6.10.0
 twilio==8.1.0
 responses==0.23.3
 numba==0.56.4
-pyvo==1.4.1
+pyvo==1.4.2
 lxml==4.9.2
 suds-py3==1.4.5.0
 vcrpy==4.2.1
