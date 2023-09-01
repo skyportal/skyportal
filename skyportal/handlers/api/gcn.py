@@ -1856,24 +1856,6 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
         user = session.scalar(sa.select(User).where(User.id == user_id))
         localization = session.query(Localization).get(localization_id)
         dateobs = localization.dateobs
-        config_gcn_observation_plans_all = [
-            observation_plan for observation_plan in cfg["gcn.observation_plans"]
-        ]
-        config_gcn_observation_plans = []
-        for config_gcn_observation_plan in config_gcn_observation_plans_all:
-            allocation = session.scalars(
-                Allocation.select(user).where(
-                    Allocation.proposal_id
-                    == config_gcn_observation_plan["allocation-proposal_id"]
-                )
-            ).first()
-            if allocation is not None:
-                allocation_id = allocation.id
-                config_gcn_observation_plan["allocation_id"] = allocation_id
-                config_gcn_observation_plan["survey_efficiencies"] = []
-                config_gcn_observation_plans.append(config_gcn_observation_plan)
-            else:
-                allocation_id = None
 
         default_observation_plans = (
             session.scalars(DefaultObservationPlanRequest.select(user)).unique().all()
@@ -1887,7 +1869,6 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                 'default': plan.id,
             }
             gcn_observation_plans.append(gcn_observation_plan)
-        gcn_observation_plans = gcn_observation_plans + config_gcn_observation_plans
 
         event = session.scalars(
             GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
