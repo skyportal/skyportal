@@ -3,6 +3,7 @@ import functools
 import io
 import json
 import random
+import re
 import tempfile
 import time
 import urllib
@@ -2307,9 +2308,9 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
                     content = g.read()
 
             data = io.BytesIO(content)
-            filename = (
-                f"{localization.localization_name}-{telescope.nickname}.{output_format}"
-            )
+            # we remove special characters and extensions other than .pdf
+            # otherwise, some browsers won't save the file as a PDF
+            filename = f"{re.sub(r'[^a-zA-Z0-9]', '_', localization.localization_name).replace('.fits', '').replace('.fit', '')}-{telescope.nickname}.{output_format}"
 
             await self.send_file(data, filename, output_type=output_format)
 

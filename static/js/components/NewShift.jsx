@@ -132,7 +132,6 @@ const NewShift = () => {
             .add(i * 7, "day")
             .format("YYYY-MM-DDTHH:mm:ssZ")
             .replace(/[-+]\d\d:\d\d$/, "");
-          console.log(newFormData.start_date);
           if (i === weeks - 1) {
             newFormData.end_date = endDate
               .format("YYYY-MM-DDTHH:mm:ssZ")
