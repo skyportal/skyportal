@@ -126,7 +126,6 @@ const FollowupRequestLists = ({
   const handleGet = async (id) => {
     setIsGetting(id);
     dispatch(Actions.getPhotometryRequest(id)).then((response) => {
-      console.log(response);
       if (response.status === "success") {
         dispatch(
           showNotification(

@@ -186,6 +186,7 @@ const ObservationPlanGlobe = ({
   selectedFields,
   setSelectedFields,
   selectedProjection,
+  airmassValue = 2.5,
 }) => {
   const displayOptions = [
     "localization",
@@ -209,6 +210,7 @@ const ObservationPlanGlobe = ({
       selectedFields={selectedFields}
       setSelectedFields={setSelectedFields}
       projection={selectedProjection}
+      airmass_threshold={airmassValue}
     />
   );
 };
@@ -249,11 +251,13 @@ ObservationPlanGlobe.propTypes = {
   selectedFields: PropTypes.arrayOf(PropTypes.number).isRequired,
   setSelectedFields: PropTypes.func.isRequired,
   selectedProjection: PropTypes.string,
+  airmassValue: PropTypes.number,
 };
 
 ObservationPlanGlobe.defaultProps = {
   skymapInstrument: null,
   selectedProjection: "orthographic",
+  airmassValue: 2.5,
 };
 
 const MyObjectFieldTemplate = (props) => {
@@ -311,6 +315,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     dayjs(gcnEvent?.dateobs).format("YYYY-MM-DDTHH:mm:ssZ")
   );
   const [airmassTime, setAirmassTime] = useState(defaultAirmassTime);
+  const [airmassValue, setAirmassValue] = useState(2.5);
   const [temporaryAirmassTime, setTemporaryAirmassTime] =
     useState(defaultAirmassTime);
 
@@ -580,6 +585,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
               selectedFields={selectedFields}
               setSelectedFields={setSelectedFields}
               selectedProjection={selectedProjection}
+              airmassValue={airmassValue}
             />
           </Grid>
           <Grid item xs={12} sm={5} md={12}>
@@ -609,9 +615,21 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                   </MenuItem>
                 ))}
               </Select>
-              <InputLabel id="airmassTimeSelectLabel">Airmass Time</InputLabel>
+              <InputLabel
+                id="airmassTimeSelectLabel"
+                style={{ marginBottom: "0.5rem" }}
+              >
+                Airmass Time
+              </InputLabel>
               <Grid container spacing={1} alignItems="center">
-                <Grid item>
+                <Grid
+                  item
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "3fr 1fr",
+                    gap: "0.2rem",
+                  }}
+                >
                   <LocalizationProvider dateAdapter={AdapterDateFns}>
                     <DateTimePicker
                       value={temporaryAirmassTime}
@@ -626,6 +644,22 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                       style={{ minWidth: "100%" }}
                     />
                   </LocalizationProvider>
+                  <TextField
+                    id="airmassThreshold"
+                    label="Threshold"
+                    type="number"
+                    value={airmassValue}
+                    onChange={(e) => setAirmassValue(e.target.value)}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                    inputProps={{
+                      step: 0.1,
+                      min: 1.0,
+                      max: 3.0,
+                    }}
+                    style={{ width: "100%" }}
+                  />
                 </Grid>
                 <Grid item>
                   <Button id="setAirmassSelect" onClick={() => setAirmass()}>
@@ -794,6 +828,14 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                   ?.name
               }: ${plan.payload.queue_name}`}
               data-testid={`queueName_${plan.payload.queue_name}`}
+              onDelete={() => {
+                setPlanQueues(
+                  planQueues.filter(
+                    (queue) =>
+                      queue.payload.queue_name !== plan.payload.queue_name
+                  )
+                );
+              }}
             />
           ))}
         </div>

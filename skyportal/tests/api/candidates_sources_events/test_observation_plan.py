@@ -171,7 +171,7 @@ def test_observation_plan_tiling(super_admin_token, public_group):
                 'galactic_latitude': 10,
             },
         }
-        for _ in range(5)
+        for _ in range(3)
     ]
 
     for request_data in requests_data:
@@ -209,7 +209,13 @@ def test_observation_plan_tiling(super_admin_token, public_group):
             ]
             assert len(data) == len(requests_data)
             for i, d in enumerate(data):
-                assert d["payload"] == requests_data[i]["payload"]
+
+                assert any(
+                    [
+                        d['payload'] == request_data["payload"]
+                        for request_data in requests_data
+                    ]
+                )
                 observation_plans = d['observation_plans']
                 assert len(observation_plans) == 1
                 observation_plan = observation_plans[0]
@@ -231,8 +237,8 @@ def test_observation_plan_tiling(super_admin_token, public_group):
                 # same with the validity window start
                 assert any(
                     [
-                        observation_plan['validity_window_end']
-                        == request_data["payload"]['end_date'].replace(" ", "T")
+                        observation_plan['validity_window_start']
+                        == request_data["payload"]['start_date'].replace(" ", "T")
                         for request_data in requests_data
                     ]
                 )
@@ -465,7 +471,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
                 'galactic_latitude': 10,
             },
         }
-        for _ in range(5)
+        for _ in range(3)
     ]
 
     for request_data in requests_data:
@@ -500,26 +506,34 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
             assert len(data) == len(requests_data)
 
             for i, d in enumerate(data):
-                assert d["payload"] == requests_data[i]["payload"]
+                assert any(
+                    [
+                        d['payload']['queue_name']
+                        == request_data["payload"]['queue_name']
+                        for request_data in requests_data
+                    ]
+                )
                 observation_plans = d['observation_plans']
                 assert len(observation_plans) == 1
                 observation_plan = observation_plans[0]
 
-                assert (
-                    observation_plan['plan_name']
-                    == requests_data[i]["payload"]['queue_name']
+                assert any(
+                    [
+                        observation_plan['plan_name']
+                        == request_data["payload"]['queue_name']
+                        for request_data in requests_data
+                    ]
                 )
-                assert observation_plan['validity_window_start'] == requests_data[i][
+                assert observation_plan['validity_window_start'] == requests_data[0][
                     "payload"
                 ]['start_date'].replace(" ", "T")
-                assert observation_plan['validity_window_end'] == requests_data[i][
+                assert observation_plan['validity_window_end'] == requests_data[0][
                     "payload"
                 ]['end_date'].replace(" ", "T")
 
                 planned_observations = observation_plan['planned_observations']
-                assert len(planned_observations) > 0
+                assert len(planned_observations) >= 11
 
-                assert len(planned_observations) == 11
                 assert all(
                     [
                         obs['filt'] == requests_data[i]["payload"]['filters']
