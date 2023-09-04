@@ -366,7 +366,7 @@ export const getSortedClasses = (classifications) => {
 };
 
 function ShowClassification({ classifications, taxonomyList, shortened }) {
-  const sorted_classifications = classifications.sort((a, b) =>
+  const sorted_classifications = (classifications || []).sort((a, b) =>
     a.created_at > b.created_at ? -1 : 1
   );
 

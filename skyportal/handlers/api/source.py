@@ -1563,7 +1563,7 @@ async def get_sources(
                 count_stmt = sa.select(func.count()).select_from(stmt.distinct())
                 total_spectrum = session.execute(count_stmt).scalar()
                 obj_list[-1]["spectrum_exists"] = total_spectrum > 0
-            if include_spectrum_exists:
+            if include_comment_exists:
                 stmt = Comment.select(session.user_or_token).where(
                     Comment.obj_id == obj.id
                 )
