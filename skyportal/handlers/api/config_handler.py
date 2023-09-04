@@ -13,10 +13,13 @@ from ...enum_types import (
 
 from .recurring_api import ALLOWED_RECURRING_API_METHODS
 from .source import MAX_NUM_DAYS_USING_LOCALIZATION
+from skyportal.utils.tns import TNS_INSTRUMENT_IDS
 
 from skyportal.models import cosmo
 
 _, cfg = load_env()
+
+TNS_INSTRUMENTS = list(TNS_INSTRUMENT_IDS.keys())
 
 
 class ConfigHandler(BaseHandler):
@@ -87,6 +90,7 @@ class ConfigHandler(BaseHandler):
                 "allowedRecurringAPIMethods": ALLOWED_RECURRING_API_METHODS,
                 "classificationsClasses": cfg["colors.classifications"],
                 "summary_sourcesClasses": cfg["colors.summary_sources"],
+                "tnsAllowedInstruments": TNS_INSTRUMENTS,
                 "gcnTagsClasses": cfg["colors.gcnTags"],
                 "colorPalette": getattr(
                     palettes, cfg.get("misc.bokeh_color_palette", "Turbo256")

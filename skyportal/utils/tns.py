@@ -247,6 +247,8 @@ def post_tns(
     reporters="",
     archival=False,
     archival_comment="",
+    instrument_ids=[],
+    stream_ids=[],
     timeout=2,
 ):
 
@@ -257,6 +259,8 @@ def post_tns(
         'reporters': reporters,
         'archival': archival,
         'archival_comment': archival_comment,
+        'instrument_ids': instrument_ids,
+        'stream_ids': stream_ids,
     }
 
     tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_submission_queue"]}'
