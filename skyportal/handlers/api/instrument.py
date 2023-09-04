@@ -1093,6 +1093,40 @@ def add_tiles(
             session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
+        if references is not None:
+            reference_filters = {}
+            reference_filter_mags = {}
+            for name, group in references.groupby('field'):
+                reference_filters[name] = group['filter'].tolist()
+                if 'limmag' in list(references.columns):
+                    reference_filter_mags[name] = group['limmag'].tolist()
+
+        # if we are only adding/modifying references, no need to modify anything else
+        if field_data is None and references is not None:
+            fields = (
+                session.scalars(
+                    sa.select(InstrumentField).where(
+                        InstrumentField.instrument_id == instrument_id
+                    )
+                )
+                .unique()
+                .all()
+            )
+            for field in fields:
+                if field.field_id in reference_filters:
+                    setattr(
+                        field, 'reference_filters', reference_filters[field.field_id]
+                    )
+                    if field.field_id in reference_filter_mags:
+                        setattr(
+                            field,
+                            'reference_filter_mags',
+                            reference_filter_mags[field.field_id],
+                        )
+                    session.add(field)
+            session.commit()
+            return
+
         # Loop over the telescope tiles and create fields for each
         skyoffset_frames = coordinates.SkyCoord(
             field_data['RA'], field_data['Dec'], unit=u.deg
@@ -1147,14 +1181,6 @@ def add_tiles(
             ids = field_data['ID']
         else:
             ids = [-1] * len(field_data['RA'])
-
-        if references is not None:
-            reference_filters = {}
-            reference_filter_mags = {}
-            for name, group in references.groupby('field'):
-                reference_filters[name] = group['filter'].tolist()
-                if 'limmag' in list(references.columns):
-                    reference_filter_mags[name] = group['limmag'].tolist()
 
         for ii, (field_id, ra, dec, coords) in enumerate(
             zip(ids, field_data['RA'], field_data['Dec'], coords_icrs)
@@ -1284,7 +1310,6 @@ def add_tiles(
                         create_field = False
 
                 if create_field:
-
                     field = InstrumentField(
                         instrument_id=instrument_id,
                         field_id=int(field_id),
@@ -1294,14 +1319,17 @@ def add_tiles(
                         dec=dec,
                     )
 
-                    if references is not None:
-                        if field_id in reference_filters:
-                            field.reference_filters = reference_filters[field_id]
-                            if 'limmag' in list(references.columns):
-                                field.reference_filter_mags = reference_filter_mags[
-                                    field_id
-                                ]
+                    session.add(field)
+                    session.commit()
 
+                if references is not None and field_id in reference_filters:
+                    setattr(field, 'reference_filters', reference_filters[field_id])
+                    if 'limmag' in list(references.columns):
+                        setattr(
+                            field,
+                            'reference_filter_mags',
+                            reference_filter_mags[field_id],
+                        )
                     session.add(field)
                     session.commit()
 
@@ -1320,13 +1348,16 @@ def add_tiles(
             session.add_all(tiles)
             session.commit()
 
-            instrument = session.scalars(
-                sa.select(Instrument).where(
-                    Instrument.id == instrument_id,
-                )
-            ).first()
+        instrument = session.scalars(
+            sa.select(Instrument).where(
+                Instrument.id == instrument_id,
+            )
+        ).first()
+        if instrument is not None and len(instrument.fields) > 0:
             instrument.has_fields = True
-            session.commit()
+        else:
+            instrument.has_fields = False
+        session.commit()
 
         log(f"Successfully generated fields for instrument {instrument_id}")
     except Exception as e:
@@ -1375,6 +1406,16 @@ class InstrumentFieldHandler(BaseHandler):
                     InstrumentFieldTile.instrument_id == instrument.id,
                 )
             )
+
+            instrument = session.scalars(
+                sa.select(Instrument).where(
+                    Instrument.id == instrument_id,
+                )
+            ).first()
+            if instrument is not None and len(instrument.fields) > 0:
+                instrument.has_fields = True
+            else:
+                instrument.has_fields = False
             session.commit()
 
         self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
