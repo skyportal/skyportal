@@ -3,6 +3,7 @@ import functools
 import io
 import json
 import random
+import re
 import tempfile
 import time
 import urllib
@@ -22,7 +23,6 @@ import matplotlib.animation as animation
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-import numpy.ma as ma
 import pandas as pd
 import requests
 import simsurvey
@@ -62,6 +62,7 @@ from skyportal.facility_apis.observation_plan import (
 from skyportal.handlers.api.followup_request import post_assignment
 from skyportal.handlers.api.observingrun import post_observing_run
 from skyportal.handlers.api.source import post_source
+from skyportal.utils.calculations import get_rise_set_time
 
 from ...models import (
     Allocation,
@@ -787,42 +788,47 @@ class ObservationPlanRequestHandler(BaseHandler):
                     observation_plans = []
                     for observation_plan in observation_plan_request.observation_plans:
                         planned_observations = []
-                        for (
-                            planned_observation
-                        ) in observation_plan.planned_observations:
-                            set_time = planned_observation.set_time()
-                            if set_time is not None:
-                                set_time = set_time.isot
-                            rise_time = planned_observation.rise_time()
-                            if rise_time is not None:
-                                rise_time = rise_time.isot
-                            planned_observation_data = planned_observation.to_dict()
-                            del planned_observation_data["instrument"]
+                        fields = [
+                            planned_observation.field.to_dict()
+                            for planned_observation in observation_plan.planned_observations
+                        ]
+                        rise_times, set_times = get_rise_set_time(
+                            fields=fields,
+                            observer=observation_plan.instrument.telescope.observer,
+                        )
+                        for (planned_observation, rise_time, set_time) in zip(
+                            observation_plan.planned_observations, rise_times, set_times
+                        ):
+                            planned_observation_data = {
+                                **planned_observation.to_dict(),
+                                'field': planned_observation.field.to_dict(),
+                            }
                             # rename the field_id key to field_db_id to avoid confusion
                             planned_observation_data[
                                 "field_db_id"
                             ] = planned_observation_data.pop("field_id")
                             planned_observation_data[
                                 "field_id"
-                            ] = planned_observation_data['field'].field_id
+                            ] = planned_observation_data['field']['field_id']
 
                             planned_observations.append(
                                 {
                                     **planned_observation_data,
-                                    'rise_time': rise_time
-                                    if not type(rise_time) is ma.masked_array
+                                    'rise_time': rise_time.isot
+                                    if isinstance(rise_time, Time)
                                     else None,
-                                    'set_time': set_time
-                                    if not type(set_time) is ma.masked_array
+                                    'set_time': set_time.isot
+                                    if isinstance(set_time, Time)
                                     else None,
                                 }
                             )
-                            # sort the planned observations by obstime
-                            planned_observations = sorted(
-                                planned_observations,
-                                key=lambda k: k['obstime'],
-                                reverse=False,
-                            )
+                        # sort the planned observations by obstime
+                        planned_observations = sorted(
+                            planned_observations,
+                            key=lambda k: k['obstime'],
+                            reverse=False,
+                        )
+
                         observation_plans.append(
                             {
                                 **observation_plan.to_dict(),
@@ -2307,9 +2313,9 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
                     content = g.read()
 
             data = io.BytesIO(content)
-            filename = (
-                f"{localization.localization_name}-{telescope.nickname}.{output_format}"
-            )
+            # we remove special characters and extensions other than .pdf
+            # otherwise, some browsers won't save the file as a PDF
+            filename = f"{re.sub(r'[^a-zA-Z0-9]', '_', localization.localization_name).replace('.fits', '').replace('.fit', '')}-{telescope.nickname}.{output_format}"
 
             await self.send_file(data, filename, output_type=output_format)
 

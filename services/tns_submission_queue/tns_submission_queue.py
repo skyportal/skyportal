@@ -15,6 +15,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
 from baselayer.log import make_log
+from baselayer.app.flow import Flow
 from skyportal.handlers.api.photometry import serialize
 from skyportal.models import DBSession, Instrument, Obj, Photometry, TNSRobot, User
 from skyportal.utils.tns import (
@@ -44,6 +45,8 @@ def tns_submission(
     reporters="",
     archival=False,
     archival_comment="",
+    instrument_ids=[],
+    stream_ids=[],
     parent_session=None,
 ):
     """Submit objects to TNS.
@@ -59,9 +62,15 @@ def tns_submission(
         Reporting the source as an archival source (i.e. no upperlimit).
     archival_comment : str
         Comment on archival source. Required if archival is True.
+    instrument_ids : List[int]
+        Instrument IDs to restrict photometry to.
+    stream_ids : List[int]
+        Stream IDs to restrict photometry to.
     parent_session : `sqlalchemy.orm.session.Session`
         Database session.
     """
+    print(instrument_ids)
+    print(stream_ids)
 
     if parent_session is None:
         if Session.registry.has():
@@ -73,6 +82,8 @@ def tns_submission(
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
+    flow = Flow()
+
     try:
         # for now we limit it to instruments and filters we have mapped to TNS
         instruments = session.scalars(
@@ -81,9 +92,7 @@ def tns_submission(
             )
         ).all()
         if len(instruments) == 0:
-            raise ValueError(
-                'No instrument with known IDs available. Submitting to TNS is only available for ZTF and DECam data (for now).'
-            )
+            raise ValueError('No instrument with known IDs available.')
 
         tnsrobot = session.scalars(
             TNSRobot.select(user).where(TNSRobot.id == tnsrobot_id)
@@ -107,32 +116,96 @@ def tns_submission(
             'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
         }
 
+        if len(instrument_ids) > 0 and not set(instrument_ids).issubset(
+            {instrument.id for instrument in instruments}
+        ):
+            log(
+                f'Not all instrument IDs {instrument_ids} are available for TNS submission.'
+            )
+            flow.push(
+                user_id=user_id,
+                action_type="baselayer/SHOW_NOTIFICATION",
+                payload={
+                    "note": f'Not all instrument IDs {instrument_ids} are available for TNS submission.',
+                    "type": "warning",
+                },
+            )
+            return
+
         for obj_id in obj_ids:
             obj = session.scalars(Obj.select(user).where(Obj.id == obj_id)).first()
             if obj is None:
                 log(f'No object available with ID {obj_id}')
                 continue
 
-            photometry = session.scalars(
-                Photometry.select(user).where(
-                    Photometry.obj_id == obj_id,
-                    Photometry.instrument_id.in_(
-                        [instrument.id for instrument in instruments]
-                    ),
-                )
-            ).all()
+            if len(instrument_ids) == 0:
+                photometry = session.scalars(
+                    Photometry.select(user).where(
+                        Photometry.obj_id == obj_id,
+                        Photometry.instrument_id.in_(
+                            [instrument.id for instrument in instruments]
+                        ),
+                    )
+                ).all()
+            else:
+                photometry = session.scalars(
+                    Photometry.select(user).where(
+                        Photometry.obj_id == obj_id,
+                        Photometry.instrument_id.in_(instrument_ids),
+                    )
+                ).all()
 
             if len(photometry) == 0:
                 log(
-                    f'No photometry from instrument that can be submitted to TNS) available for {obj_id}.'
+                    f'No photometry that can be submitted to TNS is available for {obj_id}.'
+                )
+                flow.push(
+                    user_id=user_id,
+                    action_type="baselayer/SHOW_NOTIFICATION",
+                    payload={
+                        "note": f'No photometry that can be submitted to TNS is available for {obj_id}.',
+                        "type": "warning",
+                    },
                 )
                 continue
+
+            if len(stream_ids) > 0:
+                phot_to_keep = []
+                for phot in photometry:
+                    for stream in phot.streams:
+                        if stream.id in stream_ids:
+                            phot_to_keep.append(phot)
+                            break
+
+                if len(phot_to_keep) == 0:
+                    log(
+                        f'No photometry with streams {stream_ids} that can be submitted to TNS is available for {obj_id}.'
+                    )
+                    flow.push(
+                        user_id=user_id,
+                        action_type="baselayer/SHOW_NOTIFICATION",
+                        payload={
+                            "note": f'No photometry with streams {stream_ids} that can be submitted to TNS is available for {obj_id}.',
+                            "type": "warning",
+                        },
+                    )
+                    continue
+
+                photometry = phot_to_keep
 
             photometry = [serialize(phot, 'ab', 'mag') for phot in photometry]
 
             _, tns_name = get_IAUname(altdata['api_key'], tns_headers, obj_id=obj_id)
             if tns_name is not None:
                 log(f'{obj_id} already posted to TNS as {tns_name}.')
+                flow.push(
+                    user_id=user_id,
+                    action_type="baselayer/SHOW_NOTIFICATION",
+                    payload={
+                        "note": f'{obj_id} already posted to TNS as {tns_name}.',
+                        "type": "warning",
+                    },
+                )
                 continue
 
             time_first = mag_first = magerr_first = filt_first = instrument_first = None
@@ -153,11 +226,27 @@ def tns_submission(
 
             if len(detections) == 0:
                 log(f'Need at least one detection for TNS report of {obj_id}')
+                flow.push(
+                    user_id=user_id,
+                    action_type="baselayer/SHOW_NOTIFICATION",
+                    payload={
+                        "note": f'Need at least one detection for TNS report of {obj_id}',
+                        "type": "warning",
+                    },
+                )
                 continue
 
             if len(non_detections) == 0 and not archival:
                 log(
                     f'Need at least one non-detection for non-archival TNS report of {obj_id}'
+                )
+                flow.push(
+                    user_id=user_id,
+                    action_type="baselayer/SHOW_NOTIFICATION",
+                    payload={
+                        "note": f'Need at least one non-detection for non-archival TNS report of {obj_id}',
+                        "type": "warning",
+                    },
                 )
                 continue
 
@@ -292,6 +381,8 @@ def service(queue):
                 reporters = data.get("reporters", "")
                 archival = data.get("archival", False)
                 archival_comment = data.get("archival_comment", "")
+                instrument_ids = data.get("instrument_ids", [])
+                stream_ids = data.get("stream_ids", [])
 
                 tns_submission(
                     obj_ids,
@@ -300,6 +391,8 @@ def service(queue):
                     reporters=reporters,
                     archival=archival,
                     archival_comment=archival_comment,
+                    instrument_ids=instrument_ids,
+                    stream_ids=stream_ids,
                     parent_session=session,
                 )
             except Exception as e:

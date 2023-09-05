@@ -444,9 +444,9 @@ def generate_plan(
             'telescopes': [request.instrument.name for request in requests],
             # minimum difference between observations of the same field
             'doMindifFilt': True
-            if request.payload["minimum_time_difference"] > 0
+            if request.payload.get("minimum_time_difference", 0) > 0
             else False,
-            'mindiff': request.payload["minimum_time_difference"] * 60,
+            'mindiff': request.payload.get("minimum_time_difference", 0) * 60,
             # maximum airmass with which to observae
             'airmass': request.payload["maximum_airmass"],
             # array of exposure times (same length as filter array)
@@ -485,8 +485,8 @@ def generate_plan(
             'maximumOverlap': 1.0,
             # time allocation strategy
             'timeallocationType': 'powerlaw',
-            # check for references
-            'doReferences': False,
+            # check for references, works in gwemopt only for ZTF and DECAM
+            'doReferences': request.payload.get("use_references", False),
             # treasuremap interactions
             'treasuremap_token': None,
             # number of scheduling blocks to attempt
@@ -506,7 +506,6 @@ def generate_plan(
             'doChipGaps': False,
         }
 
-        # TODO: understand why this is required for combined plans
         if len(requests) > 1:
             params['doOrderByObservability'] = True
 
@@ -573,6 +572,15 @@ def generate_plan(
                 # limiting magnitude given telescope time
                 'magnitude': 0.0,
             }
+
+            if request.payload.get("use_references", False):
+                config[request.instrument.name]["reference_images"] = {
+                    field.field_id: field.reference_filters
+                    if field.reference_filters is not None
+                    else []
+                    for field in fields
+                }
+
         params['config'] = config
 
         if request.payload["schedule_strategy"] == "galaxy":
@@ -966,12 +974,19 @@ class MMAAPI(FollowUpAPI):
                     'filters',
                     'maximum_airmass',
                     'integrated_probability',
-                    'minimum_time_difference',
                     'galactic_latitude',
                 }
 
                 if not required_parameters.issubset(set(request.payload.keys())):
                     raise ValueError('Missing required planning parameter')
+
+                if (
+                    request.payload["filter_strategy"] == "integrated"
+                    and "minimum_time_difference" not in request.payload
+                ):
+                    raise ValueError(
+                        'minimum_time_difference must be defined for integrated scheduling'
+                    )
 
                 if request.payload["schedule_type"] not in [
                     "greedy",
@@ -1097,11 +1112,18 @@ class MMAAPI(FollowUpAPI):
                     'filters',
                     'maximum_airmass',
                     'integrated_probability',
-                    'minimum_time_difference',
                 }
 
                 if not required_parameters.issubset(set(request.payload.keys())):
                     raise ValueError('Missing required planning parameter')
+
+                if (
+                    request.payload["filter_strategy"] == "integrated"
+                    and "minimum_time_difference" not in request.payload
+                ):
+                    raise ValueError(
+                        'minimum_time_difference must be defined for integrated scheduling'
+                    )
 
                 if request.payload["schedule_type"] not in [
                     "greedy",
@@ -1227,7 +1249,7 @@ class MMAAPI(FollowUpAPI):
 
     def custom_json_schema(instrument, user):
 
-        from ..models import DBSession, Galaxy
+        from ..models import DBSession, Galaxy, InstrumentField
 
         galaxies = [g for g, in DBSession().query(Galaxy.catalog_name).distinct().all()]
         end_date = instrument.telescope.next_sunrise()
@@ -1236,9 +1258,25 @@ class MMAAPI(FollowUpAPI):
         else:
             end_date = Time(end_date, format='jd').iso
 
+        # we add a use_references boolean to the schema if any of the instrument's fields has reference filters
+        has_references = (
+            DBSession()
+            .query(InstrumentField)
+            .filter(
+                InstrumentField.instrument_id == instrument.id,
+                InstrumentField.reference_filters != '{}',
+            )
+            .count()
+            > 0
+        )
+
         form_json_schema = {
             "type": "object",
             "properties": {
+                "queue_name": {
+                    "type": "string",
+                    "default": f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}",
+                },
                 "start_date": {
                     "type": "string",
                     "default": str(datetime.utcnow()),
@@ -1257,22 +1295,12 @@ class MMAAPI(FollowUpAPI):
                 "schedule_type": {
                     "type": "string",
                     "enum": ["greedy", "greedy_slew", "sear", "airmass_weighted"],
-                    "default": "greedy_slew",
+                    "default": "greedy",
                 },
                 "schedule_strategy": {
                     "type": "string",
                     "enum": ["tiling", "galaxy"],
                     "default": "tiling",
-                },
-                "galaxy_catalog": {
-                    "type": "string",
-                    "enum": galaxies,
-                    "default": galaxies[0] if len(galaxies) > 0 else "",
-                },
-                "galaxy_sorting": {
-                    "type": "string",
-                    "enum": ["equal", "sfr_fuv", "mstar", "magb", "magk"],
-                    "default": "equal",
                 },
                 "exposure_time": {
                     "title": "Exposure Time [s]",
@@ -1295,34 +1323,15 @@ class MMAAPI(FollowUpAPI):
                     "minimum": 0,
                     "maximum": 100,
                 },
-                "minimum_time_difference": {
-                    "title": "Minimum time difference [min] (0-180)",
-                    "type": "number",
-                    "default": 30.0,
-                    "minimum": 0,
-                    "maximum": 180,
-                },
                 "galactic_plane": {
                     "title": "Avoid the Galactic Plane?",
                     "type": "boolean",
-                },
-                "galactic_latitude": {
-                    "title": "Galactic latitude to exclude",
-                    "type": "number",
-                    "default": 10.0,
-                    "minimum": 0,
-                    "maximum": 90,
+                    "default": False,
                 },
                 "max_tiles": {
                     "title": "Threshold on number of fields?",
                     "type": "boolean",
-                },
-                "max_nb_tiles": {
-                    "title": "Maximum number of fields",
-                    "type": "number",
-                    "default": 100.0,
-                    "minimum": 0,
-                    "maximum": 1000,
+                    "default": False,
                 },
                 "balance_exposure": {
                     "title": "Balance exposures across fields",
@@ -1332,24 +1341,7 @@ class MMAAPI(FollowUpAPI):
                 "ra_slice": {
                     "title": "RA Slicing",
                     "type": "boolean",
-                },
-                "ra_slice_min": {
-                    "title": "Minimum RA",
-                    "type": "number",
-                    "default": 0.0,
-                    "minimum": 0,
-                    "maximum": 360,
-                },
-                "ra_slice_max": {
-                    "title": "Maximum RA",
-                    "type": "number",
-                    "default": 360.0,
-                    "minimum": 0.0,
-                    "maximum": 360,
-                },
-                "queue_name": {
-                    "type": "string",
-                    "default": f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}",
+                    "default": False,
                 },
             },
             "required": [
@@ -1363,10 +1355,130 @@ class MMAAPI(FollowUpAPI):
                 "exposure_time",
                 "maximum_airmass",
                 "integrated_probability",
-                "minimum_time_difference",
             ],
+            "dependencies": {
+                "galactic_plane": {
+                    "oneOf": [
+                        {
+                            "properties": {
+                                "galactic_plane": {
+                                    "enum": [True],
+                                },
+                                "galactic_latitude": {
+                                    "title": "Galactic latitude to exclude",
+                                    "type": "number",
+                                    "default": 10.0,
+                                    "minimum": 0,
+                                    "maximum": 90,
+                                },
+                            },
+                            "required": ["galactic_latitude"],
+                        },
+                    ],
+                },
+                "max_tiles": {
+                    "oneOf": [
+                        {
+                            "properties": {
+                                "max_tiles": {
+                                    "enum": [True],
+                                },
+                                "max_nb_tiles": {
+                                    "title": "Maximum number of fields",
+                                    "type": "number",
+                                    "default": 100.0,
+                                    "minimum": 0,
+                                    "maximum": 1000,
+                                },
+                            },
+                            "required": ["max_nb_tiles"],
+                        },
+                    ],
+                },
+                "ra_slice": {
+                    "oneOf": [
+                        {
+                            "properties": {
+                                "ra_slice": {
+                                    "enum": [True],
+                                },
+                                "ra_slice_min": {
+                                    "title": "Minimum RA",
+                                    "type": "number",
+                                    "default": 0.0,
+                                    "minimum": 0,
+                                    "maximum": 360,
+                                },
+                                "ra_slice_max": {
+                                    "title": "Maximum RA",
+                                    "type": "number",
+                                    "default": 360.0,
+                                    "minimum": 0.0,
+                                    "maximum": 360,
+                                },
+                            },
+                            "required": ["ra_slice_min", "ra_slice_max"],
+                        },
+                    ],
+                },
+                "filter_strategy": {
+                    # we want to show min_time_difference only if filter_strategy is integrated
+                    "oneOf": [
+                        {
+                            "properties": {
+                                "filter_strategy": {
+                                    "enum": ["integrated"],
+                                },
+                                "minimum_time_difference": {
+                                    "title": "Minimum time difference [min] (0-180)",
+                                    "type": "number",
+                                    "default": 30.0,
+                                    "minimum": 0,
+                                    "maximum": 180,
+                                },
+                            },
+                            "required": ["minimum_time_difference"],
+                        },
+                    ],
+                },
+                # we want to show galaxy_catalog and galaxy_sorting only if schedule_strategy is galaxy
+                "schedule_strategy": {
+                    "oneOf": [
+                        {
+                            "properties": {
+                                "schedule_strategy": {
+                                    "enum": ["galaxy"],
+                                },
+                                "galaxy_catalog": {
+                                    "type": "string",
+                                    "enum": galaxies,
+                                    "default": galaxies[0] if len(galaxies) > 0 else "",
+                                },
+                                "galaxy_sorting": {
+                                    "type": "string",
+                                    "enum": [
+                                        "equal",
+                                        "sfr_fuv",
+                                        "mstar",
+                                        "magb",
+                                        "magk",
+                                    ],
+                                    "default": "equal",
+                                },
+                            },
+                            "required": ["galaxy_catalog", "galaxy_sorting"],
+                        },
+                    ],
+                },
+            },
         }
 
+        if has_references:
+            form_json_schema["properties"]["use_references"] = {
+                "title": "Use fields with references only?",
+                "type": "boolean",
+                "default": True,
+            }
         return form_json_schema
 
     @staticmethod

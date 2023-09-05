@@ -265,7 +265,6 @@ const RunSummary = ({ route }) => {
 
   const renderRise = (dataIndex) => {
     const assignment = assignments[dataIndex];
-    console.log("assignment", assignment);
     return (
       <div key={`${assignment.id}_rise`}>
         {assignment.rise_time_utc === ""

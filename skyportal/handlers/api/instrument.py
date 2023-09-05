@@ -1,24 +1,26 @@
-from marshmallow.exceptions import ValidationError
-from baselayer.app.access import permissions, auth_or_token
-from baselayer.log import make_log
-from sqlalchemy.orm import joinedload, undefer
-from sqlalchemy.orm import sessionmaker, scoped_session
-import sqlalchemy as sa
-from tornado.ioloop import IOLoop
-
-import arrow
 import ast
-from healpix_alchemy import Tile
-from regions import Regions, CircleSkyRegion, RectangleSkyRegion, PolygonSkyRegion
-from astropy import coordinates
-from astropy.coordinates import SkyCoord
-from astropy import units as u
-from astropy.time import Time
-import numpy as np
-import pandas as pd
 from io import StringIO
 
-from ..base import BaseHandler
+import arrow
+import numpy as np
+import pandas as pd
+import sqlalchemy as sa
+from astropy import coordinates
+from astropy import units as u
+from astropy.coordinates import SkyCoord
+from astropy.time import Time
+from healpix_alchemy import Tile
+from marshmallow.exceptions import ValidationError
+from regions import CircleSkyRegion, PolygonSkyRegion, RectangleSkyRegion, Regions
+from sqlalchemy.orm import joinedload, scoped_session, sessionmaker, undefer
+from tornado.ioloop import IOLoop
+
+from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
+from baselayer.log import make_log
+from skyportal.utils.calculations import get_airmass
+
+from ...enum_types import ALLOWED_BANDPASSES
 from ...models import (
     DBSession,
     GcnEvent,
@@ -31,11 +33,8 @@ from ...models import (
     Photometry,
     Telescope,
 )
-
-from baselayer.app.env import load_env
-
-from ...enum_types import ALLOWED_BANDPASSES
 from ...utils.cache import Cache, array_to_bytes
+from ..base import BaseHandler
 
 log = make_log('api/instrument')
 env, cfg = load_env()
@@ -612,9 +611,16 @@ class InstrumentHandler(BaseHandler):
                                     [tile.field_id for tile in tiles]
                                 )
 
+                    fields = [tile.to_dict() for tile in tiles]
+                    airmass_bulk = get_airmass(
+                        fields,
+                        time=np.array([airmass_time]),
+                        observer=instrument.telescope.observer,
+                    ).flatten()
+
                     data['fields'] = [
-                        {**tile.to_dict(), 'airmass': tile.airmass(time=airmass_time)}
-                        for tile in tiles
+                        {**field, 'airmass': airmass}
+                        for field, airmass in zip(fields, airmass_bulk)
                     ]
 
                 return self.success(data=data)

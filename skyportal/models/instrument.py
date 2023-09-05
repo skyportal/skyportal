@@ -2,35 +2,33 @@ __all__ = ['Instrument', 'InstrumentField', 'InstrumentFieldTile', 'InstrumentLo
 
 import re
 
-from astropy import coordinates as ap_coord
 import astroplan
 import healpix_alchemy
 import numpy as np
 import sqlalchemy as sa
-from sqlalchemy import func
-from sqlalchemy import cast, event
+from astropy import coordinates as ap_coord
+from sqlalchemy import cast, event, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import deferred
+from sqlalchemy.orm import deferred, relationship
 
+from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
     DBSession,
+    join_model,
     public,
 )
-
+from baselayer.log import make_log
 from skyportal import facility_apis
 
 from ..enum_types import (
-    instrument_types,
     allowed_bandpasses,
-    listener_classnames,
     api_classnames,
+    instrument_types,
+    listener_classnames,
 )
-
-from baselayer.app.env import load_env
-from baselayer.log import make_log
+from .tns import TNSRobot
 
 _, cfg = load_env()
 
@@ -487,6 +485,15 @@ class Instrument(Base):
     plans = relationship("EventObservationPlan")
     logs = relationship("InstrumentLog")
 
+    tnsrobots = relationship(
+        "TNSRobot",
+        secondary="instrument_tnsrobots",
+        back_populates="auto_report_instruments",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="TNS robots associated with this instrument, used for auto-reporting.",
+    )
+
 
 @event.listens_for(Instrument.fields, 'dispose_collection')
 def _instrument_fields_dispose_collection(target, collection, collection_adapter):
@@ -512,3 +519,7 @@ def _instrument_region_append(target, value, oldvalue, initiator):
 @event.listens_for(Instrument.region, 'remove')
 def _instrument_region_remove(target, value, initiator):
     target.has_region = False
+
+
+StreamTNSRobot = join_model("instrument_tnsrobots", Instrument, TNSRobot)
+StreamTNSRobot.__doc__ = "Join table mapping Streams to TNSRobots."

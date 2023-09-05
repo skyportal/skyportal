@@ -164,7 +164,7 @@ const TNSSpectraForm = ({ spectrum_id }) => {
     );
     setSubmissionRequestInProcess(false);
     if (result.status === "success") {
-      dispatch(showNotification("TNS saved"));
+      dispatch(showNotification("added to TNS submission queue"));
     }
   };
 

@@ -24,6 +24,7 @@ const LocalizationPlot = ({
   galaxies,
   instrument,
   observations,
+  airmass_threshold = 2.5,
   options,
   height,
   width,
@@ -76,6 +77,7 @@ const LocalizationPlot = ({
       selectedFields={selectedFields}
       setSelectedFields={setSelectedFields}
       projectionType={projection}
+      airmass_threshold={airmass_threshold}
     />
   );
 };
@@ -189,6 +191,7 @@ LocalizationPlot.propTypes = {
       })
     ),
   }),
+  airmass_threshold: PropTypes.number,
   options: PropTypes.shape({
     skymap: PropTypes.bool,
     sources: PropTypes.bool,
@@ -212,6 +215,7 @@ LocalizationPlot.defaultProps = {
   galaxies: null,
   instrument: null,
   observations: null,
+  airmass_threshold: 2.5,
   options: {
     skymap: false,
     sources: false,
@@ -505,11 +509,17 @@ const GeoJSONGlobePlot = ({
           return 0;
         });
 
+        const has_ref = data.instrument.fields.some(
+          (f) => (f.reference_filters || []).length > 0
+        );
+
         data.instrument.fields.forEach((f) => {
           const { field_id } = f;
           const { features } = f.contour_summary;
           const selected = selectedFields.includes(Number(f.id));
           const { airmass } = f;
+          const references = f.reference_filters || [];
+
           svg
             .data(features)
             .append("path")
@@ -523,7 +533,8 @@ const GeoJSONGlobePlot = ({
                 : airmass && airmass < airmass_threshold
                 ? "white"
                 : "gray"
-            )
+            ) // we make the field semi-transparent if it doesn't have references
+            .style("opacity", has_ref && references.length === 0 ? 0.3 : 0.95)
             .attr("d", geoGenerator)
             .on("click", () => {
               if (!selected) {
@@ -540,7 +551,10 @@ const GeoJSONGlobePlot = ({
             .text(
               `field ID: ${field_id} \nra: ${f.ra} \ndec: ${
                 f.dec
-              } \nfilters: ${data.instrument.filters.join(", ")}`
+              } \nfilters: ${data.instrument.filters.join(", ")}${
+                airmass ? ` \nairmass: ${airmass}` : ""
+              }${has_ref ? ` \nreferences: ${references.join(", ")}` : ""}
+              `
             );
         });
       }
