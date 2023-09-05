@@ -1327,6 +1327,12 @@ def add_tiles(
 
                     session.add(field)
                     session.commit()
+                else:
+                    # we update the contour and contour_summary
+                    setattr(field, 'contour', contour)
+                    setattr(field, 'contour_summary', contour_summary)
+                    session.add(field)
+                    session.commit()
 
                 if references is not None and field_id in reference_filters:
                     setattr(field, 'reference_filters', reference_filters[field_id])
