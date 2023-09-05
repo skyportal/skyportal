@@ -77,7 +77,7 @@ def tns_submission(
         # for now we limit it to instruments and filters we have mapped to TNS
         instruments = session.scalars(
             Instrument.select(user).where(
-                Instrument.name.in_(list(TNS_INSTRUMENT_IDS.keys()))
+                sa.func.lower(Instrument.name).in_(list(TNS_INSTRUMENT_IDS.keys()))
             )
         ).all()
         if len(instruments) == 0:
@@ -169,13 +169,17 @@ def tns_submission(
             mag_first = detections[0]['mag']
             magerr_first = detections[0]['magerr']
             filt_first = SNCOSMO_TO_TNSFILTER[detections[0]['filter']]
-            instrument_first = TNS_INSTRUMENT_IDS[detections[0]['instrument_name']]
+            instrument_first = TNS_INSTRUMENT_IDS[
+                detections[0]['instrument_name'].lower()
+            ]
 
             time_last = detections[-1]['mjd']
             mag_last = detections[-1]['mag']
             magerr_last = detections[-1]['magerr']
             filt_last = SNCOSMO_TO_TNSFILTER[detections[-1]['filter']]
-            instrument_last = TNS_INSTRUMENT_IDS[detections[-1]['instrument_name']]
+            instrument_last = TNS_INSTRUMENT_IDS[
+                detections[-1]['instrument_name'].lower()
+            ]
 
             # find the the last non-detection that is before the first detection
             for phot in non_detections:
@@ -184,7 +188,7 @@ def tns_submission(
                     limmag_last_nondetection = phot['limiting_mag']
                     filt_last_nondetection = SNCOSMO_TO_TNSFILTER[phot['filter']]
                     instrument_last_nondetection = TNS_INSTRUMENT_IDS[
-                        phot['instrument_name']
+                        phot['instrument_name'].lower()
                     ]
 
             if not archival:
