@@ -495,19 +495,6 @@ class Instrument(Base):
     )
 
 
-@event.listens_for(Instrument.fields, 'dispose_collection')
-def _instrument_fields_dispose_collection(target, collection, collection_adapter):
-    target.has_fields = False
-
-
-@event.listens_for(Instrument.fields, 'init_collection')
-def _instrument_fields_init_collection(target, collection, collection_adapter):
-    if len(collection) > 0:
-        target.has_fields = True
-    else:
-        target.has_fields = False
-
-
 @event.listens_for(Instrument.region, 'set')
 def _instrument_region_append(target, value, oldvalue, initiator):
     if value is not None and value != "":

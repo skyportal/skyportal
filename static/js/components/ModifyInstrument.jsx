@@ -92,6 +92,12 @@ const ModifyInstrument = () => {
       formData.field_region = dataUriToBuffer(formData.field_region).toString();
     }
     if (
+      Object.keys(formData).includes("references") &&
+      formData.references !== undefined
+    ) {
+      formData.references = dataUriToBuffer(formData.references).toString();
+    }
+    if (
       Object.keys(formData).includes("field_fov_type") &&
       formData.field_fov_type !== undefined
     ) {
@@ -268,6 +274,12 @@ const ModifyInstrument = () => {
         format: "data-url",
         title: "Field region file",
         description: "Field region file",
+      },
+      references: {
+        type: "string",
+        format: "data-url",
+        title: "References file",
+        description: "References file",
       },
       field_fov_type: {
         type: "array",
