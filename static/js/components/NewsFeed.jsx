@@ -172,7 +172,7 @@ const NewsFeedItem = ({ item }) => {
         <div className={styles.entryIdent}>
           <span className={styles.entrySourceId}>
             <Link to={`/source/${item.source_id}`}>
-              {item.classification ? (
+              {item?.classification ? (
                 <div>
                   Source: {item.source_id} ({item.classification})
                 </div>
