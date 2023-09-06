@@ -100,6 +100,23 @@ class NewsFeedHandler(BaseHandler):
 
                 return newest
 
+            def latest_classification(obj):
+                classification = None
+                if len(obj.classifications) > 0:
+                    # Display the most recent non-zero probability class,
+                    # and that isn't a ml classifier
+                    idx = [
+                        (c.probability > 0) & (c.ml is not False)
+                        for c in obj.classifications
+                    ]
+                    filteredClasses = [
+                        c for (c, i) in zip(obj.classifications, idx) if i is True
+                    ]
+                    sortedClasses = sorted(filteredClasses, key=lambda x: x.modified)
+                    if len(sortedClasses) > 0:
+                        classification = sortedClasses[0].classification
+                return classification
+
             news_feed_items = []
             if (
                 preferences.get("newsFeed", {})
@@ -110,6 +127,7 @@ class NewsFeedHandler(BaseHandler):
                 source_seen = set()
                 # Iterate in reverse so that we arrive at re-saved sources second
                 for s in reversed(sources):
+
                     if s.obj_id in source_seen:
                         message = 'Source saved to new group'
                     else:
@@ -124,6 +142,7 @@ class NewsFeedHandler(BaseHandler):
                             'time': s.created_at,
                             'message': message,
                             'source_id': s.obj_id,
+                            'classification': latest_classification(s.obj),
                         },
                     )
             if (
@@ -147,6 +166,7 @@ class NewsFeedHandler(BaseHandler):
                             'source_id': c.obj_id,
                             'author': c.author.username,
                             'author_info': c.author_info,
+                            'classification': latest_classification(c.obj),
                         }
                         for c in comments
                     ]
@@ -166,6 +186,7 @@ class NewsFeedHandler(BaseHandler):
                             "message": f"New classification for {c.obj_id} added by {c.author.username}: {c.classification}",
                             "source_id": c.obj_id,
                             "author_info": basic_user_display_info(c.author),
+                            "classification": latest_classification(c.obj),
                         }
                         for c in classifications
                     ]
@@ -185,6 +206,7 @@ class NewsFeedHandler(BaseHandler):
                             "message": f"{s.owner.first_name} {s.owner.last_name} uploaded a new spectrum taken with {s.instrument.name} for {s.obj_id}",
                             "source_id": s.obj_id,
                             "author_info": basic_user_display_info(s.owner),
+                            "classification": latest_classification(s.obj),
                         }
                         for s in spectra
                     ]
@@ -204,6 +226,7 @@ class NewsFeedHandler(BaseHandler):
                             "message": f"{p.owner.first_name} {p.owner.last_name} uploaded new follow-up photometry taken with {p.instrument.name} for {p.obj_id}",
                             "source_id": p.obj_id,
                             "author_info": basic_user_display_info(p.owner),
+                            "classification": latest_classification(p.obj),
                         }
                         for p in photometry
                     ]
