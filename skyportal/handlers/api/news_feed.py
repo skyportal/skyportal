@@ -102,19 +102,24 @@ class NewsFeedHandler(BaseHandler):
 
             def latest_classification(obj):
                 classification = None
-                if len(obj.classifications) > 0:
-                    # Display the most recent non-zero probability class,
-                    # and that isn't a ml classifier
-                    idx = [
-                        (c.probability > 0) & (c.ml is not False)
-                        for c in obj.classifications
-                    ]
-                    filteredClasses = [
-                        c for (c, i) in zip(obj.classifications, idx) if i is True
-                    ]
-                    sortedClasses = sorted(filteredClasses, key=lambda x: x.modified)
-                    if len(sortedClasses) > 0:
-                        classification = sortedClasses[0].classification
+                try:
+                    if len(obj.classifications) > 0:
+                        # Display the most recent non-zero probability class,
+                        # and that isn't a ml classifier
+                        idx = [
+                            (c.probability > 0) & (c.ml is not False)
+                            for c in obj.classifications
+                        ]
+                        filteredClasses = [
+                            c for (c, i) in zip(obj.classifications, idx) if i is True
+                        ]
+                        sortedClasses = sorted(
+                            filteredClasses, key=lambda x: x.modified
+                        )
+                        if len(sortedClasses) > 0:
+                            classification = sortedClasses[0].classification
+                except Exception:
+                    pass
                 return classification
 
             news_feed_items = []
