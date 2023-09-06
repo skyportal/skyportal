@@ -76,7 +76,9 @@ class NewsFeedHandler(BaseHandler):
 
         with self.Session() as session:
 
-            def fetch_newest(model, include_bot_comments=False):
+            def fetch_newest(
+                model, include_bot_comments=False, include_ml_classifications=False
+            ):
                 query = model.select(self.associated_user_object)
                 if model == Photometry:
                     query = query.where(
@@ -87,6 +89,8 @@ class NewsFeedHandler(BaseHandler):
                     )
                 elif model == Comment and not include_bot_comments:
                     query = query.where(Comment.bot.is_(False))
+                elif model == Classification and not include_ml_classifications:
+                    query = query.where(Classification.ml.is_(False))
                 query = (
                     query.order_by(desc(model.created_at or model.saved_at))
                     .distinct(model.obj_id, model.created_at)
@@ -106,15 +110,13 @@ class NewsFeedHandler(BaseHandler):
                     if len(obj.classifications) > 0:
                         # Display the most recent non-zero probability class,
                         # and that isn't a ml classifier
-                        idx = [
-                            (c.probability > 0) & (c.ml is not False)
-                            for c in obj.classifications
-                        ]
-                        filteredClasses = [
-                            c for (c, i) in zip(obj.classifications, idx) if i is True
-                        ]
                         sortedClasses = sorted(
-                            filteredClasses, key=lambda x: x.modified
+                            (
+                                c
+                                for c in obj.classifications
+                                if c.probability > 0 and c.ml is False
+                            ),
+                            key=lambda x: x.modified,
                         )
                         if len(sortedClasses) > 0:
                             classification = sortedClasses[0].classification
