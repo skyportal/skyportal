@@ -1,21 +1,52 @@
-import React, { useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
+
+import CircularProgress from "@mui/material/CircularProgress";
+
 import * as photometryActions from "../ducks/photometry";
 import wavelengthsToHex from "../wavelengthConverter";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaFoldedPlot = React.lazy(() => import("./VegaFoldedPlot"));
 
-const VegaPhotometry = ({ sourceId, folded = false }) => {
+const findPeriodInAnnotations = (annotations = []) => {
+  // sort the annotations by modified date descending
+  // so we can find the most recent period
+  const sortedAnnotations = annotations.sort((a, b) => {
+    const aDate = new Date(a.modified);
+    const bDate = new Date(b.modified);
+    return bDate - aDate;
+  });
+
+  const found = sortedAnnotations.some((annotation) => {
+    // look if there is a key like period, Period, or PERIOD
+    const periodKey = Object.keys(annotation.data || {}).find(
+      (key) => key.toLowerCase() === "period"
+    );
+    if (periodKey && typeof annotation.data[periodKey] === "number") {
+      return true;
+    }
+    return false;
+  });
+  return found;
+};
+
+const VegaPhotometry = ({ sourceId, annotations = [], folded = false }) => {
   const dispatch = useDispatch();
   const photometry = useSelector((state) => state.photometry[sourceId]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!photometry) {
-      dispatch(photometryActions.fetchSourcePhotometry(sourceId));
+    async function fetchPhotometry() {
+      if (!photometry && !loading && !(folded && !annotations.length)) {
+        setLoading(true);
+        await dispatch(photometryActions.fetchSourcePhotometry(sourceId));
+        setLoading(false);
+      }
     }
-  }, [sourceId, photometry, dispatch]);
+    fetchPhotometry();
+  }, [sourceId, photometry, folded, dispatch]);
 
   const filters = photometry
     ? [...new Set(photometry.map((datum) => datum.filter))]
@@ -40,9 +71,24 @@ const VegaPhotometry = ({ sourceId, folded = false }) => {
     range: wavelengths,
   };
 
-  const plot = folded ? (
+  if (loading) {
+    return <CircularProgress color="secondary" />;
+  }
+
+  if (!photometry && !loading) {
+    return <div>No photometry found.</div>;
+  }
+
+  let period = false;
+  if (folded) {
+    period = findPeriodInAnnotations(annotations || []);
+    if (!period) {
+      return <div>No period found.</div>;
+    }
+  }
+  const plot = period ? (
     <VegaFoldedPlot
-      dataUrl={`/api/sources/${sourceId}/photometry?phaseFoldData=True`}
+      dataUrl={`/api/sources/${sourceId}/photometry?phaseFoldData=True&period=${period}`}
       colorScale={colorScale}
     />
   ) : (
@@ -51,12 +97,33 @@ const VegaPhotometry = ({ sourceId, folded = false }) => {
       colorScale={colorScale}
     />
   );
-  return plot;
+  return (
+    <Suspense
+      fallback={
+        <div>
+          <CircularProgress color="secondary" />
+        </div>
+      }
+    >
+      {plot}
+    </Suspense>
+  );
 };
 
 VegaPhotometry.propTypes = {
   sourceId: PropTypes.string.isRequired,
+  annotations: PropTypes.arrayOf(
+    PropTypes.shape({
+      modified: PropTypes.string.isRequired,
+      data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+    })
+  ),
   folded: PropTypes.bool,
+};
+
+VegaPhotometry.defaultProps = {
+  annotations: [],
+  folded: false,
 };
 
 export default VegaPhotometry;

@@ -118,7 +118,6 @@ LocalizationPlot.propTypes = {
             name: PropTypes.string,
           }),
         }),
-        spectrum_exists: PropTypes.bool,
         last_detected_at: PropTypes.string,
         last_detected_mag: PropTypes.number,
         peak_detected_at: PropTypes.string,

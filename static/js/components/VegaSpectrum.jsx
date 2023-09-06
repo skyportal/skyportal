@@ -1,7 +1,10 @@
-import React from "react";
+import React, { Suspense, useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import CircularProgress from "@mui/material/CircularProgress";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
 import { useTheme } from "@mui/material/styles";
+import * as spectraActions from "../ducks/spectra";
 
 const spec = (
   url,
@@ -85,34 +88,66 @@ const spec = (
   background: "transparent",
 });
 
-const VegaSpectrum = React.memo((props) => {
-  const { dataUrl, width, height, legendOrient } = props;
+const VegaSpectrum = (props) => {
+  const { sourceId, dataUrl, width, height, legendOrient } = props;
   const theme = useTheme();
+  const dispatch = useDispatch();
+  const spectra = useSelector((state) => state.spectra[sourceId]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function fetchSpectra() {
+      if (!spectra && !loading) {
+        setLoading(true);
+        await dispatch(spectraActions.fetchSourceSpectra(sourceId));
+        setLoading(false);
+      }
+    }
+    fetchSpectra();
+  }, [sourceId, spectra, dispatch]);
+
+  if (loading) {
+    return <CircularProgress color="secondary" />;
+  }
+
+  if ((!spectra || spectra?.length === 0) && !loading) {
+    return <div>No spectra found.</div>;
+  }
+
   return (
-    <div
-      ref={(node) => {
-        if (node) {
-          embed(
-            node,
-            spec(
-              dataUrl,
-              width,
-              height,
-              legendOrient,
-              theme.plotFontSizes.titleFontSize,
-              theme.plotFontSizes.labelFontSize
-            ),
-            {
-              actions: false,
-            }
-          );
-        }
-      }}
-    />
+    <Suspense
+      fallback={
+        <div>
+          <CircularProgress color="secondary" />
+        </div>
+      }
+    >
+      <div
+        ref={(node) => {
+          if (node) {
+            embed(
+              node,
+              spec(
+                dataUrl,
+                width,
+                height,
+                legendOrient,
+                theme.plotFontSizes.titleFontSize,
+                theme.plotFontSizes.labelFontSize
+              ),
+              {
+                actions: false,
+              }
+            );
+          }
+        }}
+      />
+    </Suspense>
   );
-});
+};
 
 VegaSpectrum.propTypes = {
+  sourceId: PropTypes.string.isRequired,
   dataUrl: PropTypes.string.isRequired,
   width: PropTypes.number,
   height: PropTypes.number,
