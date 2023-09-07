@@ -232,13 +232,13 @@ def tns_retrieval(
             'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
         }
 
-        _, tns_name = get_IAUname(
+        tns_prefix, tns_name = get_IAUname(
             altdata['api_key'], tns_headers, ra=obj.ra, dec=obj.dec
         )
         if tns_name is None:
             raise ValueError(f'{obj_id} not yet posted to TNS.')
 
-        obj.tns_name = tns_name
+        obj.tns_name = f"{tns_prefix} {tns_name}"
 
         data = {
             'api_key': altdata['api_key'],
