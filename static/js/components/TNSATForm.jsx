@@ -63,7 +63,7 @@ const TNSATForm = ({ obj_id }) => {
   });
 
   const allowedInstruments = instrumentList.filter((instrument) =>
-    (tnsAllowedInstruments || []).includes(instrument.name)
+    (tnsAllowedInstruments || []).includes(instrument.name?.toLowerCase())
   );
 
   useEffect(() => {
