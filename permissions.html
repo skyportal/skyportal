@@ -1,0 +1,480 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Slack Integration" href="slack.html" /><link rel="prev" title="Analyzing database queries" href="query_analysis.html" />
+
+    <!-- Generated with Sphinx 7.2.5 and Furo 2023.08.19 -->
+        <title>Access controls - skyportal 0.9.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
+    <link rel="stylesheet" type="text/css" href="_static/output_cells.css?v=4c393c42" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=36a5483c" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #eeffcc;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">skyportal 0.9.dev0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  
+  <span class="sidebar-brand-text">skyportal 0.9.dev0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="design.html">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev.html">Developer notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy.html">Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_loader.html">Data loader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">How to Contribute</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding_features.html">Adding new features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding_comments_annotation_types.html">Adding a new type of Comment or Annotation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="styling.html">Styling components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html">Database Schema</a></li>
+<li class="toctree-l1"><a class="reference internal" href="migrations.html">Database migrations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="query_analysis.html">Analyzing database queries</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Access controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slack.html">Slack Integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="followup.html">Follow-up triggering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mma.html">MMA Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="period.html">Periodic Timeseries Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="spatial_catalog.html">Spatial Catalogs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_usage.html">Advanced usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="photometric_series.html">How to work with photometric series</a></li>
+<li class="toctree-l1"><a class="reference internal" href="analysis.html">Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="image_analysis.html">Image Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.html">SkyPortal Extensions</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="access-controls">
+<h1>Access controls<a class="headerlink" href="#access-controls" title="Link to this heading">#</a></h1>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">#</a></h2>
+<p>Astronomical data is often subject to complex data rights policies. As a data platform designed to ingest and serve data from multiple experiments and groups, each potentially with different access policies, SkyPortal must be able to enforce arbitrary logic governing who can see, interact with, and modify data. SkyPortal enforces such policies using a custom row-level security (RLS) framework in the API layer.</p>
+<p>RLS allows SkyPortal developers to define policies that restrict, with row- and user-level granularity, which rows of a table (e.g., photometry, spectra, groups, followup requests, data streams, etc.) a user can read, update, create, and delete. SkyPortal uses baselayer’s ORM-based framework for RLS within API transactions. With baselayer’s RLS framework, SkyPortal developers can</p>
+<ul class="simple">
+<li><p>Be sure that access policies will be consistently enforced when protected records are accessed in an API transaction</p></li>
+<li><p>Efficiently filter database queries by RLS accessibility to ensure that API endpoints only return records that users can access</p></li>
+<li><p>Take advantage of vectorization to efficiently apply policy checks and filters to bulk record queries</p></li>
+<li><p>Define arbitrarily complex, relational, and scalable row-level CRUD access policies on any SkyPortal table</p></li>
+<li><p>Use predefined access patterns to restrict access to records by stream access, group membership, user ACLs, and more</p></li>
+<li><p>Implement different policies for different types of access on a single type of record</p></li>
+</ul>
+<p><strong>Note:</strong> Although SkyPortal uses PostgreSQL as the database backend, SkyPortal does not use PostgreSQL’s RLS implementation for row-level security.</p>
+</section>
+<section id="rls-architecture-and-design">
+<h2>RLS Architecture and Design<a class="headerlink" href="#rls-architecture-and-design" title="Link to this heading">#</a></h2>
+<p>In SkyPortal, RLS policies are defined on SQLAlchemy mapped classes. Each class has a single policy for each of the create, delete, update, and read access modes. Records are read- and create-public by default, and update- and delete-restricted (i.e., only accessible to users with the “System admin” ACL) by default. Join table classes are also update- and delete-restricted by default, but they can (by default) be created or read by any user that can read both their left and right records. These defaults can be overridden on any mapped class.</p>
+<p>When an API handler brings an instance of a mapped class into the session, either by a database query or by creating a new instance within the handler and adding it to the session, the SQLalchemy ORM tracks changes to the instance’s state. At the end of a transaction, if the handler calls <code class="docutils literal notranslate"><span class="pre">verify_and_commit</span></code>, the RLS permission checker will introspect the database session and get the sets of records that were read, updated, deleted, or created during the current transaction. It will then iterate through each of these collections and check that every record was accessed in an allowable way. If it encounters any permissions violations during this process, it causes the handler to rollback the transaction and return an HTTP status code of 400 with a message that identifies the specific row where an access policy was violated. If no access policies are violated, then the transaction will finish successfully.</p>
+<p>This design ensures that every object pulled into the handler’s session during an API transaction has its access policy checked in a consistent way, automatically preventing leaks of sensitive information to the end user. In most cases, the developer only needs to define a policy on a mapped class, then call <code class="docutils literal notranslate"><span class="pre">verify_and_commit</span></code> at the end of an API handler call to ensure that the policy is applied.</p>
+</section>
+<section id="create-a-new-policy">
+<h2>Create a New Policy<a class="headerlink" href="#create-a-new-policy" title="Link to this heading">#</a></h2>
+<p>Policies are instances of  <code class="docutils literal notranslate"><span class="pre">UserAccessControl</span></code>  defined in baselayer/app/models.py. The only method of <code class="docutils literal notranslate"><span class="pre">UserAccessControl</span></code> that subclasses must provide is <code class="docutils literal notranslate"><span class="pre">query_accessible_rows</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">UserAccessControl</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="nf">query_accessible_rows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">user_or_token</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct a Query object that, when executed, returns the rows of a</span>
+<span class="sd">        specified table that are accessible to a specified user or token.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        cls: `baselayer.app.models.DeclarativeMeta`</span>
+<span class="sd">            The mapped class of the target table.</span>
+<span class="sd">        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`</span>
+<span class="sd">            The User or Token to check.</span>
+<span class="sd">        columns: list of sqlalchemy.Column, optional, default None</span>
+<span class="sd">            The columns to retrieve from the target table. If None, queries</span>
+<span class="sd">            the mapped class directly and returns mapped instances.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        query: sqlalchemy.Query</span>
+<span class="sd">            Query for the accessible rows.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">query_accessible_rows</span></code> constructs (but does not execute) a query against the table that <code class="docutils literal notranslate"><span class="pre">cls</span></code> is mapped to. The query returns the rows of the <code class="docutils literal notranslate"><span class="pre">cls</span></code> table that <code class="docutils literal notranslate"><span class="pre">user_or_token</span></code> could access.</p>
+<p>To construct a new policy, subclass <code class="docutils literal notranslate"><span class="pre">UserAccessControl</span></code> and override <code class="docutils literal notranslate"><span class="pre">query_accessible_rows</span></code>.</p>
+<section id="restricted">
+<h3>Restricted<a class="headerlink" href="#restricted" title="Link to this heading">#</a></h3>
+<p>Baselayer provides a <a class="reference external" href="https://github.com/cesium-ml/baselayer/blob/main/app/models.py#L579">restricted</a> policy that grants record access only to users or tokens that have the <code class="docutils literal notranslate"><span class="pre">System</span> <span class="pre">admin</span></code> ACL. <strong>Restricted records are not restricted to all users.</strong></p>
+</section>
+<section id="examples">
+<h3>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h3>
+<p>The following <code class="docutils literal notranslate"><span class="pre">public</span></code> policy will grant record access to any user:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span>
+<span class="k">class</span> <span class="nc">Public</span><span class="p">(</span><span class="n">UserAccessControl</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A record accessible to anyone.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">query_accessible_rows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">user_or_token</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">columns</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">DBSession</span><span class="p">()</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="o">*</span><span class="n">columns</span><span class="p">)</span><span class="o">.</span><span class="n">select_from</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">DBSession</span><span class="p">()</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+
+
+<span class="n">public</span> <span class="o">=</span> <span class="n">Public</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The following <code class="docutils literal notranslate"><span class="pre">accessible_to_owner</span></code> policy will grant record access to any user that matches the <code class="docutils literal notranslate"><span class="pre">User</span></code> pointed to by the <code class="docutils literal notranslate"><span class="pre">owner</span></code> relationship of <code class="docutils literal notranslate"><span class="pre">cls</span></code>, with access automatically granted to users with the <code class="docutils literal notranslate"><span class="pre">&quot;System</span> <span class="pre">admin&quot;</span></code> ACL:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">baselayer.app.models</span> <span class="kn">import</span> <span class="n">AccessibleIfUserMatches</span>
+<span class="n">accessible_to_owner</span> <span class="o">=</span> <span class="n">AccessibleIfUserMatches</span><span class="p">(</span><span class="s1">&#39;owner&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Bitwise operations can be used to compose access policies. The  <code class="docutils literal notranslate"><span class="pre">accessible_to_owner_or_last_modified_by</span></code> policy below grants access to any user that matches the <code class="docutils literal notranslate"><span class="pre">User</span></code> pointed to by the <code class="docutils literal notranslate"><span class="pre">owner</span></code> relationship of <code class="docutils literal notranslate"><span class="pre">cls</span></code> or the <code class="docutils literal notranslate"><span class="pre">last_modified_by</span></code> relationship of <code class="docutils literal notranslate"><span class="pre">cls</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">baselayer.app.models</span> <span class="kn">import</span> <span class="n">AccessibleIfUserMatches</span>
+<span class="n">accessible_to_owner_or_last_modified_by</span> <span class="o">=</span> <span class="n">AccessibleIfUserMatches</span><span class="p">(</span><span class="s1">&#39;owner&#39;</span><span class="p">)</span> <span class="o">|</span> <span class="n">AccessibleIfUserMatches</span><span class="p">(</span><span class="s1">&#39;last_modified_by&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Policies can be custom (potentially complex and relational) database queries. This policy allows adding a user to a group only if that user has access to all of the group’s streams:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">baselayer.app.env</span> <span class="kn">import</span> <span class="n">CustomserAccessControl</span>
+<span class="n">GroupUser</span><span class="o">.</span><span class="n">create</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">CustomUserAccessControl</span><span class="p">(</span>
+        <span class="c1"># Can only add a user to a group if they have all the requisite</span>
+        <span class="c1"># streams required for entry to the group</span>
+        <span class="k">lambda</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">user_or_token</span><span class="p">:</span> <span class="n">DBSession</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Group</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">outerjoin</span><span class="p">(</span><span class="n">Stream</span><span class="p">,</span> <span class="n">Group</span><span class="o">.</span><span class="n">streams</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">outerjoin</span><span class="p">(</span>
+            <span class="n">StreamUser</span><span class="p">,</span>
+            <span class="n">sa</span><span class="o">.</span><span class="n">and_</span><span class="p">(</span>
+                <span class="n">StreamUser</span><span class="o">.</span><span class="n">user_id</span> <span class="o">==</span> <span class="bp">cls</span><span class="o">.</span><span class="n">user_id</span><span class="p">,</span>
+                <span class="n">StreamUser</span><span class="o">.</span><span class="n">stream_id</span> <span class="o">==</span> <span class="n">Stream</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">having</span><span class="p">(</span>
+            <span class="n">sa</span><span class="o">.</span><span class="n">or_</span><span class="p">(</span>
+                <span class="n">sa</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">bool_and</span><span class="p">(</span><span class="n">StreamUser</span><span class="o">.</span><span class="n">stream_id</span><span class="o">.</span><span class="n">isnot</span><span class="p">(</span><span class="kc">None</span><span class="p">)),</span>
+                <span class="n">sa</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">bool_and</span><span class="p">(</span><span class="n">Stream</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">is_</span><span class="p">(</span><span class="kc">None</span><span class="p">)),</span>  <span class="c1"># group has no streams</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="binding-policies-to-classes">
+<h2>Binding Policies to Classes<a class="headerlink" href="#binding-policies-to-classes" title="Link to this heading">#</a></h2>
+<p>To bind a policy to a class, set the <code class="docutils literal notranslate"><span class="pre">create</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">update</span></code>, or <code class="docutils literal notranslate"><span class="pre">delete</span></code> attribute of the class to the policy, depending on which access mode you want the policy to apply to:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">Spectrum</span><span class="o">.</span><span class="n">delete</span> <span class="o">=</span> <span class="n">accessible_by_owner</span>
+</pre></div>
+</div>
+<p>The above will ensure that only the owner of a spectrum (or anyone with the “System admin” ACL) can delete the spectrum.</p>
+</section>
+<section id="convenience-methods">
+<h2>Convenience Methods<a class="headerlink" href="#convenience-methods" title="Link to this heading">#</a></h2>
+<p>Instances of <code class="docutils literal notranslate"><span class="pre">Base</span></code> provide convenience methods to (a) check if an instance of a mapped class is accessible to a specified user, (b) retrieve specific records of a mapped class (identified by a primary key), if they are accessible by a specified user, otherwise raise an AccessError (c) retrieve all records of a mapped class accessible to a specified user, and (d) generate a query object that returns records in a table that are accessible to a given user:</p>
+<p>(a) Can the <code class="docutils literal notranslate"><span class="pre">User</span></code> <code class="docutils literal notranslate"><span class="pre">user</span></code> read the <code class="docutils literal notranslate"><span class="pre">Spectrum</span></code> <code class="docutils literal notranslate"><span class="pre">spectrum</span></code>?</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">spectrum</span><span class="o">.</span><span class="n">is_accessible_by</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;read&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Can the <code class="docutils literal notranslate"><span class="pre">User</span></code> <code class="docutils literal notranslate"><span class="pre">user</span></code> update the <code class="docutils literal notranslate"><span class="pre">Spectrum</span></code> <code class="docutils literal notranslate"><span class="pre">spectrum</span></code>?</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">spectrum</span><span class="o">.</span><span class="n">is_accessible_by</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;update&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>(b) Retrieve spectra with IDs [1, 3] if they are updatable by the <code class="docutils literal notranslate"><span class="pre">User</span></code> <code class="docutils literal notranslate"><span class="pre">user</span></code>, raising an AccessError if either does not exist:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">Spectrum</span><span class="o">.</span><span class="n">get_if_accessible_by</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">user</span><span class="p">,</span> <span class="n">raise_if_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;update&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>(c) Retrieve all photometry that <code class="docutils literal notranslate"><span class="pre">User</span></code> <code class="docutils literal notranslate"><span class="pre">user</span></code> can read</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">Photometry</span><span class="o">.</span><span class="n">get_records_accessible_by</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;read&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>(d) Construct a query object for all photometry that <code class="docutils literal notranslate"><span class="pre">User</span></code> <code class="docutils literal notranslate"><span class="pre">user</span></code> can delete
+with a signal-to-noise ratio of at least 10:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">deletable_phot_query</span> <span class="o">=</span> <span class="n">Photometry</span><span class="o">.</span><span class="n">query_records_accessible_by</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;delete&quot;</span><span class="p">)</span>
+<span class="n">filtered_deletable_query</span> <span class="o">=</span> <span class="n">deletable_phot_query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">Photometry</span><span class="o">.</span><span class="n">snr</span> <span class="o">&gt;</span> <span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="enforcing-permissions-in-handlers">
+<h2>Enforcing Permissions in Handlers<a class="headerlink" href="#enforcing-permissions-in-handlers" title="Link to this heading">#</a></h2>
+<p>Calling <code class="docutils literal notranslate"><span class="pre">self.verify_and_commit()</span></code> within a SkyPortal API handler will trigger the RLS permission checker to introspect the current database session and verify that all of the records it currently is tracking are being accessed in an allowable way.  If it encounters any permissions violations during this process, it causes the handler to rollback the transaction and return an HTTP status code of 400 with a message that identifies the specific row where an access policy was violated. If no access policies are violated, then the current database transaction will be committed.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">self.verify_and_commit()</span></code> is not called in an API handler, the handler will not automatically check for permissions violations. The best practice is to call <code class="docutils literal notranslate"><span class="pre">self.verify_and_commit()</span></code> at the end of a handler’s transaction, immediately before <code class="docutils literal notranslate"><span class="pre">self.success</span></code> or <code class="docutils literal notranslate"><span class="pre">self.error</span></code>.</p>
+<section id="further-examples-of-policies">
+<h3>Further examples of policies:<a class="headerlink" href="#further-examples-of-policies" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/skyportal/skyportal/blob/c7ab07bd04d26e9f66938a05b4c70172a9364c82/skyportal/models.py#L1998">Policy requiring that a user be in a comment’s groups and able to read the comment’s obj to read the comment</a></p></li>
+<li><p><a class="reference external" href="https://github.com/skyportal/skyportal/blob/c7ab07bd04d26e9f66938a05b4c70172a9364c82/skyportal/models.py#L2181">Policy that allows a user to read a classification if the user can read the
+corresponding taxonomy and Obj</a></p></li>
+<li><p><a class="reference external" href="https://github.com/skyportal/skyportal/pull/1793/files#diff-1a72b97ee4bbd072128056c510aed307d63349171ef041ffe2ed256cf1286547R2828">Policy that allows tokens with the “Post from {facility} ACL” to update
+(but not read) requests made with that facility’s API</a></p></li>
+<li><p><a class="reference external" href="https://github.com/skyportal/skyportal/pull/1793/files#diff-1a72b97ee4bbd072128056c510aed307d63349171ef041ffe2ed256cf1286547R3621">Policy that allows group admins of a particular group to add a new user
+to the group if and only if the new user has access to all of the group’s
+streams</a></p></li>
+</ul>
+</section>
+<section id="examples-of-permissions-being-checked-in-an-api-handler">
+<h3>Examples of permissions being checked in an API handler:<a class="headerlink" href="#examples-of-permissions-being-checked-in-an-api-handler" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/skyportal/skyportal/blob/c7ab07bd04d26e9f66938a05b4c70172a9364c82/skyportal/handlers/api/comment.py#L51">Pattern for retrieving a specified record(s) if a user has access, otherwise
+erroring</a></p></li>
+<li><p><a class="reference external" href="https://github.com/skyportal/skyportal/blob/c7ab07bd04d26e9f66938a05b4c70172a9364c82/skyportal/handlers/api/allocation.py#L71">Pattern for checking permissions on all the records in a session and
+erroring if any violations are detected</a></p></li>
+<li><p><a class="reference external" href="https://github.com/skyportal/skyportal/pull/1801/files#diff-0200612f282483e1172207de90a4db4788b3ca5ce55ab5105938d876e11eb2e0R1562">Pattern for constructing a query for all records accessible to a user, then filtering that query</a></p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="slack.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Slack Integration</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="query_analysis.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Analyzing database queries</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2020–2023, The SkyPortal Team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Access controls</a><ul>
+<li><a class="reference internal" href="#introduction">Introduction</a></li>
+<li><a class="reference internal" href="#rls-architecture-and-design">RLS Architecture and Design</a></li>
+<li><a class="reference internal" href="#create-a-new-policy">Create a New Policy</a><ul>
+<li><a class="reference internal" href="#restricted">Restricted</a></li>
+<li><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#binding-policies-to-classes">Binding Policies to Classes</a></li>
+<li><a class="reference internal" href="#convenience-methods">Convenience Methods</a></li>
+<li><a class="reference internal" href="#enforcing-permissions-in-handlers">Enforcing Permissions in Handlers</a><ul>
+<li><a class="reference internal" href="#further-examples-of-policies">Further examples of policies:</a></li>
+<li><a class="reference internal" href="#examples-of-permissions-being-checked-in-an-api-handler">Examples of permissions being checked in an API handler:</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=efa42bf3"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=32e29ea5"></script>
+    </body>
+</html>

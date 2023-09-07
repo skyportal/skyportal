@@ -1,0 +1,498 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Image Analysis" href="image_analysis.html" /><link rel="prev" title="How to work with photometric series" href="photometric_series.html" />
+
+    <!-- Generated with Sphinx 7.2.5 and Furo 2023.08.19 -->
+        <title>Analysis - skyportal 0.9.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
+    <link rel="stylesheet" type="text/css" href="_static/output_cells.css?v=4c393c42" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=36a5483c" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #eeffcc;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">skyportal 0.9.dev0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  
+  <span class="sidebar-brand-text">skyportal 0.9.dev0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="design.html">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev.html">Developer notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy.html">Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_loader.html">Data loader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">How to Contribute</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding_features.html">Adding new features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding_comments_annotation_types.html">Adding a new type of Comment or Annotation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="styling.html">Styling components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html">Database Schema</a></li>
+<li class="toctree-l1"><a class="reference internal" href="migrations.html">Database migrations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="query_analysis.html">Analyzing database queries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="permissions.html">Access controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slack.html">Slack Integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="followup.html">Follow-up triggering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mma.html">MMA Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="period.html">Periodic Timeseries Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="spatial_catalog.html">Spatial Catalogs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_usage.html">Advanced usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="photometric_series.html">How to work with photometric series</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="image_analysis.html">Image Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.html">SkyPortal Extensions</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="analysis">
+<h1>Analysis<a class="headerlink" href="#analysis" title="Link to this heading">#</a></h1>
+<p>SkyPortal serves largely as a central place of record for astronomical data and as an interaction portal around such data. Whenever advanced analysis is needed on individual sources or groups of sources the standard procedure is for end users to download the relevant data, process this data offline, and then write back results as comments or annotations.</p>
+<p>There are a few exceptions where SkyPortal does provide in-app analysis, namely interactive periodogram analysis for variable sources (visible from the photometry panel on the source page) and <code class="docutils literal notranslate"><span class="pre">PhotStats</span></code> (a table that accumulates basic photometry statistics on on sources, accessible via API).</p>
+<section id="external-analysis-services">
+<h2>External Analysis Services<a class="headerlink" href="#external-analysis-services" title="Link to this heading">#</a></h2>
+<p>SkyPortal enables the establishment of 3rd party analysis services, which can be interacted with both programmatically and via the webapp. The basic idea is that data available to a user on a particular source can be sent externally (via POST request) for processing. The results of this processing are written back to SP asynchronously via a webhook. Those results can be displayed and queried in the webapp. SkyPortal also enables “requestless” analysis authenticated uploads if an analysis service is created using the <code class="docutils literal notranslate"><span class="pre">upload_only</span></code> flag.</p>
+<p>Some example use cases contemplated:</p>
+<ul class="simple">
+<li><p>send a source to a 3rd party application which applies custom machine learning models to determine <strong>classification</strong> of that source</p></li>
+<li><p><strong>Light curve fitting</strong> to template models</p></li>
+<li><p><strong>Redshift fitting</strong> on spectra</p></li>
+</ul>
+<section id="creating-a-new-analysis-service">
+<h3>Creating a new Analysis Service<a class="headerlink" href="#creating-a-new-analysis-service" title="Link to this heading">#</a></h3>
+<p>The first step is to tell SkyPortal where your analysis service lives (URL/port), what data it expects, what type of analysis it performs, etc.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;My Awesome RR Lyrae Fitter&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;display_name&quot;</span><span class="p">:</span> <span class="s2">&quot;My display name&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;We fit RRLyrae to templates&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="s2">&quot;1.0&quot;</span>
+    <span class="s2">&quot;contact_name&quot;</span><span class="p">:</span> <span class="s2">&quot;I. M. Astronomer&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://amazing.analysis.edu:6801/analysis/rrl_analysis&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;authentication_type&quot;</span><span class="p">:</span> <span class="s2">&quot;header_token&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;_authinfo&quot;</span><span class="p">:</span> <span class="s1">&#39;{&quot;header_token&quot;: {&quot;Authorization&quot;: &quot;Bearer MY_TOKEN&quot;}}&#39;</span><span class="p">,</span>
+    <span class="s2">&quot;analysis_type&quot;</span><span class="p">:</span> <span class="s2">&quot;lightcurve_fitting&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;input_data_types&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;photometry&quot;</span><span class="p">,</span> <span class="s2">&quot;redshift&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;upload_only&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="s2">&quot;optional_analysis_parameters&quot;</span><span class="p">:</span> <span class="s1">&#39;{&quot;rrl_type&quot;: [&quot;ab&quot;, &quot;c&quot;, &quot;d&quot;, &quot;e&quot;}&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;timeout&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span>
+    <span class="s2">&quot;group_ids&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">9</span><span class="p">]</span>
+<span class="p">}</span>
+
+<span class="n">header</span> <span class="o">=</span>  <span class="p">{</span><span class="s1">&#39;Authorization&#39;</span><span class="p">:</span> <span class="s1">&#39;token &lt;token&gt;&#39;</span><span class="p">}</span>
+<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;http://localhost:5000/api/analysis_service&quot;</span>
+<span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">header</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span> <span class="n">payload</span><span class="p">)</span>
+<span class="n">analysis_id</span> <span class="o">=</span>  <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;data&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Setting <code class="docutils literal notranslate"><span class="pre">upload_only</span></code> to True will set that service as providing the results of a 3rd party analysis that does not make explicit use of SkyPortal data. Setting <code class="docutils literal notranslate"><span class="pre">upload_only</span></code> to False will mean that SkyPortal will package and send data to an external service and that service sends back data via a webhook.</p>
+<p>We support header-based authentication and those authentications described in the <code class="docutils literal notranslate"><span class="pre">requests</span></code> package. You can also GET parameters of an analysis by ID and also modify (PATCH) and delete analyses.  By default we place a cap of 50 completed analyses per object per user/token. Old or outdated analyses should be deleted as appropriate.</p>
+</section>
+<section id="starting-a-new-analysis-webhook-approach">
+<h3>Starting a new Analysis (Webhook approach)<a class="headerlink" href="#starting-a-new-analysis-webhook-approach" title="Link to this heading">#</a></h3>
+<p>To kick off a new analysis on a source using a known <code class="docutils literal notranslate"><span class="pre">analysis_id</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">header</span> <span class="o">=</span>  <span class="p">{</span><span class="s1">&#39;Authorization&#39;</span><span class="p">:</span> <span class="s1">&#39;token &lt;token&gt;&#39;</span><span class="p">}</span>
+<span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;http://localhost:5000/api/obj/</span><span class="si">{</span><span class="n">source_id</span><span class="si">}</span><span class="s2">/analysis/</span><span class="si">{</span><span class="n">analysis_id</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">header</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This will assemble data on that source and send it to the 3rd party application host at the url specified when making the analysis service. It will also send a callback URL for the analysis service to send results over. This data will be stored by SkyPortal.</p>
+</section>
+<section id="what-an-analysis-service-returns">
+<h3>What an Analysis Service returns<a class="headerlink" href="#what-an-analysis-service-returns" title="Link to this heading">#</a></h3>
+<p>When a new analysis has completed it must post back the results as a JSON body to SkyPortal using the unique token embedded in the webhook URL (<code class="docutils literal notranslate"><span class="pre">callback_url</span></code>, e.g. <code class="docutils literal notranslate"><span class="pre">https://&lt;skyportal_base&gt;:5000/api/webhook/obj_analysis/555ce6d4-15cf...</span></code>).
+The JSON response should have three keywords:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">,</span>  <span class="s2">&quot;message&quot;</span><span class="p">,</span> <span class="s2">&quot;analysis&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The webbook API looks for <code class="docutils literal notranslate"><span class="pre">status==&quot;success&quot;</span></code> to determine if the analysis should be considered a success or not; it’s up to the analysis service to determine if the results should be considered trustworthy or not.</p>
+<p>The “analysis” value should itself be an object containing some combination of three keywords:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="s2">&quot;inference_data&quot;</span><span class="p">,</span> <span class="s2">&quot;plots&quot;</span><span class="p">,</span> <span class="s2">&quot;results&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The “analysis” can also be empty an empty object. Theses values are used in the following way:</p>
+<ul class="simple">
+<li><p><strong>interfence_data</strong> - an <a class="reference external" href="https://arviz-devs.github.io"><code class="docutils literal notranslate"><span class="pre">arviz</span></code> InferenceData</a> object, containing at least a <code class="docutils literal notranslate"><span class="pre">posterior</span></code> group.</p></li>
+<li><p><strong>plots</strong> - a list of plots (e.g. in png format) to be stored/shown.</p></li>
+<li><p><strong>results</strong> - a freeform python object containing fitting results, such as best fit parameters, goodness-of-fit results, etc. This object should be packaged on the analysis end with <code class="docutils literal notranslate"><span class="pre">joblib.dump</span></code>.</p></li>
+</ul>
+<p>All three of these data are encoded with <code class="docutils literal notranslate"><span class="pre">base64.b64encode</span></code> to facilitate the web transport from the service to SkyPortal. Stored data can be retrieved from SkyPortal with a GET request with the flag <code class="docutils literal notranslate"><span class="pre">includeAnalysisData=True</span></code> like:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>url = https://&lt;skyportal_base&gt;:5000/api/obj/analysis/&lt;int&gt;?includeAnalysisData=True`
+r = requests.get(url, headers=&lt;token info&gt;)
+data = r.json()
+</pre></div>
+</div>
+<p>So that the inference data can be retrieved
+like:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">arviz</span>
+<span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;tmp.nc&quot;</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span>
+<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;analysis&quot;</span><span class="p">][</span><span class="s2">&quot;inference_data&quot;</span><span class="p">][</span><span class="s2">&quot;data&quot;</span><span class="p">]))</span>
+<span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+<span class="n">inference_data</span> <span class="o">=</span> <span class="n">arviz</span><span class="o">.</span><span class="n">from_netcdf</span><span class="p">(</span><span class="s2">&quot;tmp.nc&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The plots can be retrieved like:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">plot</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;analysis&quot;</span><span class="p">][</span><span class="s2">&quot;plots&quot;</span><span class="p">]):</span>
+	<span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;tmp_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">plot</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span>
+	<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">plot</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]))</span>
+	<span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>And the results data can be retrieved like:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">joblib</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">joblib</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;analysis&quot;</span><span class="p">][</span><span class="s2">&quot;results&quot;</span><span class="p">][</span><span class="s2">&quot;data&quot;</span><span class="p">]))</span>
+</pre></div>
+</div>
+<p>A valid POST will immediately invalidate the unique token so that analysis entry cannot be posted to again (the user can simply restart an analysis with different parameters if they wish).</p>
+</section>
+<section id="upload-an-analysis-non-webhook-approach">
+<h3>Upload an Analysis (non-webhook approach)<a class="headerlink" href="#upload-an-analysis-non-webhook-approach" title="Link to this heading">#</a></h3>
+<p>If an analysis service is set up to be <code class="docutils literal notranslate"><span class="pre">upload_only</span></code> then users can POST analysis results directly SkyPortal using the <code class="docutils literal notranslate"><span class="pre">/api/obj/&lt;source</span> <span class="pre">name&gt;/analysis_upload</span></code> endpoint. The data uploaded should be in the same format expected from the webhook-method analysis services (see “What an Analysis Service Returns” above). The POST can also contain directives about whether to show the plots and results (similar to the webhook-based analysis request).</p>
+<p>As an example, a 3rd party analysis on the object named MySourceName using service number service_id can be uploaded as such:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">params</span><span class="o">=</span><span class="p">{</span>
+  <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;success&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Ran this on my machine&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;show_parameters&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+  <span class="s2">&quot;analysis&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;plots&quot;</span><span class="p">:</span> <span class="o">...</span><span class="p">,</span>
+    <span class="s2">&quot;inference_data&quot;</span><span class="p">:</span> <span class="o">...</span><span class="p">,</span>
+    <span class="s2">&quot;results&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;json&quot;</span><span class="p">,</span>
+      <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;external_provenance&quot;</span><span class="p">:</span> <span class="p">{</span>
+          <span class="s2">&quot;hash&quot;</span><span class="p">:</span> <span class="s2">&quot;23baef56&quot;</span><span class="p">,</span>
+          <span class="s2">&quot;spectrum_ids&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">34</span><span class="p">,</span> <span class="mi">68</span><span class="p">,</span> <span class="mi">125</span><span class="p">],</span>
+          <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="s2">&quot;jsbFitter23&quot;</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;classification&quot;</span><span class="p">:</span> <span class="s2">&quot;DY Per&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;classification_proba&quot;</span><span class="p">:</span> <span class="mf">0.94</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;http://&lt;url&gt;:5000/api/obj/MySourceName/analysis_upload/</span><span class="si">{</span><span class="n">service_id</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;Authorization&#39;</span><span class="p">:</span>   <span class="s1">&#39;token uuid&#39;</span><span class="p">},</span> <span class="n">json</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>It is the responsibility of the 3rd party to maintain any provenance for the analysis (ie. what specific data was used to run the analysis), to delete outdated versions of the analysis on a given obj, and to avoid leaking sensitive data available to the 3rd party but not available to the groups that a specific analysis is attached to.</p>
+</section>
+<section id="getting-specific-analysis-products-programmatically">
+<h3>Getting specific analysis products programmatically<a class="headerlink" href="#getting-specific-analysis-products-programmatically" title="Link to this heading">#</a></h3>
+<p>SkyPortal has an API endpoint that allows programmatic access to GET products (plots, results, and posterior visualization) produced by an analysis service.
+The GET endpoints are:</p>
+<p>Plots (return an image to display):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">http</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">skyportal_base</span><span class="o">&gt;</span><span class="p">:</span><span class="mi">5000</span><span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">obj</span><span class="o">/</span><span class="n">analysis</span><span class="o">/&lt;</span><span class="n">analysis_id</span><span class="o">&gt;/</span><span class="n">plots</span><span class="o">/&lt;</span><span class="n">plot_number</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>Posterior viz (ie. return a corner plot image to display):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">http</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">skyportal_base</span><span class="o">&gt;</span><span class="p">:</span><span class="mi">5000</span><span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">obj</span><span class="o">/</span><span class="n">analysis</span><span class="o">/&lt;</span><span class="n">analysis_id</span><span class="o">&gt;/</span><span class="n">corner</span>
+</pre></div>
+</div>
+<p>(attach corner plot kwargs in the body of the GET)</p>
+<p>Results (returned as a json):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">http</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">skyportal_base</span><span class="o">&gt;</span><span class="p">:</span><span class="mi">5000</span><span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">obj</span><span class="o">/</span><span class="n">analysis</span><span class="o">/&lt;</span><span class="n">analysis_id</span><span class="o">&gt;/</span><span class="n">results</span>
+</pre></div>
+</div>
+<p>For example, to save the first plot of <code class="docutils literal notranslate"><span class="pre">analysis_id=32</span></code>, one can do something like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">shutil</span>
+<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;http://localhost:5000/api/obj/analysis/32/plots/0&quot;</span>
+<span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">header</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;img.png&#39;</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">out_file</span><span class="p">:</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copyfileobj</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">raw</span><span class="p">,</span> <span class="n">out_file</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="supernova-fitter-example">
+<h2>Supernova Fitter Example<a class="headerlink" href="#supernova-fitter-example" title="Link to this heading">#</a></h2>
+<p>SkyPortal ships with an example 3rd party analysis app to fit lightcurves with supernova models in <code class="docutils literal notranslate"><span class="pre">sncosmo</span></code> (see <code class="docutils literal notranslate"><span class="pre">services/sn_analysis_service/</span></code>). To use it locally, load the demo data to create an analysis service entry that establishes the SN fitter microservice:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">load_demo_data</span>
+</pre></div>
+</div>
+<p>Then start an analysis on a source like (in Python):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="n">header</span> <span class="o">=</span>  <span class="p">{</span><span class="s1">&#39;Authorization&#39;</span><span class="p">:</span> <span class="s1">&#39;token &lt;token&gt;&#39;</span><span class="p">}</span>
+<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;http://localhost:5000/api/obj/ZTF21aaqjmps/analysis/1&quot;</span>
+<span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;url_parameters&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="s2">&quot;nugent-sn2p&quot;</span><span class="p">}}</span>
+<span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">header</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Get the results</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;http://localhost:5000/api/obj/analysis/</span><span class="si">{</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="si">}</span><span class="s2">?includeAnalysisData=True&quot;</span>
+<span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=&lt;</span><span class="n">token</span> <span class="n">info</span><span class="o">&gt;</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="summaries">
+<h2>Summaries<a class="headerlink" href="#summaries" title="Link to this heading">#</a></h2>
+<p><a class="reference external" href="analysis_services">Analysis services</a> in SkyPortal can be declared as providing a summary of a source. When <code class="docutils literal notranslate"><span class="pre">is_summary</span></code> is <code class="docutils literal notranslate"><span class="pre">True</span></code> in an analysis service, the results of an analysis using this service will be stored in the <code class="docutils literal notranslate"><span class="pre">obj.summary</span></code> and <code class="docutils literal notranslate"><span class="pre">obj.summary_history</span></code> (akin to how redshifts are stored and updated). If the associated analysis is deleted then it will be removed from <code class="docutils literal notranslate"><span class="pre">obj.summary_history</span></code>. The frontend allows a user to see the summary history and edit the results of a summary analysis.</p>
+<section id="ai-summarization">
+<h3>AI Summarization<a class="headerlink" href="#ai-summarization" title="Link to this heading">#</a></h3>
+<p>Following the dramatic quality, speed, and cost improvements of publicly assessable large language models (LLMs), the ability to programmatically summarize what is known about (many SkyPortal) sources became feasible. Shipped with SkyPortal is a microservice served by default at the endpoint <code class="docutils literal notranslate"><span class="pre">http://localhost:7003/summarize</span></code>. This service packages source information such as comments, redshift, and classification, and obtains a human-readable summary by wrapping the ChatGPT API from OpenAI. Summaries (AI or human generated) appear below the source name on the source page and can be returned as part of a query on <code class="docutils literal notranslate"><span class="pre">objs</span></code>.</p>
+<p>To use this service the SkyPortal config must set a valid API key from OpenAI to be shared with all users of the service or each individual user must supply their own API key and set the OpenAI integration to <code class="docutils literal notranslate"><span class="pre">active</span></code> in their user profiles. Specifics of the  ChatGPT interaction (such as model, model parameters, and prompt) are established in the site-wide config. See the <code class="docutils literal notranslate"><span class="pre">openai_analysis_service</span></code> section of <code class="docutils literal notranslate"><span class="pre">analysis_services</span></code> in the config file.</p>
+<p>Note: only data that the user who initiates a summary analysis has access to is shipped to the 3rd party. However summaries, like redshifts, are public on the source. So anyone who has access to the source can see the summaries. Users are advised to check for any sensitive information that might leak into summaries that other SkyPortal users might not know otherwise. If information has leaked in an AI summary they can delete the appropriate analysis and manually add a summary as they see fit.</p>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="image_analysis.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Image Analysis</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="photometric_series.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">How to work with photometric series</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2020–2023, The SkyPortal Team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Analysis</a><ul>
+<li><a class="reference internal" href="#external-analysis-services">External Analysis Services</a><ul>
+<li><a class="reference internal" href="#creating-a-new-analysis-service">Creating a new Analysis Service</a></li>
+<li><a class="reference internal" href="#starting-a-new-analysis-webhook-approach">Starting a new Analysis (Webhook approach)</a></li>
+<li><a class="reference internal" href="#what-an-analysis-service-returns">What an Analysis Service returns</a></li>
+<li><a class="reference internal" href="#upload-an-analysis-non-webhook-approach">Upload an Analysis (non-webhook approach)</a></li>
+<li><a class="reference internal" href="#getting-specific-analysis-products-programmatically">Getting specific analysis products programmatically</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supernova-fitter-example">Supernova Fitter Example</a></li>
+<li><a class="reference internal" href="#summaries">Summaries</a><ul>
+<li><a class="reference internal" href="#ai-summarization">AI Summarization</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=efa42bf3"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=32e29ea5"></script>
+    </body>
+</html>

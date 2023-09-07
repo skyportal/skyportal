@@ -1,0 +1,418 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Deployment" href="deploy.html" /><link rel="prev" title="API" href="api.html" />
+
+    <!-- Generated with Sphinx 7.2.5 and Furo 2023.08.19 -->
+        <title>Developer notes - skyportal 0.9.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
+    <link rel="stylesheet" type="text/css" href="_static/output_cells.css?v=4c393c42" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=36a5483c" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #eeffcc;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">skyportal 0.9.dev0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  
+  <span class="sidebar-brand-text">skyportal 0.9.dev0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="design.html">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Developer notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy.html">Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_loader.html">Data loader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">How to Contribute</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding_features.html">Adding new features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding_comments_annotation_types.html">Adding a new type of Comment or Annotation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="styling.html">Styling components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html">Database Schema</a></li>
+<li class="toctree-l1"><a class="reference internal" href="migrations.html">Database migrations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="query_analysis.html">Analyzing database queries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="permissions.html">Access controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slack.html">Slack Integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="followup.html">Follow-up triggering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mma.html">MMA Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="period.html">Periodic Timeseries Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="spatial_catalog.html">Spatial Catalogs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_usage.html">Advanced usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="photometric_series.html">How to work with photometric series</a></li>
+<li class="toctree-l1"><a class="reference internal" href="analysis.html">Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="image_analysis.html">Image Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.html">SkyPortal Extensions</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="developer-notes">
+<h1>Developer notes<a class="headerlink" href="#developer-notes" title="Link to this heading">#</a></h1>
+<section id="pre-commit-hook">
+<h2>Pre-commit hook<a class="headerlink" href="#pre-commit-hook" title="Link to this heading">#</a></h2>
+<p>Install our pre-commit hook as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">pre</span><span class="o">-</span><span class="n">commit</span>
+<span class="n">pre</span><span class="o">-</span><span class="n">commit</span> <span class="n">install</span>
+</pre></div>
+</div>
+<p>This will check your changes before each commit to ensure that they
+conform with our code style standards. We use black to reformat Python
+code, and PrettierJS for JavaScript. We also run ESLint to catch
+several common Redux usage bugs.</p>
+</section>
+<section id="testing">
+<h2>Testing<a class="headerlink" href="#testing" title="Link to this heading">#</a></h2>
+<p>To execute the test suite:</p>
+<ul class="simple">
+<li><p>Install geckodriver and Firefox</p></li>
+<li><p>To run all tests: <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test</span></code></p></li>
+<li><p>To run a single test: <code class="docutils literal notranslate"><span class="pre">./baselayer/tools/test_frontend.py</span> <span class="pre">skyportal/tests/frontend/&lt;test_file&gt;.py::test_&lt;specific_test&gt;</span></code></p></li>
+</ul>
+<p>This fires up the test server and runs that test. To make things
+faster you can also run the test server separately:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">run_testing</span>   <span class="c1"># fire up the server with `test_conf.yaml`</span>
+
+<span class="n">pytest</span> <span class="n">skyportal</span><span class="o">/</span><span class="n">tests</span><span class="o">/</span><span class="n">api</span>  <span class="c1"># test api</span>
+<span class="n">pytest</span> <span class="n">skyportal</span><span class="o">/</span><span class="n">tests</span><span class="o">/</span><span class="n">frontend</span><span class="o">/</span><span class="n">test_user</span><span class="o">.</span><span class="n">py</span>  <span class="c1"># run subset of frontend tests</span>
+<span class="n">pytest</span> <span class="n">skyportal</span><span class="o">/</span><span class="n">tests</span><span class="o">/</span><span class="n">frontend</span><span class="o">/</span><span class="n">test_user</span><span class="o">.</span><span class="n">py</span><span class="p">::</span><span class="n">test_user_profile_fetching</span>  <span class="c1"># run a single test</span>
+</pre></div>
+</div>
+<p>On Linux, the tests can be run in “headless” mode (no browser display):</p>
+<ul class="simple">
+<li><p>Install xvfb (<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt-get</span> <span class="pre">install</span> <span class="pre">xvfb</span></code>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test_headless</span></code></p></li>
+</ul>
+<p>Or, as described above, launch the test server with <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run_testing</span></code>, and then call</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">xvfb</span><span class="o">-</span><span class="n">run</span> <span class="n">pytest</span> <span class="n">skyportal</span><span class="o">/</span><span class="n">tests</span><span class="o">/</span><span class="n">frontend</span><span class="o">/</span><span class="n">test_user</span><span class="o">.</span><span class="n">py</span>
+</pre></div>
+</div>
+<p>It is not noticeably faster to run the test suite headlessly.</p>
+<section id="test-fixtures">
+<h3>Test fixtures<a class="headerlink" href="#test-fixtures" title="Link to this heading">#</a></h3>
+<p>The SkyPortal test suite leverages pytest fixtures to generate and isolate test data for each test. Fixtures are declared in the <code class="docutils literal notranslate"><span class="pre">skyportal/tests/conftest.py</span></code> file, and they utilize factories implemented in <code class="docutils literal notranslate"><span class="pre">skyportal/tests/fixtures.py</span></code> to generate new instances of fixtures as needed.</p>
+<p>Each test will request any fixtures that it requires, and as part of the set-up for that test, new test instances of the fixtures are created. This means that each test is guaranteed to work with fresh, isolated test data in order to avoid any unintended dependencies on other tests. Fixtures should be used when possible in writing new tests to promote safe, repeatable test results.</p>
+<p>SkyPortal test fixtures are implemented with teardown logic, such that any database records generated for that fixture are deleted from the test database upon completion of a test. This serves to avoid bloating of the test database as more tests are run. Note that each fixture defined in <code class="docutils literal notranslate"><span class="pre">conftest.py</span></code> uses the <code class="docutils literal notranslate"><span class="pre">yield</span></code> keyword to return its test object. Any code following <code class="docutils literal notranslate"><span class="pre">yield</span></code> in a pytest fixture is run as teardown logic when that fixture goes out of scope; you will find that in SkyPortal this involves calling the relevant <code class="docutils literal notranslate"><span class="pre">teardown()</span></code> functions on the fixture objects created. These <code class="docutils literal notranslate"><span class="pre">teardown()</span></code> functions are implemented for each SQLAlchemyModelFactory subclass defined in <code class="docutils literal notranslate"><span class="pre">fixtures.py</span></code>.</p>
+<p>Any new fixtures and fixture factories being added should follow this same structure, taking care to delete all fixture data (including SubFactory-generated records, i.e. a new User created to be the author of a new Comment). Foreign key constraints and cascade behavior defined on the database models can be used to simplify this logic but can also lead to subtle errors in tearing down fixtures and should be taken into careful consideration.</p>
+</section>
+</section>
+<section id="debugging">
+<h2>Debugging<a class="headerlink" href="#debugging" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">log</span></code> to watch log output</p></li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">stop</span></code> to stop any running web services.</p></li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">attach</span></code> to attach to output of webserver, e.g. for use with <code class="docutils literal notranslate"><span class="pre">pdb.set_trace()</span></code></p></li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">check-js-updates</span></code> to see which Javascript packages are eligible for an upgrade.</p></li>
+</ul>
+</section>
+<section id="database">
+<h2>Database<a class="headerlink" href="#database" title="Link to this heading">#</a></h2>
+<p>All interactions with the database are performed by way of SQLAlchemy using the
+Pyscopg2 backend. Some standard but not necessarily obvious usage patterns we
+make use of include:</p>
+<ul class="simple">
+<li><p>Logic for connecting to the DB, refreshing tables, etc. is found in <code class="docutils literal notranslate"><span class="pre">baselayer/model_utils.py</span></code>:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">baselayer.app.env</span> <span class="kn">import</span> <span class="n">load_env</span>
+<span class="kn">from</span> <span class="nn">skyportal.models</span> <span class="kn">import</span> <span class="n">DBSession</span><span class="p">,</span> <span class="n">init_db</span>
+<span class="n">env</span><span class="p">,</span> <span class="n">cfg</span> <span class="o">=</span> <span class="n">load_env</span><span class="p">()</span>
+<span class="n">init_db</span><span class="p">(</span><span class="o">**</span><span class="n">cfg</span><span class="p">[</span><span class="s1">&#39;database&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>The session object controls various DB state operations:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">DBSession</span><span class="p">()</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>  <span class="c1"># add a new object into the DB</span>
+<span class="n">DBSession</span><span class="p">()</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>  <span class="c1"># commit modifications to objects</span>
+<span class="n">DBSession</span><span class="p">()</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>  <span class="c1"># recover after a DB error</span>
+</pre></div>
+</div>
+<p>For more information on how to use the session, see <code class="docutils literal notranslate"><span class="pre">baselayer/doc/dev.md</span></code>.</p>
+<ul class="simple">
+<li><p>Generic logic applicable to any model is included in the base model class <code class="docutils literal notranslate"><span class="pre">baselayer.app.models.Base</span></code> (<code class="docutils literal notranslate"><span class="pre">to_dict</span></code>, <code class="docutils literal notranslate"><span class="pre">__str__</span></code>, etc.), but can be overridden within a specific model</p></li>
+<li><p>Models can be queried directly (<code class="docutils literal notranslate"><span class="pre">User.query.all()</span></code>), or more specific queries can be constructed via the session object (<code class="docutils literal notranslate"><span class="pre">DBSession().query(User.id).all()</span></code>)</p></li>
+<li><p>A more modern way to interact with the models is using select statements: <code class="docutils literal notranslate"><span class="pre">Obj.select(current_user_id).where(Obj.id</span> <span class="pre">==</span> <span class="pre">'ZTF20aahxjps')</span></code></p></li>
+<li><p>To get the actual objects create a session (either using <code class="docutils literal notranslate"><span class="pre">self.Session()</span></code> on the handler or using <code class="docutils literal notranslate"><span class="pre">DBSession()</span></code> which does not apply permissioning).
+Then use the session: <code class="docutils literal notranslate"><span class="pre">session.execute(stmt).all()</span></code> or <code class="docutils literal notranslate"><span class="pre">session.scalars(stmt).all()</span></code>. The <code class="docutils literal notranslate"><span class="pre">scalars</span></code> is preferred when selecting whole objects or single columns.
+The <code class="docutils literal notranslate"><span class="pre">execute</span></code> is better for getting multiple columns as tuples.</p></li>
+<li><p>Best practice is to call the session as a context manager (i.e., <code class="docutils literal notranslate"><span class="pre">with</span> <span class="pre">self.Session()</span> <span class="pre">as</span> <span class="pre">session:</span></code>) but only if the session does not need to stay open.</p></li>
+<li><p>Convenience functionality:</p>
+<ul>
+<li><p>Join relationships: some multi-step relationships are defined through joins using the <code class="docutils literal notranslate"><span class="pre">secondary</span></code> parameter to eliminate queries from the intermediate table; e.g., <code class="docutils literal notranslate"><span class="pre">User.acls</span></code> instad of <code class="docutils literal notranslate"><span class="pre">[r.acls</span> <span class="pre">for</span> <span class="pre">r</span> <span class="pre">in</span> <span class="pre">User.roles]</span></code></p></li>
+<li><p><a class="reference external" href="http://docs.sqlalchemy.org/en/latest/orm/extensions/associationproxy.html">Association proxies</a>: shortcut to some attribute of a related object; e.g., <code class="docutils literal notranslate"><span class="pre">User.permissions</span></code> instead of <code class="docutils literal notranslate"><span class="pre">[a.id</span> <span class="pre">for</span> <span class="pre">a</span> <span class="pre">in</span> <span class="pre">User.acls]</span></code></p></li>
+<li><p><a class="reference external" href="http://docs.sqlalchemy.org/en/latest/orm/loading_relationships.html">Joined loads</a>: this allows for a single query to also include child/related objects; often used in handlers when we know that information about related objects will also be needed.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">to_json()</span></code>: often from a handler we return an ORM object, which gets converted to JSON via <code class="docutils literal notranslate"><span class="pre">json_util.to_json(obj.to_dict())</span></code>. This also includes the attributes of any children that were loaded via <code class="docutils literal notranslate"><span class="pre">joinedload</span></code> or by accessing them directly. For example:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">User.query.first().to_dict()</span></code> will not contain information about the user’s permissions</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">u</span> <span class="pre">=</span> <span class="pre">User.query.first();</span> <span class="pre">u.acls;</span> <span class="pre">u.to_dict()</span></code> does include a list of the user’s ACLs</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="docker-images">
+<h2>Docker images<a class="headerlink" href="#docker-images" title="Link to this heading">#</a></h2>
+<p>Run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">docker-images</span></code> to build and push to Docker hub.</p>
+</section>
+<section id="debugging-github-actions">
+<h2>Debugging GitHub Actions<a class="headerlink" href="#debugging-github-actions" title="Link to this heading">#</a></h2>
+<p>You can insert the following step to debug your workflow:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Setup tmate session</span>
+<span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mxschmitt/action-tmate@v2</span>
+</pre></div>
+</div>
+<p>It will print a command that you can use to SSH into the runner.</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="deploy.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Deployment</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="api.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">API</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2020–2023, The SkyPortal Team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Developer notes</a><ul>
+<li><a class="reference internal" href="#pre-commit-hook">Pre-commit hook</a></li>
+<li><a class="reference internal" href="#testing">Testing</a><ul>
+<li><a class="reference internal" href="#test-fixtures">Test fixtures</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#debugging">Debugging</a></li>
+<li><a class="reference internal" href="#database">Database</a></li>
+<li><a class="reference internal" href="#docker-images">Docker images</a></li>
+<li><a class="reference internal" href="#debugging-github-actions">Debugging GitHub Actions</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=efa42bf3"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=32e29ea5"></script>
+    </body>
+</html>

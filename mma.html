@@ -1,0 +1,359 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Periodic Timeseries Features" href="period.html" /><link rel="prev" title="Follow-up triggering" href="followup.html" />
+
+    <!-- Generated with Sphinx 7.2.5 and Furo 2023.08.19 -->
+        <title>MMA Features - skyportal 0.9.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
+    <link rel="stylesheet" type="text/css" href="_static/output_cells.css?v=4c393c42" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=36a5483c" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #eeffcc;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">skyportal 0.9.dev0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  
+  <span class="sidebar-brand-text">skyportal 0.9.dev0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="design.html">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev.html">Developer notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy.html">Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_loader.html">Data loader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">How to Contribute</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding_features.html">Adding new features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding_comments_annotation_types.html">Adding a new type of Comment or Annotation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="styling.html">Styling components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html">Database Schema</a></li>
+<li class="toctree-l1"><a class="reference internal" href="migrations.html">Database migrations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="query_analysis.html">Analyzing database queries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="permissions.html">Access controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slack.html">Slack Integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="followup.html">Follow-up triggering</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">MMA Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="period.html">Periodic Timeseries Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="spatial_catalog.html">Spatial Catalogs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_usage.html">Advanced usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="photometric_series.html">How to work with photometric series</a></li>
+<li class="toctree-l1"><a class="reference internal" href="analysis.html">Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="image_analysis.html">Image Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.html">SkyPortal Extensions</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="mma-features">
+<h1>MMA Features<a class="headerlink" href="#mma-features" title="Link to this heading">#</a></h1>
+<p>Skyportal supports multi-messenger astronomy (MMA) features. In particular, we ingest events from <a class="reference external" href="https://gcn.gsfc.nasa.gov/">GCN</a>; the service controlling this is here: https://github.com/skyportal/skyportal/blob/main/skyportal/services/gcn_service/gcn_service.py.</p>
+<p>We ingest gravitational-wave events from the International Gravitational-Wave Network (IGWN), gamma-ray burst events from Fermi Gamma-ray Burst Monitor (GBM), and neutrinos from IceCube. To each <code class="docutils literal notranslate"><span class="pre">GcnEvent</span></code> is associated a set of <code class="docutils literal notranslate"><span class="pre">Localization</span></code>s, which are HEALPix-based maps containing the probability density as a function of sky location. Each <code class="docutils literal notranslate"><span class="pre">GcnEvent</span></code> is identified by its event time, as represented in ISO 8601 format (<code class="docutils literal notranslate"><span class="pre">YYYY-MM-DDTHH:MM:SS.sss</span></code>). The <code class="docutils literal notranslate"><span class="pre">Localization</span></code>s are connected to a <code class="docutils literal notranslate"><span class="pre">GcnEvent</span></code> by this <code class="docutils literal notranslate"><span class="pre">dateobs.</span></code></p>
+<p>The features are available on the <strong>gcn_events</strong> page, where information on the events (including the skymaps), and associated triggering of follow-up is available. In particular, <code class="docutils literal notranslate"><span class="pre">Allocations</span></code> now cover both transient follow-up (as a <code class="docutils literal notranslate"><span class="pre">FollowupRequest</span></code>) and GCN event follow-up (as an <code class="docutils literal notranslate"><span class="pre">ObservationPlanRequest</span></code>). The main difference between these two is that a <code class="docutils literal notranslate"><span class="pre">FollowupRequest</span></code> is a single pointing associated with a particular object. An <code class="docutils literal notranslate"><span class="pre">ObservationPlanRequest</span></code> (which triggers an associated <code class="docutils literal notranslate"><span class="pre">EventObservationPlan</span></code> with knowledge of the particular fields, filters, and exposure times to be used) performs tiling of a <code class="docutils literal notranslate"><span class="pre">Localization.</span></code></p>
+<p>These <code class="docutils literal notranslate"><span class="pre">ObservationPlanRequest</span></code>s in particular are triggered on the front-end from the <strong>gcn_events</strong> page, with drop down menus creating a schedule for a given instrument. This request creates an <code class="docutils literal notranslate"><span class="pre">EventObservationPlan</span></code>, which will then have the option of being sent to the instrument through the APIs developed in the <strong>FollowupRequest</strong> (see the APIs here: https://github.com/skyportal/skyportal/tree/main/skyportal/facility_apis).</p>
+<p>To evaluate the efficacy of the executed observation plans, we have the <code class="docutils literal notranslate"><span class="pre">ExecutedObservation</span></code>s table, which is accessible through the <code class="docutils literal notranslate"><span class="pre">observation</span></code> api. After execution of the requested observations in the <code class="docutils literal notranslate"><span class="pre">EventObservationPlan</span></code>, the user is responsible for uploading successfully executed observations to the <code class="docutils literal notranslate"><span class="pre">ExecutedObservation</span></code>s table (see below). Users should include information about the time of observation, filter, limiting magnitude, etc. The results of the observations can be compared to the <code class="docutils literal notranslate"><span class="pre">Localization</span></code>s to determine sky coverage and integrated probability contained with the map.</p>
+<section id="uploading-executed-observations">
+<h2>Uploading executed observations<a class="headerlink" href="#uploading-executed-observations" title="Link to this heading">#</a></h2>
+<p>In addition to making available the <code class="docutils literal notranslate"><span class="pre">observation</span></code> api, we also include an Observations page to simplify upload and viewing of <code class="docutils literal notranslate"><span class="pre">ExecutedObservation</span></code>s. On this page, simply specify the instrument and upload a file of the form:</p>
+<p>observation_id,field_id,obstime,seeing,limmag,exposure_time,filter,processed_fraction
+84434604,1,2458598.8460417003,1.5741500000,20.4070500000,30,ztfr,1.00000
+84434651,1,2458598.8465162003,1.5812000000,20.4940500000,30,ztfr,1.00000
+84434696,1,2458598.8469676003,1.6499500000,20.5603000000,30,ztfr,1.00000</p>
+<p>where observation_id (the ID of the observations, does not need to be unique), the field_id, the observation time (in JD or otherwise any unambigious format as specified in the astropy docs such as iso or isot: https://docs.astropy.org/en/stable/time/index.html), the seeing (in arcseconds), the limiting magnitude, the exposure time (in seconds), the filter, and the “processed_fraction” (what fraction of the image was successfully processed) are potential columns. We note that only observation_id, field_id, obstime, filter, and exposure_time are required.</p>
+<p>It is also possible to upload by right ascension and declination in cases where field IDs are not available. In this case, field_id is replaced by the columns RA and Dec, i.e.</p>
+<p>observation_id,RA,Dec,obstime,seeing,limmag,exposure_time,filter,processed_fraction
+94434604,30.0,60.0,2458598.8460417003,1.5741500000,20.4070500000,30,ztfr,1.00000
+94434651,45.0,45.0,2458598.8465162003,1.5812000000,20.4940500000,30,ztfr,1.00000
+94434696,60.0,30.0,2458598.8469676003,1.6499500000,20.5603000000,30,ztfr,1.00000</p>
+</section>
+<section id="executed-observations-api-upload">
+<h2>Executed Observations API Upload<a class="headerlink" href="#executed-observations-api-upload" title="Link to this heading">#</a></h2>
+<p>As part of the <code class="docutils literal notranslate"><span class="pre">ObservationPlanRequest</span></code> API, it is possible to retrieve <code class="docutils literal notranslate"><span class="pre">ExecutedObservation</span></code>s. We briefly describe the authentication form the available telescopes take below:</p>
+<ul class="simple">
+<li><p>ZTF: Login information for IRSA, which takes the form: {”tap_service”: “https://irsa.ipac.caltech.edu/TAP”, “tap_username”: “your_password”, “tap_password”: “your_password”}</p></li>
+</ul>
+</section>
+<section id="gcn-event-ingestion">
+<h2>GCN Event Ingestion<a class="headerlink" href="#gcn-event-ingestion" title="Link to this heading">#</a></h2>
+<p>We use <a class="reference external" href="https://github.com/nasa-gcn/gcn-kafka-python">gcn-kafka</a> to ingest multi-messenger events distributed by the <a class="reference external" href="https://gcn.nasa.gov/">General Coordinates Network (GCN)</a> within SkyPortal.</p>
+<p>For configuration, one requires a client_id and client_secret at https://gcn.nasa.gov/quickstart. Once that is available, the configuration file should contain the following information (discuss with your administrators if someone else is deploying will be edited as the below).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">gcn</span><span class="p">:</span>
+  <span class="n">server</span><span class="p">:</span> <span class="n">gcn</span><span class="o">.</span><span class="n">nasa</span><span class="o">.</span><span class="n">gov</span>
+  <span class="n">client_id</span><span class="p">:</span>
+  <span class="n">client_secret</span><span class="p">:</span>
+  <span class="n">notice_types</span><span class="p">:</span>
+    <span class="o">-</span> <span class="n">FERMI_GBM_FLT_POS</span>
+    <span class="o">-</span> <span class="n">FERMI_GBM_GND_POS</span>
+    <span class="o">-</span> <span class="n">FERMI_GBM_FIN_POS</span>
+    <span class="o">-</span> <span class="n">FERMI_GBM_SUBTHRESH</span>
+    <span class="o">-</span> <span class="n">LVC_PRELIMINARY</span>
+    <span class="o">-</span> <span class="n">LVC_INITIAL</span>
+    <span class="o">-</span> <span class="n">LVC_UPDATE</span>
+    <span class="o">-</span> <span class="n">LVC_RETRACTION</span>
+    <span class="o">-</span> <span class="n">AMON_ICECUBE_COINC</span>
+    <span class="o">-</span> <span class="n">AMON_ICECUBE_HESE</span>
+    <span class="o">-</span> <span class="n">ICECUBE_ASTROTRACK_GOLD</span>
+    <span class="o">-</span> <span class="n">ICECUBE_ASTROTRACK_BRONZE</span>
+</pre></div>
+</div>
+<p>where notice types are also available from the GCN quickstart guide linked above.</p>
+</section>
+<section id="earthquake-ingestion">
+<h2>Earthquake Ingestion<a class="headerlink" href="#earthquake-ingestion" title="Link to this heading">#</a></h2>
+<p>The most important environmental effect on detectors in the IGWN remains teleseismic earthquakes. For this reason, we enable ingestion of earthquakes using the USGS’ <a class="reference external" href="https://github.com/usgs/pdl">PDL client</a>.</p>
+<p>In order to deploy the service, one must:</p>
+<ul class="simple">
+<li><p>Email Michelle Guy (mguy&#64;usgs.gov) with the static IP address of the server and explain the tool’s usage</p></li>
+<li><p>Download the <a class="reference external" href="https://github.com/usgs/pdl/releases/download/2.7.10/ProductClient.jar">Product Client</a> and place it in the services/pdl_service/ directory.</p></li>
+<li><p>Deploy the Product Client from within services/pdl_service/ by running: ./init.sh start</p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="period.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Periodic Timeseries Features</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="followup.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Follow-up triggering</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2020–2023, The SkyPortal Team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">MMA Features</a><ul>
+<li><a class="reference internal" href="#uploading-executed-observations">Uploading executed observations</a></li>
+<li><a class="reference internal" href="#executed-observations-api-upload">Executed Observations API Upload</a></li>
+<li><a class="reference internal" href="#gcn-event-ingestion">GCN Event Ingestion</a></li>
+<li><a class="reference internal" href="#earthquake-ingestion">Earthquake Ingestion</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=efa42bf3"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=32e29ea5"></script>
+    </body>
+</html>
