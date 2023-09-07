@@ -23,7 +23,13 @@ const ADD_SYNTHETIC_PHOTOMETRY = "skyportal/ADD_SYNTHETIC_PHOTOMETRY";
 
 const ADD_SPECTRUM_TNS = "skyportal/ADD_SPECTRUM_TNS";
 
-export function fetchSourceSpectra(id) {
+export function fetchSourceSpectra(id, normalization = null) {
+  if (normalization) {
+    return API.GET(
+      `/api/sources/${id}/spectra?normalization=${normalization}`,
+      FETCH_SOURCE_SPECTRA
+    );
+  }
   return API.GET(`/api/sources/${id}/spectra`, FETCH_SOURCE_SPECTRA);
 }
 

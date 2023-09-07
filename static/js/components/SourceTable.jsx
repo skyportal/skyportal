@@ -894,10 +894,10 @@ const SourceTable = ({
               >
                 <VegaSpectrum
                   sourceId={source.id}
-                  dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
                   width={plotWidth}
                   height={specPlotHeight}
                   legendOrient={legendOrient}
+                  normalization="median"
                 />
               </Suspense>
             </Grid>
