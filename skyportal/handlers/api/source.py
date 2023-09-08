@@ -2505,6 +2505,22 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to include associated GeoJSON. Defaults to
               false.
+          - in: query
+            name: useCache
+            nullable: true
+            schema:
+                type: boolean
+            description: |
+                Boolean indicating whether to use cached results. Defaults to
+                false.
+          - in: query
+            name: queryID
+            nullable: true
+            schema:
+                type: string
+            description: |
+                String to identify query. If provided, will be used to recover previous cached results
+                and speed up query. Defaults to None.
           responses:
             200:
               content:
@@ -2627,7 +2643,7 @@ class SourceHandler(BaseHandler):
 
         # optional, use caching
         use_cache = self.get_query_argument("useCache", False)
-        query_id = self.get_query_argument("queryId", None)
+        query_id = self.get_query_argument("queryID", None)
 
         class Validator(Schema):
             saved_after = UTCTZnaiveDateTime(required=False, missing=None)
