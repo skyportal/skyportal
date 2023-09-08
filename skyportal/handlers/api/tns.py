@@ -189,7 +189,7 @@ class TNSRobotHandler(BaseHandler):
                         f'One or more instruments not found: {instrument_ids}'
                     )
                 for instrument in instruments:
-                    if instrument.name not in TNS_INSTRUMENT_IDS:
+                    if instrument.name.lower() not in TNS_INSTRUMENT_IDS:
                         return self.error(
                             f'Instrument {instrument.name} not supported for TNS reporting'
                         )
@@ -362,7 +362,7 @@ class TNSRobotHandler(BaseHandler):
                         )
 
                     for instrument in instruments:
-                        if instrument.name not in TNS_INSTRUMENT_IDS:
+                        if instrument.name.lower() not in TNS_INSTRUMENT_IDS:
                             return self.error(
                                 f'Instrument {instrument.name} not supported for TNS reporting'
                             )
@@ -659,7 +659,7 @@ class ObjTNSHandler(BaseHandler):
                     )
 
                 for instrument in instruments:
-                    if instrument.name not in TNS_INSTRUMENT_IDS:
+                    if instrument.name.lower() not in TNS_INSTRUMENT_IDS:
                         return self.error(
                             f'Instrument {instrument.name} not supported for TNS reporting'
                         )

@@ -118,7 +118,6 @@ LocalizationPlot.propTypes = {
             name: PropTypes.string,
           }),
         }),
-        spectrum_exists: PropTypes.bool,
         last_detected_at: PropTypes.string,
         last_detected_mag: PropTypes.number,
         peak_detected_at: PropTypes.string,
@@ -534,7 +533,7 @@ const GeoJSONGlobePlot = ({
                 ? "white"
                 : "gray"
             ) // we make the field semi-transparent if it doesn't have references
-            .style("opacity", has_ref && references.length === 0 ? 0.3 : 0.95)
+            .style("opacity", has_ref && references.length === 0 ? 0.4 : 0.95)
             .attr("d", geoGenerator)
             .on("click", () => {
               if (!selected) {

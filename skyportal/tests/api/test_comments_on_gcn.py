@@ -36,6 +36,11 @@ def test_add_and_retrieve_comment_group_id(
     assert status == 200
     assert data['data']['text'] == 'Comment text'
 
+    # delete the event
+    status, data = api(
+        'DELETE', 'gcn_event/2019-04-25T08:18:05', token=super_admin_token
+    )
+
 
 def test_delete_comment(comment_token, public_group, super_admin_token):
 
@@ -87,3 +92,8 @@ def test_delete_comment(comment_token, public_group, super_admin_token):
         'GET', f'gcn_event/{gcnevent_id}/comments/{comment_id}', token=comment_token
     )
     assert status == 403
+
+    # delete the event
+    status, data = api(
+        'DELETE', 'gcn_event/2019-04-25T08:18:05', token=super_admin_token
+    )

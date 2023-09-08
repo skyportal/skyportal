@@ -1591,6 +1591,7 @@ async def get_sources(
                         for period_str in period_str_options
                     ]
                 )
+
             if not remove_nested:
                 source_query = Source.select(session.user_or_token).where(
                     Source.obj_id == obj_list[-1]["id"]

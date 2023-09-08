@@ -525,7 +525,6 @@ RenderShowClassification.propTypes = {
         name: PropTypes.string,
       }),
     }),
-    spectrum_exists: PropTypes.bool,
     last_detected_at: PropTypes.string,
     last_detected_mag: PropTypes.number,
     peak_detected_at: PropTypes.string,
@@ -645,7 +644,6 @@ RenderShowLabelling.propTypes = {
         name: PropTypes.string,
       }),
     }),
-    spectrum_exists: PropTypes.bool,
     last_detected_at: PropTypes.string,
     last_detected_mag: PropTypes.number,
     peak_detected_at: PropTypes.string,
@@ -730,6 +728,8 @@ const SourceTable = ({
   const gcnEvent = useSelector((state) => state.gcnEvent);
 
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
+
+  const photometry = useSelector((state) => state.photometry);
 
   useEffect(() => {
     if (sources) {
@@ -854,32 +854,16 @@ const SourceTable = ({
               useGrid={false}
             />
             <Grid item>
-              {source.photometry_exists && (
-                <Suspense
-                  fallback={
-                    <div>
-                      <CircularProgress color="secondary" />
-                    </div>
-                  }
-                >
-                  <VegaPhotometry sourceId={source.id} />
-                </Suspense>
-              )}
-              {!source.photometry_exists && <div> no photometry exists </div>}
+              <VegaPhotometry sourceId={source.id} />
             </Grid>
             <Grid item>
-              {source.photometry_exists && source.period_exists && (
-                <Suspense
-                  fallback={
-                    <div>
-                      <CircularProgress color="secondary" />
-                    </div>
-                  }
-                >
-                  <VegaPhotometry sourceId={source.id} folded />
-                </Suspense>
-              )}
-              {!source.photometry_exists && <div> no photometry exists </div>}
+              {photometry[source.id] && photometry[source.id].length > 0 ? (
+                <VegaPhotometry
+                  sourceId={source.id}
+                  annotations={annotations}
+                  folded
+                />
+              ) : null}
             </Grid>
             <Grid item>
               {source.color_magnitude.length ? (
@@ -901,27 +885,25 @@ const SourceTable = ({
               ) : null}
             </Grid>
             <Grid item>
-              {source.spectrum_exists && (
-                <Suspense
-                  fallback={
-                    <div>
-                      <CircularProgress color="secondary" />
-                    </div>
-                  }
-                >
-                  <VegaSpectrum
-                    dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
-                    width={plotWidth}
-                    height={specPlotHeight}
-                    legendOrient={legendOrient}
-                  />
-                </Suspense>
-              )}
-              {!source.spectrum_exists && <div> no spectra exist </div>}
+              <Suspense
+                fallback={
+                  <div>
+                    <CircularProgress color="secondary" />
+                  </div>
+                }
+              >
+                <VegaSpectrum
+                  sourceId={source.id}
+                  width={plotWidth}
+                  height={specPlotHeight}
+                  legendOrient={legendOrient}
+                  normalization="median"
+                />
+              </Suspense>
             </Grid>
             <Grid item>
               <div className={classes.annotations}>
-                {!!annotations && annotations.length && (
+                {annotations && annotations.length > 0 && (
                   <>
                     <Typography variant="subtitle2">Annotations:</Typography>
                     <List
@@ -996,7 +978,7 @@ const SourceTable = ({
                 </div>
               ) : null}
               <UpdateSourceSummary source={source} />
-              {source.comment_exists || source.classifications?.length > 0 ? (
+              {source.classifications?.length > 0 ? (
                 <StartBotSummary obj_id={source.id} fetchAnalysisServices />
               ) : null}
               {source.summary_history?.length > 0 ? (
@@ -1254,23 +1236,6 @@ const SourceTable = ({
           Ignore
         </Button>
       </>
-    );
-  };
-
-  const renderSpectrumExists = (dataIndex) => {
-    const source = sources[dataIndex];
-    return source.spectrum_exists ? (
-      <CheckIcon
-        size="small"
-        key={`${source.id}_spectrum_exists`}
-        color="primary"
-      />
-    ) : (
-      <ClearIcon
-        size="small"
-        key={`${source.id}_spectrum_exists`}
-        color="secondary"
-      />
     );
   };
 
@@ -1724,15 +1689,6 @@ const SourceTable = ({
       },
     },
     {
-      name: "Spectrum?",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderSpectrumExists,
-        display: displayedColumns.includes("Spectrum?"),
-      },
-    },
-    {
       name: "Peak Magnitude",
       options: {
         filter: false,
@@ -2163,7 +2119,6 @@ SourceTable.propTypes = {
           name: PropTypes.string,
         }),
       }),
-      spectrum_exists: PropTypes.bool,
       last_detected_at: PropTypes.string,
       last_detected_mag: PropTypes.number,
       peak_detected_at: PropTypes.string,

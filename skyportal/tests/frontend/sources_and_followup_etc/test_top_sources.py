@@ -1,6 +1,8 @@
-import uuid
-import pytest
 import datetime
+import time
+import uuid
+
+import pytest
 
 from skyportal.models import DBSession, SourceView
 from skyportal.tests import api
@@ -29,16 +31,18 @@ def test_top_sources(driver, user, public_source, public_group, upload_data_toke
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
     # Wait for just added source to show up in added sources
-    driver.wait_for_xpath(f'//a[text()="{obj_id}"]')
+    driver.wait_for_xpath(f'//a/span[contains(.,"{obj_id}")]')
 
     # Test that front-end views register as source views
-    driver.click_xpath(f'//a[text()="{obj_id}"]')
+    driver.click_xpath(f'//a/span[contains(.,"{obj_id}")]')
     driver.wait_for_xpath(f'//div[text()="{obj_id}"]')
+    time.sleep(1)
     driver.get("/")
     driver.wait_for_xpath("//*[contains(.,'1 view(s)')]")
 
     # Test that token requests are registered as source views
     status, data = api('GET', f'sources/{obj_id}', token=upload_data_token)
+    time.sleep(1)
     assert status == 200
     driver.refresh()
     driver.wait_for_xpath("//*[contains(.,'2 view(s)')]")
