@@ -487,6 +487,10 @@ async def get_sources(
     session,
     include_thumbnails=False,
     include_comments=False,
+    include_photometry_exists=False,
+    include_spectrum_exists=False,
+    include_comment_exists=False,
+    include_period_exists=False,
     include_detection_stats=False,
     include_labellers=False,
     include_hosts=False,
@@ -1547,6 +1551,43 @@ async def get_sources(
                 if obj.host_id:
                     obj_list[-1]["host"] = obj.host.to_dict()
                     obj_list[-1]["host_offset"] = obj.host_offset.deg * 3600.0
+
+            if include_photometry_exists:
+                obj_list[-1]["photometry_exists"] = check_if_obj_has_photometry(
+                    obj.id, user, session
+                )
+            if include_spectrum_exists:
+                stmt = Spectrum.select(session.user_or_token).where(
+                    Spectrum.obj_id == obj.id
+                )
+                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+                total_spectrum = session.execute(count_stmt).scalar()
+                obj_list[-1]["spectrum_exists"] = total_spectrum > 0
+            if include_comment_exists:
+                stmt = Comment.select(session.user_or_token).where(
+                    Comment.obj_id == obj.id
+                )
+                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
+                total_comment = session.execute(count_stmt).scalar()
+                obj_list[-1]["comment_exists"] = total_comment > 0
+            if include_period_exists:
+                annotations = (
+                    session.scalars(
+                        Annotation.select(session.user_or_token).where(
+                            Annotation.obj_id == obj.id
+                        )
+                    )
+                    .unique()
+                    .all()
+                )
+                period_str_options = ['period', 'Period', 'PERIOD']
+                obj_list[-1]["period_exists"] = any(
+                    [
+                        isinstance(an.data, dict) and 'period' in an.data
+                        for an in annotations
+                        for period_str in period_str_options
+                    ]
+                )
 
             if not remove_nested:
                 source_query = Source.select(session.user_or_token).where(
@@ -2724,10 +2765,15 @@ class SourceHandler(BaseHandler):
                     session,
                     include_thumbnails=include_thumbnails,
                     include_comments=include_comments,
+                    include_photometry_exists=include_photometry_exists,
+                    include_spectrum_exists=include_spectrum_exists,
+                    include_comment_exists=include_comment_exists,
+                    include_period_exists=include_period_exists,
                     include_detection_stats=include_detection_stats,
                     include_labellers=include_labellers,
                     include_hosts=include_hosts,
                     exclude_forced_photometry=exclude_forced_photometry,
+                    is_token_request=is_token_request,
                     include_requested=include_requested,
                     requested_only=requested_only,
                     include_color_mag=include_color_mag,
