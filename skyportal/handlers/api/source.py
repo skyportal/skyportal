@@ -558,6 +558,8 @@ async def get_sources(
     save_summary=False,
     total_matches=None,
     includeGeoJSON=False,
+    use_cache=False,
+    query_id=None,
 ):
     """Query multiple sources from database.
     user_id : int
@@ -1447,7 +1449,8 @@ async def get_sources(
                 include_thumbnails=False,
                 # include detection stats here as it is a query column,
                 include_detection_stats=include_detection_stats,
-                use_cache=True,
+                use_cache=use_cache,
+                query_id=query_id,
                 current_user=user,
             )
         except ValueError as e:
@@ -2503,6 +2506,22 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to include associated GeoJSON. Defaults to
               false.
+          - in: query
+            name: useCache
+            nullable: true
+            schema:
+                type: boolean
+            description: |
+                Boolean indicating whether to use cached results. Defaults to
+                false.
+          - in: query
+            name: queryID
+            nullable: true
+            schema:
+                type: string
+            description: |
+                String to identify query. If provided, will be used to recover previous cached results
+                and speed up query. Defaults to None.
           responses:
             200:
               content:
@@ -2622,6 +2641,10 @@ class SourceHandler(BaseHandler):
             "spatialCatalogEntryName", None
         )
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+
+        # optional, use caching
+        use_cache = self.get_query_argument("useCache", False)
+        query_id = self.get_query_argument("queryID", None)
 
         class Validator(Schema):
             saved_after = UTCTZnaiveDateTime(required=False, missing=None)
@@ -2836,6 +2859,8 @@ class SourceHandler(BaseHandler):
                     save_summary=save_summary,
                     total_matches=total_matches,
                     includeGeoJSON=includeGeoJSON,
+                    use_cache=use_cache,
+                    query_id=query_id,
                 )
             except Exception as e:
                 return self.error(f'Cannot retrieve sources: {str(e)}')
