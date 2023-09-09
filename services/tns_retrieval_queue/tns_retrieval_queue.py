@@ -500,17 +500,25 @@ def tns_watcher():
                         if len(obj_query) > 0:
                             for obj in obj_query:
                                 try:
-                                    if obj.tns_name is None or obj.tns_name == "":
+                                    if obj.tns_name == str(tns_obj["name"]).strip():
+                                        continue
+                                    elif obj.tns_name is None or obj.tns_name == "":
                                         obj.tns_name = str(tns_obj["name"]).strip()
-                                        session.commit()
-                                        log(
-                                            f"Updated object {obj.id} with TNS name {tns_obj['name']}"
-                                        )
-                                        flow.push(
-                                            '*',
-                                            'skyportal/REFRESH_SOURCE',
-                                            payload={'obj_key': obj.internal_key},
-                                        )
+                                    # if the current name contains AT but the new name does not, update
+                                    elif "AT" in obj.tns_name and "AT" not in str(
+                                        tns_obj["name"]
+                                    ):
+                                        obj.tns_name = str(tns_obj["name"]).strip()
+
+                                    session.commit()
+                                    log(
+                                        f"Updated object {obj.id} with TNS name {tns_obj['name']}"
+                                    )
+                                    flow.push(
+                                        '*',
+                                        'skyportal/REFRESH_SOURCE',
+                                        payload={'obj_key': obj.internal_key},
+                                    )
                                 except Exception as e:
                                     log(f"Error updating object: {str(e)}")
                                     session.rollback()

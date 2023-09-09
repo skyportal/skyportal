@@ -413,8 +413,8 @@ def get_objects_from_soup(soup):
             if not {"public", "odd"}.issubset(set(row.attrs.get('class', []))):
                 continue
             name = str(
-                row.find('td', attrs={'class': 'cell-name'}).find('a').get("href")
-            ).split('/')[-1]
+                row.find('td', attrs={'class': 'cell-name'}).find('a').contents[0]
+            )
             ra = row.find('td', attrs={'class': 'cell-ra'}).text
             dec = row.find('td', attrs={'class': 'cell-decl'}).text
             if name is None or ra is None or dec is None:
