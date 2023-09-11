@@ -119,7 +119,7 @@ class TNSRobotHandler(BaseHandler):
             except Exception as e:
                 return self.error(f'Failed to retrieve TNS robots: {e}')
 
-    @permissions(['Manage tnsrobots'])
+    @permissions(['Manage groups'])
     def post(self):
         """
         ---
@@ -224,7 +224,7 @@ class TNSRobotHandler(BaseHandler):
             )
             return self.success(data={"id": tnsrobot.id})
 
-    @permissions(['Manage tnsrobots'])
+    @permissions(['Manage groups'])
     def put(self, tnsrobot_id):
         """
         ---
@@ -390,7 +390,7 @@ class TNSRobotHandler(BaseHandler):
                 raise e
                 return self.error(f'Failed to update TNS robot: {e}')
 
-    @permissions(['Manage tnsrobots'])
+    @permissions(['Manage groups'])
     def delete(self, tnsrobot_id):
         """
         ---
