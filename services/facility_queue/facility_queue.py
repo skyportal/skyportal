@@ -82,8 +82,13 @@ def service(queue):
 
     while True:
         if len(queue) == 0:
-            time.sleep(1)
+            # this is a retrieval queue service. Requests were sent before and
+            # we are just waiting for the results. No rush to check the queue
+            time.sleep(30)
             continue
+        else:
+            # we still add a sleep here to avoid hammering the DB
+            time.sleep(5)
         req_id = queue.pop(0)
         if req_id is None:
             continue
