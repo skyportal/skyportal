@@ -548,7 +548,11 @@ const SourceDesktop = ({ source }) => {
                 <div key="tns_name">
                   <a
                     key={source.tns_name}
-                    href={`https://www.wis-tns.org/object/${source.tns_name}`}
+                    href={`https://www.wis-tns.org/object/${
+                      source.tns_name.trim().includes(" ")
+                        ? source.tns_name.split(" ")[1]
+                        : source.tns_name
+                    }`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
