@@ -198,6 +198,7 @@ const spec = (inputData, textColor, titleFontSize, labelFontSize) => ({
         },
         tooltip: [
           { field: "id", type: "quantitative" },
+          { field: "filter", type: "nominal" },
           { field: "delRA", type: "quantitative" },
           { field: "delDec", type: "quantitative" },
           { field: "ra", type: "quantitative", title: "RA" },
