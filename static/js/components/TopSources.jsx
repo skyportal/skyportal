@@ -42,12 +42,38 @@ const useStyles = makeStyles((theme) => ({
   sourceInfo: {
     display: "flex",
     flexDirection: "row",
+    justifyContent: "space-between",
     margin: "10px",
+    marginRight: 0,
     width: "100%",
   },
   sourceNameContainer: {
     display: "flex",
     flexDirection: "column",
+  },
+  sourceName: {
+    fontSize: "1rem",
+    paddingBottom: 0,
+    marginBottom: 0,
+  },
+  classification: {
+    fontSize: "0.95rem",
+    color:
+      theme.palette.mode === "dark"
+        ? theme.palette.secondary.main
+        : theme.palette.primary.main,
+    fontWeight: "bold",
+    fontStyle: "italic",
+    marginLeft: "-0.09rem",
+    marginTop: "-0.4rem",
+  },
+  sourceCoordinates: {
+    marginTop: "0.1rem",
+    display: "flex",
+    flexDirection: "column",
+    "& > span": {
+      marginTop: "-0.2rem",
+    },
   },
   sourceNameLink: {
     color:
@@ -59,11 +85,10 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "column",
     width: "45%",
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "space-between",
   },
   quickViewButton: {
-    minHeight: "30px",
     visibility: "hidden",
     textAlign: "center",
     display: "none",
@@ -115,7 +140,8 @@ const TopSourcesList = ({ sources, styles }) => {
     <div className={topSourceSpecificStyles.sourceListContainer}>
       <ul className={styles.sourceList}>
         {sources?.map((source) => {
-          let topsourceName = `${source.obj_id}`;
+          const topsourceName = `${source.obj_id}`;
+          let classification = null;
           if (source.classifications.length > 0) {
             // Display the most recent non-zero probability class, and that isn't a ml classifier
             const filteredClasses = source.classifications?.filter(
@@ -126,7 +152,7 @@ const TopSourcesList = ({ sources, styles }) => {
             );
 
             if (sortedClasses.length > 0) {
-              topsourceName += ` (${sortedClasses[0].classification})`;
+              classification = `(${sortedClasses[0].classification})`;
             }
           }
 
@@ -171,27 +197,49 @@ const TopSourcesList = ({ sources, styles }) => {
                   </Link>
                   <div className={styles.sourceInfo}>
                     <div className={styles.sourceNameContainer}>
-                      <span className={styles.sourceName}>
-                        <Link to={`/source/${source.obj_id}`}>
-                          <span className={styles.sourceNameLink}>
-                            {topsourceName}
-                          </span>
-                        </Link>
-                      </span>
-                      <span>
-                        {`\u03B1, \u03B4: ${ra_to_hours(
-                          source.ra
-                        )} ${dec_to_dms(source.dec)}`}
-                      </span>
+                      <Link
+                        to={`/source/${source.obj_id}`}
+                        className={styles.sourceName}
+                      >
+                        <span className={styles.sourceNameLink}>
+                          {topsourceName}
+                        </span>
+                      </Link>
+                      {classification && (
+                        <span className={styles.classification}>
+                          {classification}
+                        </span>
+                      )}
+                      <div className={styles.sourceCoordinates}>
+                        <span
+                          style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
+                        >
+                          {`\u03B1: ${ra_to_hours(source.ra)}`}
+                        </span>
+                        <span
+                          style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
+                        >
+                          {`\u03B4: ${dec_to_dms(source.dec)}`}
+                        </span>
+                      </div>
                     </div>
                     <div className={styles.quickViewContainer}>
-                      <span>
+                      <span style={{ textAlign: "right" }}>
                         <em>{`${source.views} view(s)`}</em>
                       </span>
-                      <SourceQuickView
-                        sourceId={source.obj_id}
-                        className={styles.quickViewButton}
-                      />
+                      <div
+                        style={{
+                          minHeight: "3rem",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-end",
+                        }}
+                      >
+                        <SourceQuickView
+                          sourceId={source.obj_id}
+                          className={styles.quickViewButton}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -100,7 +100,7 @@ const MainContentInternal = ({ root }) => {
         store.dispatch(hydrate());
         store.dispatch(rotateLogoActions.rotateLogo());
       }
-    }, 2000);
+    }, 1500);
   }, []);
 
   const location = useLocation();

@@ -248,13 +248,7 @@ const SourceQuickView = ({ sourceId, className }) => {
 
   return (
     <div className={className} data-testid={`quickViewButton_${source.obj_id}`}>
-      <Button
-        primary
-        size="small"
-        onClick={handleClickOpen}
-        endIcon={<VisibilityIcon />}
-        style={{ marginBottom: "10px" }}
-      >
+      <Button primary size="small" onClick={handleClickOpen}>
         QUICK VIEW
       </Button>
     </div>
