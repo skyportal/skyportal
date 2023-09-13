@@ -324,7 +324,7 @@ const ClassificationList = () => {
             title="Hide ML-based?"
             type="checkbox"
             onChange={(event) => setHideML(event.target.checked)}
-            checked={hideML}
+            checked={hideML || false}
           />
         }
       />

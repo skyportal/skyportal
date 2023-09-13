@@ -166,7 +166,8 @@ const EarthquakeMap = ({ earthquakes }) => {
 EarthquakeMap.propTypes = {
   earthquakes: PropTypes.arrayOf(
     PropTypes.shape({
-      event_id: PropTypes.number,
+      event_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+        .isRequired,
       notices: PropTypes.arrayOf(
         PropTypes.shape({
           lat: PropTypes.number,
@@ -184,10 +185,11 @@ EarthquakeMarker.propTypes = {
     lon: PropTypes.number.isRequired,
     earthquakes: PropTypes.arrayOf(
       PropTypes.shape({
-        event_id: PropTypes.number.isRequired,
-        lat: PropTypes.number.isRequired,
-        lon: PropTypes.number.isRequired,
-        depth: PropTypes.number.isRequired,
+        event_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+          .isRequired,
+        lat: PropTypes.number,
+        lon: PropTypes.number,
+        depth: PropTypes.number,
       })
     ),
   }).isRequired,

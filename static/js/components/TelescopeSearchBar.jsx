@@ -78,6 +78,7 @@ const TelescopeSearchBar = ({ telescopeList }) => {
         open={open}
         limitTags={15}
         popupIcon={null}
+        options={telescopeList || []}
         renderInput={(params) => (
           <TextField
             // eslint-disable-next-line react/jsx-props-no-spreading

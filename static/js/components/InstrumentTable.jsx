@@ -458,7 +458,6 @@ InstrumentTable.propTypes = {
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
   hideTitle: PropTypes.bool,
-  filter: PropTypes.func.isRequired,
   telescopeInfo: PropTypes.bool,
   deletePermission: PropTypes.bool.isRequired,
 };

@@ -33,7 +33,7 @@ const isFloat = (x) =>
   typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
 
 const PhotometryTable = ({ obj_id, open, onClose }) => {
-  const { photometry } = useSelector((state) => state);
+  const photometry = useSelector((state) => state.photometry);
   let bodyContent = null;
 
   const classes = useStyles();

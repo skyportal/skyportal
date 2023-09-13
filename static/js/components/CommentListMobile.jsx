@@ -369,9 +369,8 @@ const CommentListMobile = ({
                       }`}
                     >
                       <ReactMarkdown
-                        escapeHtml={false}
                         className={styles.commentMessage}
-                        renderers={{ text: emojiSupport }}
+                        components={{ text: emojiSupport }}
                       >
                         {renderCommentText(
                           text,
@@ -541,9 +540,8 @@ const CommentListMobile = ({
                         }`}
                       >
                         <ReactMarkdown
-                          escapeHtml={false}
                           className={styles.commentMessage}
-                          renderers={{ text: emojiSupport }}
+                          components={{ text: emojiSupport }}
                         >
                           {renderCommentText(
                             text,

@@ -124,7 +124,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
 });
 
-const reducer = (state = { gcnEventObservations: [] }, action) => {
+const reducer = (state = { gcnEventObservations: {} }, action) => {
   switch (action.type) {
     case FETCH_OBSERVATIONS_OK: {
       return {

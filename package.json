@@ -93,6 +93,7 @@
     "redoc-cli": "0.13.21",
     "redux": "4.2.1",
     "redux-logger": "3.0.6",
+    "redux-state-sync": "3.1.4",
     "redux-thunk": "2.4.2",
     "regl": "2.1.0",
     "rjsf": "1.4.4",

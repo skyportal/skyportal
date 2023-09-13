@@ -319,6 +319,8 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   const [temporaryAirmassTime, setTemporaryAirmassTime] =
     useState(defaultAirmassTime);
 
+  const [fetchingLocalization, setFetchingLocalization] = useState(false);
+
   const { instrumentList, instrumentObsplanFormParams } = useSelector(
     (state) => state.instruments
   );
@@ -355,19 +357,30 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
 
   useEffect(() => {
     const fetchSkymapInstrument = async () => {
+      setFetchingLocalization(true);
       dispatch(
         instrumentActions.fetchInstrumentSkymap(
           instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id,
           obsplanLoc,
           airmassTime.toJSON()
         )
-      ).then((response) => setSkymapInstrument(response.data));
+      ).then((response) => {
+        setSkymapInstrument(response.data);
+        setFetchingLocalization(false);
+      });
     };
     if (
-      instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id &&
       gcnEvent &&
+      instrumentList?.length > 0 &&
+      selectedAllocationId &&
       airmassTime &&
-      obsplanLoc
+      obsplanLoc &&
+      instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id &&
+      gcnEvent?.localizations?.length > 0 &&
+      (gcnEvent?.localizations || []).find(
+        (loc) => loc.id === obsplanLoc?.id
+      ) &&
+      fetchingLocalization === false
     ) {
       fetchSkymapInstrument();
     }
@@ -377,6 +390,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     obsplanLoc,
     selectedAllocationId,
     airmassTime,
+    instrumentList,
   ]);
 
   useEffect(() => {
@@ -637,10 +651,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                       label="Time to compute airmass (UTC)"
                       showTodayButton={false}
                       ampm={useAMPM}
-                      renderInput={(params) => (
-                        /* eslint-disable-next-line react/jsx-props-no-spreading */
-                        <TextField id="airmassTimePicker" {...params} />
-                      )}
+                      slotProps={{ textField: { variant: "outlined" } }}
                       style={{ minWidth: "100%" }}
                     />
                   </LocalizationProvider>

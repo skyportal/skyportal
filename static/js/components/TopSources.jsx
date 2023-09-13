@@ -303,13 +303,15 @@ const TopSources = ({ classes }) => {
           >
             {timespans.map((timespan) => (
               <Tooltip key={timespan.label} title={timespan.tooltip}>
-                <Button
-                  onClick={switchTimespan}
-                  style={getStyles(timespan, currentTimespan, theme)}
-                  data-testid={`topSources_${timespan.sinceDaysAgo}days`}
-                >
-                  {timespan.label}
-                </Button>
+                <div>
+                  <Button
+                    onClick={switchTimespan}
+                    style={getStyles(timespan, currentTimespan, theme)}
+                    data-testid={`topSources_${timespan.sinceDaysAgo}days`}
+                  >
+                    {timespan.label}
+                  </Button>
+                </div>
               </Tooltip>
             ))}
           </ButtonGroup>

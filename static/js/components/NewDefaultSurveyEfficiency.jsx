@@ -126,7 +126,7 @@ const NewDefaultSurveyEfficiency = () => {
         title: "Model",
       },
     },
-    required: ["localizationCumprob"],
+    required: ["localizationCumprob", "modelName"],
     dependencies: {
       modelName: {
         oneOf: [
@@ -159,6 +159,13 @@ const NewDefaultSurveyEfficiency = () => {
               },
             },
           },
+          {
+            properties: {
+              modelName: {
+                enum: ["kilonova"],
+              },
+            },
+          },
         ],
       },
     },
@@ -181,7 +188,7 @@ const NewDefaultSurveyEfficiency = () => {
       <Select
         inputProps={{ MenuProps: { disableScrollLock: true } }}
         labelId="observationPlanSelectLabel"
-        value={selectedObservationPlanId}
+        value={selectedObservationPlanId || ""}
         onChange={handleSelectedObservationPlanChange}
         name="observationPlanSelect"
         className={classes.Select}

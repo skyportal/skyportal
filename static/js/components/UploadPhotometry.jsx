@@ -392,7 +392,6 @@ const UploadPhotometryForm = () => {
                 </Box>
                 <Box m={1}>
                   <HtmlTooltip
-                    interactive
                     title={
                       <>
                         <p>

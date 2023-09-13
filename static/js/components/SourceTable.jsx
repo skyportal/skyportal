@@ -61,7 +61,7 @@ import MultipleClassificationsForm from "./MultipleClassificationsForm";
 import UpdateSourceSummary from "./UpdateSourceSummary";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
-import * as sourcesingcnActions from "../ducks/confirmedsourcesingcn";
+import * as sourcesingcnActions from "../ducks/sourcesingcn";
 import { filterOutEmptyValues } from "../API";
 import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
@@ -503,7 +503,7 @@ RenderShowClassification.propTypes = {
         data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
         author: PropTypes.shape({
           username: PropTypes.string.isRequired,
-        }).isRequired,
+        }),
         created_at: PropTypes.string.isRequired,
       })
     ).isRequired,
@@ -1010,6 +1010,8 @@ const SourceTable = ({
         to={`/source/${objid}`}
         key={`${objid}_objid`}
         data-testid={`${objid}`}
+        target="_blank"
+        rel="noopener noreferrer"
       >
         <span className={classes.objId}>{objid}</span>
       </Link>
@@ -1781,7 +1783,7 @@ const SourceTable = ({
     onFilterDialogOpen: () => setFilterFormSubmitted(false),
     search: true,
     onSearchChange: handleSearchChange,
-    download: true,
+    download: downloadCallback !== null && downloadCallback !== undefined,
     customToolbar: () => (
       <>
         <IconButton
@@ -2097,7 +2099,7 @@ SourceTable.propTypes = {
           data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
           author: PropTypes.shape({
             username: PropTypes.string.isRequired,
-          }).isRequired,
+          }),
           created_at: PropTypes.string.isRequired,
         })
       ).isRequired,
@@ -2149,7 +2151,7 @@ SourceTable.propTypes = {
   sortingCallback: PropTypes.func,
   favoritesRemoveButton: PropTypes.bool,
   hideTitle: PropTypes.bool,
-  downloadCallback: PropTypes.func.isRequired,
+  downloadCallback: PropTypes.func,
   includeGcnStatus: PropTypes.bool,
   sourceInGcnFilter: PropTypes.shape({
     startDate: PropTypes.string,
@@ -2169,6 +2171,7 @@ SourceTable.defaultProps = {
   sortingCallback: null,
   favoritesRemoveButton: false,
   hideTitle: false,
+  downloadCallback: null,
   includeGcnStatus: false,
   sourceInGcnFilter: {},
 };

@@ -451,10 +451,7 @@ const FilterCandidateList = ({
                     label="Start (Local Time)"
                     showTodayButton={false}
                     ampm={useAMPM}
-                    renderInput={(params) => (
-                      /* eslint-disable-next-line react/jsx-props-no-spreading */
-                      <TextField id="startDatePicker" {...params} />
-                    )}
+                    slotProps={{ textField: { variant: "outlined" } }}
                   />
                 </LocalizationProvider>
               )}
@@ -473,10 +470,7 @@ const FilterCandidateList = ({
                     label="End (Local Time)"
                     showTodayButton={false}
                     ampm={useAMPM}
-                    renderInput={(props) => (
-                      /* eslint-disable-next-line react/jsx-props-no-spreading */
-                      <TextField id="endDatePicker" {...props} />
-                    )}
+                    slotProps={{ textField: { variant: "outlined" } }}
                   />
                 </LocalizationProvider>
               )}
@@ -496,7 +490,7 @@ const FilterCandidateList = ({
               name="savedStatus"
               control={control}
               input={<Input data-testid="savedStatusSelect" />}
-              render={({ field: { onChange, value } }) => (
+              render={({ field: { onChange } }) => (
                 <Select
                   key={
                     selectedScanningProfile?.savedStatus
@@ -504,7 +498,6 @@ const FilterCandidateList = ({
                       : "loaded"
                   }
                   onChange={onChange}
-                  value={value}
                   defaultValue={selectedScanningProfile?.savedStatus || "all"}
                   data-testid="savedStatusSelect"
                 >
@@ -526,12 +519,11 @@ const FilterCandidateList = ({
             <InputLabel id="redshift-select-label">Redshift</InputLabel>
             <div className={classes.redshiftField}>
               <Controller
-                render={({ field: { onChange, value } }) => (
+                render={({ field: { onChange } }) => (
                   <TextField
                     id="minimum-redshift"
                     label="Minimum"
                     type="number"
-                    value={value}
                     inputProps={{ step: 0.001 }}
                     size="small"
                     margin="dense"
@@ -551,12 +543,11 @@ const FilterCandidateList = ({
             </div>
             <div className={classes.redshiftField}>
               <Controller
-                render={({ field: { onChange, value } }) => (
+                render={({ field: { onChange } }) => (
                   <TextField
                     id="maximum-redshift"
                     label="Maximum"
                     type="number"
-                    value={value}
                     inputProps={{ step: 0.001 }}
                     size="small"
                     margin="dense"
@@ -583,13 +574,11 @@ const FilterCandidateList = ({
               name="rejectedStatus"
               control={control}
               input={<Input data-testid="rejectedStatusSelect" />}
+              defaultValue={selectedScanningProfile?.rejectedStatus || "hide"}
               render={({ field: { onChange, value } }) => (
                 <Select
-                  defaultValue={
-                    selectedScanningProfile?.rejectedStatus || "hide"
-                  }
-                  onChange={onChange}
                   value={value}
+                  onChange={onChange}
                   data-testid="rejectedStatusSelect"
                 >
                   {rejectedStatusSelectOptions?.map((option) => (
@@ -618,6 +607,7 @@ const FilterCandidateList = ({
                 name="sortingOrigin"
                 control={control}
                 input={<Input data-testid="annotationSortingOriginSelect" />}
+                defaultValue={selectedScanningProfile?.sortingOrigin || ""}
                 render={({ field: { onChange, value } }) => (
                   <Select
                     id="annotationSortingOriginSelect"
@@ -631,7 +621,6 @@ const FilterCandidateList = ({
                       setSelectedAnnotationOrigin(event.target.value);
                       onChange(event.target.value);
                     }}
-                    defaultValue={selectedScanningProfile?.sortingOrigin || ""}
                   >
                     {availableAnnotationsInfo ? (
                       [""]
@@ -658,10 +647,10 @@ const FilterCandidateList = ({
                     name="sortingKey"
                     control={control}
                     input={<Input data-testid="annotationSortingKeySelect" />}
+                    defaultValue={selectedScanningProfile?.sortingKey || ""}
                     render={({ field: { onChange, value } }) => (
                       <Select
                         id="annotationSortingKeySelect"
-                        defaultValue={selectedScanningProfile?.sortingKey || ""}
                         onChange={onChange}
                         value={value}
                       >
@@ -690,12 +679,10 @@ const FilterCandidateList = ({
                     name="sortingOrder"
                     control={control}
                     input={<Input data-testid="annotationSortingOrderSelect" />}
+                    defaultValue={selectedScanningProfile?.sortingOrder || ""}
                     render={({ field: { onChange, value } }) => (
                       <Select
                         id="annotationSortingOrderSelect"
-                        defaultValue={
-                          selectedScanningProfile?.sortingOrder || ""
-                        }
                         onChange={onChange}
                         value={value}
                       >
@@ -720,19 +707,14 @@ const FilterCandidateList = ({
                 <>
                   <div className={classes.gcnFormRow}>
                     <Controller
-                      render={({ field: { value } }) => (
+                      render={() => (
                         <Autocomplete
                           id="gcn-event-filtering"
                           options={gcnEvents?.events}
-                          value={
-                            gcnEvents?.events.find(
-                              (option) => option.id === value
-                            ) || null
-                          }
                           getOptionLabel={(option) =>
-                            `${option?.dateobs} ${
+                            `${option?.dateobs}${
                               option?.aliases?.length > 0
-                                ? `(${option?.aliases})`
+                                ? ` (${option?.aliases})`
                                 : ""
                             }` || ""
                           }
@@ -740,9 +722,11 @@ const FilterCandidateList = ({
                           // eslint-disable-next-line no-shadow
                           onInputChange={(event, value) => {
                             if (
-                              event?.type === "change" &&
-                              value !== null &&
-                              value !== ""
+                              ((event?.type === "change" ||
+                                event?.type === "clear") &&
+                                value !== null &&
+                                value !== "") ||
+                              (event?.type === "click" && value === "")
                             ) {
                               dispatch(
                                 gcnEventsActions.fetchGcnEvents({
@@ -780,7 +764,7 @@ const FilterCandidateList = ({
                       )}
                       name="gcneventid"
                       control={control}
-                      defaultValue=""
+                      defaultValue={gcnEvents?.events[0]?.id || ""}
                     />
                     <Controller
                       render={({ field: { onChange, value } }) => (
@@ -814,12 +798,11 @@ const FilterCandidateList = ({
                       defaultValue=""
                     />
                     <Controller
-                      render={({ field: { onChange, value } }) => (
+                      render={({ field: { onChange } }) => (
                         <TextField
                           id="cumprob"
                           label="Cumulative Probability"
                           type="number"
-                          value={value}
                           inputProps={{ step: 0.01, min: 0, max: 1 }}
                           onChange={(event) => onChange(event.target.value)}
                           defaultValue={0.95}
@@ -834,10 +817,9 @@ const FilterCandidateList = ({
                       render={({ field: { onChange, value } }) => (
                         <TextField
                           type="text"
-                          value={value}
+                          value={value || " "}
                           onChange={(event) => onChange(event.target.value)}
                           label="First Detection After (UTC)"
-                          defaultValue=" "
                         />
                       )}
                       name="firstDetectionAfter"
@@ -847,22 +829,20 @@ const FilterCandidateList = ({
                       render={({ field: { onChange, value } }) => (
                         <TextField
                           type="text"
-                          value={value}
+                          value={value || " "}
                           onChange={(event) => onChange(event.target.value)}
                           label="Last Detection Before (UTC)"
-                          defaultValue=" "
                         />
                       )}
                       name="lastDetectionBefore"
                       control={control}
                     />
                     <Controller
-                      render={({ field: { onChange, value } }) => (
+                      render={({ field: { onChange } }) => (
                         <TextField
                           id="minNbDect"
                           label="Minimum Number of Detections"
                           type="number"
-                          value={value}
                           inputProps={{ step: 1, min: 0 }}
                           onChange={(event) => onChange(event.target.value)}
                           defaultValue={1}
@@ -963,9 +943,11 @@ const FilterCandidateList = ({
             />
             <div>
               <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
-                <Button primary type="submit" endIcon={<SearchIcon />}>
-                  Search
-                </Button>
+                <div>
+                  <Button primary type="submit" endIcon={<SearchIcon />}>
+                    Search
+                  </Button>
+                </div>
               </Tooltip>
             </div>
           </div>

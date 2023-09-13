@@ -455,41 +455,7 @@ RecentSources.propTypes = {
 };
 
 RecentSourcesSearchbar.propTypes = {
-  recentSources: PropTypes.arrayOf(
-    PropTypes.shape({
-      obj_id: PropTypes.string.isRequired,
-      ra: PropTypes.number,
-      dec: PropTypes.number,
-      created_at: PropTypes.string.isRequired,
-      thumbnails: PropTypes.arrayOf(
-        PropTypes.shape({
-          public_url: PropTypes.string,
-          is_grayscale: PropTypes.bool,
-          type: PropTypes.string,
-        })
-      ),
-      resaved: PropTypes.bool,
-      classifications: PropTypes.arrayOf(
-        PropTypes.shape({
-          author_name: PropTypes.string,
-          probability: PropTypes.number,
-          modified: PropTypes.string,
-          classification: PropTypes.string,
-          id: PropTypes.number,
-          obj_id: PropTypes.string,
-          author_id: PropTypes.number,
-          taxonomy_id: PropTypes.number,
-          created_at: PropTypes.string,
-        })
-      ),
-    })
-  ),
   styles: PropTypes.shape(Object).isRequired,
-  filter: PropTypes.func.isRequired,
-};
-
-RecentSourcesSearchbar.defaultProps = {
-  recentSources: undefined,
 };
 
 export default RecentSources;

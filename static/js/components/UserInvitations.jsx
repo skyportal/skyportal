@@ -424,10 +424,9 @@ const UserInvitations = () => {
   };
 
   const renderExpirationDateHeader = () => (
-    <>
+    <div style={{ display: "flex", alignItems: "center" }}>
       Expiration Date
       <Tooltip
-        interactive
         title={
           <>
             This is the expiration date assigned to the new user account. On
@@ -438,7 +437,7 @@ const UserInvitations = () => {
       >
         <HelpIcon color="disabled" size="small" className={classes.icon} />
       </Tooltip>
-    </>
+    </div>
   );
 
   const handleFilterSubmit = async (formData) => {

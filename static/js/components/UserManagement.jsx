@@ -406,10 +406,9 @@ const UserManagement = () => {
   };
 
   const renderRolesHeader = () => (
-    <>
+    <div style={{ display: "flex", alignItems: "center" }}>
       Roles
       <Tooltip
-        interactive
         title={
           <>
             <b>Each role is associated with the following ACLs:</b>
@@ -425,7 +424,7 @@ const UserManagement = () => {
       >
         <HelpIcon color="disabled" size="small" className={classes.icon} />
       </Tooltip>
-    </>
+    </div>
   );
 
   const renderACLs = (dataIndex) => {
@@ -458,10 +457,9 @@ const UserManagement = () => {
   };
 
   const renderACLsHeader = () => (
-    <>
+    <div style={{ display: "flex", alignItems: "center" }}>
       ACLs
       <Tooltip
-        interactive
         title={
           <>
             <p>
@@ -473,7 +471,7 @@ const UserManagement = () => {
       >
         <HelpIcon color="disabled" size="small" className={classes.icon} />
       </Tooltip>
-    </>
+    </div>
   );
 
   const renderAffiliations = (dataIndex) => {
@@ -506,10 +504,9 @@ const UserManagement = () => {
   };
 
   const renderAffiliationsHeader = () => (
-    <>
+    <div style={{ display: "flex", alignItems: "center" }}>
       Affiliations
       <Tooltip
-        interactive
         title={
           <>
             <p>
@@ -521,7 +518,7 @@ const UserManagement = () => {
       >
         <HelpIcon color="disabled" size="small" className={classes.icon} />
       </Tooltip>
-    </>
+    </div>
   );
 
   const renderGroups = (dataIndex) => {
@@ -608,10 +605,9 @@ const UserManagement = () => {
   };
 
   const renderExpirationDateHeader = () => (
-    <>
+    <div style={{ display: "flex", alignItems: "center" }}>
       Expiration Date
       <Tooltip
-        interactive
         title={
           <>
             This is the expiration date assigned to the new user account. On
@@ -622,7 +618,7 @@ const UserManagement = () => {
       >
         <HelpIcon color="disabled" size="small" className={classes.icon} />
       </Tooltip>
-    </>
+    </div>
   );
 
   const handleFilterSubmit = async (formData) => {

@@ -1374,6 +1374,13 @@ class MMAAPI(FollowUpAPI):
                             },
                             "required": ["galactic_latitude"],
                         },
+                        {
+                            "properties": {
+                                "galactic_plane": {
+                                    "enum": [False],
+                                },
+                            },
+                        },
                     ],
                 },
                 "max_tiles": {
@@ -1392,6 +1399,13 @@ class MMAAPI(FollowUpAPI):
                                 },
                             },
                             "required": ["max_nb_tiles"],
+                        },
+                        {
+                            "properties": {
+                                "max_tiles": {
+                                    "enum": [False],
+                                },
+                            },
                         },
                     ],
                 },
@@ -1419,6 +1433,13 @@ class MMAAPI(FollowUpAPI):
                             },
                             "required": ["ra_slice_min", "ra_slice_max"],
                         },
+                        {
+                            "properties": {
+                                "ra_slice": {
+                                    "enum": [False],
+                                },
+                            },
+                        },
                     ],
                 },
                 "filter_strategy": {
@@ -1438,6 +1459,13 @@ class MMAAPI(FollowUpAPI):
                                 },
                             },
                             "required": ["minimum_time_difference"],
+                        },
+                        {
+                            "properties": {
+                                "filter_strategy": {
+                                    "enum": ["block"],
+                                },
+                            },
                         },
                     ],
                 },
@@ -1467,6 +1495,13 @@ class MMAAPI(FollowUpAPI):
                                 },
                             },
                             "required": ["galaxy_catalog", "galaxy_sorting"],
+                        },
+                        {
+                            "properties": {
+                                "schedule_strategy": {
+                                    "enum": ["tiling"],
+                                },
+                            },
                         },
                     ],
                 },

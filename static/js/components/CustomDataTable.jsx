@@ -25,10 +25,14 @@ class CustomDataTable extends Component {
 }
 
 CustomDataTable.propTypes = {
-  title: PropTypes.string.isRequired,
-  data: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
-  columns: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
+  title: PropTypes.string,
+  data: PropTypes.arrayOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
+  columns: PropTypes.arrayOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
   options: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
+};
+
+CustomDataTable.defaultProps = {
+  title: "",
 };
 
 const customComparator = (prevProps, nextProps) => {

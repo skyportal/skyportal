@@ -399,13 +399,17 @@ const CandidatesPreferencesForm = ({
             Show/hide rejected candidates
           </InputLabel>
           <Controller
-            labelId="profileRejectedCandidatesLabel"
+            labelId="profileRejectedCandidatesSelect"
             name="rejectedStatus"
             control={control}
             input={<Input data-testid="profileRejectedStatusSelect" />}
             defaultValue="hide"
-            render={() => (
-              <Select>
+            render={({ field: { onChange, value } }) => (
+              <Select
+                labelId="profileRejectedCandidatesSelect"
+                onChange={onChange}
+                value={value}
+              >
                 {rejectedStatusSelectOptions?.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}

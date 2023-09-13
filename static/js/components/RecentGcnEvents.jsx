@@ -139,7 +139,6 @@ const RecentGcnEvents = ({ classes }) => {
                     </Button>
                   </Link>
                   <Tooltip
-                    interactive
                     title={
                       <>
                         <b>This event has the following aliases:</b>
