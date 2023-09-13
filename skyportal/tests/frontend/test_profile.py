@@ -1,13 +1,14 @@
-import pytest
+import time
 import uuid
 
 import numpy as np
-
-from skyportal.tests import api
-from tdtax import taxonomy, __version__
-from selenium.webdriver.common.keys import Keys
+import pytest
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from tdtax import __version__, taxonomy
+
+from skyportal.tests import api
 
 
 def test_token_acls_options_rendering1(driver, user):
@@ -28,6 +29,9 @@ def test_token_acls_options_rendering2(driver, super_admin_user):
 def test_add_and_see_realname_in_user_profile(driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
+    # give it enough time to load the current profile
+    time.sleep(2)
+
     first_name_entry = driver.wait_for_xpath('//input[@name="firstName"]')
     first_name = str(uuid.uuid4())
     first_name_entry.send_keys(first_name)
