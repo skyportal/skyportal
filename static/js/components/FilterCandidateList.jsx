@@ -531,9 +531,7 @@ const FilterCandidateList = ({
                       shrink: true,
                     }}
                     onChange={(event) => onChange(event.target.value)}
-                    defaultValue={
-                      selectedScanningProfile?.redshiftMinimum || ""
-                    }
+                    value={selectedScanningProfile?.redshiftMinimum || ""}
                   />
                 )}
                 name="redshiftMinimum"
@@ -555,9 +553,7 @@ const FilterCandidateList = ({
                       shrink: true,
                     }}
                     onChange={(event) => onChange(event.target.value)}
-                    defaultValue={
-                      selectedScanningProfile?.redshiftMaximum || ""
-                    }
+                    value={selectedScanningProfile?.redshiftMaximum || ""}
                   />
                 )}
                 name="redshiftMaximum"

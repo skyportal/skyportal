@@ -630,6 +630,9 @@ def test_add_scanning_profile(
     driver.get("/candidates")
     driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
 
+    # let the form initialize, load the groups, etc.
+    time.sleep(1)
+
     # Fill out form
     name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
     name_input.clear()
@@ -689,6 +692,9 @@ def test_delete_scanning_profile(driver, user, public_group):
     driver.get(f"/become_user/{user.id}")
     driver.get("/candidates")
     driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
+
+    # let the form initialize, load the groups, etc.
+    time.sleep(1)
 
     # Fill out form
     name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
