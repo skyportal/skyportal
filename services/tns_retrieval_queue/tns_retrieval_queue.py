@@ -509,6 +509,8 @@ def tns_watcher():
                                         tns_obj["name"]
                                     ):
                                         obj.tns_name = str(tns_obj["name"]).strip()
+                                    else:
+                                        continue
 
                                     session.commit()
                                     log(
