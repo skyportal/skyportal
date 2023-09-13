@@ -979,7 +979,7 @@ const SourceTable = ({
               ) : null}
               <UpdateSourceSummary source={source} />
               {source.classifications?.length > 0 ? (
-                <StartBotSummary obj_id={source.id} fetchAnalysisServices />
+                <StartBotSummary obj_id={source.id} />
               ) : null}
               {source.summary_history?.length > 0 ? (
                 <ShowSummaryHistory

@@ -62,18 +62,30 @@ const NewDefaultFollowupRequest = () => {
       // the new default form fields, so that the allocations list can
       // update
 
-      const result = await dispatch(
-        allocationActions.fetchAllocationsApiClassname()
-      );
-
-      const { data } = result;
+      let data = [];
+      if (
+        !allocationListApiClassname ||
+        allocationListApiClassname.length === 0
+      ) {
+        const result = await dispatch(
+          allocationActions.fetchAllocationsApiClassname()
+        );
+        data = result?.data || [];
+      } else {
+        data = allocationListApiClassname;
+      }
       setSelectedAllocationId(data[0]?.id);
       setSelectedGroupIds([data[0]?.group_id]);
     };
 
     getAllocations();
 
-    dispatch(instrumentsActions.fetchInstrumentForms());
+    if (
+      !instrumentFormParams ||
+      Object.keys(instrumentFormParams).length === 0
+    ) {
+      dispatch(instrumentsActions.fetchInstrumentForms());
+    }
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here

@@ -22,6 +22,9 @@ import * as favoritesActions from "./ducks/favorites";
 import * as rejectedActions from "./ducks/rejected_candidates";
 import * as tnsrobotsActions from "./ducks/tnsrobots";
 import * as enumTypesActions from "./ducks/enum_types";
+import * as usersActions from "./ducks/users";
+import * as streamsActions from "./ducks/streams";
+import * as analysisServicesActions from "./ducks/analysis_services";
 
 // we also import actions that won't be hydrated, to make sure they are
 // registered as reducers, to avoid conflicts with redux-state-sync
@@ -34,7 +37,6 @@ import * as gcnEventActions from "./ducks/gcnEvent";
 import * as gcnEventsActions from "./ducks/gcnEvents";
 import * as weatherActions from "./ducks/weather";
 import * as spatialCatalogsActions from "./ducks/spatialCatalogs";
-import * as analysisServicesActions from "./ducks/analysis_services";
 import * as photometryActions from "./ducks/photometry";
 import * as classificationsActions from "./ducks/classifications";
 import * as sourcesInGcnActions from "./ducks/sourcesingcn";
@@ -76,9 +78,13 @@ export default function hydrate() {
     dispatch(rejectedActions.fetchRejected());
     dispatch(tnsrobotsActions.fetchTNSRobots());
     dispatch(enumTypesActions.fetchEnumTypes());
+    dispatch(allocationsActions.fetchAllocationsApiClassname());
     dispatch(observationPlansActions.fetchObservationPlanNames());
     dispatch(defaultFollowupRequestsActions.fetchDefaultFollowupRequests());
     dispatch(defaultObservationPlansActions.fetchDefaultObservationPlans());
     dispatch(defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies());
+    dispatch(usersActions.fetchUsers());
+    dispatch(streamsActions.fetchStreams());
+    dispatch(analysisServicesActions.fetchAnalysisServices());
   };
 }
