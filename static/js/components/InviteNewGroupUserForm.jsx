@@ -75,25 +75,29 @@ const InviteNewGroupUserForm = ({ group_id }) => {
     if (formState.role === "Full user") {
       admin = formState.admin;
     }
-    if (!dayjs.utc(formState.userExpirationDate).isValid()) {
-      dispatch(
-        showNotification("Invalid date. Please use MM/DD/YYYY format.", "error")
-      );
-      return;
+    const data = {
+      userEmail: formState.newUserEmail,
+      groupIDs: [group_id],
+      groupAdmin: [admin],
+      role: formState.role,
+      streamIDs: null,
+      canSave: [formState.canSave],
+    };
+    if (formState.userExpirationDate?.length > 0) {
+      if (!dayjs.utc(formState.userExpirationDate).isValid()) {
+        dispatch(
+          showNotification(
+            "Invalid date. Please use MM/DD/YYYY format.",
+            "error"
+          )
+        );
+        return;
+      }
+      data.userExpirationDate = dayjs
+        .utc(formState.userExpirationDate)
+        .toISOString();
     }
-    const result = await dispatch(
-      invitationsActions.inviteUser({
-        userEmail: formState.newUserEmail,
-        groupIDs: [group_id],
-        groupAdmin: [admin],
-        role: formState.role,
-        streamIDs: null,
-        canSave: [formState.canSave],
-        userExpirationDate: dayjs
-          .utc(formState.userExpirationDate)
-          .toISOString(),
-      })
-    );
+    const result = await dispatch(invitationsActions.inviteUser(data));
     if (result.status === "success") {
       dispatch(
         showNotification(
