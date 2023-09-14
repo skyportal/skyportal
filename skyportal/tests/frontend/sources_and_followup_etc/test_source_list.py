@@ -599,6 +599,9 @@ def test_filter_by_gcnevent(
 
     driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
 
+    # give the page time to load the GCN events
+    time.sleep(2)
+
     before_input = driver.wait_for_xpath('//input[@name="startDate"]')
     before_input.send_keys("2019-08-14T21:10:39")
 
