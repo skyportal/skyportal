@@ -18,7 +18,7 @@ import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import DatePicker from "@mui/lab/DatePicker";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Tooltip from "@mui/material/Tooltip";
 import HelpIcon from "@mui/icons-material/Help";
 import {
@@ -291,9 +291,15 @@ const UserInvitations = () => {
   };
 
   const handleEditUserExpirationDate = async (formData) => {
+    if (!dayjs.utc(formData.date).isValid()) {
+      dispatch(
+        showNotification("Invalid date. Please use MM/DD/YYYY format.", "error")
+      );
+      return;
+    }
     const result = await dispatch(
       invitationsActions.updateInvitation(clickedInvitation.id, {
-        userExpirationDate: formData.date.format("YYYY/MM/DD"),
+        userExpirationDate: dayjs.utc(formData.date).toISOString(),
       })
     );
     if (result.status === "success") {
@@ -858,15 +864,10 @@ const UserInvitations = () => {
               render={({ field: { onChange, value } }) => (
                 <DatePicker
                   value={value}
-                  onChange={(date) =>
-                    date ? onChange(dayjs.utc(date)) : onChange(date)
-                  }
+                  onChange={(newValue) => onChange(newValue)}
+                  slotProps={{ textField: { variant: "outlined" } }}
                   label="Expiration date (UTC)"
                   showTodayButton={false}
-                  renderInput={(params) => (
-                    /* eslint-disable-next-line react/jsx-props-no-spreading */
-                    <TextField id="expirationDatePicker" {...params} />
-                  )}
                 />
               )}
               name="date"
