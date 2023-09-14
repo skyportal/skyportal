@@ -33,10 +33,23 @@ def test_top_sources(driver, user, public_source, public_group, upload_data_toke
     # Wait for just added source to show up in added sources
     driver.wait_for_xpath(f'//a/span[contains(.,"{obj_id}")]')
 
+    # edit the preferences to show more than the default 10 sources
+    settings_button = driver.wait_for_xpath('//*[@id="topSourcesSettingsIcon"]')
+    driver.scroll_to_element_and_click(settings_button)
+
+    input = driver.wait_for_xpath('//input[@name="maxNumSources"]')
+    driver.scroll_to_element_and_click(input)
+    input.send_keys("50")
+
+    submit_button = driver.wait_for_xpath(
+        '//button[@type="submit"][@name="topSourcesSubmit"]'
+    )
+    driver.scroll_to_element_and_click(submit_button)
+
     # Test that front-end views register as source views
     driver.click_xpath(f'//a/span[contains(.,"{obj_id}")]')
     driver.wait_for_xpath(f'//div[text()="{obj_id}"]')
-    time.sleep(1)
+    time.sleep(2)
     driver.get("/")
     driver.wait_for_xpath("//*[contains(.,'1 view(s)')]")
 
@@ -85,6 +98,19 @@ def test_top_source_prefs(driver, user, public_group, upload_data_token):
     # Wait for just top source widget to show up
     last_30_days_button = "//button[contains(@data-testid, 'topSources_30days')]"
     driver.wait_for_xpath(last_30_days_button)
+
+    # edit the preferences to show more than the default 10 sources
+    settings_button = driver.wait_for_xpath('//*[@id="topSourcesSettingsIcon"]')
+    driver.scroll_to_element_and_click(settings_button)
+
+    input = driver.wait_for_xpath('//input[@name="maxNumSources"]')
+    driver.scroll_to_element_and_click(input)
+    input.send_keys("50")
+
+    submit_button = driver.wait_for_xpath(
+        '//button[@type="submit"][@name="topSourcesSubmit"]'
+    )
+    driver.scroll_to_element_and_click(submit_button)
 
     # Test that source doesn't show up in last 7 days of views
     source_view_xpath = f"//div[@data-testid='topSourceItem_{obj_id}']"
