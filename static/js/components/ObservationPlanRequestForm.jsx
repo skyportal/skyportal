@@ -316,10 +316,6 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   const [skymapInstrument, setSkymapInstrument] = useState(null);
   const [selectedFields, setSelectedFields] = useState([]);
   const [multiPlansChecked, setMultiPlansChecked] = useState(false);
-  const [
-    instrumentObsplanFormParamsFetched,
-    setInstrumentObsplanFormParamsFetched,
-  ] = useState(false);
 
   const defaultAirmassTime = new Date(
     dayjs(gcnEvent?.dateobs).format("YYYY-MM-DDTHH:mm:ssZ")
@@ -330,6 +326,14 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     useState(defaultAirmassTime);
 
   const [fetchingLocalization, setFetchingLocalization] = useState(false);
+  const [
+    fetchingInstrumentObsplanFormParams,
+    setFetchingInstrumentObsplanFormParams,
+  ] = useState(false);
+  const [
+    fetchingAllocationListApiObsplan,
+    setFetchingAllocationListApiObsplan,
+  ] = useState(false);
 
   const { instrumentList, instrumentObsplanFormParams } = useSelector(
     (state) => state.instruments
@@ -423,7 +427,12 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
       // the new default form fields, so that the allocations list can
       // update
 
-      if (!allocationListApiObsplan || allocationListApiObsplan?.length === 0) {
+      if (
+        !allocationListApiObsplan ||
+        (allocationListApiObsplan?.length === 0 &&
+          !fetchingAllocationListApiObsplan)
+      ) {
+        setFetchingAllocationListApiObsplan(true);
         dispatch(allocationActions.fetchAllocationsApiObsplan()).then(
           (response) => {
             if (response.status !== "success") {
@@ -438,6 +447,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
             setSelectedAllocationId(data[0]?.id);
             setSelectedGroupIds([data[0]?.group_id]);
             setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
+            setFetchingAllocationListApiObsplan(false);
           }
         );
       } else if (
@@ -458,15 +468,12 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
 
     if (
       Object.keys(instrumentObsplanFormParams).length === 0 &&
-      !instrumentObsplanFormParamsFetched
+      !fetchingInstrumentObsplanFormParams
     ) {
-      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(
-        (response) => {
-          if (response.status === "success") {
-            setInstrumentObsplanFormParamsFetched(true);
-          }
-        }
-      );
+      setFetchingInstrumentObsplanFormParams(true);
+      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(() => {
+        setFetchingInstrumentObsplanFormParams(false);
+      });
     }
 
     // Don't want to reset everytime the component rerenders and

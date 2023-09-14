@@ -61,8 +61,8 @@ const NewDefaultObservationPlan = () => {
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [
-    instrumentObsplanFormParamsFetched,
-    setInstrumentObsplanFormParamsFetched,
+    fetchingInstrumentObsplanFormParams,
+    setFetchingInstrumentObsplanFormParams,
   ] = useState(false);
 
   const { instrumentList, instrumentObsplanFormParams } = useSelector(
@@ -88,15 +88,12 @@ const NewDefaultObservationPlan = () => {
 
     if (
       Object.keys(instrumentObsplanFormParams).length === 0 &&
-      !instrumentObsplanFormParamsFetched
+      !fetchingInstrumentObsplanFormParams
     ) {
-      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(
-        (response) => {
-          if (response.status === "success") {
-            setInstrumentObsplanFormParamsFetched(true);
-          }
-        }
-      );
+      setFetchingInstrumentObsplanFormParams(true);
+      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(() => {
+        setFetchingInstrumentObsplanFormParams(false);
+      });
     }
 
     // Don't want to reset everytime the component rerenders and

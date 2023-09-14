@@ -11,8 +11,10 @@ import SurveyEfficiencyObservationsLists from "./SurveyEfficiencyObservationsLis
 import { fetchGcnEventSurveyEfficiency } from "../ducks/gcnEvent";
 
 const AddSurveyEfficiencyObservationsPage = () => {
-  const [dialogOpen, setDialogOpen] = useState(false);
   const dispatch = useDispatch();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [fetchingSurveyEfficiency, setFetchingSurveyEfficiency] =
+    useState(false);
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
 
@@ -25,8 +27,17 @@ const AddSurveyEfficiencyObservationsPage = () => {
   };
 
   useEffect(() => {
-    if (gcnEvent?.id && !gcnEvent?.survey_efficiency) {
-      dispatch(fetchGcnEventSurveyEfficiency({ gcnID: gcnEvent?.id }));
+    if (
+      gcnEvent?.id &&
+      !gcnEvent?.survey_efficiency &&
+      !fetchingSurveyEfficiency
+    ) {
+      setFetchingSurveyEfficiency(true);
+      dispatch(fetchGcnEventSurveyEfficiency({ gcnID: gcnEvent?.id })).then(
+        () => {
+          setFetchingSurveyEfficiency(false);
+        }
+      );
     }
   }, [dispatch, gcnEvent]);
 
