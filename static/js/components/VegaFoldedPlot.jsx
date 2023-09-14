@@ -232,12 +232,17 @@ const VegaFoldedPlot = React.memo((props) => {
 });
 
 VegaFoldedPlot.propTypes = {
-  dataUrl: PropTypes.string.isRequired,
+  dataUrl: PropTypes.string,
   colorScale: PropTypes.shape({
     domain: PropTypes.arrayOf(PropTypes.string),
     range: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
-  values: PropTypes.arrayOf(PropTypes.object).isRequired, // eslint-disable-line react/forbid-prop-types
+  values: PropTypes.arrayOf(PropTypes.object), // eslint-disable-line react/forbid-prop-types
+};
+
+VegaFoldedPlot.defaultProps = {
+  dataUrl: null,
+  values: null,
 };
 
 VegaFoldedPlot.displayName = "VegaFoldedPlot";

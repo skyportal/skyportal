@@ -92,7 +92,7 @@ const TNSATForm = ({ obj_id }) => {
     const fetchData = () => {
       dispatch(streamsActions.fetchStreams());
     };
-    if (!dataFetched) {
+    if (!dataFetched && (!streams || streams?.length === 0)) {
       fetchData();
       setDataFetched(true);
     }
@@ -164,8 +164,11 @@ const TNSATForm = ({ obj_id }) => {
         type: "array",
         items: {
           type: "integer",
-          enum: streams.map((stream) => stream.id),
-          enumNames: streams.map((stream) => stream.name),
+          anyOf: streams.map((stream) => ({
+            enum: [stream.id],
+            type: "integer",
+            title: stream.name,
+          })),
         },
         uniqueItems: true,
         default: [],

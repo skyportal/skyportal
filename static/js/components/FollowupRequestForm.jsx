@@ -67,11 +67,18 @@ const FollowupRequestForm = ({
       // Wait for the allocations to update before setting
       // the new default form fields, so that the allocations list can
       // update
-      const result = await dispatch(
-        allocationActions.fetchAllocationsApiClassname()
-      );
-
-      const { data } = result;
+      let data = [];
+      if (
+        !allocationListApiClassname ||
+        allocationListApiClassname.length === 0
+      ) {
+        const result = await dispatch(
+          allocationActions.fetchAllocationsApiClassname()
+        );
+        data = result?.data || [];
+      } else {
+        data = allocationListApiClassname;
+      }
       const tempAllocationLookUp = {};
       data?.forEach((allocation) => {
         tempAllocationLookUp[allocation.id] = allocation;
@@ -100,7 +107,12 @@ const FollowupRequestForm = ({
 
     getAllocations();
 
-    dispatch(instrumentsActions.fetchInstrumentForms());
+    if (
+      !instrumentFormParams ||
+      Object.keys(instrumentFormParams).length === 0
+    ) {
+      dispatch(instrumentsActions.fetchInstrumentForms());
+    }
   }, [setSelectedAllocationId, setSelectedGroupIds, dispatch]);
 
   // need to check both of these conditions as selectedAllocationId is

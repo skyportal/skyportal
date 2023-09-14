@@ -4,6 +4,23 @@ import { createLogger } from "redux-logger";
 
 import { reducer as notificationsReducer } from "baselayer/components/Notifications";
 
+import {
+  createStateSyncMiddleware,
+  initStateWithPrevTab,
+  withReduxStateSync,
+} from "redux-state-sync";
+
+const syncConfig = {
+  whitelist: [
+    "baselayer/SHOW_NOTIFICATION",
+    "baselayer/HIDE_NOTIFICATION",
+    "baselayer/HIDE_NOTIFICATION_BY_TAG",
+    "skyportal/FETCH_INSTRUMENTS_OK",
+    // TODO: add more _OK actions here, as long as
+    // they don't trigger any fetching of data
+  ],
+};
+
 const logger = createLogger({
   collapsed: (getState, action, logEntry) => !logEntry.error,
 });
@@ -18,18 +35,22 @@ const composeWithDevTools =
 function configureStore() {
   const nullReducer = (state) => state;
 
+  const middlewares = [thunk, logger, createStateSyncMiddleware(syncConfig)];
+
   const store = createStore(
     nullReducer,
     {},
-    composeWithDevTools(applyMiddleware(thunk, logger))
+    composeWithDevTools(applyMiddleware(...middlewares))
   );
+
+  initStateWithPrevTab(store);
 
   // Track reducers injected by components
   store.reducers = {};
 
   store.injectReducer = (key, reducer) => {
     store.reducers[key] = reducer;
-    store.replaceReducer(combineReducers(store.reducers));
+    store.replaceReducer(withReduxStateSync(combineReducers(store.reducers)));
   };
 
   return store;

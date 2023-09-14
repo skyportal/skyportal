@@ -132,11 +132,15 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   );
 
   CustomClassificationWidget.propTypes = {
-    value: PropTypes.string.isRequired,
+    value: PropTypes.string,
     onChange: PropTypes.func.isRequired,
     options: PropTypes.shape({
       enumOptions: PropTypes.arrayOf(PropTypes.shape({})),
     }).isRequired,
+  };
+
+  CustomClassificationWidget.defaultProps = {
+    value: "",
   };
 
   // Custom form widget for probability because rxjs MUI UpdownWidget does not have working min/max/step
@@ -151,7 +155,6 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
         shrink: true,
       }}
       inputProps={{
-        MenuProps: { disableScrollLock: true },
         min: "0",
         max: "1",
         step: "0.0001",
@@ -163,8 +166,11 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     />
   );
   CustomProbabilityWidget.propTypes = {
-    value: PropTypes.string.isRequired,
+    value: PropTypes.string,
     onChange: PropTypes.func.isRequired,
+  };
+  CustomProbabilityWidget.defaultProps = {
+    value: "",
   };
 
   const CustomGroupsWidget = ({ value, onChange, options }) => (
@@ -233,18 +239,22 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
         type: "array",
         items: {
           type: "string",
-          enum: groups?.map((group) => group.id.toString()),
-          enumNames: groups?.map((group) => group.name),
+          anyOf: groups?.map((group) => ({
+            enum: [group.id.toString()],
+            type: "string",
+            title: group.name,
+          })),
         },
         uniqueItems: true,
       },
       taxonomy: {
         type: "string",
         title: "Taxonomy",
-        enum: latestTaxonomyList?.map((taxonomy) => taxonomy.id.toString()),
-        enumNames: latestTaxonomyList?.map(
-          (taxonomy) => `${taxonomy.name} (${taxonomy.version})`
-        ),
+        anyOf: latestTaxonomyList?.map((taxonomy) => ({
+          enum: [taxonomy.id.toString()],
+          type: "string",
+          title: `${taxonomy.name} (${taxonomy.version})`,
+        })),
       },
     },
     dependencies: {

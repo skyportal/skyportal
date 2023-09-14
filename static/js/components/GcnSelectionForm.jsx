@@ -32,7 +32,7 @@ import * as galaxiesActions from "../ducks/galaxies";
 import * as instrumentActions from "../ducks/instrument";
 import * as observationsActions from "../ducks/observations";
 import * as sourcesActions from "../ducks/sources";
-import * as sourcesingcnActions from "../ducks/confirmedsourcesingcn";
+import * as sourcesingcnActions from "../ducks/sourcesingcn";
 
 import AddCatalogQueryPage from "./AddCatalogQueryPage";
 import AddSurveyEfficiencyObservationsPage from "./AddSurveyEfficiencyObservationsPage";
@@ -438,14 +438,13 @@ MyObjectFieldTemplate.propTypes = {
   ).isRequired,
 };
 
-const GcnSelectionForm = ({
-  dateobs,
-  selectedLocalizationName,
-  setSelectedLocalizationName,
-}) => {
+const GcnSelectionForm = ({ dateobs }) => {
   const theme = useTheme();
   const classes = useStyles();
   const dispatch = useDispatch();
+  const [fetchingLocalization, setFetchingLocalization] = useState(false);
+  const [selectedLocalizationName, setSelectedLocalizationName] =
+    useState(null);
 
   const projectionOptions = ["orthographic", "mollweide"];
 
@@ -563,7 +562,12 @@ const GcnSelectionForm = ({
       dateobs === gcnEvent?.dateobs &&
       dateobs &&
       instrumentList.length > 0 &&
-      gcnEvent?.localizations?.length > 0
+      gcnEvent?.localizations?.length > 0 &&
+      (gcnEvent?.localizations?.find(
+        (loc) => loc.id === selectedLocalizationId
+      ) ||
+        selectedLocalizationId === null) &&
+      fetchingLocalization === false
     ) {
       setDefaults();
     }
@@ -571,7 +575,7 @@ const GcnSelectionForm = ({
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, gcnEvent]);
+  }, [instrumentList]);
 
   const isBig = useMediaQuery(theme.breakpoints.up("md"));
 
@@ -675,7 +679,8 @@ const GcnSelectionForm = ({
   ]);
 
   useEffect(() => {
-    if (selectedLocalizationName && gcnEvent?.dateobs) {
+    if (selectedLocalizationId && gcnEvent?.dateobs) {
+      setFetchingLocalization(true);
       dispatch(
         localizationActions.fetchLocalization(
           gcnEvent?.dateobs,
@@ -684,9 +689,9 @@ const GcnSelectionForm = ({
           )?.localization_name,
           "analysis"
         )
-      );
+      ).then(() => setFetchingLocalization(false));
     }
-  }, [dispatch, selectedLocalizationName]);
+  }, [dispatch, selectedLocalizationId]);
 
   const handleSelectedInstrumentChange = (e) => {
     setSelectedInstrumentId(e.target.value);
@@ -825,11 +830,14 @@ const GcnSelectionForm = ({
         type: "array",
         items: {
           type: "number",
-          enum: groups.map((group) => group.id),
-          enumNames: groups.map((group) => group.name),
+          anyOf: (groups || []).map((group) => ({
+            type: "number",
+            enum: [group.id],
+            title: group.name,
+          })),
         },
         uniqueItems: true,
-        default: [groups[0]?.id],
+        default: groups?.length > 0 ? [groups[0]?.id] : [],
         title: "Groups",
       },
     },
@@ -866,9 +874,8 @@ const GcnSelectionForm = ({
           sm={4}
           sx={{ display: { xs: "none", sm: "none", md: "block" } }}
         >
-          {Object.keys(locLookUp).includes(
-            selectedLocalizationId?.toString()
-          ) && (
+          {Object.keys(locLookUp).includes(analysisLoc?.id?.toString()) &&
+          !fetchingLocalization ? (
             <div style={{ marginTop: "0.5rem" }}>
               <LocalizationPlot
                 localization={analysisLoc}
@@ -923,6 +930,17 @@ const GcnSelectionForm = ({
                 ))}
               </FormGroup>
             </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "100%",
+              }}
+            >
+              <CircularProgress />
+            </div>
           )}
         </Grid>
         <Grid item sm={12} md={8}>
@@ -950,9 +968,8 @@ const GcnSelectionForm = ({
 
           {tabIndex === 0 && (
             <Box sx={{ display: { sm: "block", md: "none" } }}>
-              {Object.keys(locLookUp).includes(
-                selectedLocalizationId?.toString()
-              ) && (
+              {Object.keys(locLookUp).includes(analysisLoc?.id?.toString()) &&
+              !fetchingLocalization ? (
                 <Grid container spacing={2}>
                   <Grid
                     item
@@ -1018,6 +1035,17 @@ const GcnSelectionForm = ({
                     </FormGroup>
                   </Grid>
                 </Grid>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    height: "100%",
+                  }}
+                >
+                  <CircularProgress />
+                </div>
               )}
             </Box>
           )}
@@ -1214,7 +1242,6 @@ const GcnSelectionForm = ({
 
 GcnSelectionForm.propTypes = {
   dateobs: PropTypes.string.isRequired,
-  selectedLocalizationName: PropTypes.string.isRequired,
-  setSelectedLocalizationName: PropTypes.func.isRequired,
 };
+
 export default GcnSelectionForm;

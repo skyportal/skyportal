@@ -395,18 +395,13 @@ const UploadSpectrumForm = ({ route }) => {
       instrument_id: {
         type: "integer",
         title: "Instrument",
-        enum: instruments?.map((instrument) => instrument.id),
-        enumNames: instruments?.map((instrument) => {
-          const telescope = telescopes?.find(
-            (t) => t.id === instrument.telescope_id
-          );
-          let name = "";
-          if (telescope) {
-            name += `${telescope.nickname} / `;
-          }
-          name += instrument.name;
-          return name;
-        }),
+        anyOf: instruments?.map((instrument) => ({
+          enum: [instrument.id],
+          type: "integer",
+          title: `${
+            telescopes.find((t) => t.id === instrument.telescope_id)?.nickname
+          } / ${instrument.name}`,
+        })),
       },
       spectrum_type: {
         type: "string",
@@ -704,7 +699,6 @@ const UploadSpectrumForm = ({ route }) => {
                 Preview
               </Button>
               <HtmlTooltip
-                interactive
                 title={
                   <p>
                     Use this form to upload ASCII spectrum files to SkyPortal.

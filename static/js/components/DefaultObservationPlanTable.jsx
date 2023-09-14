@@ -527,7 +527,6 @@ DefaultObservationPlanTable.propTypes = {
   sortingCallback: PropTypes.func,
   totalMatches: PropTypes.number,
   hideTitle: PropTypes.bool,
-  filter: PropTypes.func.isRequired,
   deletePermission: PropTypes.bool.isRequired,
 };
 

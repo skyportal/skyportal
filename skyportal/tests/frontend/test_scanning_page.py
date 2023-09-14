@@ -630,6 +630,9 @@ def test_add_scanning_profile(
     driver.get("/candidates")
     driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
 
+    # let the form initialize, load the groups, etc.
+    time.sleep(1)
+
     # Fill out form
     name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
     name_input.clear()
@@ -690,6 +693,9 @@ def test_delete_scanning_profile(driver, user, public_group):
     driver.get("/candidates")
     driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
 
+    # let the form initialize, load the groups, etc.
+    time.sleep(1)
+
     # Fill out form
     name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
     name_input.clear()
@@ -721,6 +727,10 @@ def test_load_scanning_profile(
 
     # Add two scanning profiles with different max redshifts
     driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
+
+    # let the form initialize, load the groups, etc.
+    time.sleep(1)
+
     redshift_maximum_input = driver.wait_for_xpath(
         '//div[@data-testid="profile-maximum-redshift"]//input'
     )
@@ -738,11 +748,14 @@ def test_load_scanning_profile(
     redshift_maximum_input.clear()
     redshift_maximum_input.send_keys("1.0")
     name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
+    name_input.clear()
     name_input.send_keys("profile2")
     driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
     driver.wait_for_xpath('//div[contains(text(), "1.0")]')
 
-    # The latest (second) one should be the default. Choose to load the first one instead.
+    # unload
+    driver.click_xpath('//span[@data-testid="loaded_0"]')
+    # load
     driver.click_xpath('//span[@data-testid="loaded_0"]')
 
     # Navigate back to scanning page and check that form is populated properly

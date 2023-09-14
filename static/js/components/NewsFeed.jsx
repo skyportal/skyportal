@@ -164,8 +164,7 @@ const NewsFeedItem = ({ item }) => {
       <div className={styles.entryContent}>
         <ReactMarkdown
           className={styles.entryMessage}
-          escapeHtml={false}
-          renderers={{ text: emojiSupport }}
+          components={{ text: emojiSupport }}
         >
           {item.message}
         </ReactMarkdown>
@@ -235,7 +234,7 @@ NewsFeedItem.propTypes = {
     type: PropTypes.string.isRequired,
     time: PropTypes.string.isRequired,
     message: PropTypes.string.isRequired,
-    classification: PropTypes.string.isRequired,
+    classification: PropTypes.string,
     source_id: PropTypes.string.isRequired,
     author: PropTypes.string,
     author_info: PropTypes.shape({

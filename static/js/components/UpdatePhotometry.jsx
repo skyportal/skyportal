@@ -191,7 +191,7 @@ const UpdatePhotometry = ({ phot }) => {
 
 UpdatePhotometry.propTypes = {
   phot: PropTypes.shape({
-    id: PropTypes.string,
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     obj_id: PropTypes.string,
     mjd: PropTypes.number,
     mag: PropTypes.number,

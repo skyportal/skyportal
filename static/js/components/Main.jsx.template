@@ -5,7 +5,7 @@ import { Notifications } from "baselayer/components/Notifications";
 import React, { useEffect, Suspense } from "react";
 import PropTypes from "prop-types";
 import { Provider, useSelector } from "react-redux";
-import ReactDOM from "react-dom";
+import { createRoot } from 'react-dom/client';
 
 import { BrowserRouter, Routes, Route, useLocation, useParams } from "react-router-dom";
 
@@ -42,7 +42,6 @@ const {{ route.component }} = React.lazy(() => import("./{{ route.component }}")
 {% endfor %}
 
 import Theme from "./Theme";
-import ProfileDropdown from "./ProfileDropdown";
 import SidebarAndHeader from "./SidebarAndHeader";
 import ErrorBoundary from "./ErrorBoundary";
 
@@ -94,8 +93,14 @@ const MainContentInternal = ({ root }) => {
   const theme = useTheme();
 
   useEffect(() => {
-    store.dispatch(hydrate());
     store.dispatch(rotateLogoActions.rotateLogo());
+    setTimeout(() => {
+      const sysInfo = store.getState().sysInfo;
+      if (!sysInfo.version) {
+        store.dispatch(hydrate());
+        store.dispatch(rotateLogoActions.rotateLogo());
+      }
+    }, 1500);
   }, []);
 
   const location = useLocation();
@@ -151,13 +156,15 @@ MainContent.propTypes = {
   root: PropTypes.string.isRequired
 };
 
-ReactDOM.render(
+const container = document.getElementById("content");
+const root = createRoot(container);
+
+root.render(
   <Provider store={store}>
-    <ErrorBoundary key={location.pathname}>
-      <BrowserRouter basename="/">
-        <MainContent root={`${window.location.host}/`} />
-      </BrowserRouter>
-    </ErrorBoundary>
-  </Provider>,
-  document.getElementById("content")
+      <ErrorBoundary key={location.pathname}>
+        <BrowserRouter basename="/">
+          <MainContent root={`${window.location.host}/`} />
+        </BrowserRouter>
+      </ErrorBoundary>
+  </Provider>
 );

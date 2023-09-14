@@ -63,7 +63,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const StartBotSummary = ({ obj_id, fetchAnalysisServices }) => {
+const StartBotSummary = ({ obj_id }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -101,26 +101,18 @@ const StartBotSummary = ({ obj_id, fetchAnalysisServices }) => {
 
   useEffect(() => {
     const getAnalysisServices = async () => {
-      const result = await dispatch(
-        analysisServicesActions.fetchAnalysisServices()
-      );
-
-      const { data } = result;
+      let data = [];
+      if (!analysisServiceList || analysisServiceList.length === 0) {
+        const result = await dispatch(
+          analysisServicesActions.fetchAnalysisServices()
+        );
+        data = result?.data || [];
+      } else {
+        data = analysisServiceList;
+      }
       setSelectedAnalysisServiceId(data[0]?.id);
     };
-    if (
-      fetchAnalysisServices &&
-      (!analysisServiceList || analysisServiceList?.length === 0)
-    ) {
-      getAnalysisServices();
-    } else if (
-      analysisServiceList &&
-      analysisServiceList?.length > 0 &&
-      obj_id &&
-      !selectedAnalysisServiceId
-    ) {
-      setSelectedAnalysisServiceId(analysisServiceList[0]?.id);
-    }
+    getAnalysisServices();
   }, [dispatch, setSelectedAnalysisServiceId]);
 
   if (
@@ -261,11 +253,6 @@ const StartBotSummary = ({ obj_id, fetchAnalysisServices }) => {
 
 StartBotSummary.propTypes = {
   obj_id: PropTypes.string.isRequired,
-  fetchAnalysisServices: PropTypes.bool,
-};
-
-StartBotSummary.defaultProps = {
-  fetchAnalysisServices: false,
 };
 
 export default StartBotSummary;

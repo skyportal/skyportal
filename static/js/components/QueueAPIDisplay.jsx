@@ -146,7 +146,7 @@ const QueueAPIDisplay = () => {
       <Select
         inputProps={{ MenuProps: { disableScrollLock: true } }}
         labelId="allocationSelectLabel"
-        value={selectedAllocationId}
+        defaultValue={selectedAllocationId || ""}
         onChange={handleSelectedAllocationChange}
         name="followupRequestAllocationSelect"
         className={classes.select}

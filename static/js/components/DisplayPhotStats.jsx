@@ -43,11 +43,12 @@ const DisplayPhotStats = ({ photstats, display_header }) => {
 };
 
 DisplayPhotStats.propTypes = {
-  photstats: PropTypes.shape(Object).isRequired,
+  photstats: PropTypes.shape(Object),
   display_header: PropTypes.bool,
 };
 
 DisplayPhotStats.defaultProps = {
+  photstats: {},
   display_header: true,
 };
 

@@ -70,15 +70,17 @@ const CandidatesPreferences = ({
     <div>
       <div>
         <Tooltip title="Save and load pre-set search options">
-          <Button
-            primary
-            data-testid="manageScanningProfilesButton"
-            onClick={() => {
-              setAddDialogOpen(true);
-            }}
-          >
-            Manage scanning profiles
-          </Button>
+          <div>
+            <Button
+              primary
+              data-testid="manageScanningProfilesButton"
+              onClick={() => {
+                setAddDialogOpen(true);
+              }}
+            >
+              Manage scanning profiles
+            </Button>
+          </div>
         </Tooltip>
       </div>
       <Dialog

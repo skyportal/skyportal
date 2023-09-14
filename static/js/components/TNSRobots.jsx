@@ -286,12 +286,11 @@ const TNSRobots = ({ group_id }) => {
                 type: "array",
                 items: {
                   type: "integer",
-                  enum: (allowedInstruments || []).map(
-                    (instrument) => instrument.id
-                  ),
-                  enumNames: (allowedInstruments || []).map(
-                    (instrument) => instrument.name
-                  ),
+                  anyOf: (allowedInstruments || []).map((instrument) => ({
+                    enum: [instrument.id],
+                    type: "integer",
+                    title: instrument.name,
+                  })),
                 },
                 uniqueItems: true,
                 default: [],
@@ -301,8 +300,11 @@ const TNSRobots = ({ group_id }) => {
                 type: "array",
                 items: {
                   type: "integer",
-                  enum: (streams || []).map((stream) => stream.id),
-                  enumNames: (streams || []).map((stream) => stream.name),
+                  anyOf: (streams || []).map((stream) => ({
+                    enum: [stream.id],
+                    type: "integer",
+                    title: stream.name,
+                  })),
                 },
                 uniqueItems: true,
                 default: [],

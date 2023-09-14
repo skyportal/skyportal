@@ -426,17 +426,17 @@ AllocationTable.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
   // eslint-disable-next-line react/forbid-prop-types
-  groups: PropTypes.arrayOf(PropTypes.any).isRequired,
+  groups: PropTypes.arrayOf(PropTypes.any),
   paginateCallback: PropTypes.func.isRequired,
   sortingCallback: PropTypes.func,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
   hideTitle: PropTypes.bool,
   telescopeInfo: PropTypes.bool,
-  filter: PropTypes.func.isRequired,
 };
 
 AllocationTable.defaultProps = {
+  groups: [],
   totalMatches: 0,
   numPerPage: 10,
   sortingCallback: null,
