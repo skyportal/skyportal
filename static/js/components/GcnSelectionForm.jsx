@@ -874,9 +874,8 @@ const GcnSelectionForm = ({ dateobs }) => {
           sm={4}
           sx={{ display: { xs: "none", sm: "none", md: "block" } }}
         >
-          {Object.keys(locLookUp).includes(
-            selectedLocalizationId?.toString()
-          ) && (
+          {Object.keys(locLookUp).includes(analysisLoc?.id?.toString()) &&
+          !fetchingLocalization ? (
             <div style={{ marginTop: "0.5rem" }}>
               <LocalizationPlot
                 localization={analysisLoc}
@@ -931,6 +930,17 @@ const GcnSelectionForm = ({ dateobs }) => {
                 ))}
               </FormGroup>
             </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "100%",
+              }}
+            >
+              <CircularProgress />
+            </div>
           )}
         </Grid>
         <Grid item sm={12} md={8}>
@@ -958,9 +968,8 @@ const GcnSelectionForm = ({ dateobs }) => {
 
           {tabIndex === 0 && (
             <Box sx={{ display: { sm: "block", md: "none" } }}>
-              {Object.keys(locLookUp).includes(
-                selectedLocalizationId?.toString()
-              ) && (
+              {Object.keys(locLookUp).includes(analysisLoc?.id?.toString()) &&
+              !fetchingLocalization ? (
                 <Grid container spacing={2}>
                   <Grid
                     item
@@ -1026,6 +1035,17 @@ const GcnSelectionForm = ({ dateobs }) => {
                     </FormGroup>
                   </Grid>
                 </Grid>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    height: "100%",
+                  }}
+                >
+                  <CircularProgress />
+                </div>
               )}
             </Box>
           )}

@@ -181,6 +181,7 @@ FieldSelect.defaultProps = {
 };
 
 const ObservationPlanGlobe = ({
+  gcnEvent,
   loc,
   skymapInstrument,
   selectedFields,
@@ -200,7 +201,9 @@ const ObservationPlanGlobe = ({
   );
   displayOptionsDefault.localization = true;
   displayOptionsDefault.instrument = true;
-  return !loc ? (
+  return !loc ||
+    gcnEvent?.localizations?.length === 0 ||
+    gcnEvent?.localizations?.find((l) => l.id === loc.id) === undefined ? (
     <CircularProgress />
   ) : (
     <LocalizationPlot
@@ -216,6 +219,13 @@ const ObservationPlanGlobe = ({
 };
 
 ObservationPlanGlobe.propTypes = {
+  gcnEvent: PropTypes.shape({
+    localizations: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+      })
+    ),
+  }).isRequired,
   loc: PropTypes.shape({
     id: PropTypes.number,
     dateobs: PropTypes.string,
@@ -594,6 +604,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
         <Grid container spacing={4} alignItems="center">
           <Grid item xs={12} sm={7} md={12}>
             <ObservationPlanGlobe
+              gcnEvent={gcnEvent}
               loc={obsplanLoc}
               skymapInstrument={skymapInstrument}
               selectedFields={selectedFields}
