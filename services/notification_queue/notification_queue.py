@@ -1223,6 +1223,12 @@ def api(queue):
                                                 target_data["obj_id"] == source.obj_id
                                                 for source in favorite_sources
                                             )
+                                            and not (
+                                                target_data.get("ml", False)
+                                                and not pref.get(
+                                                    "favorite_sources", {}
+                                                ).get("new_ml_classifications", False)
+                                            )
                                         ):
                                             notification = UserNotification(
                                                 user=user,
@@ -1299,6 +1305,12 @@ def api(queue):
                                         if (
                                             len(favorite_sources) > 0
                                             and "favorite_sources" in pref.keys()
+                                            and not (
+                                                target_data.get("bot", False)
+                                                and not pref.get(
+                                                    "favorite_sources", {}
+                                                ).get("new_bot_comments", False)
+                                            )
                                         ):
                                             if any(
                                                 target_data['obj_id'] == source.obj_id

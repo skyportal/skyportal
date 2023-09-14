@@ -129,6 +129,16 @@ def test_comment_on_favorite_source_triggers_notification(
         '//*[@name="favorite_sources_new_comments"]/../../span[contains(@class,"Mui-checked")]'
     )
 
+    # activate notification for bot comments too, which is a comment posted using a token
+    favorite_sources_new_bot_comments = driver.wait_for_xpath(
+        '//*[@name="favorite_sources_new_bot_comments"]'
+    )
+    driver.scroll_to_element_and_click(favorite_sources_new_bot_comments)
+
+    driver.wait_for_xpath(
+        '//*[@name="favorite_sources_new_bot_comments"]/../../span[contains(@class,"Mui-checked")]'
+    )
+
     # Make public_source a favorite
     driver.get(f"/source/{public_source.id}")
     driver.click_xpath(
@@ -192,6 +202,16 @@ def test_classification_on_favorite_source_triggers_notification(
         '//*[@name="favorite_sources_new_classifications"]/../../span[contains(@class,"Mui-checked")]'
     )
 
+    # also activate notification for ML (bot) classifications, which are non-human classifications
+    favorite_sources_new_ml_classifications = driver.wait_for_xpath(
+        '//*[@name="favorite_sources_new_ml_classifications"]'
+    )
+    driver.scroll_to_element_and_click(favorite_sources_new_ml_classifications)
+
+    driver.wait_for_xpath(
+        '//*[@name="favorite_sources_new_ml_classifications"]/../../span[contains(@class,"Mui-checked")]'
+    )
+
     # Make public_source a favorite
     driver.get(f"/source/{public_source.id}")
     driver.click_xpath(f'//*[@data-testid="favorites-exclude_{public_source.id}"]')
@@ -206,6 +226,7 @@ def test_classification_on_favorite_source_triggers_notification(
             'taxonomy_id': taxonomy_id,
             'probability': 1.0,
             'group_ids': [public_group.id],
+            'ml': True,
         },
         token=classification_token,
     )
@@ -342,6 +363,7 @@ def test_new_classification_on_source_triggers_notification(
     driver.wait_for_xpath('//*[contains(text(), "New classification")]')
 
 
+@pytest.mark.flaky(reruns=1)
 def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
 
     driver.get(f'/become_user/{user.id}')

@@ -43,6 +43,13 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
     marginRight: theme.spacing(2),
   },
+  form_column: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "left",
+    alignItems: "center",
+    marginRight: theme.spacing(2),
+  },
   tooltip: {
     fontSize: "1rem",
     maxWidth: "30rem",
@@ -95,6 +102,16 @@ const NotificationPreferences = () => {
     } else if (event.target.name === "favorite_sources_new_spectra") {
       prefs.notifications.favorite_sources = {
         new_spectra: event.target.checked,
+      };
+    } else if (event.target.name === "favorite_sources_new_bot_comments") {
+      prefs.notifications.favorite_sources = {
+        new_bot_comments: event.target.checked,
+      };
+    } else if (
+      event.target.name === "favorite_sources_new_ml_classifications"
+    ) {
+      prefs.notifications.favorite_sources = {
+        new_ml_classifications: event.target.checked,
       };
     }
 
@@ -283,47 +300,83 @@ const NotificationPreferences = () => {
         </FormGroup>
         {profile?.notifications?.favorite_sources?.active === true && (
           <div className={classes.form}>
-            <FormGroup row className={classes.form_group}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={
-                      profile?.notifications?.favorite_sources?.new_comments ===
-                      true
+            <div className={classes.form_column}>
+              <FormGroup row className={classes.form_group}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={
+                        profile?.notifications?.favorite_sources
+                          ?.new_comments === true
+                      }
+                      name="favorite_sources_new_comments"
+                      onChange={prefToggled}
+                    />
+                  }
+                  label="New Comments"
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={
+                        profile?.notifications?.favorite_sources
+                          ?.new_spectra === true
+                      }
+                      name="favorite_sources_new_spectra"
+                      onChange={prefToggled}
+                    />
+                  }
+                  label="New Spectra"
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={
+                        profile?.notifications?.favorite_sources
+                          ?.new_classifications === true
+                      }
+                      name="favorite_sources_new_classifications"
+                      onChange={prefToggled}
+                    />
+                  }
+                  label="New Classifications"
+                />
+              </FormGroup>
+              <FormGroup row className={classes.form_group}>
+                {profile?.notifications?.favorite_sources?.new_comments ===
+                  true && (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={
+                          profile?.notifications?.favorite_sources
+                            ?.new_bot_comments === true
+                        }
+                        name="favorite_sources_new_bot_comments"
+                        onChange={prefToggled}
+                      />
                     }
-                    name="favorite_sources_new_comments"
-                    onChange={prefToggled}
+                    label="Also on BOT comments?"
                   />
-                }
-                label="New Comments"
-              />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={
-                      profile?.notifications?.favorite_sources?.new_spectra ===
-                      true
+                )}
+                {profile?.notifications?.favorite_sources
+                  ?.new_classifications === true && (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={
+                          profile?.notifications?.favorite_sources
+                            ?.new_ml_classifications === true
+                        }
+                        name="favorite_sources_new_ml_classifications"
+                        onChange={prefToggled}
+                      />
                     }
-                    name="favorite_sources_new_spectra"
-                    onChange={prefToggled}
+                    label="Also on ML classifications?"
                   />
-                }
-                label="New Spectra"
-              />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={
-                      profile?.notifications?.favorite_sources
-                        ?.new_classifications === true
-                    }
-                    name="favorite_sources_new_classifications"
-                    onChange={prefToggled}
-                  />
-                }
-                label="New Classifications"
-              />
-            </FormGroup>
+                )}
+              </FormGroup>
+            </div>
           </div>
         )}
         {profile?.notifications?.favorite_sources?.active === true && (
