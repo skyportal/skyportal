@@ -161,7 +161,12 @@ const WidgetPrefsDialog = ({
               return <div key={key} />;
             })}
             <div className={classes.saveButton}>
-              <Button secondary type="submit" endIcon={<SaveIcon />}>
+              <Button
+                secondary
+                type="submit"
+                name={`${stateBranchName}Submit`}
+                endIcon={<SaveIcon />}
+              >
                 Save
               </Button>
             </div>

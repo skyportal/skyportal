@@ -97,7 +97,7 @@ const useStyles = makeStyles((theme) => ({
 
 const getStyles = (timespan, currentTimespan, theme) => ({
   fontWeight:
-    timespan.label === currentTimespan.label
+    timespan?.label === currentTimespan?.label
       ? theme.typography.fontWeightBold
       : theme.typography.fontWeightMedium,
 });
