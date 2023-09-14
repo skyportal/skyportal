@@ -56,6 +56,10 @@ def test_add_and_see_realname_in_user_profile(driver, user):
 def test_add_and_see_affiliations_in_user_profile(driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
+
+    # give some time to load the current profile
+    time.sleep(1)
+
     affiliations_entry = driver.wait_for_xpath('//input[@name="affiliations"]')
     driver.scroll_to_element_and_click(affiliations_entry)
     affiliation_1 = str(uuid.uuid4())
@@ -82,6 +86,10 @@ def test_add_and_see_affiliations_in_user_profile(driver, user):
 def test_add_data_to_user_profile(driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
+
+    # give some time to load the current profile
+    time.sleep(1)
+
     first_name_entry = driver.wait_for_xpath('//input[@name="firstName"]')
     driver.scroll_to_element_and_click(first_name_entry)
     first_name = str(uuid.uuid4())
@@ -116,6 +124,10 @@ def test_add_data_to_user_profile(driver, user):
 def test_insufficient_name_entry_in_profile(driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
+
+    # give some time to load the current profile
+    time.sleep(1)
+
     first_name_entry = driver.wait_for_xpath('//input[@name="firstName"]')
     driver.scroll_to_element_and_click(first_name_entry)
     first_name_entry.clear()
