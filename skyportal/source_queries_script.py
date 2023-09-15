@@ -3,6 +3,7 @@ import numpy as np
 from tqdm import tqdm
 
 import sqlalchemy as sa
+from astropy.time import Time
 from conesearch_alchemy.math import sind, cosd
 from sqlalchemy.sql import and_, text
 import arrow
@@ -43,25 +44,43 @@ SORT_ORDER = [
 ]
 
 FILTERS = [
-    "has_spectra",
-    "has_classifications",
-    "has_tnsname",
-    "has_no_spectra",
-    "has_no_classifications",
-    "has_no_tnsname",
-    "saved_before",
-    "saved_after",
-    "created_or_modified_after",
-    "has_spectrum_before",
-    "has_spectrum_after",
-    "min_redshift",
-    "max_redshift",
+    # obj fields
     "alias",
     "origin",
-    "has_followup_request",
+    "simbad_class",
+    "has_tnsname",
+    "has_no_tnsname",
+    "min_redshift",
+    "max_redshift",
+    "sourceID",
+    "rejectedSourceIDs",
+    "created_or_modified_after",
+    # photstats
+    'first_detected_date',
+    'last_detected_date',
+    'exclude_forced_photometry',
+    'number_of_detections',
+    'min_peak_magnitude',
+    'max_peak_magnitude',
+    'min_latest_magnitude',
+    'max_latest_magnitude',
+    # cone search
     'ra',
     'dec',
     'radius',
+    # sources fields
+    "saved_before",
+    "saved_after",
+    # other
+    "has_classifications",
+    "has_no_classifications",
+    "has_spectra",
+    "has_no_spectra",
+    "has_spectrum_before",
+    "has_spectrum_after",
+    "has_followup_request",
+    "has_followup_request_status",
+    "list_name",
 ]
 
 NULL_FIELDS = [
@@ -211,6 +230,252 @@ def get(
             WHERE sources.active = true AND sources.group_id IN :group_ids
         """
 
+        # OBJ
+        if filters.get('sourceID', None) is not None:
+            try:
+                query_params['sourceID'] = str(filters["sourceID"])
+                statement += """
+                AND (lower(objs.id) LIKE '%' || lower(:sourceID) || '%')
+                """
+            except Exception as e:
+                raise ValueError(f'Invalid sourceID: {filters["sourceID"]} ({e})')
+
+        if filters.get('rejectedSourceIDs', None) is not None:
+            try:
+                query_params['rejectedSourceIDs'] = array2sql(
+                    filters["rejectedSourceIDs"]
+                )
+                statement += """
+                AND objs.id NOT IN :rejectedSourceIDs
+                """
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid rejectedSourceIDs: {filters["rejectedSourceIDs"]} ({e})'
+                )
+
+        if filters.get("alias", None) is not None:
+            if filters["alias"] in ["", None]:
+                raise ValueError(f'Invalid alias: {filters["alias"]}')
+            query_params['alias'] = filters["alias"]
+            # use a LIKE query to allow for partial matches
+            statement += """
+            AND objs.altdata LIKE '%:alias%'
+            """
+
+        if filters.get("origin", None) is not None:
+            if filters["origin"] in ["", None]:
+                raise ValueError(f'Invalid origin: {filters["origin"]}')
+            query_params['origin'] = filters["origin"]
+            # use a LIKE query to allow for partial matches
+            statement += """
+            AND objs.origin LIKE '%:origin%'
+            """
+
+        if filters.get("simbad_class", None) is not None:
+            # the objs.simbad_class field is an array of strings
+            # we can just cast it to text and use a LIKE query
+            query_params['simbad_class'] = str(filters["simbad_class"]).strip()
+            # cast simba_class to a string
+            statement += """
+            AND lower(((objs.altdata['simbad']) ->> 'class')) = lower(:simbad_class)
+            """
+
+        if filters.get('has_tnsname', False):
+            statement += """
+            AND objs.tns_name IS NOT NULL
+            """
+        elif filters.get('has_no_tnsname', False):
+            statement += """
+            AND objs.tns_name IS NULL
+            """
+
+        if "min_redshift" in filters:
+            try:
+                query_params['min_redshift'] = float(filters["min_redshift"])
+                statement += """
+                AND objs.redshift >= :min_redshift
+                """
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid min_redshift: {filters["min_redshift"]} ({e})'
+                )
+
+        if "max_redshift" in filters:
+            try:
+                query_params['max_redshift'] = float(filters["max_redshift"])
+                statement += """
+                AND objs.redshift <= :max_redshift
+                """
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid max_redshift: {filters["max_redshift"]} ({e})'
+                )
+
+        if filters.get("created_or_modified_after", None) is not None:
+            try:
+                query_params['created_or_modified_after'] = arrow.get(
+                    filters["created_or_modified_after"]
+                ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
+                statement += """
+                AND (objs.created_at > :created_or_modified_after OR objs.modified > :created_or_modified_after)
+                """
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid created_or_modified_after: {filters["created_or_modified_after"]} ({e})'
+                )
+
+        # PHOTSTATS
+        photstat_query = []
+
+        if filters.get("first_detected_date", None) is not None:
+            try:
+                col = (
+                    'first_detected_mjd'
+                    if not filters.get('exclude_forced_photometry', False)
+                    else 'first_detected_no_forced_phot_mjd'
+                )
+                query_params['first_detected_date'] = Time(
+                    arrow.get(filters["first_detected_date"]).datetime
+                ).mjd
+                photstat_query.append(f"""photstats.{col} >= :first_detected_date""")
+
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid first_detected_date: {filters["first_detected_date"]} ({e})'
+                )
+
+        if filters.get("last_detected_date", None) is not None:
+            try:
+                col = (
+                    'last_detected_mjd'
+                    if not filters.get('exclude_forced_photometry', False)
+                    else 'last_detected_no_forced_phot_mjd'
+                )
+                query_params['last_detected_date'] = Time(
+                    arrow.get(filters["last_detected_date"]).datetime
+                ).mjd
+                photstat_query.append(f"""photstats.{col} <= :last_detected_date""")
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid last_detected_date: {filters["last_detected_date"]} ({e})'
+                )
+
+        if filters.get('number_of_detections', None) is not None:
+            try:
+                col = (
+                    'num_det_global'
+                    if not filters.get('exclude_forced_photometry', False)
+                    else 'num_det_no_forced_phot_global'
+                )
+                query_params['number_of_detections'] = int(
+                    filters['number_of_detections']
+                )
+                photstat_query.append(f"""photstats.{col} >= :number_of_detections""")
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid number_of_detections: {filters["number_of_detections"]} ({e})'
+                )
+
+        if filters.get('min_peak_magnitude'):
+            try:
+                query_params['min_peak_magnitude'] = float(
+                    filters['min_peak_magnitude']
+                )
+                photstat_query.append(
+                    """photstats.peak_mag_global <= :min_peak_magnitude"""
+                )
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid min_peak_magnitude: {filters["min_peak_magnitude"]} ({e})'
+                )
+
+        if filters.get('max_peak_magnitude'):
+            try:
+                query_params['max_peak_magnitude'] = float(
+                    filters['max_peak_magnitude']
+                )
+                photstat_query.append(
+                    """photstats.peak_mag_global >= :max_peak_magnitude"""
+                )
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid max_peak_magnitude: {filters["max_peak_magnitude"]} ({e})'
+                )
+
+        if filters.get('min_latest_magnitude'):
+            try:
+                query_params['min_latest_magnitude'] = float(
+                    filters['min_latest_magnitude']
+                )
+                photstat_query.append(
+                    """photstats.last_detected_mag <= :min_latest_magnitude"""
+                )
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid min_latest_magnitude: {filters["min_latest_magnitude"]} ({e})'
+                )
+
+        if filters.get('max_latest_magnitude'):
+            try:
+                query_params['max_latest_magnitude'] = float(
+                    filters['max_latest_magnitude']
+                )
+                photstat_query.append(
+                    """photstats.last_detected_mag >= :max_latest_magnitude"""
+                )
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid max_latest_magnitude: {filters["max_latest_magnitude"]} ({e})'
+                )
+
+        if len(photstat_query) > 0:
+            statement += f"""
+            AND EXISTS (SELECT obj_id from photstats where photstats.obj_id=objs.id and {' AND '.join(photstat_query)})
+            """
+
+        # CONE SEARCH
+        if {'ra', 'dec', 'radius'}.issubset(set(filters)):
+            try:
+                ra, dec, radius = (
+                    float(filters['ra']),
+                    float(filters['dec']),
+                    float(filters['radius']),
+                )
+                statement += f"""
+                AND {within(Obj.ra, Obj.dec, ra, dec, radius).compile(compile_kwargs={"literal_binds": True})}
+                """
+                pass
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid ra, dec, radius: {filters["ra"]}, {filters["dec"]}, {filters["radius"]} ({e})'
+                )
+
+        # SOURCES
+        if filters.get("saved_before", None) is not None:
+            try:
+                query_params['saved_before'] = arrow.get(
+                    filters["saved_before"]
+                ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
+                statement += """
+                AND sources.saved_at < :saved_before
+                """
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid saved_before: {filters["saved_before"]} ({e})'
+                )
+
+        if filters.get("saved_after", None) is not None:
+            try:
+                query_params['saved_after'] = arrow.get(
+                    filters["saved_after"]
+                ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
+                statement += """
+                AND sources.saved_at > :saved_after
+                """
+            except Exception as e:
+                raise ValueError(f'Invalid saved_after: {filters["saved_after"]} ({e})')
+
+        # OTHER
         if filters.get('has_classifications', False) not in [False, [], None]:
             if isinstance(filters['has_classifications'], list):
                 filters['has_classifications'] = [
@@ -243,6 +508,7 @@ def get(
                 statement += """
                 AND NOT EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false and classifications.id in (select classification_id from group_classifications where group_id in :group_ids))
                 """
+
         if filters.get('has_spectra', False):
             statement += """
             AND EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id and spectra.id in (select spectr_id from group_spectra where group_id in :group_ids))
@@ -278,108 +544,6 @@ def get(
                     f'Invalid has_spectrum_after: {filters["has_spectrum_after"]} ({e})'
                 )
 
-        if {'ra', 'dec', 'radius'}.issubset(set(filters)):
-            try:
-                ra, dec, radius = (
-                    float(filters['ra']),
-                    float(filters['dec']),
-                    float(filters['radius']),
-                )
-                statement += f"""
-                AND {within(Obj.ra, Obj.dec, ra, dec, radius).compile(compile_kwargs={"literal_binds": True})}
-                """
-                pass
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid ra, dec, radius: {filters["ra"]}, {filters["dec"]}, {filters["radius"]} ({e})'
-                )
-
-        if filters.get('has_tnsname', False):
-            statement += """
-            AND objs.tns_name IS NOT NULL
-            """
-        elif filters.get('has_no_tnsname', False):
-            statement += """
-            AND objs.tns_name IS NULL
-            """
-
-        if "min_redshift" in filters:
-            try:
-                query_params['min_redshift'] = float(filters["min_redshift"])
-                statement += """
-                AND objs.redshift >= :min_redshift
-                """
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid min_redshift: {filters["min_redshift"]} ({e})'
-                )
-
-        if "max_redshift" in filters:
-            try:
-                query_params['max_redshift'] = float(filters["max_redshift"])
-                statement += """
-                AND objs.redshift <= :max_redshift
-                """
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid max_redshift: {filters["max_redshift"]} ({e})'
-                )
-
-        if filters.get("saved_before", None) is not None:
-            try:
-                query_params['saved_before'] = arrow.get(
-                    filters["saved_before"]
-                ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
-                statement += """
-                AND sources.saved_at < :saved_before
-                """
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid saved_before: {filters["saved_before"]} ({e})'
-                )
-
-        if filters.get("saved_after", None) is not None:
-            try:
-                query_params['saved_after'] = arrow.get(
-                    filters["saved_after"]
-                ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
-                statement += """
-                AND sources.saved_at > :saved_after
-                """
-            except Exception as e:
-                raise ValueError(f'Invalid saved_after: {filters["saved_after"]} ({e})')
-
-        if filters.get("created_or_modified_after", None) is not None:
-            try:
-                query_params['created_or_modified_after'] = arrow.get(
-                    filters["created_or_modified_after"]
-                ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
-                statement += """
-                AND (objs.created_at > :created_or_modified_after OR objs.modified > :created_or_modified_after)
-                """
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid created_or_modified_after: {filters["created_or_modified_after"]} ({e})'
-                )
-
-        if filters.get("alias", None) is not None:
-            if filters["alias"] in ["", None]:
-                raise ValueError(f'Invalid alias: {filters["alias"]}')
-            query_params['alias'] = filters["alias"]
-            # use a LIKE query to allow for partial matches
-            statement += """
-            AND objs.altdata LIKE '%:alias%'
-            """
-
-        if filters.get("origin", None) is not None:
-            if filters["origin"] in ["", None]:
-                raise ValueError(f'Invalid origin: {filters["origin"]}')
-            query_params['origin'] = filters["origin"]
-            # use a LIKE query to allow for partial matches
-            statement += """
-            AND objs.origin LIKE '%:origin%'
-            """
-
         if filters.get("has_followup_request", False):
             pass  # TODO
             #         SELECT followuprequests.requester_id, followuprequests.last_modified_by_id, followuprequests.obj_id, followuprequests.payload, followuprequests.status, followuprequests.allocation_id, followuprequests.id, followuprequests.created_at, followuprequests.modified
@@ -392,8 +556,26 @@ def get(
             # this example above is a badly generated query, but the logic is here
             # we already grabbed the allocation's ids in advance, so we can use them here
             query_params['allocation_ids'] = array2sql(allocation_ids)
+            if filters.get("has_followup_request_status", None) is not None:
+                query_params['has_followup_request_status'] = str(
+                    filters["has_followup_request_status"]
+                ).strip()
+                # if it contains the string, both lowercased, then we have a match
+                statement += """
+                AND EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id and followuprequests.allocation_id in :allocation_ids and lower(followuprequests.status) LIKE '%' || lower(:has_followup_request_status) || '%')
+                """
+            else:
+                statement += """
+                AND EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id and followuprequests.allocation_id in :allocation_ids)
+                """
+
+        if filters.get('list_name', None) is not None:
+            # we want to check if there is an entry in the listing table
+            # where obj_id = objs.id, list_name = filters['list_name'], and user_id = user_id
+            query_params['list_name'] = str(filters['list_name'])
+            query_params['user_id'] = int(user_id)
             statement += """
-            AND EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id and followuprequests.allocation_id in :allocation_ids)
+            AND EXISTS (SELECT obj_id from listings where listings.obj_id=objs.id and listings.list_name = :list_name and listings.user_id = :user_id)
             """
 
         statement += """
@@ -426,6 +608,10 @@ def get(
         connection = DBSession().connection()
         results = connection.execute(statement)
         all_obj_ids = [r[0] for r in results]
+        if len(all_obj_ids) != len(set(all_obj_ids)):
+            raise ValueError(
+                f'Duplicate obj_ids in query results, query is incorrect: {all_obj_ids}'
+            )
 
         endTime = time.time()
         if verbose:
@@ -716,11 +902,20 @@ if __name__ == '__main__':
         # 'min_redshift': '0.1',
         # 'max_redshift': '2.0',
         # 'has_followup_request': True,
-        'radius': 10,
-        'ra': 50.0,
-        'dec': 50.0,
+        # 'has_followup_request_status': 'complete',
+        # 'radius': 10,
+        # 'ra': 50.0,
+        # 'dec': 50.0,
+        # 'first_detected_date': '2021-01-01',
+        # 'last_detected_date': '2023-09-01',
+        # 'number_of_detections': 15,
+        # 'min_peak_magnitude': 18,
+        # 'sourceID': 'ZTF23aauekqf',
+        # 'rejectedSourceIDs': ['ZTF23aauekqf'],
+        # 'list_name': 'favorites',
+        # 'simbad_class': 'Ia',
     }
-    sortBy = 'redshift'
+    sortBy = 'saved_at'
     sortOrder = 'desc'
 
     # run just one query first to make sure it works
@@ -734,6 +929,9 @@ if __name__ == '__main__':
         user_id=user_id,
         verbose=True,
     )
+    print()
+    if len(data['objs']) < 10:
+        print([obj['id'] for obj in data['objs']])
     log(
         f'Query returned {data["totalMatches"]} matches. Limited to {len(data["objs"])} results.'
     )
