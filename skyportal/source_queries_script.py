@@ -23,6 +23,8 @@ from skyportal.models import (
     Group,
     Galaxy,
     Allocation,
+    Localization,
+    LocalizationTile,
 )
 
 _, cfg = load_env()
@@ -81,6 +83,22 @@ FILTERS = [
     "has_followup_request",
     "has_followup_request_status",
     "list_name",
+    "has_been_labelled",
+    "has_not_been_labelled",
+    "current_user_labeller",
+    # annotations
+    'annotations_filter' 'annotations_filter_origin',
+    'annotations_filter_before',
+    'annotations_filter_after',
+    # comments
+    'comments_filter',
+    'comments_filter_before',
+    'comments_filter_after',
+    'comments_filter_author',
+    # GCN
+    'localization_dateobs',
+    'localization_name',
+    'localization_cumprob',
 ]
 
 NULL_FIELDS = [
@@ -160,6 +178,57 @@ def great_circle_distance(ra1_deg, dec1_deg, ra2_deg, dec2_deg):
     return distance * 180.0 / np.pi
 
 
+def get_localization(localization_dateobs, localization_name, session, user):
+    startTime = time.time()
+    localization_dateobs_str = localization_dateobs.strftime('%Y-%m-%d %H:%M:%S')
+    if localization_name is None:
+        localization_id = session.scalars(
+            sa.select(Localization.id)
+            .where(Localization.dateobs == localization_dateobs_str)
+            .order_by(Localization.created_at.desc())
+        ).first()
+    else:
+        localization_id = session.scalars(
+            sa.select(Localization.id)
+            .where(Localization.dateobs == localization_dateobs_str)
+            .where(Localization.localization_name == localization_name)
+            .order_by(Localization.modified.desc())
+        ).first()
+    if localization_id is None:
+        if localization_name is not None:
+            raise ValueError(
+                f"Localization {localization_dateobs_str} with name {localization_name} not found",
+            )
+        else:
+            raise ValueError(
+                f"Localization {localization_dateobs_str} not found",
+            )
+
+    partition_key = localization_dateobs
+    localizationtile_partition_name = f'{partition_key.year}_{partition_key.month:02d}'
+    localizationtilescls = LocalizationTile.partitions.get(
+        localizationtile_partition_name, None
+    )
+    if localizationtilescls is None:
+        localizationtilescls = LocalizationTile.partitions.get('def', LocalizationTile)
+    else:
+        if not (
+            session.scalars(
+                sa.select(localizationtilescls.id).where(
+                    localizationtilescls.localization_id == localization_id
+                )
+            ).first()
+        ):
+            localizationtilescls = LocalizationTile.partitions.get(
+                'def', LocalizationTile
+            )
+
+    endTime = time.time()
+    log(f"get_localization took {endTime - startTime} seconds")
+
+    return localization_id, localizationtilescls.__tablename__
+
+
 def get(
     filters={},
     group_ids=[],
@@ -177,10 +246,7 @@ def get(
     if user_id is None:
         raise ValueError('No user_id provided.')
 
-    if len(filters) == 0:
-        raise ValueError('No filters provided.')
-
-    if len(filters) > 0 and not set(filters).issubset(set(FILTERS)):
+    if len(filters) > 0 and not set(filters.keys()).issubset(set(FILTERS)):
         raise ValueError(f'Invalid filters: {filters}')
 
     if sortBy not in SORT_BY:
@@ -546,14 +612,6 @@ def get(
 
         if filters.get("has_followup_request", False):
             pass  # TODO
-            #         SELECT followuprequests.requester_id, followuprequests.last_modified_by_id, followuprequests.obj_id, followuprequests.payload, followuprequests.status, followuprequests.allocation_id, followuprequests.id, followuprequests.created_at, followuprequests.modified
-            # FROM followuprequests JOIN allocations ON allocations.id = followuprequests.allocation_id JOIN (SELECT allocations.id AS id
-            # FROM allocations JOIN (SELECT allocations_1.id AS id
-            # FROM allocations AS allocations_1 JOIN groups ON groups.id = allocations_1.group_id JOIN group_users AS group_users_1 ON groups.id = group_users_1.group_id JOIN users ON users.id = group_users_1.user_id
-            # WHERE users.id = :id_1) AS anon_2 ON anon_2.id = allocations.id JOIN (SELECT allocations_2.id AS id
-            # FROM allocations AS allocations_2) AS anon_3 ON anon_3.id = allocations.id) AS anon_1 ON anon_1.id = allocations.id
-
-            # this example above is a badly generated query, but the logic is here
             # we already grabbed the allocation's ids in advance, so we can use them here
             query_params['allocation_ids'] = array2sql(allocation_ids)
             if filters.get("has_followup_request_status", None) is not None:
@@ -578,6 +636,116 @@ def get(
             AND EXISTS (SELECT obj_id from listings where listings.obj_id=objs.id and listings.list_name = :list_name and listings.user_id = :user_id)
             """
 
+        if filters.get('has_been_labelled', False):
+            if filters.get('current_user_labeller', False):
+                query_params['current_user_labeller'] = int(user_id)
+                statement += """
+                AND EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.labeller_id = :current_user_labeller and sourcelabels.group_id in :group_ids)
+                """
+            else:
+                statement += """
+                AND EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.group_id in :group_ids)
+                """
+        elif filters.get('has_not_been_labelled', False):
+            if filters.get('current_user_labeller', False):
+                query_params['current_user_labeller'] = int(user_id)
+                statement += """
+                AND NOT EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.labeller_id = :current_user_labeller and sourcelabels.group_id in :group_ids)
+                """
+            else:
+                statement += """
+                AND NOT EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.group_id in :group_ids)
+                """
+
+        # ANNOTATIONS
+        if filters.get('annotations_filter', None) is not None:
+            raise NotImplementedError('annotations_filter not implemented yet')
+
+        # COMMENTS
+        comments_query = []
+        if filters.get('comments_filter', None) not in [None, False, []]:
+            # it is an array of strings
+            query_params['comments_filter'] = array2sql(filters['comments_filter'])
+            comments_query.append(
+                """comments.text LIKE ANY (array[:comments_filter])"""
+            )
+        if filters.get('comments_filter_before', None) is not None:
+            try:
+                query_params['comments_filter_before'] = arrow.get(
+                    filters["comments_filter_before"]
+                ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
+                comments_query.append(
+                    """comments.created_at <= :comments_filter_before"""
+                )
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid comments_filter_before: {filters["comments_filter_before"]} ({e})'
+                )
+        if filters.get('comments_filter_after', None) is not None:
+            try:
+                query_params['comments_filter_after'] = arrow.get(
+                    filters["comments_filter_after"]
+                ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
+                comments_query.append(
+                    """comments.created_at >= :comments_filter_after"""
+                )
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid comments_filter_after: {filters["comments_filter_after"]} ({e})'
+                )
+        if filters.get('comments_filter_author', None) is not None:
+            try:
+                query_params['comments_filter_author'] = int(
+                    filters["comments_filter_author"]
+                )
+                comments_query.append(
+                    """comments.author_id = :comments_filter_author"""
+                )
+            except Exception as e:
+                raise ValueError(
+                    f'Invalid comments_filter_author: {filters["comments_filter_author"]} ({e})'
+                )
+
+        if len(comments_query) > 0:
+            statement += f"""
+            AND EXISTS (SELECT obj_id from comments where comments.obj_id=objs.id and {' AND '.join(comments_query)} and comments.id in (select comment_id from group_comments where group_id in :group_ids))
+            """
+
+        # GCN
+        if filters.get('localization_dateobs', None) is not None:
+            try:
+                localization_dateobs = arrow.get(
+                    filters["localization_dateobs"]
+                ).datetime
+                localization_cumprob = float(filters.get('localization_cumprob', 0.95))
+                localization_id, partition = get_localization(
+                    localization_dateobs,
+                    filters.get('localization_name', None),
+                    session,
+                    user,
+                )
+                # this is twice as fast as if we ran each query (the localization tiles query,
+                # and its overall with the sources) separately.
+                # we used caching for that in prod, but now that we have partitions, we can do it this way
+                statement += f"""AND EXISTS (
+                    SELECT lt.id
+                    FROM (
+                        SELECT  {partition}.id,
+                                {partition}.healpix,
+                                {partition}.probdensity,
+                                SUM({partition}.probdensity *
+                                    (upper({partition}.healpix) - lower({partition}.healpix)) * 3.6331963520923245e-18
+                                ) OVER (ORDER BY {partition}.probdensity DESC) AS cum_prob
+                        FROM {partition}
+                        WHERE {partition}.localization_id = {localization_id}
+                    ) AS lt
+                    WHERE lt.cum_prob <= {float(localization_cumprob)} and lt.healpix @> objs.healpix
+                    ORDER BY lt.probdensity DESC
+                )
+                """
+            except Exception as e:
+                raise ValueError(f'Invalid localization query parameters ({e})')
+
         statement += """
         GROUP BY objs.id
         """
@@ -601,6 +769,7 @@ def get(
             .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
         )
         if verbose:
+            log(f'Params:\n{query_params}')
             log(f'Query:\n{statement}')
 
         startTime = time.time()
@@ -888,14 +1057,14 @@ def benchmark(filters, user_id, group_ids, page, nbPerPage):
 
 if __name__ == '__main__':
     user_id = 13
-    group_ids = []
+    group_ids = [41]
     page = 1
     nbPerPage = 100
     filters = {
         'has_spectra': True,
-        # 'has_no_classifications': True,
+        'has_no_classifications': True,
         # 'has_no_classifications': ["Type II"],
-        # 'has_no_tnsname': True
+        # 'has_no_tnsname': True,
         # 'saved_after': '2021-01-01',
         # 'saved_before': '2023-09-01',
         # 'created_or_modified_after': '2023-01-01',
@@ -914,6 +1083,14 @@ if __name__ == '__main__':
         # 'rejectedSourceIDs': ['ZTF23aauekqf'],
         # 'list_name': 'favorites',
         # 'simbad_class': 'Ia',
+        # 'has_been_labelled': True,
+        # 'current_user_labeller': True,
+        # 'comments_filter': ["blue featureless"],
+        # 'comments_filter_author': 23,
+        # 'localization_dateobs': '2023-08-08T04:03:46',
+        # 'first_detected_date': '2023-08-08T04:03:46',
+        # 'last_detected_date': '2023-08-16T04:03:46',
+        # 'number_of_detections': 2,
     }
     sortBy = 'saved_at'
     sortOrder = 'desc'
@@ -940,3 +1117,4 @@ if __name__ == '__main__':
 
 # TODOs:
 # - take taxonomy into account when filtering on classifications but with names (not just booleans)
+# - annotations_filter, annotations_filter_origin
