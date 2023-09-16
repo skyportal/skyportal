@@ -65,6 +65,15 @@ NULL_FIELDS = [
 DEGRA = np.pi / 180.0
 HOOG_REDSHIFT_A, HOOG_REDSHIFT_B = 2.99e5 * u.km / u.s, 350 * u.km / u.s
 
+OPERATORS = {
+    'eq': '=',
+    'ne': '!=',
+    'gt': '>',
+    'ge': '>=',
+    'lt': '<',
+    'le': '<=',
+}
+
 
 def array2sql(array: list):
     # we make it a tuple
@@ -939,32 +948,16 @@ def get_sources(
                 except ValueError as e:
                     raise ValueError(f"Invalid annotation filter value: {e}")
                 op = annotations_filter[2].strip()
-                op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
-                if op not in op_options:
+                if op not in OPERATORS.keys():
                     raise ValueError(f"Invalid operator: {op}")
                 # find the equivalent postgres operator
-                if op == "lt":
-                    comp_function = "<"
-                elif op == "le":
-                    comp_function = "<="
-                elif op == "eq":
-                    comp_function = "="
-                elif op == "ne":
-                    comp_function = "!="
-                elif op == "ge":
-                    comp_function = ">="
-                elif op == "gt":
-                    comp_function = ">"
+                comp_function = OPERATORS.get(op)
 
                 params[f'annotations_filter_name_{param_index}'] = annotations_filter[
                     0
                 ].strip()
-                print(
-                    f'annotations_filter_name_{param_index}: {annotations_filter[0].strip()}'
-                )
+
                 params[f'annotations_filter_value_{param_index}'] = value
-                print(f'annotations_filter_value_{param_index}: {value}')
-                print(f'comp_function: {comp_function}')
                 # the query will apply the operator to compare the value
                 # in annotation.data[annotations_filter_name] to the value
                 # we'll need to cast the value to JSONB to do the comparison
@@ -1365,7 +1358,7 @@ def get_sources(
                 thumbnails = sorted(
                     (t.to_dict() for t in thumbnails), key=lambda t: t['created_at']
                 )
-                print(thumbnails[0])
+
                 for obj in objs:
                     obj['thumbnails'] = [
                         t for t in thumbnails if t['obj_id'] == obj['id']
