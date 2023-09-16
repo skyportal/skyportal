@@ -71,6 +71,8 @@ FILTERS = [
     'dec',
     'radius',
     # sources fields
+    "include_requested",
+    "requested_only",
     "saved_before",
     "saved_after",
     # other
@@ -99,6 +101,11 @@ FILTERS = [
     'localization_dateobs',
     'localization_name',
     'localization_cumprob',
+    'localization_reject_sources',
+    'include_sources_in_gcn',
+    # SPATIAL CATALOGS
+    'spatial_catalog_name',
+    'spatial_catalog_entry_name',
 ]
 
 NULL_FIELDS = [
@@ -260,49 +267,76 @@ def get(
         user = session.scalar(sa.select(User).where(User.id == user_id))
         if user is None:
             raise ValueError(f'Invalid user_id: {user_id}')
+        is_admin = user.is_admin
 
         user_group_ids = [g.id for g in user.accessible_groups]
 
-        if len(group_ids) == 0:
+        if len(group_ids) == 0 and not is_admin:
             group_ids = user_group_ids
+
         elif not set(group_ids).issubset(set(user_group_ids)):
             raise ValueError('Selected group(s) not all accessible to user.')
 
         # fetch the allocations in advance, will be used later
-        allocation_ids = (
-            session.scalars(
-                Allocation.select(user)
-                .options(sa.orm.load_only(Allocation.id))
-                .where(Allocation.group_id.in_(group_ids))
+        allocation_ids = []
+        if not is_admin:
+            allocation_ids = (
+                session.scalars(
+                    Allocation.select(user)
+                    .options(sa.orm.load_only(Allocation.id))
+                    .where(Allocation.group_id.in_(group_ids))
+                )
+                .unique()
+                .all()
             )
-            .unique()
-            .all()
-        )
-        allocation_ids = [a.id for a in allocation_ids]
+            allocation_ids = [a.id for a in allocation_ids]
 
         data = {}
         query_params = (
-            {  # we use query parameters to avoid SQL injection, can be improved
-                'group_ids': array2sql(group_ids),
-            }
-        )
+            {}
+        )  # we use query parameters to avoid SQL injection, can be improved
 
-        statement = (
-            """SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at"""
-        )
+        statements = []
 
-        statement += """
-            FROM objs INNER JOIN sources ON objs.id = sources.obj_id
-            WHERE sources.active = true AND sources.group_id IN :group_ids
-        """
+        if len(group_ids) > 0:
+            statements.append(
+                """
+                sources.group_id IN :group_ids
+                """
+            )
+            query_params['group_ids'] = array2sql(group_ids)
+
+        if filters.get("include_requested", False):
+            # if include requested, we are fine with active sources and requested sources
+            statements.append(
+                """
+                (sources.active = true OR sources.requested = true)
+                """
+            )
+        elif filters.get("requested_only", False):
+            # if requested only, we only want requested sources
+            statements.append(
+                """
+                sources.requested = true
+                """
+            )
+        else:
+            # otherwise, we want active sources
+            statements.append(
+                """
+                sources.active = true
+                """
+            )
 
         # OBJ
         if filters.get('sourceID', None) is not None:
             try:
                 query_params['sourceID'] = str(filters["sourceID"])
-                statement += """
-                AND (lower(objs.id) LIKE '%' || lower(:sourceID) || '%')
-                """
+                statements.append(
+                    """
+                    (lower(objs.id) LIKE '%' || lower(:sourceID) || '%')
+                    """
+                )
             except Exception as e:
                 raise ValueError(f'Invalid sourceID: {filters["sourceID"]} ({e})')
 
@@ -311,9 +345,11 @@ def get(
                 query_params['rejectedSourceIDs'] = array2sql(
                     filters["rejectedSourceIDs"]
                 )
-                statement += """
-                AND objs.id NOT IN :rejectedSourceIDs
-                """
+                statements.append(
+                    """
+                    objs.id NOT IN :rejectedSourceIDs
+                    """
+                )
             except Exception as e:
                 raise ValueError(
                     f'Invalid rejectedSourceIDs: {filters["rejectedSourceIDs"]} ({e})'
@@ -324,43 +360,55 @@ def get(
                 raise ValueError(f'Invalid alias: {filters["alias"]}')
             query_params['alias'] = filters["alias"]
             # use a LIKE query to allow for partial matches
-            statement += """
-            AND objs.altdata LIKE '%:alias%'
-            """
+            statements.append(
+                """
+                objs.altdata LIKE '%:alias%'
+                """
+            )
 
         if filters.get("origin", None) is not None:
             if filters["origin"] in ["", None]:
                 raise ValueError(f'Invalid origin: {filters["origin"]}')
             query_params['origin'] = filters["origin"]
             # use a LIKE query to allow for partial matches
-            statement += """
-            AND objs.origin LIKE '%:origin%'
-            """
+            statements.append(
+                """
+                objs.origin LIKE '%:origin%'
+                """
+            )
 
         if filters.get("simbad_class", None) is not None:
             # the objs.simbad_class field is an array of strings
             # we can just cast it to text and use a LIKE query
             query_params['simbad_class'] = str(filters["simbad_class"]).strip()
             # cast simba_class to a string
-            statement += """
-            AND lower(((objs.altdata['simbad']) ->> 'class')) = lower(:simbad_class)
-            """
+            statements.append(
+                """
+                lower(((objs.altdata['simbad']) ->> 'class')) = lower(:simbad_class)
+                """
+            )
 
         if filters.get('has_tnsname', False):
-            statement += """
-            AND objs.tns_name IS NOT NULL
-            """
+            statements.append(
+                """
+                objs.tns_name IS NOT NULL
+                """
+            )
         elif filters.get('has_no_tnsname', False):
-            statement += """
-            AND objs.tns_name IS NULL
-            """
+            statements.append(
+                """
+                objs.tns_name IS NULL
+                """
+            )
 
         if "min_redshift" in filters:
             try:
                 query_params['min_redshift'] = float(filters["min_redshift"])
-                statement += """
-                AND objs.redshift >= :min_redshift
-                """
+                statements.append(
+                    """
+                    objs.redshift >= :min_redshift
+                    """
+                )
             except Exception as e:
                 raise ValueError(
                     f'Invalid min_redshift: {filters["min_redshift"]} ({e})'
@@ -369,9 +417,11 @@ def get(
         if "max_redshift" in filters:
             try:
                 query_params['max_redshift'] = float(filters["max_redshift"])
-                statement += """
-                AND objs.redshift <= :max_redshift
-                """
+                statements.append(
+                    """
+                    objs.redshift <= :max_redshift
+                    """
+                )
             except Exception as e:
                 raise ValueError(
                     f'Invalid max_redshift: {filters["max_redshift"]} ({e})'
@@ -382,9 +432,11 @@ def get(
                 query_params['created_or_modified_after'] = arrow.get(
                     filters["created_or_modified_after"]
                 ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
-                statement += """
-                AND (objs.created_at > :created_or_modified_after OR objs.modified > :created_or_modified_after)
-                """
+                statements.append(
+                    """
+                    (objs.created_at > :created_or_modified_after OR objs.modified > :created_or_modified_after)
+                    """
+                )
             except Exception as e:
                 raise ValueError(
                     f'Invalid created_or_modified_after: {filters["created_or_modified_after"]} ({e})'
@@ -495,9 +547,11 @@ def get(
                 )
 
         if len(photstat_query) > 0:
-            statement += f"""
-            AND EXISTS (SELECT obj_id from photstats where photstats.obj_id=objs.id and {' AND '.join(photstat_query)})
-            """
+            statements.append(
+                f"""
+                EXISTS (SELECT obj_id from photstats where photstats.obj_id=objs.id and {' AND '.join(photstat_query)})
+                """
+            )
 
         # CONE SEARCH
         if {'ra', 'dec', 'radius'}.issubset(set(filters)):
@@ -507,9 +561,11 @@ def get(
                     float(filters['dec']),
                     float(filters['radius']),
                 )
-                statement += f"""
-                AND {within(Obj.ra, Obj.dec, ra, dec, radius).compile(compile_kwargs={"literal_binds": True})}
-                """
+                statements.append(
+                    f"""
+                    {within(Obj.ra, Obj.dec, ra, dec, radius).compile(compile_kwargs={"literal_binds": True})}
+                    """
+                )
                 pass
             except Exception as e:
                 raise ValueError(
@@ -522,9 +578,11 @@ def get(
                 query_params['saved_before'] = arrow.get(
                     filters["saved_before"]
                 ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
-                statement += """
-                AND sources.saved_at < :saved_before
-                """
+                statements.append(
+                    """
+                    sources.saved_at < :saved_before
+                    """
+                )
             except Exception as e:
                 raise ValueError(
                     f'Invalid saved_before: {filters["saved_before"]} ({e})'
@@ -535,9 +593,11 @@ def get(
                 query_params['saved_after'] = arrow.get(
                     filters["saved_after"]
                 ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
-                statement += """
-                AND sources.saved_at > :saved_after
-                """
+                statements.append(
+                    """
+                    sources.saved_at > :saved_after
+                    """
+                )
             except Exception as e:
                 raise ValueError(f'Invalid saved_after: {filters["saved_after"]} ({e})')
 
@@ -548,50 +608,64 @@ def get(
                     str(c) for c in filters['has_classifications']
                 ]
                 # dont forget to surround the classification names with quotes
-                statement += """
-                AND EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false and classifications.classification in :classifications and classifications.id in (select classification_id from group_classifications where group_id in :group_ids))
-                """
+                statements.append(
+                    f"""
+                    EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false and classifications.classification in :classifications {"and classifications.id in (select classification_id from group_classifications where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+                    """
+                )
                 query_params['classifications'] = array2sql(
                     filters['has_classifications']
                 )
             else:
-                statement += """
-                AND EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false and classifications.id in (select classification_id from group_classifications where group_id in :group_ids))
+                statements.append(
+                    f"""
+                EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false {"and classifications.id in (select classification_id from group_classifications where group_id in :group_ids)" if len(group_ids) > 0 else ""})
                 """
-        elif filters.get('has_no_classifications', False) not in [False, [], None]:
+                )
+        if filters.get('has_no_classifications', False) not in [False, [], None]:
             if isinstance(filters['has_no_classifications'], list):
                 filters['has_no_classifications'] = [
                     str(c) for c in filters['has_no_classifications']
                 ]
                 # dont forget to surround the classification names with quotes
-                statement += """
-                AND NOT EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false and classifications.classification in :classifications and classifications.id in (select classification_id from group_classifications where group_id in :group_ids))
-                """
+                statements.append(
+                    f"""
+                    NOT EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false and classifications.classification in :classifications {"and classifications.id in (select classification_id from group_classifications where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+                    """
+                )
                 query_params['classifications'] = array2sql(
                     filters['has_no_classifications']
                 )
             else:
-                statement += """
-                AND NOT EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false and classifications.id in (select classification_id from group_classifications where group_id in :group_ids))
-                """
+                statements.append(
+                    f"""
+                    NOT EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false {"and classifications.id in (select classification_id from group_classifications where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+                    """
+                )
 
         if filters.get('has_spectra', False):
-            statement += """
-            AND EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id and spectra.id in (select spectr_id from group_spectra where group_id in :group_ids))
-            """
+            statements.append(
+                f"""
+                EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id {"and spectra.id in (select spectr_id from group_spectra where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+                """
+            )
         elif filters.get('has_no_spectra', False):
-            statement += """
-            AND NOT EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id and spectra.id in (select spectr_id from group_spectra where group_id in :group_ids))
-            """
+            statements.append(
+                f"""
+                NOT EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id {"and spectra.id in (select spectr_id from group_spectra where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+                """
+            )
 
         if filters.get('has_spectrum_before', None) is not None:
             try:
                 query_params['has_spectrum_before'] = arrow.get(
                     filters["has_spectrum_before"]
                 ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
-                statement += """
-                AND EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id and spectra.observed_at <= :has_spectrum_before and spectra.id in (select spectr_id from group_spectra where group_id in :group_ids))
-                """
+                statements.append(
+                    f"""
+                    EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id and spectra.observed_at <= :has_spectrum_before {"and spectra.id in (select spectr_id from group_spectra where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+                    """
+                )
             except Exception as e:
                 raise ValueError(
                     f'Invalid has_spectrum_before: {filters["has_spectrum_before"]} ({e})'
@@ -602,9 +676,11 @@ def get(
                 query_params['has_spectrum_after'] = arrow.get(
                     filters["has_spectrum_after"]
                 ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
-                statement += """
-                AND EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id and spectra.observed_at >= :has_spectrum_after and spectra.id in (select spectr_id from group_spectra where group_id in :group_ids))
-                """
+                statements.append(
+                    f"""
+                    EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id and spectra.observed_at >= :has_spectrum_after {"and spectra.id in (select spectr_id from group_spectra where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+                    """
+                )
             except Exception as e:
                 raise ValueError(
                     f'Invalid has_spectrum_after: {filters["has_spectrum_after"]} ({e})'
@@ -619,43 +695,57 @@ def get(
                     filters["has_followup_request_status"]
                 ).strip()
                 # if it contains the string, both lowercased, then we have a match
-                statement += """
-                AND EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id and followuprequests.allocation_id in :allocation_ids and lower(followuprequests.status) LIKE '%' || lower(:has_followup_request_status) || '%')
-                """
+                statements.append(
+                    f"""
+                    EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id and lower(followuprequests.status) LIKE '%' || lower(:has_followup_request_status) || '%' {"and followuprequests.allocation_id in :allocation_ids" if len(allocation_ids) > 0 else ""})
+                    """
+                )
             else:
-                statement += """
-                AND EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id and followuprequests.allocation_id in :allocation_ids)
-                """
+                statements.append(
+                    f"""
+                    EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id {"and followuprequests.allocation_id in :allocation_ids" if len(allocation_ids) > 0 else ""})
+                    """
+                )
 
         if filters.get('list_name', None) is not None:
             # we want to check if there is an entry in the listing table
             # where obj_id = objs.id, list_name = filters['list_name'], and user_id = user_id
             query_params['list_name'] = str(filters['list_name'])
             query_params['user_id'] = int(user_id)
-            statement += """
-            AND EXISTS (SELECT obj_id from listings where listings.obj_id=objs.id and listings.list_name = :list_name and listings.user_id = :user_id)
-            """
+            statements.append(
+                """
+                EXISTS (SELECT obj_id from listings where listings.obj_id=objs.id and listings.list_name = :list_name and listings.user_id = :user_id)
+                """
+            )
 
         if filters.get('has_been_labelled', False):
             if filters.get('current_user_labeller', False):
                 query_params['current_user_labeller'] = int(user_id)
-                statement += """
-                AND EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.labeller_id = :current_user_labeller and sourcelabels.group_id in :group_ids)
-                """
+                statements.append(
+                    f"""
+                    EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.labeller_id = :current_user_labeller {"and sourcelabels.group_id in :group_ids" if len(group_ids) > 0 else ""})
+                    """
+                )
             else:
-                statement += """
-                AND EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.group_id in :group_ids)
-                """
+                statements.append(
+                    f"""
+                    EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id {"and sourcelabels.group_id in :group_ids" if len(group_ids) > 0 else ""})
+                    """
+                )
         elif filters.get('has_not_been_labelled', False):
             if filters.get('current_user_labeller', False):
                 query_params['current_user_labeller'] = int(user_id)
-                statement += """
-                AND NOT EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.labeller_id = :current_user_labeller and sourcelabels.group_id in :group_ids)
-                """
+                statements.append(
+                    f"""
+                    NOT EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.labeller_id = :current_user_labeller {"and sourcelabels.group_id in :group_ids" if len(group_ids) > 0 else ""})
+                    """
+                )
             else:
-                statement += """
-                AND NOT EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.group_id in :group_ids)
-                """
+                statements.append(
+                    f"""
+                    NOT EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id {"and sourcelabels.group_id in :group_ids " if len(group_ids) > 0 else ""})
+                    """
+                )
 
         # ANNOTATIONS
         if filters.get('annotations_filter', None) is not None:
@@ -707,9 +797,11 @@ def get(
                 )
 
         if len(comments_query) > 0:
-            statement += f"""
-            AND EXISTS (SELECT obj_id from comments where comments.obj_id=objs.id and {' AND '.join(comments_query)} and comments.id in (select comment_id from group_comments where group_id in :group_ids))
-            """
+            statements.append(
+                f"""
+                EXISTS (SELECT obj_id from comments where comments.obj_id=objs.id and {' AND '.join(comments_query)} {"and comments.id in (select comment_id from group_comments where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+                """
+            )
 
         # GCN
         if filters.get('localization_dateobs', None) is not None:
@@ -727,7 +819,7 @@ def get(
                 # this is twice as fast as if we ran each query (the localization tiles query,
                 # and its overall with the sources) separately.
                 # we used caching for that in prod, but now that we have partitions, we can do it this way
-                statement += f"""AND EXISTS (
+                localization_query = f"""EXISTS (
                     SELECT lt.id
                     FROM (
                         SELECT  {partition}.id,
@@ -741,23 +833,95 @@ def get(
                     ) AS lt
                     WHERE lt.cum_prob <= {float(localization_cumprob)} and lt.healpix @> objs.healpix
                     ORDER BY lt.probdensity DESC
-                )
-                """
+                    )"""
+                if filters.get('localization_reject_sources', False):
+                    # reject the sources if there is an entry in the sourcesconfirmedingcns table
+                    # with that dateobs, and with confirmed = False
+                    localization_query += f""" AND NOT EXISTS (
+                        SELECT obj_id
+                        FROM sourcesconfirmedingcns
+                        WHERE sourcesconfirmedingcns.obj_id = objs.id
+                        AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime('%Y-%m-%d %H:%M:%S')}'
+                        AND sourcesconfirmedingcns.confirmed = false
+                    )"""
+
+                if filters.get("include_sources_in_gcn", False):
+                    # include sourcesconfirmedingcns with confirmed != False
+                    # or reversing that condition, NOT EXISTS with confirmed = False
+                    # we can do this because there is a unique index on obj_id and dateobs
+                    # as a source can't be confirmed and rejected in an event at the same time
+                    localization_query = f"""(({localization_query}) OR NOT EXISTS (
+                        SELECT obj_id
+                        FROM sourcesconfirmedingcns
+                        WHERE sourcesconfirmedingcns.obj_id = objs.id
+                        AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime('%Y-%m-%d %H:%M:%S')}'
+                        AND sourcesconfirmedingcns.confirmed = false
+                    ))"""
+
+                statements.append(localization_query)
             except Exception as e:
                 raise ValueError(f'Invalid localization query parameters ({e})')
 
-        statement += """
-        GROUP BY objs.id
+        if filters.get('spatial_catalog_name', None) is not None:
+            if filters.get('spatial_catalog_entry_name', None) is None:
+                raise ValueError(
+                    'must provide spatial_catalog_entry_name if using spatial_catalog_name'
+                )
+            try:
+                # first try to find the catalog
+                entry_stmt = """
+                SELECT id
+                FROM spatial_catalog_entries
+                WHERE entry_name = :spatial_catalog_entry_name
+                AND catalog_id in (
+                    SELECT id
+                    FROM spatial_catalogs
+                    WHERE catalog_name = :spatial_catalog_name
+                )
+                """
+                entry_id = session.execute(
+                    text(entry_stmt).bindparams(
+                        **{
+                            'spatial_catalog_entry_name': filters[
+                                'spatial_catalog_entry_name'
+                            ],
+                            'spatial_catalog_name': filters['spatial_catalog_name'],
+                        }
+                    )
+                )
+                if entry_id is None:
+                    raise ValueError('spatial catalog entry not found')
+
+                query_params['spatial_catalog_entry_name'] = filters[
+                    'spatial_catalog_entry_name'
+                ]
+
+                # this query will be very similar to the localization query, as the catalog entries are made of tiles
+                statements.append(
+                    """
+                    EXISTS (
+                        SELECT id
+                        FROM spatial_catalog_entriess
+                        WHERE spatial_catalog_entriess.entry_name = :spatial_catalog_entry_name
+                        AND spatial_catalog_entriess.healpix @> objs.healpix
+                    )
+                    """
+                )
+            except Exception as e:
+                raise ValueError(f'Invalid spatial catalog query parameters ({e})')
+
+        statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
+            FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+            WHERE {' AND '.join(statements)}
+            GROUP BY objs.id
         """
 
         if sortBy in NULL_FIELDS:
-            statement += f"""
-            ORDER BY {SORT_BY[sortBy]} {sortOrder.upper()} NULLS LAST
-            """
+            statement += (
+                f"""ORDER BY {SORT_BY[sortBy]} {sortOrder.upper()} NULLS LAST"""
+            )
         else:
-            statement += f"""
-            ORDER BY {SORT_BY[sortBy]} {sortOrder.upper()}
-            """
+            statement += f"""ORDER BY {SORT_BY[sortBy]} {sortOrder.upper()}"""
 
         # statement += f"""
         # LIMIT {nbPerPage} OFFSET {(page-1)*nbPerPage}
@@ -1064,7 +1228,7 @@ if __name__ == '__main__':
         'has_spectra': True,
         'has_no_classifications': True,
         # 'has_no_classifications': ["Type II"],
-        # 'has_no_tnsname': True,
+        'has_no_tnsname': True,
         # 'saved_after': '2021-01-01',
         # 'saved_before': '2023-09-01',
         # 'created_or_modified_after': '2023-01-01',
@@ -1089,8 +1253,13 @@ if __name__ == '__main__':
         # 'comments_filter_author': 23,
         # 'localization_dateobs': '2023-08-08T04:03:46',
         # 'first_detected_date': '2023-08-08T04:03:46',
-        # 'last_detected_date': '2023-08-16T04:03:46',
+        # 'last_detected_date': '2023-08-15T04:03:46',
         # 'number_of_detections': 2,
+        # 'exclude_forced_photometry': True,
+        # 'localization_reject_sources': True,
+        # 'include_sources_in_gcn': True,
+        # 'spatial_catalog_name': '4FGL-DR2',
+        # 'spatial_catalog_entry_name': '4FGL-J0000.3-7355',
     }
     sortBy = 'saved_at'
     sortOrder = 'desc'
