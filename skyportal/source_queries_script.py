@@ -239,6 +239,100 @@ def get_period_exists(annotations):
     )
 
 
+def create_annotation_query(
+    annotations_filter,
+    annotations_filter_origin,
+    annotations_filter_before,
+    annotations_filter_after,
+    param_index,
+    is_admin,
+):
+    stmts = []
+    params = {}
+    if annotations_filter_origin is not None:
+        params[f'annotations_filter_origin_{param_index}'] = array2sql(
+            annotations_filter_origin
+        )
+        stmts.append(
+            f"""
+            lower(annotations.origin) in :annotations_filter_origin_{param_index}
+            """
+        )
+    if annotations_filter_before is not None:
+        try:
+            params[f'annotations_filter_before_{param_index}'] = arrow.get(
+                annotations_filter_before
+            ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
+            stmts.append(
+                f"""
+                annotations.created_at <= :annotations_filter_before_{param_index}
+                """
+            )
+        except Exception as e:
+            raise ValueError(
+                f'Invalid annotations_filter_before: {annotations_filter_before} ({e})'
+            )
+    if annotations_filter_after is not None:
+        try:
+            params[f'annotations_filter_after_{param_index}'] = arrow.get(
+                annotations_filter_after
+            ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
+            stmts.append(
+                f"""
+                annotations.created_at >= :annotations_filter_after_{param_index}
+                """
+            )
+        except Exception as e:
+            raise ValueError(
+                f'Invalid annotations_filter_after: {annotations_filter_after} ({e})'
+            )
+    if annotations_filter is not None:
+        if len(annotations_filter) == 3:
+            value = annotations_filter[1].strip()
+            try:
+                value = float(value)
+            except ValueError as e:
+                raise ValueError(f"Invalid annotation filter value: {e}")
+            op = annotations_filter[2].strip()
+            if op not in OPERATORS.keys():
+                raise ValueError(f"Invalid operator: {op}")
+            # find the equivalent postgres operator
+            comp_function = OPERATORS.get(op)
+
+            params[f'annotations_filter_name_{param_index}'] = annotations_filter[
+                0
+            ].strip()
+
+            params[f'annotations_filter_value_{param_index}'] = value
+            # the query will apply the operator to compare the value
+            # in annotation.data[annotations_filter_name] to the value
+            # we'll need to cast the value to JSONB to do the comparison
+            stmts.append(
+                f"""
+                ((annotations.data ->> :annotations_filter_name_{param_index})::float {comp_function} (:annotations_filter_value_{param_index})::float)
+                """
+            )
+        else:
+            # else we just want to check if the annotation exists (IS NOT NULL)
+            params[f'annotations_filter_name_{param_index}'] = annotations_filter[
+                0
+            ].strip()
+            stmts.append(
+                f"""
+                (annotations.data ->> :annotations_filter_name_{param_index} IS NOT NULL)
+                """
+            )
+    if len(stmts) > 0:
+        return (
+            f"""
+        EXISTS (SELECT obj_id from annotations where annotations.obj_id=objs.id and {' AND '.join(stmts)} {"and annotations.id in (select annotation_id from group_annotations where group_id in :accessible_group_ids)" if not is_admin else ""})
+        """,
+            params,
+        )
+
+    return None, None
+
+
 def get_localization(localization_dateobs, localization_name, session):
     startTime = time.time()
     localization_dateobs_str = localization_dateobs.strftime('%Y-%m-%d %H:%M:%S')
@@ -473,10 +567,9 @@ def get_sources(
         raise ValueError(f'Invalid user_id: {user_id}')
     is_admin = user.is_admin
 
-    user_group_ids = [g.id for g in user.accessible_groups]
     if len(group_ids) == 0 and not is_admin:
-        group_ids = user_group_ids
-    elif not set(group_ids).issubset(set(user_group_ids)):
+        group_ids = user_accessible_group_ids
+    elif not set(group_ids).issubset(set(user_accessible_group_ids)) and not is_admin:
         raise ValueError('Selected group(s) not all accessible to user.')
 
     allocation_ids = []
@@ -493,6 +586,7 @@ def get_sources(
         allocation_ids = [a.id for a in allocation_ids]
 
     statements = []
+    joins = []
     query_params = {}
     # we use query parameters to avoid SQL injection, can be improved
 
@@ -504,6 +598,9 @@ def get_sources(
             """
         )
         query_params['group_ids'] = array2sql(group_ids)
+
+    if not is_admin:
+        query_params['accessible_group_ids'] = array2sql(user_accessible_group_ids)
 
     # OBJ
     if sourceID is not None:
@@ -755,46 +852,183 @@ def get_sources(
     if classified:
         statements.append(
             f"""
-            EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false {"and classifications.id in (select classification_id from group_classifications where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+            EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false {"and classifications.id in (select classification_id from group_classifications where group_id in :accessible_group_ids)" if not is_admin else ""})
             """
         )
     elif unclassified:
         statements.append(
             f"""
-            NOT EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false {"and classifications.id in (select classification_id from group_classifications where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+            NOT EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false {"and classifications.id in (select classification_id from group_classifications where group_id in :accessible_group_ids)" if not is_admin else ""})
             """
         )
     else:
-        if classifications and len(classifications) > 0:
-            statements.append(
-                f"""
-                EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false and classifications.classification in :classifications {"and classifications.id in (select classification_id from group_classifications where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+        taxonomy_name_to_id = {}
+        all_taxonomy_names = []
+        classification_taxonomy_names, classifications_text = [], []
+        nonclassification_taxonomy_names, nonclassifications_text = [], []
+        classifications_query, nonclassifications_query = [], []
+
+        if classifications is not None:
+            if isinstance(classifications, str) and "," in classifications:
+                classifications = [c.strip() for c in classifications.split(",")]
+            elif isinstance(classifications, str):
+                classifications = [classifications]
+            elif not isinstance(classifications, list):
+                raise ValueError(
+                    "Invalid classifications value -- must provide at least one string value"
+                )
+            elif not all([":" in c for c in classifications]):
+                raise ValueError(
+                    "Invalid classifications value -- must provide a list of strings with each string in the format 'taxonomy_name:classification'"
+                )
+
+            classification_taxonomy_names, classifications_text = list(
+                zip(
+                    *list(
+                        map(
+                            lambda c: (
+                                c.split(":")[0].strip(),
+                                c.split(":")[1].strip(),
+                            ),
+                            classifications,
+                        )
+                    )
+                )
+            )
+            all_taxonomy_names.extend(classification_taxonomy_names)
+
+        if nonclassifications is not None:
+            if isinstance(nonclassifications, str) and "," in nonclassifications:
+                nonclassifications = [c.strip() for c in nonclassifications.split(",")]
+            elif isinstance(nonclassifications, str):
+                nonclassifications = [nonclassifications]
+            elif not isinstance(nonclassifications, list):
+                raise ValueError(
+                    "Invalid nonclassifications value -- must provide at least one string value"
+                )
+            elif not all([":" in c for c in nonclassifications]):
+                raise ValueError(
+                    "Invalid nonclassifications value -- must provide a list of strings with each string in the format 'taxonomy_name:classification'"
+                )
+            nonclassification_taxonomy_names, nonclassifications_text = list(
+                zip(
+                    *list(
+                        map(
+                            lambda c: (
+                                c.split(":")[0].strip(),
+                                c.split(":")[1].strip(),
+                            ),
+                            nonclassifications,
+                        )
+                    )
+                )
+            )
+            all_taxonomy_names.extend(nonclassification_taxonomy_names)
+
+        if len(all_taxonomy_names) > 0:
+            # fetch the taxonomy_ids for the taxonomy names
+            # so we can have a mapper from name to id
+            stmt = """
+            SELECT id, name FROM taxonomies WHERE name IN :all_taxonomy_names
+            """
+            taxonomies = session.execute(
+                text(stmt).bindparams(all_taxonomy_names=array2sql(all_taxonomy_names))
+            )
+            taxonomy_name_to_id = {}
+            for taxonomy in taxonomies:
+                if taxonomy[1] not in taxonomy_name_to_id:
+                    taxonomy_name_to_id[taxonomy[1]] = []
+                taxonomy_name_to_id[taxonomy[1]].append(taxonomy[0])
+            for taxonomy_name in taxonomy_name_to_id:
+                taxonomy_name_to_id[taxonomy_name] = array2sql(
+                    taxonomy_name_to_id[taxonomy_name]
+                )
+
+            for taxonomy_name in all_taxonomy_names:
+                if taxonomy_name not in taxonomy_name_to_id:
+                    raise ValueError(
+                        f"Invalid taxonomy_name: {taxonomy_name} -- no taxonomy with that name exists"
+                    )
+
+        if len(classification_taxonomy_names) > 0:
+            for i, (taxonomy_name, classification_text) in enumerate(
+                zip(classification_taxonomy_names, classifications_text)
+            ):
+                query_params[f"classification_taxonomy_name_{i}"] = taxonomy_name_to_id[
+                    taxonomy_name
+                ]
+                query_params[f"classification_text_{i}"] = classification_text
+                classifications_query.append(
+                    f"""
+                    (classifications.taxonomy_id IN :classification_taxonomy_name_{i} AND classifications.classification = :classification_text_{i})
+                    """
+                )
+
+            if not is_admin:
+                classification_statement = f"""
+            RIGHT JOIN (SELECT obj_id, array_agg(DISTINCT classification) as classifications FROM classifications WHERE ({' OR '.join(classifications_query)}) and classifications.id in (select classification_id from group_classifications where group_id in :accessible_group_ids)
+            GROUP BY obj_id) classifications ON classifications.obj_id=objs.id
+            """
+            else:
+                classification_statement = f"""
+                RIGHT JOIN (SELECT obj_id, array_agg(DISTINCT classification) as classifications FROM classifications WHERE {' OR '.join(classifications_query)}
+                GROUP BY obj_id) classifications ON classifications.obj_id=objs.id
                 """
-            )
-            query_params['classifications'] = array2sql(
-                [str(c) for c in classifications]
-            )
-        if nonclassifications and len(nonclassifications) > 0:
-            statements.append(
-                f"""
-                NOT EXISTS (SELECT obj_id from classifications where classifications.obj_id=objs.id and classifications.ml=false and classifications.classification in :nonclassifications {"and classifications.id in (select classification_id from group_classifications where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+            # add the join before any WHERE statements
+            joins.append(classification_statement)
+
+            # if classifications_simul is True, we want to match all of the classifications
+            # that is, that the length of the array_agg of classifications is equal to the number of classifications we are searching for
+            if classifications_simul:
+                statements.append(
+                    f"""
+                    array_length(classifications.classifications, 1) = {len(list(set(classifications_text)))}
+                    """
+                )
+
+        if len(nonclassification_taxonomy_names) > 0:
+            for i, (taxonomy_name, classification_text) in enumerate(
+                zip(nonclassification_taxonomy_names, nonclassifications_text)
+            ):
+                query_params[
+                    f"nonclassification_taxonomy_name_{i}"
+                ] = taxonomy_name_to_id[taxonomy_name]
+                query_params[f"nonclassification_text_{i}"] = classification_text
+                nonclassifications_query.append(
+                    f"""
+                    (classifications.taxonomy_id IN :nonclassification_taxonomy_name_{i} AND classifications.classification = :nonclassification_text_{i})
+                    """
+                )
+            # a left outer join was the fastest way to do this
+            if not is_admin:
+                nonclassification_statement = f"""
+                LEFT OUTER JOIN (SELECT obj_id, array_agg(DISTINCT classification) as nonclassifications FROM classifications WHERE ({' OR '.join(nonclassifications_query)}) and classifications.id in (select classification_id from group_classifications where group_id in :accessible_group_ids)
+                GROUP BY obj_id) nonclassifications ON nonclassifications.obj_id=objs.id
                 """
-            )
-            query_params['nonclassifications'] = array2sql(
-                [str(c) for c in nonclassifications]
+            else:
+                nonclassification_statement = f"""
+                LEFT OUTER JOIN (SELECT obj_id, array_agg(DISTINCT classification) as nonclassifications FROM classifications WHERE {' OR '.join(nonclassifications_query)}
+                GROUP BY obj_id) nonclassifications ON nonclassifications.obj_id=objs.id
+                """
+            # add the join before any WHERE statements
+            joins.append(nonclassification_statement)
+            statements.append(
+                """
+                nonclassifications.obj_id IS NULL
+                """
             )
 
     # SPECTRA
     if has_spectrum:
         statements.append(
             f"""
-            EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id {"and spectra.id in (select spectr_id from group_spectra where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+            EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id {"and spectra.id in (select spectr_id from group_spectra where group_id in :accessible_group_ids)" if not is_admin else ""})
             """
         )
     elif has_no_spectrum:
         statements.append(
             f"""
-            NOT EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id {"and spectra.id in (select spectr_id from group_spectra where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+            NOT EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id {"and spectra.id in (select spectr_id from group_spectra where group_id in :accessible_group_ids)" if not is_admin else ""})
             """
         )
     if not has_no_spectrum:
@@ -805,7 +1039,7 @@ def get_sources(
                 ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
                 statements.append(
                     f"""
-                    EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id and spectra.observed_at <= :has_spectrum_before {"and spectra.id in (select spectr_id from group_spectra where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+                    EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id and spectra.observed_at <= :has_spectrum_before {"and spectra.id in (select spectr_id from group_spectra where group_id in :accessible_group_ids)" if not is_admin else ""})
                     """
                 )
             except Exception as e:
@@ -819,7 +1053,7 @@ def get_sources(
                 ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
                 statements.append(
                     f"""
-                    EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id and spectra.observed_at >= :has_spectrum_after {"and spectra.id in (select spectr_id from group_spectra where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+                    EXISTS (SELECT obj_id from spectra where spectra.obj_id=objs.id and spectra.observed_at >= :has_spectrum_after {"and spectra.id in (select spectr_id from group_spectra where group_id in :accessible_group_ids)" if not is_admin else ""})
                     """
                 )
             except Exception as e:
@@ -831,7 +1065,8 @@ def get_sources(
     if has_followup_request:
         # we already grabbed the allocation's ids in advance, so we can use them here
         try:
-            query_params['allocation_ids'] = array2sql(allocation_ids)
+            if not is_admin:
+                query_params['allocation_ids'] = array2sql(allocation_ids)
             if followup_request_status is not None:
                 query_params['has_followup_request_status'] = str(
                     followup_request_status
@@ -839,7 +1074,7 @@ def get_sources(
                 # if it contains the string, both lowercased, then we have a match
                 statements.append(
                     f"""
-                    EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id and lower(followuprequests.status) LIKE '%' || lower(:has_followup_request_status) || '%' {"and followuprequests.allocation_id in :allocation_ids" if len(allocation_ids) > 0 else ""})
+                    EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id and lower(followuprequests.status) LIKE '%' || lower(:has_followup_request_status) || '%' {"and followuprequests.allocation_id in :allocation_ids" if not is_admin else ""})
                     """
                 )
             else:
@@ -869,13 +1104,13 @@ def get_sources(
             query_params['current_user_labeller'] = int(user_id)
             statements.append(
                 f"""
-                EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.labeller_id = :current_user_labeller {"and sourcelabels.group_id in :group_ids" if len(group_ids) > 0 else ""})
+                EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.labeller_id = :current_user_labeller {"and sourcelabels.group_id in :accessible_group_ids" if not is_admin else ""})
                 """
             )
         else:
             statements.append(
                 f"""
-                EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id {"and sourcelabels.group_id in :group_ids" if len(group_ids) > 0 else ""})
+                EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id {"and sourcelabels.group_id in :accessible_group_ids" if not is_admin else ""})
                 """
             )
     elif has_not_been_labelled:
@@ -883,108 +1118,15 @@ def get_sources(
             query_params['current_user_labeller'] = int(user_id)
             statements.append(
                 f"""
-                NOT EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.labeller_id = :current_user_labeller {"and sourcelabels.group_id in :group_ids" if len(group_ids) > 0 else ""})
+                NOT EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id and sourcelabels.labeller_id = :current_user_labeller {"and sourcelabels.group_id in :accessible_group_ids" if not is_admin else ""})
                 """
             )
         else:
             statements.append(
                 f"""
-                NOT EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id {"and sourcelabels.group_id in :group_ids " if len(group_ids) > 0 else ""})
+                NOT EXISTS (SELECT obj_id from sourcelabels where sourcelabels.obj_id=objs.id {"and sourcelabels.group_id in :accessible_group_ids " if not is_admin else ""})
                 """
             )
-
-    def create_annotation_query(
-        annotations_filter,
-        annotations_filter_origin,
-        annotations_filter_before,
-        annotations_filter_after,
-        param_index,
-        group_ids,
-    ):
-        stmts = []
-        params = {}
-        if annotations_filter_origin is not None:
-            params[f'annotations_filter_origin_{param_index}'] = array2sql(
-                annotations_filter_origin
-            )
-            stmts.append(
-                f"""
-                lower(annotations.origin) in :annotations_filter_origin_{param_index}
-                """
-            )
-        if annotations_filter_before is not None:
-            try:
-                params[f'annotations_filter_before_{param_index}'] = arrow.get(
-                    annotations_filter_before
-                ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
-                stmts.append(
-                    f"""
-                    annotations.created_at <= :annotations_filter_before_{param_index}
-                    """
-                )
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid annotations_filter_before: {annotations_filter_before} ({e})'
-                )
-        if annotations_filter_after is not None:
-            try:
-                params[f'annotations_filter_after_{param_index}'] = arrow.get(
-                    annotations_filter_after
-                ).datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
-                stmts.append(
-                    f"""
-                    annotations.created_at >= :annotations_filter_after_{param_index}
-                    """
-                )
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid annotations_filter_after: {annotations_filter_after} ({e})'
-                )
-        if annotations_filter is not None:
-            if len(annotations_filter) == 3:
-                value = annotations_filter[1].strip()
-                try:
-                    value = float(value)
-                except ValueError as e:
-                    raise ValueError(f"Invalid annotation filter value: {e}")
-                op = annotations_filter[2].strip()
-                if op not in OPERATORS.keys():
-                    raise ValueError(f"Invalid operator: {op}")
-                # find the equivalent postgres operator
-                comp_function = OPERATORS.get(op)
-
-                params[f'annotations_filter_name_{param_index}'] = annotations_filter[
-                    0
-                ].strip()
-
-                params[f'annotations_filter_value_{param_index}'] = value
-                # the query will apply the operator to compare the value
-                # in annotation.data[annotations_filter_name] to the value
-                # we'll need to cast the value to JSONB to do the comparison
-                stmts.append(
-                    f"""
-                    ((annotations.data ->> :annotations_filter_name_{param_index})::float {comp_function} (:annotations_filter_value_{param_index})::float)
-                    """
-                )
-            else:
-                # else we just want to check if the annotation exists (IS NOT NULL)
-                params[f'annotations_filter_name_{param_index}'] = annotations_filter[
-                    0
-                ].strip()
-                stmts.append(
-                    f"""
-                    (annotations.data ->> :annotations_filter_name_{param_index} IS NOT NULL)
-                    """
-                )
-        if len(stmts) > 0:
-            return (
-                f"""
-            EXISTS (SELECT obj_id from annotations where annotations.obj_id=objs.id and {' AND '.join(stmts)} {"and annotations.id in (select annotation_id from group_annotations where group_id in :group_ids)" if len(group_ids) > 0 else ""})
-            """,
-                params,
-            )
-
-        return None, None
 
     # ANNOTATIONS
     if (
@@ -1022,7 +1164,7 @@ def get_sources(
                     annotations_filter_before,
                     annotations_filter_after,
                     i,
-                    group_ids,
+                    is_admin,
                 )
                 if annotations_query is not None:
                     statements.append(annotations_query)
@@ -1080,7 +1222,7 @@ def get_sources(
     if len(comments_query) > 0:
         statements.append(
             f"""
-            EXISTS (SELECT obj_id from comments where comments.obj_id=objs.id and {' AND '.join(comments_query)} {"and comments.id in (select comment_id from group_comments where group_id in :group_ids)" if len(group_ids) > 0 else ""})
+            EXISTS (SELECT obj_id from comments where comments.obj_id=objs.id and {' AND '.join(comments_query)} {"and comments.id in (select comment_id from group_comments where group_id in :accessible_group_ids)" if not is_admin else ""})
             """
         )
 
@@ -1192,6 +1334,7 @@ def get_sources(
     # ADD QUERY STATEMENTS
     statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
         FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+        {' '.join(joins)}
         WHERE {' AND '.join(statements)}
         GROUP BY objs.id
     """
@@ -1202,6 +1345,8 @@ def get_sources(
     else:
         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
 
+    if ":accessible_group_ids" not in statement:
+        query_params.pop("accessible_group_ids", None)
     statement = (
         text(statement)
         .bindparams(**query_params)
@@ -1806,14 +1951,29 @@ if __name__ == '__main__':
     sort_by = 'saved_at'
     sort_order = 'desc'
 
+    with DBSession() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        if user is None:
+            raise ValueError(f'User {user_id} not found')
+        user_accessible_group_ids = [group.id for group in user.accessible_groups]
+
     # run just one query first to make sure it works
     data = get_sources(
         user_id=user_id,
         session=DBSession(),
         # has_spectrum=True,
         # unclassified=True,
-        annotations_filter=['acai_h:0.97284:eq'],
-        annotations_filter_origin='au-caltech:hosted',
+        classifications=[
+            'Sitewide Taxonomy:Ia',
+            'SCoPe Phenomenological Taxonomy:variable',
+        ],
+        nonclassifications=[
+            'SCoPe Phenomenological Taxonomy:periodic',
+            'SCoPe Phenomenological Taxonomy:eclipsing',
+        ],
+        classifications_simul=True,
+        # annotations_filter=['acai_h:0.97284:eq'],
+        # annotations_filter_origin='au-caltech:hosted',
         # has_no_tns_name=True,
         include_thumbnails=True,
         include_hosts=True,
@@ -1830,6 +1990,7 @@ if __name__ == '__main__':
         num_per_page=nbPerPage,
         sort_by=sort_by,
         sort_order=sort_order,
+        user_accessible_group_ids=user_accessible_group_ids,
         verbose=True,
     )
     print()
