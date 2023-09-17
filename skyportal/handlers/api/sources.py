@@ -1920,7 +1920,7 @@ async def get_sources(
             if include_color_mag:
                 startTime = time.time()
                 for obj in objs:
-                    obj['color_mag'] = get_color_mag(obj['annotations'])
+                    obj['color_magnitude'] = get_color_mag(obj['annotations'])
 
                 endTime = time.time()
                 if verbose:
