@@ -12,8 +12,9 @@ import CatalogQueryLists from "./CatalogQueryLists";
 import { fetchGcnEventCatalogQueries } from "../ducks/gcnEvent";
 
 const AddCatalogQueryPage = () => {
-  const [dialogOpen, setDialogOpen] = useState(false);
   const dispatch = useDispatch();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [fetchingCatalogQueries, setFetchingCatalogQueries] = useState(false);
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
 
@@ -26,8 +27,13 @@ const AddCatalogQueryPage = () => {
   };
 
   useEffect(() => {
-    if (gcnEvent?.id && !gcnEvent?.survey_efficiency) {
-      dispatch(fetchGcnEventCatalogQueries({ gcnID: gcnEvent?.id }));
+    if (gcnEvent?.id && !gcnEvent?.catalog_queries && !fetchingCatalogQueries) {
+      setFetchingCatalogQueries(true);
+      dispatch(fetchGcnEventCatalogQueries({ gcnID: gcnEvent?.id })).then(
+        () => {
+          setFetchingCatalogQueries(false);
+        }
+      );
     }
   }, [dispatch, gcnEvent]);
 
