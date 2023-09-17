@@ -1331,63 +1331,126 @@ def get_sources(
         except Exception as e:
             raise ValueError(f'Invalid spatial catalog query parameters ({e})')
 
-    # ADD QUERY STATEMENTS
-    statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
-        FROM objs INNER JOIN sources ON objs.id = sources.obj_id
-        {' '.join(joins)}
-        WHERE {' AND '.join(statements)}
-        GROUP BY objs.id
-    """
+    start, end = (page_number - 1) * num_per_page, page_number * num_per_page
 
-    # SORTING
-    if sort_by in NULL_FIELDS:
-        statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
-    else:
-        statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
+    if save_summary:
+        statement = f"""
+            SELECT sources.id
+            FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+            {' '.join(joins)}
+            WHERE {' AND '.join(statements)}
+            GROUP BY sources.id
+        """
+        statement = text(statement).bindparams(**query_params)
+        if verbose:
+            log(f'Params:\n{query_params}')
+            log(f'Query:\n{statement}')
 
-    if ":accessible_group_ids" not in statement:
-        query_params.pop("accessible_group_ids", None)
-    statement = (
-        text(statement)
-        .bindparams(**query_params)
-        .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
-    )
-    if verbose:
-        log(f'Params:\n{query_params}')
-        log(f'Query:\n{statement}')
+        startTime = time.time()
 
-    startTime = time.time()
+        connection = DBSession().connection()
+        results = connection.execute(statement)
+        all_source_ids = [r[0] for r in results]
 
-    connection = DBSession().connection()
-    results = connection.execute(statement)
-    all_obj_ids = [r[0] for r in results]
-    if len(all_obj_ids) != len(set(all_obj_ids)):
-        raise ValueError(
-            f'Duplicate obj_ids in query results, query is incorrect: {all_obj_ids}'
-        )
+        endTime = time.time()
+        if verbose:
+            log(
+                f'1. MAIN SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
+            )
 
-    endTime = time.time()
-    if verbose:
-        log(
-            f'1. MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
-        )
+        data = {'totalMatches': 0, 'sources': []}
+        if len(all_source_ids) == 0:
+            return data
 
-    data = {}
-    start, end = (page - 1) * nbPerPage, page * nbPerPage
-    objs, total_matches = [], len(all_obj_ids)
-    if total_matches > 0 and start <= total_matches:
+        sources, total_matches = [], len(all_source_ids)
+        if start > total_matches:
+            return data
         if end > total_matches:
             end = total_matches
 
-        if save_summary:
-            raise NotImplementedError('save_summary not implemented yet')
-        else:
-            startTime = time.time()
+        source_ids = all_source_ids[start:end]
 
-            obj_ids = all_obj_ids[start:end]
-            objs = session.query(Obj).filter(Obj.id.in_(obj_ids)).distinct().all()
-            # keep the original order
-            objs = sorted(objs, key=lambda obj: obj_ids.index(obj.id))
+        startTime = time.time()
+
+        sources = session.scalars(
+            Source.select(user).where(Source.id.in_(source_ids))
+        ).all()
+
+        endTime = time.time()
+        if verbose:
+            log(f'2. Sources Query took {endTime - startTime} seconds.')
+
+        return {
+            'totalMatches': total_matches,
+            'sources': sources,
+        }
+
+    else:
+
+        # ADD QUERY STATEMENTS
+        statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
+            FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+            {' '.join(joins)}
+            WHERE {' AND '.join(statements)}
+            GROUP BY objs.id
+        """
+
+        # SORTING
+        if sort_by in NULL_FIELDS:
+            statement += (
+                f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
+            )
+        else:
+            statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
+
+        if ":accessible_group_ids" not in statement:
+            query_params.pop("accessible_group_ids", None)
+        statement = (
+            text(statement)
+            .bindparams(**query_params)
+            .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
+        )
+        if verbose:
+            log(f'Params:\n{query_params}')
+            log(f'Query:\n{statement}')
+
+        startTime = time.time()
+
+        connection = DBSession().connection()
+        results = connection.execute(statement)
+        all_obj_ids = [r[0] for r in results]
+        if len(all_obj_ids) != len(set(all_obj_ids)):
+            raise ValueError(
+                f'Duplicate obj_ids in query results, query is incorrect: {all_obj_ids}'
+            )
+
+        endTime = time.time()
+        if verbose:
+            log(
+                f'1. MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
+            )
+
+        data = {'totalMatches': 0, 'sources': []}
+        if len(all_obj_ids) == 0:
+            return data
+
+        if len(all_obj_ids) == 0:
+            return data
+
+        objs, total_matches = [], len(all_obj_ids)
+        if start > total_matches:
+            return data
+        if end > total_matches:
+            end = total_matches
+
+        startTime = time.time()
+
+        obj_ids = all_obj_ids[start:end]
+        objs = session.query(Obj).filter(Obj.id.in_(obj_ids)).distinct().all()
+        # keep the original order
+        objs = sorted(objs, key=lambda obj: obj_ids.index(obj.id))
+        if include_hosts:
+            # we add some keys already to avoid more loop(s) to add them later
             objs = [
                 {
                     **obj.to_dict(),
@@ -1397,440 +1460,394 @@ def get_sources(
                 }
                 for obj in objs
             ]  # convert to dict
+        else:
+            objs = [
+                {
+                    **obj.to_dict(),
+                    'groups': [],
+                }
+                for obj in objs
+            ]  # convert to dict
 
-            endTime = time.time()
-            if verbose:
-                log(f'2. Objs Query took {endTime - startTime} seconds.')
+        endTime = time.time()
+        if verbose:
+            log(f'2. Objs Query took {endTime - startTime} seconds.')
 
-            # SOURCES
+        # SOURCES
+        startTime = time.time()
+
+        sources = (
+            session.scalars(Source.select(user).where(Source.obj_id.in_(obj_ids)))
+            .unique()
+            .all()
+        )
+        sources = sorted((s.to_dict() for s in sources), key=lambda s: s['created_at'])
+
+        endTime = time.time()
+        if verbose:
+            log(f'3. Sources Query took {endTime - startTime} seconds.')
+
+        # REFORMAT SOURCES (SAVE INFO)
+        start = time.time()
+        source_group_ids, source_user_ids = [], []
+        for source in sources:
+            source_group_ids.append(source['group_id']), source_user_ids.append(
+                source['saved_by_id']
+            )
+
+        source_group_ids, source_user_ids = set(source_group_ids), set(source_user_ids)
+
+        groups = (
+            session.query(Group).filter(Group.id.in_(source_group_ids)).distinct().all()
+        )
+        groups = {group.id: group.to_dict() for group in groups}
+
+        users = (
+            session.query(User).filter(User.id.in_(source_user_ids)).distinct().all()
+        )
+        users = {user.id: user.to_dict() for user in users}
+
+        # for each obj, add a 'groups' key with the groups tho which it has been saved as a source
+        for source in sources:
+            obj = next((obj for obj in objs if obj['id'] == source['obj_id']), None)
+            obj['groups'].append(
+                {
+                    **groups[source['group_id']],
+                    "active": source['active'],
+                    "requested": source['requested'],
+                    "saved_at": source['saved_at'],
+                    "saved_by": users[source['saved_by_id']],
+                }
+            )
+
+        endTime = time.time()
+        if verbose:
+            log(f'4. Sources Refomatting took {endTime - startTime} seconds.')
+
+        startTime = time.time()
+        obj_coords = np.array([[obj['ra'], obj['dec']] for obj in objs])
+        obj_coords_gal = radec2lb(obj_coords[:, 0], obj_coords[:, 1])
+        for i in range(len(objs)):
+            objs[i]['gal_lon'] = obj_coords_gal[0][i]
+            objs[i]['gal_lat'] = obj_coords_gal[1][i]
+            redshift = objs[i]['redshift']
+            luminosity_distance = get_luminosity_distance(objs[i])
+            objs[i]['luminosity_distance'] = luminosity_distance
+            objs[i]['dm'] = (
+                5.0 * np.log10((luminosity_distance * u.Mpc) / (10 * u.pc)).value
+                if luminosity_distance
+                else None
+            )
+            if luminosity_distance:
+                if redshift and redshift * HOOG_REDSHIFT_A > HOOG_REDSHIFT_B:
+                    objs[i]['angular_diameter_distance'] = (
+                        luminosity_distance / (1 + redshift) ** 2
+                    )
+                else:
+                    objs[i]['angular_diameter_distance'] = luminosity_distance
+            else:
+                objs[i]['angular_diameter_distance'] = None
+
+        endTime = time.time()
+        if verbose:
+            log(f'5. Various obj computations took {endTime - startTime} seconds.')
+
+        if include_thumbnails and not remove_nested:
             startTime = time.time()
-
-            sources = (
-                session.scalars(Source.select(user).where(Source.obj_id.in_(obj_ids)))
+            thumbnails = (
+                session.scalars(
+                    Thumbnail.select(user).where(Thumbnail.obj_id.in_(obj_ids))
+                )
                 .unique()
                 .all()
             )
-            sources = sorted(
-                (s.to_dict() for s in sources), key=lambda s: s['created_at']
+            thumbnails = sorted(
+                (t.to_dict() for t in thumbnails), key=lambda t: t['created_at']
             )
+
+            for obj in objs:
+                obj['thumbnails'] = [t for t in thumbnails if t['obj_id'] == obj['id']]
 
             endTime = time.time()
             if verbose:
-                log(f'3. Sources Query took {endTime - startTime} seconds.')
+                log(f'6. Thumbnails Query took {endTime - startTime} seconds.')
 
-            # REFORMAT SOURCES (SAVE INFO)
-            start = time.time()
-            source_group_ids, source_user_ids = [], []
-            for source in sources:
-                source_group_ids.append(source['group_id']), source_user_ids.append(
-                    source['saved_by_id']
-                )
-
-            source_group_ids, source_user_ids = set(source_group_ids), set(
-                source_user_ids
-            )
-
-            groups = (
-                session.query(Group)
-                .filter(Group.id.in_(source_group_ids))
-                .distinct()
-                .all()
-            )
-            groups = {group.id: group.to_dict() for group in groups}
-
-            users = (
-                session.query(User)
-                .filter(User.id.in_(source_user_ids))
-                .distinct()
-                .all()
-            )
-            users = {user.id: user.to_dict() for user in users}
-
-            # for each obj, add a 'groups' key with the groups tho which it has been saved as a source
-            for source in sources:
-                obj = next((obj for obj in objs if obj['id'] == source['obj_id']), None)
-                obj['groups'].append(
-                    {
-                        **groups[source['group_id']],
-                        "active": source['active'],
-                        "requested": source['requested'],
-                        "saved_at": source['saved_at'],
-                        "saved_by": users[source['saved_by_id']],
-                    }
-                )
-
-            endTime = time.time()
-            if verbose:
-                log(f'4. Sources Refomatting took {endTime - startTime} seconds.')
-
+        if include_detection_stats:
+            # PHOTSTATS
             startTime = time.time()
-            obj_coords = np.array([[obj['ra'], obj['dec']] for obj in objs])
-            obj_coords_gal = radec2lb(obj_coords[:, 0], obj_coords[:, 1])
-            for i in range(len(objs)):
-                objs[i]['gal_lon'] = obj_coords_gal[0][i]
-                objs[i]['gal_lat'] = obj_coords_gal[1][i]
-                redshift = objs[i]['redshift']
-                luminosity_distance = get_luminosity_distance(objs[i])
-                objs[i]['luminosity_distance'] = luminosity_distance
-                objs[i]['dm'] = (
-                    5.0 * np.log10((luminosity_distance * u.Mpc) / (10 * u.pc)).value
-                    if luminosity_distance
-                    else None
+
+            photstats = (
+                session.scalars(
+                    PhotStat.select(user).where(PhotStat.obj_id.in_(obj_ids))
                 )
-                if luminosity_distance:
-                    if redshift and redshift * HOOG_REDSHIFT_A > HOOG_REDSHIFT_B:
-                        objs[i]['angular_diameter_distance'] = (
-                            luminosity_distance / (1 + redshift) ** 2
-                        )
-                    else:
-                        objs[i]['angular_diameter_distance'] = luminosity_distance
-                else:
-                    objs[i]['angular_diameter_distance'] = None
+                .unique()
+                .all()
+            )
+            photstats = sorted(
+                (p.to_dict() for p in photstats), key=lambda p: p['created_at']
+            )
+            for obj in objs:
+                obj['photstats'] = [p for p in photstats if p['obj_id'] == obj['id']]
 
             endTime = time.time()
             if verbose:
-                log(f'5. Various obj computations took {endTime - startTime} seconds.')
+                log(f'7. Photstats Query took {endTime - startTime} seconds.')
 
-            if include_thumbnails and not remove_nested:
-                startTime = time.time()
-                thumbnails = (
-                    session.scalars(
-                        Thumbnail.select(user).where(Thumbnail.obj_id.in_(obj_ids))
+        if not remove_nested:
+            # CLASSIFICATIONS
+            startTime = time.time()
+
+            classifications = (
+                session.scalars(
+                    Classification.select(user).where(
+                        Classification.obj_id.in_(obj_ids)
                     )
-                    .unique()
-                    .all()
                 )
-                thumbnails = sorted(
-                    (t.to_dict() for t in thumbnails), key=lambda t: t['created_at']
-                )
-
-                for obj in objs:
-                    obj['thumbnails'] = [
-                        t for t in thumbnails if t['obj_id'] == obj['id']
-                    ]
-
-                endTime = time.time()
-                if verbose:
-                    log(f'6. Thumbnails Query took {endTime - startTime} seconds.')
-
-            if include_detection_stats:
-                # PHOTSTATS
-                startTime = time.time()
-
-                photstats = (
-                    session.scalars(
-                        PhotStat.select(user).where(PhotStat.obj_id.in_(obj_ids))
-                    )
-                    .unique()
-                    .all()
-                )
-                photstats = sorted(
-                    (p.to_dict() for p in photstats), key=lambda p: p['created_at']
-                )
-                for obj in objs:
-                    obj['photstats'] = [
-                        p for p in photstats if p['obj_id'] == obj['id']
-                    ]
-
-                endTime = time.time()
-                if verbose:
-                    log(f'7. Photstats Query took {endTime - startTime} seconds.')
-
-            if not remove_nested:
-                # CLASSIFICATIONS
-                startTime = time.time()
-
-                classifications = (
-                    session.scalars(
-                        Classification.select(user).where(
-                            Classification.obj_id.in_(obj_ids)
-                        )
-                    )
-                    .unique()
-                    .all()
-                )
-                classifications = [
-                    {
-                        **c.to_dict(),
-                        'groups': [],  # TODO
-                        'votes': [],  # TODO
-                    }
-                    for c in classifications
+                .unique()
+                .all()
+            )
+            classifications = [
+                {
+                    **c.to_dict(),
+                    'groups': [],  # TODO
+                    'votes': [],  # TODO
+                }
+                for c in classifications
+            ]
+            classifications = sorted(classifications, key=lambda c: c['created_at'])
+            for obj in objs:
+                obj['classifications'] = [
+                    c for c in classifications if c['obj_id'] == obj['id']
                 ]
-                classifications = sorted(classifications, key=lambda c: c['created_at'])
-                for obj in objs:
-                    obj['classifications'] = [
-                        c for c in classifications if c['obj_id'] == obj['id']
-                    ]
 
-                endTime = time.time()
-                if verbose:
-                    log(f'8. Classifications Query took {endTime - startTime} seconds.')
+            endTime = time.time()
+            if verbose:
+                log(f'8. Classifications Query took {endTime - startTime} seconds.')
 
-            if not remove_nested or include_period_exists:
-                # ANNOTATIONS
-                startTime = time.time()
+        if not remove_nested or include_period_exists:
+            # ANNOTATIONS
+            startTime = time.time()
 
-                annotations = (
-                    session.scalars(
-                        Annotation.select(user).where(Annotation.obj_id.in_(obj_ids))
-                    )
-                    .unique()
+            annotations = (
+                session.scalars(
+                    Annotation.select(user).where(Annotation.obj_id.in_(obj_ids))
+                )
+                .unique()
+                .all()
+            )
+            annotations = sorted(
+                (a.to_dict() for a in annotations), key=lambda a: a['created_at']
+            )
+
+            for obj in objs:
+                obj['annotations'] = [
+                    a for a in annotations if a['obj_id'] == obj['id']
+                ]
+
+            endTime = time.time()
+            if verbose:
+                log(f'9. Annotations Query took {endTime - startTime} seconds.')
+
+        if include_hosts:
+            # HOST GALAXY
+            startTime = time.time()
+            host_ids = list(
+                {obj['host_id'] for obj in objs if obj['host_id'] is not None}
+            )
+            if len(host_ids) > 0:
+                hosts = (
+                    session.query(Galaxy)
+                    .filter(Galaxy.id.in_(host_ids))
+                    .distinct()
                     .all()
                 )
-                annotations = sorted(
-                    (a.to_dict() for a in annotations), key=lambda a: a['created_at']
-                )
+                hosts = {host.id: host.to_dict() for host in hosts}
 
+                objs_with_host = [
+                    (i, obj['host_id'], (obj['ra'], obj['dec']))
+                    for i, obj in enumerate(objs)
+                    if obj['host_id'] is not None
+                ]
+                objs_with_host_coords = np.array([obj[2] for obj in objs_with_host])
+
+                hosts = [hosts[obj[1]] for obj in objs_with_host]
+                hosts_coords = np.array([[host['ra'], host['dec']] for host in hosts])
+
+                # now we can compute the offset for all of them at once
+                offsets = (
+                    great_circle_distance(
+                        objs_with_host_coords[:, 0],
+                        objs_with_host_coords[:, 1],
+                        hosts_coords[:, 0],
+                        hosts_coords[:, 1],
+                    )
+                    * 3600
+                )  # in arcsec
+                for i, offset in enumerate(offsets):
+                    objs[objs_with_host[i][0]]['host'] = hosts[i]
+                    objs[objs_with_host[i][0]]['host_offset'] = offset
+
+            endTime = time.time()
+            if verbose:
+                log(f'10. Hosts Query (+offset) took {endTime - startTime} seconds.')
+
+        if include_spectrum_exists:
+            startTime = time.time()
+            if has_spectrum:
+                # if we already filtered for sources with spectra, we can just set the flag to True
                 for obj in objs:
-                    obj['annotations'] = [
-                        a for a in annotations if a['obj_id'] == obj['id']
-                    ]
-
-                endTime = time.time()
-                if verbose:
-                    log(f'9. Annotations Query took {endTime - startTime} seconds.')
-
-            if include_hosts:
-                # HOST GALAXY
-                startTime = time.time()
-                host_ids = list(
-                    {obj['host_id'] for obj in objs if obj['host_id'] is not None}
-                )
-                if len(host_ids) > 0:
-                    hosts = (
-                        session.query(Galaxy)
-                        .filter(Galaxy.id.in_(host_ids))
-                        .distinct()
-                        .all()
-                    )
-                    hosts = {host.id: host.to_dict() for host in hosts}
-
-                    objs_with_host = [
-                        (i, obj['host_id'], (obj['ra'], obj['dec']))
-                        for i, obj in enumerate(objs)
-                        if obj['host_id'] is not None
-                    ]
-                    objs_with_host_coords = np.array([obj[2] for obj in objs_with_host])
-
-                    hosts = [hosts[obj[1]] for obj in objs_with_host]
-                    hosts_coords = np.array(
-                        [[host['ra'], host['dec']] for host in hosts]
-                    )
-
-                    # now we can compute the offset for all of them at once
-                    offsets = (
-                        great_circle_distance(
-                            objs_with_host_coords[:, 0],
-                            objs_with_host_coords[:, 1],
-                            hosts_coords[:, 0],
-                            hosts_coords[:, 1],
-                        )
-                        * 3600
-                    )  # in arcsec
-                    for i, offset in enumerate(offsets):
-                        objs[objs_with_host[i][0]]['host'] = hosts[i]
-                        objs[objs_with_host[i][0]]['host_offset'] = offset
-
-                endTime = time.time()
-                if verbose:
-                    log(
-                        f'10. Hosts Query (+offset) took {endTime - startTime} seconds.'
-                    )
-
-            if include_spectrum_exists:
-                startTime = time.time()
-                if has_spectrum:
-                    # if we already filtered for sources with spectra, we can just set the flag to True
-                    for obj in objs:
-                        obj['spectrum_exists'] = True
-                else:
-                    stmt = """
-                    SELECT DISTINCT obj_id
-                    FROM spectra
-                    WHERE obj_id IN :obj_ids
-                    """
-                    spectrum_exists = session.execute(
-                        text(stmt).bindparams(obj_ids=array2sql(obj_ids))
-                    )
-                    spectrum_exists = [r[0] for r in spectrum_exists]
-                    for obj in objs:
-                        obj['spectrum_exists'] = obj['id'] in spectrum_exists
-
-                endTime = time.time()
-                if verbose:
-                    log(
-                        f'11. Spectrum Exists Query took {endTime - startTime} seconds.'
-                    )
-
-            if include_comment_exists:
-                startTime = time.time()
-                if (
-                    comments_filter is not None
-                    or comments_filter_before is not None
-                    or comments_filter_after is not None
-                    or comments_filter_author is not None
-                ):
-                    # if we already filtered for sources with comments, we can just set the flag to True
-                    for obj in objs:
-                        obj['comment_exists'] = True
-                else:
-                    stmt = """
-                    SELECT DISTINCT obj_id
-                    FROM comments
-                    WHERE obj_id IN :obj_ids
-                    """
-                    comment_exists = session.execute(
-                        text(stmt).bindparams(obj_ids=array2sql(obj_ids))
-                    )
-                    comment_exists = [r[0] for r in comment_exists]
-                    for obj in objs:
-                        obj['comment_exists'] = obj['id'] in comment_exists
-
-                endTime = time.time()
-                if verbose:
-                    log(f'12. Comment Exists Query took {endTime - startTime} seconds.')
-
-            if include_photometry_exists:
-                startTime = time.time()
-
-                # it seemed that for num_per_page that are not too big, the UNION query was faster
-                # TODO: verify that
-                # if len(obj_ids) <= 1000:
-                #     print('using UNION')
-                # stmts = [
-                #     f"""
-                #     SELECT DISTINCT obj_id
-                #     FROM photometry
-                #     WHERE obj_id = :obj_{i}
-                #     """
-                #     for i in range(len(obj_ids))
-                # ]
-                # stmt = ' UNION '.join(stmts)
-                # photometry_exists = session.execute(
-                #     text(stmt).bindparams(**{f'obj_{i}': obj_ids[i] for i in range(len(obj_ids))})
-                # )
-                # else:
-                # print('using WHERE IN')
+                    obj['spectrum_exists'] = True
+            else:
                 stmt = """
                 SELECT DISTINCT obj_id
-                FROM photometry
+                FROM spectra
                 WHERE obj_id IN :obj_ids
                 """
-                photometry_exists = session.execute(
+                spectrum_exists = session.execute(
                     text(stmt).bindparams(obj_ids=array2sql(obj_ids))
                 )
-                photometry_exists = [r[0] for r in photometry_exists]
+                spectrum_exists = [r[0] for r in spectrum_exists]
                 for obj in objs:
-                    obj['photometry_exists'] = obj['id'] in photometry_exists
-                objs_missing_photometry = [
-                    obj['id']
-                    for i, obj in enumerate(objs)
-                    if not obj['photometry_exists']
+                    obj['spectrum_exists'] = obj['id'] in spectrum_exists
+
+            endTime = time.time()
+            if verbose:
+                log(f'11. Spectrum Exists Query took {endTime - startTime} seconds.')
+
+        if include_comment_exists:
+            startTime = time.time()
+            if (
+                comments_filter is not None
+                or comments_filter_before is not None
+                or comments_filter_after is not None
+                or comments_filter_author is not None
+            ):
+                # if we already filtered for sources with comments, we can just set the flag to True
+                for obj in objs:
+                    obj['comment_exists'] = True
+            else:
+                stmt = """
+                SELECT DISTINCT obj_id
+                FROM comments
+                WHERE obj_id IN :obj_ids
+                """
+                comment_exists = session.execute(
+                    text(stmt).bindparams(obj_ids=array2sql(obj_ids))
+                )
+                comment_exists = [r[0] for r in comment_exists]
+                for obj in objs:
+                    obj['comment_exists'] = obj['id'] in comment_exists
+
+            endTime = time.time()
+            if verbose:
+                log(f'12. Comment Exists Query took {endTime - startTime} seconds.')
+
+        if include_photometry_exists:
+            startTime = time.time()
+
+            stmt = """
+            SELECT DISTINCT obj_id
+            FROM photometry
+            WHERE obj_id IN :obj_ids
+            """
+            photometry_exists = session.execute(
+                text(stmt).bindparams(obj_ids=array2sql(obj_ids))
+            )
+            photometry_exists = [r[0] for r in photometry_exists]
+            for obj in objs:
+                obj['photometry_exists'] = obj['id'] in photometry_exists
+            objs_missing_photometry = [
+                obj['id'] for i, obj in enumerate(objs) if not obj['photometry_exists']
+            ]
+            if len(objs_missing_photometry) > 0:
+                # if it doesn't exist, check if it has a photometric series
+                stmt = """
+                    SELECT DISTINCT obj_id
+                    FROM photometric_series
+                    WHERE obj_id IN :obj_ids
+                """
+                photometric_series_exists = session.execute(
+                    text(stmt).bindparams(obj_ids=array2sql(objs_missing_photometry))
+                )
+                photometric_series_exists = [r[0] for r in photometric_series_exists]
+                for obj in objs:
+                    obj['photometry_exists'] = (
+                        obj['photometry_exists']
+                        or obj['id'] in photometric_series_exists
+                    )
+
+            endTime = time.time()
+            if verbose:
+                log(f'13. Photometry Exists Query took {endTime - startTime} seconds.')
+
+        if include_period_exists:
+            startTime = time.time()
+
+            # the period, like the color_mag, is computed from the annotations
+            # we already have the annotations, so we can compute the period for each obj
+            for obj in objs:
+                obj['period'] = get_period_exists(obj['annotations'])
+
+            endTime = time.time()
+            if remove_nested:
+                # if we don't need the annotations anymore, we can remove them
+                for obj in objs:
+                    del obj['annotations']
+            if verbose:
+                log(f'14. Period Exists Query took {endTime - startTime} seconds.')
+
+        if include_comments:
+            startTime = time.time()
+
+            comments = (
+                session.scalars(Comment.select(user).where(Comment.obj_id.in_(obj_ids)))
+                .unique()
+                .all()
+            )
+            comments = [c.to_dict() for c in comments]
+            comments = sorted(comments, key=lambda c: c['created_at'])
+            if len(comments) > 0:
+                for obj in objs:
+                    obj['comments'] = [
+                        {k: v for k, v in comment.items() if k != "attachment_bytes"}
+                        for comment in [c for c in comments if c['obj_id'] == obj['id']]
+                    ]
+
+            endTime = time.time()
+            if verbose:
+                log(f'15. Comments Query took {endTime - startTime} seconds.')
+
+        if include_labellers:
+            startTime = time.time()
+
+            labellers = (
+                session.scalars(
+                    SourceLabel.select(user).where(SourceLabel.obj_id.in_(obj_ids))
+                )
+                .unique()
+                .all()
+            )
+            labellers = sorted(
+                (lab.to_dict() for lab in labellers),
+                key=lambda lab: lab['created_at'],
+            )
+            for obj in objs:
+                obj['labellers'] = [
+                    lab for lab in labellers if lab['obj_id'] == obj['id']
                 ]
-                if len(objs_missing_photometry) > 0:
-                    # if it doesn't exist, check if it has a photometric series
-                    stmt = """
-                        SELECT DISTINCT obj_id
-                        FROM photometric_series
-                        WHERE obj_id IN :obj_ids
-                    """
-                    photometric_series_exists = session.execute(
-                        text(stmt).bindparams(
-                            obj_ids=array2sql(objs_missing_photometry)
-                        )
-                    )
-                    photometric_series_exists = [
-                        r[0] for r in photometric_series_exists
-                    ]
-                    for obj in objs:
-                        obj['photometry_exists'] = (
-                            obj['photometry_exists']
-                            or obj['id'] in photometric_series_exists
-                        )
 
-                endTime = time.time()
-                if verbose:
-                    log(
-                        f'13. Photometry Exists Query took {endTime - startTime} seconds.'
-                    )
+            endTime = time.time()
+            if verbose:
+                log(f'16. Labellers Query took {endTime - startTime} seconds.')
 
-            if include_period_exists:
-                startTime = time.time()
+        if include_color_mag:
+            startTime = time.time()
+            for obj in objs:
+                obj['color_mag'] = get_color_mag(obj['annotations'])
 
-                # the period, like the color_mag, is computed from the annotations
-                # we already have the annotations, so we can compute the period for each obj
-                for obj in objs:
-                    obj['period'] = get_period_exists(obj['annotations'])
-
-                endTime = time.time()
-                if remove_nested:
-                    # if we don't need the annotations anymore, we can remove them
-                    for obj in objs:
-                        del obj['annotations']
-                if verbose:
-                    log(f'14. Period Exists Query took {endTime - startTime} seconds.')
-
-            if include_comments:
-                startTime = time.time()
-
-                comments = (
-                    session.scalars(
-                        Comment.select(user).where(Comment.obj_id.in_(obj_ids))
-                    )
-                    .unique()
-                    .all()
-                )
-                comments = [c.to_dict() for c in comments]
-                comments = sorted(comments, key=lambda c: c['created_at'])
-                if len(comments) > 0:
-                    for obj in objs:
-                        obj['comments'] = [
-                            {
-                                k: v
-                                for k, v in comment.items()
-                                if k != "attachment_bytes"
-                            }
-                            for comment in [
-                                c for c in comments if c['obj_id'] == obj['id']
-                            ]
-                        ]
-
-                endTime = time.time()
-                if verbose:
-                    log(f'15. Comments Query took {endTime - startTime} seconds.')
-
-            if include_labellers:
-                startTime = time.time()
-
-                labellers = (
-                    session.scalars(
-                        SourceLabel.select(user).where(SourceLabel.obj_id.in_(obj_ids))
-                    )
-                    .unique()
-                    .all()
-                )
-                labellers = sorted(
-                    (lab.to_dict() for lab in labellers),
-                    key=lambda lab: lab['created_at'],
-                )
-                for obj in objs:
-                    obj['labellers'] = [
-                        lab for lab in labellers if lab['obj_id'] == obj['id']
-                    ]
-
-                endTime = time.time()
-                if verbose:
-                    log(f'16. Labellers Query took {endTime - startTime} seconds.')
-
-            if include_color_mag:
-                startTime = time.time()
-                for obj in objs:
-                    obj['color_mag'] = get_color_mag(obj['annotations'])
-
-                endTime = time.time()
-                if verbose:
-                    log(f'17. Color Mag Query took {endTime - startTime} seconds.')
+            endTime = time.time()
+            if verbose:
+                log(f'17. Color Mag Query took {endTime - startTime} seconds.')
 
         data = {'totalMatches': total_matches, 'sources': objs}
 
@@ -1963,15 +1980,15 @@ if __name__ == '__main__':
         session=DBSession(),
         # has_spectrum=True,
         # unclassified=True,
-        classifications=[
-            'Sitewide Taxonomy:Ia',
-            'SCoPe Phenomenological Taxonomy:variable',
-        ],
-        nonclassifications=[
-            'SCoPe Phenomenological Taxonomy:periodic',
-            'SCoPe Phenomenological Taxonomy:eclipsing',
-        ],
-        classifications_simul=True,
+        # classifications=[
+        #     'Sitewide Taxonomy:Ia',
+        #     'SCoPe Phenomenological Taxonomy:variable',
+        # ],
+        # nonclassifications=[
+        #     'SCoPe Phenomenological Taxonomy:periodic',
+        #     'SCoPe Phenomenological Taxonomy:eclipsing',
+        # ],
+        # classifications_simul=True,
         # annotations_filter=['acai_h:0.97284:eq'],
         # annotations_filter_origin='au-caltech:hosted',
         # has_no_tns_name=True,
@@ -1991,6 +2008,7 @@ if __name__ == '__main__':
         sort_by=sort_by,
         sort_order=sort_order,
         user_accessible_group_ids=user_accessible_group_ids,
+        # save_summary=True,
         verbose=True,
     )
     print()
