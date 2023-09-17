@@ -1363,7 +1363,7 @@ class SourceHandler(BaseHandler):
         saved_before = self.get_query_argument('savedBefore', None)
         save_summary = self.get_query_argument('saveSummary', False)
         sort_by = self.get_query_argument("sortBy", None)
-        sort_order = self.get_query_argument("sortOrder", "asc")
+        sort_order = self.get_query_argument("sortOrder", "desc")
         include_comments = self.get_query_argument("includeComments", False)
         include_analyses = self.get_query_argument("includeAnalyses", False)
         include_photometry_exists = self.get_query_argument(

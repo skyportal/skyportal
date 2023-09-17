@@ -557,11 +557,11 @@ async def get_sources(
         if user_id is None:
             raise ValueError('No user_id provided.')
 
-        if sort_by is None:
+        if sort_by in [None, "", "none"]:
             sort_by = 'saved_at'
         elif sort_by not in SORT_BY:
             raise ValueError(f'Invalid sort_by: {sort_by}')
-        if sort_order is None:
+        if sort_order in [None, "", "none"]:
             sort_order = 'desc'
         elif sort_order.lower() not in SORT_ORDER:
             raise ValueError(f'Invalid sort_order: {sort_order}')
@@ -1399,7 +1399,12 @@ async def get_sources(
                     f'1. MAIN SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
                 )
 
-            data = {'totalMatches': 0, 'sources': []}
+            data = {
+                'totalMatches': 0,
+                'sources': [],
+                'pageNumber': page_number,
+                'numPerPage': num_per_page,
+            }
             if len(all_source_ids) == 0:
                 return data
 
@@ -1424,6 +1429,8 @@ async def get_sources(
             return {
                 'totalMatches': total_matches,
                 'sources': sources,
+                'pageNumber': page_number,
+                'numPerPage': num_per_page,
             }
 
         else:
@@ -1471,7 +1478,12 @@ async def get_sources(
                     f'1. MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
                 )
 
-            data = {'totalMatches': 0, 'sources': []}
+            data = {
+                'totalMatches': 0,
+                'sources': [],
+                'pageNumber': page_number,
+                'numPerPage': num_per_page,
+            }
             if len(all_obj_ids) == 0:
                 return data
 
@@ -1926,7 +1938,12 @@ async def get_sources(
                 if verbose:
                     log(f'17. Color Mag Query took {endTime - startTime} seconds.')
 
-            data = {'totalMatches': total_matches, 'sources': objs}
+            data = {
+                'totalMatches': total_matches,
+                'sources': objs,
+                'pageNumber': page_number,
+                'numPerPage': num_per_page,
+            }
 
             if includeGeoJSON:
                 startTime = time.time()
