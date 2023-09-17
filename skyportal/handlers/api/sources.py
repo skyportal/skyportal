@@ -557,6 +557,7 @@ async def get_sources(
         if user_id is None:
             raise ValueError('No user_id provided.')
 
+
         if sort_by in [None, "", "none"]:
             sort_by = 'saved_at'
         elif sort_by not in SORT_BY:
@@ -1477,6 +1478,7 @@ async def get_sources(
                 log(
                     f'1. MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
                 )
+
 
             data = {
                 'totalMatches': 0,
