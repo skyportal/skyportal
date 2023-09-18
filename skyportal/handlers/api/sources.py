@@ -1,14 +1,13 @@
 import time
 
 import arrow
+import astropy.units as u
 import numpy as np
 import sqlalchemy as sa
 from astropy.time import Time
-import astropy.units as u
 from conesearch_alchemy.math import cosd, sind
 from geojson import Feature, Point
 from sqlalchemy.sql import and_, text
-import traceback
 
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
@@ -17,6 +16,7 @@ from skyportal.models import (
     Allocation,
     Annotation,
     Classification,
+    Comment,
     DBSession,
     Galaxy,
     Group,
@@ -25,15 +25,15 @@ from skyportal.models import (
     Obj,
     PhotStat,
     Source,
+    SourceLabel,
     Thumbnail,
     User,
-    Comment,
     cosmo,
-    SourceLabel,
 )
 
 _, cfg = load_env()
-log = make_log('api/source_queries')
+log = make_log('api/sources')
+log_verbose = make_log('sources_verbose')
 
 init_db(**cfg['database'])
 
@@ -47,6 +47,7 @@ SORT_BY = {
     'ra': 'objs.ra',
     'dec': 'objs.dec',
     'redshift': 'objs.redshift',
+    'gcn_status': None,
     # TODO: sort by classification
     # TODO: sort by sourcesconfirmed in GCN status
 }
@@ -379,7 +380,7 @@ def get_localization(localization_dateobs, localization_name, session):
             )
 
     endTime = time.time()
-    log(f"get_localization took {endTime - startTime} seconds")
+    log_verbose(f"get_localization took {endTime - startTime} seconds")
 
     return localization_id, localizationtilescls.__tablename__
 
@@ -538,7 +539,7 @@ async def get_sources(
     spatial_catalog_entry_name=None,
     page_number=1,
     num_per_page=DEFAULT_SOURCES_PER_PAGE,
-    sort_by='saved_at',
+    sort_by=None,
     sort_order="asc",
     group_ids=[],
     user_accessible_group_ids=None,
@@ -558,7 +559,10 @@ async def get_sources(
             raise ValueError('No user_id provided.')
 
         if sort_by in [None, "", "none"]:
-            sort_by = 'saved_at'
+            if localization_dateobs is not None:
+                sort_by = 'gcn_status'
+            else:
+                sort_by = 'saved_at'
         elif sort_by not in SORT_BY:
             raise ValueError(f'Invalid sort_by: {sort_by}')
         if sort_order in [None, "", "none"]:
@@ -1302,18 +1306,21 @@ async def get_sources(
                         AND sourcesconfirmedingcns.confirmed = false
                     )"""
                 if include_sources_in_gcn:
-                    # include sourcesconfirmedingcns with confirmed != False
-                    # or reversing that condition, NOT EXISTS with confirmed = False
-                    # we can do this because there is a unique index on obj_id and dateobs
-                    # as a source can't be confirmed and rejected in an event at the same time
-                    localization_query = f"""(({localization_query}) OR NOT EXISTS (
+                    localization_query = f"""(({localization_query}) OR EXISTS (
                         SELECT obj_id
                         FROM sourcesconfirmedingcns
                         WHERE sourcesconfirmedingcns.obj_id = objs.id
                         AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime('%Y-%m-%d %H:%M:%S')}'
-                        AND sourcesconfirmedingcns.confirmed = false
+                        AND sourcesconfirmedingcns.confirmed != false
                     ))"""
                 statements.append(localization_query)
+
+                if sort_by == "gcn_status":
+                    joins.append(
+                        f"""
+                        LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime('%Y-%m-%d %H:%M:%S')}'
+                        """
+                    )
             except Exception as e:
                 raise ValueError(f'Invalid localization query parameters ({e})')
 
@@ -1384,8 +1391,8 @@ async def get_sources(
             """
             statement = text(statement).bindparams(**query_params)
             if verbose:
-                log(f'Params:\n{query_params}')
-                log(f'Query:\n{statement}')
+                log_verbose(f'Params:\n{query_params}')
+                log_verbose(f'Query:\n{statement}')
 
             startTime = time.time()
 
@@ -1395,7 +1402,7 @@ async def get_sources(
 
             endTime = time.time()
             if verbose:
-                log(
+                log_verbose(
                     f'1. MAIN SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
                 )
 
@@ -1424,7 +1431,7 @@ async def get_sources(
 
             endTime = time.time()
             if verbose:
-                log(f'2. Sources Query took {endTime - startTime} seconds.')
+                log_verbose(f'2. Sources Query took {endTime - startTime} seconds.')
 
             return {
                 'totalMatches': total_matches,
@@ -1434,7 +1441,6 @@ async def get_sources(
             }
 
         else:
-
             # ADD QUERY STATEMENTS
             statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
                 FROM objs INNER JOIN sources ON objs.id = sources.obj_id
@@ -1444,7 +1450,16 @@ async def get_sources(
             """
 
             # SORTING
-            if sort_by in NULL_FIELDS:
+            if sort_by == "gcn_status":
+                statement += f"""ORDER BY
+                    CASE
+                        WHEN bool_and(sourcesconfirmedingcns.obj_id IS NULL) = true THEN 4
+                        WHEN bool_or(sourcesconfirmedingcns.confirmed) = true THEN 3
+                        WHEN bool_and(sourcesconfirmedingcns.confirmed IS NULL) = true THEN 2
+                        WHEN bool_or(sourcesconfirmedingcns.confirmed) = false THEN 1
+                        ELSE 0
+                    END {sort_order.upper()}"""
+            elif sort_by in NULL_FIELDS:
                 statement += (
                     f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
                 )
@@ -1459,8 +1474,8 @@ async def get_sources(
                 .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
             )
             if verbose:
-                log(f'Params:\n{query_params}')
-                log(f'Query:\n{statement}')
+                log_verbose(f'Params:\n{query_params}')
+                log_verbose(f'Query:\n{statement}')
 
             startTime = time.time()
 
@@ -1474,7 +1489,7 @@ async def get_sources(
 
             endTime = time.time()
             if verbose:
-                log(
+                log_verbose(
                     f'1. MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
                 )
 
@@ -1524,7 +1539,7 @@ async def get_sources(
 
             endTime = time.time()
             if verbose:
-                log(f'2. Objs Query took {endTime - startTime} seconds.')
+                log_verbose(f'2. Objs Query took {endTime - startTime} seconds.')
 
             # SOURCES
             startTime = time.time()
@@ -1540,7 +1555,7 @@ async def get_sources(
 
             endTime = time.time()
             if verbose:
-                log(f'3. Sources Query took {endTime - startTime} seconds.')
+                log_verbose(f'3. Sources Query took {endTime - startTime} seconds.')
 
             # REFORMAT SOURCES (SAVE INFO)
             start = time.time()
@@ -1585,7 +1600,9 @@ async def get_sources(
 
             endTime = time.time()
             if verbose:
-                log(f'4. Sources Refomatting took {endTime - startTime} seconds.')
+                log_verbose(
+                    f'4. Sources Refomatting took {endTime - startTime} seconds.'
+                )
 
             startTime = time.time()
             obj_coords = np.array([[obj['ra'], obj['dec']] for obj in objs])
@@ -1613,7 +1630,9 @@ async def get_sources(
 
             endTime = time.time()
             if verbose:
-                log(f'5. Various obj computations took {endTime - startTime} seconds.')
+                log_verbose(
+                    f'5. Various obj computations took {endTime - startTime} seconds.'
+                )
 
             if include_thumbnails and not remove_nested:
                 startTime = time.time()
@@ -1635,7 +1654,9 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log(f'6. Thumbnails Query took {endTime - startTime} seconds.')
+                    log_verbose(
+                        f'6. Thumbnails Query took {endTime - startTime} seconds.'
+                    )
 
             if include_detection_stats:
                 # PHOTSTATS
@@ -1658,7 +1679,9 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log(f'7. Photstats Query took {endTime - startTime} seconds.')
+                    log_verbose(
+                        f'7. Photstats Query took {endTime - startTime} seconds.'
+                    )
 
             if not remove_nested:
                 # CLASSIFICATIONS
@@ -1689,7 +1712,9 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log(f'8. Classifications Query took {endTime - startTime} seconds.')
+                    log_verbose(
+                        f'8. Classifications Query took {endTime - startTime} seconds.'
+                    )
 
             if not remove_nested or include_period_exists:
                 # ANNOTATIONS
@@ -1713,7 +1738,9 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log(f'9. Annotations Query took {endTime - startTime} seconds.')
+                    log_verbose(
+                        f'9. Annotations Query took {endTime - startTime} seconds.'
+                    )
 
             if include_hosts:
                 # HOST GALAXY
@@ -1758,7 +1785,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log(
+                    log_verbose(
                         f'10. Hosts Query (+offset) took {endTime - startTime} seconds.'
                     )
 
@@ -1783,7 +1810,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log(
+                    log_verbose(
                         f'11. Spectrum Exists Query took {endTime - startTime} seconds.'
                     )
 
@@ -1813,7 +1840,9 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log(f'12. Comment Exists Query took {endTime - startTime} seconds.')
+                    log_verbose(
+                        f'12. Comment Exists Query took {endTime - startTime} seconds.'
+                    )
 
             if include_photometry_exists:
                 startTime = time.time()
@@ -1857,7 +1886,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log(
+                    log_verbose(
                         f'13. Photometry Exists Query took {endTime - startTime} seconds.'
                     )
 
@@ -1875,7 +1904,9 @@ async def get_sources(
                     for obj in objs:
                         del obj['annotations']
                 if verbose:
-                    log(f'14. Period Exists Query took {endTime - startTime} seconds.')
+                    log_verbose(
+                        f'14. Period Exists Query took {endTime - startTime} seconds.'
+                    )
 
             if include_comments:
                 startTime = time.time()
@@ -1904,7 +1935,9 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log(f'15. Comments Query took {endTime - startTime} seconds.')
+                    log_verbose(
+                        f'15. Comments Query took {endTime - startTime} seconds.'
+                    )
 
             if include_labellers:
                 startTime = time.time()
@@ -1927,7 +1960,9 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log(f'16. Labellers Query took {endTime - startTime} seconds.')
+                    log_verbose(
+                        f'16. Labellers Query took {endTime - startTime} seconds.'
+                    )
 
             if include_color_mag:
                 startTime = time.time()
@@ -1936,7 +1971,9 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log(f'17. Color Mag Query took {endTime - startTime} seconds.')
+                    log_verbose(
+                        f'17. Color Mag Query took {endTime - startTime} seconds.'
+                    )
 
             data = {
                 'totalMatches': total_matches,
@@ -1974,10 +2011,9 @@ async def get_sources(
 
         endMethodTime = time.time()
         if verbose:
-            log(f'TOTAL took {endMethodTime - startMethodTime} seconds.')
+            log_verbose(f'TOTAL took {endMethodTime - startMethodTime} seconds.')
 
         return data
     except Exception as e:
-        log(e)
-        traceback.print_exc()
+        log_verbose(str(e))
         raise e
