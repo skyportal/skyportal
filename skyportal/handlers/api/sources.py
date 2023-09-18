@@ -558,6 +558,7 @@ async def get_sources(
         if user_id is None:
             raise ValueError('No user_id provided.')
 
+
         if sort_by in [None, "", "none"]:
             if localization_dateobs is not None:
                 sort_by = 'gcn_status'
@@ -1492,6 +1493,7 @@ async def get_sources(
                 log_verbose(
                     f'1. MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
                 )
+
 
             data = {
                 'totalMatches': 0,
