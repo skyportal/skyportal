@@ -174,7 +174,7 @@ const SidebarAndHeader = () => {
 
   const hydrateIfDashboardClicked = (url) => {
     if (url === "/") {
-      dispatch(hydrate());
+      dispatch(hydrate(true));
     }
   };
 
