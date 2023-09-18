@@ -25,13 +25,13 @@ import * as enumTypesActions from "./ducks/enum_types";
 import * as usersActions from "./ducks/users";
 import * as streamsActions from "./ducks/streams";
 import * as analysisServicesActions from "./ducks/analysis_services";
+import * as recentGcnEventsActions from "./ducks/recentGcnEvents";
 
 // we also import actions that won't be hydrated, to make sure they are
 // registered as reducers, to avoid conflicts with redux-state-sync
 /* eslint-disable no-unused-vars */
 import * as sourceActions from "./ducks/source";
 import * as sourcesActions from "./ducks/sources";
-import * as recentGcnEventsActions from "./ducks/recentGcnEvents";
 import * as gcnTagsActions from "./ducks/gcnTags";
 import * as gcnEventActions from "./ducks/gcnEvent";
 import * as gcnEventsActions from "./ducks/gcnEvents";
@@ -55,36 +55,48 @@ import * as groupActions from "./ducks/group";
 import * as instrumentActions from "./ducks/instrument";
 /* eslint-enable no-unused-vars */
 
-export default function hydrate() {
+// add an argument 'dashboardOnly' to fetch only the data needed for the
+export default function hydrate(dashboardOnly = false) {
   return (dispatch) => {
-    dispatch(sysInfoActions.fetchSystemInfo());
-    dispatch(dbInfoActions.fetchDBInfo());
-    dispatch(configActions.fetchConfig());
-    dispatch(earthquakeActions.fetchEarthquakes());
-    dispatch(profileActions.fetchUserProfile());
-    dispatch(groupsActions.fetchGroups(true));
-    dispatch(mmadetectorActions.fetchMMADetectors());
+    if (!dashboardOnly) {
+      // initial data
+      dispatch(sysInfoActions.fetchSystemInfo());
+      dispatch(dbInfoActions.fetchDBInfo());
+      dispatch(configActions.fetchConfig());
+      dispatch(profileActions.fetchUserProfile());
+      dispatch(groupsActions.fetchGroups(true));
+      dispatch(usersActions.fetchUsers());
+    }
+    // dashboard data
     dispatch(newsFeedActions.fetchNewsFeed());
     dispatch(topSourcesActions.fetchTopSources());
-    dispatch(instrumentsActions.fetchInstruments());
-    dispatch(allocationsActions.fetchAllocations());
-    dispatch(instrumentsActions.fetchInstrumentForms());
     dispatch(recentSourcesActions.fetchRecentSources());
     dispatch(sourceCountsActions.fetchSourceCounts());
-    dispatch(observingRunsActions.fetchObservingRuns());
-    dispatch(telescopesActions.fetchTelescopes());
-    dispatch(taxonomyActions.fetchTaxonomies());
-    dispatch(favoritesActions.fetchFavorites());
-    dispatch(rejectedActions.fetchRejected());
-    dispatch(tnsrobotsActions.fetchTNSRobots());
-    dispatch(enumTypesActions.fetchEnumTypes());
-    dispatch(allocationsActions.fetchAllocationsApiClassname());
-    dispatch(observationPlansActions.fetchObservationPlanNames());
-    dispatch(defaultFollowupRequestsActions.fetchDefaultFollowupRequests());
-    dispatch(defaultObservationPlansActions.fetchDefaultObservationPlans());
-    dispatch(defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies());
-    dispatch(usersActions.fetchUsers());
-    dispatch(streamsActions.fetchStreams());
-    dispatch(analysisServicesActions.fetchAnalysisServices());
+    dispatch(recentGcnEventsActions.fetchRecentGcnEvents());
+
+    if (!dashboardOnly) {
+      // other data
+      dispatch(streamsActions.fetchStreams());
+      dispatch(enumTypesActions.fetchEnumTypes());
+      dispatch(instrumentsActions.fetchInstruments());
+      dispatch(allocationsActions.fetchAllocations());
+      dispatch(telescopesActions.fetchTelescopes());
+      dispatch(taxonomyActions.fetchTaxonomies());
+      dispatch(instrumentsActions.fetchInstrumentForms());
+      dispatch(favoritesActions.fetchFavorites());
+      dispatch(tnsrobotsActions.fetchTNSRobots());
+      dispatch(rejectedActions.fetchRejected());
+      dispatch(observingRunsActions.fetchObservingRuns());
+      dispatch(allocationsActions.fetchAllocationsApiClassname());
+      dispatch(observationPlansActions.fetchObservationPlanNames());
+      dispatch(analysisServicesActions.fetchAnalysisServices());
+      dispatch(defaultFollowupRequestsActions.fetchDefaultFollowupRequests());
+      dispatch(defaultObservationPlansActions.fetchDefaultObservationPlans());
+      dispatch(
+        defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies()
+      );
+      dispatch(earthquakeActions.fetchEarthquakes());
+      dispatch(mmadetectorActions.fetchMMADetectors());
+    }
   };
 }
