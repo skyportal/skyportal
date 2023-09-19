@@ -16,6 +16,7 @@ import ClassificationSelect from "./ClassificationSelect";
 import NotificationSettingsSelect from "./NotificationSettingsSelect";
 import * as profileActions from "../ducks/profile";
 import NotificationGcnEvent from "./NotificationGcnEvent";
+import { SelectLabelWithChips } from "./SelectWithChips";
 
 const useStyles = makeStyles((theme) => ({
   typography: {
@@ -59,17 +60,66 @@ const useStyles = makeStyles((theme) => ({
 const NotificationPreferences = () => {
   const classes = useStyles();
   const profile = useSelector((state) => state.profile.preferences);
+  const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
   const { handleSubmit } = useForm();
   const [selectedClassifications, setSelectedClassifications] = useState(
     profile?.notifications?.sources?.classifications || []
   );
+  const [selectedGroups, setSelectedGroups] = useState([]);
+
+  let sortedGroups = groups.sort((a, b) => {
+    if (a.name.toLowerCase() < b.name.toLowerCase()) {
+      return -1;
+    }
+    if (a.name.toLowerCase() > b.name.toLowerCase()) {
+      return 1;
+    }
+    return 0;
+  });
+  sortedGroups = sortedGroups.map((group) => ({
+    id: group?.id,
+    label: group?.name,
+  }));
+
+  const onGroupSelectChange = (event) => {
+    let new_selected_groups = [];
+    event.target.value.forEach((group) => {
+      if (
+        !new_selected_groups.some(
+          (selected_group) => selected_group?.id === group?.id
+        )
+      ) {
+        new_selected_groups.push(group);
+      } else {
+        // remove the user from the list
+        new_selected_groups = new_selected_groups.filter(
+          (selected_group) => selected_group?.id !== group?.id
+        );
+      }
+    });
+    setSelectedGroups(new_selected_groups);
+  };
 
   useEffect(() => {
     setSelectedClassifications(
       profile?.notifications?.sources?.classifications || []
     );
-  }, [profile]);
+    // selectedGroups is an array of objects, so we get the objects from the groups array
+    let existingGroups =
+      profile?.notifications?.sources?.groups?.map((groupId) =>
+        groups.find((g) => g.id === groupId)
+      ) || [];
+    // remove any undefined values
+    existingGroups = existingGroups.filter((group) => group);
+    // keep only id and label
+    existingGroups = existingGroups.map((group) => ({
+      id: group?.id,
+      label: group?.name,
+    }));
+
+    setSelectedGroups(existingGroups || []);
+  }, [profile, groups]);
 
   const prefToggled = (event) => {
     const prefs = {
@@ -113,6 +163,10 @@ const NotificationPreferences = () => {
       prefs.notifications.favorite_sources = {
         new_ml_classifications: event.target.checked,
       };
+    } else if (event.target.name === "sources_new_spectra") {
+      prefs.notifications.sources = {
+        new_spectra: event.target.checked,
+      };
     }
 
     dispatch(profileActions.updateUserPreferences(prefs));
@@ -123,11 +177,13 @@ const NotificationPreferences = () => {
       notifications: {
         sources: {
           classifications: [...new Set(selectedClassifications)],
+          groups: [...new Set(selectedGroups.map((group) => group.id))],
         },
       },
     };
     dispatch(profileActions.updateUserPreferences(prefs));
     setSelectedClassifications([...new Set(selectedClassifications)]);
+    setSelectedGroups([...new Set(selectedGroups)]);
     dispatch(showNotification("Sources classifications updated"));
   };
 
@@ -158,13 +214,22 @@ const NotificationPreferences = () => {
           </Tooltip>
         </FormGroup>
         {profile?.notifications?.sources?.active === true && (
-          <>
+          <FormGroup row className={classes.form_group}>
             <form onSubmit={handleSubmit(onSubmitSources)}>
               <div className={classes.form}>
                 <ClassificationSelect
                   selectedClassifications={selectedClassifications}
                   setSelectedClassifications={setSelectedClassifications}
                 />
+                {sortedGroups?.length > 0 && (
+                  <SelectLabelWithChips
+                    label="Groups (optional)"
+                    id="groups-select"
+                    initValue={selectedGroups}
+                    onChange={onGroupSelectChange}
+                    options={sortedGroups}
+                  />
+                )}
                 <Button
                   secondary
                   type="submit"
@@ -175,8 +240,20 @@ const NotificationPreferences = () => {
                 </Button>
               </div>
             </form>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={
+                    profile?.notifications?.sources?.new_spectra === true
+                  }
+                  name="sources_new_spectra"
+                  onChange={prefToggled}
+                />
+              }
+              label="New spectrum"
+            />
             <NotificationSettingsSelect notificationResourceType="sources" />
-          </>
+          </FormGroup>
         )}
       </div>
       <div className={classes.pref}>

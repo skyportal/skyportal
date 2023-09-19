@@ -39,6 +39,7 @@ from skyportal.models import (
     Localization,
     ObjAnalysis,
     ObservationPlanRequest,
+    Source,
     Shift,
     ShiftUser,
     Spectrum,
@@ -93,12 +94,15 @@ def notification_resource_type(target):
     if (
         "favorite_sources" not in target["notification_type"]
         and "gcn_events" not in target["notification_type"]
+        and "sources" not in target["notification_type"]
     ):
         return target["notification_type"]
     elif "favorite_sources" in target["notification_type"]:
         return "favorite_sources"
     elif "gcn_events" in target["notification_type"]:
         return "gcn_events"
+    elif "sources" in target["notification_type"]:
+        return "sources"
 
 
 def user_preferences(target, notification_setting, resource_type):
@@ -234,7 +238,6 @@ def send_email_notification(target):
             subject, body = source_email_notification(
                 target=target, data=target["content"]
             )
-
         elif resource_type == "gcn_events":
             subject, body = gcn_email_notification(
                 target=target,
@@ -256,10 +259,8 @@ def send_email_notification(target):
                 subject = (
                     f"{cfg['app.title']} - New classification on a favorite source"
                 )
-
             elif target["notification_type"] == "favorite_sources_new_spectrum":
                 subject = f"{cfg['app.title']} - New spectrum on a favorite source"
-
             elif target["notification_type"] == "favorite_sources_new_comment":
                 subject = f"{cfg['app.title']} - New comment on a favorite source"
             elif target["notification_type"] == "favorite_sources_new_activity":
@@ -666,25 +667,40 @@ def api(queue):
                                     Classification.id == target_id
                                 )
                             ).first()
-                            target_data = target.to_dict()
-                            target_content = source_notification_content(target)
+                            target_data = {
+                                **target.to_dict(),
+                                "group_ids": [group.id for group in target.groups],
+                            }
+                            target_content = source_notification_content(
+                                target, target_type="classification"
+                            )
                         elif is_spectra:
                             users = session.scalars(
                                 sa.select(User).where(
-                                    User.preferences["notifications"][
-                                        "favorite_sources"
-                                    ]["active"]
-                                    .astext.cast(sa.Boolean)
-                                    .is_(True)
+                                    sa.or_(
+                                        User.preferences["notifications"]["sources"][
+                                            "active"
+                                        ]
+                                        .astext.cast(sa.Boolean)
+                                        .is_(True),
+                                        User.preferences["notifications"][
+                                            "favorite_sources"
+                                        ]["active"]
+                                        .astext.cast(sa.Boolean)
+                                        .is_(True),
+                                    )
                                 )
                             ).all()
                             target_class = Spectrum
-                            target_data = (
-                                session.scalars(
-                                    sa.select(Spectrum).where(Spectrum.id == target_id)
-                                )
-                                .first()
-                                .to_dict()
+                            target = session.scalars(
+                                sa.select(Spectrum).where(Spectrum.id == target_id)
+                            ).first()
+                            target_data = {
+                                **target.to_dict(),
+                                "group_ids": [group.id for group in target.groups],
+                            }
+                            target_content = source_notification_content(
+                                target, target_type="spectrum"
                             )
                         elif is_comment:
                             users = session.scalars(
@@ -1246,7 +1262,8 @@ def api(queue):
                                                 },
                                             }
                                             queue.append(target)
-                                        elif (
+                                            continue
+                                        if (
                                             pref is not None
                                         ) and "sources" in pref.keys():
                                             if (
@@ -1259,10 +1276,55 @@ def api(queue):
                                                         'classifications'
                                                     ]
                                                 ):
+                                                    if user.is_admin is False:
+                                                        accessible_groups = [
+                                                            group.id
+                                                            for group in user.accessible_groups
+                                                        ]
+                                                        if (
+                                                            len(
+                                                                list(
+                                                                    set(
+                                                                        accessible_groups
+                                                                    )
+                                                                    & set(
+                                                                        target_data[
+                                                                            "group_ids"
+                                                                        ]
+                                                                    )
+                                                                )
+                                                            )
+                                                            == 0
+                                                        ):
+                                                            continue
+                                                    if (
+                                                        len(
+                                                            pref["sources"].get(
+                                                                "groups", []
+                                                            )
+                                                        )
+                                                        > 0
+                                                    ):
+                                                        sources = session.scalars(
+                                                            sa.select(Source).where(
+                                                                Source.obj_id
+                                                                == target_data[
+                                                                    "obj_id"
+                                                                ],
+                                                                Source.group_id.in_(
+                                                                    pref["sources"].get(
+                                                                        "groups", []
+                                                                    )
+                                                                ),
+                                                                Source.active.is_(True),
+                                                            )
+                                                        ).all()
+                                                        if len(sources) == 0:
+                                                            continue
                                                     notification = UserNotification(
                                                         user=user,
                                                         text=f"New classification *{target_data['classification']}* for source *{target_data['obj_id']}*",
-                                                        notification_type="sources",
+                                                        notification_type="sources_new_classification",
                                                         url=f"/source/{target_data['obj_id']}",
                                                     )
                                                     session.add(notification)
@@ -1280,27 +1342,90 @@ def api(queue):
                                         if (
                                             len(favorite_sources) > 0
                                             and "favorite_sources" in pref.keys()
-                                        ):
-                                            if any(
+                                            and any(
                                                 target_data['obj_id'] == source.obj_id
                                                 for source in favorite_sources
+                                            )
+                                        ):
+                                            notification = UserNotification(
+                                                user=user,
+                                                text=f"New spectrum on favorite source *{target_data['obj_id']}*",
+                                                notification_type="favorite_sources_new_spectrum",
+                                                url=f"/source/{target_data['obj_id']}",
+                                            )
+                                            session.add(notification)
+                                            session.commit()
+                                            target = {
+                                                **notification.to_dict(),
+                                                "user": {
+                                                    **notification.user.to_dict(),
+                                                    "preferences": notification.user.preferences,
+                                                },
+                                            }
+                                            queue.append(target)
+                                            continue
+                                        if (
+                                            (pref is not None)
+                                            and "sources" in pref.keys()
+                                            and pref["sources"].get(
+                                                "new_spectra", False
+                                            )
+                                        ):
+                                            if user.is_admin is False:
+                                                # check if the user's accessible_groups intersect with the groups of the spectra
+                                                accessible_groups = [
+                                                    group.id
+                                                    for group in user.accessible_groups
+                                                ]
+                                                if (
+                                                    len(
+                                                        list(
+                                                            set(accessible_groups)
+                                                            & set(
+                                                                target_data["group_ids"]
+                                                            )
+                                                        )
+                                                    )
+                                                    == 0
+                                                ):
+                                                    continue
+                                            if (
+                                                len(pref["sources"].get("groups", []))
+                                                > 0
                                             ):
-                                                notification = UserNotification(
-                                                    user=user,
-                                                    text=f"New spectrum on favorite source *{target_data['obj_id']}*",
-                                                    notification_type="favorite_sources_new_spectrum",
-                                                    url=f"/source/{target_data['obj_id']}",
-                                                )
-                                                session.add(notification)
-                                                session.commit()
-                                                target = {
-                                                    **notification.to_dict(),
-                                                    "user": {
-                                                        **notification.user.to_dict(),
-                                                        "preferences": notification.user.preferences,
-                                                    },
-                                                }
-                                                queue.append(target)
+                                                sources = session.scalars(
+                                                    sa.select(Source).where(
+                                                        Source.obj_id
+                                                        == target_data["obj_id"],
+                                                        Source.group_id.in_(
+                                                            pref["sources"].get(
+                                                                "groups", []
+                                                            )
+                                                        ),
+                                                        Source.active.is_(True),
+                                                    )
+                                                ).all()
+                                                if len(sources) == 0:
+                                                    continue
+
+                                            notification = UserNotification(
+                                                user=user,
+                                                text=f"New spectrum for source *{target_data['obj_id']}*",
+                                                notification_type="sources_new_spectrum",
+                                                url=f"/source/{target_data['obj_id']}",
+                                            )
+                                            session.add(notification)
+                                            session.commit()
+                                            target = {
+                                                **notification.to_dict(),
+                                                "user": {
+                                                    **notification.user.to_dict(),
+                                                    "preferences": notification.user.preferences,
+                                                },
+                                                "content": target_content,
+                                            }
+                                            queue.append(target)
+
                                     elif is_comment:
                                         if (
                                             len(favorite_sources) > 0
