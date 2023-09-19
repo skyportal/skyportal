@@ -699,6 +699,10 @@ def api(queue):
                                 **target.to_dict(),
                                 "group_ids": [group.id for group in target.groups],
                             }
+                            if target.followup_request_id is not None:
+                                target_data[
+                                    "allocation_id"
+                                ] = target.followup_request.allocation_id
                             target_content = source_notification_content(
                                 target, target_type="spectrum"
                             )
@@ -1407,6 +1411,27 @@ def api(queue):
                                                 ).all()
                                                 if len(sources) == 0:
                                                     continue
+                                            if (
+                                                (
+                                                    len(
+                                                        pref["sources"].get(
+                                                            "allocations", []
+                                                        )
+                                                    )
+                                                    > 0
+                                                )
+                                                and (
+                                                    target_data.get(
+                                                        "allocation_id", None
+                                                    )
+                                                    is not None
+                                                )
+                                                and target_data["allocation_id"]
+                                                not in pref["sources"].get(
+                                                    "allocations", []
+                                                )
+                                            ):
+                                                continue
 
                                             notification = UserNotification(
                                                 user=user,
