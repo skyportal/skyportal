@@ -44,6 +44,16 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
     marginRight: theme.spacing(2),
   },
+  form_group_with_spacing: {
+    // same as above, but with gaps between the elements
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "left",
+    alignItems: "center",
+    "& > *": {
+      marginLeft: theme.spacing(1),
+    },
+  },
   form_column: {
     display: "flex",
     flexDirection: "column",
@@ -217,19 +227,33 @@ const NotificationPreferences = () => {
           <FormGroup row className={classes.form_group}>
             <form onSubmit={handleSubmit(onSubmitSources)}>
               <div className={classes.form}>
-                <ClassificationSelect
-                  selectedClassifications={selectedClassifications}
-                  setSelectedClassifications={setSelectedClassifications}
-                />
-                {sortedGroups?.length > 0 && (
-                  <SelectLabelWithChips
-                    label="Groups (optional)"
-                    id="groups-select"
-                    initValue={selectedGroups}
-                    onChange={onGroupSelectChange}
-                    options={sortedGroups}
+                <div className={classes.form_group_with_spacing}>
+                  <ClassificationSelect
+                    selectedClassifications={selectedClassifications}
+                    setSelectedClassifications={setSelectedClassifications}
                   />
-                )}
+                  {sortedGroups?.length > 0 && (
+                    <SelectLabelWithChips
+                      label="Groups (optional)"
+                      id="groups-select"
+                      initValue={selectedGroups}
+                      onChange={onGroupSelectChange}
+                      options={sortedGroups}
+                    />
+                  )}
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={
+                          profile?.notifications?.sources?.new_spectra === true
+                        }
+                        name="sources_new_spectra"
+                        onChange={prefToggled}
+                      />
+                    }
+                    label="New spectrum"
+                  />
+                </div>
                 <Button
                   secondary
                   type="submit"
@@ -240,18 +264,6 @@ const NotificationPreferences = () => {
                 </Button>
               </div>
             </form>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={
-                    profile?.notifications?.sources?.new_spectra === true
-                  }
-                  name="sources_new_spectra"
-                  onChange={prefToggled}
-                />
-              }
-              label="New spectrum"
-            />
             <NotificationSettingsSelect notificationResourceType="sources" />
           </FormGroup>
         )}
