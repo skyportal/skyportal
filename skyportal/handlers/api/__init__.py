@@ -7,6 +7,7 @@ from .analysis import (
     AnalysisProductsHandler,
     DefaultAnalysisHandler,
 )
+from .api_stats import APIStatsHandler
 from .candidate import CandidateHandler
 from .classification import (
     ClassificationHandler,
