@@ -12,7 +12,7 @@ jobs:
     timeout-minutes: 120
     services:
       postgres:
-        image: postgres
+        image: postgres:14.9
         env:
           POSTGRES_USER: skyportal
           POSTGRES_PASSWORD: anything
