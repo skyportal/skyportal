@@ -16,6 +16,7 @@ import ClassificationSelect from "./ClassificationSelect";
 import NotificationSettingsSelect from "./NotificationSettingsSelect";
 import * as profileActions from "../ducks/profile";
 import NotificationGcnEvent from "./NotificationGcnEvent";
+import { SelectLabelWithChips } from "./SelectWithChips";
 
 const useStyles = makeStyles((theme) => ({
   typography: {
@@ -43,6 +44,16 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
     marginRight: theme.spacing(2),
   },
+  form_group_with_spacing: {
+    // same as above, but with gaps between the elements
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "left",
+    alignItems: "center",
+    "& > *": {
+      marginLeft: theme.spacing(1),
+    },
+  },
   form_column: {
     display: "flex",
     flexDirection: "column",
@@ -59,17 +70,126 @@ const useStyles = makeStyles((theme) => ({
 const NotificationPreferences = () => {
   const classes = useStyles();
   const profile = useSelector((state) => state.profile.preferences);
+  const groups = useSelector((state) => state.groups.userAccessible);
+  const { allocationListApiClassname } = useSelector(
+    (state) => state.allocations
+  );
   const dispatch = useDispatch();
   const { handleSubmit } = useForm();
   const [selectedClassifications, setSelectedClassifications] = useState(
     profile?.notifications?.sources?.classifications || []
   );
+  const [selectedGroups, setSelectedGroups] = useState([]);
+  const [selectedAllocations, setSelectedAllocations] = useState([]);
+
+  let sortedGroups = groups.sort((a, b) => {
+    if (a.name.toLowerCase() < b.name.toLowerCase()) {
+      return -1;
+    }
+    if (a.name.toLowerCase() > b.name.toLowerCase()) {
+      return 1;
+    }
+    return 0;
+  });
+  sortedGroups = sortedGroups.map((group) => ({
+    id: group?.id,
+    label: group?.name,
+  }));
+
+  let sortedAllocations = (allocationListApiClassname || []).map(
+    (allocation) => ({
+      id: allocation?.id,
+      label: `${allocation.instrument?.name} [${allocation?.pi}]`,
+    })
+  );
+
+  // then sort the allocations by label
+  sortedAllocations = sortedAllocations.sort((a, b) => {
+    if (a.label.toLowerCase() < b.label.toLowerCase()) {
+      return -1;
+    }
+    if (a.label.toLowerCase() > b.label.toLowerCase()) {
+      return 1;
+    }
+    return 0;
+  });
+
+  const onGroupSelectChange = (event) => {
+    let new_selected_groups = [];
+    event.target.value.forEach((group) => {
+      if (
+        !new_selected_groups.some(
+          (selected_group) => selected_group?.id === group?.id
+        )
+      ) {
+        new_selected_groups.push(group);
+      } else {
+        // remove the user from the list
+        new_selected_groups = new_selected_groups.filter(
+          (selected_group) => selected_group?.id !== group?.id
+        );
+      }
+    });
+    setSelectedGroups(new_selected_groups);
+  };
+
+  const onAllocationSelectChange = (event) => {
+    let new_selected_allocations = [];
+    event.target.value.forEach((allocation) => {
+      if (
+        !new_selected_allocations.some(
+          (selected_allocation) => selected_allocation?.id === allocation?.id
+        )
+      ) {
+        new_selected_allocations.push(allocation);
+      } else {
+        new_selected_allocations = new_selected_allocations.filter(
+          (selected_allocation) => selected_allocation?.id !== allocation?.id
+        );
+      }
+    });
+    setSelectedAllocations(new_selected_allocations);
+  };
 
   useEffect(() => {
-    setSelectedClassifications(
-      profile?.notifications?.sources?.classifications || []
-    );
-  }, [profile]);
+    if (selectedGroups.length === 0 && groups?.length > 0) {
+      setSelectedClassifications(
+        profile?.notifications?.sources?.classifications || []
+      );
+      let existingGroups =
+        profile?.notifications?.sources?.groups?.map((groupId) =>
+          groups.find((g) => g.id === groupId)
+        ) || [];
+      existingGroups = existingGroups.filter((group) => group);
+      existingGroups = existingGroups.map((group) => ({
+        id: group?.id,
+        label: group?.name,
+      }));
+
+      setSelectedGroups(existingGroups || []);
+    }
+  }, [profile, groups]);
+
+  useEffect(() => {
+    if (
+      selectedAllocations.length === 0 &&
+      allocationListApiClassname?.length > 0
+    ) {
+      let existingAllocations =
+        profile?.notifications?.sources?.allocations?.map((allocationId) =>
+          allocationListApiClassname.find((a) => a.id === allocationId)
+        ) || [];
+      existingAllocations = existingAllocations.filter(
+        (allocation) => allocation
+      );
+      existingAllocations = existingAllocations.map((allocation) => ({
+        id: allocation?.id,
+        label: `${allocation.instrument?.name} [${allocation?.pi}]`,
+      }));
+
+      setSelectedAllocations(existingAllocations || []);
+    }
+  }, [profile, allocationListApiClassname]);
 
   const prefToggled = (event) => {
     const prefs = {
@@ -113,6 +233,10 @@ const NotificationPreferences = () => {
       prefs.notifications.favorite_sources = {
         new_ml_classifications: event.target.checked,
       };
+    } else if (event.target.name === "sources_new_spectra") {
+      prefs.notifications.sources = {
+        new_spectra: event.target.checked,
+      };
     }
 
     dispatch(profileActions.updateUserPreferences(prefs));
@@ -123,11 +247,16 @@ const NotificationPreferences = () => {
       notifications: {
         sources: {
           classifications: [...new Set(selectedClassifications)],
+          groups: [...new Set(selectedGroups.map((group) => group.id))],
+          allocations: [
+            ...new Set(selectedAllocations.map((allocation) => allocation.id)),
+          ],
         },
       },
     };
     dispatch(profileActions.updateUserPreferences(prefs));
     setSelectedClassifications([...new Set(selectedClassifications)]);
+    setSelectedGroups([...new Set(selectedGroups)]);
     dispatch(showNotification("Sources classifications updated"));
   };
 
@@ -158,13 +287,45 @@ const NotificationPreferences = () => {
           </Tooltip>
         </FormGroup>
         {profile?.notifications?.sources?.active === true && (
-          <>
+          <FormGroup row className={classes.form_group}>
             <form onSubmit={handleSubmit(onSubmitSources)}>
               <div className={classes.form}>
-                <ClassificationSelect
-                  selectedClassifications={selectedClassifications}
-                  setSelectedClassifications={setSelectedClassifications}
-                />
+                <div className={classes.form_group_with_spacing}>
+                  <ClassificationSelect
+                    selectedClassifications={selectedClassifications}
+                    setSelectedClassifications={setSelectedClassifications}
+                  />
+                  {sortedGroups?.length > 0 && (
+                    <SelectLabelWithChips
+                      label="Groups (optional)"
+                      id="groups-select"
+                      initValue={selectedGroups}
+                      onChange={onGroupSelectChange}
+                      options={sortedGroups}
+                    />
+                  )}
+                  {sortedGroups?.length > 0 && (
+                    <SelectLabelWithChips
+                      label="Allocations (optional)"
+                      id="allocations-select"
+                      initValue={selectedAllocations}
+                      onChange={onAllocationSelectChange}
+                      options={sortedAllocations}
+                    />
+                  )}
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={
+                          profile?.notifications?.sources?.new_spectra === true
+                        }
+                        name="sources_new_spectra"
+                        onChange={prefToggled}
+                      />
+                    }
+                    label="New spectrum"
+                  />
+                </div>
                 <Button
                   secondary
                   type="submit"
@@ -176,7 +337,7 @@ const NotificationPreferences = () => {
               </div>
             </form>
             <NotificationSettingsSelect notificationResourceType="sources" />
-          </>
+          </FormGroup>
         )}
       </div>
       <div className={classes.pref}>

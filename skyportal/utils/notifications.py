@@ -234,34 +234,47 @@ def gcn_email_notification(target, data=None, new_tag=False):
     )
 
 
-def source_notification_content(classification):
+def source_notification_content(target, target_type="classification"):
 
     # get the most recent classification for this source that has the same classification as the notification
+    if target_type == "classification":
+        data = {
+            "source_name": target.obj_id,
+            "ra": target.obj.ra,
+            "dec": target.obj.dec,
+            "redshift": target.obj.redshift,
+            "classification_name": target.classification,
+            "classification_probability": target.probability,
+            "classification_date": Time(target.modified).isot,
+        }
+    elif target_type == "spectrum":
+        data = {
+            "source_name": target.obj_id,
+            "ra": target.obj.ra,
+            "dec": target.obj.dec,
+            "redshift": target.obj.redshift,
+            "spectrum_uploaded_by": target.owner.username,
+            "spectrum_reduced_by": [user.username for user in target.reducers],
+            "spectrum_observed_by": [user.username for user in target.observers],
+            "spectrum_instrument": target.instrument.name,
+        }
+    else:
+        raise ValueError(f"Unknown target type: {target_type}")
 
-    data = {
-        "source_name": classification.obj_id,
-        "ra": classification.obj.ra,
-        "dec": classification.obj.dec,
-        "redshift": classification.obj.redshift,
-        "classification_name": classification.classification,
-        "classification_probability": classification.probability,
-        "classification_date": Time(classification.modified).isot,
-    }
-
-    if len(classification.obj.photstats) > 0:
-        first_detected_mjd = classification.obj.photstats[0].first_detected_mjd
+    if len(target.obj.photstats) > 0:
+        first_detected_mjd = target.obj.photstats[0].first_detected_mjd
         first_detected = Time(first_detected_mjd, format="mjd").isot
 
-        last_detected_mjd = classification.obj.photstats[0].last_detected_mjd
+        last_detected_mjd = target.obj.photstats[0].last_detected_mjd
         last_detected = Time(last_detected_mjd, format="mjd").isot
-        nb_detections = classification.obj.photstats[0].num_det_global
+        nb_detections = target.obj.photstats[0].num_det_global
 
         data["first_detected"] = first_detected
         data["last_detected"] = last_detected
         data["nb_detections"] = nb_detections
 
     else:
-        data["created_at"] = Time(classification.obj.created_at).isot
+        data["created_at"] = Time(target.obj.created_at).isot
         data["nb_detections"] = 0
 
     return data
@@ -273,86 +286,154 @@ def source_slack_notification(target, data=None):
     # We will use the slack blocks API, which is a bit more complicated than the simple message API, but allows for more flexibility
     # https://api.slack.com/reference/block-kit/blocks
 
-    header_text = f"New *{data['classification_name']}*: <{app_url}{target['url']}|*{data['source_name']}*>"
+    # if data is None, raise an error
+    if data is None:
+        raise ValueError("No data provided for source notification")
 
-    classification_stats = f"*Classification Stats:*\n - Score/Probability: {data['classification_probability']:.2f} \n - Date: {data['classification_date']}"
+    if 'classification_name' in data:
 
-    source_coordinates = (
-        f"*Source Coordinates:*\n - RA: {data['ra']} \n - Dec: {data['dec']}"
-    )
-    # add the redshift if it exists
-    if data['redshift'] is not None:
-        source_coordinates += f"\n - Redshift: {data['redshift']}"
+        header_text = f"New *{data['classification_name']}*: <{app_url}{target['url']}|*{data['source_name']}*>"
 
-    if data['nb_detections'] > 0:
-        source_detection_stats = f"*Source Detection Stats:*\n - First Detection: {data['first_detected']} \n - Last Detection: {data['last_detected']} \n - Number of Detections: {data['nb_detections']}"
-    else:
-        source_detection_stats = f"*Source Detection Stats:*\n - Source created at: {data['created_at']} \n - Not yet detected (no photometry)"
+        classification_stats = f"*Classification Stats:*\n - Score/Probability: {data['classification_probability']:.2f} \n - Date: {data['classification_date']}"
 
-    return [
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": header_text,
+        source_coordinates = (
+            f"*Source Coordinates:*\n - RA: {data['ra']} \n - Dec: {data['dec']}"
+        )
+        # add the redshift if it exists
+        if data['redshift'] is not None:
+            source_coordinates += f"\n - Redshift: {data['redshift']}"
+
+        if data['nb_detections'] > 0:
+            source_detection_stats = f"*Source Detection Stats:*\n - First Detection: {data['first_detected']} \n - Last Detection: {data['last_detected']} \n - Number of Detections: {data['nb_detections']}"
+        else:
+            source_detection_stats = f"*Source Detection Stats:*\n - Source created at: {data['created_at']} \n - Not yet detected (no photometry)"
+
+        return [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": header_text,
+                },
             },
-        },
-        {"type": "divider"},
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": classification_stats,
+            {"type": "divider"},
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": classification_stats,
+                },
             },
-        },
-        {"type": "divider"},
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": source_coordinates,
+            {"type": "divider"},
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": source_coordinates,
+                },
             },
-        },
-        {"type": "divider"},
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": source_detection_stats,
+            {"type": "divider"},
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": source_detection_stats,
+                },
             },
-        },
-    ]
+        ]
+    elif "spectrum_instrument" in data:
+        header_text = (
+            f"New Spectrum: <{app_url}{target['url']}|*{data['source_name']}*>"
+        )
+
+        spectrum_info = f"*Spectrum Info:*\n - Instrument: {data['spectrum_instrument']} \n - Uploaded by: {data['spectrum_uploaded_by']} \n - Reduced by: {', '.join(data['spectrum_reduced_by'])} \n - Observed by: {', '.join(data['spectrum_observed_by'])}"
+
+        source_coordinates = (
+            f"*Source Coordinates:*\n - RA: {data['ra']} \n - Dec: {data['dec']}"
+        )
+        # add the redshift if it exists
+        if data['redshift'] is not None:
+            source_coordinates += f"\n - Redshift: {data['redshift']}"
+
+        return [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": header_text,
+                },
+            },
+            {"type": "divider"},
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": spectrum_info,
+                },
+            },
+            {"type": "divider"},
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": source_coordinates,
+                },
+            },
+        ]
 
 
 def source_email_notification(target, data=None):
     # Now, we will create an HTML email that describes the message we want to send by email
 
-    header_text = f"<h3>New {data['classification_name']}: <a href='{app_url}{target['url']}'>{data['source_name']}</a></h3>"
-    subject = (
-        f"{cfg['app.title']} - New {data['classification_name']}: {data['source_name']}"
-    )
+    if data is None:
+        raise ValueError("No data provided for source notification")
 
-    classification_stats = f"<div><h4>Classification Stats:</h4><ul><li>Score/Probability: {data['classification_probability']:.2f}</li><li>Date: {data['classification_date']}</li></ul></div>"
+    if 'classification_name' in data:
 
-    source_coordinates = f"<div><h4>Source Coordinates:</h4><ul><li>RA: {data['ra']}</li><li>Dec: {data['dec']}</li>"
-    # add the redshift if it exists
-    if data['redshift'] is not None:
-        source_coordinates += f"<li>Redshift: {data['redshift']}</li>"
-    source_coordinates += "</ul></div>"
-    if data['nb_detections'] > 0:
-        source_detection_stats = f"<div><h4>Source Detection Stats:</h4><ul><li>First Detection: {data['first_detected']}</li><li>Last Detection: {data['last_detected']}</li><li>Number of Detections: {data['nb_detections']}</li></ul></div>"
-    else:
-        source_detection_stats = f"<div><h4>Source Detection Stats:</h4><ul><li>Source created at: {data['created_at']}</li><li>Not yet detected (no photometry)</li></ul></div>"
+        header_text = f"<h3>New {data['classification_name']}: <a href='{app_url}{target['url']}'>{data['source_name']}</a></h3>"
+        subject = f"{cfg['app.title']} - New {data['classification_name']}: {data['source_name']}"
 
-    return subject, (
-        "<!DOCTYPE html><html><head><style>body {font-family: Arial, Helvetica, sans-serif;}</style></head>"
-        + "<body>"
-        + header_text
-        + classification_stats
-        + source_coordinates
-        + source_detection_stats
-        + "</body></html>"
-    )
+        classification_stats = f"<div><h4>Classification Stats:</h4><ul><li>Score/Probability: {data['classification_probability']:.2f}</li><li>Date: {data['classification_date']}</li></ul></div>"
+
+        source_coordinates = f"<div><h4>Source Coordinates:</h4><ul><li>RA: {data['ra']}</li><li>Dec: {data['dec']}</li>"
+        # add the redshift if it exists
+        if data['redshift'] is not None:
+            source_coordinates += f"<li>Redshift: {data['redshift']}</li>"
+        source_coordinates += "</ul></div>"
+        if data['nb_detections'] > 0:
+            source_detection_stats = f"<div><h4>Source Detection Stats:</h4><ul><li>First Detection: {data['first_detected']}</li><li>Last Detection: {data['last_detected']}</li><li>Number of Detections: {data['nb_detections']}</li></ul></div>"
+        else:
+            source_detection_stats = f"<div><h4>Source Detection Stats:</h4><ul><li>Source created at: {data['created_at']}</li><li>Not yet detected (no photometry)</li></ul></div>"
+
+        return subject, (
+            "<!DOCTYPE html><html><head><style>body {font-family: Arial, Helvetica, sans-serif;}</style></head>"
+            + "<body>"
+            + header_text
+            + classification_stats
+            + source_coordinates
+            + source_detection_stats
+            + "</body></html>"
+        )
+    elif "spectrum_instrument" in data:
+        header_text = f"<h3>New Spectrum: <a href='{app_url}{target['url']}'>{data['source_name']}</a></h3>"
+        subject = f"{cfg['app.title']} - New Spectrum: {data['source_name']}"
+
+        spectrum_info = f"<div><h4>Spectrum Info:</h4><ul><li>Instrument: {data['spectrum_instrument']}</li><li>Uploaded by: {data['spectrum_uploaded_by']}</li><li>Reduced by: {', '.join(data['spectrum_reduced_by'])}</li><li>Observed by: {', '.join(data['spectrum_observed_by'])}</li></ul></div>"
+
+        source_coordinates = f"<div><h4>Source Coordinates:</h4><ul><li>RA: {data['ra']}</li><li>Dec: {data['dec']}</li>"
+        # add the redshift if it exists
+        if data['redshift'] is not None:
+            source_coordinates += f"<li>Redshift: {data['redshift']}</li>"
+        source_coordinates += "</ul></div>"
+
+        return subject, (
+            "<!DOCTYPE html><html><head><style>body {font-family: Arial, Helvetica, sans-serif;}</style></head>"
+            + "<body>"
+            + header_text
+            + spectrum_info
+            + source_coordinates
+            + "</body></html>"
+        )
 
 
 def post_notification(request_body, timeout=2):
