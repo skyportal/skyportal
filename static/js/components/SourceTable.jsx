@@ -1598,7 +1598,7 @@ const SourceTable = ({
       label: "Classification",
       options: {
         filter: false,
-        sort: true,
+        sort: false,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,

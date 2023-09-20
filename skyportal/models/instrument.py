@@ -508,5 +508,5 @@ def _instrument_region_remove(target, value, initiator):
     target.has_region = False
 
 
-StreamTNSRobot = join_model("instrument_tnsrobots", Instrument, TNSRobot)
-StreamTNSRobot.__doc__ = "Join table mapping Streams to TNSRobots."
+InstrumentTNSRobot = join_model("instrument_tnsrobots", Instrument, TNSRobot)
+InstrumentTNSRobot.__doc__ = "Join table mapping Instruments to TNSRobots."

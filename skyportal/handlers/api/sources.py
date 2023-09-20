@@ -44,6 +44,7 @@ SORT_BY = {
     'dec': 'objs.dec',
     'redshift': 'objs.redshift',
     'gcn_status': None,
+    'favorites': None,
     # TODO: sort by classification
     # TODO: sort by sourcesconfirmed in GCN status
 }
@@ -583,6 +584,11 @@ async def get_sources(
         if user_id is None:
             raise ValueError('No user_id provided.')
 
+        if sort_order in [None, "", "none"]:
+            sort_order = 'desc'
+        elif sort_order.lower() not in SORT_ORDER:
+            raise ValueError(f'Invalid sort_order: {sort_order}')
+
         if sort_by in [None, "", "none"]:
             if localization_dateobs is not None:
                 sort_by = 'gcn_status'
@@ -593,11 +599,9 @@ async def get_sources(
 
         if sort_by == 'gcn_status' and localization_dateobs is None:
             raise ValueError('Cannot sort by gcn_status without localization_dateobs')
-
-        if sort_order in [None, "", "none"]:
-            sort_order = 'desc'
-        elif sort_order.lower() not in SORT_ORDER:
-            raise ValueError(f'Invalid sort_order: {sort_order}')
+        elif sort_by == 'favorites':
+            # we reverse the condition here, so we can use bool_and later on
+            sort_order = "desc" if sort_order.lower() == "asc" else "asc"
 
         user = session.scalar(sa.select(User).where(User.id == user_id))
         if user is None:
@@ -1718,10 +1722,18 @@ async def get_sources(
                 # by running 2 seperate queries, we lost the ordering, so we need rerun a query with the ordering
                 joins = []
                 query_params = []
+
+                # SORTING JOINS
                 if sort_by == "gcn_status":
                     joins.append(
                         f"""
                         LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime('%Y-%m-%d %H:%M:%S')}'
+                        """
+                    )
+                elif sort_by == "favorites":
+                    joins.append(
+                        f"""
+                        LEFT JOIN listings ON listings.obj_id = objs.id AND listings.list_name = 'favorites' AND listings.user_id = {user_id}
                         """
                     )
 
@@ -1750,6 +1762,7 @@ async def get_sources(
                     query_params.extend(allocation_bindparams)
 
                 # SORTING
+                print(sort_by, sort_order)
                 if sort_by == "gcn_status":
                     statement += f"""ORDER BY
                         CASE
@@ -1759,6 +1772,8 @@ async def get_sources(
                             WHEN bool_or(sourcesconfirmedingcns.confirmed) = false THEN 1
                             ELSE 0
                         END {sort_order.upper()}"""
+                elif sort_by == "favorites":
+                    statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
                 elif sort_by in NULL_FIELDS:
                     statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
                 else:
@@ -1778,6 +1793,14 @@ async def get_sources(
                         f'1. COMBINING BOTH QUERY RESULTS TOOK {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
                     )
             else:
+                # SORTING JOINS
+                if sort_by == "favorites":
+                    joins.append(
+                        f"""
+                        LEFT JOIN listings ON listings.obj_id = objs.id AND listings.list_name = 'favorites' AND listings.user_id = {user_id}
+                        """
+                    )
+
                 # ADD QUERY STATEMENTS
                 statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
                     FROM objs INNER JOIN sources ON objs.id = sources.obj_id
@@ -1797,7 +1820,9 @@ async def get_sources(
                     )
                     query_params.extend(allocation_bindparams)
 
-                if sort_by in NULL_FIELDS:
+                if sort_by == "favorites":
+                    statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
+                elif sort_by in NULL_FIELDS:
                     statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
                 else:
                     statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
