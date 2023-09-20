@@ -348,6 +348,6 @@ def add_followup(mapper, connection, target):
                     'allocation_id': allocation_id,
                     'obj_id': obj_id,
                 }
-                post_followup_request(data, session, refresh_source=False)
+                post_followup_request(data, {}, session, refresh_source=False)
             except Exception as e:
                 log(f"Error posting followup request: {e}")

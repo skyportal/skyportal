@@ -1728,6 +1728,35 @@ def post_source(data, user_id, session, refresh_source=True):
             "Invalid group_ids field. Please specify at least "
             "one valid group ID that you belong to."
         )
+    log(f"group_ids: {group_ids}")
+    # we use the ignore_if_in_group_ids field, to cancel saving to the specified group_ids if there is already a source
+    # saved to one of the ignore_if_in_group_ids
+    # ignore_if_in_group_ids is a dict, where each keys are the group_ids for which we want to specify groups to avoid
+    ignore_if_in_group_ids = {}
+    if 'ignore_if_in_group_ids' in data:
+        if not isinstance(data['ignore_if_in_group_ids'], dict):
+            raise AttributeError(
+                "Invalid ignore_if_in_group_ids field. Please specify a dict "
+                "of group_ids to ignore."
+            )
+        try:
+            ignore_if_in_group_ids = {
+                int(id): [int(gid) for gid in data['ignore_if_in_group_ids'][id]]
+                for id in data['ignore_if_in_group_ids']
+            }
+        except KeyError:
+            raise AttributeError(
+                "Invalid ignore_if_in_group_ids field. Please specify a dict "
+                "of group_ids to ignore."
+            )
+
+    # we verify that the ignore_if_in_group_ids are valid group_ids
+    if not set(ignore_if_in_group_ids).issubset(set(group_ids)):
+        raise AttributeError(
+            "Invalid ignore_if_in_group_ids field. Please specify a dict"
+            "which groups are in the group_ids field, and values are lists"
+            "of group_ids for which if there is a source, cancel saving to the associated group_id from the key"
+        )
 
     if not obj_already_exists:
         try:
@@ -1737,6 +1766,9 @@ def post_source(data, user_id, session, refresh_source=True):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
         session.add(obj)
+
+        # if the object doesn't exist, we can ignore the ignore_if_in_group_ids field
+        ignore_if_in_group_ids = {}
 
     if (ra is not None) and (dec is not None):
         # This adds a healpix index for a new object being created
@@ -1754,7 +1786,20 @@ def post_source(data, user_id, session, refresh_source=True):
 
     update_redshift_history_if_relevant(data, obj, user)
 
+    not_saved_to_group_ids = []
     for group in groups:
+        if len(list(ignore_if_in_group_ids.keys())) > 0:
+            existing_sources = session.scalars(
+                Source.select(user)
+                .where(Source.group_id.in_(ignore_if_in_group_ids[group.id]))
+                .where(Source.obj_id == obj.id)
+            ).all()
+            if len(existing_sources) > 0:
+                log(
+                    f"Not saving to group {group.id} because there is already a source saved to one or more of the ignore_if_in_group_ids: {ignore_if_in_group_ids[group.id]}"
+                )
+                not_saved_to_group_ids.append(group.id)
+                continue
         source = session.scalars(
             Source.select(user)
             .where(Source.obj_id == obj.id)
@@ -1783,6 +1828,8 @@ def post_source(data, user_id, session, refresh_source=True):
     session.commit()
 
     loop = None
+    # remove from groups that we didn't save to
+    groups = [group for group in groups if group.id not in not_saved_to_group_ids]
     for group in groups:
         tnsrobot = session.scalars(
             TNSRobot.select(user).where(
@@ -1827,7 +1874,17 @@ def post_source(data, user_id, session, refresh_source=True):
                 '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
             )
 
-    return obj.id
+    if len(not_saved_to_group_ids) > 0:
+        flow = Flow()
+        flow.push(
+            user_id=user.id,
+            action_type="baselayer/SHOW_NOTIFICATION",
+            payload={
+                "note": f"Source {obj.id} was not saved to groups {not_saved_to_group_ids} because there is already a source saved to one or more of the ignore_if_in_group_ids: {ignore_if_in_group_ids}"
+            },
+        )
+
+    return obj.id, list(set(group_ids) - set(not_saved_to_group_ids))
 
 
 def apply_active_or_requested_filtering(query, include_requested, requested_only):
@@ -2928,13 +2985,15 @@ class SourceHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                obj_id = post_source(
+                obj_id, saved_to_groups = post_source(
                     data,
                     self.associated_user_object.id,
                     session,
                     refresh_source=refresh_source,
                 )
-                return self.success(data={"id": obj_id})
+                return self.success(
+                    data={"id": obj_id, "saved_to_groups": saved_to_groups}
+                )
             except Exception as e:
                 return self.error(f'Failed to post source: {str(e)}')
 
