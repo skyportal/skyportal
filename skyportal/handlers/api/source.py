@@ -1,103 +1,103 @@
+import datetime
+import functools
+import io
+import operator  # noqa: F401
+import time
+from json.decoder import JSONDecodeError
+
+import arrow
 import astropy
-from astropy.coordinates import EarthLocation
-from astropy.time import Time
+import astropy.units as u
+import conesearch_alchemy as ca
+import healpix_alchemy as ha
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import python_http_client.exceptions
+import sqlalchemy as sa
 from astroplan import (
     AirmassConstraint,
     AtNightConstraint,
     Observer,
     is_event_observable,
 )
-import datetime
-from json.decoder import JSONDecodeError
-import astropy.units as u
-from geojson import Point, Feature
-import python_http_client.exceptions
-from twilio.base.exceptions import TwilioException
-from tornado.ioloop import IOLoop
-import io
+from astropy.coordinates import EarthLocation
+from astropy.time import Time
 from dateutil.parser import isoparse
-import numpy as np
-import pandas as pd
-import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy import func, or_, distinct
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.sql.expression import cast
-import arrow
+from geojson import Feature, Point
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 from matplotlib import dates
-import matplotlib.pyplot as plt
-import operator  # noqa: F401
-import functools
-import conesearch_alchemy as ca
-import healpix_alchemy as ha
-import time
+from sqlalchemy import distinct, func, or_
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
+from sqlalchemy.sql.expression import cast
+from tornado.ioloop import IOLoop
+from twilio.base.exceptions import TwilioException
 
-from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
-from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
-from ...utils.thumbnail import post_thumbnails
-
-from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
-from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.flow import Flow
+from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
-from ..base import BaseHandler
 from ...models import (
     Allocation,
     Annotation,
+    ClassicalAssignment,
+    Classification,
     Comment,
-    GroupUser,
-    Instrument,
-    Obj,
-    User,
-    Source,
-    Thumbnail,
-    Token,
-    Photometry,
-    PhotometricSeries,
+    FollowupRequest,
     Galaxy,
     Group,
-    FollowupRequest,
-    ClassicalAssignment,
-    ObservingRun,
-    SourceNotification,
-    Classification,
-    Taxonomy,
+    GroupUser,
+    Instrument,
+    Listing,
     Localization,
     LocalizationTile,
-    Listing,
+    Obj,
     ObjAnalysis,
+    ObservingRun,
+    PhotometricSeries,
+    Photometry,
     PhotStat,
-    Spectrum,
+    Source,
     SourceLabel,
-    SourceView,
+    SourceNotification,
     SourcesConfirmedInGCN,
+    SourceView,
     SpatialCatalog,
     SpatialCatalogEntry,
     SpatialCatalogEntryTile,
+    Spectrum,
+    Taxonomy,
     Telescope,
+    Thumbnail,
     TNSRobot,
+    Token,
+    User,
 )
 from ...utils.offset import (
-    get_nearby_offset_stars,
-    facility_parameters,
-    source_image_parameters,
-    get_finding_chart,
     _calculate_best_position_for_offset_stars,
+    facility_parameters,
+    get_finding_chart,
+    get_nearby_offset_stars,
+    source_image_parameters,
 )
+from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
+from ...utils.thumbnail import post_thumbnails
 from ...utils.tns import post_tns
+from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
+from ..base import BaseHandler
 from .candidate import (
     grab_query_results,
+    update_healpix_if_relevant,
     update_redshift_history_if_relevant,
     update_summary_history_if_relevant,
-    update_healpix_if_relevant,
 )
-from .photometry import serialize, add_external_photometry
 from .color_mag import get_color_mag
+from .photometry import add_external_photometry, serialize
+from .sources import get_sources as get_sources_experimental
 
 DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
@@ -503,7 +503,9 @@ async def get_sources(
     first_detected_date=None,
     last_detected_date=None,
     has_tns_name=False,
+    has_no_tns_name=False,  # not implemented here
     has_spectrum=False,
+    has_no_spectrum=False,  # not implemented here
     has_followup_request=False,
     has_been_labelled=False,
     has_not_been_labelled=False,
@@ -560,6 +562,7 @@ async def get_sources(
     includeGeoJSON=False,
     use_cache=False,
     query_id=None,
+    verbose=False,
 ):
     """Query multiple sources from database.
     user_id : int
@@ -568,6 +571,15 @@ async def get_sources(
         Database session for this transaction
     See Source Handler for optional arguments
     """
+
+    if has_no_tns_name:
+        raise NotImplementedError(
+            "hasNoTNSName is not implemented here yet, use experimental handler with useExperimentalSources=True"
+        )
+    if has_no_spectrum:
+        raise NotImplementedError(
+            "hasNoSpectrum is not implemented here yet, use experimental handler with useExperimentalSources=True"
+        )
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
@@ -2574,7 +2586,7 @@ class SourceHandler(BaseHandler):
         saved_before = self.get_query_argument('savedBefore', None)
         save_summary = self.get_query_argument('saveSummary', False)
         sort_by = self.get_query_argument("sortBy", None)
-        sort_order = self.get_query_argument("sortOrder", "asc")
+        sort_order = self.get_query_argument("sortOrder", "desc")
         include_comments = self.get_query_argument("includeComments", False)
         include_analyses = self.get_query_argument("includeAnalyses", False)
         include_photometry_exists = self.get_query_argument(
@@ -2619,6 +2631,7 @@ class SourceHandler(BaseHandler):
         min_latest_magnitude = self.get_query_argument("minLatestMagnitude", None)
         max_latest_magnitude = self.get_query_argument("maxLatestMagnitude", None)
         has_spectrum = self.get_query_argument("hasSpectrum", False)
+        has_no_spectrum = self.get_query_argument("hasNoSpectrum", False)
         has_spectrum_after = self.get_query_argument("hasSpectrumAfter", None)
         has_spectrum_before = self.get_query_argument("hasSpectrumBefore", None)
         has_followup_request = self.get_query_argument("hasFollowupRequest", False)
@@ -2740,11 +2753,18 @@ class SourceHandler(BaseHandler):
         alias = self.get_query_argument('alias', None)
         origin = self.get_query_argument('origin', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
+        has_no_tns_name = self.get_query_argument('hasNoTNSname', None)
         has_been_labelled = self.get_query_argument('hasBeenLabelled', False)
         has_not_been_labelled = self.get_query_argument('hasNotBeenLabelled', False)
         current_user_labeller = self.get_query_argument('currentUserLabeller', False)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
+
+        use_experimental = self.get_query_argument('useExperimentalSources', False)
+
+        method_get_sources = (
+            get_sources_experimental if use_experimental else get_sources
+        )
 
         if obj_id is not None:
             with self.Session() as session:
@@ -2783,7 +2803,7 @@ class SourceHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                query_results = await get_sources(
+                query_results = await method_get_sources(
                     self.associated_user_object.id,
                     session,
                     include_thumbnails=include_thumbnails,
@@ -2818,10 +2838,12 @@ class SourceHandler(BaseHandler):
                     alias=alias,
                     origin=origin,
                     has_tns_name=has_tns_name,
+                    has_no_tns_name=has_no_tns_name,
                     has_been_labelled=has_been_labelled,
                     has_not_been_labelled=has_not_been_labelled,
                     current_user_labeller=current_user_labeller,
                     has_spectrum=has_spectrum,
+                    has_no_spectrum=has_no_spectrum,
                     has_followup_request=has_followup_request,
                     followup_request_status=followup_request_status,
                     min_redshift=min_redshift,
@@ -2861,6 +2883,7 @@ class SourceHandler(BaseHandler):
                     includeGeoJSON=includeGeoJSON,
                     use_cache=use_cache,
                     query_id=query_id,
+                    verbose=True,
                 )
             except Exception as e:
                 return self.error(f'Cannot retrieve sources: {str(e)}')
