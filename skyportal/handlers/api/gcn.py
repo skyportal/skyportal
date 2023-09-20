@@ -2277,7 +2277,7 @@ def add_gcn_summary(
             if len(user_ids) > 0:
                 users = []
                 for mentioned_user_id in user_ids:
-                    mentioned_user = User.query.get(mentioned_user_id)
+                    mentioned_user = session.query(User).get(mentioned_user_id)
                     if mentioned_user is not None:
                         users.append(mentioned_user)
 
