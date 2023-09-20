@@ -458,6 +458,30 @@ async def get_source(
     return source_info
 
 
+def create_annotations_query(
+    session,
+    annotations_filter_origin=None,
+    annotations_filter_before=None,
+    annotations_filter_after=None,
+):
+
+    annotations_query = Annotation.select(session.user_or_token)
+    if annotations_filter_origin is not None:
+        annotations_query = annotations_query.where(
+            Annotation.origin.in_(annotations_filter_origin)
+        )
+    if annotations_filter_before:
+        annotations_query = annotations_query.where(
+            Annotation.created_at <= annotations_filter_before
+        )
+    if annotations_filter_after:
+        annotations_query = annotations_query.where(
+            Annotation.created_at >= annotations_filter_after
+        )
+
+    return annotations_query
+
+
 async def get_sources(
     user_id,
     session,
@@ -1664,30 +1688,6 @@ async def get_sources(
         }
 
     return query_results
-
-
-def create_annotations_query(
-    session,
-    annotations_filter_origin=None,
-    annotations_filter_before=None,
-    annotations_filter_after=None,
-):
-
-    annotations_query = Annotation.select(session.user_or_token)
-    if annotations_filter_origin is not None:
-        annotations_query = annotations_query.where(
-            Annotation.origin.in_(annotations_filter_origin)
-        )
-    if annotations_filter_before:
-        annotations_query = annotations_query.where(
-            Annotation.created_at <= annotations_filter_before
-        )
-    if annotations_filter_after:
-        annotations_query = annotations_query.where(
-            Annotation.created_at >= annotations_filter_after
-        )
-
-    return annotations_query
 
 
 def post_source(data, user_id, session, refresh_source=True):
