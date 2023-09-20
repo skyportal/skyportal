@@ -99,6 +99,8 @@ const MainContentInternal = ({ root }) => {
       if (!sysInfo.version) {
         store.dispatch(hydrate());
         store.dispatch(rotateLogoActions.rotateLogo());
+      } else {
+        store.dispatch(hydrate(true));
       }
     }, 1500);
   }, []);
