@@ -23,8 +23,6 @@ import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import SourceQuickView from "./SourceQuickView";
 
-import * as sourcesActions from "../ducks/sources";
-
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
@@ -191,10 +189,6 @@ const RecentSourcesSearchbar = ({ styles }) => {
 
   const dispatch = useDispatch();
   const sourcesState = useSelector((state) => state.sources.latest);
-
-  useEffect(() => {
-    dispatch(sourcesActions.fetchSources());
-  }, [dispatch]);
 
   let results = [];
   const handleChange = (e) => {

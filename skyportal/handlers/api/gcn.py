@@ -1641,18 +1641,22 @@ class GcnEventHandler(BaseHandler):
                 schema: Error
         """
         with self.Session() as session:
-            event = session.scalars(
-                GcnEvent.select(session.user_or_token, mode="delete").where(
-                    GcnEvent.dateobs == dateobs
-                )
-            ).first()
-            if event is None:
-                return self.error("GCN event not found", status=404)
+            try:
+                event = session.scalars(
+                    GcnEvent.select(session.user_or_token, mode="delete").where(
+                        GcnEvent.dateobs == dateobs
+                    )
+                ).first()
+                if event is None:
+                    return self.error("GCN event not found", status=404)
 
-            session.delete(event)
-            session.commit()
+                session.delete(event)
+                session.commit()
 
-            return self.success()
+                return self.success()
+            except Exception as e:
+                session.rollback()
+                return self.error(f"Cannot delete event: {e}")
 
 
 def add_tiles_and_properties_and_contour(

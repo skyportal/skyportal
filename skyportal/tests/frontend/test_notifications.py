@@ -363,6 +363,65 @@ def test_new_classification_on_source_triggers_notification(
     driver.wait_for_xpath('//*[contains(text(), "New classification")]')
 
 
+@pytest.mark.flaky(reruns=3)
+def test_new_spectra_on_source_triggers_notification(
+    driver, user, public_source, lris, upload_data_token, public_group
+):
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/profile")
+
+    # Enable notifications for sources when a specific classification is added
+    sources = driver.wait_for_xpath('//*[@name="sources"]')
+    driver.scroll_to_element_and_click(sources)
+
+    driver.wait_for_xpath(
+        '//*[@name="sources"]/../../span[contains(@class,"Mui-checked")]'
+    )
+
+    sources_new_spectra = driver.wait_for_xpath('//*[@name="sources_new_spectra"]')
+    driver.scroll_to_element_and_click(sources_new_spectra)
+
+    driver.wait_for_xpath(
+        '//*[@name="sources_new_spectra"]/../../span[contains(@class,"Mui-checked")]'
+    )
+
+    groups = driver.wait_for_xpath("//*[@id='groups-select']")
+    driver.scroll_to_element_and_click(groups)
+
+    driver.click_xpath(
+        f'//li[contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    driver.click_xpath(
+        '//*[@data-testid="addShortcutButton" and contains(., "Update")]'
+    )
+
+    # Add spectrum to public_source
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': public_source.id,
+            'observed_at': str(datetime.now(timezone.utc)),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # Check that notification was created
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/")
+    driver.wait_for_xpath("//span[text()='1']")
+    driver.click_xpath('//*[@data-testid="notificationsButton"]')
+    driver.wait_for_xpath('//*[contains(text(), "New spectrum for source")]')
+
+
 @pytest.mark.flaky(reruns=1)
 def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
 
@@ -488,9 +547,6 @@ def test_notification_setting_select(driver, user):
     )
     start_time_slot_move_to = driver.find_elements(By.XPATH, '//*[@data-index="3"]')
 
-    # drag the start of the slider from 8 to 3
-    print('start_time_slot', start_time_slot)
-    print('start_time_slot_move_to', start_time_slot_move_to)
     ActionChains(driver).drag_and_drop(
         start_time_slot[0], start_time_slot_move_to[0]
     ).perform()
