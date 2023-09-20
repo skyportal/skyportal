@@ -77,7 +77,7 @@ const HeaderContent = () => {
           <IconButton
             onClick={() => handleRefresh()}
             style= {%- raw -%} {{ margin: "0.5rem" }} {%- endraw -%}
-            data-testid="notificationsButton"
+            data-testid="refreshButton"
             size="large"
             disabled={refreshing}
           >
