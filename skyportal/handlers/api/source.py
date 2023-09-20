@@ -2760,7 +2760,7 @@ class SourceHandler(BaseHandler):
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
 
-        use_experimental = self.get_query_argument('useExperimental', False)
+        use_experimental = self.get_query_argument('useExperimentalSources', False)
 
         method_get_sources = (
             get_sources_experimental if use_experimental else get_sources
