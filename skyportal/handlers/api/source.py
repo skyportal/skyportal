@@ -2766,6 +2766,9 @@ class SourceHandler(BaseHandler):
             get_sources_experimental if use_experimental else get_sources
         )
 
+        if not use_experimental and sort_by is None:
+            sort_order = "asc"
+
         if obj_id is not None:
             with self.Session() as session:
                 try:
