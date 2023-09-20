@@ -55,7 +55,6 @@ import * as groupActions from "./ducks/group";
 import * as instrumentActions from "./ducks/instrument";
 /* eslint-enable no-unused-vars */
 
-// add an argument 'dashboardOnly' to fetch only the data needed for the
 export default function hydrate(dashboardOnly = false) {
   return (dispatch) => {
     if (!dashboardOnly) {
