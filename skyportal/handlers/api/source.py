@@ -1790,9 +1790,11 @@ def post_source(data, user_id, session, refresh_source=True):
     for group in groups:
         if len(list(ignore_if_in_group_ids.keys())) > 0:
             existing_sources = session.scalars(
-                Source.select(user)
-                .where(Source.group_id.in_(ignore_if_in_group_ids[group.id]))
-                .where(Source.obj_id == obj.id)
+                Source.select(user).where(
+                    Source.group_id.in_(ignore_if_in_group_ids[group.id]),
+                    Source.obj_id == obj.id,
+                    Source.active.is_(True),
+                )
             ).all()
             if len(existing_sources) > 0:
                 log(
@@ -1873,16 +1875,6 @@ def post_source(data, user_id, session, refresh_source=True):
             flow.push(
                 '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
             )
-
-    if len(not_saved_to_group_ids) > 0:
-        flow = Flow()
-        flow.push(
-            user_id=user.id,
-            action_type="baselayer/SHOW_NOTIFICATION",
-            payload={
-                "note": f"Source {obj.id} was not saved to groups {not_saved_to_group_ids} because there is already a source saved to one or more of the ignore_if_in_group_ids: {ignore_if_in_group_ids}"
-            },
-        )
 
     return obj.id, list(set(group_ids) - set(not_saved_to_group_ids))
 

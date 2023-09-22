@@ -59,6 +59,7 @@ from ...models import (
     User,
     Allocation,
     cosmo,
+    Source,
 )
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 from ...utils.offset import get_formatted_standards_list
@@ -367,15 +368,34 @@ class AssignmentHandler(BaseHandler):
             return self.success()
 
 
-def post_followup_request(data, session, refresh_source=True):
+def post_followup_request(data, constraints, session, refresh_source=True):
     """Post follow-up request to database.
     data: dict
         Follow-up request dictionary
+    constraints: dict
+        Constraints dictionary, to apply before submitting request
     session: sqlalchemy.Session
         Database session for this transaction
     refresh_source : bool
         Refresh source upon post. Defaults to True.
     """
+
+    if isinstance(constraints, dict):
+        print(f"constraints: {constraints}")
+        if len(constraints.get('source_group_ids', [])) > 0:
+            # verify that there is a source for each of the group IDs
+            existing_sources = session.scalars(
+                Source.select(session.user_or_token).where(
+                    Source.group_id.in_(constraints['source_group_ids']),
+                    Source.obj_id == data['obj_id'],
+                    Source.active.is_(True),
+                )
+            ).all()
+            print(f"existing_sources: {existing_sources}")
+            if len(existing_sources) != len(constraints['source_group_ids']):
+                raise ValueError(
+                    'There is no source for one or more of the source_group_ids specified as a constraint, not submitting request.'
+                )
 
     stmt = Allocation.select(session.user_or_token).where(
         Allocation.id == data['allocation_id'],
@@ -690,18 +710,21 @@ class FollowupRequestHandler(BaseHandler):
                 f'Invalid / missing parameters: {e.normalized_messages()}'
             )
 
+        constraints = {}
+        if 'source_group_ids' in data:
+            constraints['source_group_ids'] = data.pop('source_group_ids')
         with self.Session() as session:
             try:
                 data["requester_id"] = self.associated_user_object.id
                 data["last_modified_by_id"] = self.associated_user_object.id
                 data['allocation_id'] = int(data['allocation_id'])
 
-                followup_request_id = post_followup_request(data, session)
+                followup_request_id = post_followup_request(data, constraints, session)
 
                 return self.success(data={"id": followup_request_id})
-            except ValidationError as e:
+            except Exception as e:
                 return self.error(
-                    f'Error submitting follow-up request: {e.normalized_messages()}'
+                    f'Error submitting follow-up request: {e.normalized_messages() if hasattr(e, "normalized_messages") else str(e)}'
                 )
 
     @permissions(["Upload data"])
