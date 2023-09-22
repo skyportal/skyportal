@@ -381,7 +381,6 @@ def post_followup_request(data, constraints, session, refresh_source=True):
     """
 
     if isinstance(constraints, dict):
-        print(f"constraints: {constraints}")
         if len(constraints.get('source_group_ids', [])) > 0:
             # verify that there is a source for each of the group IDs
             existing_sources = session.scalars(
@@ -391,7 +390,6 @@ def post_followup_request(data, constraints, session, refresh_source=True):
                     Source.active.is_(True),
                 )
             ).all()
-            print(f"existing_sources: {existing_sources}")
             if len(existing_sources) != len(constraints['source_group_ids']):
                 raise ValueError(
                     'There is no source for one or more of the source_group_ids specified as a constraint, not submitting request.'
