@@ -1501,7 +1501,7 @@ const SourceTable = ({
       label: "Alias",
       options: {
         filter: true,
-        sort: false,
+        sort: true,
         display: displayedColumns.includes("Alias"),
         customBodyRenderLite: renderAlias,
       },
@@ -1598,7 +1598,7 @@ const SourceTable = ({
       label: "Classification",
       options: {
         filter: false,
-        sort: true,
+        sort: false,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
@@ -1631,7 +1631,7 @@ const SourceTable = ({
       label: "Photometry Statistics",
       options: {
         filter: false,
-        sort: true,
+        sort: false,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Photometry Statistics"),
         customBodyRenderLite: renderPhotStats,
