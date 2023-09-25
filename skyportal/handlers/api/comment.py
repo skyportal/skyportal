@@ -438,17 +438,32 @@ class CommentHandler(BaseHandler):
                         f'Cannot find one or more groups with IDs: {group_ids}.'
                     )
 
+                existing = None
                 if associated_resource_type.lower() == "sources":
                     obj_id = resource_id
-                    comment = Comment(
-                        text=comment_text,
-                        obj_id=obj_id,
-                        attachment_bytes=attachment_bytes,
-                        attachment_name=attachment_name,
-                        author=author,
-                        groups=groups,
-                        bot=is_bot_request,
-                    )
+                    existing = session.scalars(
+                        Comment.select(self.current_user).where(
+                            Comment.text == comment_text,
+                            Comment.obj_id == obj_id,
+                            Comment.attachment_bytes == attachment_bytes,
+                            Comment.attachment_name == attachment_name,
+                            Comment.author_id == author.id,
+                            Comment.bot == is_bot_request,
+                        )
+                    ).first()
+                    if existing is not None:
+                        if {g.id for g in existing.groups} != set(group_ids):
+                            existing = None
+                    if existing is None:
+                        comment = Comment(
+                            text=comment_text,
+                            obj_id=obj_id,
+                            attachment_bytes=attachment_bytes,
+                            attachment_name=attachment_name,
+                            author=author,
+                            groups=groups,
+                            bot=is_bot_request,
+                        )
                 elif associated_resource_type.lower() == "spectra":
                     spectrum_id = resource_id
                     spectrum = session.scalars(
@@ -460,16 +475,30 @@ class CommentHandler(BaseHandler):
                         return self.error(
                             f'Could not find any accessible spectra with ID {spectrum_id}.'
                         )
-                    comment = CommentOnSpectrum(
-                        text=comment_text,
-                        spectrum_id=spectrum_id,
-                        attachment_bytes=attachment_bytes,
-                        attachment_name=attachment_name,
-                        author=author,
-                        groups=groups,
-                        bot=is_bot_request,
-                        obj_id=spectrum.obj_id,
-                    )
+                    existing = session.scalars(
+                        CommentOnSpectrum.select(self.current_user).where(
+                            CommentOnSpectrum.text == comment_text,
+                            CommentOnSpectrum.spectrum_id == spectrum_id,
+                            CommentOnSpectrum.attachment_bytes == attachment_bytes,
+                            CommentOnSpectrum.attachment_name == attachment_name,
+                            CommentOnSpectrum.author_id == author.id,
+                            CommentOnSpectrum.bot == is_bot_request,
+                        )
+                    ).first()
+                    if existing is not None:
+                        if {g.id for g in existing.groups} != set(group_ids):
+                            existing = None
+                    if existing is None:
+                        comment = CommentOnSpectrum(
+                            text=comment_text,
+                            spectrum_id=spectrum_id,
+                            attachment_bytes=attachment_bytes,
+                            attachment_name=attachment_name,
+                            author=author,
+                            groups=groups,
+                            bot=is_bot_request,
+                            obj_id=spectrum.obj_id,
+                        )
 
                 elif associated_resource_type.lower() == "gcn_event":
                     gcnevent_id = resource_id
@@ -482,15 +511,29 @@ class CommentHandler(BaseHandler):
                         return self.error(
                             f'Could not find any accessible gcn events with ID {gcnevent_id}.'
                         )
-                    comment = CommentOnGCN(
-                        text=comment_text,
-                        gcn_id=gcn_event.id,
-                        attachment_bytes=attachment_bytes,
-                        attachment_name=attachment_name,
-                        author=author,
-                        groups=groups,
-                        bot=is_bot_request,
-                    )
+                    existing = session.scalars(
+                        CommentOnGCN.select(self.current_user).where(
+                            CommentOnGCN.text == comment_text,
+                            CommentOnGCN.gcn_id == gcnevent_id,
+                            CommentOnGCN.attachment_bytes == attachment_bytes,
+                            CommentOnGCN.attachment_name == attachment_name,
+                            CommentOnGCN.author_id == author.id,
+                            CommentOnGCN.bot == is_bot_request,
+                        )
+                    ).first()
+                    if existing is not None:
+                        if {g.id for g in existing.groups} != set(group_ids):
+                            existing = None
+                    if existing is None:
+                        comment = CommentOnGCN(
+                            text=comment_text,
+                            gcn_id=gcn_event.id,
+                            attachment_bytes=attachment_bytes,
+                            attachment_name=attachment_name,
+                            author=author,
+                            groups=groups,
+                            bot=is_bot_request,
+                        )
                 elif associated_resource_type.lower() == "earthquake":
                     earthquake_id = resource_id
                     earthquake = session.scalars(
@@ -502,15 +545,29 @@ class CommentHandler(BaseHandler):
                         return self.error(
                             f'Could not find any accessible earthquakes with ID {earthquake_id}.'
                         )
-                    comment = CommentOnEarthquake(
-                        text=comment_text,
-                        earthquake_id=earthquake.id,
-                        attachment_bytes=attachment_bytes,
-                        attachment_name=attachment_name,
-                        author=author,
-                        groups=groups,
-                        bot=is_bot_request,
-                    )
+                    existing = session.scalars(
+                        CommentOnEarthquake.select(self.current_user).where(
+                            CommentOnEarthquake.text == comment_text,
+                            CommentOnEarthquake.earthquake_id == earthquake_id,
+                            CommentOnEarthquake.attachment_bytes == attachment_bytes,
+                            CommentOnEarthquake.attachment_name == attachment_name,
+                            CommentOnEarthquake.author_id == author.id,
+                            CommentOnEarthquake.bot == is_bot_request,
+                        )
+                    ).first()
+                    if existing is not None:
+                        if {g.id for g in existing.groups} != set(group_ids):
+                            existing = None
+                    if existing is None:
+                        comment = CommentOnEarthquake(
+                            text=comment_text,
+                            earthquake_id=earthquake.id,
+                            attachment_bytes=attachment_bytes,
+                            attachment_name=attachment_name,
+                            author=author,
+                            groups=groups,
+                            bot=is_bot_request,
+                        )
                 elif associated_resource_type.lower() == "shift":
                     shift_id = resource_id
                     shift = session.scalars(
@@ -520,18 +577,40 @@ class CommentHandler(BaseHandler):
                         return self.error(
                             f'Could not access Shift {shift.id}.', status=403
                         )
-                    comment = CommentOnShift(
-                        text=comment_text,
-                        shift_id=shift.id,
-                        attachment_bytes=attachment_bytes,
-                        attachment_name=attachment_name,
-                        author=author,
-                        groups=groups,
-                        bot=is_bot_request,
-                    )
+                    existing = session.scalars(
+                        CommentOnShift.select(self.current_user).where(
+                            CommentOnShift.text == comment_text,
+                            CommentOnShift.shift_id == shift_id,
+                            CommentOnShift.attachment_bytes == attachment_bytes,
+                            CommentOnShift.attachment_name == attachment_name,
+                            CommentOnShift.author_id == author.id,
+                            CommentOnShift.bot == is_bot_request,
+                        )
+                    ).first()
+                    if existing is not None:
+                        if {g.id for g in existing.groups} != set(group_ids):
+                            existing = None
+                    if existing is None:
+                        comment = CommentOnShift(
+                            text=comment_text,
+                            shift_id=shift.id,
+                            attachment_bytes=attachment_bytes,
+                            attachment_name=attachment_name,
+                            author=author,
+                            groups=groups,
+                            bot=is_bot_request,
+                        )
                 else:
                     return self.error(
                         f'Unknown resource type "{associated_resource_type}".'
+                    )
+
+                if existing is not None:
+                    return self.success(
+                        data={
+                            'comment_id': existing.id,
+                            "message": "Same comment already exists.",
+                        }
                     )
 
                 users_mentioned_in_comment = users_mentioned(comment_text, session)
