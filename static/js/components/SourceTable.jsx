@@ -230,10 +230,34 @@ const useStyles = makeStyles((theme) => ({
 const getMuiTheme = (theme) =>
   createTheme({
     palette: theme.palette,
-    overrides: {
+    components: {
+      MUITableCell: {
+        styleOverrides: {
+          paddingCheckbox: {
+            padding: 0,
+            margin: 0,
+          },
+        },
+      },
+      MUIDataTableBodyCell: {
+        styleOverrides: {
+          root: {
+            padding: "0.5rem",
+            paddingLeft: 0,
+            margin: 0,
+          },
+        },
+      },
       MUIDataTableHeadCell: {
-        sortLabelRoot: {
-          height: "1.4rem",
+        styleOverrides: {
+          root: {
+            padding: "0.5rem",
+            paddingLeft: 0,
+            margin: 0,
+          },
+          sortLabelRoot: {
+            height: "1.4rem",
+          },
         },
       },
       // Hide default filter items for custom form
@@ -314,14 +338,15 @@ const getMuiTheme = (theme) =>
 
 let defaultDisplayedColumns = [
   "Source ID",
+  "TNS",
   "Favorites",
   "RA (deg)",
   "Dec (deg)",
   "Redshift",
   "Classification",
-  "Photometry Statistics",
+  " ",
   "Groups",
-  "Date Saved",
+  "Saved at",
   "Finder",
 ];
 
@@ -479,6 +504,7 @@ const RenderShowClassification = ({ source }) => {
             classifications={source.classifications}
             taxonomyList={taxonomyList}
             shortened
+            fontSize="0.95rem"
           />
         </div>
       </Tooltip>
@@ -706,8 +732,8 @@ const SourceTable = ({
   }
   if (includeGcnStatus) {
     defaultDisplayedColumns.push("GCN Status");
-    defaultDisplayedColumns.push("GCN Status Explanation");
-    defaultDisplayedColumns.push("GCN Notes");
+    defaultDisplayedColumns.push("Explanation");
+    defaultDisplayedColumns.push("Notes");
     defaultDisplayedColumns.push("Host");
     defaultDisplayedColumns.push("Host Offset (arcsec)");
   }
@@ -1018,6 +1044,27 @@ const SourceTable = ({
     );
   };
 
+  const renderTNSName = (dataIndex) => {
+    const source = sources[dataIndex];
+    if (source.tns_name) {
+      return (
+        <a
+          key={source.tns_name}
+          href={`https://www.wis-tns.org/object/${
+            source.tns_name.trim().includes(" ")
+              ? source.tns_name.split(" ")[1]
+              : source.tns_name
+          }`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {`${source.tns_name} `}
+        </a>
+      );
+    }
+    return null;
+  };
+
   const renderFavoritesStar = (dataIndex) => {
     const objid = sources[dataIndex].id;
     return <FavoritesButton sourceID={objid} />;
@@ -1271,11 +1318,6 @@ const SourceTable = ({
     );
   };
 
-  const renderTNSName = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div>{source.tns_name ? source.tns_name : ""}</div>;
-  };
-
   const renderMPCName = (dataIndex) => {
     const source = sources[dataIndex];
     return <div>{source.mpc_name ? source.mpc_name : ""}</div>;
@@ -1489,11 +1531,12 @@ const SourceTable = ({
       },
     },
     {
-      name: "favorites",
-      label: "Favorites",
+      name: "TNS",
       options: {
-        display: displayedColumns.includes("Favorites"),
-        customBodyRenderLite: renderFavoritesStar,
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderTNSName,
+        display: displayedColumns.includes("TNS"),
       },
     },
     {
@@ -1628,12 +1671,12 @@ const SourceTable = ({
     },
     {
       name: "photstats",
-      label: "Photometry Statistics",
+      label: " ",
       options: {
         filter: false,
         sort: false,
         sortThirdClickReset: true,
-        display: displayedColumns.includes("Photometry Statistics"),
+        display: displayedColumns.includes(" "),
         customBodyRenderLite: renderPhotStats,
       },
     },
@@ -1660,12 +1703,12 @@ const SourceTable = ({
     },
     {
       name: "saved_at",
-      label: "Date Saved",
+      label: "Saved at",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        display: displayedColumns.includes("Date Saved"),
+        display: displayedColumns.includes("Saved at"),
         customBodyRenderLite: renderDateSaved,
       },
     },
@@ -1679,15 +1722,6 @@ const SourceTable = ({
           groupID ? "Saved To Group By" : "Last Saved By"
         ),
         customBodyRenderLite: renderSavedBy,
-      },
-    },
-    {
-      name: "Finder",
-      options: {
-        filter: false,
-        sort: false,
-        display: displayedColumns.includes("Finder"),
-        customBodyRenderLite: renderFinderButton,
       },
     },
     {
@@ -1708,16 +1742,6 @@ const SourceTable = ({
         display: displayedColumns.includes("Latest Magnitude"),
       },
     },
-
-    {
-      name: "TNS Name",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderTNSName,
-        display: displayedColumns.includes("TNS Name"),
-      },
-    },
     {
       name: "MPC Name",
       options: {
@@ -1727,10 +1751,27 @@ const SourceTable = ({
         display: displayedColumns.includes("MPC Name"),
       },
     },
+    {
+      name: "favorites",
+      label: "Favorites",
+      options: {
+        display: displayedColumns.includes("Favorites"),
+        customBodyRenderLite: renderFavoritesStar,
+      },
+    },
+    {
+      name: "Finder",
+      options: {
+        filter: false,
+        sort: false,
+        display: displayedColumns.includes("Finder"),
+        customBodyRenderLite: renderFinderButton,
+      },
+    },
   ];
 
   if (includeGcnStatus) {
-    columns.splice(1, 0, {
+    columns.splice(10, 0, {
       name: "gcn_status",
       label: "GCN Status",
       options: {
@@ -1741,24 +1782,24 @@ const SourceTable = ({
         display: displayedColumns.includes("GCN Status"),
       },
     });
-    columns.splice(2, 0, {
+    columns.splice(11, 0, {
       name: "gcn_explanation",
-      label: "GCN Status Explanation",
+      label: "Explanation",
       options: {
         filter: false,
         sort: false,
         customBodyRenderLite: renderGcnStatusExplanation,
-        display: displayedColumns.includes("GCN Status Explanation"),
+        display: displayedColumns.includes("Explanation"),
       },
     });
-    columns.splice(3, 0, {
+    columns.splice(12, 0, {
       name: "gcn_notes",
-      label: "GCN Notes",
+      label: "Notes",
       options: {
         filter: false,
         sort: false,
         customBodyRenderLite: renderGcnNotes,
-        display: displayedColumns.includes("GCN Notes"),
+        display: displayedColumns.includes("Notes"),
       },
     });
   }
@@ -1920,7 +1961,7 @@ const SourceTable = ({
               download: true,
             },
             {
-              name: "Date saved",
+              name: "Saved at",
               download: true,
             },
             {
@@ -1932,7 +1973,7 @@ const SourceTable = ({
               download: true,
             },
             {
-              name: "TNS Name",
+              name: "TNS",
               download: true,
             },
           ];
@@ -1942,11 +1983,11 @@ const SourceTable = ({
               download: true,
             });
             head.push({
-              name: "GCN Status Explanation",
+              name: "Explanation",
               download: true,
             });
             head.push({
-              name: "GCN Notes",
+              name: "Notes",
               download: true,
             });
           }

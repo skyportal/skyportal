@@ -131,13 +131,18 @@ const TNSATForm = ({ obj_id }) => {
     setSelectedTNSRobotId(e.target.value);
   };
 
+  const defaultReporter =
+    (tnsrobotLookUp[selectedTNSRobotId] || {})?.auto_reporters?.length > 0
+      ? tnsrobotLookUp[selectedTNSRobotId].auto_reporters
+      : `${currentUser.first_name} ${currentUser.last_name} on behalf of...`;
+
   const formSchema = {
     type: "object",
     properties: {
       reporters: {
         type: "string",
         title: "Reporters",
-        default: `${currentUser.first_name} ${currentUser.last_name} on behalf of...`,
+        default: defaultReporter,
       },
       archival: {
         type: "boolean",

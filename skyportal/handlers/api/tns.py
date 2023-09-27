@@ -304,8 +304,6 @@ class TNSRobotHandler(BaseHandler):
                     return self.error(
                         "TNS auto report group IDs must be integers (if specified)."
                     )
-            if len(data['auto_report_group_ids']) == 0:
-                data['auto_reporters'] = ''
 
             if 'auto_report_instrument_ids' in data:
                 try:

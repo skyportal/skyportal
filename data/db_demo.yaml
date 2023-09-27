@@ -820,6 +820,7 @@ sources:
       - =program_A
       - =program_B
     redshift: 0.7481
+    tns_name: AT 2020scz
   - id: badsource
     ra: 6.7856144
     dec: 34.027306
