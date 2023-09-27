@@ -743,6 +743,13 @@ class FollowupRequestHandler(BaseHandler):
 
                 return self.success(data={"id": followup_request_id})
             except Exception as e:
+                if (
+                    'not submitting request' in str(e)
+                    and len(list(constraints.keys())) > 0
+                ):
+                    return self.success(
+                        data={"id": None, "ignored": True, "message": str(e)}
+                    )
                 return self.error(
                     f'Error submitting follow-up request: {e.normalized_messages() if hasattr(e, "normalized_messages") else str(e)}'
                 )
