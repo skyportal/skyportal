@@ -1232,6 +1232,24 @@ class FollowupRequestPost(_Schema):
         },
     )
 
+    not_if_classified = fields.Boolean(
+        required=False,
+        metadata={
+            'description': (
+                'If true, the followup request will not be executed if the object is already classified.'
+            )
+        },
+    )
+
+    not_if_spectra_exist = fields.Boolean(
+        required=False,
+        metadata={
+            'description': (
+                'If true, the followup request will not be executed if the object already has spectra.'
+            )
+        },
+    )
+
 
 class ObservationPlanPost(_Schema):
 

@@ -1,68 +1,63 @@
-import arrow
 import ast
-from datetime import datetime, timedelta
-import healpy as hp
-import jsonschema
-from marshmallow.exceptions import ValidationError
-import numpy as np
-import io
-from tornado.ioloop import IOLoop
-import pandas as pd
-import tempfile
 import functools
+import io
 import json
-from scipy.stats import norm
-import sqlalchemy as sa
-from sqlalchemy import func
-from sqlalchemy.orm import joinedload
+import tempfile
 import time
 import uuid
+from datetime import datetime, timedelta
 
-from astropy import units as u
-from astropy.coordinates import SkyCoord
-from astropy.coordinates import EarthLocation
-from astropy.time import Time, TimeDelta
-
-from astroplan import Observer
-from astroplan import FixedTarget
-from astroplan import ObservingBlock
-from astroplan.constraints import (
-    Constraint,
-    AltitudeConstraint,
-    AtNightConstraint,
-    AirmassConstraint,
-    MoonSeparationConstraint,
-)
-from astroplan.scheduling import Transitioner
-from astroplan.scheduling import PriorityScheduler
-from astroplan.scheduling import Schedule
-from astroplan.plots import plot_schedule_airmass
-
+import arrow
+import healpy as hp
+import jsonschema
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import sqlalchemy as sa
+from astroplan import FixedTarget, Observer, ObservingBlock
+from astroplan.constraints import (
+    AirmassConstraint,
+    AltitudeConstraint,
+    AtNightConstraint,
+    Constraint,
+    MoonSeparationConstraint,
+)
+from astroplan.plots import plot_schedule_airmass
+from astroplan.scheduling import PriorityScheduler, Schedule, Transitioner
+from astropy import units as u
+from astropy.coordinates import EarthLocation, SkyCoord
+from astropy.time import Time, TimeDelta
+from marshmallow.exceptions import ValidationError
+from scipy.stats import norm
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload
+from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ..base import BaseHandler
 from ...models import (
+    Allocation,
+    ClassicalAssignment,
+    Classification,
     DefaultFollowupRequest,
     FollowupRequest,
     FollowupRequestUser,
-    Instrument,
-    ClassicalAssignment,
-    Localization,
-    ObservingRun,
-    Obj,
     Group,
-    User,
-    Allocation,
-    cosmo,
+    Instrument,
+    Localization,
+    Obj,
+    ObservingRun,
     Source,
+    Spectrum,
+    User,
+    cosmo,
 )
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 from ...utils.offset import get_formatted_standards_list
+from ..base import BaseHandler
 
 log = make_log('api/followup_request')
 
@@ -394,6 +389,29 @@ def post_followup_request(data, constraints, session, refresh_source=True):
                 raise ValueError(
                     'There is no source for one or more of the source_group_ids specified as a constraint, not submitting request.'
                 )
+        if constraints.get("not_if_classified", False):
+            # verify that the source is not classified
+            existing_classifications = session.scalars(
+                Classification.select(session.user_or_token).where(
+                    Classification.obj_id == data['obj_id'],
+                    Classification.ml.is_(False),  # ignore ML classifications
+                )
+            ).all()
+            if len(existing_classifications) > 0:
+                raise ValueError(
+                    'Source has already been classified, not submitting request (as per constraint).'
+                )
+        if constraints.get("not_if_spectra_exist", False):
+            # verify that the source has no spectra
+            existing_spectra = session.scalars(
+                Spectrum.select(session.user_or_token).where(
+                    Spectrum.obj_id == data['obj_id']
+                )
+            ).all()
+            if len(existing_spectra) > 0:
+                raise ValueError(
+                    'Source has already been observed spectroscopically, not submitting request (as per constraint).'
+                )
 
     stmt = Allocation.select(session.user_or_token).where(
         Allocation.id == data['allocation_id'],
@@ -711,6 +729,10 @@ class FollowupRequestHandler(BaseHandler):
         constraints = {}
         if 'source_group_ids' in data:
             constraints['source_group_ids'] = data.pop('source_group_ids')
+        if 'not_if_classified' in data:
+            constraints['not_if_classified'] = data.pop('not_if_classified')
+        if 'not_if_spectra_exist' in data:
+            constraints['not_if_spectra_exist'] = data.pop('not_if_spectra_exist')
         with self.Session() as session:
             try:
                 data["requester_id"] = self.associated_user_object.id
