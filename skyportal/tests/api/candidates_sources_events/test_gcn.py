@@ -395,7 +395,7 @@ def test_gcn_summary_sources(
         len(sources_table) >= 4
     )  # other sources have probably been added in previous tests
     assert "id" in sources_table[1]
-    assert "alias" in sources_table[1]
+    assert "tns" in sources_table[1]
     assert "ra" in sources_table[1]
     assert "dec" in sources_table[1]
     assert "redshift" in sources_table[1]

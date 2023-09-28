@@ -2347,7 +2347,7 @@ def add_gcn_summary(
                     )
                 ).all()
 
-                ids, aliases, ras, decs, redshifts, status, explanation = (
+                ids, tns_name, ras, decs, redshifts, status, explanation = (
                     [],
                     [],
                     [],
@@ -2358,9 +2358,11 @@ def add_gcn_summary(
                 )
                 for source in sources:
                     ids.append(source['id'] if 'id' in source else None)
-                    aliases.append(source['alias'] if 'alias' in source else None)
-                    ras.append(np.round(source['ra'], 4) if 'ra' in source else None)
-                    decs.append(np.round(source['dec'], 4) if 'dec' in source else None)
+                    tns_name.append(
+                        source['tns_name'] if 'tns_name' in source else None
+                    )
+                    ras.append(np.round(source['ra'], 5) if 'ra' in source else None)
+                    decs.append(np.round(source['dec'], 5) if 'dec' in source else None)
                     redshift = source['redshift'] if 'redshift' in source else None
                     if 'redshift_error' in source and redshift is not None:
                         if source['redshift_error'] is not None:
@@ -2384,7 +2386,7 @@ def add_gcn_summary(
                 df = pd.DataFrame(
                     {
                         "id": ids,
-                        "alias": aliases,
+                        "tns": tns_name,
                         "ra": ras,
                         "dec": decs,
                         "redshift": redshifts,

@@ -149,6 +149,11 @@ class TNSRobotHandler(BaseHandler):
 
         data = self.get_json()
 
+        if '_altdata' in data:
+            if type(data['_altdata']) == dict:
+                data['_altdata'] = json.dumps(data['_altdata'])
+            data['_altdata'] = data['_altdata'].replace("'", '"')
+
         auto_report_instrument_ids = data.pop('auto_report_instrument_ids', [])
         auto_report_stream_ids = data.pop('auto_report_stream_ids', [])
 
@@ -250,6 +255,11 @@ class TNSRobotHandler(BaseHandler):
 
         data = self.get_json()
 
+        if '_altdata' in data:
+            if type(data['_altdata']) == dict:
+                data['_altdata'] = json.dumps(data['_altdata'])
+            data['_altdata'] = data['_altdata'].replace("'", '"')
+
         # verify that the bot_id, bot_name, and source_group_id are not None and are integers (if specified)
         if 'bot_id' in data:
             try:
@@ -294,8 +304,6 @@ class TNSRobotHandler(BaseHandler):
                     return self.error(
                         "TNS auto report group IDs must be integers (if specified)."
                     )
-            if len(data['auto_report_group_ids']) == 0:
-                data['auto_reporters'] = ''
 
             if 'auto_report_instrument_ids' in data:
                 try:

@@ -35,7 +35,7 @@ export const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const ClassificationRow = ({ classifications }) => {
+const ClassificationRow = ({ classifications, fontSize }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -246,6 +246,7 @@ const ClassificationRow = ({ classifications }) => {
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
+                  fontSize,
                 }}
               >
                 {classification.ml ? (
@@ -280,6 +281,7 @@ const ClassificationRow = ({ classifications }) => {
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
+                  fontSize,
                 }}
               >
                 {classification.ml ? (
@@ -340,6 +342,11 @@ ClassificationRow.propTypes = {
       ),
     })
   ).isRequired,
+  fontSize: PropTypes.string,
+};
+
+ClassificationRow.defaultProps = {
+  fontSize: "1rem",
 };
 
 const groupBy = (array, key) =>
@@ -365,7 +372,12 @@ export const getSortedClasses = (classifications) => {
   return sortedClasses;
 };
 
-function ShowClassification({ classifications, taxonomyList, shortened }) {
+function ShowClassification({
+  classifications,
+  taxonomyList,
+  shortened,
+  fontSize,
+}) {
   const sorted_classifications = (classifications || []).sort((a, b) =>
     a.created_at > b.created_at ? -1 : 1
   );
@@ -399,6 +411,7 @@ function ShowClassification({ classifications, taxonomyList, shortened }) {
         <ClassificationRow
           key={key}
           classifications={classificationsGrouped[key]}
+          fontSize={fontSize}
         />
       ))}
     </div>
@@ -409,9 +422,11 @@ ShowClassification.propTypes = {
   classifications: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   taxonomyList: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   shortened: PropTypes.bool,
+  fontSize: PropTypes.string,
 };
 ShowClassification.defaultProps = {
   shortened: false,
+  fontSize: "1rem",
 };
 
 export default ShowClassification;

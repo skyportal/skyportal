@@ -58,6 +58,7 @@ const TNSRobots = ({ group_id }) => {
     bot_name: "",
     bot_id: "",
     source_group_id: "",
+    api_key: "",
     auto_report: false,
     auto_reporters: "",
     auto_report_instrument_ids: [],
@@ -102,6 +103,7 @@ const TNSRobots = ({ group_id }) => {
       bot_name: tnsrobotListLookup[id]?.bot_name || "",
       bot_id: tnsrobotListLookup[id]?.bot_id || "",
       source_group_id: tnsrobotListLookup[id]?.source_group_id || "",
+      api_key: "",
       auto_report:
         tnsrobotListLookup[id]?.auto_report_group_ids?.includes(group_id),
       auto_reporters: tnsrobotListLookup[id]?.auto_reporters || "",
@@ -133,6 +135,7 @@ const TNSRobots = ({ group_id }) => {
       bot_name,
       bot_id,
       source_group_id,
+      api_key,
       auto_report,
       auto_reporters,
       auto_report_instrument_ids,
@@ -144,10 +147,23 @@ const TNSRobots = ({ group_id }) => {
       auto_report_group_ids.push(group_id);
     }
 
+    if (api_key?.length === 0) {
+      dispatch(
+        showNotification(
+          "Error adding TNS Robot: API Key is required when creating a new robot.",
+          "error"
+        )
+      );
+      return;
+    }
+
     const data = {
       bot_name,
       bot_id,
       source_group_id,
+      _altdata: {
+        api_key,
+      },
       group_id,
       auto_report_group_ids,
       auto_reporters,
@@ -183,6 +199,7 @@ const TNSRobots = ({ group_id }) => {
       bot_name,
       bot_id,
       source_group_id,
+      api_key,
       auto_report,
       auto_reporters,
       auto_report_instrument_ids,
@@ -203,6 +220,13 @@ const TNSRobots = ({ group_id }) => {
       auto_report_instrument_ids,
       auto_report_stream_ids,
     };
+
+    if (api_key?.length > 0) {
+      // eslint-disable-next-line no-underscore-dangle
+      data._altdata = {
+        api_key,
+      };
+    }
 
     dispatch(tnsrobotsActions.editTNSRobot(tnsrobotToManage, data)).then(
       (result) => {
@@ -257,6 +281,10 @@ const TNSRobots = ({ group_id }) => {
         type: "integer",
         title: "Source group ID",
         default: tnsrobotListLookup[tnsrobotToManage]?.source_group_id || "",
+      },
+      api_key: {
+        type: "string",
+        title: "API Key",
       },
       auto_report: {
         type: "boolean",
@@ -508,6 +536,7 @@ const TNSRobots = ({ group_id }) => {
                   bot_name: "",
                   bot_id: "",
                   source_group_id: "",
+                  api_key: "",
                   auto_report: false,
                   auto_reporters: "",
                   auto_report_instrument_ids: [],
