@@ -55,7 +55,7 @@ suds-py3==1.4.5.0
 vcrpy==4.2.1
 aiosmtpd==1.4.4.post2
 ligo.skymap>=0.6
-healpy==1.16.2
+healpy==1.16.5
 pygcn==1.1.2
 pysedm==0.31.0
 xmlschema==2.1.1
