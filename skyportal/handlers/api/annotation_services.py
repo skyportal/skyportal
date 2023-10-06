@@ -517,7 +517,7 @@ class DatalabQueryHandler(BaseHandler):
         description: |
           The name of the catalog key, associated with a catalog cross match,
           from which the photoz data should be retrieved.
-          Default is ls_dr10.
+          Default is ls_dr9.
       - in: query
         name: crossmatchRadius
         required: false
@@ -575,7 +575,7 @@ class DatalabQueryHandler(BaseHandler):
 
             author = self.associated_user_object
 
-            catalog = data.pop('catalog', "ls_dr10")
+            catalog = data.pop('catalog', "ls_dr9")
             radius_arcsec = data.pop('crossmatchRadius', 2.0)
             radius_deg = radius_arcsec / 3600.0
 
