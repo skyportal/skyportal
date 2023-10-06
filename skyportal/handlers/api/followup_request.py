@@ -534,7 +534,13 @@ class FollowupRequestHandler(BaseHandler):
             nullable: true
             schema:
               type: integer
-            description: Instrument ID to filter on
+            description: Instrument ID to filter on. Ignored if allocationID is provided.
+          - in: query
+            name: allocationID
+            nullable: true
+            schema:
+                type: integer
+            description: Allocation ID to filter on
           - in: query
             name: startDate
             nullable: true
@@ -552,12 +558,36 @@ class FollowupRequestHandler(BaseHandler):
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
               created_at <= endDate
           - in: query
+            name: observationStartDate
+            nullable: true
+            schema:
+                type: string
+            description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+                payload.start_date >= observationStartDate
+          - in: query
+            name: observationEndDate
+            nullable: true
+            schema:
+                type: string
+            description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+                payload.end_date <= observationEndDate
+          - in: query
             name: status
             nullable: true
             schema:
               type: string
             description: |
               String to match status of request against
+          - in: query
+            name: requesters
+            nullable: true
+            schema:
+                type: string
+            description: |
+                Comma seperated list of user IDs to filter on (e.g. 1,2,3). If provided, filter by
+                requester_id in requesters
           - in: query
             name: numPerPage
             nullable: true
@@ -584,11 +614,23 @@ class FollowupRequestHandler(BaseHandler):
 
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
+        observation_start_date = self.get_query_argument('observationStartDate', None)
+        observation_end_date = self.get_query_argument('observationEndDate', None)
         sourceID = self.get_query_argument('sourceID', None)
         instrumentID = self.get_query_argument('instrumentID', None)
+        allocationID = self.get_query_argument('allocationID', None)
+        requesters = self.get_query_argument('requesters', [])
         status = self.get_query_argument('status', None)
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 100)
+        include_obj_thumbnails = self.get_query_argument("includeObjThumbnails", True)
+        sortBy = self.get_query_argument("sortBy", "created_at")
+        sortOrder = self.get_query_argument("sortOrder", "asc")
+
+        if sortBy not in ["created_at", "modified", "status", 'obj']:
+            return self.error("Invalid sortBy value.")
+        if sortOrder not in ["asc", "desc"]:
+            return self.error("Invalid sortOrder value.")
 
         try:
             page_number = int(page_number)
@@ -604,8 +646,50 @@ class FollowupRequestHandler(BaseHandler):
                 f'numPerPage should be no larger than {MAX_FOLLOWUP_REQUESTS}.'
             )
 
+        if requesters is not None:
+            try:
+                if isinstance(requesters, str):
+                    if ',' in requesters:
+                        requesters = requesters.split(',')
+                    else:
+                        requesters = [requesters]
+                requesters = [int(r) for r in requesters]
+            except ValueError:
+                return self.error(
+                    'requesters must be a comma seperated string list or list of integers'
+                )
+
+        if allocationID is not None:
+            try:
+                allocationID = int(allocationID)
+            except ValueError:
+                return self.error("Allocation ID must be an integer.")
+
         with self.Session() as session:
 
+            if allocationID is not None:
+                # verify that the user can access the allocation
+                allocation = session.scalars(
+                    Allocation.select(session.user_or_token).where(
+                        Allocation.id == allocationID
+                    )
+                ).first()
+                if allocation is None:
+                    return self.error(
+                        'Allocation ID does not exist or is not accessible.'
+                    )
+
+            if len(requesters) > 0:
+                # verify that the users exist
+                existing_users = session.scalars(
+                    User.select(session.user_or_token, columns=[User.id]).where(
+                        User.id.in_(requesters)
+                    )
+                ).all()
+                if len(existing_users) != len(requesters):
+                    return self.error(
+                        'One or more of the requesters specified does not exist.'
+                    )
             # get owned assignments
             followup_requests = FollowupRequest.select(self.current_user)
 
@@ -618,7 +702,9 @@ class FollowupRequestHandler(BaseHandler):
                 followup_requests = followup_requests.where(
                     FollowupRequest.id == followup_request_id
                 ).options(
-                    joinedload(FollowupRequest.obj).joinedload(Obj.thumbnails),
+                    joinedload(FollowupRequest.obj).joinedload(Obj.thumbnails)
+                    if include_obj_thumbnails
+                    else joinedload(FollowupRequest.obj),
                     joinedload(FollowupRequest.requester),
                     joinedload(FollowupRequest.obj),
                     joinedload(FollowupRequest.watchers),
@@ -640,6 +726,20 @@ class FollowupRequestHandler(BaseHandler):
                 followup_requests = followup_requests.where(
                     FollowupRequest.created_at <= end_date
                 )
+            if observation_start_date:
+                observation_start_date = arrow.get(
+                    observation_start_date.strip()
+                ).datetime
+                followup_requests = followup_requests.where(
+                    FollowupRequest.payload["start_date"].astext.cast(sa.DateTime)
+                    >= observation_start_date
+                )
+            if observation_end_date:
+                observation_end_date = arrow.get(observation_end_date.strip()).datetime
+                followup_requests = followup_requests.where(
+                    FollowupRequest.payload["end_date"].astext.cast(sa.DateTime)
+                    <= observation_end_date
+                )
             if sourceID:
                 obj_query = Obj.select(self.current_user).where(
                     Obj.id.contains(sourceID.strip())
@@ -648,7 +748,11 @@ class FollowupRequestHandler(BaseHandler):
                 followup_requests = followup_requests.join(
                     obj_subquery, FollowupRequest.obj_id == obj_subquery.c.id
                 )
-            if instrumentID:
+            if allocationID:
+                followup_requests = followup_requests.where(
+                    FollowupRequest.allocation_id == allocationID
+                )
+            elif instrumentID:
                 # allocation query required as only way to reach
                 # instrument_id is through allocation (as requests
                 # are associated to allocations, not instruments)
@@ -660,9 +764,14 @@ class FollowupRequestHandler(BaseHandler):
                     allocation_subquery,
                     FollowupRequest.allocation_id == allocation_subquery.c.id,
                 )
+
             if status:
                 followup_requests = followup_requests.where(
                     FollowupRequest.status.contains(status.strip())
+                )
+            if len(requesters) > 0:
+                followup_requests = followup_requests.where(
+                    FollowupRequest.requester_id.in_(requesters)
                 )
 
             followup_requests = followup_requests.options(
@@ -677,6 +786,44 @@ class FollowupRequestHandler(BaseHandler):
 
             count_stmt = sa.select(func.count()).select_from(followup_requests)
             total_matches = session.execute(count_stmt).scalar()
+
+            # sort by created_at ascending\
+            if sortBy == "created_at":
+                if sortOrder == "asc":
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.created_at.asc()
+                    )
+                else:
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.created_at.desc()
+                    )
+            elif sortBy == "modified":
+                if sortOrder == "asc":
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.modified.asc()
+                    )
+                else:
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.modified.desc()
+                    )
+            elif sortBy == "status":
+                if sortOrder == "asc":
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.status.asc()
+                    )
+                else:
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.status.desc()
+                    )
+            elif sortBy == "obj":
+                if sortOrder == "asc":
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.obj_id.asc()
+                    )
+                else:
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.obj_id.desc()
+                    )
             if n_per_page is not None:
                 followup_requests = (
                     followup_requests.distinct()

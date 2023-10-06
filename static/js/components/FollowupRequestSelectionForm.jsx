@@ -46,11 +46,18 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
+  const { allocationListApiClassname } = useSelector(
+    (state) => state.allocations
+  );
+  const { users: allUsers } = useSelector((state) => state.users);
   const { followupRequestList } = useSelector(
     (state) => state.followup_requests
   );
 
-  const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultStartDate = dayjs()
+    .subtract(1, "day")
+    .utc()
+    .format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultEndDate = dayjs()
     .add(1, "day")
     .utc()
@@ -93,8 +100,21 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
     return <p>No robotic followup requests found...</p>;
   }
 
+  const telLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  telescopeList?.forEach((tel) => {
+    telLookUp[tel.id] = tel;
+  });
+
   const sortedInstrumentList = [...instrumentList];
+  // sort by telescope name, then by instrument name
   sortedInstrumentList.sort((i1, i2) => {
+    if (telLookUp[i1.telescope_id].name > telLookUp[i2.telescope_id].name) {
+      return 1;
+    }
+    if (telLookUp[i2.telescope_id].name > telLookUp[i1.telescope_id].name) {
+      return -1;
+    }
     if (i1.name > i2.name) {
       return 1;
     }
@@ -104,10 +124,28 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
     return 0;
   });
 
-  const telLookUp = {};
+  const instLookUp = {};
   // eslint-disable-next-line no-unused-expressions
-  telescopeList?.forEach((tel) => {
-    telLookUp[tel.id] = tel;
+  sortedInstrumentList?.forEach((inst) => {
+    instLookUp[inst.id] = inst;
+  });
+
+  const sortedAllocationListApiClassname = [...allocationListApiClassname];
+  // sort by instrument name, then by allocation id
+  sortedAllocationListApiClassname.sort((a1, a2) => {
+    if (instLookUp[a1.instrument_id].name > instLookUp[a2.instrument_id].name) {
+      return 1;
+    }
+    if (instLookUp[a2.instrument_id].name > instLookUp[a1.instrument_id].name) {
+      return -1;
+    }
+    if (a1.id > a2.id) {
+      return 1;
+    }
+    if (a2.id > a1.id) {
+      return -1;
+    }
+    return 0;
   });
 
   const requestsGroupedByInstId = followupRequestList.reduce((r, a) => {
@@ -127,6 +165,20 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   };
 
   const handleSubmitFilter = async ({ formData }) => {
+    const data = { ...formData };
+    data.includeObjThumbnails = false;
+    if (data.useObservationDates === false) {
+      delete data.observationStartDate;
+      delete data.observationEndDate;
+    }
+    delete data.useObservationDates;
+    if (data.filterby === "allocation") {
+      delete data.instrumentID;
+    } else {
+      delete data.allocationID;
+    }
+    delete data.filterby;
+
     setIsSubmittingFilter(true);
     setSelectedInstrumentId(formData.instrumentID);
     await dispatch(followupRequestActions.fetchFollowupRequests(formData));
@@ -162,30 +214,26 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   const FollowupRequestSelectionFormSchema = {
     type: "object",
     properties: {
-      instrumentID: {
-        type: "integer",
-        oneOf: instrumentList.map((instrument) => ({
-          enum: [instrument.id],
-          title: `${
-            telescopeList.find(
-              (telescope) => telescope.id === instrument.telescope_id
-            )?.name
-          } / ${instrument.name}`,
-        })),
-        title: "Instrument",
-        default: instrumentList[0]?.id,
+      filterby: {
+        // either instrument or allocation
+        type: "string",
+        title: "Filter by",
+        enum: ["instrument", "allocation"],
+        default: "instrument",
       },
       startDate: {
         type: "string",
         format: "date-time",
         title: "Minimum Requested Date",
-        description: "Do not include requests before this date",
+        description: "Do not include requests created before this date",
+        default: defaultStartDate,
       },
       endDate: {
         type: "string",
         format: "date-time",
         title: "Maximum Requested Date",
-        description: "Do not include requests after this date",
+        description: "Do not include requests created after this date",
+        default: defaultEndDate,
       },
       sourceID: {
         type: "string",
@@ -195,19 +243,118 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
         type: "string",
         title: "Request status [completed, submitted, etc.]",
       },
-      observationStartDate: {
-        type: "string",
-        format: "date-time",
-        title: "Observation Start Date (Local Time)",
-        default: defaultStartDate,
+      useObservationDates: {
+        type: "boolean",
+        title: "Filter on requests start and end dates?",
+        default: false,
       },
-      observationEndDate: {
-        type: "string",
-        format: "date-time",
-        title: "Observation End Date (Local Time)",
-        default: defaultEndDate,
+      requesters: {
+        // pick users as requesters, and get their id
+        type: "array",
+        items: {
+          type: "integer",
+          anyOf: allUsers?.map((user) => ({
+            enum: [user.id],
+            type: "integer",
+            title: user.username,
+          })),
+          title: "Requester(s) (optional)",
+        },
+        uniqueItems: true,
       },
     },
+    dependencies: {
+      filterby: {
+        oneOf: [
+          {
+            properties: {
+              filterby: {
+                enum: ["instrument"],
+              },
+              instrumentID: {
+                type: "integer",
+                oneOf: sortedInstrumentList.map((instrument) => ({
+                  enum: [instrument.id],
+                  title: `${
+                    telescopeList.find(
+                      (telescope) => telescope.id === instrument.telescope_id
+                    )?.name
+                  } / ${instrument.name}`,
+                })),
+                title: "Instrument",
+                default: sortedInstrumentList[0]?.id,
+              },
+            },
+          },
+          {
+            properties: {
+              filterby: {
+                enum: ["allocation"],
+              },
+              allocationID: {
+                type: "integer",
+                oneOf: sortedAllocationListApiClassname.map((allocation) => ({
+                  enum: [allocation.id],
+                  // title should be instrument name [PI] (allocation id)
+                  title: `${instLookUp[allocation.instrument_id]?.name} [${
+                    allocation.pi
+                  }] (${allocation.id})`,
+                })),
+                title: "Allocation",
+                default: sortedAllocationListApiClassname[0]?.id,
+              },
+            },
+          },
+        ],
+      },
+      useObservationDates: {
+        oneOf: [
+          {
+            properties: {
+              useObservationDates: {
+                enum: [false],
+              },
+            },
+          },
+          {
+            properties: {
+              useObservationDates: {
+                enum: [true],
+              },
+              observationStartDate: {
+                type: "string",
+                format: "date-time",
+                title: "Observation Start Date (Local Time)",
+                description:
+                  "Do not include requests with observations before this date",
+              },
+              observationEndDate: {
+                type: "string",
+                format: "date-time",
+                title: "Observation End Date (Local Time)",
+                description:
+                  "Do not include requests with observations after this date",
+              },
+            },
+          },
+        ],
+      },
+    },
+  };
+  const uiSchema = {
+    "ui:order": [
+      "filterby",
+      "instrumentID",
+      "allocationID",
+      "startDate",
+      "endDate",
+      "useObservationDates",
+      "observationStartDate",
+      "observationEndDate",
+      "sourceID",
+      "status",
+      "requesters",
+    ],
   };
 
   const scheduleUrl = createScheduleUrl(
@@ -218,9 +365,12 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   const reportUrl = createAllocationReportUrl(selectedInstrumentId);
   return (
     <div>
-      <div data-testid="gcnsource-selection-form">
+      <div data-testid="followup-request-selection-form">
         <Form
+          formData={fetchParams}
+          onChange={({ formData }) => setFetchParams(formData)}
           schema={FollowupRequestSelectionFormSchema}
+          uiSchema={uiSchema}
           validator={validator}
           onSubmit={handleSubmitFilter}
           // eslint-disable-next-line react/jsx-no-bind
@@ -234,6 +384,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
           </div>
         )}
       </div>
+      <br />
       <div>
         <InputLabel id="instrumentSelectLabel">Format</InputLabel>
         <Select

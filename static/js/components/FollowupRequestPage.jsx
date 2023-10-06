@@ -206,7 +206,10 @@ const FollowupRequestPage = () => {
     currentUser.permissions?.includes("System admin") ||
     currentUser.permissions?.includes("Manage allocations");
 
-  const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultStartDate = dayjs()
+    .subtract(1, "day")
+    .utc()
+    .format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultEndDate = dayjs()
     .add(1, "day")
     .utc()
@@ -215,8 +218,10 @@ const FollowupRequestPage = () => {
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
     numPerPage: defaultNumPerPage,
-    observationStartDate: defaultStartDate,
-    observationEndDate: defaultEndDate,
+    startDate: defaultStartDate,
+    endDate: defaultEndDate,
+    sortBy: "created_at",
+    sortOrder: "desc",
   });
 
   useEffect(() => {
@@ -272,7 +277,7 @@ const FollowupRequestPage = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item md={6} sm={12}>
+      <Grid item md={8} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Typography variant="h6">List of Followup Requests</Typography>
@@ -311,7 +316,7 @@ const FollowupRequestPage = () => {
       </Grid>
       <br />
       <br />
-      <Grid item md={6} sm={12}>
+      <Grid item md={4} sm={12}>
         <Paper>
           <div className={classes.paperContent}>
             <Typography variant="h6">Filter Followup Requests</Typography>
