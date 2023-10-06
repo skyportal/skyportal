@@ -152,9 +152,10 @@ const FollowupRequestLists = ({
   };
 
   if (
-    instrumentList.length === 0 ||
-    followupRequests.length === 0 ||
-    Object.keys(instrumentFormParams).length === 0
+    (instrumentList.length === 0 ||
+      followupRequests.length === 0 ||
+      Object.keys(instrumentFormParams).length === 0) &&
+    !serverSide
   ) {
     return <p>No robotic followup requests found...</p>;
   }
@@ -175,10 +176,6 @@ const FollowupRequestLists = ({
     ];
     return r;
   }, {});
-
-  Object.values(requestsGroupedByInstId).forEach((value) => {
-    value.sort((a, b) => (a.created_at > b.created_at ? 1 : -1));
-  });
 
   const getDataTableColumns = (keys, instrument_id) => {
     const columns = [
@@ -366,6 +363,10 @@ const FollowupRequestLists = ({
         customBodyRenderLite: renderWatcher,
       },
     });
+
+    if (serverSide) {
+      columns.push({ name: "created_at", label: "Created at" });
+    }
 
     return columns;
   };
