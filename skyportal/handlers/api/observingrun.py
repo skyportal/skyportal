@@ -14,6 +14,7 @@ from ...models import (
     User,
 )
 from ...models.schema import ObservingRunPost, ObservingRunGetWithAssignments
+from ...utils.calculations import get_observer, next_sunrise
 
 
 def post_observing_run(data, user_id, session):
@@ -187,12 +188,29 @@ class ObservingRunHandler(BaseHandler):
                     ObservingRun.calendar_date.asc()
                 )
             ).all()
+            telescopes_to_observers = {}
             runs_list = []
             for run in runs:
-                runs_list.append(run.to_dict())
-                runs_list[-1]["run_end_utc"] = run.instrument.telescope.next_sunrise(
-                    run.calendar_noon
+                runs_list.append(
+                    {
+                        **run.to_dict(),
+                        "telescope_id": run.instrument.telescope.id,
+                        "calendar_noon": run.calendar_noon,
+                    }
+                )
+                if run.instrument.telescope.id not in telescopes_to_observers:
+                    try:
+                        telescopes_to_observers[
+                            run.instrument.telescope.id
+                        ] = get_observer(run.instrument.telescope.to_dict())
+                    except Exception:
+                        telescopes_to_observers[run.instrument.telescope.id] = None
+
+            for run in runs_list:
+                run["run_end_utc"] = next_sunrise(
+                    telescopes_to_observers[run["telescope_id"]], run["calendar_noon"]
                 ).isot
+                del run["calendar_noon"]
 
             return self.success(data=runs_list)
 
