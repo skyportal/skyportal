@@ -41,6 +41,8 @@ def post_observing_run(data, user_id, session):
     session.add(run)
     session.commit()
 
+    # calculate the calendar noon and run end utc
+    run.calculate_calendar_noon()
     run.calculate_end_run_utc()
     session.commit()
 
@@ -193,10 +195,9 @@ class ObservingRunHandler(BaseHandler):
 
             # temporary, until we have migrated and called the handler once
             for run in runs:
-                print(f"run end: {run.run_end_utc}")
                 if run.run_end_utc is None:
-                    end_run_utc = run.calculate_end_run_utc()
-                    print(f"new end_run_utc: {end_run_utc}")
+                    run.calculate_calendar_noon()
+                    run.calculate_end_run_utc()
                     session.commit()
 
             runs_list = [run.to_dict() for run in runs]
@@ -254,6 +255,11 @@ class ObservingRunHandler(BaseHandler):
                 setattr(orun, param, new_params[param])
 
             session.add(orun)
+            session.commit()
+
+            # update the calendar noon and run end utc
+            orun.calculate_calendar_noon()
+            orun.calculate_end_run_utc()
             session.commit()
 
             self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
