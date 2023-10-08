@@ -82,8 +82,30 @@ class ObservingRun(Base):
         sa.Date, nullable=False, index=True, doc="The Local Calendar date of this Run."
     )
 
+    _calendar_noon = sa.Column(
+        sa.DateTime,
+        nullable=True,
+        doc="The Local Calendar noon of this Run.",
+    )
+
+    run_end_utc = sa.Column(
+        sa.DateTime,
+        nullable=True,
+        doc="The UTC end time of this Run.",
+    )
+
     @property
     def calendar_noon(self):
+        """The Local Calendar noon of this Run."""
+        if self._calendar_noon is None:
+            self.calculate_calendar_noon()
+
+        if isinstance(self._calendar_noon, datetime):
+            return ap_time.Time(self._calendar_noon, format='datetime')
+        else:
+            return ap_time.Time(self._calendar_noon, format='isot')
+
+    def calculate_calendar_noon(self):
         observer = self.instrument.telescope.observer
         year = self.calendar_date.year
         month = self.calendar_date.month
@@ -93,8 +115,8 @@ class ObservingRun(Base):
             year=year, month=month, day=day, hour=hour, tzinfo=observer.timezone
         )
         noon = noon.astimezone(timezone.utc).timestamp()
-        noon = ap_time.Time(noon, format='unix')
-        return noon
+        self._calendar_noon = ap_time.Time(noon, format='unix').isot
+        return self._calendar_noon
 
     def rise_time(self, target_or_targets, altitude=30 * u.degree):
         """The rise time of the specified targets as an astropy.time.Time."""
@@ -136,7 +158,7 @@ class ObservingRun(Base):
     def set_time(self, target_or_targets, altitude=30 * u.degree):
         """The set time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
-        sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
+        sunset = self.instrument.telescope.next_sunset(self.calendar_noon).reshape((1,))
         sunrise = self.instrument.telescope.next_sunrise(self.calendar_noon).reshape(
             (1,)
         )
@@ -157,3 +179,16 @@ class ObservingRun(Base):
             next_set[idx] = sunrise
 
         return next_set.reshape(original_shape)
+
+    def calculate_end_run_utc(self):
+        if self.run_end_utc is not None:
+            return self.run_end_utc
+
+        observer = self.instrument.telescope.observer
+        if observer is None:
+            return None
+        try:
+            end = self.instrument.telescope.next_sunrise(self.calendar_noon).isot
+        except Exception:
+            end = None
+        self.run_end_utc = end
