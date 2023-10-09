@@ -192,10 +192,13 @@ class ObservingRunHandler(BaseHandler):
             ).all()
 
             # temporary, until we have migrated and called the handler once
+            updated = False
             for run in runs:
                 if run.run_end_utc is None:
                     run.calculate_run_end_utc()
-                    session.commit()
+                    updated = True
+            if updated:
+                session.commit()
 
             runs_list = [run.to_dict() for run in runs]
 

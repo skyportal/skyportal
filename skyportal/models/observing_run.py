@@ -1,7 +1,5 @@
 __all__ = ['ObservingRun']
 
-from datetime import datetime
-
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
@@ -98,10 +96,8 @@ class ObservingRun(Base):
         month = self.calendar_date.month
         day = self.calendar_date.day
         hour = 12
-        noon = datetime(
-            year=year, month=month, day=day, hour=hour, tzinfo=TZINFO
-        ).timestamp()
-        return ap_time.Time(noon, format='unix')
+        noon_str = f'{year}-{month}-{day}T{hour}:00:00.000'
+        return ap_time.Time(noon_str, format='isot', scale='utc')
 
     def calculate_run_end_utc(self):
         observer = self.instrument.telescope.observer
