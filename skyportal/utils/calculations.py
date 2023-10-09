@@ -177,3 +177,13 @@ def get_rise_set_time(fields, altitude=30 * u.degree, **kwargs):
         )[recalc]
 
     return rise_time, set_time
+
+
+def next_sunrise(observer, time=None):
+    """The astropy timestamp of the next sunrise after `time` at this site.
+    If time=None, uses the current time."""
+    if observer is None:
+        return None
+    if time is None:
+        time = Time.now()
+    return observer.sun_rise_time(time, which='next')
