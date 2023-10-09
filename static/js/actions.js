@@ -55,47 +55,166 @@ import * as groupActions from "./ducks/group";
 import * as instrumentActions from "./ducks/instrument";
 /* eslint-enable no-unused-vars */
 
-export default function hydrate(dashboardOnly = false) {
+// this is used to keep track of what has been hydrated yet or not
+import * as hydrationActions from "./ducks/hydration";
+
+export default function hydrate(
+  dashboardOnly = false,
+  ducks_to_hydrate = hydrationActions.DUCKS_TO_HYDRATE
+) {
   return (dispatch) => {
     if (!dashboardOnly) {
       // initial data
-      dispatch(sysInfoActions.fetchSystemInfo());
-      dispatch(dbInfoActions.fetchDBInfo());
-      dispatch(configActions.fetchConfig());
-      dispatch(profileActions.fetchUserProfile());
-      dispatch(groupsActions.fetchGroups(true));
-      dispatch(usersActions.fetchUsers());
+      if (ducks_to_hydrate.includes("sysInfo")) {
+        dispatch(sysInfoActions.fetchSystemInfo()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("sysInfo"));
+        });
+      }
+      if (ducks_to_hydrate.includes("dbInfo")) {
+        dispatch(dbInfoActions.fetchDBInfo()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("dbInfo"));
+        });
+      }
+      if (ducks_to_hydrate.includes("config")) {
+        dispatch(configActions.fetchConfig()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("config"));
+        });
+      }
+      if (ducks_to_hydrate.includes("profile")) {
+        dispatch(profileActions.fetchUserProfile()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("profile"));
+        });
+      }
+      if (ducks_to_hydrate.includes("groups")) {
+        dispatch(groupsActions.fetchGroups(true)).then(() => {
+          dispatch(hydrationActions.finishedHydrating("groups"));
+        });
+      }
+      if (ducks_to_hydrate.includes("users")) {
+        dispatch(usersActions.fetchUsers()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("users"));
+        });
+      }
     }
-    // dashboard data
+    // dashboard data, always refreshed
     dispatch(newsFeedActions.fetchNewsFeed());
     dispatch(topSourcesActions.fetchTopSources());
     dispatch(recentSourcesActions.fetchRecentSources());
     dispatch(sourceCountsActions.fetchSourceCounts());
     dispatch(recentGcnEventsActions.fetchRecentGcnEvents());
-
     if (!dashboardOnly) {
       // other data
-      dispatch(streamsActions.fetchStreams());
-      dispatch(enumTypesActions.fetchEnumTypes());
-      dispatch(instrumentsActions.fetchInstruments());
-      dispatch(allocationsActions.fetchAllocations());
-      dispatch(telescopesActions.fetchTelescopes());
-      dispatch(taxonomyActions.fetchTaxonomies());
-      dispatch(instrumentsActions.fetchInstrumentForms());
-      dispatch(favoritesActions.fetchFavorites());
-      dispatch(tnsrobotsActions.fetchTNSRobots());
-      dispatch(rejectedActions.fetchRejected());
-      dispatch(observingRunsActions.fetchObservingRuns());
-      dispatch(allocationsActions.fetchAllocationsApiClassname());
-      dispatch(observationPlansActions.fetchObservationPlanNames());
-      dispatch(analysisServicesActions.fetchAnalysisServices());
-      dispatch(defaultFollowupRequestsActions.fetchDefaultFollowupRequests());
-      dispatch(defaultObservationPlansActions.fetchDefaultObservationPlans());
-      dispatch(
-        defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies()
-      );
-      dispatch(earthquakeActions.fetchEarthquakes());
-      dispatch(mmadetectorActions.fetchMMADetectors());
+      if (ducks_to_hydrate.includes("streams")) {
+        dispatch(streamsActions.fetchStreams()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("streams"));
+        });
+      }
+      if (ducks_to_hydrate.includes("enumTypes")) {
+        dispatch(enumTypesActions.fetchEnumTypes()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("enumTypes"));
+        });
+      }
+      if (ducks_to_hydrate.includes("instruments")) {
+        dispatch(instrumentsActions.fetchInstruments()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("instruments"));
+        });
+      }
+      if (ducks_to_hydrate.includes("allocations")) {
+        dispatch(allocationsActions.fetchAllocations()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("allocations"));
+        });
+      }
+      if (ducks_to_hydrate.includes("telescopes")) {
+        dispatch(telescopesActions.fetchTelescopes()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("telescopes"));
+        });
+      }
+      if (ducks_to_hydrate.includes("taxonomy")) {
+        dispatch(taxonomyActions.fetchTaxonomies()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("taxonomy"));
+        });
+      }
+      if (ducks_to_hydrate.includes("instrumentForms")) {
+        dispatch(instrumentsActions.fetchInstrumentForms()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("instrumentForms"));
+        });
+      }
+      if (ducks_to_hydrate.includes("favorites")) {
+        dispatch(favoritesActions.fetchFavorites()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("favorites"));
+        });
+      }
+      if (ducks_to_hydrate.includes("tnsrobots")) {
+        dispatch(tnsrobotsActions.fetchTNSRobots()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("tnsrobots"));
+        });
+      }
+      if (ducks_to_hydrate.includes("rejected")) {
+        dispatch(rejectedActions.fetchRejected()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("rejected"));
+        });
+      }
+      if (ducks_to_hydrate.includes("observingRuns")) {
+        dispatch(observingRunsActions.fetchObservingRuns()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("observingRuns"));
+        });
+      }
+      if (ducks_to_hydrate.includes("allocationsApiClassname")) {
+        dispatch(allocationsActions.fetchAllocationsApiClassname()).then(() => {
+          dispatch(
+            hydrationActions.finishedHydrating("allocationsApiClassname")
+          );
+        });
+      }
+      if (ducks_to_hydrate.includes("observationPlans")) {
+        dispatch(observationPlansActions.fetchObservationPlanNames()).then(
+          () => {
+            dispatch(hydrationActions.finishedHydrating("observationPlans"));
+          }
+        );
+      }
+      if (ducks_to_hydrate.includes("analysisServices")) {
+        dispatch(analysisServicesActions.fetchAnalysisServices()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("analysisServices"));
+        });
+      }
+      if (ducks_to_hydrate.includes("defaultFollowupRequests")) {
+        dispatch(
+          defaultFollowupRequestsActions.fetchDefaultFollowupRequests()
+        ).then(() => {
+          dispatch(
+            hydrationActions.finishedHydrating("defaultFollowupRequests")
+          );
+        });
+      }
+      if (ducks_to_hydrate.includes("defaultObservationPlans")) {
+        dispatch(
+          defaultObservationPlansActions.fetchDefaultObservationPlans()
+        ).then(() => {
+          dispatch(
+            hydrationActions.finishedHydrating("defaultObservationPlans")
+          );
+        });
+      }
+      if (ducks_to_hydrate.includes("defaultSurveyEfficiencies")) {
+        dispatch(
+          defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies()
+        ).then(() => {
+          dispatch(
+            hydrationActions.finishedHydrating("defaultSurveyEfficiencies")
+          );
+        });
+      }
+      if (ducks_to_hydrate.includes("earthquake")) {
+        dispatch(earthquakeActions.fetchEarthquakes()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("earthquake"));
+        });
+      }
+      if (ducks_to_hydrate.includes("mmadetector")) {
+        dispatch(mmadetectorActions.fetchMMADetectors()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("mmadetector"));
+        });
+      }
     }
   };
 }
