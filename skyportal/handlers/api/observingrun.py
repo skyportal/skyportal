@@ -3,6 +3,7 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.log import make_log
 from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
@@ -14,6 +15,8 @@ from ...models import (
     User,
 )
 from ...models.schema import ObservingRunPost, ObservingRunGetWithAssignments
+
+log = make_log('api/observing_run')
 
 
 def post_observing_run(data, user_id, session):
@@ -192,13 +195,16 @@ class ObservingRunHandler(BaseHandler):
             ).all()
 
             # temporary, until we have migrated and called the handler once
-            updated = False
-            for run in runs:
-                if run.run_end_utc is None:
-                    run.calculate_run_end_utc()
-                    updated = True
-            if updated:
-                session.commit()
+            try:
+                updated = False
+                for run in runs:
+                    if run.run_end_utc is None:
+                        run.calculate_run_end_utc()
+                        updated = True
+                if updated:
+                    session.commit()
+            except Exception as e:
+                log(f"Error calculating run_end_utc: {e}")
 
             runs_list = [run.to_dict() for run in runs]
 

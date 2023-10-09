@@ -577,6 +577,7 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
     pi = 'Danny Goldstein'
     observers = 'D. Goldstein, S. Dhawan'
     calendar_date = '3021-02-27'
+    run_end_utc = '3021-02-27 14:20:24.972000'
     owner = factory.SubFactory(UserFactory)
 
     @staticmethod
