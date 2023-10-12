@@ -324,6 +324,10 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+
+    # give some time for the plots to load
+    time.sleep(3)
+
     driver.click_xpath('//div[@id="root_taxonomy"]')
     driver.click_xpath(
         f'//*[text()="{tax_name} ({tax_version})"]',

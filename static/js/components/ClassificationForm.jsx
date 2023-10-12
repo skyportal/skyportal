@@ -349,8 +349,8 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       onSubmit={handleSubmit}
       disabled={submissionRequestInProcess}
       formData={selectedFormData}
-      onChange={({ newformData }) => {
-        setSelectedFormData(newformData);
+      onChange={({ formData }) => {
+        setSelectedFormData(formData);
       }}
     />
   );
