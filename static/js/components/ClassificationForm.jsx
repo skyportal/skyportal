@@ -8,6 +8,7 @@ import Input from "@mui/material/Input";
 import InputLabel from "@mui/material/InputLabel";
 import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
+import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -59,16 +60,45 @@ export const allowedClasses = (hierarchy) => {
   return classes;
 };
 
-const ClassificationForm = ({ obj_id, taxonomyList }) => {
+// Custom form widget for probability because rxjs MUI UpdownWidget does not have working min/max/step
+// https://github.com/rjsf-team/react-jsonschema-form/issues/2022
+const CustomProbabilityWidget = ({ value, onChange }) => (
+  <TextField
+    id="probability"
+    label="Probability"
+    type="number"
+    helperText="[0-1]"
+    InputLabelProps={{
+      shrink: true,
+    }}
+    inputProps={{
+      min: "0",
+      max: "1",
+      step: "0.0001",
+    }}
+    value={value || ""}
+    onChange={(event) => {
+      onChange(event.target.value);
+    }}
+  />
+);
+CustomProbabilityWidget.propTypes = {
+  value: PropTypes.string,
+  onChange: PropTypes.func.isRequired,
+};
+CustomProbabilityWidget.defaultProps = {
+  value: "",
+};
+
+const CustomGroupsWidget = ({ value, onChange, options }) => {
   const classes = useStyles();
-  const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.userAccessible);
-  const [submissionRequestInProcess, setSubmissionRequestInProcess] =
-    useState(false);
+
   const groupIDToName = {};
   groups?.forEach((g) => {
     groupIDToName[g.id] = g.name;
   });
+
   const ITEM_HEIGHT = 48;
   const MenuProps = {
     PaperProps: {
@@ -78,102 +108,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       },
     },
   };
-
-  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
-
-  const handleSubmit = async ({ formData }) => {
-    setSubmissionRequestInProcess(true);
-    // Get the classification without the context
-    const classification = formData.classification.split(" <> ")[0];
-    const data = {
-      taxonomy_id: parseInt(formData.taxonomy, 10),
-      obj_id,
-      classification,
-      probability: formData.probability,
-      ml: formData.ml || false,
-    };
-    if (formData.groupIDs) {
-      data.group_ids = formData.groupIDs?.map((id) => parseInt(id, 10));
-    }
-    const result = await dispatch(Actions.addClassification(data));
-    setSubmissionRequestInProcess(false);
-    if (result.status === "success") {
-      dispatch(showNotification("Classification saved"));
-    }
-  };
-
-  // Custom form widget for the classifications to format and display the contexts as well
-  const CustomClassificationWidget = ({ value, onChange, options }) => (
-    <TextField
-      id="classification"
-      inputProps={{ MenuProps: { disableScrollLock: true } }}
-      select
-      required
-      label="Classification"
-      value={value || ""}
-      onChange={(event) => {
-        onChange(event.target.value);
-      }}
-    >
-      {options.enumOptions?.map((option) => {
-        const [classification, context] = option.value.split(" <> ");
-        return (
-          <MenuItem key={option.value} value={option.value}>
-            <span>
-              <b>{classification}</b>
-              &nbsp;
-              {context !== "" && <br />}
-              {context}
-            </span>
-          </MenuItem>
-        );
-      })}
-    </TextField>
-  );
-
-  CustomClassificationWidget.propTypes = {
-    value: PropTypes.string,
-    onChange: PropTypes.func.isRequired,
-    options: PropTypes.shape({
-      enumOptions: PropTypes.arrayOf(PropTypes.shape({})),
-    }).isRequired,
-  };
-
-  CustomClassificationWidget.defaultProps = {
-    value: "",
-  };
-
-  // Custom form widget for probability because rxjs MUI UpdownWidget does not have working min/max/step
-  // https://github.com/rjsf-team/react-jsonschema-form/issues/2022
-  const CustomProbabilityWidget = ({ value, onChange }) => (
-    <TextField
-      id="probability"
-      label="Probability"
-      type="number"
-      helperText="[0-1]"
-      InputLabelProps={{
-        shrink: true,
-      }}
-      inputProps={{
-        min: "0",
-        max: "1",
-        step: "0.0001",
-      }}
-      value={value || ""}
-      onChange={(event) => {
-        onChange(event.target.value);
-      }}
-    />
-  );
-  CustomProbabilityWidget.propTypes = {
-    value: PropTypes.string,
-    onChange: PropTypes.func.isRequired,
-  };
-  CustomProbabilityWidget.defaultProps = {
-    value: "",
-  };
-
-  const CustomGroupsWidget = ({ value, onChange, options }) => (
+  return (
     <>
       <InputLabel id="classificationGroupSelectLabel">
         Choose Group (all groups if blank)
@@ -215,13 +150,105 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       </Select>
     </>
   );
+};
 
-  CustomGroupsWidget.propTypes = {
-    value: PropTypes.arrayOf(PropTypes.string).isRequired,
+CustomGroupsWidget.propTypes = {
+  value: PropTypes.arrayOf(PropTypes.string).isRequired,
+  onChange: PropTypes.func.isRequired,
+  options: PropTypes.shape({
+    enumOptions: PropTypes.arrayOf(PropTypes.shape({})),
+  }).isRequired,
+};
+
+const ClassificationForm = ({ obj_id, taxonomyList }) => {
+  const dispatch = useDispatch();
+  const groups = useSelector((state) => state.groups.userAccessible);
+  const [submissionRequestInProcess, setSubmissionRequestInProcess] =
+    useState(false);
+
+  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
+  const [selectedFormData, setSelectedFormData] = useState({});
+
+  const handleSubmit = async ({ formData }) => {
+    setSubmissionRequestInProcess(true);
+    // Get the classification without the context
+    const classification = formData.classification.split(" <> ")[0];
+    const data = {
+      taxonomy_id: parseInt(formData.taxonomy, 10),
+      obj_id,
+      classification,
+      probability: formData.probability,
+      ml: formData.ml || false,
+    };
+    if (formData.groupIDs) {
+      data.group_ids = formData.groupIDs?.map((id) => parseInt(id, 10));
+    }
+    const result = await dispatch(Actions.addClassification(data));
+    setSubmissionRequestInProcess(false);
+    if (result.status === "success") {
+      dispatch(showNotification("Classification saved"));
+    }
+  };
+
+  // Custom form widget for the classifications to format and display the contexts as well
+  const CustomClassificationWidget = ({ value, onChange, options }) => {
+    const filteringOptions = createFilterOptions({
+      matchFrom: "start",
+      stringify: (option) => option,
+    });
+    return (
+      <Autocomplete
+        id="classification"
+        filterOptions={filteringOptions}
+        options={options.enumOptions?.map((option) => option.value)}
+        onChange={(event, newValue) => {
+          onChange(newValue);
+        }}
+        value={value || ""}
+        renderOption={(props, option) => {
+          const [classification, context] = option.split(" <> ");
+          return (
+            <div {...props}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  margin: "0.5rem",
+                  marginTop: "0.25rem",
+                  justifyContent: "center",
+                  alignItems: "left",
+                }}
+                id={classification}
+              >
+                <b>{classification}</b>
+                {context !== "" && <br />}
+                {context}
+              </div>
+            </div>
+          );
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Classification"
+            variant="outlined"
+            required
+          />
+        )}
+      />
+    );
+  };
+
+  CustomClassificationWidget.propTypes = {
+    value: PropTypes.string,
     onChange: PropTypes.func.isRequired,
     options: PropTypes.shape({
       enumOptions: PropTypes.arrayOf(PropTypes.shape({})),
     }).isRequired,
+  };
+
+  CustomClassificationWidget.defaultProps = {
+    value: "",
   };
 
   const widgets = {
@@ -300,14 +327,31 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     probability: { "ui:widget": "customProbabilityWidget" },
   };
 
+  const validate = (formData, errors) => {
+    if (formData.classification === "" || !formData.classification) {
+      errors.classification.addError("Classification cannot be blank");
+    }
+    if (formData.probability < 0 || formData.probability > 1) {
+      errors.probability.addError(
+        "Probability must be between 0 and 1, or blank"
+      );
+    }
+    return errors;
+  };
+
   return (
     <Form
       schema={formSchema}
       validator={validator}
+      customValidate={validate}
       uiSchema={uiSchema}
       widgets={widgets}
       onSubmit={handleSubmit}
       disabled={submissionRequestInProcess}
+      formData={selectedFormData}
+      onChange={({ newformData }) => {
+        setSelectedFormData(newformData);
+      }}
     />
   );
 };

@@ -7,6 +7,7 @@ from io import BytesIO
 import pytest
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from PIL import Image, ImageChops
 
@@ -335,7 +336,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     ActionChains(driver).move_to_element(header).click().perform()
 
     driver.click_xpath('//*[@id="classification"]')
-    driver.click_xpath('//li[contains(@data-value, "Symmetrical")]', scroll_parent=True)
+    driver.click_xpath('//div[contains(@id, "Symmetrical")]', scroll_parent=True)
 
     # Click somewhere outside to remove focus from classification select
     header = driver.wait_for_xpath("//header")
@@ -370,9 +371,21 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
         wait_clickable=False,
         scroll_parent=True,
     )
+    # Click somewhere outside to remove focus from taxonomy select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
+
     driver.click_xpath('//*[@id="classification"]')
-    driver.click_xpath('//li[contains(@data-value, "Mult-mode")]', scroll_parent=True)
-    driver.click_xpath('//*[@id="probability"]')
+    # type "Mult-mode" into the classification select text box
+    classification_textbox = driver.wait_for_xpath('//*[@id="classification"]')
+    classification_textbox.send_keys("Mult-mode")
+    driver.click_xpath('//div[contains(@id, "Mult-mode")]', scroll_parent=True)
+    # empty the probability text box
+
+    probability_textbox = driver.wait_for_xpath('//*[@id="probability"]')
+    probability_textbox.click()
+    probability_textbox.send_keys(Keys.BACKSPACE)
+
     driver.wait_for_xpath('//*[@id="probability"]').send_keys("0.02")
     driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
     driver.wait_for_xpath("//*[text()='Classification saved']")
