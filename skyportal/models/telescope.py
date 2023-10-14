@@ -334,8 +334,7 @@ class Telescope(Base):
             'twilight_evening_nautical_unix_ms': twilight_evening_nautical_unix_ms,
         }
 
-    @property
-    def current_time(self):
+    def current_time(self, refresh=False):
         if (
             not self.fixed_location
             or self.lon is None
@@ -350,7 +349,7 @@ class Telescope(Base):
             }
 
         cached = cache[f"{self.id}"]
-        if cached is not None:
+        if cached is not None and not refresh:
             try:
                 time_info = np.load(cached, allow_pickle=True).item()
                 # if morning or evening is before now, then we need to update the cache
