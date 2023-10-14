@@ -19,8 +19,18 @@ from baselayer.app.models import (
     public,
 )
 from baselayer.log import make_log
+from baselayer.app.env import load_env
+from ..utils.cache import Cache, dict_to_bytes
+
+env, cfg = load_env()
 
 log = make_log('model/telescope')
+
+cache_dir = "cache/telescopes_time_info"
+cache = Cache(
+    cache_dir=cache_dir,
+    max_items=1000,  # large number of telescopes, as we don't want to constrain by age
+)
 
 
 def manage_telescope_access_logic(cls, user_or_token):
@@ -326,28 +336,54 @@ class Telescope(Base):
 
     @property
     def current_time(self):
+        if (
+            not self.fixed_location
+            or self.lon is None
+            or self.lat is None
+            or self.elevation is None
+            or self.observer is None
+        ):
+            return {
+                "is_night_astronomical": False,
+                "morning": False,
+                "evening": False,
+            }
+
+        cached = cache[f"{self.id}"]
+        if cached is not None:
+            try:
+                time_info = np.load(cached, allow_pickle=True).item()
+                # if morning or evening is before now, then we need to update the cache
+                if (
+                    time_info["morning"] is not None
+                    and time_info["morning"].jd > ap_time.Time.now().jd
+                ) and (
+                    time_info["evening"] is not None
+                    and time_info["evening"].jd > ap_time.Time.now().jd
+                ):
+                    return time_info
+            except Exception:
+                log(f"Failed to load cached time info for telescope {self.id}")
+                pass
+
         morning = False
         evening = False
         is_night_astronomical = False
-        if (
-            self.fixed_location
-            and self.lon is not None
-            and self.lat is not None
-            and self.elevation is not None
-            and self.observer is not None
-        ):
-            try:
-                morning = self.next_twilight_morning_astronomical()
-                evening = self.next_twilight_evening_astronomical()
-                if morning is not None and evening is not None:
-                    is_night_astronomical = bool(morning.jd < evening.jd)
-            except Exception:
-                is_night_astronomical = False
-                morning = False
-                evening = False
+        try:
+            morning = self.next_twilight_morning_astronomical()
+            evening = self.next_twilight_evening_astronomical()
+            if morning is not None and evening is not None:
+                is_night_astronomical = bool(morning.jd < evening.jd)
+        except Exception:
+            log(f"Failed to calculate current time for telescope {self.id}")
+            is_night_astronomical = False
+            morning = False
+            evening = False
 
-        return {
+        time_info = {
             "is_night_astronomical": is_night_astronomical,
             "morning": morning,
             "evening": evening,
         }
+        cache[f"{self.id}"] = dict_to_bytes(time_info)
+        return time_info
