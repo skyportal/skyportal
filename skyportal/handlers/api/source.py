@@ -1740,7 +1740,6 @@ def post_source(data, user_id, session, refresh_source=True):
             "Invalid group_ids field. Please specify at least "
             "one valid group ID that you belong to."
         )
-    log(f"group_ids: {group_ids}")
     # we use the ignore_if_in_group_ids field, to cancel saving to the specified group_ids if there is already a source
     # saved to one of the ignore_if_in_group_ids
     # ignore_if_in_group_ids is a dict, where each keys are the group_ids for which we want to specify groups to avoid

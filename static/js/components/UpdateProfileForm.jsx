@@ -31,6 +31,7 @@ import FollowupRequestPreferences from "./FollowupRequestPreferences";
 import PhotometryPlottingPreferences from "./PhotometryPlottingPreferences";
 import SpectroscopyPlottingPreferences from "./SpectroscopyPlottingPreferences";
 import ClassificationsShortcutForm from "./ClassificationsShortcutForm";
+import QuickSaveSourcePreferences from "./QuickSaveSourcePreferences";
 
 const useStyles = makeStyles(() => ({
   spacing: {
@@ -317,6 +318,9 @@ const UpdateProfileForm = () => {
         </CardContent>
         <CardContent>
           <SpectroscopyPlottingPreferences />
+        </CardContent>
+        <CardContent>
+          <QuickSaveSourcePreferences />
         </CardContent>
       </Card>
       <Dialog
