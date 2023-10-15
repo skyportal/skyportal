@@ -297,9 +297,14 @@ class UserHandler(BaseHandler):
                 if user_info.get("contact_phone"):
                     user_info["contact_phone"] = user_info["contact_phone"].e164
 
-                user_info["permissions"] = sorted(user.permissions)
-                user_info["roles"] = sorted(role.id for role in user.roles)
-                user_info["acls"] = sorted(acl.id for acl in user.acls)
+                if self.current_user.is_system_admin:
+                    user_info["permissions"] = sorted(user.permissions)
+                    user_info["roles"] = sorted(role.id for role in user.roles)
+                    user_info["acls"] = sorted(acl.id for acl in user.acls)
+                    user_info["groups"] = user.groups
+                    user_info["streams"] = user.streams
+                else:
+                    user_info.pop("oauth_uid", None)
 
                 return self.success(data=user_info)
 
@@ -326,6 +331,15 @@ class UserHandler(BaseHandler):
             return self.error("Invalid numPerPage value.")
 
         with self.Session() as session:
+            is_admin = self.current_user.is_system_admin
+            if (
+                any(param is not None for param in [role, acl, group, stream])
+                and not is_admin
+            ):
+                return self.error(
+                    "You must be a system administrator to query users by role, ACL, group, or stream."
+                )
+
             stmt = User.select(self.current_user).order_by(User.username)
 
             if first_name is not None:
@@ -351,23 +365,28 @@ class UserHandler(BaseHandler):
 
             if n_per_page is not None:
                 stmt = stmt.limit(n_per_page).offset((page_number - 1) * n_per_page)
-            info = {}
             return_values = []
             for user in session.scalars(stmt).all():
                 return_values.append(user.to_dict())
-                return_values[-1]["permissions"] = sorted(user.permissions)
-                return_values[-1]["roles"] = sorted(role.id for role in user.roles)
-                return_values[-1]["acls"] = sorted(acl.id for acl in user.acls)
                 if user.contact_phone:
                     return_values[-1]["contact_phone"] = user.contact_phone.e164
                 return_values[-1]["contact_email"] = user.contact_email
                 # Only Sys admins can see other users' group memberships
                 if self.current_user.is_system_admin:
+                    return_values[-1]["permissions"] = sorted(user.permissions)
+                    return_values[-1]["roles"] = sorted(role.id for role in user.roles)
+                    return_values[-1]["acls"] = sorted(acl.id for acl in user.acls)
                     return_values[-1]["groups"] = user.groups
                     return_values[-1]["streams"] = user.streams
+                else:
+                    return_values[-1].pop("oauth_uid", None)
 
-            info["users"] = return_values
-            info["totalMatches"] = int(total_matches)
+            info = {
+                "users": return_values,
+                "pageNumber": int(page_number),
+                "numPerPage": int(n_per_page),
+                "totalMatches": int(total_matches),
+            }
 
             return self.success(data=info)
 
