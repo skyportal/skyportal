@@ -383,10 +383,11 @@ class UserHandler(BaseHandler):
 
             info = {
                 "users": return_values,
-                "pageNumber": int(page_number),
-                "numPerPage": int(n_per_page),
                 "totalMatches": int(total_matches),
             }
+            if n_per_page is not None:
+                info["pageNumber"] = page_number
+                info["numPerPage"] = n_per_page
 
             return self.success(data=info)
 
