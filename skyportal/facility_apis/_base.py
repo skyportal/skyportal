@@ -77,9 +77,14 @@ class _Base:
             formSchema = cls.custom_json_schema(instrument, user)
         except AttributeError:
             formSchema = cls.form_json_schema
+        try:
+            formSchemaForcedPhotometry = cls.form_json_schema_forced_photometry
+        except AttributeError:
+            formSchemaForcedPhotometry = None
         return {
             'methodsImplemented': cls.implements(),
             'formSchema': formSchema,
+            'formSchemaForcedPhotometry': formSchemaForcedPhotometry,
             'uiSchema': cls.ui_json_schema,
             'aliasLookup': cls.alias_lookup,
         }

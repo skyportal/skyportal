@@ -46,6 +46,7 @@ const FollowupRequestForm = ({
   obj_id,
   instrumentList,
   instrumentFormParams,
+  requestType,
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -85,7 +86,6 @@ const FollowupRequestForm = ({
       });
 
       if (!selectedAllocationId) {
-        setSelectedAllocationId(data[0]?.id);
         if (data[0]?.default_share_group_ids?.length > 0) {
           setSelectedGroupIds(data[0]?.default_share_group_ids);
         } else {
@@ -119,13 +119,44 @@ const FollowupRequestForm = ({
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if allocationList is not
   // empty.
+
+  // only keep allocations in allocationListApiClassname where there is a corresponding
+  // instrument form params with a non null formSchema
+  let filteredAllocationList = [];
+  if (requestType === "triggered") {
+    filteredAllocationList = (allocationListApiClassname || []).filter(
+      (allocation) =>
+        allocation.instrument_id in instrumentFormParams &&
+        instrumentFormParams[allocation.instrument_id].formSchema !== null &&
+        instrumentFormParams[allocation.instrument_id].formSchema !==
+          undefined &&
+        !allocation.pi.toLowerCase().includes("forced photometry")
+    );
+  } else if (requestType === "forced_photometry") {
+    filteredAllocationList = (allocationListApiClassname || []).filter(
+      (allocation) =>
+        (allocation.instrument_id in instrumentFormParams &&
+          instrumentFormParams[allocation.instrument_id]
+            .formSchemaForcedPhotometry !== null &&
+          instrumentFormParams[allocation.instrument_id]
+            .formSchemaForcedPhotometry !== undefined) ||
+        allocation.pi.toLowerCase().includes("forced photometry")
+    );
+  } else {
+    filteredAllocationList = [...allocationListApiClassname];
+  }
+
+  useEffect(() => {
+    if (!selectedAllocationId) {
+      setSelectedAllocationId(filteredAllocationList[0]?.id);
+    }
+  }, [allocationListApiClassname, instrumentFormParams, dispatch]);
+
   if (
     allocationListApiClassname.length === 0 ||
-    !selectedAllocationId ||
-    !selectedGroupIds ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <h3>No allocations with an observation plan API...</h3>;
+    return <h3>No allocations with an API class where found...</h3>;
   }
 
   if (
@@ -208,7 +239,7 @@ const FollowupRequestForm = ({
         name="followupRequestAllocationSelect"
         className={classes.allocationSelect}
       >
-        {allocationListApiClassname?.map((allocation) => (
+        {filteredAllocationList?.map((allocation) => (
           <MenuItem
             value={allocation.id}
             key={allocation.id}
@@ -235,9 +266,13 @@ const FollowupRequestForm = ({
           instrumentFormParams ? (
           <Form
             schema={
-              instrumentFormParams[
-                allocationLookUp[selectedAllocationId].instrument_id
-              ].formSchema
+              requestType === "forced_photometry"
+                ? instrumentFormParams[
+                    allocationLookUp[selectedAllocationId].instrument_id
+                  ].formSchemaForcedPhotometry
+                : instrumentFormParams[
+                    allocationLookUp[selectedAllocationId].instrument_id
+                  ].formSchema
             }
             validator={validator}
             uiSchema={
@@ -278,6 +313,11 @@ FollowupRequestForm.propTypes = {
     uiSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
     implementedMethods: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
   }).isRequired,
+  requestType: PropTypes.string,
+};
+
+FollowupRequestForm.defaultProps = {
+  requestType: "triggered",
 };
 
 export default FollowupRequestForm;

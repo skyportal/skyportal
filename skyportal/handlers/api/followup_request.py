@@ -449,6 +449,13 @@ def post_followup_request(data, constraints, session, refresh_source=True):
     except AttributeError:
         formSchema = instrument.api_class.form_json_schema
 
+    try:
+        formSchemaForcedPhotometry = (
+            instrument.api_class.form_json_schema_forced_photometry
+        )
+    except AttributeError:
+        formSchemaForcedPhotometry = None
+
     # not all requests need payloads
     if 'payload' not in data:
         data['payload'] = {}
@@ -458,7 +465,13 @@ def post_followup_request(data, constraints, session, refresh_source=True):
         data['payload'] = instrument.api_class.prepare_payload(data['payload'])
 
     # validate the payload
-    jsonschema.validate(data['payload'], formSchema)
+    if formSchemaForcedPhotometry is not None and (
+        data['payload'].get('request_type', None) == 'forced_photometry'
+        or formSchema is None
+    ):
+        jsonschema.validate(data['payload'], formSchemaForcedPhotometry)
+    else:
+        jsonschema.validate(data['payload'], formSchema)
 
     followup_request = FollowupRequest.__schema__().load(data)
     followup_request.target_groups = target_groups
