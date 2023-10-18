@@ -834,9 +834,12 @@ class FollowupRequestHandler(BaseHandler):
                 )
             followup_requests = session.scalars(followup_requests).unique().all()
 
-            info = {}
-            info["followup_requests"] = [req.to_dict() for req in followup_requests]
-            info["totalMatches"] = int(total_matches)
+            info = {
+                "followup_requests": [req.to_dict() for req in followup_requests],
+                "totalMatches": int(total_matches),
+                "pageNumber": page_number,
+                "numPerPage": n_per_page,
+            }
             return self.success(data=info)
 
     @permissions(["Upload data"])
