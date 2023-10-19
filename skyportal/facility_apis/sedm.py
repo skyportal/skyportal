@@ -3,12 +3,15 @@ import json
 import requests
 
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 from baselayer.app.flow import Flow
 
 from . import FollowUpAPI, Listener
 from ..utils import http
 
 env, cfg = load_env()
+
+log = make_log('facility_apis/sedm')
 
 
 class SEDMListener(Listener):
@@ -211,7 +214,7 @@ class SEDMAPI(FollowUpAPI):
             files={'jsonfile': ('jsonfile', content)},
         )
 
-        if r.status_code == 200:
+        if r.status_code == 200 and 'accepted' in r.content.decode().lower():
             request.status = 'submitted'
         else:
             request.status = f'rejected: {r.content}'
@@ -254,8 +257,12 @@ class SEDMAPI(FollowUpAPI):
             files={'jsonfile': ('jsonfile', content)},
         )
 
-        r.raise_for_status()
-        request.status = "deleted"
+        if r.status_code == 200 and 'accepted' in r.content.decode().lower():
+            request.status = 'deleted'
+        elif "Rejected Deletion, ACTIVE" in r.content.decode().lower():
+            raise Exception("Cannot delete an active request. Data is being taken.")
+        else:
+            raise Exception(f"{r.content}")
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -294,10 +301,12 @@ class SEDMAPI(FollowUpAPI):
             files={'jsonfile': ('jsonfile', content)},
         )
 
-        if r.status_code == 200:
+        if r.status_code == 200 and 'accepted' in r.content.decode().lower():
             request.status = 'submitted'
+        elif "Rejected Edit Deletion, ACTIVE" in r.content.decode().lower():
+            raise Exception("Cannot edit an active request. Data is being taken.")
         else:
-            request.status = f'rejected: {r.content}'
+            raise Exception(f"{r.content}")
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),

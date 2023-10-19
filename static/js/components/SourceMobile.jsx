@@ -29,6 +29,7 @@ import {
 import { WidthProvider } from "react-grid-layout";
 import { log10, abs, ceil } from "mathjs";
 import RemoveIcon from "@mui/icons-material/Remove";
+import QuickSaveButton from "./QuickSaveSource";
 import Button from "./Button";
 
 import CommentListMobile from "./CommentListMobile";
@@ -644,6 +645,10 @@ const SourceMobile = WidthProvider(
                   icon
                 />
                 <SourceSaveHistory groups={source.groups} />
+                <QuickSaveButton
+                  sourceId={source.id}
+                  alreadySavedGroups={source.groups?.map((g) => g.id)}
+                />
               </div>
               <div className={classes.thumbnails}>
                 <ThumbnailList

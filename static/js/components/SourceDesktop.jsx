@@ -59,6 +59,7 @@ import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
 import Reminders from "./Reminders";
+import QuickSaveButton from "./QuickSaveSource";
 
 import SourcePlugins from "./SourcePlugins";
 
@@ -657,6 +658,10 @@ const SourceDesktop = ({ source }) => {
           icon
         />
         <SourceSaveHistory groups={source.groups} />
+        <QuickSaveButton
+          sourceId={source.id}
+          alreadySavedGroups={source.groups?.map((g) => g.id)}
+        />
         <div className={classes.columnItem}>
           <ThumbnailList
             ra={source.ra}
