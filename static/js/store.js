@@ -12,10 +12,10 @@ import {
 
 const syncConfig = {
   whitelist: [
-    "baselayer/SHOW_NOTIFICATION",
+    // "baselayer/SHOW_NOTIFICATION",
     "baselayer/HIDE_NOTIFICATION",
     "baselayer/HIDE_NOTIFICATION_BY_TAG",
-    "skyportal/FETCH_INSTRUMENTS_OK",
+    // "skyportal/FETCH_INSTRUMENTS_OK",
     // TODO: add more _OK actions here, as long as
     // they don't trigger any fetching of data
   ],

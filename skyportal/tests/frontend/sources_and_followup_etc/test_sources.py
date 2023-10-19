@@ -7,6 +7,7 @@ from io import BytesIO
 import pytest
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from PIL import Image, ImageChops
 
@@ -323,6 +324,10 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+
+    # give some time for the plots to load
+    time.sleep(3)
+
     driver.click_xpath('//div[@id="root_taxonomy"]')
     driver.click_xpath(
         f'//*[text()="{tax_name} ({tax_version})"]',
@@ -335,7 +340,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     ActionChains(driver).move_to_element(header).click().perform()
 
     driver.click_xpath('//*[@id="classification"]')
-    driver.click_xpath('//li[contains(@data-value, "Symmetrical")]', scroll_parent=True)
+    driver.click_xpath('//div[contains(@id, "Symmetrical")]', scroll_parent=True)
 
     # Click somewhere outside to remove focus from classification select
     header = driver.wait_for_xpath("//header")
@@ -354,7 +359,10 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.scroll_to_element(classifications)
 
     del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
-    driver.click_xpath(del_button_xpath, wait_clickable=False)
+    driver.wait_for_xpath(del_button_xpath, timeout=20)
+    driver.scroll_to_element(driver.wait_for_xpath(del_button_xpath))
+
+    driver.click_xpath(del_button_xpath)
     driver.click_xpath("//*[text()='Confirm']", wait_clickable=False)
     driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
@@ -370,9 +378,21 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
         wait_clickable=False,
         scroll_parent=True,
     )
+    # Click somewhere outside to remove focus from taxonomy select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
+
     driver.click_xpath('//*[@id="classification"]')
-    driver.click_xpath('//li[contains(@data-value, "Mult-mode")]', scroll_parent=True)
-    driver.click_xpath('//*[@id="probability"]')
+    # type "Mult-mode" into the classification select text box
+    classification_textbox = driver.wait_for_xpath('//*[@id="classification"]')
+    classification_textbox.send_keys("Mult-mode")
+    driver.click_xpath('//div[contains(@id, "Mult-mode")]', scroll_parent=True)
+    # empty the probability text box
+
+    probability_textbox = driver.wait_for_xpath('//*[@id="probability"]')
+    probability_textbox.click()
+    probability_textbox.send_keys(Keys.BACKSPACE)
+
     driver.wait_for_xpath('//*[@id="probability"]').send_keys("0.02")
     driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
     driver.wait_for_xpath("//*[text()='Classification saved']")

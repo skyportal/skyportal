@@ -2207,6 +2207,7 @@ def nb_obs_to_word(nb_obs):
 def add_gcn_summary(
     summary_id,
     user_id,
+    user_accessible_group_ids,
     dateobs,
     title,
     number,
@@ -2322,7 +2323,7 @@ def add_gcn_summary(
                     user_id=user.id,
                     session=session,
                     group_ids=[group.id],
-                    user_accessible_group_ids=[g.id for g in user.accessible_groups],
+                    user_accessible_group_ids=user_accessible_group_ids,
                     first_detected_date=start_date,
                     last_detected_date=end_date,
                     localization_dateobs=dateobs,
@@ -3026,6 +3027,9 @@ class GcnSummaryHandler(BaseHandler):
 
             summary_id = gcn_summary.id
             user_id = self.associated_user_object.id
+            user_accessible_group_ids = [
+                group.id for group in self.associated_user_object.accessible_groups
+            ]
 
             try:
                 IOLoop.current().run_in_executor(
@@ -3033,6 +3037,7 @@ class GcnSummaryHandler(BaseHandler):
                     lambda: add_gcn_summary(
                         summary_id=summary_id,
                         user_id=user_id,
+                        user_accessible_group_ids=user_accessible_group_ids,
                         dateobs=dateobs,
                         title=title,
                         number=number,
@@ -3225,6 +3230,7 @@ class GcnSummaryHandler(BaseHandler):
 def add_gcn_report(
     report_id,
     user_id,
+    user_accessible_group_ids,
     dateobs,
     group_id,
     start_date,
@@ -3246,6 +3252,7 @@ def add_gcn_report(
 
     try:
         user = session.query(User).get(user_id)
+        user_accessible_group_ids = [group.id for group in user.accessible_groups]
         session.user_or_token = user
 
         gcn_report = session.query(GcnReport).get(report_id)
@@ -3276,9 +3283,7 @@ def add_gcn_report(
                         user_id=user.id,
                         session=session,
                         group_ids=[group.id],
-                        user_accessible_group_ids=[
-                            g.id for g in user.accessible_groups
-                        ],
+                        user_accessible_group_ids=user_accessible_group_ids,
                         first_detected_date=start_date,
                         last_detected_date=end_date,
                         localization_dateobs=dateobs,
@@ -3664,6 +3669,9 @@ class GcnReportHandler(BaseHandler):
 
             report_id = gcn_report.id
             user_id = self.associated_user_object.id
+            user_accessible_group_ids = [
+                group.id for group in self.associated_user_object.accessible_groups
+            ]
 
             try:
                 IOLoop.current().run_in_executor(
@@ -3671,6 +3679,7 @@ class GcnReportHandler(BaseHandler):
                     lambda: add_gcn_report(
                         report_id=report_id,
                         user_id=user_id,
+                        user_accessible_group_ids=user_accessible_group_ids,
                         dateobs=dateobs,
                         group_id=group_id,
                         start_date=start_date,

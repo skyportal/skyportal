@@ -847,9 +847,12 @@ class FollowupRequestHandler(BaseHandler):
                 )
             followup_requests = session.scalars(followup_requests).unique().all()
 
-            info = {}
-            info["followup_requests"] = [req.to_dict() for req in followup_requests]
-            info["totalMatches"] = int(total_matches)
+            info = {
+                "followup_requests": [req.to_dict() for req in followup_requests],
+                "totalMatches": int(total_matches),
+                "pageNumber": page_number,
+                "numPerPage": n_per_page,
+            }
             return self.success(data=info)
 
     @permissions(["Upload data"])
@@ -1081,13 +1084,16 @@ class FollowupRequestHandler(BaseHandler):
             followup_request.last_modified_by_id = self.associated_user_object.id
             internal_key = followup_request.obj.internal_key
 
-            api.delete(followup_request, session)
-            session.commit()
+            try:
+                api.delete(followup_request, session)
+                session.commit()
 
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": internal_key},
-            )
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": internal_key},
+                )
+            except Exception as e:
+                return self.error(f'Failed to delete follow-up request: {e}')
             return self.success()
 
 

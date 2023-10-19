@@ -577,6 +577,13 @@ async def get_sources(
     verbose=False,
 ):
     try:
+        page_number = int(page_number)
+        num_per_page = int(num_per_page)
+    except Exception as e:
+        log(f'Invalid pagination arguments: {e}')
+        raise ValueError(f'Invalid pagination arguments: {e}')
+
+    try:
         # it takes one query argument, which is the query type
         # and the group_ids to query
         startMethodTime = time.time()
