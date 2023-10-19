@@ -184,13 +184,17 @@ const FollowupRequestLists = ({
 
     followupRequests = followupRequests.filter(
       (request) =>
-        (request.allocation.pi.toLowerCase().includes("forced_photometry") ||
-          request?.payload?.request_type === "forced_photometry") &&
-        request?.allocation?.instrument_id in instrumentFormParams &&
-        instrumentFormParams[request?.allocation?.instrument_id]
-          ?.formSchemaForcedPhotometry !== null &&
-        instrumentFormParams[request?.allocation?.instrument_id]
-          ?.formSchemaForcedPhotometry !== undefined
+        request.allocation.pi.toLowerCase().includes("forced_photometry") ||
+        request?.payload?.request_type === "forced_photometry" ||
+        ((instrumentFormParams[request?.allocation?.instrument_id]
+          ?.formSchema === null ||
+          instrumentFormParams[request?.allocation?.instrument_id]
+            ?.formSchemaForcedPhotometry === undefined) &&
+          request?.allocation?.instrument_id in instrumentFormParams &&
+          instrumentFormParams[request?.allocation?.instrument_id]
+            ?.formSchemaForcedPhotometry !== null &&
+          instrumentFormParams[request?.allocation?.instrument_id]
+            ?.formSchemaForcedPhotometry !== undefined)
     );
   }
 

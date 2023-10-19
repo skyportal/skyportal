@@ -63,6 +63,9 @@ const FollowupRequestForm = ({
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [filteredAllocationList, setFilteredAllocationList] = useState([]);
+  const [settingFilteredList, setSettingFilteredList] = useState(false);
+
   useEffect(() => {
     const getAllocations = async () => {
       // Wait for the allocations to update before setting
@@ -122,35 +125,65 @@ const FollowupRequestForm = ({
 
   // only keep allocations in allocationListApiClassname where there is a corresponding
   // instrument form params with a non null formSchema
-  let filteredAllocationList = [];
-  if (requestType === "triggered") {
-    filteredAllocationList = (allocationListApiClassname || []).filter(
-      (allocation) =>
-        allocation.instrument_id in instrumentFormParams &&
-        instrumentFormParams[allocation.instrument_id].formSchema !== null &&
-        instrumentFormParams[allocation.instrument_id].formSchema !==
-          undefined &&
-        !allocation.pi.toLowerCase().includes("forced photometry")
-    );
-  } else if (requestType === "forced_photometry") {
-    filteredAllocationList = (allocationListApiClassname || []).filter(
-      (allocation) =>
-        (allocation.instrument_id in instrumentFormParams &&
-          instrumentFormParams[allocation.instrument_id]
-            .formSchemaForcedPhotometry !== null &&
-          instrumentFormParams[allocation.instrument_id]
-            .formSchemaForcedPhotometry !== undefined) ||
-        allocation.pi.toLowerCase().includes("forced photometry")
-    );
-  } else {
-    filteredAllocationList = [...allocationListApiClassname];
-  }
+  useEffect(() => {
+    async function filterAllocations() {
+      setSettingFilteredList(true);
+      if (requestType === "triggered") {
+        console.log("triggered");
+        const filtered = (allocationListApiClassname || []).filter(
+          (allocation) =>
+            allocation.instrument_id in instrumentFormParams &&
+            instrumentFormParams[allocation.instrument_id].formSchema !==
+              null &&
+            instrumentFormParams[allocation.instrument_id].formSchema !==
+              undefined &&
+            !allocation.pi.toLowerCase().includes("forced photometry")
+        );
+        setFilteredAllocationList(filtered);
+      } else if (requestType === "forced_photometry") {
+        console.log("forced_photometry");
+        const filtered = (allocationListApiClassname || []).filter(
+          (allocation) =>
+            (allocation.instrument_id in instrumentFormParams &&
+              instrumentFormParams[allocation.instrument_id]
+                .formSchemaForcedPhotometry !== null &&
+              instrumentFormParams[allocation.instrument_id]
+                .formSchemaForcedPhotometry !== undefined) ||
+            allocation.pi.toLowerCase().includes("forced photometry")
+        );
+        setFilteredAllocationList(filtered);
+      }
+      setSettingFilteredList(false);
+    }
+    if (
+      filteredAllocationList.length === 0 &&
+      allocationListApiClassname.length > 0 &&
+      Object.keys(instrumentFormParams).length > 0 &&
+      settingFilteredList === false
+    ) {
+      filterAllocations();
+    }
+  }, [allocationListApiClassname, instrumentFormParams, settingFilteredList]);
 
   useEffect(() => {
-    if (!selectedAllocationId) {
+    console.log("useEffect");
+    if (
+      filteredAllocationList?.length > 0 &&
+      (!selectedAllocationId ||
+        !filteredAllocationList.some(
+          (allocation) => allocation.id === selectedAllocationId
+        ))
+    ) {
+      console.log(
+        `SETTING THE DEFAULT ${
+          requestType === "triggered" ? "triggered" : "forced_photometry"
+        } ALLOCATION THAT IS SELECTED to ${filteredAllocationList[0]?.id}`
+      );
       setSelectedAllocationId(filteredAllocationList[0]?.id);
     }
-  }, [allocationListApiClassname, instrumentFormParams, dispatch]);
+  }, [filteredAllocationList]);
+
+  console.log("selectedAllocationId", selectedAllocationId);
 
   if (
     allocationListApiClassname.length === 0 ||
@@ -163,7 +196,10 @@ const FollowupRequestForm = ({
     !allGroups ||
     allGroups.length === 0 ||
     telescopeList.length === 0 ||
-    instrumentList.length === 0
+    instrumentList.length === 0 ||
+    !filteredAllocationList.some(
+      (allocation) => allocation.id === selectedAllocationId
+    )
   ) {
     return (
       <div>
