@@ -129,7 +129,6 @@ const FollowupRequestForm = ({
     async function filterAllocations() {
       setSettingFilteredList(true);
       if (requestType === "triggered") {
-        console.log("triggered");
         const filtered = (allocationListApiClassname || []).filter(
           (allocation) =>
             allocation.instrument_id in instrumentFormParams &&
@@ -141,7 +140,6 @@ const FollowupRequestForm = ({
         );
         setFilteredAllocationList(filtered);
       } else if (requestType === "forced_photometry") {
-        console.log("forced_photometry");
         const filtered = (allocationListApiClassname || []).filter(
           (allocation) =>
             (allocation.instrument_id in instrumentFormParams &&
@@ -166,7 +164,6 @@ const FollowupRequestForm = ({
   }, [allocationListApiClassname, instrumentFormParams, settingFilteredList]);
 
   useEffect(() => {
-    console.log("useEffect");
     if (
       filteredAllocationList?.length > 0 &&
       (!selectedAllocationId ||
@@ -174,16 +171,9 @@ const FollowupRequestForm = ({
           (allocation) => allocation.id === selectedAllocationId
         ))
     ) {
-      console.log(
-        `SETTING THE DEFAULT ${
-          requestType === "triggered" ? "triggered" : "forced_photometry"
-        } ALLOCATION THAT IS SELECTED to ${filteredAllocationList[0]?.id}`
-      );
       setSelectedAllocationId(filteredAllocationList[0]?.id);
     }
   }, [filteredAllocationList]);
-
-  console.log("selectedAllocationId", selectedAllocationId);
 
   if (
     allocationListApiClassname.length === 0 ||
