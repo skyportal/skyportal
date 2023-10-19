@@ -905,6 +905,50 @@ const SourceMobile = WidthProvider(
                     instrumentFormParams={instrumentFormParams}
                     totalMatches={source.followup_requests.length}
                   />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+            <Accordion>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="followup-content"
+                id="followup-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Forced Photometry
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.followupContainer}>
+                  <FollowupRequestForm
+                    obj_id={source.id}
+                    action="createNew"
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                    requestType="forced_photometry"
+                  />
+                  <FollowupRequestLists
+                    followupRequests={source.followup_requests}
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                    totalMatches={source.followup_requests.length}
+                    requestType="forced_photometry"
+                  />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="followup-content"
+                id="followup-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Assign Target to Observing Run
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.followupContainer}>
                   <AssignmentForm
                     obj_id={source.id}
                     observingRunList={observingRunList}

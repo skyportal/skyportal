@@ -864,7 +864,7 @@ const SourceDesktop = ({ source }) => {
                 id="followup-header"
               >
                 <Typography className={classes.accordionHeading}>
-                  Assignment
+                  Assign Target to Observing Run
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
