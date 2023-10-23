@@ -142,11 +142,11 @@ const FollowupRequestForm = ({
       } else if (requestType === "forced_photometry") {
         const filtered = (allocationListApiClassname || []).filter(
           (allocation) =>
-            (allocation.instrument_id in instrumentFormParams &&
-              instrumentFormParams[allocation.instrument_id]
-                .formSchemaForcedPhotometry !== null &&
-              instrumentFormParams[allocation.instrument_id]
-                .formSchemaForcedPhotometry !== undefined) ||
+            allocation.instrument_id in instrumentFormParams &&
+            instrumentFormParams[allocation.instrument_id]
+              .formSchemaForcedPhotometry !== null &&
+            instrumentFormParams[allocation.instrument_id]
+              .formSchemaForcedPhotometry !== undefined &&
             allocation.pi.toLowerCase().includes("forced photometry")
         );
         setFilteredAllocationList(filtered);
@@ -176,10 +176,17 @@ const FollowupRequestForm = ({
   }, [filteredAllocationList]);
 
   if (
-    allocationListApiClassname.length === 0 ||
+    filteredAllocationList.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <h3>No allocations with an API class where found...</h3>;
+    return (
+      <h3>
+        {`No allocations with an API class ${
+          requestType === "forced_photometry" ? "(for forced photometry) " : ""
+        }where found..`}
+        .
+      </h3>
+    );
   }
 
   if (
