@@ -136,7 +136,7 @@ const FollowupRequestForm = ({
               null &&
             instrumentFormParams[allocation.instrument_id].formSchema !==
               undefined &&
-            !allocation.pi.toLowerCase().includes("forced photometry")
+            allocation.types.includes("triggered")
         );
         setFilteredAllocationList(filtered);
       } else if (requestType === "forced_photometry") {
@@ -147,7 +147,7 @@ const FollowupRequestForm = ({
               .formSchemaForcedPhotometry !== null &&
             instrumentFormParams[allocation.instrument_id]
               .formSchemaForcedPhotometry !== undefined &&
-            allocation.pi.toLowerCase().includes("forced photometry")
+            allocation.types.includes("forced_photometry")
         );
         setFilteredAllocationList(filtered);
       }

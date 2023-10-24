@@ -164,7 +164,7 @@ const FollowupRequestLists = ({
     followupRequests = followupRequests.filter(
       (request) =>
         !(
-          request.allocation.pi.toLowerCase().includes("forced_photometry") ||
+          request.allocation.types.includes("forced_photometry") ||
           request?.payload?.request_type === "forced_photometry"
         ) &&
         request?.allocation?.instrument_id in instrumentFormParams &&
@@ -184,7 +184,7 @@ const FollowupRequestLists = ({
 
     followupRequests = followupRequests.filter(
       (request) =>
-        request.allocation.pi.toLowerCase().includes("forced_photometry") ||
+        request.allocation.types.includes("forced_photometry") ||
         request?.payload?.request_type === "forced_photometry" ||
         ((instrumentFormParams[request?.allocation?.instrument_id]
           ?.formSchema === null ||
@@ -381,6 +381,7 @@ const FollowupRequestLists = ({
               <EditFollowupRequestDialog
                 followupRequest={followupRequest}
                 instrumentFormParams={instrumentFormParams}
+                requestType={requestType}
               />
             )}
           </div>
