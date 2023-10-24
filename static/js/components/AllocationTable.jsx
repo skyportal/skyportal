@@ -234,6 +234,11 @@ const AllocationTable = ({
     return <div>{allocation ? allocation.pi : ""}</div>;
   };
 
+  const renderTypes = (dataIndex) => {
+    const allocation = allocations[dataIndex];
+    return <div>{allocation ? allocation.types.join(", ") : ""}</div>;
+  };
+
   const renderDelete = (dataIndex) => {
     const allocation = allocations[dataIndex];
     return (
@@ -372,6 +377,17 @@ const AllocationTable = ({
       sort: true,
       sortThirdClickReset: true,
       customBodyRenderLite: renderAllocationUsers,
+    },
+  });
+
+  columns.push({
+    name: "types",
+    label: "Types",
+    options: {
+      filter: false,
+      sort: true,
+      sortThirdClickReset: true,
+      customBodyRenderLite: renderTypes,
     },
   });
   columns.push({

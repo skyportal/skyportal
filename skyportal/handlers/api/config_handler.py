@@ -9,6 +9,7 @@ from ...enum_types import (
     default_spectrum_type,
     ALLOWED_SPECTRUM_TYPES,
     GCN_NOTICE_TYPES,
+    ALLOWED_ALLOCATION_TYPES,
 )
 
 from .recurring_api import ALLOWED_RECURRING_API_METHODS
@@ -82,6 +83,7 @@ class ConfigHandler(BaseHandler):
                 "openai_summary_apikey_set": openai_summary_apikey_set,
                 "openai_summary_parameters": openai_summary_parameters,
                 "cosmoref": cosmo.__doc__,
+                "allowedAllocationTypes": ALLOWED_ALLOCATION_TYPES,
                 "allowedSpectrumTypes": ALLOWED_SPECTRUM_TYPES,
                 "defaultSpectrumType": default_spectrum_type,
                 "gcnNoticeTypes": GCN_NOTICE_TYPES,
