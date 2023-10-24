@@ -637,7 +637,7 @@ allocation:
     start_date: "3020-02-12T00:00:00"
     end_date: "3020-07-12T00:00:00"
     hours_allocated: 100
-    types: [forced_photometry]
+    types: [triggered, forced_photometry]
     group_id: =program_A
     instrument_id: =ZTF
     =id: ZTF_allocation
@@ -646,6 +646,7 @@ allocation:
     start_date: "3020-02-12T00:00:00"
     end_date: "3020-07-12T00:00:00"
     hours_allocated: 100
+    types: [forced_photometry]
     group_id: =program_A
     instrument_id: =ATLAS
   - pi: Michael Coughlin
