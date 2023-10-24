@@ -241,6 +241,7 @@ const ModifyAllocation = () => {
           enum: allowedAllocationTypes,
         },
         uniqueItems: true,
+        default: allocationLookUp[selectedAllocationId]?.types,
       },
       pi: {
         type: "string",
