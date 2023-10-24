@@ -89,7 +89,7 @@ const NewDefaultFollowupRequest = () => {
       allocation.instrument_id in instrumentFormParams &&
       instrumentFormParams[allocation.instrument_id].formSchema !== null &&
       instrumentFormParams[allocation.instrument_id].formSchema !== undefined &&
-      !allocation.pi.toLowerCase().includes("forced photometry")
+      allocation.types.includes("triggered")
   );
 
   useEffect(() => {
