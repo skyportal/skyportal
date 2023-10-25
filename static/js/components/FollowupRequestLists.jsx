@@ -163,15 +163,12 @@ const FollowupRequestLists = ({
 
     followupRequests = followupRequests.filter(
       (request) =>
-        !(
-          request.allocation.types.includes("forced_photometry") ||
-          request?.payload?.request_type === "forced_photometry"
-        ) &&
-        request?.allocation?.instrument_id in instrumentFormParams &&
-        instrumentFormParams[request?.allocation?.instrument_id]?.formSchema !==
-          null &&
-        instrumentFormParams[request?.allocation?.instrument_id]?.formSchema !==
-          undefined
+        request?.payload?.request_type === "triggered" ||
+        (request?.allocation?.instrument_id in instrumentFormParams &&
+          (instrumentFormParams[request?.allocation?.instrument_id]
+            ?.formSchemaForcedPhotometry === null ||
+            instrumentFormParams[request?.allocation?.instrument_id]
+              ?.formSchemaForcedPhotometry === undefined))
     );
   } else if (requestType === "forced_photometry") {
     instrumentList = instrumentList.filter(
@@ -184,17 +181,12 @@ const FollowupRequestLists = ({
 
     followupRequests = followupRequests.filter(
       (request) =>
-        request.allocation.types.includes("forced_photometry") ||
         request?.payload?.request_type === "forced_photometry" ||
-        ((instrumentFormParams[request?.allocation?.instrument_id]
-          ?.formSchema === null ||
-          instrumentFormParams[request?.allocation?.instrument_id]
-            ?.formSchemaForcedPhotometry === undefined) &&
-          request?.allocation?.instrument_id in instrumentFormParams &&
-          instrumentFormParams[request?.allocation?.instrument_id]
-            ?.formSchemaForcedPhotometry !== null &&
-          instrumentFormParams[request?.allocation?.instrument_id]
-            ?.formSchemaForcedPhotometry !== undefined)
+        (request?.allocation?.instrument_id in instrumentFormParams &&
+          (instrumentFormParams[request?.allocation?.instrument_id]
+            ?.formSchema === null ||
+            instrumentFormParams[request?.allocation?.instrument_id]
+              ?.formSchema === undefined))
     );
   }
 
