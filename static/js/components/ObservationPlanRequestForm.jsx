@@ -487,6 +487,11 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     setSelectedLocalizationId,
   ]);
 
+  // filter out the allocations that dont have "observaton_plan" in the types
+  const filteredAllocationListApiObsplan = allocationListApiObsplan.filter(
+    (allocation) => allocation.types.includes("observation_plan")
+  );
+
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if allocationListApiObsplan is not
@@ -497,6 +502,15 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     Object.keys(instrumentObsplanFormParams).length === 0
   ) {
     return <h3>No allocations with an observation plan API...</h3>;
+  }
+
+  if (filteredAllocationListApiObsplan.length === 0) {
+    return (
+      <h3>
+        No allocations with an observation plan API and observation plan type
+        set...
+      </h3>
+    );
   }
 
   if (
@@ -764,7 +778,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
             name="followupRequestAllocationSelect"
             className={classes.allocationSelect}
           >
-            {allocationListApiObsplan?.map((allocation) => (
+            {filteredAllocationListApiObsplan?.map((allocation) => (
               <MenuItem
                 value={allocation.id}
                 key={allocation.id}

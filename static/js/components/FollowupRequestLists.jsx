@@ -109,6 +109,7 @@ const FollowupRequestLists = ({
   numPerPage = 10,
   showObject = false,
   serverSide = false,
+  requestType = "triggered",
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -150,6 +151,44 @@ const FollowupRequestLists = ({
     await dispatch(Actions.editFollowupRequest(json, followupRequest.id));
     setIsSubmitting(null);
   };
+
+  if (requestType === "triggered") {
+    instrumentList = instrumentList.filter(
+      // find the instrument in instrumentFormParams that has the same id as the instrument in instrumentList
+      (inst) =>
+        inst.id in instrumentFormParams &&
+        instrumentFormParams[inst.id]?.formSchema !== null &&
+        instrumentFormParams[inst.id]?.formSchema !== undefined
+    );
+
+    followupRequests = followupRequests.filter(
+      (request) =>
+        request?.payload?.request_type === "triggered" ||
+        (request?.allocation?.instrument_id in instrumentFormParams &&
+          (instrumentFormParams[request?.allocation?.instrument_id]
+            ?.formSchemaForcedPhotometry === null ||
+            instrumentFormParams[request?.allocation?.instrument_id]
+              ?.formSchemaForcedPhotometry === undefined))
+    );
+  } else if (requestType === "forced_photometry") {
+    instrumentList = instrumentList.filter(
+      // find the instrument in instrumentFormParams that has the same id as the instrument in instrumentList
+      (inst) =>
+        inst.id in instrumentFormParams &&
+        instrumentFormParams[inst.id]?.formSchemaForcedPhotometry !== null &&
+        instrumentFormParams[inst.id]?.formSchemaForcedPhotometry !== undefined
+    );
+
+    followupRequests = followupRequests.filter(
+      (request) =>
+        request?.payload?.request_type === "forced_photometry" ||
+        (request?.allocation?.instrument_id in instrumentFormParams &&
+          (instrumentFormParams[request?.allocation?.instrument_id]
+            ?.formSchema === null ||
+            instrumentFormParams[request?.allocation?.instrument_id]
+              ?.formSchema === undefined))
+    );
+  }
 
   if (
     (instrumentList.length === 0 ||
@@ -334,6 +373,7 @@ const FollowupRequestLists = ({
               <EditFollowupRequestDialog
                 followupRequest={followupRequest}
                 instrumentFormParams={instrumentFormParams}
+                requestType={requestType}
               />
             )}
           </div>
@@ -548,6 +588,7 @@ FollowupRequestLists.propTypes = {
   numPerPage: PropTypes.number,
   showObject: PropTypes.bool,
   serverSide: PropTypes.bool,
+  requestType: PropTypes.string,
 };
 
 FollowupRequestLists.defaultProps = {
@@ -557,5 +598,6 @@ FollowupRequestLists.defaultProps = {
   totalMatches: 0,
   numPerPage: 10,
   handleTableChange: null,
+  requestType: "triggered",
 };
 export default FollowupRequestLists;

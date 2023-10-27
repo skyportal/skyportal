@@ -185,18 +185,21 @@ const NewDefaultObservationPlan = () => {
     instrumentObsplanFormParams[
       allocationLookUp[selectedAllocationId].instrument_id
     ];
-  formSchema.properties.default_plan_name = {
+
+  // make a copy
+  const formSchemaCopy = JSON.parse(JSON.stringify(formSchema));
+  formSchemaCopy.properties.default_plan_name = {
     default: "DEFAULT-PLAN-NAME",
     type: "string",
   };
 
   const keys_to_remove = ["start_date", "end_date", "queue_name"];
   keys_to_remove.forEach((key) => {
-    if (Object.keys(formSchema.properties).includes(key)) {
-      delete formSchema.properties[key];
+    if (Object.keys(formSchemaCopy.properties).includes(key)) {
+      delete formSchemaCopy.properties[key];
     }
-    if (formSchema.required.includes(key)) {
-      formSchema.required.splice(formSchema.required.indexOf(key), 1);
+    if (formSchemaCopy.required.includes(key)) {
+      formSchemaCopy.required.splice(formSchemaCopy.required.indexOf(key), 1);
     }
   });
 
@@ -246,7 +249,7 @@ const NewDefaultObservationPlan = () => {
       <div data-testid="observationplan-request-form">
         <div>
           <Form
-            schema={formSchema}
+            schema={formSchemaCopy}
             validator={validator}
             uiSchema={uiSchema}
             onSubmit={handleSubmit}

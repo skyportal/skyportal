@@ -46,6 +46,7 @@ const FollowupRequestForm = ({
   obj_id,
   instrumentList,
   instrumentFormParams,
+  requestType,
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -61,6 +62,9 @@ const FollowupRequestForm = ({
     useState(defaultAllocationId);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [filteredAllocationList, setFilteredAllocationList] = useState([]);
+  const [settingFilteredList, setSettingFilteredList] = useState(false);
 
   useEffect(() => {
     const getAllocations = async () => {
@@ -85,7 +89,6 @@ const FollowupRequestForm = ({
       });
 
       if (!selectedAllocationId) {
-        setSelectedAllocationId(data[0]?.id);
         if (data[0]?.default_share_group_ids?.length > 0) {
           setSelectedGroupIds(data[0]?.default_share_group_ids);
         } else {
@@ -119,20 +122,81 @@ const FollowupRequestForm = ({
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if allocationList is not
   // empty.
+
+  // only keep allocations in allocationListApiClassname where there is a corresponding
+  // instrument form params with a non null formSchema
+  useEffect(() => {
+    async function filterAllocations() {
+      setSettingFilteredList(true);
+      if (requestType === "triggered") {
+        const filtered = (allocationListApiClassname || []).filter(
+          (allocation) =>
+            allocation.instrument_id in instrumentFormParams &&
+            instrumentFormParams[allocation.instrument_id].formSchema !==
+              null &&
+            instrumentFormParams[allocation.instrument_id].formSchema !==
+              undefined &&
+            allocation.types.includes("triggered")
+        );
+        setFilteredAllocationList(filtered);
+      } else if (requestType === "forced_photometry") {
+        const filtered = (allocationListApiClassname || []).filter(
+          (allocation) =>
+            allocation.instrument_id in instrumentFormParams &&
+            instrumentFormParams[allocation.instrument_id]
+              .formSchemaForcedPhotometry !== null &&
+            instrumentFormParams[allocation.instrument_id]
+              .formSchemaForcedPhotometry !== undefined &&
+            allocation.types.includes("forced_photometry")
+        );
+        setFilteredAllocationList(filtered);
+      }
+      setSettingFilteredList(false);
+    }
+    if (
+      filteredAllocationList.length === 0 &&
+      allocationListApiClassname.length > 0 &&
+      Object.keys(instrumentFormParams).length > 0 &&
+      settingFilteredList === false
+    ) {
+      filterAllocations();
+    }
+  }, [allocationListApiClassname, instrumentFormParams, settingFilteredList]);
+
+  useEffect(() => {
+    if (
+      filteredAllocationList?.length > 0 &&
+      (!selectedAllocationId ||
+        !filteredAllocationList.some(
+          (allocation) => allocation.id === selectedAllocationId
+        ))
+    ) {
+      setSelectedAllocationId(filteredAllocationList[0]?.id);
+    }
+  }, [filteredAllocationList]);
+
   if (
-    allocationListApiClassname.length === 0 ||
-    !selectedAllocationId ||
-    !selectedGroupIds ||
+    filteredAllocationList.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <h3>No allocations with an observation plan API...</h3>;
+    return (
+      <h3>
+        {`No allocations with an API class ${
+          requestType === "forced_photometry" ? "(for forced photometry) " : ""
+        }where found..`}
+        .
+      </h3>
+    );
   }
 
   if (
     !allGroups ||
     allGroups.length === 0 ||
     telescopeList.length === 0 ||
-    instrumentList.length === 0
+    instrumentList.length === 0 ||
+    !filteredAllocationList.some(
+      (allocation) => allocation.id === selectedAllocationId
+    )
   ) {
     return (
       <div>
@@ -208,7 +272,7 @@ const FollowupRequestForm = ({
         name="followupRequestAllocationSelect"
         className={classes.allocationSelect}
       >
-        {allocationListApiClassname?.map((allocation) => (
+        {filteredAllocationList?.map((allocation) => (
           <MenuItem
             value={allocation.id}
             key={allocation.id}
@@ -235,9 +299,13 @@ const FollowupRequestForm = ({
           instrumentFormParams ? (
           <Form
             schema={
-              instrumentFormParams[
-                allocationLookUp[selectedAllocationId].instrument_id
-              ].formSchema
+              requestType === "forced_photometry"
+                ? instrumentFormParams[
+                    allocationLookUp[selectedAllocationId].instrument_id
+                  ].formSchemaForcedPhotometry
+                : instrumentFormParams[
+                    allocationLookUp[selectedAllocationId].instrument_id
+                  ].formSchema
             }
             validator={validator}
             uiSchema={
@@ -278,6 +346,11 @@ FollowupRequestForm.propTypes = {
     uiSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
     implementedMethods: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
   }).isRequired,
+  requestType: PropTypes.string,
+};
+
+FollowupRequestForm.defaultProps = {
+  requestType: "triggered",
 };
 
 export default FollowupRequestForm;

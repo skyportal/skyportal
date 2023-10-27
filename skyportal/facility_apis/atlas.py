@@ -333,7 +333,7 @@ class ATLASAPI(FollowUpAPI):
         session.delete(request)
         session.commit()
 
-    form_json_schema = {
+    form_json_schema_forced_photometry = {
         "type": "object",
         "properties": {
             "start_date": {

@@ -62,20 +62,12 @@ const NewDefaultFollowupRequest = () => {
       // the new default form fields, so that the allocations list can
       // update
 
-      let data = [];
       if (
         !allocationListApiClassname ||
         allocationListApiClassname.length === 0
       ) {
-        const result = await dispatch(
-          allocationActions.fetchAllocationsApiClassname()
-        );
-        data = result?.data || [];
-      } else {
-        data = allocationListApiClassname;
+        await dispatch(allocationActions.fetchAllocationsApiClassname());
       }
-      setSelectedAllocationId(data[0]?.id);
-      setSelectedGroupIds([data[0]?.group_id]);
     };
 
     getAllocations();
@@ -90,18 +82,33 @@ const NewDefaultFollowupRequest = () => {
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedAllocationId, setSelectedGroupIds]);
+  }, [dispatch]);
+
+  const filteredAllocationListApiClassname = allocationListApiClassname.filter(
+    (allocation) =>
+      allocation.instrument_id in instrumentFormParams &&
+      instrumentFormParams[allocation.instrument_id].formSchema !== null &&
+      instrumentFormParams[allocation.instrument_id].formSchema !== undefined &&
+      allocation.types.includes("triggered")
+  );
+
+  useEffect(() => {
+    if (!selectedAllocationId) {
+      setSelectedAllocationId(filteredAllocationListApiClassname[0]?.id);
+      setSelectedGroupIds([filteredAllocationListApiClassname[0]?.group_id]);
+    }
+  }, [allocationListApiClassname, instrumentFormParams, dispatch]);
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if allocationListApiClassname is not
   // empty.
   if (
-    allocationListApiClassname.length === 0 ||
+    filteredAllocationListApiClassname.length === 0 ||
     !selectedAllocationId ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <h3>No allocations with an observation plan API...</h3>;
+    return <h3>No allocations with an API class...</h3>;
   }
 
   if (
@@ -131,7 +138,7 @@ const NewDefaultFollowupRequest = () => {
 
   const allocationLookUp = {};
   // eslint-disable-next-line no-unused-expressions
-  allocationListApiClassname?.forEach((allocation) => {
+  filteredAllocationListApiClassname?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
@@ -171,22 +178,29 @@ const NewDefaultFollowupRequest = () => {
     );
   }
   const { formSchema, uiSchema } = instrumentFormParam;
-  formSchema.properties.default_followup_name = {
+
+  // make a copy for both
+  const formSchemaCopy = JSON.parse(JSON.stringify(formSchema));
+
+  formSchemaCopy.properties.default_followup_name = {
     default: "DEFAULT-PLAN-NAME",
     type: "string",
   };
-  formSchema.properties.source_filter = {
+  formSchemaCopy.properties.source_filter = {
     title: "Source filter data (i.e. {'classification': 'microlensing'})",
     type: "string",
   };
 
   const keys_to_remove = ["start_date", "end_date", "queue_name"];
   keys_to_remove.forEach((key) => {
-    if (Object.keys(formSchema.properties).includes(key)) {
-      delete formSchema.properties[key];
+    if (Object.keys(formSchemaCopy.properties).includes(key)) {
+      delete formSchemaCopy.properties[key];
     }
-    if (formSchema.required.includes(key)) {
-      formSchema.required.splice(formSchema.required.indexOf(key), 1);
+    if (
+      formSchemaCopy.required?.length > 0 &&
+      formSchemaCopy.required.includes(key)
+    ) {
+      formSchemaCopy.required.splice(formSchemaCopy.required.indexOf(key), 1);
     }
   });
 
@@ -201,7 +215,7 @@ const NewDefaultFollowupRequest = () => {
         name="followupRequestAllocationSelect"
         className={classes.Select}
       >
-        {allocationListApiClassname?.map((allocation) => (
+        {filteredAllocationListApiClassname?.map((allocation) => (
           <MenuItem
             value={allocation.id}
             key={allocation.id}
@@ -224,7 +238,7 @@ const NewDefaultFollowupRequest = () => {
       <div data-testid="followup-request-form">
         <div>
           <Form
-            schema={formSchema}
+            schema={formSchemaCopy}
             validator={validator}
             uiSchema={uiSchema}
             onSubmit={handleSubmit}
