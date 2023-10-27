@@ -114,12 +114,11 @@ const AnalysisList = ({ obj_id }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
 
-  const fetchAnalysesList = async (objID) => {
-    dispatch(sourceActions.fetchAnalyses("obj", { objID }));
-  };
-
   const analyses = useSelector((state) => state.source.analyses);
   useEffect(() => {
+    const fetchAnalysesList = async (objID) => {
+      dispatch(sourceActions.fetchAnalyses("obj", { objID }));
+    };
     fetchAnalysesList(obj_id);
   }, [dispatch, obj_id]);
 
@@ -135,9 +134,7 @@ const AnalysisList = ({ obj_id }) => {
 
   const deleteAnalysis = async (analysisID) => {
     dispatch(showNotification(`Deleting Analysis (${analysisID}).`));
-    dispatch(sourceActions.deleteAnalysis(analysisID)).then(() => {
-      fetchAnalysesList(obj_id);
-    });
+    dispatch(sourceActions.deleteAnalysis(analysisID));
   };
 
   const getDataTableColumns = () => {
