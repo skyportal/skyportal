@@ -469,7 +469,6 @@ def post_analysis(
             session.commit()
             if analysis_resource_type.lower() == 'obj':
                 try:
-                    logger(f"Refreshing analyses for {analysis.obj.internal_key}")
                     flow = Flow()
                     flow.push(
                         '*',
@@ -1386,11 +1385,17 @@ class AnalysisHandler(BaseHandler):
                 session.commit()
 
                 try:
+                    flow = Flow()
                     if analysis.analysis_service.is_summary:
-                        flow = Flow()
                         flow.push(
                             '*',
                             'skyportal/REFRESH_SOURCE',
+                            payload={'obj_key': analysis.obj.internal_key},
+                        )
+                    elif analysis_resource_type == 'obj':
+                        flow.push(
+                            '*',
+                            'skyportal/REFRESH_OBJ_ANALYSES',
                             payload={'obj_key': analysis.obj.internal_key},
                         )
                 except Exception as e:
