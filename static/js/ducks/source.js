@@ -99,6 +99,7 @@ const START_ANALYSIS_FOR_OBJ = "skyportal/START_SERVICE_FOR_OBJ";
 const DELETE_ANALYSIS = "skyportal/DELETE_ANALYSIS";
 
 const FETCH_ANALYSES_FOR_OBJ = "skyportal/FETCH_ANALYSES_FOR_OBJ";
+const FETCH_ANALYSES_FOR_OBJ_OK = "skyportal/FETCH_ANALYSES_FOR_OBJ_OK";
 const FETCH_ANALYSIS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
 const FETCH_ANALYSIS_RESULTS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
 
@@ -502,18 +503,27 @@ export const fetchAssociatedGCNs = (sourceID) =>
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { source } = getState();
-
   if (actionType === REFRESH_SOURCE) {
     const loaded_obj_key = source?.internal_key;
     if (loaded_obj_key === payload.obj_key) {
       dispatch(fetchSource(source.id));
+    }
+  } else if (actionType === REFRESH_OBJ_ANALYSES) {
+    const loaded_obj_key = source?.internal_key;
+    if (loaded_obj_key === payload.obj_key) {
+      dispatch(fetchAnalyses("obj", { obj_id: source.id }));
     }
   }
 });
 
 // Reducer for currently displayed source
 const reducer = (
-  state = { source: null, loadError: false, associatedGCNs: null },
+  state = {
+    source: null,
+    loadError: false,
+    associatedGCNs: null,
+    analyses: null,
+  },
   action
 ) => {
   switch (action.type) {
@@ -591,6 +601,13 @@ const reducer = (
       return {
         ...state,
         associatedGCNs: gcns,
+      };
+    }
+    case FETCH_ANALYSES_FOR_OBJ_OK: {
+      const { data } = action;
+      return {
+        ...state,
+        analyses: data,
       };
     }
     default:

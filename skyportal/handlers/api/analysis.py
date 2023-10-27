@@ -467,6 +467,18 @@ def post_analysis(
                 f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
             )
             session.commit()
+            if analysis_resource_type.lower() == 'obj':
+                try:
+                    logger(f"Refreshing analyses for {analysis.obj.internal_key}")
+                    flow = Flow()
+                    flow.push(
+                        '*',
+                        'skyportal/REFRESH_OBJ_ANALYSES',
+                        payload={'obj_key': analysis.obj.internal_key},
+                    )
+                except Exception as e:
+                    logger(f"Could not refresh analyses: {e}")
+                    pass
 
     # Start the analysis service in a separate thread and log any exceptions
     x = IOLoop.current().run_in_executor(None, external_analysis_service)

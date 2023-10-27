@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useDispatch } from "react-redux";
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 
 import PropTypes from "prop-types";
@@ -114,16 +114,20 @@ const AnalysisList = ({ obj_id }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
 
-  const [analysesList, setAnalysesList] = useState(null);
+  const fetchAnalysesList = async (objID) => {
+    dispatch(sourceActions.fetchAnalyses("obj", { objID }));
+  };
+
+  const analyses = useSelector((state) => state.source.analyses);
   useEffect(() => {
-    const fetchAnalysesList = async (objID) => {
-      const response = await dispatch(
-        sourceActions.fetchAnalyses("obj", { objID })
-      );
-      setAnalysesList(response.data);
-    };
     fetchAnalysesList(obj_id);
-  }, [dispatch, setAnalysesList, obj_id]);
+  }, [dispatch, obj_id]);
+
+  // filter out the results, to only show the analyses for this object
+  let analysesList = [];
+  if (analyses !== undefined && analyses !== null) {
+    analysesList = analyses.filter((analysis) => analysis.obj_id === obj_id);
+  }
 
   if (!analysesList || analysesList.length === 0) {
     return <p>No analyses for this source...</p>;
@@ -131,14 +135,9 @@ const AnalysisList = ({ obj_id }) => {
 
   const deleteAnalysis = async (analysisID) => {
     dispatch(showNotification(`Deleting Analysis (${analysisID}).`));
-    dispatch(sourceActions.deleteAnalysis(analysisID));
-    const fetchAnalysesList = async (objID) => {
-      const response = await dispatch(
-        sourceActions.fetchAnalyses("obj", { objID })
-      );
-      setAnalysesList(response.data);
-    };
-    fetchAnalysesList(obj_id);
+    dispatch(sourceActions.deleteAnalysis(analysisID)).then(() => {
+      fetchAnalysesList(obj_id);
+    });
   };
 
   const getDataTableColumns = () => {
@@ -412,7 +411,7 @@ const AnalysisList = ({ obj_id }) => {
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
               <MUIDataTable
-                data={analysesList}
+                data={analysesList || []}
                 options={options}
                 columns={getDataTableColumns()}
               />
