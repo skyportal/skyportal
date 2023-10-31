@@ -36,6 +36,7 @@ jobs:
             "frontend_pt1",
             "frontend_pt2",
             "flaky",
+            "external",
           ]
 
     steps:
@@ -196,6 +197,12 @@ jobs:
         continue-on-error: true
         run: |
           PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/flaky'
+
+      - name: Run external tests
+        if: ${{ matrix.test_subset == 'external' }}
+        continue-on-error: true
+        run: |
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/external'
 
       - name: Upload logs
         uses: actions/upload-artifact@v2
