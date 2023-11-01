@@ -36,23 +36,24 @@ jobs:
         with:
           node-version: 20
 
-      - name: Checkout
+      - name: Checkout main
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+          ref: main
           submodules: true
 
-      # - uses: actions/cache@v2
-      #   with:
-      #     path: |
-      #       ~/.npm
-      #     key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
 
-      # - uses: actions/cache@v2
-      #   with:
-      #     path: |
-      #       ~/.cache/pip
-      #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
 
       - name: Write SkyPortal configs
         run: |
@@ -94,21 +95,15 @@ jobs:
           which python; python --version
           echo npm $(npm --version)
           echo node $(node --version)
-          echo npm $(npm --version)
           nginx -v
           firefox --version
 
-      - name: Install SkyPortal dependencies
-        run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
-          make dependencies
-
-      - name: Formatting and linting checks
-        if: github.ref != 'refs/heads/main'
-        run: |
-          pip install pre-commit
-          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
+      - name: Checkout branch being tested
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
+          clean: false
 
       - name: Initialize SkyPortal
         run: |
@@ -143,6 +138,18 @@ jobs:
           sudo tar -xzf ${CACHED_DOWNLOAD_DIR}/geckodriver-v${GECKO_VER}-linux64.tar.gz -C /usr/local/bin
           geckodriver --version
           python -c "import selenium; print(f'Selenium {selenium.__version__}')"
+
+      - name: Refresh SkyPortal dependencies for tested version
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+          make dependencies
+
+      - name: Formatting and linting checks
+        if: github.ref != 'refs/heads/main'
+        run: |
+          pip install pre-commit
+          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
       - name: Test loading demo data
         run: |
