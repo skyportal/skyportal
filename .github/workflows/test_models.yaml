@@ -145,6 +145,15 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
+      - name: Debug nodejs
+        run: |
+          # we want to print all the node bins on the system, to understand why the linter isn't using the latest one
+          echo all node: $(type -a node)
+          echo current node: $(which node)
+          # same for npm
+          echo all npm: $(type -a npm)
+          echo current npm: $(which npm)
+
       - name: Formatting and linting checks
         if: github.ref != 'refs/heads/main'
         run: |
