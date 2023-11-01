@@ -7,8 +7,11 @@ RUN apt-get update && \
     apt-get install -y sextractor scamp psfex
 
 RUN apt-get update && \
-    apt-get install -y curl build-essential software-properties-common && \
-    curl -sL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y curl build-essential software-properties-common ca-certificates gnupg && \
+    sudo mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    NODE_MAJOR=20 && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list && \
     apt-get update && \
     apt-get -y upgrade && \
     apt-get install -y python3 python3-venv python3-dev \

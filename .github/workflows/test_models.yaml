@@ -28,14 +28,19 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/setup-python@v1
+      - uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: "3.10"
 
-      - name: Checkout
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Checkout main
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+          ref: main
           submodules: true
 
       - uses: actions/cache@v2
@@ -76,9 +81,7 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-
-          sudo apt install -y wget nodejs unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
+          sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
           pip install pip==23.1.2
           pip install wheel numpy
@@ -95,17 +98,12 @@ jobs:
           nginx -v
           firefox --version
 
-      - name: Install SkyPortal dependencies
-        run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
-          make dependencies
-
-      - name: Formatting and linting checks
-        if: github.ref != 'refs/heads/main'
-        run: |
-          pip install pre-commit
-          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
+      - name: Checkout branch being tested
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
+          clean: false
 
       - name: Initialize SkyPortal
         run: |
@@ -140,6 +138,18 @@ jobs:
           sudo tar -xzf ${CACHED_DOWNLOAD_DIR}/geckodriver-v${GECKO_VER}-linux64.tar.gz -C /usr/local/bin
           geckodriver --version
           python -c "import selenium; print(f'Selenium {selenium.__version__}')"
+
+      - name: Refresh SkyPortal dependencies for tested version
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+          make dependencies
+
+      - name: Formatting and linting checks
+        if: github.ref != 'refs/heads/main'
+        run: |
+          pip install pre-commit
+          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
       - name: Test loading demo data
         run: |

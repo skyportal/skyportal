@@ -40,9 +40,13 @@ jobs:
           ]
 
     steps:
-      - uses: actions/setup-python@v1
+      - uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: "3.10"
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
 
       - name: Checkout main
         uses: actions/checkout@v2
@@ -89,9 +93,7 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-
-          sudo apt install -y wget nodejs unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
+          sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
           pip install pip==23.1.2
           pip install wheel numpy
@@ -159,7 +161,7 @@ jobs:
           make dependencies
 
       - name: Formatting and linting checks
-        if: ${{ github.ref != 'refs/heads/main' && matrix.test_subset == 'api_and_utils' }}
+        if: github.ref != 'refs/heads/main'
         run: |
           pip install pre-commit
           pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
