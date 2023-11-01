@@ -15,7 +15,7 @@ RUN apt-get update && \
     apt-get update && \
     apt-get -y upgrade && \
     apt-get install -y python3 python3-venv python3-dev \
-    nodejs libpq-dev supervisor \
+    libpq-dev supervisor \
     git nginx nodejs postgresql-client vim nano screen htop \
     libcurl4-gnutls-dev libgnutls28-dev && \
     apt-get clean && \

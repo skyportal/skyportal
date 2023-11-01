@@ -93,7 +93,7 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt install -y wget nodejs unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
+          sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
           pip install pip==23.1.2
           pip install wheel numpy
