@@ -30,9 +30,13 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/setup-python@v1
+      - uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: "3.10"
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
 
       - uses: actions/checkout@v2
         with:
@@ -66,8 +70,6 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          curl -sL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-
           sudo apt install -y libcurl4-gnutls-dev libgnutls28-dev
 
       - name: Install dependencies
