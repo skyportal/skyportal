@@ -42,11 +42,11 @@ jobs:
           fetch-depth: 0
           submodules: true
 
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+      # - uses: actions/cache@v2
+      #   with:
+      #     path: |
+      #       ~/.npm
+      #     key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
 
       - uses: actions/cache@v2
         with:
