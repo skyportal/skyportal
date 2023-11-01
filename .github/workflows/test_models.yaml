@@ -95,6 +95,7 @@ jobs:
           which python; python --version
           echo npm $(npm --version)
           echo node $(node --version)
+          echo nodepath $NODE_PATH
           nginx -v
           firefox --version
 
