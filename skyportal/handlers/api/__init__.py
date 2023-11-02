@@ -22,6 +22,7 @@ from .annotation_services import (
     IRSAQueryWISEHandler,
     VizierQueryHandler,
     DatalabQueryHandler,
+    PS1QueryHandler,
 )
 from .catalog_services import (
     CatalogQueryHandler,

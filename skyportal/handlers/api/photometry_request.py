@@ -29,6 +29,9 @@ class PhotometryRequestHandler(BaseHandler):
                 schema: Success
         """
 
+        refresh_source = self.get_query_argument("refreshSource", True)
+        refresh_requests = self.get_query_argument("refreshRequests", False)
+
         Session = scoped_session(
             sessionmaker(bind=DBSession.session_factory.kw["bind"])
         )
@@ -44,7 +47,12 @@ class PhotometryRequestHandler(BaseHandler):
             followup_request.last_modified_by_id = self.associated_user_object.id
             internal_key = followup_request.obj.internal_key
 
-            api.get(followup_request, session)
+            api.get(
+                followup_request,
+                session,
+                refresh_source=refresh_source,
+                refresh_requests=refresh_requests,
+            )
             self.verify_and_commit()
 
             self.push_all(

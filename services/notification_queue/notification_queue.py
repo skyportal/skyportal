@@ -568,15 +568,17 @@ def api(queue):
                             )
                         elif is_followup_request:
                             target_class = FollowupRequest
-                            target_data = (
-                                session.scalars(
-                                    sa.select(FollowupRequest).where(
-                                        FollowupRequest.id == target_id
-                                    )
+                            target_data = session.scalars(
+                                sa.select(FollowupRequest).where(
+                                    FollowupRequest.id == target_id
                                 )
-                                .first()
-                                .to_dict()
-                            )
+                            ).first()
+                            try:
+                                target_data = target_data.to_dict()
+                            except Exception:
+                                # this happens if the followup request is deleted
+                                # in the future, maybe we'll want to notify on deletion?
+                                return
                     elif is_analysis_service:
                         users = session.scalars(
                             sa.select(User).where(

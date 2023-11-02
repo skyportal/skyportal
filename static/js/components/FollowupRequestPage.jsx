@@ -225,14 +225,12 @@ const FollowupRequestPage = () => {
   });
 
   useEffect(() => {
-    const params = {
-      ...fetchParams,
-      numPerPage: defaultNumPerPage,
-      pageNumber: 1,
-    };
-    dispatch(followupRequestActions.fetchFollowupRequests(params));
-  }, [dispatch]);
-
+    // everytime the list of followup requests is updated, we set the fetchParams in redux
+    dispatch({
+      type: followupRequestActions.UPDATE_FOLLOWUP_FETCH_PARAMS,
+      data: fetchParams,
+    });
+  }, [dispatch, fetchParams]);
   const handlePageChange = async (page, numPerPage) => {
     const params = {
       ...fetchParams,
@@ -244,10 +242,11 @@ const FollowupRequestPage = () => {
     await dispatch(followupRequestActions.fetchFollowupRequests(params));
   };
 
-  const handleTableChange = (action, tableState) => {
+  const handleTableChange = async (action, tableState) => {
     if (action === "changePage" || action === "changeRowsPerPage") {
-      handlePageChange(tableState.page, tableState.rowsPerPage);
+      return handlePageChange(tableState.page, tableState.rowsPerPage);
     }
+    return null;
   };
 
   if (
@@ -275,6 +274,51 @@ const FollowupRequestPage = () => {
     telLookUp[tel.id] = tel;
   });
 
+  const onDownload = async () => {
+    // call the provided handleTableChange, iterating from page 1 (with the current number of rows per page) to the last page (i.e a page where we don't get anything back)
+
+    const fetchAllRequests = async (currentFetchParams) => {
+      let page = 0;
+      let allFollowupRequests = [];
+      let allTotalMatches = 10000000;
+
+      while (allFollowupRequests.length < allTotalMatches) {
+        const params = {
+          ...currentFetchParams,
+          pageNumber: page + 1,
+          numPerPage: currentFetchParams.numPerPage,
+          noRedux: true,
+        };
+        // eslint-disable-next-line no-await-in-loop
+        const response = await dispatch(
+          followupRequestActions.fetchFollowupRequests(params)
+        );
+        if (response.status === "success") {
+          const { data } = response;
+          allFollowupRequests = [
+            ...allFollowupRequests,
+            ...data.followup_requests,
+          ];
+          allTotalMatches = data.totalMatches;
+          page += 1;
+        }
+      }
+      return allFollowupRequests;
+    };
+
+    const allFollowupRequests = await fetchAllRequests(fetchParams);
+
+    // download the resulting JSON file
+    const element = document.createElement("a");
+    const file = new Blob([JSON.stringify(allFollowupRequests)], {
+      type: "application/json",
+    });
+    element.href = URL.createObjectURL(file);
+    element.download = "followup_requests.json";
+    document.body.appendChild(element); // Required for this to work in FireFox
+    element.click();
+  };
+
   return (
     <Grid container spacing={3}>
       <Grid item md={8} sm={12}>
@@ -297,6 +341,8 @@ const FollowupRequestPage = () => {
                   totalMatches={totalMatches}
                   serverSide
                   showObject
+                  fetchParams={fetchParams}
+                  onDownload={onDownload}
                 />
               </div>
             )}

@@ -8,10 +8,14 @@ from astropy import units as u
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.log import make_log
 
 from ..utils import http
 
 env, cfg = load_env()
+
+log = make_log('facility_apis/lt')
 
 LT_XML_NS = 'http://www.rtml.org/v3.1a'
 LT_XSI_NS = 'http://www.w3.org/2001/XMLSchema-instance'
@@ -340,7 +344,7 @@ class LTAPI(FollowUpAPI):
     """An interface to LT operations."""
 
     @staticmethod
-    def delete(request, session):
+    def delete(request, session, **kwargs):
 
         """Delete a follow-up request from LT queue (all instruments).
 
@@ -357,6 +361,9 @@ class LTAPI(FollowUpAPI):
         altdata = request.allocation.altdata
         if not altdata:
             raise ValueError('Missing allocation information.')
+
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
 
         content = request.transactions[0].response["response"]
         response_rtml = etree.fromstring(content)
@@ -408,6 +415,22 @@ class LTAPI(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
             session.add(transaction)
+
+            if kwargs.get('refresh_source', False):
+                flow = Flow()
+                flow.push(
+                    '*',
+                    'skyportal/REFRESH_SOURCE',
+                    payload={'obj_key': obj_internal_key},
+                )
+            if kwargs.get('refresh_requests', False):
+                flow = Flow()
+                flow.push(
+                    last_modified_by_id,
+                    'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                )
+        else:
+            log(f'Unable to delete request {request.id} from LT queue: {response}')
 
 
 class IOOAPI(LTAPI):
@@ -465,6 +488,20 @@ class IOOAPI(LTAPI):
         )
 
         session.add(transaction)
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     form_json_schema = {
         "type": "object",
@@ -604,6 +641,20 @@ class IOIAPI(LTAPI):
 
         session.add(transaction)
 
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
+
     form_json_schema = {
         "type": "object",
         "properties": {
@@ -741,6 +792,20 @@ class SPRATAPI(LTAPI):
         )
 
         session.add(transaction)
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     form_json_schema = {
         "type": "object",

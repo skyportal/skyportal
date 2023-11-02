@@ -20,6 +20,7 @@ const EditFollowupRequestDialog = ({
   followupRequest,
   instrumentFormParams,
   requestType,
+  serverSide,
 }) => {
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
@@ -39,6 +40,9 @@ const EditFollowupRequestDialog = ({
       obj_id: followupRequest.obj_id,
       payload: formData,
     };
+    if (serverSide) {
+      json.refreshRequests = true;
+    }
     dispatch(Actions.editFollowupRequest(json, followupRequest.id));
     handleClose();
   };
@@ -151,10 +155,12 @@ EditFollowupRequestDialog.propTypes = {
     implementedMethods: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
   }).isRequired,
   requestType: PropTypes.string,
+  serverSide: PropTypes.bool,
 };
 
 EditFollowupRequestDialog.defaultProps = {
   requestType: "triggered",
+  serverSide: false,
 };
 
 export default EditFollowupRequestDialog;

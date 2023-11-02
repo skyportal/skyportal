@@ -110,15 +110,22 @@ const FollowupRequestLists = ({
   showObject = false,
   serverSide = false,
   requestType = "triggered",
+  onDownload = false,
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
 
+  console.log("serverSide", serverSide);
+
   const [isDeleting, setIsDeleting] = useState(null);
   const handleDelete = async (id) => {
     setIsDeleting(id);
-    await dispatch(Actions.deleteFollowupRequest(id));
+    const params = {};
+    if (serverSide) {
+      params.refreshRequests = true;
+    }
+    await dispatch(Actions.deleteFollowupRequest(id, params));
     setIsDeleting(null);
   };
 
@@ -126,7 +133,11 @@ const FollowupRequestLists = ({
   const [hasRetrieved, setHasRetrieved] = useState([]);
   const handleGet = async (id) => {
     setIsGetting(id);
-    dispatch(Actions.getPhotometryRequest(id)).then((response) => {
+    const params = {};
+    if (serverSide) {
+      params.refreshRequests = true;
+    }
+    dispatch(Actions.getPhotometryRequest(id, params)).then((response) => {
       if (response.status === "success") {
         dispatch(
           showNotification(
@@ -148,6 +159,11 @@ const FollowupRequestLists = ({
       obj_id: followupRequest.obj_id,
       payload: followupRequest.payload,
     };
+    if (serverSide) {
+      console.log("server side");
+      json.refreshRequests = true;
+    }
+    console.log("submit params", json);
     await dispatch(Actions.editFollowupRequest(json, followupRequest.id));
     setIsSubmitting(null);
   };
@@ -231,7 +247,8 @@ const FollowupRequestLists = ({
     const implementsDelete =
       instrumentFormParams[instrument_id].methodsImplemented.delete;
     const implementsEdit =
-      instrumentFormParams[instrument_id].methodsImplemented.update;
+      instrumentFormParams[instrument_id].methodsImplemented.update &&
+      requestType === "triggered";
     const implementsGet =
       instrumentFormParams[instrument_id].methodsImplemented.get;
     const modifiable = implementsEdit || implementsDelete || implementsGet;
@@ -374,6 +391,7 @@ const FollowupRequestLists = ({
                 followupRequest={followupRequest}
                 instrumentFormParams={instrumentFormParams}
                 requestType={requestType}
+                serverSide={serverSide}
               />
             )}
           </div>
@@ -392,7 +410,11 @@ const FollowupRequestLists = ({
       const followupRequest = requestsGroupedByInstId[instrument_id][dataIndex];
       return (
         <div>
-          <WatcherButton followupRequest={followupRequest} textMode={false} />
+          <WatcherButton
+            followupRequest={followupRequest}
+            textMode={false}
+            serverSide={serverSide}
+          />
         </div>
       );
     };
@@ -430,6 +452,9 @@ const FollowupRequestLists = ({
   };
   if (typeof handleTableChange === "function") {
     options.onTableChange = handleTableChange;
+  }
+  if (typeof onDownload === "function") {
+    options.onDownload = onDownload;
   }
 
   const keyOrder = (a, b) => {
@@ -589,6 +614,7 @@ FollowupRequestLists.propTypes = {
   showObject: PropTypes.bool,
   serverSide: PropTypes.bool,
   requestType: PropTypes.string,
+  onDownload: PropTypes.oneOfType([PropTypes.func, PropTypes.bool]),
 };
 
 FollowupRequestLists.defaultProps = {
@@ -599,5 +625,6 @@ FollowupRequestLists.defaultProps = {
   numPerPage: 10,
   handleTableChange: null,
   requestType: "triggered",
+  onDownload: false,
 };
 export default FollowupRequestLists;
