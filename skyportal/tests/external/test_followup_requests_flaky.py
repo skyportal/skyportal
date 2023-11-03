@@ -371,8 +371,11 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -444,8 +447,11 @@ def add_followup_request_using_frontend_and_verify_KAIT(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -508,8 +514,11 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -588,8 +597,11 @@ def add_followup_request_using_frontend_and_verify_ZTF(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -658,8 +670,11 @@ def add_followup_request_using_frontend_and_verify_Floyds(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -724,8 +739,11 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -787,8 +805,11 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -847,8 +868,11 @@ def add_followup_request_using_frontend_and_verify_PS1(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -975,8 +999,11 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -1051,8 +1078,11 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -1131,8 +1161,11 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -1203,8 +1236,11 @@ def add_followup_request_using_frontend_and_verify_IOI(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -1278,8 +1314,11 @@ def add_followup_request_using_frontend_and_verify_SLACK(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -1344,8 +1383,11 @@ def add_followup_request_using_frontend_and_verify_IOO(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
@@ -1870,8 +1912,11 @@ def test_submit_new_followup_request_two_groups(
     try:
         driver.wait_for_xpath(
             '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            timeout=5,
         )
+    except Exception:
+        pass
+    try:
         driver.wait_for_xpath(
             '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
             timeout=5,
