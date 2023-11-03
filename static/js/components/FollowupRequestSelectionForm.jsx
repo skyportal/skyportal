@@ -15,6 +15,7 @@ import Checkbox from "@mui/material/Checkbox";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
+import { Typography } from "@mui/material";
 import { filterOutEmptyValues } from "../API";
 import * as followupRequestActions from "../ducks/followup_requests";
 import * as instrumentActions from "../ducks/instruments";
@@ -35,6 +36,13 @@ const useStyles = makeStyles(() => ({
   },
   selectItem: {
     whiteSpace: "break-spaces",
+  },
+  divider: {
+    marginTop: "2rem",
+    marginBottom: "1rem",
+    minWidth: "100%",
+    height: "2px",
+    backgroundColor: "grey",
   },
 }));
 
@@ -159,6 +167,17 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   Object.values(requestsGroupedByInstId).forEach((value) => {
     value.sort();
   });
+  // filter out allocations that are not of type triggered
+  const filteredAllocationListApiClassname =
+    sortedAllocationListApiClassname.filter((allocation) =>
+      allocation.types.includes("triggered")
+    );
+  // and only keep the instrument that have such allocations
+  const filteredInstrumentList = sortedInstrumentList.filter((instrument) =>
+    filteredAllocationListApiClassname.some(
+      (allocation) => allocation.instrument_id === instrument.id
+    )
+  );
 
   const handleSelectedFormatChange = (e) => {
     setSelectedFormat(e.target.value);
@@ -273,7 +292,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
               },
               instrumentID: {
                 type: "integer",
-                oneOf: sortedInstrumentList.map((instrument) => ({
+                oneOf: filteredInstrumentList.map((instrument) => ({
                   enum: [instrument.id],
                   title: `${
                     telescopeList.find(
@@ -282,7 +301,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
                   } / ${instrument.name}`,
                 })),
                 title: "Instrument",
-                default: sortedInstrumentList[0]?.id,
+                default: filteredInstrumentList[0]?.id || null,
               },
             },
           },
@@ -293,7 +312,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
               },
               allocationID: {
                 type: "integer",
-                oneOf: sortedAllocationListApiClassname.map((allocation) => ({
+                oneOf: filteredAllocationListApiClassname.map((allocation) => ({
                   enum: [allocation.id],
                   // title should be instrument name [PI] (allocation id)
                   title: `${instLookUp[allocation.instrument_id]?.name} [${
@@ -301,7 +320,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
                   }] (${allocation.id})`,
                 })),
                 title: "Allocation",
-                default: sortedAllocationListApiClassname[0]?.id,
+                default: filteredAllocationListApiClassname[0]?.id || null,
               },
             },
           },
@@ -384,8 +403,9 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
           </div>
         )}
       </div>
-      <br />
+      <div className={classes.divider} />
       <div>
+        <Typography variant="h6">Schedule (with astroplan) </Typography>
         <InputLabel id="instrumentSelectLabel">Format</InputLabel>
         <Select
           inputProps={{ MenuProps: { disableScrollLock: true } }}

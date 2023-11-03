@@ -116,8 +116,6 @@ const FollowupRequestLists = ({
   const dispatch = useDispatch();
   const theme = useTheme();
 
-  console.log("serverSide", serverSide);
-
   const [isDeleting, setIsDeleting] = useState(null);
   const handleDelete = async (id) => {
     setIsDeleting(id);
@@ -160,10 +158,8 @@ const FollowupRequestLists = ({
       payload: followupRequest.payload,
     };
     if (serverSide) {
-      console.log("server side");
       json.refreshRequests = true;
     }
-    console.log("submit params", json);
     await dispatch(Actions.editFollowupRequest(json, followupRequest.id));
     setIsSubmitting(null);
   };
@@ -454,7 +450,111 @@ const FollowupRequestLists = ({
     options.onTableChange = handleTableChange;
   }
   if (typeof onDownload === "function") {
-    options.onDownload = onDownload;
+    options.onDownload = () => {
+      onDownload().then((data) => {
+        if (data?.length > 0) {
+          const head = [
+            "obj_id",
+            "created_at",
+            "requester_id",
+            "requester_name",
+            "last_modified_by_id",
+          ];
+
+          // get all the unique keys from all the requests' payloads
+          let keys = data.reduce((r, a) => {
+            Object.keys(a.payload).forEach((key) => {
+              if (!r.includes(key)) {
+                r = [...r, key];
+              }
+            });
+            return r;
+          }, []);
+
+          // then reorder the keys so we have start_date, end_date, priority first, in this order
+          if (keys.includes("priority")) {
+            keys = keys.filter((key) => key !== "priority");
+            keys.unshift("priority");
+          }
+          // then check if payload.end_date is in the keys, if so, remove it and add it to the front
+          if (keys.includes("end_date")) {
+            keys = keys.filter((key) => key !== "end_date");
+            keys.unshift("end_date");
+          }
+          // then check if payload.start_date is in the keys, if so, remove it and add it to the front
+          if (keys.includes("start_date")) {
+            keys = keys.filter((key) => key !== "start_date");
+            keys.unshift("start_date");
+          }
+
+          keys.forEach((key) => {
+            head.push(`payload.${key}`);
+          });
+
+          // then add the rest:
+          // "status",
+          // "allocation_id",
+          // "allocation_pi",
+          // "allocation_group_id",
+          // "allocation_group_name",
+          // "allocation_types",
+
+          head.push(
+            "status",
+            "allocation_id",
+            "allocation_pi",
+            "allocation_group_id",
+            "allocation_group_name",
+            "allocation_types"
+          );
+
+          const formatDataFunc = (x) => {
+            const formattedData = [
+              x.obj_id,
+              x.created_at,
+              x.requester.id,
+              x.requester.username,
+              x.last_modified_by_id,
+            ];
+
+            keys.forEach((key) => {
+              // some keys can be missing
+              if (key in x.payload) {
+                formattedData.push(x.payload[key]);
+              } else {
+                formattedData.push("");
+              }
+            });
+
+            formattedData.push(
+              x.status,
+              x.allocation.id,
+              x.allocation.pi,
+              x.allocation.group.id,
+              x.allocation.group.name,
+              x.allocation.types.join(",")
+            );
+            return formattedData;
+          };
+
+          const rows = data.map((x) => formatDataFunc(x).join(","));
+
+          const result = `${head.join(",")}\n${rows.join("\n")}`;
+
+          const blob = new Blob([result], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", "followup_requests.csv");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      });
+      return false;
+    };
   }
 
   const keyOrder = (a, b) => {

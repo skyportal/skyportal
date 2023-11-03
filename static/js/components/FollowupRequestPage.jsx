@@ -3,6 +3,8 @@ import { useSelector, useDispatch } from "react-redux";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Typography from "@mui/material/Typography";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -18,8 +20,9 @@ import FollowupRequestLists from "./FollowupRequestLists";
 import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
 import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
 import NewDefaultFollowupRequest from "./NewDefaultFollowupRequest";
-import Button from "./Button";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
+import ProgressIndicator from "./ProgressIndicators";
+import Button from "./Button";
 
 import * as defaultFollowupRequestsActions from "../ducks/default_followup_requests";
 import * as followupRequestActions from "../ducks/followup_requests";
@@ -224,6 +227,9 @@ const FollowupRequestPage = () => {
     sortOrder: "desc",
   });
 
+  const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
+  const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
+
   useEffect(() => {
     // everytime the list of followup requests is updated, we set the fetchParams in redux
     dispatch({
@@ -276,47 +282,66 @@ const FollowupRequestPage = () => {
 
   const onDownload = async () => {
     // call the provided handleTableChange, iterating from page 1 (with the current number of rows per page) to the last page (i.e a page where we don't get anything back)
-
+    setDownloadProgressTotal(totalMatches);
     const fetchAllRequests = async (currentFetchParams) => {
-      let page = 0;
       let allFollowupRequests = [];
-      let allTotalMatches = 10000000;
 
-      while (allFollowupRequests.length < allTotalMatches) {
+      for (let i = 1; i <= Math.ceil(totalMatches / 100); i += 1) {
         const params = {
           ...currentFetchParams,
-          pageNumber: page + 1,
-          numPerPage: currentFetchParams.numPerPage,
+          pageNumber: i,
+          numPerPage: 100,
           noRedux: true,
         };
         // eslint-disable-next-line no-await-in-loop
         const response = await dispatch(
           followupRequestActions.fetchFollowupRequests(params)
         );
-        if (response.status === "success") {
+        if (response && response.data && response?.status === "success") {
           const { data } = response;
           allFollowupRequests = [
             ...allFollowupRequests,
             ...data.followup_requests,
           ];
-          allTotalMatches = data.totalMatches;
-          page += 1;
+          setDownloadProgressCurrent(allFollowupRequests.length);
+          setDownloadProgressTotal(data.totalMatches);
+        } else if (response && response?.status !== "success") {
+          // break the loop and set progress to 0 and show error message
+          setDownloadProgressCurrent(0);
+          setDownloadProgressTotal(0);
+          if (allFollowupRequests?.length === 0) {
+            dispatch(
+              showNotification(
+                "Failed to fetch some follow-up requests. Download cancelled.",
+                "error"
+              )
+            );
+          } else {
+            dispatch(
+              showNotification(
+                "Failed to fetch some follow-up requests, please try again. Follow-up requests fetched so far will be downloaded.",
+                "error"
+              )
+            );
+          }
+          break;
         }
+      }
+      setDownloadProgressCurrent(0);
+      setDownloadProgressTotal(0);
+      if (
+        allFollowupRequests?.length === allFollowupRequests.totalMatches?.length
+      ) {
+        dispatch(
+          showNotification("Follow-up requests downloaded successfully")
+        );
       }
       return allFollowupRequests;
     };
 
     const allFollowupRequests = await fetchAllRequests(fetchParams);
 
-    // download the resulting JSON file
-    const element = document.createElement("a");
-    const file = new Blob([JSON.stringify(allFollowupRequests)], {
-      type: "application/json",
-    });
-    element.href = URL.createObjectURL(file);
-    element.download = "followup_requests.json";
-    document.body.appendChild(element); // Required for this to work in FireFox
-    element.click();
+    return allFollowupRequests;
   };
 
   return (
@@ -386,6 +411,40 @@ const FollowupRequestPage = () => {
             <NewDefaultFollowupRequest />
           </div>
         </Paper>
+        <Dialog
+          open={downloadProgressTotal > 0}
+          style={{ position: "fixed" }}
+          maxWidth="md"
+        >
+          <DialogContent
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Typography variant="h6" display="inline">
+              Downloading {downloadProgressTotal} follow-up requests
+            </Typography>
+            <div
+              style={{
+                height: "5rem",
+                width: "5rem",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <ProgressIndicator
+                current={downloadProgressCurrent}
+                total={downloadProgressTotal}
+                percentage={false}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </Grid>
     </Grid>
   );
