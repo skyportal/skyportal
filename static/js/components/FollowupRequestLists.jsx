@@ -491,14 +491,6 @@ const FollowupRequestLists = ({
             head.push(`payload.${key}`);
           });
 
-          // then add the rest:
-          // "status",
-          // "allocation_id",
-          // "allocation_pi",
-          // "allocation_group_id",
-          // "allocation_group_name",
-          // "allocation_types",
-
           head.push(
             "status",
             "allocation_id",
