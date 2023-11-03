@@ -308,7 +308,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     tax_name = str(uuid.uuid4())
     tax_version = "test0.1"
 
-    status, data = api(
+    status, _ = api(
         'POST',
         'taxonomy',
         data={
@@ -325,8 +325,13 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
 
-    # give some time for the plots to load
-    time.sleep(3)
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
 
     driver.click_xpath('//div[@id="root_taxonomy"]')
     driver.click_xpath(
