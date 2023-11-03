@@ -8,7 +8,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
 from skyportal.tests import api
-from skyportal.tests.frontend.sources_and_followup_etc.test_sources import (
+from skyportal.tests.frontend.sources_and_observingruns_etc.test_sources import (
     add_comment_and_wait_for_display,
 )
 

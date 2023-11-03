@@ -835,7 +835,7 @@ const SourceDesktop = ({ source }) => {
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="followup-content"
-                id="followup-header"
+                id="forced-photometry-header"
               >
                 <Typography className={classes.accordionHeading}>
                   Forced Photometry
@@ -866,7 +866,7 @@ const SourceDesktop = ({ source }) => {
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="followup-content"
-                id="followup-header"
+                id="observing-run-header"
               >
                 <Typography className={classes.accordionHeading}>
                   Assign Target to Observing Run

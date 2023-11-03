@@ -225,8 +225,22 @@ class TESSAPI(FollowUpAPI):
 
         session.add(transaction)
 
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
+
     @staticmethod
-    def delete(request, session):
+    def delete(request, session, **kwargs):
 
         """Delete a photometry request from TESS API.
 
@@ -238,7 +252,24 @@ class TESSAPI(FollowUpAPI):
             Database session for this transaction
         """
 
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
+
         session.delete(request)
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     form_json_schema = {}
     ui_json_schema = {}

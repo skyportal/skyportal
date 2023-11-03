@@ -10,6 +10,7 @@ import urllib
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
@@ -553,7 +554,7 @@ class LCOAPI(FollowUpAPI):
     """An interface to LCO operations."""
 
     @staticmethod
-    def delete(request, session):
+    def delete(request, session, **kwargs):
 
         """Delete a follow-up request from LCO queue (all instruments).
 
@@ -565,36 +566,59 @@ class LCOAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
 
-        altdata = request.allocation.altdata
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
 
-        if not altdata:
-            raise ValueError('Missing allocation information.')
+        if len(request.transactions) == 0:
+            session.query(FollowupRequest).filter(
+                FollowupRequest.id == request.id
+            ).delete()
+            session.commit()
+        else:
+            altdata = request.allocation.altdata
 
-        content = request.transactions[0].response["content"]
-        content = json.loads(content)
-        uid = content["id"]
+            if not altdata:
+                raise ValueError('Missing allocation information.')
 
-        r = requests.post(
-            f"{requestpath}{uid}/cancel/",
-            headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
-        )
+            content = request.transactions[0].response["content"]
+            content = json.loads(content)
+            uid = content["id"]
 
-        r.raise_for_status()
-        request.status = "deleted"
+            r = requests.post(
+                f"{requestpath}{uid}/cancel/",
+                headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
+            )
 
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
+            r.raise_for_status()
+            request.status = "deleted"
 
-        session.add(transaction)
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(r.request),
+                response=http.serialize_requests_response(r),
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+            session.add(transaction)
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     @staticmethod
-    def get(request, session):
+    def get(request, session, **kwargs):
 
         """Get a follow-up request from LCO queue (all instruments).
 
@@ -665,6 +689,20 @@ class LCOAPI(FollowUpAPI):
         session.add(transaction)
         session.commit()
 
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
+
 
 class SINISTROAPI(LCOAPI):
 
@@ -716,6 +754,20 @@ class SINISTROAPI(LCOAPI):
         )
 
         session.add(transaction)
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     form_json_schema = {
         "type": "object",
@@ -794,7 +846,7 @@ class SPECTRALAPI(LCOAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
 
         """Submit a follow-up request to LCO's SPECTRAL.
 
@@ -839,6 +891,20 @@ class SPECTRALAPI(LCOAPI):
         )
 
         session.add(transaction)
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     form_json_schema = {
         "type": "object",
@@ -917,7 +983,7 @@ class MUSCATAPI(LCOAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
 
         """Submit a follow-up request to LCO's MUSCAT.
 
@@ -961,6 +1027,20 @@ class MUSCATAPI(LCOAPI):
         )
 
         session.add(transaction)
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     form_json_schema = {
         "type": "object",
@@ -1032,7 +1112,7 @@ class FLOYDSAPI(LCOAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
 
         """Submit a follow-up request to LCO's FLOYDS.
 
@@ -1076,6 +1156,20 @@ class FLOYDSAPI(LCOAPI):
         )
 
         session.add(transaction)
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     form_json_schema = {
         "type": "object",

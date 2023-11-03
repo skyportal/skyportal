@@ -149,9 +149,15 @@ class SEDMV2API(FollowUpAPI):
                 'skyportal/REFRESH_SOURCE',
                 payload={'obj_key': request.obj.internal_key},
             )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     @staticmethod
-    def delete(request, session):
+    def delete(request, session, **kwargs):
         """Delete a follow-up request from SEDMv2 queue.
 
         Parameters
@@ -163,6 +169,9 @@ class SEDMV2API(FollowUpAPI):
         """
 
         from ..models import DBSession, FacilityTransaction, FollowupRequest
+
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
 
         if cfg['app.sedmv2_endpoint'] is not None:
             altdata = request.allocation.altdata
@@ -209,15 +218,22 @@ class SEDMV2API(FollowUpAPI):
 
         session.add(transaction)
 
-        flow = Flow()
-        flow.push(
-            '*',
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': request.obj.internal_key},
-        )
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     @staticmethod
-    def update(request, session):
+    def update(request, session, **kwargs):
         """Update a request in the SEDMv2 queue.
 
         Parameters
@@ -273,12 +289,19 @@ class SEDMV2API(FollowUpAPI):
 
         session.add(transaction)
 
-        flow = Flow()
-        flow.push(
-            '*',
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': request.obj.internal_key},
-        )
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     @staticmethod
     def retrieve_log(allocation, start_date, end_date):

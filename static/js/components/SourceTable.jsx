@@ -1910,7 +1910,7 @@ const SourceTable = ({
         return alias_str;
       };
       const renderDownloadTNSName = (source) =>
-        source?.altdata && source.altdata.tns ? source.altdata.tns.name : "";
+        source?.tns_name ? source.tns_name : "";
 
       downloadCallback().then((data) => {
         // if there is no data, cancel download

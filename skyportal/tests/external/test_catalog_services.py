@@ -2,11 +2,32 @@ import numpy as np
 import pytest
 import time
 import uuid
+import requests
 
+from baselayer.app.env import load_config
 from skyportal.tests import api
 
 
+cfg = load_config(config_files=["test_config.yaml"])
+endpoint = cfg['app.swift_xrt_endpoint']
+
+swift_isonline = False
+try:
+    requests.get(endpoint, timeout=5)
+except Exception as e:
+    if isinstance(e, requests.exceptions.ConnectionError) or isinstance(
+        e, requests.exceptions.ConnectTimeout
+    ):
+        pass
+    else:
+        # if it is another exception we set swift_isonline to True anyway
+        swift_isonline = True
+else:
+    swift_isonline = True
+
+
 @pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not swift_isonline, reason="SWIFT XRT server down")
 def test_swift_lsxps(super_admin_token):
 
     name = str(uuid.uuid4())

@@ -363,7 +363,9 @@ class AssignmentHandler(BaseHandler):
             return self.success()
 
 
-def post_followup_request(data, constraints, session, refresh_source=True):
+def post_followup_request(
+    data, constraints, session, refresh_source=True, refresh_requests=False
+):
     """Post follow-up request to database.
     data: dict
         Follow-up request dictionary
@@ -373,6 +375,8 @@ def post_followup_request(data, constraints, session, refresh_source=True):
         Database session for this transaction
     refresh_source : bool
         Refresh source upon post. Defaults to True.
+    refresh_requests : bool
+        Refresh requests upon post. Defaults to False.
     """
 
     if isinstance(constraints, dict):
@@ -478,32 +482,50 @@ def post_followup_request(data, constraints, session, refresh_source=True):
     followup_request.watchers = watchers
     session.add(followup_request)
 
-    if refresh_source:
+    if refresh_source or refresh_requests:
         session.commit()
-
         flow = Flow()
-        flow.push(
-            '*',
-            "skyportal/REFRESH_SOURCE",
-            payload={"obj_key": followup_request.obj.internal_key},
-        )
-
-    try:
-        instrument.api_class.submit(
-            followup_request, session, refresh_source=refresh_source
-        )
-    except Exception:
-        followup_request.status = 'failed to submit'
-        raise
-    finally:
         if refresh_source:
-            session.commit()
             flow.push(
                 '*',
                 "skyportal/REFRESH_SOURCE",
                 payload={"obj_key": followup_request.obj.internal_key},
             )
+        if refresh_requests:
+            flow.push(
+                followup_request.last_modified_by_id,
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                payload={"request_id": followup_request.id},
+            )
 
+    try:
+        instrument.api_class.submit(
+            followup_request,
+            session,
+            refresh_source=refresh_source,
+            refresh_requests=refresh_requests,
+        )
+    except Exception:
+        followup_request.status = 'failed to submit'
+        raise
+    finally:
+        session.commit()
+        if (
+            refresh_source or refresh_requests
+        ) and followup_request.status == 'failed to submit':
+            flow = Flow()
+            if refresh_source:
+                flow.push(
+                    '*',
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": followup_request.obj.internal_key},
+                )
+            if refresh_requests:
+                flow.push(
+                    followup_request.last_modified_by_id,
+                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                    payload={"request_id": followup_request.id},
+                )
     return followup_request.id
 
 
@@ -884,6 +906,13 @@ class FollowupRequestHandler(BaseHandler):
         """
         data = self.get_json()
 
+        refresh_source = self.get_query_argument(
+            "refreshSource", data.pop("refreshSource", True)
+        )
+        refresh_requests = self.get_query_argument(
+            "refreshRequests", data.pop("refreshRequests", False)
+        )
+
         try:
             data = FollowupRequestPost.load(data)
         except ValidationError as e:
@@ -904,7 +933,13 @@ class FollowupRequestHandler(BaseHandler):
                 data["last_modified_by_id"] = self.associated_user_object.id
                 data['allocation_id'] = int(data['allocation_id'])
 
-                followup_request_id = post_followup_request(data, constraints, session)
+                followup_request_id = post_followup_request(
+                    data,
+                    constraints,
+                    session,
+                    refresh_source=refresh_source,
+                    refresh_requests=refresh_requests,
+                )
 
                 return self.success(data={"id": followup_request_id})
             except Exception as e:
@@ -966,6 +1001,13 @@ class FollowupRequestHandler(BaseHandler):
 
             data = self.get_json()
 
+            refresh_source = self.get_query_argument(
+                "refreshSource", data.pop("refreshSource", True)
+            )
+            refresh_requests = self.get_query_argument(
+                "refreshRequests", data.pop("refreshRequests", False)
+            )
+
             if 'status' in data:
                 # updating status does not require instrument API interaction
                 for k in data:
@@ -1025,7 +1067,10 @@ class FollowupRequestHandler(BaseHandler):
                 if existing_status == 'failed to submit':
                     try:
                         followup_request.instrument.api_class.submit(
-                            followup_request, session, refresh_source=True
+                            followup_request,
+                            session,
+                            refresh_source=refresh_source,
+                            refresh_requests=refresh_requests,
                         )
                         session.commit()
                     except Exception as e:
@@ -1033,16 +1078,15 @@ class FollowupRequestHandler(BaseHandler):
                 else:
                     try:
                         followup_request.instrument.api_class.update(
-                            followup_request, session
+                            followup_request,
+                            session,
+                            refresh_source=refresh_source,
+                            refresh_requests=refresh_requests,
                         )
                         session.commit()
                     except Exception as e:
                         return self.error(f'Failed to update follow-up request: {e}')
 
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": followup_request.obj.internal_key},
-            )
             return self.success()
 
     @permissions(["Upload data"])
@@ -1065,6 +1109,15 @@ class FollowupRequestHandler(BaseHandler):
                 schema: Success
         """
 
+        data = self.get_json()
+
+        refresh_source = self.get_query_argument(
+            "refreshSource", data.pop("refreshSource", True)
+        )
+        refresh_requests = self.get_query_argument(
+            "refreshRequests", data.pop("refreshRequests", False)
+        )
+
         with self.Session() as session:
 
             followup_request = session.scalars(
@@ -1082,16 +1135,15 @@ class FollowupRequestHandler(BaseHandler):
                 return self.error('Cannot delete requests on this instrument.')
 
             followup_request.last_modified_by_id = self.associated_user_object.id
-            internal_key = followup_request.obj.internal_key
 
             try:
-                api.delete(followup_request, session)
-                session.commit()
-
-                self.push_all(
-                    action="skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": internal_key},
+                api.delete(
+                    followup_request,
+                    session,
+                    refresh_source=refresh_source,
+                    refresh_requests=refresh_requests,
                 )
+                session.commit()
             except Exception as e:
                 return self.error(f'Failed to delete follow-up request: {e}')
             return self.success()
@@ -2153,6 +2205,15 @@ class FollowupRequestWatcherHandler(BaseHandler):
                   schema: Error
         """
 
+        data = self.get_json()
+
+        refresh_source = self.get_query_argument(
+            "refreshSource", data.pop("refreshSource", True)
+        )
+        refresh_requests = self.get_query_argument(
+            "refreshRequests", data.pop("refreshRequests", False)
+        )
+
         with self.Session() as session:
 
             # get owned assignments
@@ -2183,15 +2244,17 @@ class FollowupRequestWatcherHandler(BaseHandler):
             session.commit()
 
             flow = Flow()
-            flow.push(
-                user_id=self.current_user.id,
-                action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
-            flow.push(
-                user_id=self.current_user.id,
-                action_type="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": followup_request.obj.internal_key},
-            )
+            if refresh_source:
+                flow.push(
+                    user_id=self.current_user.id,
+                    action_type="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": followup_request.obj.internal_key},
+                )
+            if refresh_requests:
+                flow.push(
+                    user_id=self.current_user.id,
+                    action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                )
 
             return self.success()
 
@@ -2218,6 +2281,16 @@ class FollowupRequestWatcherHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+
+        # get parameters
+        data = self.get_json()
+
+        refresh_source = self.get_query_argument(
+            "refreshSource", data.pop("refreshSource", True)
+        )
+        refresh_requests = self.get_query_argument(
+            "refreshRequests", data.pop("refreshRequests", False)
+        )
 
         with self.Session() as session:
 
@@ -2253,14 +2326,16 @@ class FollowupRequestWatcherHandler(BaseHandler):
             session.commit()
 
             flow = Flow()
-            flow.push(
-                user_id=self.current_user.id,
-                action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
-            flow.push(
-                user_id=self.current_user.id,
-                action_type="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": followup_request.obj.internal_key},
-            )
+            if refresh_source:
+                flow.push(
+                    user_id=self.current_user.id,
+                    action_type="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": followup_request.obj.internal_key},
+                )
+            if refresh_requests:
+                flow.push(
+                    user_id=self.current_user.id,
+                    action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                )
 
             return self.success()

@@ -91,6 +91,8 @@ const FETCH_VIZIER = "skyportal/FETCH_VIZIER";
 
 const FETCH_PHOTOZ = "skyportal/FETCH_PHOTOZ";
 
+const FETCH_PS1 = "skyportal/FETCH_PS1";
+
 const CHECK_SOURCE = "skyportal/CHECK_SOURCE";
 
 const FETCH_ASSOCIATED_GCNS = "skyportal/FETCH_ASSOCIATED_GCNS";
@@ -465,11 +467,11 @@ export const editFollowupRequest = (params, requestID) => {
   );
 };
 
-export const deleteFollowupRequest = (id) =>
-  API.DELETE(`/api/followup_request/${id}`, DELETE_FOLLOWUP_REQUEST);
+export const deleteFollowupRequest = (id, params = {}) =>
+  API.DELETE(`/api/followup_request/${id}`, DELETE_FOLLOWUP_REQUEST, params);
 
-export const getPhotometryRequest = (id) =>
-  API.GET(`/api/photometry_request/${id}`, GET_PHOTOMETRY_REQUEST);
+export const getPhotometryRequest = (id, params = {}) =>
+  API.GET(`/api/photometry_request/${id}`, GET_PHOTOMETRY_REQUEST, params);
 
 export const submitAssignment = (params) =>
   API.POST("/api/assignment", SUBMIT_ASSIGNMENT, params);
@@ -496,6 +498,9 @@ export const fetchVizier = (sourceID, catalog = "VII/290") =>
 
 export const fetchPhotoz = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/datalab`, FETCH_PHOTOZ);
+
+export const fetchPS1 = (sourceID) =>
+  API.POST(`/api/sources/${sourceID}/annotations/ps1`, FETCH_PS1);
 
 export const fetchAssociatedGCNs = (sourceID) =>
   API.GET(`/api/associated_gcns/${sourceID}`, FETCH_ASSOCIATED_GCNS);
