@@ -917,7 +917,7 @@ const SourceMobile = WidthProvider(
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="followup-content"
-                id="followup-header"
+                id="forced-photometry-header"
               >
                 <Typography className={classes.accordionHeading}>
                   Forced Photometry
@@ -946,7 +946,7 @@ const SourceMobile = WidthProvider(
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="followup-content"
-                id="followup-header"
+                id="observing-run-header"
               >
                 <Typography className={classes.accordionHeading}>
                   Assign Target to Observing Run

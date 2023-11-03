@@ -261,6 +261,18 @@ const FollowupRequestForm = ({
     return errors;
   };
 
+  const schema =
+    requestType === "forced_photometry"
+      ? instrumentFormParams[
+          allocationLookUp[selectedAllocationId].instrument_id
+        ].formSchemaForcedPhotometry
+      : instrumentFormParams[
+          allocationLookUp[selectedAllocationId].instrument_id
+        ].formSchema;
+
+  const { uiSchema } =
+    instrumentFormParams[allocationLookUp[selectedAllocationId].instrument_id];
+
   return (
     <div className={classes.container}>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
@@ -269,7 +281,11 @@ const FollowupRequestForm = ({
         labelId="allocationSelectLabel"
         value={selectedAllocationId}
         onChange={handleSelectedAllocationChange}
-        name="followupRequestAllocationSelect"
+        name={
+          requestType === "forced_photometry"
+            ? "forcedPhotometryAllocationSelect"
+            : "followupRequestAllocationSelect"
+        }
         className={classes.allocationSelect}
       >
         {filteredAllocationList?.map((allocation) => (
@@ -293,26 +309,20 @@ const FollowupRequestForm = ({
         setGroupIDs={setSelectedGroupIds}
         groupIDs={selectedGroupIds}
       />
-      <div data-testid="followup-request-form">
+      <div
+        data-testid={
+          requestType === "forced_photometry"
+            ? "forced-photometry-form"
+            : "followup-request-form"
+        }
+      >
         {allocationLookUp[selectedAllocationId] !== undefined &&
         allocationLookUp[selectedAllocationId]?.instrument_id in
           instrumentFormParams ? (
           <Form
-            schema={
-              requestType === "forced_photometry"
-                ? instrumentFormParams[
-                    allocationLookUp[selectedAllocationId].instrument_id
-                  ].formSchemaForcedPhotometry
-                : instrumentFormParams[
-                    allocationLookUp[selectedAllocationId].instrument_id
-                  ].formSchema
-            }
+            schema={schema}
             validator={validator}
-            uiSchema={
-              instrumentFormParams[
-                allocationLookUp[selectedAllocationId].instrument_id
-              ].uiSchema
-            }
+            uiSchema={uiSchema}
             liveValidate
             customValidate={validate}
             onSubmit={handleSubmit}

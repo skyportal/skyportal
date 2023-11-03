@@ -1,11 +1,15 @@
+import glob
+import os
 import uuid
+
 import pytest
+import pandas as pd
 import requests
+from regions import Regions
+
 from selenium.webdriver.common.action_chains import ActionChains
 from baselayer.app.env import load_config
 from skyportal.tests import api
-import glob
-import os
 
 
 cfg = load_config(config_files=["test_config.yaml"])
@@ -104,6 +108,28 @@ else:
 def add_telescope_and_instrument(instrument_name, token):
     status, data = api("GET", f"instrument?name={instrument_name}", token=token)
     if len(data["data"]) == 1:
+        if instrument_name == "ZTF":
+            fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
+            regionsdatafile = (
+                f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+            )
+
+            fields = pd.read_csv(fielddatafile)
+            fields = fields[698:701].to_dict(orient='list')
+
+            field_data = {
+                "field_data": fields,
+                "field_region": Regions.read(regionsdatafile).serialize(format='ds9'),
+            }
+
+            status, updated_data = api(
+                "PUT",
+                f"instrument/{data['data'][0]['id']}",
+                data=field_data,
+                token=token,
+            )
+            assert status == 200
+            assert updated_data["status"] == "success"
         return data["data"][0]
 
     telescope_name = str(uuid.uuid4())
@@ -125,17 +151,32 @@ def add_telescope_and_instrument(instrument_name, token):
     assert data["status"] == "success"
     telescope_id = data["data"]["id"]
 
+    data = {
+        "name": instrument_name,
+        "type": "imager",
+        "band": "Optical",
+        "telescope_id": telescope_id,
+        "filters": ["ztfg"],
+        "api_classname": f"{instrument_name.upper()}API",
+    }
+
+    if instrument_name == "ZTF":
+        fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
+        regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+
+        fields = pd.read_csv(fielddatafile)
+        fields = fields[698:701].to_dict(orient='list')
+
+        data = {
+            **data,
+            "field_data": fields,
+            "field_region": Regions.read(regionsdatafile).serialize(format='ds9'),
+        }
+
     status, data = api(
         "POST",
         "instrument",
-        data={
-            "name": instrument_name,
-            "type": "imager",
-            "band": "Optical",
-            "telescope_id": telescope_id,
-            "filters": ["ztfg"],
-            "api_classname": f"{instrument_name.upper()}API",
-        },
+        data=data,
         token=token,
     )
     assert status == 200
@@ -169,6 +210,7 @@ def add_allocation_atlas(instrument_id, group_id, token):
             "hours_allocated": 100,
             "pi": "Ed Hubble",
             "_altdata": '{"api_token": "testtoken"}',
+            "types": ["forced_photometry"],
         },
         token=token,
     )
@@ -185,6 +227,7 @@ def add_allocation_ps1(instrument_id, group_id, token):
             "instrument_id": instrument_id,
             "hours_allocated": 100,
             "pi": "Ed Hubble",
+            "types": ["forced_photometry"],
         },
         token=token,
     )
@@ -253,6 +296,7 @@ def add_allocation_ztf(instrument_id, group_id, token):
             "hours_allocated": 100,
             "pi": "Ed Hubble",
             '_altdata': '{"access_token": "testtoken"}',
+            "types": ["triggered", "forced_photometry"],
         },
         token=token,
     )
@@ -323,32 +367,52 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
 
     driver.get(f"/source/{public_source.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
-    select_box.click()
+    driver.scroll_to_element_and_click(select_box)
 
-    driver.click_xpath(
-        f'//li[contains(text(), "SEDMv2")][contains(text(), "{public_group.name}")]',
+    allocation = driver.wait_for_xpath(
+        f'//li[contains(text(), "SEDMv2")][contains(text(), "{public_group.name}")]'
+    )
+    driver.scroll_to_element_and_click(
+        allocation,
         scroll_parent=True,
     )
 
     # Click somewhere outside to remove focus from instrument select
     driver.click_xpath("//header")
 
-    # IFU option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices_4"]', wait_clickable=False
-    )
+    # observation mode options
+    options = driver.wait_for_xpath('//div[@id="root_observation_choice"]')
+    driver.scroll_to_element_and_click(options)
 
-    driver.click_xpath(submit_button_xpath)
+    # click the IFU option
+    driver.click_xpath('//li[@data-value="4"]')
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+    driver.scroll_to_element_and_click(submit_button)
 
     driver.click_xpath("//div[@data-testid='SEDMv2-requests-header']")
+
+    # look for the button to display more columns: data-testid="View Columns-iconButton"
+    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
+    driver.click_xpath('//label/span[text()="exposure_time"]')
+
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "IFU")]'
     )
@@ -371,18 +435,29 @@ def add_followup_request_using_frontend_and_verify_KAIT(
 
     driver.get(f"/source/{public_source.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
-    select_box.click()
+    driver.scroll_to_element_and_click(select_box)
 
-    driver.click_xpath(
-        f'//li[contains(text(), "KAIT")][contains(text(), "{public_group.name}")]',
+    allocation = driver.wait_for_xpath(
+        f'//li[contains(text(), "KAIT")][contains(text(), "{public_group.name}")]'
+    )
+    driver.scroll_to_element_and_click(
+        allocation,
         scroll_parent=True,
     )
 
@@ -391,20 +466,20 @@ def add_followup_request_using_frontend_and_verify_KAIT(
 
     # U band option
     driver.click_xpath(
-        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+        '//input[@id="root_observation_choices-0"]', wait_clickable=False
     )
 
     # Click somewhere outside to remove focus from instrument select
     driver.click_xpath("//header")
-
-    driver.click_xpath(submit_button_xpath)
+    driver.scroll_to_element_and_click(submit_button)
 
     driver.click_xpath("//div[@data-testid='KAIT-requests-header']")
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "U")]'
     )
+    # it should fail, as we don't provide real allocation info
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "submitted")]'''
+        '''//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "failed to submit")]'''
     )
 
 
@@ -419,27 +494,58 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
 
     driver.get(f"/source/{public_source.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
-    select_box.click()
+    driver.scroll_to_element_and_click(select_box)
 
-    driver.click_xpath(
-        f'//li[contains(text(), "UVOTXRT")][contains(text(), "{public_group.name}")]',
+    allocation = driver.wait_for_xpath(
+        f'//li[contains(text(), "UVOTXRT")][contains(text(), "{public_group.name}")]'
+    )
+    driver.scroll_to_element_and_click(
+        allocation,
         scroll_parent=True,
     )
 
     # Click somewhere outside to remove focus from instrument select
     driver.click_xpath("//header")
 
-    driver.click_xpath(submit_button_xpath)
+    # observation mode options
+    options = driver.wait_for_xpath('//div[@id="root_request_type"]')
+    driver.scroll_to_element_and_click(options)
+
+    # click the XRT/UVOT ToO option
+    driver.click_xpath('//li[@data-value="1"]')
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    driver.scroll_to_element_and_click(submit_button)
 
     driver.click_xpath("//div[@data-testid='UVOTXRT-requests-header']")
+
+    driver.wait_for_xpath(
+        '''//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "submitted")]'''
+    )
+
+    # look for the button to display more columns: data-testid="View Columns-iconButton"
+    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
+    driver.click_xpath('//label/span[text()="exposure_time"]')
+    driver.click_xpath('//label/span[text()="obs_type"]')
+    driver.click_xpath('//label/span[text()="source_type"]')
 
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "Light Curve")]'
@@ -449,9 +555,6 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
     )
     driver.wait_for_xpath(
         '''//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "Optical fast transient")]'''
-    )
-    driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "Cannot submit TOOs from anonymous user.")]'''
     )
 
 
@@ -466,27 +569,48 @@ def add_followup_request_using_frontend_and_verify_ZTF(
 
     driver.get(f"/source/{public_source.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
-    select_box.click()
+    driver.scroll_to_element_and_click(select_box)
 
-    driver.click_xpath(
-        f'//li[contains(text(), "ZTF")][contains(text(), "{public_group.name}")]',
+    allocation = driver.wait_for_xpath(
+        f'//li[contains(text(), "ZTF")][contains(text(), "{public_group.name}")]'
+    )
+    driver.scroll_to_element_and_click(
+        allocation,
         scroll_parent=True,
     )
 
     # Click somewhere outside to remove focus from instrument select
     driver.click_xpath("//header")
 
-    driver.click_xpath(submit_button_xpath)
+    driver.scroll_to_element_and_click(submit_button)
 
     driver.click_xpath("//div[@data-testid='ZTF-requests-header']")
+
+    driver.wait_for_xpath(
+        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "submitted")]'''
+    )
+
+    # look for the button to display more columns: data-testid="View Columns-iconButton"
+    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
+    driver.click_xpath('//label/span[text()="exposure_time"]')
+    driver.click_xpath('//label/span[text()="subprogram_name"]')
+
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "GRB")]'
     )
@@ -495,9 +619,6 @@ def add_followup_request_using_frontend_and_verify_ZTF(
     )
     driver.wait_for_xpath(
         '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "g,r,i")]'''
-    )
-    driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "submitted")]'''
     )
 
 
@@ -513,34 +634,52 @@ def add_followup_request_using_frontend_and_verify_Floyds(
 
     driver.get(f"/source/{public_source.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
-    select_box.click()
+    driver.scroll_to_element_and_click(select_box)
 
-    driver.click_xpath(
-        f'//li[contains(text(), "Floyds")][contains(text(), "{public_group.name}")]',
+    allocation = driver.wait_for_xpath(
+        f'//li[contains(text(), "Floyds")][contains(text(), "{public_group.name}")]'
+    )
+    driver.scroll_to_element_and_click(
+        allocation,
         scroll_parent=True,
     )
 
-    driver.click_xpath(submit_button_xpath)
+    driver.scroll_to_element_and_click(submit_button, timeout=30)
 
     driver.click_xpath(
         "//div[@data-testid='Floyds-requests-header']", scroll_parent=True
     )
+
+    driver.wait_for_xpath(
+        '//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "submitted")]'
+    )
+
+    # look for the button to display more columns: data-testid="View Columns-iconButton"
+    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
+    driver.click_xpath('//label/span[text()="exposure_time"]')
+    driver.click_xpath('//label/span[text()="minimum_lunar_distance"]')
+
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "30")]'
-    )
-    driver.wait_for_xpath(
-        '//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "submitted")]'
     )
 
 
@@ -556,33 +695,49 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
 
     driver.get(f"/source/{public_source.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
-    select_box.click()
+    driver.scroll_to_element_and_click(select_box)
 
-    driver.click_xpath(
-        f'//li[contains(text(), "MUSCAT")][contains(text(), "{public_group.name}")]',
+    allocation = driver.wait_for_xpath(
+        f'//li[contains(text(), "MUSCAT")][contains(text(), "{public_group.name}")]'
+    )
+    driver.scroll_to_element_and_click(
+        allocation,
         scroll_parent=True,
     )
 
-    driver.click_xpath(submit_button_xpath)
+    driver.scroll_to_element_and_click(submit_button, timeout=30)
 
     driver.click_xpath("//div[@data-testid='MUSCAT-requests-header']")
+    driver.wait_for_xpath(
+        '//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "submitted")]'
+    )
+
+    # look for the button to display more columns: data-testid="View Columns-iconButton"
+    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
+    driver.click_xpath('//label/span[text()="exposure_time"]')
+    driver.click_xpath('//label/span[text()="minimum_lunar_distance"]')
 
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "30")]'
-    )
-    driver.wait_for_xpath(
-        '//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "submitted")]'
     )
 
 
@@ -598,27 +753,46 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
 
     driver.get(f"/source/{public_source.id}")
 
-    submit_button_xpath = (
-        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
-
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
     )
-    select_box.click()
 
-    driver.click_xpath(
-        f'//li[contains(text(), "ATLAS")][contains(text(), "{public_group.name}")]',
+    # the MUI accordion is not expanded, we need to scroll to it and click
+    header = driver.wait_for_xpath("//div[@id='forced-photometry-header']")
+    driver.scroll_to_element_and_click(
+        header,
         scroll_parent=True,
     )
 
-    driver.click_xpath(submit_button_xpath)
+    submit_button_xpath = (
+        '//div[@data-testid="forced-photometry-form"]//button[@type="submit"]'
+    )
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-forcedPhotometryAllocationSelect']"
+    )
+    driver.scroll_to_element_and_click(select_box)
+
+    allocation = driver.wait_for_xpath(
+        f'//li[contains(text(), "ATLAS")][contains(text(), "{public_group.name}")]'
+    )
+    driver.scroll_to_element_and_click(
+        allocation,
+        scroll_parent=True,
+    )
+
+    driver.scroll_to_element_and_click(submit_button, timeout=30)
 
     driver.click_xpath("//div[@data-testid='ATLAS-requests-header']")
 
+    # submission should fail, as we don't provide real allocation info or endpoint
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "ATLAS_followupRequestsTable")]//div[contains(., "submitted")]'
+        '//div[contains(@data-testid, "ATLAS_followupRequestsTable")]//div[contains(., "failed to submit")]'
     )
 
 
@@ -634,27 +808,45 @@ def add_followup_request_using_frontend_and_verify_PS1(
 
     driver.get(f"/source/{public_ZTFe028h94k.id}")
 
-    submit_button_xpath = (
-        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
-
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
     )
-    select_box.click()
 
-    driver.click_xpath(
-        f'//li[contains(text(), "PS1")][contains(text(), "{public_group.name}")]',
+    # the MUI accordion is not expanded, we need to scroll to it and click
+    header = driver.wait_for_xpath("//div[@id='forced-photometry-header']")
+    driver.scroll_to_element_and_click(
+        header,
         scroll_parent=True,
     )
 
-    driver.click_xpath(submit_button_xpath)
+    submit_button_xpath = (
+        '//div[@data-testid="forced-photometry-form"]//button[@type="submit"]'
+    )
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-forcedPhotometryAllocationSelect']"
+    )
+    driver.scroll_to_element_and_click(select_box)
+
+    allocation = driver.wait_for_xpath(
+        f'//li[contains(text(), "PS1")][contains(text(), "{public_group.name}")]'
+    )
+    driver.scroll_to_element_and_click(
+        allocation,
+        scroll_parent=True,
+    )
+
+    driver.scroll_to_element_and_click(submit_button, timeout=30)
 
     driver.click_xpath("//div[@data-testid='PS1-requests-header']")
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "PS1_followupRequestsTable")]//div[contains(., "Source available")]'
+        '//div[contains(@data-testid, "PS1_followupRequestsTable")]//div[contains(., "submitted")]'
     )
 
 
@@ -670,42 +862,60 @@ def add_followup_request_using_frontend_and_verify_Spectral(
 
     driver.get(f"/source/{public_source.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
-    select_box.click()
+    driver.scroll_to_element_and_click(select_box)
 
-    driver.click_xpath(
-        f'//li[contains(text(), "Spectral")][contains(text(), "{public_group.name}")]',
+    allocation = driver.wait_for_xpath(
+        f'//li[contains(text(), "Spectral")][contains(text(), "{public_group.name}")]'
+    )
+    driver.scroll_to_element_and_click(
+        allocation,
         scroll_parent=True,
     )
 
     # gp band option
     driver.click_xpath(
-        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+        '//input[@id="root_observation_choices-0"]', wait_clickable=False
     )
 
     # Y option
     driver.click_xpath(
-        '//input[@id="root_observation_choices_4"]', wait_clickable=False
+        '//input[@id="root_observation_choices-4"]', wait_clickable=False
     )
 
-    driver.click_xpath(submit_button_xpath)
+    driver.scroll_to_element_and_click(submit_button, timeout=30)
 
     driver.click_xpath("//div[@data-testid='Spectral-requests-header']")
+
+    driver.wait_for_xpath(
+        '//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "submitted")]'
+    )
+
+    # look for the button to display more columns: data-testid="View Columns-iconButton"
+    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
+    driver.click_xpath('//label/span[text()="exposure_time"]')
+    driver.click_xpath('//label/span[text()="observation_choices"]')
+
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "gp,Y")]'
-    )
-    driver.wait_for_xpath(
-        '//div[contains(@data-testid, "Spectral_followupRequestsTable")]//div[contains(., "submitted")]'
     )
 
 
@@ -721,45 +931,63 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
 
     driver.get(f"/source/{public_source.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
-    select_box.click()
+    driver.scroll_to_element_and_click(select_box)
 
-    driver.click_xpath(
-        f'//li[contains(text(), "Sinistro")][contains(text(), "{public_group.name}")]',
+    allocation = driver.wait_for_xpath(
+        f'//li[contains(text(), "Sinistro")][contains(text(), "{public_group.name}")]'
+    )
+    driver.scroll_to_element_and_click(
+        allocation,
         scroll_parent=True,
     )
 
     # gp band option
     driver.click_xpath(
-        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+        '//input[@id="root_observation_choices-0"]', wait_clickable=False
     )
 
     # Y option
     driver.click_xpath(
-        '//input[@id="root_observation_choices_4"]', wait_clickable=False
+        '//input[@id="root_observation_choices-4"]', wait_clickable=False
     )
 
-    driver.click_xpath(submit_button_xpath)
+    driver.scroll_to_element_and_click(submit_button, timeout=30)
 
     driver.click_xpath(
         "//div[@data-testid='Sinistro-requests-header']", scroll_parent=True
     )
 
     driver.wait_for_xpath(
+        '//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "submitted")]'
+    )
+
+    # look for the button to display more columns: data-testid="View Columns-iconButton"
+    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
+
+    driver.click_xpath('//label/span[text()="exposure_time"]')
+    driver.click_xpath('//label/span[text()="observation_choices"]')
+
+    driver.wait_for_xpath(
         '//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "gp,Y")]'
-    )
-    driver.wait_for_xpath(
-        '//div[contains(@data-testid, "Sinistro_followupRequestsTable")]//div[contains(., "submitted")]'
     )
 
 
@@ -774,18 +1002,29 @@ def add_followup_request_using_frontend_and_verify_SEDM(
 
     driver.get(f"/source/{public_source.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
-    select_box.click()
+    driver.scroll_to_element_and_click(select_box)
 
-    driver.click_xpath(
-        f'//li[contains(text(), "SEDM")][contains(text(), "{public_group.name}")]',
+    allocation = driver.wait_for_xpath(
+        f'//li[contains(text(), "SEDM")][contains(text(), "{public_group.name}")]'
+    )
+    driver.scroll_to_element_and_click(
+        allocation,
         scroll_parent=True,
     )
 
@@ -796,20 +1035,22 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     driver.click_xpath('//div[@id="root_observation_type"]', wait_clickable=False)
 
     # mix n match option
-    driver.click_xpath('''//li[@data-value="Mix 'n Match"]''')
+    driver.click_xpath('''//li[@data-value="5"]''')
 
     # u band option
     driver.click_xpath(
-        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+        '//input[@id="root_observation_choices-0"]', wait_clickable=False
     )
 
     # ifu option
     driver.click_xpath(
-        '//input[@id="root_observation_choices_4"]', wait_clickable=False
+        '//input[@id="root_observation_choices-4"]', wait_clickable=False
     )
-    driver.click_xpath(submit_button_xpath)
+
+    driver.scroll_to_element_and_click(submit_button)
 
     driver.click_xpath("//div[@data-testid='SEDM-requests-header']")
+
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
     )
@@ -836,18 +1077,29 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
 
     driver.get(f"/source/{public_source.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
-    select_box.click()
+    driver.scroll_to_element_and_click(select_box)
 
-    driver.click_xpath(
-        f'//li[contains(text(), "SPRAT")][contains(text(), "{public_group.name}")]',
+    allocation = driver.wait_for_xpath(
+        f'//li[contains(text(), "SPRAT")][contains(text(), "{public_group.name}")]'
+    )
+    driver.scroll_to_element_and_click(
+        allocation,
         scroll_parent=True,
     )
 
@@ -856,19 +1108,26 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
 
     driver.click_xpath('//input[@id="root_photometric"]', wait_clickable=False)
 
-    driver.click_xpath(submit_button_xpath)
+    driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@data-testid='SPRAT-requests-header']")
+    driver.click_xpath("//div[@data-testid='SPRAT-requests-header']", timeout=30)
+
+    driver.wait_for_xpath(
+        '''//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "submitted")]''',
+        timeout=20,
+    )
+
+    # look for the button to display more columns: data-testid="View Columns-iconButton"
+    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
+    driver.click_xpath('//label/span[text()="observation_type"]')
+    driver.click_xpath('//label/span[text()="exposure_time"]')
+
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "300")]',
         timeout=20,
     )
     driver.wait_for_xpath(
         '''//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "blue")]''',
-        timeout=20,
-    )
-    driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "submitted")]''',
         timeout=20,
     )
 
@@ -885,18 +1144,29 @@ def add_followup_request_using_frontend_and_verify_IOI(
 
     driver.get(f"/source/{public_source.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
-    select_box.click()
+    driver.scroll_to_element_and_click(select_box)
 
-    driver.click_xpath(
-        f'//li[contains(text(), "IOI")][contains(text(), "{public_group.name}")]',
+    allocation = (
+        f"//li[contains(text(), 'IOI')][contains(text(), '{public_group.name}')]"
+    )
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(allocation),
         scroll_parent=True,
     )
 
@@ -905,23 +1175,30 @@ def add_followup_request_using_frontend_and_verify_IOI(
 
     # H band option
     driver.click_xpath(
-        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+        '//input[@id="root_observation_choices-0"]', wait_clickable=False
     )
     driver.click_xpath('//input[@id="root_photometric"]', wait_clickable=False)
 
-    driver.click_xpath(submit_button_xpath)
+    driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@data-testid='IOI-requests-header']")
+    driver.click_xpath("//div[@data-testid='IOI-requests-header']", timeout=30)
+
+    driver.wait_for_xpath(
+        '''//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "submitted")]''',
+        timeout=20,
+    )
+
+    # look for the button to display more columns: data-testid="View Columns-iconButton"
+    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
+    driver.click_xpath('//label/span[text()="exposure_time"]')
+    driver.click_xpath('//label/span[text()="observation_choices"]')
+
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "300")]',
         timeout=20,
     )
     driver.wait_for_xpath(
         '''//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "H")]''',
-        timeout=20,
-    )
-    driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "submitted")]''',
         timeout=20,
     )
 
@@ -937,18 +1214,29 @@ def add_followup_request_using_frontend_and_verify_SLACK(
 
     driver.get(f"/source/{public_source.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
-    select_box.click()
+    driver.scroll_to_element_and_click(select_box)
 
-    driver.click_xpath(
-        f'//li[contains(text(), "SLACK")][contains(text(), "{public_group.name}")]',
+    allocation = (
+        f"//li[contains(text(), 'SLACK')][contains(text(), '{public_group.name}')]"
+    )
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(allocation),
         scroll_parent=True,
     )
 
@@ -957,7 +1245,21 @@ def add_followup_request_using_frontend_and_verify_SLACK(
 
     # ZTF g-band option
     driver.click_xpath(
-        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+        '//input[@id="root_observation_choices-0"]', wait_clickable=False
+    )
+
+    driver.scroll_to_element_and_click(submit_button)
+
+    driver.click_xpath("//div[@data-testid='SLACK-requests-header']", timeout=30)
+
+    # we are not pointing to a real slack channel, so it should fail
+    driver.wait_for_xpath(
+        '''//div[contains(text(), "failed to submit")]''',
+        timeout=20,
+    )
+    driver.wait_for_xpath(
+        '''//div[contains(text(), "ztfg")]''',
+        timeout=20,
     )
 
 
@@ -973,18 +1275,29 @@ def add_followup_request_using_frontend_and_verify_IOO(
 
     driver.get(f"/source/{public_source.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
-    select_box.click()
+    driver.scroll_to_element_and_click(select_box)
 
-    driver.click_xpath(
-        f'//li[contains(text(), "IOO")][contains(text(), "{public_group.name}")]',
+    allocation = (
+        f"//li[contains(text(), 'IOO')][contains(text(), '{public_group.name}')]"
+    )
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(allocation),
         scroll_parent=True,
     )
 
@@ -993,19 +1306,30 @@ def add_followup_request_using_frontend_and_verify_IOO(
 
     # u band option
     driver.click_xpath(
-        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+        '//input[@id="root_observation_choices-0"]', wait_clickable=False
     )
 
     # z option
     driver.click_xpath(
-        '//input[@id="root_observation_choices_4"]', wait_clickable=False
+        '//input[@id="root_observation_choices-4"]', wait_clickable=False
     )
 
     driver.click_xpath('//input[@id="root_photometric"]', wait_clickable=False)
 
-    driver.click_xpath(submit_button_xpath)
+    driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@data-testid='IOO-requests-header']")
+    driver.click_xpath("//div[@data-testid='IOO-requests-header']", timeout=30)
+
+    driver.wait_for_xpath(
+        '''//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "submitted")]''',
+        timeout=20,
+    )
+
+    # look for the button to display more columns: data-testid="View Columns-iconButton"
+    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
+    driver.click_xpath('//label/span[text()="exposure_time"]')
+    driver.click_xpath('//label/span[text()="observation_choices"]')
+
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "300")]',
         timeout=20,
@@ -1014,13 +1338,9 @@ def add_followup_request_using_frontend_and_verify_IOO(
         '''//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "u,z")]''',
         timeout=20,
     )
-    driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "submitted")]''',
-        timeout=20,
-    )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not swift_isonline, reason="UVOT/XRT server down")
 def test_submit_new_followup_request_UVOTXRT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1031,7 +1351,7 @@ def test_submit_new_followup_request_UVOTXRT(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not kait_isonline, reason="KAIT server down")
 def test_submit_new_followup_request_KAIT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1042,7 +1362,7 @@ def test_submit_new_followup_request_KAIT(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request_SEDMv2(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -1052,7 +1372,7 @@ def test_submit_new_followup_request_SEDMv2(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not ztf_isonline, reason="ZTF server down")
 def test_submit_new_followup_request_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1074,7 +1394,7 @@ def test_submit_new_followup_request_SEDM(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1084,18 +1404,18 @@ def test_submit_new_followup_request_IOO(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_IOI(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
 
-    add_followup_request_using_frontend_and_verify_IOO(
+    add_followup_request_using_frontend_and_verify_IOI(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_SPRAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1106,7 +1426,7 @@ def test_submit_new_followup_request_SPRAT(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request_SLACK(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -1115,7 +1435,7 @@ def test_submit_new_followup_request_SLACK(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Sinistro(
     driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
@@ -1126,7 +1446,7 @@ def test_submit_new_followup_request_Sinistro(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Spectral(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1137,7 +1457,7 @@ def test_submit_new_followup_request_Spectral(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not atlas_isonline, reason="ATLAS server down")
 def test_submit_new_followup_request_ATLAS(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1148,7 +1468,7 @@ def test_submit_new_followup_request_ATLAS(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not ps1_isonline, reason="PS1 server down")
 def test_submit_new_followup_request_PS1(
     driver, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
@@ -1159,7 +1479,7 @@ def test_submit_new_followup_request_PS1(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_MUSCAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1170,7 +1490,7 @@ def test_submit_new_followup_request_MUSCAT(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Floyds(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1181,7 +1501,7 @@ def test_submit_new_followup_request_Floyds(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_edit_existing_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1198,7 +1518,7 @@ def test_edit_existing_followup_request(
     )
     ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
 
-    mix_n_match_option = driver.wait_for_xpath('''//li[@data-value="IFU"]''')
+    mix_n_match_option = driver.wait_for_xpath('''//li[@data-value="2"]''')
     driver.scroll_to_element_and_click(mix_n_match_option)
 
     submit_button = driver.wait_for_xpath(
@@ -1241,7 +1561,7 @@ def test_delete_followup_request_SEDMv2(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not ztf_isonline, reason='ZTF server down')
 def test_delete_followup_request_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1265,7 +1585,7 @@ def test_delete_followup_request_ZTF(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason='SEDM server down')
 def test_delete_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1289,7 +1609,7 @@ def test_delete_followup_request_SEDM(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1313,7 +1633,7 @@ def test_delete_followup_request_IOO(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_IOI(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1337,7 +1657,7 @@ def test_delete_followup_request_IOI(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_SPRAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1361,7 +1681,7 @@ def test_delete_followup_request_SPRAT(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Sinistro(
     driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
@@ -1385,7 +1705,7 @@ def test_delete_followup_request_Sinistro(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Spectral(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1409,7 +1729,7 @@ def test_delete_followup_request_Spectral(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_MUSCAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1433,7 +1753,7 @@ def test_delete_followup_request_MUSCAT(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Floyds(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1457,7 +1777,7 @@ def test_delete_followup_request_Floyds(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request_two_groups(
     driver,
@@ -1467,7 +1787,6 @@ def test_submit_new_followup_request_two_groups(
     public_group,
     public_group2,
     view_only_token_group2,
-    user_group2,
 ):
 
     idata = add_telescope_and_instrument("SEDM", super_admin_token)
@@ -1477,17 +1796,29 @@ def test_submit_new_followup_request_two_groups(
 
     driver.get(f"/source/{public_source_two_groups.id}")
 
+    # wait for plots to load
+    driver.wait_for_xpath(
+        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+    )
+
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    driver.wait_for_xpath(submit_button_xpath)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
 
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
+    select_box = driver.wait_for_xpath(
+        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
     )
     select_box.click()
-    driver.click_xpath(
-        f'//li[contains(text(), "SEDM")][contains(text(), "{public_group.name}")]',
+
+    allocation = (
+        f'//li[contains(text(), "SEDM")][contains(text(), "{public_group.name}")]'
+    )
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(allocation),
         scroll_parent=True,
     )
 
@@ -1513,20 +1844,20 @@ def test_submit_new_followup_request_two_groups(
     driver.click_xpath('//div[@id="root_observation_type"]', wait_clickable=False)
 
     # mix n match option
-    driver.click_xpath('''//li[@data-value="Mix 'n Match"]''', scroll_parent=True)
+    driver.click_xpath('''//li[@data-value="5"]''', scroll_parent=True)
 
     # u band option
     driver.click_xpath(
-        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+        '//input[@id="root_observation_choices-0"]', wait_clickable=False
     )
 
     # ifu option
     driver.click_xpath(
-        '//input[@id="root_observation_choices_4"]', wait_clickable=False
+        '//input[@id="root_observation_choices-4"]', wait_clickable=False
     )
-    driver.click_xpath(submit_button_xpath)
+    driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@data-testid='SEDM-requests-header']")
+    driver.click_xpath("//div[@data-testid='SEDM-requests-header']", timeout=30)
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
     )

@@ -91,6 +91,7 @@ const displayedColumns = [
   "start date",
   "end date",
   "mode",
+  "request",
   "filters",
   "field_ids",
   "priority",

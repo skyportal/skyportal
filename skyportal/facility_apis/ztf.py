@@ -97,6 +97,9 @@ class ZTFRequest:
                     )
                 ).first()
 
+                if field is None:
+                    raise ValueError(f"Could not find field {field_id} in instrument.")
+
                 target = {
                     'request_id': cnt,
                     'program_id': program_id,

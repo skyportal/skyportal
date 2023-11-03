@@ -558,8 +558,8 @@ class UVOTXRTAPI(FollowUpAPI):
         "properties": {
             "request_type": {
                 "type": "string",
-                "enum": ["XRT/UVOT ToO", "XRT API", "XRT/UVOT/BAT Data"],
-                "default": "XRT/UVOT ToO",
+                "enum": ["XRT/UVOT/BAT Data", "XRT/UVOT ToO", "XRT API"],
+                "default": "XRT/UVOT/BAT Data",
                 "title": "Request Type",
             },
         },
