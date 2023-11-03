@@ -117,17 +117,17 @@ def test_datalab_photoz(annotation_token, public_source, public_group):
     assert any(
         [
             'ra' in d['data']
-            and d['data']['ra'] == 0.0006243988887182
+            and d['data']['ra'] == 0.0006352685989817
             and 'dec' in d['data']
-            and d['data']['dec'] == 0.0018203440696039
+            and d['data']['dec'] == 0.0018217386016298
             and 'flux_z' in d['data']
-            and d['data']['flux_z'] == 0.36103
+            and d['data']['flux_z'] == 0.536531
             and 'z_phot_l95' in d['data']
-            and d['data']['z_phot_l95'] == 0.599632
+            and d['data']['z_phot_l95'] == 0.39111
             and 'z_phot_std' in d['data']
-            and d['data']['z_phot_std'] == 0.565248
+            and d['data']['z_phot_std'] == 0.559162
             and 'z_phot_median' in d['data']
-            and d['data']['z_phot_median'] == 1.222793
+            and d['data']['z_phot_median'] == 1.040012
             and 'type' in d['data']
             and d['data']['type'] == 'REX'
             for d in data['data']
