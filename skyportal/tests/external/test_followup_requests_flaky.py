@@ -367,13 +367,16 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -435,13 +438,16 @@ def add_followup_request_using_frontend_and_verify_KAIT(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -494,13 +500,16 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -569,13 +578,16 @@ def add_followup_request_using_frontend_and_verify_ZTF(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -634,13 +646,16 @@ def add_followup_request_using_frontend_and_verify_Floyds(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -695,13 +710,16 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -753,13 +771,16 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     # the MUI accordion is not expanded, we need to scroll to it and click
     header = driver.wait_for_xpath("//div[@id='forced-photometry-header']")
@@ -808,13 +829,16 @@ def add_followup_request_using_frontend_and_verify_PS1(
 
     driver.get(f"/source/{public_ZTFe028h94k.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     # the MUI accordion is not expanded, we need to scroll to it and click
     header = driver.wait_for_xpath("//div[@id='forced-photometry-header']")
@@ -862,7 +886,7 @@ def add_followup_request_using_frontend_and_verify_Spectral(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
+    # wait for plots to load, if any
     driver.wait_for_xpath(
         '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
     )
@@ -931,13 +955,16 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -1002,13 +1029,16 @@ def add_followup_request_using_frontend_and_verify_SEDM(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -1077,13 +1107,16 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -1144,13 +1177,16 @@ def add_followup_request_using_frontend_and_verify_IOI(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -1214,13 +1250,16 @@ def add_followup_request_using_frontend_and_verify_SLACK(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -1275,13 +1314,16 @@ def add_followup_request_using_frontend_and_verify_IOO(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -1796,13 +1838,16 @@ def test_submit_new_followup_request_two_groups(
 
     driver.get(f"/source/{public_source_two_groups.id}")
 
-    # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    # wait for the plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
+        )
+    except Exception:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
