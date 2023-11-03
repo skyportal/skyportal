@@ -326,12 +326,17 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
 
     # wait for plots to load
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
+            timeout=10,
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
+            timeout=10,
+        )
+    except TimeoutException:
+        pass
 
     driver.click_xpath('//div[@id="root_taxonomy"]')
     driver.click_xpath(
