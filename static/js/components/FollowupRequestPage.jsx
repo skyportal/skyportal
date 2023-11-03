@@ -281,7 +281,6 @@ const FollowupRequestPage = () => {
   });
 
   const onDownload = async () => {
-    // call the provided handleTableChange, iterating from page 1 (with the current number of rows per page) to the last page (i.e a page where we don't get anything back)
     setDownloadProgressTotal(totalMatches);
     const fetchAllRequests = async (currentFetchParams) => {
       let allFollowupRequests = [];
