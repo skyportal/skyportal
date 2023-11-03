@@ -273,7 +273,7 @@ def test_analysis_with_file_input_start(
     )
 
 
-@pytest.mark.flaky(reruns=3)
+# @pytest.mark.flaky(reruns=3)
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
     simple = {
         'class': 'Cepheid',
@@ -345,13 +345,17 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     ActionChains(driver).move_to_element(header).click().perform()
 
     driver.click_xpath('//*[@id="classification"]')
+    # type "Mult-mode" into the classification select text box
+    classification_textbox = driver.wait_for_xpath('//*[@id="classification"]')
+    classification_textbox.send_keys("Symmetrical")
     driver.click_xpath('//div[contains(@id, "Symmetrical")]', scroll_parent=True)
 
     # Click somewhere outside to remove focus from classification select
     header = driver.wait_for_xpath("//header")
     ActionChains(driver).move_to_element(header).click().perform()
 
-    driver.click_xpath('//*[@id="probability"]')
+    probability_input = driver.wait_for_xpath('//*[@id="probability"]')
+    driver.scroll_to_element_and_click(probability_input, scroll_parent=True)
     driver.wait_for_xpath('//*[@id="probability"]').send_keys("1")
 
     driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
@@ -392,11 +396,15 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     classification_textbox = driver.wait_for_xpath('//*[@id="classification"]')
     classification_textbox.send_keys("Mult-mode")
     driver.click_xpath('//div[contains(@id, "Mult-mode")]', scroll_parent=True)
-    # empty the probability text box
 
-    probability_textbox = driver.wait_for_xpath('//*[@id="probability"]')
-    probability_textbox.click()
-    probability_textbox.send_keys(Keys.BACKSPACE)
+    # Click somewhere outside to remove focus from classification select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
+
+    # empty the probability text box
+    probability_input = driver.wait_for_xpath('//*[@id="probability"]')
+    driver.scroll_to_element_and_click(probability_input, scroll_parent=True)
+    probability_input.send_keys(Keys.BACKSPACE)
 
     driver.wait_for_xpath('//*[@id="probability"]').send_keys("0.02")
     driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
