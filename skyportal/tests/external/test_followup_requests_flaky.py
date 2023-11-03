@@ -1452,7 +1452,7 @@ def add_followup_request_using_frontend_and_verify_IOO(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not swift_isonline, reason="UVOT/XRT server down")
 def test_submit_new_followup_request_UVOTXRT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1463,7 +1463,7 @@ def test_submit_new_followup_request_UVOTXRT(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not kait_isonline, reason="KAIT server down")
 def test_submit_new_followup_request_KAIT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1474,7 +1474,7 @@ def test_submit_new_followup_request_KAIT(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request_SEDMv2(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -1484,7 +1484,7 @@ def test_submit_new_followup_request_SEDMv2(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not ztf_isonline, reason="ZTF server down")
 def test_submit_new_followup_request_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1495,7 +1495,7 @@ def test_submit_new_followup_request_ZTF(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1506,7 +1506,7 @@ def test_submit_new_followup_request_SEDM(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1516,7 +1516,7 @@ def test_submit_new_followup_request_IOO(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_IOI(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1527,7 +1527,7 @@ def test_submit_new_followup_request_IOI(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_SPRAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1538,7 +1538,7 @@ def test_submit_new_followup_request_SPRAT(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request_SLACK(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -1547,7 +1547,7 @@ def test_submit_new_followup_request_SLACK(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Sinistro(
     driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
@@ -1558,7 +1558,7 @@ def test_submit_new_followup_request_Sinistro(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Spectral(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1569,7 +1569,7 @@ def test_submit_new_followup_request_Spectral(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not atlas_isonline, reason="ATLAS server down")
 def test_submit_new_followup_request_ATLAS(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1580,7 +1580,7 @@ def test_submit_new_followup_request_ATLAS(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not ps1_isonline, reason="PS1 server down")
 def test_submit_new_followup_request_PS1(
     driver, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
@@ -1591,7 +1591,7 @@ def test_submit_new_followup_request_PS1(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_MUSCAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1602,7 +1602,7 @@ def test_submit_new_followup_request_MUSCAT(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Floyds(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1613,7 +1613,7 @@ def test_submit_new_followup_request_Floyds(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_edit_existing_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1673,7 +1673,7 @@ def test_delete_followup_request_SEDMv2(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not ztf_isonline, reason='ZTF server down')
 def test_delete_followup_request_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1697,7 +1697,7 @@ def test_delete_followup_request_ZTF(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason='SEDM server down')
 def test_delete_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1721,7 +1721,7 @@ def test_delete_followup_request_SEDM(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1745,7 +1745,7 @@ def test_delete_followup_request_IOO(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_IOI(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1769,7 +1769,7 @@ def test_delete_followup_request_IOI(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_SPRAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1793,7 +1793,7 @@ def test_delete_followup_request_SPRAT(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Sinistro(
     driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
@@ -1817,7 +1817,7 @@ def test_delete_followup_request_Sinistro(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Spectral(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1841,7 +1841,7 @@ def test_delete_followup_request_Spectral(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_MUSCAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1865,7 +1865,7 @@ def test_delete_followup_request_MUSCAT(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Floyds(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -1889,7 +1889,7 @@ def test_delete_followup_request_Floyds(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request_two_groups(
     driver,
