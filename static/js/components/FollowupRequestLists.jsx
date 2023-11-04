@@ -513,7 +513,20 @@ const FollowupRequestLists = ({
             keys.forEach((key) => {
               // some keys can be missing
               if (key in x.payload) {
-                formattedData.push(x.payload[key]);
+                // check if the value is an array, if so, join it with commas
+                // and wrap it in quotes
+                // if it is a string and contains commas, wrap it in quotes
+                if (Array.isArray(x.payload[key])) {
+                  formattedData.push(`"${x.payload[key].join(",")}"`);
+                } else if (typeof x.payload[key] === "string") {
+                  if (x.payload[key].includes(",")) {
+                    formattedData.push(`"${x.payload[key]}"`);
+                  } else {
+                    formattedData.push(x.payload[key]);
+                  }
+                } else {
+                  formattedData.push(x.payload[key]);
+                }
               } else {
                 formattedData.push("");
               }
@@ -525,7 +538,7 @@ const FollowupRequestLists = ({
               x.allocation.pi,
               x.allocation.group.id,
               x.allocation.group.name,
-              x.allocation.types.join(",")
+              `"${x.allocation.types.join(",")}"`
             );
             return formattedData;
           };
