@@ -511,10 +511,7 @@ const FollowupRequestLists = ({
             ];
 
             keys.forEach((key) => {
-              // some keys can be missing
               if (key in x.payload) {
-                // check if the value is an array, if so, join it with /
-                // if it is a string, check if it contains a comma, if so replace it with /
                 if (Array.isArray(x.payload[key])) {
                   formattedData.push(x.payload[key].join("/"));
                 } else if (typeof x.payload[key] === "string") {
