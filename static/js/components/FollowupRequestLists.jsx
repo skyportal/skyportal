@@ -506,26 +506,35 @@ const FollowupRequestLists = ({
               x.obj_id,
               x.created_at,
               x.requester.id,
-              x.requester.username,
+              x.requester.username.replaceAll(",", "/"),
               x.last_modified_by_id,
             ];
 
             keys.forEach((key) => {
-              // some keys can be missing
               if (key in x.payload) {
-                formattedData.push(x.payload[key]);
+                if (Array.isArray(x.payload[key])) {
+                  formattedData.push(x.payload[key].join("/"));
+                } else if (typeof x.payload[key] === "string") {
+                  if (x.payload[key].includes(",")) {
+                    formattedData.push(x.payload[key].replaceAll(",", "/"));
+                  } else {
+                    formattedData.push(x.payload[key]);
+                  }
+                } else {
+                  formattedData.push(x.payload[key]);
+                }
               } else {
                 formattedData.push("");
               }
             });
 
             formattedData.push(
-              x.status,
+              x.status.replaceAll(",", "/"),
               x.allocation.id,
-              x.allocation.pi,
+              x.allocation.pi.replaceAll(",", "/"),
               x.allocation.group.id,
-              x.allocation.group.name,
-              x.allocation.types.join(",")
+              x.allocation.group.name.replaceAll(",", "/"),
+              x.allocation.types.join("/")
             );
             return formattedData;
           };
