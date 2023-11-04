@@ -506,21 +506,20 @@ const FollowupRequestLists = ({
               x.obj_id,
               x.created_at,
               x.requester.id,
-              x.requester.username,
+              x.requester.username.replaceAll(",", "/"),
               x.last_modified_by_id,
             ];
 
             keys.forEach((key) => {
               // some keys can be missing
               if (key in x.payload) {
-                // check if the value is an array, if so, join it with commas
-                // and wrap it in quotes
-                // if it is a string and contains commas, wrap it in quotes
+                // check if the value is an array, if so, join it with /
+                // if it is a string, check if it contains a comma, if so replace it with /
                 if (Array.isArray(x.payload[key])) {
-                  formattedData.push(`"${x.payload[key].join(",")}"`);
+                  formattedData.push(x.payload[key].join("/"));
                 } else if (typeof x.payload[key] === "string") {
                   if (x.payload[key].includes(",")) {
-                    formattedData.push(`"${x.payload[key]}"`);
+                    formattedData.push(x.payload[key].replaceAll(",", "/"));
                   } else {
                     formattedData.push(x.payload[key]);
                   }
@@ -533,12 +532,12 @@ const FollowupRequestLists = ({
             });
 
             formattedData.push(
-              x.status,
+              x.status.replaceAll(",", "/"),
               x.allocation.id,
-              x.allocation.pi,
+              x.allocation.pi.replaceAll(",", "/"),
               x.allocation.group.id,
-              x.allocation.group.name,
-              `"${x.allocation.types.join(",")}"`
+              x.allocation.group.name.replaceAll(",", "/"),
+              x.allocation.types.join("/")
             );
             return formattedData;
           };
