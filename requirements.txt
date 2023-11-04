@@ -40,7 +40,7 @@ tables==3.8.0
 timezonefinder==6.2.0
 astroplan==0.8
 py3-validate-email==1.0.5.post1
-alembic==1.10.2
+alembic==1.12.1
 marshmallow-jsonschema==0.13.0
 paramiko==3.3.1
 scp==0.14.5
