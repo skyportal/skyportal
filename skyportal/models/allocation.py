@@ -4,6 +4,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine
 from sqlalchemy_utils.types import JSONType
+from sqlalchemy.dialects.postgresql import ARRAY as pg_array
 
 import json
 
@@ -19,6 +20,7 @@ from baselayer.app.models import (
     safe_aliased,
 )
 from .group import GroupUser, accessible_by_group_members
+from ..enum_types import allowed_allocation_types, ALLOWED_ALLOCATION_TYPES
 
 
 _, cfg = load_env()
@@ -72,6 +74,14 @@ class Allocation(Base):
     default_share_group_ids = sa.Column(
         sa.ARRAY(sa.Integer), comment='List of default group IDs to share data with'
     )
+    types = sa.Column(
+        pg_array(allowed_allocation_types),
+        nullable=False,
+        # the default should be an array with just "triggered" in it
+        server_default=sa.text("'{" + ALLOWED_ALLOCATION_TYPES[0] + "}'"),
+        doc='The type of allocation.',
+    )
+
     requests = relationship(
         'FollowupRequest',
         back_populates='allocation',

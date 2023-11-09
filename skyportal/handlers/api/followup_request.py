@@ -1,67 +1,63 @@
-import arrow
 import ast
-from datetime import datetime, timedelta
-import healpy as hp
-import jsonschema
-from marshmallow.exceptions import ValidationError
-import numpy as np
-import io
-from tornado.ioloop import IOLoop
-import pandas as pd
-import tempfile
 import functools
+import io
 import json
-from scipy.stats import norm
-import sqlalchemy as sa
-from sqlalchemy import func
-from sqlalchemy.orm import joinedload
+import tempfile
 import time
 import uuid
+from datetime import datetime, timedelta
 
-from astropy import units as u
-from astropy.coordinates import SkyCoord
-from astropy.coordinates import EarthLocation
-from astropy.time import Time, TimeDelta
-
-from astroplan import Observer
-from astroplan import FixedTarget
-from astroplan import ObservingBlock
-from astroplan.constraints import (
-    Constraint,
-    AltitudeConstraint,
-    AtNightConstraint,
-    AirmassConstraint,
-    MoonSeparationConstraint,
-)
-from astroplan.scheduling import Transitioner
-from astroplan.scheduling import PriorityScheduler
-from astroplan.scheduling import Schedule
-from astroplan.plots import plot_schedule_airmass
-
+import arrow
+import healpy as hp
+import jsonschema
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import sqlalchemy as sa
+from astroplan import FixedTarget, Observer, ObservingBlock
+from astroplan.constraints import (
+    AirmassConstraint,
+    AltitudeConstraint,
+    AtNightConstraint,
+    Constraint,
+    MoonSeparationConstraint,
+)
+from astroplan.plots import plot_schedule_airmass
+from astroplan.scheduling import PriorityScheduler, Schedule, Transitioner
+from astropy import units as u
+from astropy.coordinates import EarthLocation, SkyCoord
+from astropy.time import Time, TimeDelta
+from marshmallow.exceptions import ValidationError
+from scipy.stats import norm
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload
+from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ..base import BaseHandler
 from ...models import (
+    Allocation,
+    ClassicalAssignment,
+    Classification,
     DefaultFollowupRequest,
     FollowupRequest,
     FollowupRequestUser,
-    Instrument,
-    ClassicalAssignment,
-    Localization,
-    ObservingRun,
-    Obj,
     Group,
+    Instrument,
+    Localization,
+    Obj,
+    ObservingRun,
+    Source,
+    Spectrum,
     User,
-    Allocation,
     cosmo,
 )
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 from ...utils.offset import get_formatted_standards_list
+from ..base import BaseHandler
 
 log = make_log('api/followup_request')
 
@@ -367,15 +363,59 @@ class AssignmentHandler(BaseHandler):
             return self.success()
 
 
-def post_followup_request(data, session, refresh_source=True):
+def post_followup_request(
+    data, constraints, session, refresh_source=True, refresh_requests=False
+):
     """Post follow-up request to database.
     data: dict
         Follow-up request dictionary
+    constraints: dict
+        Constraints dictionary, to apply before submitting request
     session: sqlalchemy.Session
         Database session for this transaction
     refresh_source : bool
         Refresh source upon post. Defaults to True.
+    refresh_requests : bool
+        Refresh requests upon post. Defaults to False.
     """
+
+    if isinstance(constraints, dict):
+        if len(constraints.get('source_group_ids', [])) > 0:
+            # verify that there is a source for each of the group IDs
+            existing_sources = session.scalars(
+                Source.select(session.user_or_token).where(
+                    Source.group_id.in_(constraints['source_group_ids']),
+                    Source.obj_id == data['obj_id'],
+                    Source.active.is_(True),
+                )
+            ).all()
+            if len(existing_sources) != len(constraints['source_group_ids']):
+                raise ValueError(
+                    'There is no source for one or more of the source_group_ids specified as a constraint, not submitting request.'
+                )
+        if constraints.get("not_if_classified", False):
+            # verify that the source is not classified
+            existing_classifications = session.scalars(
+                Classification.select(session.user_or_token).where(
+                    Classification.obj_id == data['obj_id'],
+                    Classification.ml.is_(False),  # ignore ML classifications
+                )
+            ).all()
+            if len(existing_classifications) > 0:
+                raise ValueError(
+                    'Source has already been classified, not submitting request (as per constraint).'
+                )
+        if constraints.get("not_if_spectra_exist", False):
+            # verify that the source has no spectra
+            existing_spectra = session.scalars(
+                Spectrum.select(session.user_or_token).where(
+                    Spectrum.obj_id == data['obj_id']
+                )
+            ).all()
+            if len(existing_spectra) > 0:
+                raise ValueError(
+                    'Source has already been observed spectroscopically, not submitting request (as per constraint).'
+                )
 
     stmt = Allocation.select(session.user_or_token).where(
         Allocation.id == data['allocation_id'],
@@ -413,6 +453,13 @@ def post_followup_request(data, session, refresh_source=True):
     except AttributeError:
         formSchema = instrument.api_class.form_json_schema
 
+    try:
+        formSchemaForcedPhotometry = (
+            instrument.api_class.form_json_schema_forced_photometry
+        )
+    except AttributeError:
+        formSchemaForcedPhotometry = None
+
     # not all requests need payloads
     if 'payload' not in data:
         data['payload'] = {}
@@ -422,39 +469,63 @@ def post_followup_request(data, session, refresh_source=True):
         data['payload'] = instrument.api_class.prepare_payload(data['payload'])
 
     # validate the payload
-    jsonschema.validate(data['payload'], formSchema)
+    if formSchemaForcedPhotometry is not None and (
+        data['payload'].get('request_type', None) == 'forced_photometry'
+        or formSchema is None
+    ):
+        jsonschema.validate(data['payload'], formSchemaForcedPhotometry)
+    else:
+        jsonschema.validate(data['payload'], formSchema)
 
     followup_request = FollowupRequest.__schema__().load(data)
     followup_request.target_groups = target_groups
     followup_request.watchers = watchers
     session.add(followup_request)
 
-    if refresh_source:
+    if refresh_source or refresh_requests:
         session.commit()
-
         flow = Flow()
-        flow.push(
-            '*',
-            "skyportal/REFRESH_SOURCE",
-            payload={"obj_key": followup_request.obj.internal_key},
-        )
-
-    try:
-        instrument.api_class.submit(
-            followup_request, session, refresh_source=refresh_source
-        )
-    except Exception:
-        followup_request.status = 'failed to submit'
-        raise
-    finally:
         if refresh_source:
-            session.commit()
             flow.push(
                 '*',
                 "skyportal/REFRESH_SOURCE",
                 payload={"obj_key": followup_request.obj.internal_key},
             )
+        if refresh_requests:
+            flow.push(
+                followup_request.last_modified_by_id,
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                payload={"request_id": followup_request.id},
+            )
 
+    try:
+        instrument.api_class.submit(
+            followup_request,
+            session,
+            refresh_source=refresh_source,
+            refresh_requests=refresh_requests,
+        )
+    except Exception:
+        followup_request.status = 'failed to submit'
+        raise
+    finally:
+        session.commit()
+        if (
+            refresh_source or refresh_requests
+        ) and followup_request.status == 'failed to submit':
+            flow = Flow()
+            if refresh_source:
+                flow.push(
+                    '*',
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": followup_request.obj.internal_key},
+                )
+            if refresh_requests:
+                flow.push(
+                    followup_request.last_modified_by_id,
+                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                    payload={"request_id": followup_request.id},
+                )
     return followup_request.id
 
 
@@ -498,7 +569,13 @@ class FollowupRequestHandler(BaseHandler):
             nullable: true
             schema:
               type: integer
-            description: Instrument ID to filter on
+            description: Instrument ID to filter on. Ignored if allocationID is provided.
+          - in: query
+            name: allocationID
+            nullable: true
+            schema:
+                type: integer
+            description: Allocation ID to filter on
           - in: query
             name: startDate
             nullable: true
@@ -516,12 +593,36 @@ class FollowupRequestHandler(BaseHandler):
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
               created_at <= endDate
           - in: query
+            name: observationStartDate
+            nullable: true
+            schema:
+                type: string
+            description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+                payload.start_date >= observationStartDate
+          - in: query
+            name: observationEndDate
+            nullable: true
+            schema:
+                type: string
+            description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+                payload.end_date <= observationEndDate
+          - in: query
             name: status
             nullable: true
             schema:
               type: string
             description: |
               String to match status of request against
+          - in: query
+            name: requesters
+            nullable: true
+            schema:
+                type: string
+            description: |
+                Comma seperated list of user IDs to filter on (e.g. 1,2,3). If provided, filter by
+                requester_id in requesters
           - in: query
             name: numPerPage
             nullable: true
@@ -548,11 +649,23 @@ class FollowupRequestHandler(BaseHandler):
 
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
+        observation_start_date = self.get_query_argument('observationStartDate', None)
+        observation_end_date = self.get_query_argument('observationEndDate', None)
         sourceID = self.get_query_argument('sourceID', None)
         instrumentID = self.get_query_argument('instrumentID', None)
+        allocationID = self.get_query_argument('allocationID', None)
+        requesters = self.get_query_argument('requesters', [])
         status = self.get_query_argument('status', None)
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 100)
+        include_obj_thumbnails = self.get_query_argument("includeObjThumbnails", True)
+        sortBy = self.get_query_argument("sortBy", "created_at")
+        sortOrder = self.get_query_argument("sortOrder", "asc")
+
+        if sortBy not in ["created_at", "modified", "status", 'obj']:
+            return self.error("Invalid sortBy value.")
+        if sortOrder not in ["asc", "desc"]:
+            return self.error("Invalid sortOrder value.")
 
         try:
             page_number = int(page_number)
@@ -568,8 +681,50 @@ class FollowupRequestHandler(BaseHandler):
                 f'numPerPage should be no larger than {MAX_FOLLOWUP_REQUESTS}.'
             )
 
+        if requesters is not None:
+            try:
+                if isinstance(requesters, str):
+                    if ',' in requesters:
+                        requesters = requesters.split(',')
+                    else:
+                        requesters = [requesters]
+                requesters = [int(r) for r in requesters]
+            except ValueError:
+                return self.error(
+                    'requesters must be a comma seperated string list or list of integers'
+                )
+
+        if allocationID is not None:
+            try:
+                allocationID = int(allocationID)
+            except ValueError:
+                return self.error("Allocation ID must be an integer.")
+
         with self.Session() as session:
 
+            if allocationID is not None:
+                # verify that the user can access the allocation
+                allocation = session.scalars(
+                    Allocation.select(session.user_or_token).where(
+                        Allocation.id == allocationID
+                    )
+                ).first()
+                if allocation is None:
+                    return self.error(
+                        'Allocation ID does not exist or is not accessible.'
+                    )
+
+            if len(requesters) > 0:
+                # verify that the users exist
+                existing_users = session.scalars(
+                    User.select(session.user_or_token, columns=[User.id]).where(
+                        User.id.in_(requesters)
+                    )
+                ).all()
+                if len(existing_users) != len(requesters):
+                    return self.error(
+                        'One or more of the requesters specified does not exist.'
+                    )
             # get owned assignments
             followup_requests = FollowupRequest.select(self.current_user)
 
@@ -582,12 +737,15 @@ class FollowupRequestHandler(BaseHandler):
                 followup_requests = followup_requests.where(
                     FollowupRequest.id == followup_request_id
                 ).options(
-                    joinedload(FollowupRequest.obj).joinedload(Obj.thumbnails),
+                    joinedload(FollowupRequest.obj).joinedload(Obj.thumbnails)
+                    if include_obj_thumbnails
+                    else joinedload(FollowupRequest.obj),
                     joinedload(FollowupRequest.requester),
                     joinedload(FollowupRequest.obj),
                     joinedload(FollowupRequest.watchers),
                     joinedload(FollowupRequest.transaction_requests),
                     joinedload(FollowupRequest.transactions),
+                    joinedload(FollowupRequest.target_groups),
                 )
                 followup_request = session.scalars(followup_requests).first()
                 if followup_request is None:
@@ -604,6 +762,20 @@ class FollowupRequestHandler(BaseHandler):
                 followup_requests = followup_requests.where(
                     FollowupRequest.created_at <= end_date
                 )
+            if observation_start_date:
+                observation_start_date = arrow.get(
+                    observation_start_date.strip()
+                ).datetime
+                followup_requests = followup_requests.where(
+                    FollowupRequest.payload["start_date"].astext.cast(sa.DateTime)
+                    >= observation_start_date
+                )
+            if observation_end_date:
+                observation_end_date = arrow.get(observation_end_date.strip()).datetime
+                followup_requests = followup_requests.where(
+                    FollowupRequest.payload["end_date"].astext.cast(sa.DateTime)
+                    <= observation_end_date
+                )
             if sourceID:
                 obj_query = Obj.select(self.current_user).where(
                     Obj.id.contains(sourceID.strip())
@@ -612,7 +784,11 @@ class FollowupRequestHandler(BaseHandler):
                 followup_requests = followup_requests.join(
                     obj_subquery, FollowupRequest.obj_id == obj_subquery.c.id
                 )
-            if instrumentID:
+            if allocationID:
+                followup_requests = followup_requests.where(
+                    FollowupRequest.allocation_id == allocationID
+                )
+            elif instrumentID:
                 # allocation query required as only way to reach
                 # instrument_id is through allocation (as requests
                 # are associated to allocations, not instruments)
@@ -624,9 +800,14 @@ class FollowupRequestHandler(BaseHandler):
                     allocation_subquery,
                     FollowupRequest.allocation_id == allocation_subquery.c.id,
                 )
+
             if status:
                 followup_requests = followup_requests.where(
                     FollowupRequest.status.contains(status.strip())
+                )
+            if len(requesters) > 0:
+                followup_requests = followup_requests.where(
+                    FollowupRequest.requester_id.in_(requesters)
                 )
 
             followup_requests = followup_requests.options(
@@ -637,10 +818,49 @@ class FollowupRequestHandler(BaseHandler):
                 joinedload(FollowupRequest.obj),
                 joinedload(FollowupRequest.requester),
                 joinedload(FollowupRequest.watchers),
+                joinedload(FollowupRequest.target_groups),
             )
 
             count_stmt = sa.select(func.count()).select_from(followup_requests)
             total_matches = session.execute(count_stmt).scalar()
+
+            # sort by created_at ascending\
+            if sortBy == "created_at":
+                if sortOrder == "asc":
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.created_at.asc()
+                    )
+                else:
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.created_at.desc()
+                    )
+            elif sortBy == "modified":
+                if sortOrder == "asc":
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.modified.asc()
+                    )
+                else:
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.modified.desc()
+                    )
+            elif sortBy == "status":
+                if sortOrder == "asc":
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.status.asc()
+                    )
+                else:
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.status.desc()
+                    )
+            elif sortBy == "obj":
+                if sortOrder == "asc":
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.obj_id.asc()
+                    )
+                else:
+                    followup_requests = followup_requests.order_by(
+                        FollowupRequest.obj_id.desc()
+                    )
             if n_per_page is not None:
                 followup_requests = (
                     followup_requests.distinct()
@@ -649,9 +869,12 @@ class FollowupRequestHandler(BaseHandler):
                 )
             followup_requests = session.scalars(followup_requests).unique().all()
 
-            info = {}
-            info["followup_requests"] = [req.to_dict() for req in followup_requests]
-            info["totalMatches"] = int(total_matches)
+            info = {
+                "followup_requests": [req.to_dict() for req in followup_requests],
+                "totalMatches": int(total_matches),
+                "pageNumber": page_number,
+                "numPerPage": n_per_page,
+            }
             return self.success(data=info)
 
     @permissions(["Upload data"])
@@ -683,6 +906,13 @@ class FollowupRequestHandler(BaseHandler):
         """
         data = self.get_json()
 
+        refresh_source = self.get_query_argument(
+            "refreshSource", data.pop("refreshSource", True)
+        )
+        refresh_requests = self.get_query_argument(
+            "refreshRequests", data.pop("refreshRequests", False)
+        )
+
         try:
             data = FollowupRequestPost.load(data)
         except ValidationError as e:
@@ -690,18 +920,38 @@ class FollowupRequestHandler(BaseHandler):
                 f'Invalid / missing parameters: {e.normalized_messages()}'
             )
 
+        constraints = {}
+        if 'source_group_ids' in data:
+            constraints['source_group_ids'] = data.pop('source_group_ids')
+        if 'not_if_classified' in data:
+            constraints['not_if_classified'] = data.pop('not_if_classified')
+        if 'not_if_spectra_exist' in data:
+            constraints['not_if_spectra_exist'] = data.pop('not_if_spectra_exist')
         with self.Session() as session:
             try:
                 data["requester_id"] = self.associated_user_object.id
                 data["last_modified_by_id"] = self.associated_user_object.id
                 data['allocation_id'] = int(data['allocation_id'])
 
-                followup_request_id = post_followup_request(data, session)
+                followup_request_id = post_followup_request(
+                    data,
+                    constraints,
+                    session,
+                    refresh_source=refresh_source,
+                    refresh_requests=refresh_requests,
+                )
 
                 return self.success(data={"id": followup_request_id})
-            except ValidationError as e:
+            except Exception as e:
+                if (
+                    'not submitting request' in str(e)
+                    and len(list(constraints.keys())) > 0
+                ):
+                    return self.success(
+                        data={"id": None, "ignored": True, "message": str(e)}
+                    )
                 return self.error(
-                    f'Error submitting follow-up request: {e.normalized_messages()}'
+                    f'Error submitting follow-up request: {e.normalized_messages() if hasattr(e, "normalized_messages") else str(e)}'
                 )
 
     @permissions(["Upload data"])
@@ -750,6 +1000,13 @@ class FollowupRequestHandler(BaseHandler):
                 )
 
             data = self.get_json()
+
+            refresh_source = self.get_query_argument(
+                "refreshSource", data.pop("refreshSource", True)
+            )
+            refresh_requests = self.get_query_argument(
+                "refreshRequests", data.pop("refreshRequests", False)
+            )
 
             if 'status' in data:
                 # updating status does not require instrument API interaction
@@ -810,7 +1067,10 @@ class FollowupRequestHandler(BaseHandler):
                 if existing_status == 'failed to submit':
                     try:
                         followup_request.instrument.api_class.submit(
-                            followup_request, session, refresh_source=True
+                            followup_request,
+                            session,
+                            refresh_source=refresh_source,
+                            refresh_requests=refresh_requests,
                         )
                         session.commit()
                     except Exception as e:
@@ -818,16 +1078,15 @@ class FollowupRequestHandler(BaseHandler):
                 else:
                     try:
                         followup_request.instrument.api_class.update(
-                            followup_request, session
+                            followup_request,
+                            session,
+                            refresh_source=refresh_source,
+                            refresh_requests=refresh_requests,
                         )
                         session.commit()
                     except Exception as e:
                         return self.error(f'Failed to update follow-up request: {e}')
 
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": followup_request.obj.internal_key},
-            )
             return self.success()
 
     @permissions(["Upload data"])
@@ -850,6 +1109,15 @@ class FollowupRequestHandler(BaseHandler):
                 schema: Success
         """
 
+        data = self.get_json()
+
+        refresh_source = self.get_query_argument(
+            "refreshSource", data.pop("refreshSource", True)
+        )
+        refresh_requests = self.get_query_argument(
+            "refreshRequests", data.pop("refreshRequests", False)
+        )
+
         with self.Session() as session:
 
             followup_request = session.scalars(
@@ -867,15 +1135,17 @@ class FollowupRequestHandler(BaseHandler):
                 return self.error('Cannot delete requests on this instrument.')
 
             followup_request.last_modified_by_id = self.associated_user_object.id
-            internal_key = followup_request.obj.internal_key
 
-            api.delete(followup_request, session)
-            session.commit()
-
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": internal_key},
-            )
+            try:
+                api.delete(
+                    followup_request,
+                    session,
+                    refresh_source=refresh_source,
+                    refresh_requests=refresh_requests,
+                )
+                session.commit()
+            except Exception as e:
+                return self.error(f'Failed to delete follow-up request: {e}')
             return self.success()
 
 
@@ -1935,6 +2205,15 @@ class FollowupRequestWatcherHandler(BaseHandler):
                   schema: Error
         """
 
+        data = self.get_json()
+
+        refresh_source = self.get_query_argument(
+            "refreshSource", data.pop("refreshSource", True)
+        )
+        refresh_requests = self.get_query_argument(
+            "refreshRequests", data.pop("refreshRequests", False)
+        )
+
         with self.Session() as session:
 
             # get owned assignments
@@ -1965,15 +2244,17 @@ class FollowupRequestWatcherHandler(BaseHandler):
             session.commit()
 
             flow = Flow()
-            flow.push(
-                user_id=self.current_user.id,
-                action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
-            flow.push(
-                user_id=self.current_user.id,
-                action_type="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": followup_request.obj.internal_key},
-            )
+            if refresh_source:
+                flow.push(
+                    user_id=self.current_user.id,
+                    action_type="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": followup_request.obj.internal_key},
+                )
+            if refresh_requests:
+                flow.push(
+                    user_id=self.current_user.id,
+                    action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                )
 
             return self.success()
 
@@ -2000,6 +2281,16 @@ class FollowupRequestWatcherHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+
+        # get parameters
+        data = self.get_json()
+
+        refresh_source = self.get_query_argument(
+            "refreshSource", data.pop("refreshSource", True)
+        )
+        refresh_requests = self.get_query_argument(
+            "refreshRequests", data.pop("refreshRequests", False)
+        )
 
         with self.Session() as session:
 
@@ -2035,14 +2326,16 @@ class FollowupRequestWatcherHandler(BaseHandler):
             session.commit()
 
             flow = Flow()
-            flow.push(
-                user_id=self.current_user.id,
-                action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
-            flow.push(
-                user_id=self.current_user.id,
-                action_type="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": followup_request.obj.internal_key},
-            )
+            if refresh_source:
+                flow.push(
+                    user_id=self.current_user.id,
+                    action_type="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": followup_request.obj.internal_key},
+                )
+            if refresh_requests:
+                flow.push(
+                    user_id=self.current_user.id,
+                    action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                )
 
             return self.success()

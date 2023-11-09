@@ -213,10 +213,18 @@ const GcnReport = ({ dateobs }) => {
   }, [gcnEvent]);
 
   useEffect(() => {
-    if (dateobs !== null && dateobs !== undefined) {
-      dispatch(fetchGcnEventReports(dateobs));
+    if (
+      dateobs !== null &&
+      dateobs !== undefined &&
+      !gcnEvent?.reports &&
+      !loading
+    ) {
+      setLoading(true);
+      dispatch(fetchGcnEventReports(dateobs)).then(() => {
+        setLoading(false);
+      });
     }
-  }, [dateobs, dispatch]);
+  }, [dateobs, gcnEvent, dispatch]);
 
   useEffect(() => {
     const fetchReport = (reportID) => {

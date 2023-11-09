@@ -37,6 +37,9 @@ const useStyles = makeStyles(() => ({
 const NewAllocation = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
+  const allowedAllocationTypes = useSelector(
+    (state) => state.config.allowedAllocationTypes
+  );
   const groups = useSelector((state) => state.groups.userAccessible);
   const group = useSelector((state) => state.group);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
@@ -125,6 +128,15 @@ const NewAllocation = () => {
   const allocationFormSchema = {
     type: "object",
     properties: {
+      types: {
+        type: "array",
+        title: "Types",
+        items: {
+          type: "string",
+          enum: allowedAllocationTypes,
+        },
+        uniqueItems: true,
+      },
       pi: {
         type: "string",
         title: "PI",

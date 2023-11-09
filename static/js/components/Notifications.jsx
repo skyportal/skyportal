@@ -147,9 +147,7 @@ const Notifications = () => {
                     }}
                     data-testid={`notification${notification.id}`}
                   >
-                    <ReactMarkdown escapeHtml={false}>
-                      {notification.text}
-                    </ReactMarkdown>
+                    <ReactMarkdown>{notification.text}</ReactMarkdown>
                   </ListItem>
                   <ListItem className={classes.centered}>
                     {!notification.viewed && (

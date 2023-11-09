@@ -1,7 +1,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import MUIDataTable from "mui-datatables";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
@@ -127,30 +127,89 @@ const UploadSpectrumForm = ({ route }) => {
     (state) => state.config.defaultSpectrumType
   );
 
+  const [searchParams] = useSearchParams();
+
+  const [uploadedFromURL, setUploadedFromURL] = useState(false);
+
   // on page load or refresh, block until state.spectra.parsed is reset
   useEffect(() => {
     const blockingFunc = async () => {
       dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
       dispatch(fetchUsers());
       const result = await dispatch(fetchSource(route.id));
+
+      let file_url = searchParams.get("file_url");
+      if (file_url && file_url.startsWith('"') && file_url.endsWith('"')) {
+        file_url = file_url.slice(1, -1);
+      }
+      let file_name = searchParams.get("file_name");
+      if (file_name && file_name.startsWith('"') && file_name.endsWith('"')) {
+        file_name = file_name.slice(1, -1);
+      }
+
+      let file;
+      if (file_url) {
+        const response = await fetch(file_url);
+        const blob = await response.blob();
+        // we want to set file to a data url, so we can pass it to the form
+        file = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            resolve(reader.result);
+          };
+          reader.readAsDataURL(blob);
+        });
+        if (!file.includes("name=")) {
+          const file_type = file.split(";")[0].split(":")[1];
+          file = file.replace(file_type, `${file_type};name=${file_name}`);
+        }
+        setUploadedFromURL(true);
+      }
+
       const defaultFormData = {
-        file: undefined,
-        group_ids: result.data.groups?.map((group) => group.id),
-        mjd: undefined,
-        wave_column: 0,
-        flux_column: 1,
-        has_fluxerr: "No",
-        instrument_id: undefined,
-        spectrum_type: "source",
-        user_label: undefined,
-        fluxerr_column: undefined,
-        observed_by: undefined,
-        reduced_by: undefined,
+        file,
+        group_ids: searchParams.get("group_ids")
+          ? searchParams
+              .get("group_ids")
+              .split(",")
+              .map((id) => parseInt(id, 10))
+          : result.data.groups?.map((group) => group.id),
+        mjd: searchParams.get("mjd")
+          ? parseFloat(searchParams.get("mjd"))
+          : undefined,
+        wave_column: searchParams.get("wave_column")
+          ? parseInt(searchParams.get("wave_column"), 10)
+          : 0,
+        flux_column: searchParams.get("flux_column")
+          ? parseInt(searchParams.get("flux_column"), 10)
+          : 1,
+        has_fluxerr: searchParams.get("has_fluxerr") || "No",
+        instrument_id: searchParams.get("instrument_id")
+          ? parseInt(searchParams.get("instrument_id"), 10)
+          : undefined,
+        spectrum_type: searchParams.get("spectrum_type") || "source",
+        user_label: searchParams.get("user_label") || undefined,
+        fluxerr_column: searchParams.get("fluxerr_column")
+          ? parseInt(searchParams.get("fluxerr_column"), 10)
+          : undefined,
+        observed_by: searchParams.get("observed_by")
+          ? searchParams
+              .get("observed_by")
+              .split(",")
+              .map((id) => parseInt(id, 10))
+          : undefined,
+        reduced_by: searchParams.get("reduced_by")
+          ? searchParams
+              .get("reduced_by")
+              .split(",")
+              .map((id) => parseInt(id, 10))
+          : undefined,
       };
+
       setPersistentFormData(defaultFormData);
     };
     blockingFunc();
-  }, [dispatch, route.id]);
+  }, [dispatch, route.id, searchParams]);
 
   if (
     !groups ||
@@ -336,18 +395,13 @@ const UploadSpectrumForm = ({ route }) => {
       instrument_id: {
         type: "integer",
         title: "Instrument",
-        enum: instruments?.map((instrument) => instrument.id),
-        enumNames: instruments?.map((instrument) => {
-          const telescope = telescopes?.find(
-            (t) => t.id === instrument.telescope_id
-          );
-          let name = "";
-          if (telescope) {
-            name += `${telescope.nickname} / `;
-          }
-          name += instrument.name;
-          return name;
-        }),
+        anyOf: instruments?.map((instrument) => ({
+          enum: [instrument.id],
+          type: "integer",
+          title: `${
+            telescopes.find((t) => t.id === instrument.telescope_id)?.nickname
+          } / ${instrument.name}`,
+        })),
       },
       spectrum_type: {
         type: "string",
@@ -612,6 +666,18 @@ const UploadSpectrumForm = ({ route }) => {
             Upload Spectrum ASCII File for&nbsp;
             <Link to={`/source/${route.id}`}>{route.id}</Link>
           </Typography>
+          {uploadedFromURL && (
+            <Typography
+              variant="body1"
+              color="textSecondary"
+              fontStyle="italic"
+            >
+              <b>
+                Form prefilled from URL parameters (the ascii file was
+                downloaded, no need to upload manually).
+              </b>
+            </Typography>
+          )}
           <Form
             schema={uploadFormSchema}
             validator={validator}
@@ -621,6 +687,7 @@ const UploadSpectrumForm = ({ route }) => {
               if (formData.file !== persistentFormData.file) {
                 setFormKey(Date.now());
                 dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
+                setUploadedFromURL(false);
               }
               setPersistentFormData(formData);
             }}
@@ -632,7 +699,6 @@ const UploadSpectrumForm = ({ route }) => {
                 Preview
               </Button>
               <HtmlTooltip
-                interactive
                 title={
                   <p>
                     Use this form to upload ASCII spectrum files to SkyPortal.

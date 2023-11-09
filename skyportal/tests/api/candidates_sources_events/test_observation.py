@@ -165,6 +165,11 @@ def test_observation(super_admin_token, view_only_token):
         ]
     )
 
+    # delete the event
+    status, data = api(
+        'DELETE', 'gcn_event/2019-04-25T08:18:05', token=super_admin_token
+    )
+
 
 @pytest.mark.flaky(reruns=2)
 def test_observation_radec(super_admin_token, view_only_token):

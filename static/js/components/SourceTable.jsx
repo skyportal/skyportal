@@ -61,7 +61,7 @@ import MultipleClassificationsForm from "./MultipleClassificationsForm";
 import UpdateSourceSummary from "./UpdateSourceSummary";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
-import * as sourcesingcnActions from "../ducks/confirmedsourcesingcn";
+import * as sourcesingcnActions from "../ducks/sourcesingcn";
 import { filterOutEmptyValues } from "../API";
 import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
@@ -230,10 +230,34 @@ const useStyles = makeStyles((theme) => ({
 const getMuiTheme = (theme) =>
   createTheme({
     palette: theme.palette,
-    overrides: {
+    components: {
+      MUITableCell: {
+        styleOverrides: {
+          paddingCheckbox: {
+            padding: 0,
+            margin: 0,
+          },
+        },
+      },
+      MUIDataTableBodyCell: {
+        styleOverrides: {
+          root: {
+            padding: "0.5rem",
+            paddingLeft: 0,
+            margin: 0,
+          },
+        },
+      },
       MUIDataTableHeadCell: {
-        sortLabelRoot: {
-          height: "1.4rem",
+        styleOverrides: {
+          root: {
+            padding: "0.5rem",
+            paddingLeft: 0,
+            margin: 0,
+          },
+          sortLabelRoot: {
+            height: "1.4rem",
+          },
         },
       },
       // Hide default filter items for custom form
@@ -314,14 +338,15 @@ const getMuiTheme = (theme) =>
 
 let defaultDisplayedColumns = [
   "Source ID",
+  "TNS",
   "Favorites",
   "RA (deg)",
   "Dec (deg)",
   "Redshift",
   "Classification",
-  "Photometry Statistics",
+  " ",
   "Groups",
-  "Date Saved",
+  "Saved at",
   "Finder",
 ];
 
@@ -479,6 +504,7 @@ const RenderShowClassification = ({ source }) => {
             classifications={source.classifications}
             taxonomyList={taxonomyList}
             shortened
+            fontSize="0.95rem"
           />
         </div>
       </Tooltip>
@@ -503,7 +529,7 @@ RenderShowClassification.propTypes = {
         data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
         author: PropTypes.shape({
           username: PropTypes.string.isRequired,
-        }).isRequired,
+        }),
         created_at: PropTypes.string.isRequired,
       })
     ).isRequired,
@@ -525,7 +551,6 @@ RenderShowClassification.propTypes = {
         name: PropTypes.string,
       }),
     }),
-    spectrum_exists: PropTypes.bool,
     last_detected_at: PropTypes.string,
     last_detected_mag: PropTypes.number,
     peak_detected_at: PropTypes.string,
@@ -645,7 +670,6 @@ RenderShowLabelling.propTypes = {
         name: PropTypes.string,
       }),
     }),
-    spectrum_exists: PropTypes.bool,
     last_detected_at: PropTypes.string,
     last_detected_mag: PropTypes.number,
     peak_detected_at: PropTypes.string,
@@ -708,8 +732,8 @@ const SourceTable = ({
   }
   if (includeGcnStatus) {
     defaultDisplayedColumns.push("GCN Status");
-    defaultDisplayedColumns.push("GCN Status Explanation");
-    defaultDisplayedColumns.push("GCN Notes");
+    defaultDisplayedColumns.push("Explanation");
+    defaultDisplayedColumns.push("Notes");
     defaultDisplayedColumns.push("Host");
     defaultDisplayedColumns.push("Host Offset (arcsec)");
   }
@@ -730,6 +754,8 @@ const SourceTable = ({
   const gcnEvent = useSelector((state) => state.gcnEvent);
 
   const sourcesingcn = useSelector((state) => state.sourcesingcn.sourcesingcn);
+
+  const photometry = useSelector((state) => state.photometry);
 
   useEffect(() => {
     if (sources) {
@@ -854,32 +880,16 @@ const SourceTable = ({
               useGrid={false}
             />
             <Grid item>
-              {source.photometry_exists && (
-                <Suspense
-                  fallback={
-                    <div>
-                      <CircularProgress color="secondary" />
-                    </div>
-                  }
-                >
-                  <VegaPhotometry sourceId={source.id} />
-                </Suspense>
-              )}
-              {!source.photometry_exists && <div> no photometry exists </div>}
+              <VegaPhotometry sourceId={source.id} />
             </Grid>
             <Grid item>
-              {source.photometry_exists && source.period_exists && (
-                <Suspense
-                  fallback={
-                    <div>
-                      <CircularProgress color="secondary" />
-                    </div>
-                  }
-                >
-                  <VegaPhotometry sourceId={source.id} folded />
-                </Suspense>
-              )}
-              {!source.photometry_exists && <div> no photometry exists </div>}
+              {photometry[source.id] && photometry[source.id].length > 0 ? (
+                <VegaPhotometry
+                  sourceId={source.id}
+                  annotations={annotations}
+                  folded
+                />
+              ) : null}
             </Grid>
             <Grid item>
               {source.color_magnitude.length ? (
@@ -901,27 +911,25 @@ const SourceTable = ({
               ) : null}
             </Grid>
             <Grid item>
-              {source.spectrum_exists && (
-                <Suspense
-                  fallback={
-                    <div>
-                      <CircularProgress color="secondary" />
-                    </div>
-                  }
-                >
-                  <VegaSpectrum
-                    dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
-                    width={plotWidth}
-                    height={specPlotHeight}
-                    legendOrient={legendOrient}
-                  />
-                </Suspense>
-              )}
-              {!source.spectrum_exists && <div> no spectra exist </div>}
+              <Suspense
+                fallback={
+                  <div>
+                    <CircularProgress color="secondary" />
+                  </div>
+                }
+              >
+                <VegaSpectrum
+                  sourceId={source.id}
+                  width={plotWidth}
+                  height={specPlotHeight}
+                  legendOrient={legendOrient}
+                  normalization="median"
+                />
+              </Suspense>
             </Grid>
             <Grid item>
               <div className={classes.annotations}>
-                {!!annotations && annotations.length && (
+                {annotations && annotations.length > 0 && (
                   <>
                     <Typography variant="subtitle2">Annotations:</Typography>
                     <List
@@ -996,8 +1004,8 @@ const SourceTable = ({
                 </div>
               ) : null}
               <UpdateSourceSummary source={source} />
-              {source.comment_exists || source.classifications?.length > 0 ? (
-                <StartBotSummary obj_id={source.id} fetchAnalysisServices />
+              {source.classifications?.length > 0 ? (
+                <StartBotSummary obj_id={source.id} />
               ) : null}
               {source.summary_history?.length > 0 ? (
                 <ShowSummaryHistory
@@ -1028,10 +1036,33 @@ const SourceTable = ({
         to={`/source/${objid}`}
         key={`${objid}_objid`}
         data-testid={`${objid}`}
+        target="_blank"
+        rel="noopener noreferrer"
       >
         <span className={classes.objId}>{objid}</span>
       </Link>
     );
+  };
+
+  const renderTNSName = (dataIndex) => {
+    const source = sources[dataIndex];
+    if (source.tns_name) {
+      return (
+        <a
+          key={source.tns_name}
+          href={`https://www.wis-tns.org/object/${
+            source.tns_name.trim().includes(" ")
+              ? source.tns_name.split(" ")[1]
+              : source.tns_name
+          }`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {`${source.tns_name} `}
+        </a>
+      );
+    }
+    return null;
   };
 
   const renderFavoritesStar = (dataIndex) => {
@@ -1257,23 +1288,6 @@ const SourceTable = ({
     );
   };
 
-  const renderSpectrumExists = (dataIndex) => {
-    const source = sources[dataIndex];
-    return source.spectrum_exists ? (
-      <CheckIcon
-        size="small"
-        key={`${source.id}_spectrum_exists`}
-        color="primary"
-      />
-    ) : (
-      <ClearIcon
-        size="small"
-        key={`${source.id}_spectrum_exists`}
-        color="secondary"
-      />
-    );
-  };
-
   const renderPeakMagnitude = (dataIndex) => {
     const source = sources[dataIndex];
     const photstats = source.photstats[0];
@@ -1302,11 +1316,6 @@ const SourceTable = ({
     ) : (
       <div>No photometry</div>
     );
-  };
-
-  const renderTNSName = (dataIndex) => {
-    const source = sources[dataIndex];
-    return <div>{source.tns_name ? source.tns_name : ""}</div>;
   };
 
   const renderMPCName = (dataIndex) => {
@@ -1522,11 +1531,12 @@ const SourceTable = ({
       },
     },
     {
-      name: "favorites",
-      label: "Favorites",
+      name: "TNS",
       options: {
-        display: displayedColumns.includes("Favorites"),
-        customBodyRenderLite: renderFavoritesStar,
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderTNSName,
+        display: displayedColumns.includes("TNS"),
       },
     },
     {
@@ -1534,7 +1544,7 @@ const SourceTable = ({
       label: "Alias",
       options: {
         filter: true,
-        sort: false,
+        sort: true,
         display: displayedColumns.includes("Alias"),
         customBodyRenderLite: renderAlias,
       },
@@ -1631,7 +1641,7 @@ const SourceTable = ({
       label: "Classification",
       options: {
         filter: false,
-        sort: true,
+        sort: false,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
@@ -1661,12 +1671,12 @@ const SourceTable = ({
     },
     {
       name: "photstats",
-      label: "Photometry Statistics",
+      label: " ",
       options: {
         filter: false,
-        sort: true,
+        sort: false,
         sortThirdClickReset: true,
-        display: displayedColumns.includes("Photometry Statistics"),
+        display: displayedColumns.includes(" "),
         customBodyRenderLite: renderPhotStats,
       },
     },
@@ -1693,12 +1703,12 @@ const SourceTable = ({
     },
     {
       name: "saved_at",
-      label: "Date Saved",
+      label: "Saved at",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        display: displayedColumns.includes("Date Saved"),
+        display: displayedColumns.includes("Saved at"),
         customBodyRenderLite: renderDateSaved,
       },
     },
@@ -1712,24 +1722,6 @@ const SourceTable = ({
           groupID ? "Saved To Group By" : "Last Saved By"
         ),
         customBodyRenderLite: renderSavedBy,
-      },
-    },
-    {
-      name: "Finder",
-      options: {
-        filter: false,
-        sort: false,
-        display: displayedColumns.includes("Finder"),
-        customBodyRenderLite: renderFinderButton,
-      },
-    },
-    {
-      name: "Spectrum?",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderSpectrumExists,
-        display: displayedColumns.includes("Spectrum?"),
       },
     },
     {
@@ -1750,16 +1742,6 @@ const SourceTable = ({
         display: displayedColumns.includes("Latest Magnitude"),
       },
     },
-
-    {
-      name: "TNS Name",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderTNSName,
-        display: displayedColumns.includes("TNS Name"),
-      },
-    },
     {
       name: "MPC Name",
       options: {
@@ -1769,10 +1751,27 @@ const SourceTable = ({
         display: displayedColumns.includes("MPC Name"),
       },
     },
+    {
+      name: "favorites",
+      label: "Favorites",
+      options: {
+        display: displayedColumns.includes("Favorites"),
+        customBodyRenderLite: renderFavoritesStar,
+      },
+    },
+    {
+      name: "Finder",
+      options: {
+        filter: false,
+        sort: false,
+        display: displayedColumns.includes("Finder"),
+        customBodyRenderLite: renderFinderButton,
+      },
+    },
   ];
 
   if (includeGcnStatus) {
-    columns.splice(1, 0, {
+    columns.splice(10, 0, {
       name: "gcn_status",
       label: "GCN Status",
       options: {
@@ -1783,24 +1782,24 @@ const SourceTable = ({
         display: displayedColumns.includes("GCN Status"),
       },
     });
-    columns.splice(2, 0, {
+    columns.splice(11, 0, {
       name: "gcn_explanation",
-      label: "GCN Status Explanation",
+      label: "Explanation",
       options: {
         filter: false,
         sort: false,
         customBodyRenderLite: renderGcnStatusExplanation,
-        display: displayedColumns.includes("GCN Status Explanation"),
+        display: displayedColumns.includes("Explanation"),
       },
     });
-    columns.splice(3, 0, {
+    columns.splice(12, 0, {
       name: "gcn_notes",
-      label: "GCN Notes",
+      label: "Notes",
       options: {
         filter: false,
         sort: false,
         customBodyRenderLite: renderGcnNotes,
-        display: displayedColumns.includes("GCN Notes"),
+        display: displayedColumns.includes("Notes"),
       },
     });
   }
@@ -1825,7 +1824,7 @@ const SourceTable = ({
     onFilterDialogOpen: () => setFilterFormSubmitted(false),
     search: true,
     onSearchChange: handleSearchChange,
-    download: true,
+    download: downloadCallback !== null && downloadCallback !== undefined,
     customToolbar: () => (
       <>
         <IconButton
@@ -1911,7 +1910,7 @@ const SourceTable = ({
         return alias_str;
       };
       const renderDownloadTNSName = (source) =>
-        source?.altdata && source.altdata.tns ? source.altdata.tns.name : "";
+        source?.tns_name ? source.tns_name : "";
 
       downloadCallback().then((data) => {
         // if there is no data, cancel download
@@ -1962,7 +1961,7 @@ const SourceTable = ({
               download: true,
             },
             {
-              name: "Date saved",
+              name: "Saved at",
               download: true,
             },
             {
@@ -1974,7 +1973,7 @@ const SourceTable = ({
               download: true,
             },
             {
-              name: "TNS Name",
+              name: "TNS",
               download: true,
             },
           ];
@@ -1984,11 +1983,11 @@ const SourceTable = ({
               download: true,
             });
             head.push({
-              name: "GCN Status Explanation",
+              name: "Explanation",
               download: true,
             });
             head.push({
-              name: "GCN Notes",
+              name: "Notes",
               download: true,
             });
           }
@@ -2141,7 +2140,7 @@ SourceTable.propTypes = {
           data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
           author: PropTypes.shape({
             username: PropTypes.string.isRequired,
-          }).isRequired,
+          }),
           created_at: PropTypes.string.isRequired,
         })
       ).isRequired,
@@ -2163,7 +2162,6 @@ SourceTable.propTypes = {
           name: PropTypes.string,
         }),
       }),
-      spectrum_exists: PropTypes.bool,
       last_detected_at: PropTypes.string,
       last_detected_mag: PropTypes.number,
       peak_detected_at: PropTypes.string,
@@ -2194,7 +2192,7 @@ SourceTable.propTypes = {
   sortingCallback: PropTypes.func,
   favoritesRemoveButton: PropTypes.bool,
   hideTitle: PropTypes.bool,
-  downloadCallback: PropTypes.func.isRequired,
+  downloadCallback: PropTypes.func,
   includeGcnStatus: PropTypes.bool,
   sourceInGcnFilter: PropTypes.shape({
     startDate: PropTypes.string,
@@ -2214,6 +2212,7 @@ SourceTable.defaultProps = {
   sortingCallback: null,
   favoritesRemoveButton: false,
   hideTitle: false,
+  downloadCallback: null,
   includeGcnStatus: false,
   sourceInGcnFilter: {},
 };

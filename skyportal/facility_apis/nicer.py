@@ -6,6 +6,7 @@ import urllib
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
@@ -191,6 +192,51 @@ class NICERAPI(FollowUpAPI):
         )
 
         session.add(transaction)
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
+
+    @staticmethod
+    def delete(request, session, **kwargs):
+        from ..models import FollowupRequest
+
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
+
+        if len(request.transactions) == 0:
+            session.query(FollowupRequest).filter(
+                FollowupRequest.id == request.id
+            ).delete()
+            session.commit()
+        else:
+            raise NotImplementedError(
+                "Can't delete requests already sent successfully to NICER."
+            )
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     form_json_schema = {
         "type": "object",

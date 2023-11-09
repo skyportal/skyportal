@@ -3,6 +3,7 @@ from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.log import make_log
 from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
@@ -14,6 +15,8 @@ from ...models import (
     User,
 )
 from ...models.schema import ObservingRunPost, ObservingRunGetWithAssignments
+
+log = make_log('api/observing_run')
 
 
 def post_observing_run(data, user_id, session):
@@ -39,6 +42,9 @@ def post_observing_run(data, user_id, session):
     run.owner_id = user.id
 
     session.add(run)
+    session.commit()
+
+    run.calculate_run_end_utc()
     session.commit()
 
     flow = Flow()
@@ -187,12 +193,20 @@ class ObservingRunHandler(BaseHandler):
                     ObservingRun.calendar_date.asc()
                 )
             ).all()
-            runs_list = []
-            for run in runs:
-                runs_list.append(run.to_dict())
-                runs_list[-1]["run_end_utc"] = run.instrument.telescope.next_sunrise(
-                    run.calendar_noon
-                ).isot
+
+            # temporary, until we have migrated and called the handler once
+            try:
+                updated = False
+                for run in runs:
+                    if run.run_end_utc is None:
+                        run.calculate_run_end_utc()
+                        updated = True
+                if updated:
+                    session.commit()
+            except Exception as e:
+                log(f"Error calculating run_end_utc: {e}")
+
+            runs_list = [run.to_dict() for run in runs]
 
             return self.success(data=runs_list)
 
@@ -247,6 +261,9 @@ class ObservingRunHandler(BaseHandler):
                 setattr(orun, param, new_params[param])
 
             session.add(orun)
+            session.commit()
+
+            orun.calculate_run_end_utc()
             session.commit()
 
             self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")

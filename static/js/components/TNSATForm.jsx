@@ -10,8 +10,11 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
+import Spinner from "./Spinner";
+
 import * as sourceActions from "../ducks/source";
 import * as tnsrobotsActions from "../ducks/tnsrobots";
+import * as streamsActions from "../ducks/streams";
 
 const useStyles = makeStyles(() => ({
   chips: {
@@ -38,16 +41,30 @@ const TNSATForm = ({ obj_id }) => {
   const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.userAccessible);
   const currentUser = useSelector((state) => state.profile);
+  const streams = useSelector((state) => state.streams);
+
+  const tnsAllowedInstruments = useSelector(
+    (state) => state.config.tnsAllowedInstruments
+  );
 
   const { tnsrobotList } = useSelector((state) => state.tnsrobots);
   const [selectedTNSRobotId, setSelectedTNSRobotId] = useState(null);
 
+  const { instrumentList } = useSelector((state) => state.instruments);
+  const { telescopeList } = useSelector((state) => state.telescopes);
+
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);
+  const [dataFetched, setDataFetched] = useState(false);
+
   const groupIDToName = {};
   groups?.forEach((g) => {
     groupIDToName[g.id] = g.name;
   });
+
+  const allowedInstruments = instrumentList.filter((instrument) =>
+    (tnsAllowedInstruments || []).includes(instrument.name?.toLowerCase())
+  );
 
   useEffect(() => {
     const getTNSRobots = async () => {
@@ -71,6 +88,17 @@ const TNSATForm = ({ obj_id }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedTNSRobotId, tnsrobotList]);
 
+  useEffect(() => {
+    const fetchData = () => {
+      dispatch(streamsActions.fetchStreams());
+    };
+    if (!dataFetched && (!streams || streams?.length === 0)) {
+      fetchData();
+      setDataFetched(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataFetched, dispatch]);
+
   // need to check both of these conditions as selectedTNSRobotId is
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if tnsrobotList is not
@@ -79,13 +107,17 @@ const TNSATForm = ({ obj_id }) => {
     return <h3>No TNS robots available...</h3>;
   }
 
+  if (!streams?.length) {
+    return <Spinner />;
+  }
+
   const handleSubmit = async ({ formData }) => {
     setSubmissionRequestInProcess(true);
     formData.tnsrobotID = selectedTNSRobotId;
     const result = await dispatch(sourceActions.addSourceTNS(obj_id, formData));
     setSubmissionRequestInProcess(false);
     if (result.status === "success") {
-      dispatch(showNotification("TNS saved"));
+      dispatch(showNotification("added to TNS submission queue"));
     }
   };
 
@@ -99,13 +131,18 @@ const TNSATForm = ({ obj_id }) => {
     setSelectedTNSRobotId(e.target.value);
   };
 
+  const defaultReporter =
+    (tnsrobotLookUp[selectedTNSRobotId] || {})?.auto_reporters?.length > 0
+      ? tnsrobotLookUp[selectedTNSRobotId].auto_reporters
+      : `${currentUser.first_name} ${currentUser.last_name} on behalf of...`;
+
   const formSchema = {
     type: "object",
     properties: {
       reporters: {
         type: "string",
         title: "Reporters",
-        default: `${currentUser.first_name} ${currentUser.last_name} on behalf of...`,
+        default: defaultReporter,
       },
       archival: {
         type: "boolean",
@@ -115,6 +152,32 @@ const TNSATForm = ({ obj_id }) => {
       archivalComment: {
         type: "string",
         title: "Archival Comment",
+      },
+      instrument_id: {
+        type: "integer",
+        oneOf: allowedInstruments.map((instrument) => ({
+          enum: [instrument.id],
+          title: `${
+            telescopeList.find(
+              (telescope) => telescope.id === instrument.telescope_id
+            )?.name
+          } / ${instrument.name}`,
+        })),
+        title: "Instrument",
+      },
+      stream_ids: {
+        type: "array",
+        items: {
+          type: "integer",
+          anyOf: streams.map((stream) => ({
+            enum: [stream.id],
+            type: "integer",
+            title: stream.name,
+          })),
+        },
+        uniqueItems: true,
+        default: [],
+        title: "Streams (optional)",
       },
     },
   };

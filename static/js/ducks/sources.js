@@ -42,10 +42,10 @@ const addFilterParamDefaults = (filterParams) => {
   if (!Object.keys(filterParams).includes("numPerPage")) {
     filterParams.numPerPage = 10;
   }
-  filterParams.includePhotometryExists = true;
-  filterParams.includePeriodExists = true;
-  filterParams.includeSpectrumExists = true;
-  filterParams.includeCommentExists = true;
+  // filterParams.includePhotometryExists = true;
+  // filterParams.includePeriodExists = true;
+  // filterParams.includeSpectrumExists = true;
+  // filterParams.includeCommentExists = true;
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
   filterParams.includeDetectionStats = true;

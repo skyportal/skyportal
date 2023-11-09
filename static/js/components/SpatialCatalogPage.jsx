@@ -182,8 +182,8 @@ const SpatialCatalogSourcesPage = ({
 };
 
 SpatialCatalogSourcesPage.propTypes = {
-  selectedSpatialCatalogId: PropTypes.number.isRequired,
-  selectedSpatialCatalogEntryId: PropTypes.number.isRequired,
+  selectedSpatialCatalogId: PropTypes.number,
+  selectedSpatialCatalogEntryId: PropTypes.number,
   spatialCatalogs: PropTypes.arrayOf(
     PropTypes.shape({
       catalog_name: PropTypes.string,
@@ -198,7 +198,13 @@ SpatialCatalogSourcesPage.propTypes = {
         data: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
       })
     ),
-  }).isRequired,
+  }),
+};
+
+SpatialCatalogSourcesPage.defaultProps = {
+  selectedSpatialCatalogId: null,
+  selectedSpatialCatalogEntryId: null,
+  spatialCatalog: null,
 };
 
 const SpatialCatalogList = ({ catalogs, deletePermission }) => {

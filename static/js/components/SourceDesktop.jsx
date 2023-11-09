@@ -21,7 +21,6 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Button from "./Button";
 
-import CommentList from "./CommentList";
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
@@ -60,11 +59,14 @@ import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
 import Reminders from "./Reminders";
+import QuickSaveButton from "./QuickSaveSource";
 
 import SourcePlugins from "./SourcePlugins";
 
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
+
+const CommentList = React.lazy(() => import("./CommentList"));
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
@@ -466,7 +468,8 @@ const SourceDesktop = ({ source }) => {
               <div className={classes.sourceInfo}>
                 <b>
                   Host galaxy: {source.host.name} Offset:{" "}
-                  {source.host_offset.toFixed(3)} [arcsec]
+                  {source.host_offset.toFixed(3)} [arcsec] Distance:{" "}
+                  {source.host_distance.toFixed(1)} [kpc]
                 </b>
                 &nbsp;
                 <Button
@@ -546,7 +549,11 @@ const SourceDesktop = ({ source }) => {
                 <div key="tns_name">
                   <a
                     key={source.tns_name}
-                    href={`https://www.wis-tns.org/object/${source.tns_name}`}
+                    href={`https://www.wis-tns.org/object/${
+                      source.tns_name.trim().includes(" ")
+                        ? source.tns_name.split(" ")[1]
+                        : source.tns_name
+                    }`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -651,6 +658,10 @@ const SourceDesktop = ({ source }) => {
           icon
         />
         <SourceSaveHistory groups={source.groups} />
+        <QuickSaveButton
+          sourceId={source.id}
+          alreadySavedGroups={source.groups?.map((g) => g.id)}
+        />
         <div className={classes.columnItem}>
           <ThumbnailList
             ra={source.ra}
@@ -790,38 +801,88 @@ const SourceDesktop = ({ source }) => {
 
         {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
         <div className={classes.columnItem}>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="followup-content"
-              id="followup-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Follow-up
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <div className={classes.followupContainer}>
-                <FollowupRequestForm
-                  obj_id={source.id}
-                  action="createNew"
-                  instrumentList={instrumentList}
-                  instrumentFormParams={instrumentFormParams}
-                />
-                <FollowupRequestLists
-                  followupRequests={source.followup_requests}
-                  instrumentList={instrumentList}
-                  instrumentFormParams={instrumentFormParams}
-                  totalMatches={source.followup_requests.length}
-                />
-                <AssignmentForm
-                  obj_id={source.id}
-                  observingRunList={observingRunList}
-                />
-                <AssignmentList assignments={source.assignments} />
-              </div>
-            </AccordionDetails>
-          </Accordion>
+          <div className={classes.columnItem}>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="followup-content"
+                id="followup-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Follow-up
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.followupContainer}>
+                  <FollowupRequestForm
+                    obj_id={source.id}
+                    action="createNew"
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                  />
+                  <FollowupRequestLists
+                    followupRequests={source.followup_requests}
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                    totalMatches={source.followup_requests.length}
+                  />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={classes.columnItem}>
+            <Accordion>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="followup-content"
+                id="forced-photometry-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Forced Photometry
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.followupContainer}>
+                  <FollowupRequestForm
+                    obj_id={source.id}
+                    action="createNew"
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                    requestType="forced_photometry"
+                  />
+                  <FollowupRequestLists
+                    followupRequests={source.followup_requests}
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                    totalMatches={source.followup_requests.length}
+                    requestType="forced_photometry"
+                  />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={classes.columnItem}>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="followup-content"
+                id="observing-run-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Assign Target to Observing Run
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.followupContainer}>
+                  <AssignmentForm
+                    obj_id={source.id}
+                    observingRunList={observingRunList}
+                  />
+                  <AssignmentList assignments={source.assignments} />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
         </div>
         <PhotometryTable
           obj_id={source.id}
@@ -881,7 +942,9 @@ const SourceDesktop = ({ source }) => {
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <CommentList />
+                <Suspense fallback={<CircularProgress />}>
+                  <CommentList />
+                </Suspense>
               </AccordionDetails>
             </Accordion>
           </div>
@@ -1081,6 +1144,7 @@ SourceDesktop.propTypes = {
       btc: PropTypes.number,
     }),
     host_offset: PropTypes.number,
+    host_distance: PropTypes.number,
     galaxies: PropTypes.arrayOf(
       PropTypes.shape({
         catalog_name: PropTypes.string,

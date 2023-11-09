@@ -11,12 +11,18 @@ import Button from "./Button";
 
 import * as followupRequestActions from "../ducks/followup_requests";
 
-const UnwatchButton = (requestID, textMode) => {
+const UnwatchButton = (requestID, textMode, serverSide = false) => {
   const dispatch = useDispatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    await dispatch(followupRequestActions.removeFromWatchList(requestID));
+    const params = {};
+    if (serverSide) {
+      params.refreshRequests = true;
+    }
+    await dispatch(
+      followupRequestActions.removeFromWatchList(requestID, params)
+    );
     setIsSubmitting(false);
   };
   if (textMode) {
@@ -45,12 +51,16 @@ const UnwatchButton = (requestID, textMode) => {
   );
 };
 
-const WatchButton = (requestID, textMode) => {
+const WatchButton = (requestID, textMode, serverSide = false) => {
   const dispatch = useDispatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    await dispatch(followupRequestActions.addToWatchList(requestID));
+    const params = {};
+    if (serverSide) {
+      params.refreshRequests = true;
+    }
+    await dispatch(followupRequestActions.addToWatchList(requestID, params));
     setIsSubmitting(false);
   };
   if (textMode) {
@@ -79,7 +89,7 @@ const WatchButton = (requestID, textMode) => {
   );
 };
 
-const WatcherButton = ({ followupRequest, textMode }) => {
+const WatcherButton = ({ followupRequest, textMode, serverSide }) => {
   const currentUser = useSelector((state) => state.profile);
 
   if (!followupRequest) {
@@ -90,9 +100,11 @@ const WatcherButton = ({ followupRequest, textMode }) => {
     watcherIds.push(s.user_id);
   });
   if (watcherIds.includes(currentUser.id)) {
-    return UnwatchButton(followupRequest.id, textMode);
+    // eslint-disable-next-line no-return-assign
+    return UnwatchButton(followupRequest.id, textMode, serverSide);
   }
-  return WatchButton(followupRequest.id, textMode);
+  // eslint-disable-next-line no-return-assign
+  return WatchButton(followupRequest.id, textMode, serverSide);
 };
 
 WatcherButton.propTypes = {
@@ -120,6 +132,10 @@ WatcherButton.propTypes = {
     ),
   }).isRequired,
   textMode: PropTypes.bool.isRequired,
+  serverSide: PropTypes.bool,
 };
 
+WatcherButton.defaultProps = {
+  serverSide: false,
+};
 export default WatcherButton;

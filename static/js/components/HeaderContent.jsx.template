@@ -1,9 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch } from "react-redux";
 
 import Box from "@mui/material/Box";
 import makeStyles from '@mui/styles/makeStyles';
+import IconButton from "@mui/material/IconButton";
+import RefreshIcon from '@mui/icons-material/Refresh';
+import Tooltip from "@mui/material/Tooltip";
 import ProfileDropdown from "./ProfileDropdown";
 import Logo from "./Logo";
 import Notifications from "./Notifications";
@@ -46,6 +49,14 @@ const useStyles = makeStyles((theme) => ({
 const HeaderContent = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
+
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = () => {
+    dispatch(hydrate());
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 3000);
+  };
+
   return (
     <div className={classes.topBannerContent}>
       <div style= {%- raw -%} {{display: "inline-flex", flexDirection: "row" }} {%- endraw -%} >
@@ -62,6 +73,17 @@ const HeaderContent = () => {
         <Box p={2} />
       </div>
       <div style= {%- raw -%} {{ position: "fixed", right: "1rem", top: "0.4rem", display: "flex" }} {%- endraw -%} >
+        <Tooltip title="Refresh basic data">
+          <IconButton
+            onClick={() => handleRefresh()}
+            style= {%- raw -%} {{ margin: "0.5rem" }} {%- endraw -%}
+            data-testid="refreshButton"
+            size="large"
+            disabled={refreshing}
+          >
+            <RefreshIcon fontSize="large" style= {%- raw -%} {{color: refreshing ? "grey" : "#457b9d"}} {%- endraw -%} />
+          </IconButton>
+        </Tooltip>
         <Notifications />
         <ProfileDropdown />
       </div>

@@ -160,6 +160,26 @@ def warningfilter(action="ignore", category=RuntimeWarning):
     return wrapper
 
 
+def format_hmsdms(skycoord, coord_sep, col_sep):
+    """Format a SkyCoord object as a string in HMSDMS format"""
+    hmsdms = skycoord.to_string(
+        'hmsdms', sep=':', decimal=False, precision=2, alwayssign=True
+    )
+
+    if isinstance(hmsdms, list) and len(hmsdms) > 1:
+        output = []
+        for x in hmsdms:
+            ra, dec = x.split(' ')
+            output.append(
+                ra.replace(':', coord_sep) + col_sep + dec.replace(':', coord_sep)
+            )
+        return output
+
+    ra, dec = hmsdms[1:].split(' ')
+    output = ra.replace(':', coord_sep) + col_sep + dec.replace(':', coord_sep)
+    return output
+
+
 facility_parameters = {
     'Keck': {
         "radius_degrees": 2.0 / 60,
@@ -190,21 +210,24 @@ irsa = {
 
 starlist_formats = {
     'Keck': {
-        "sep": ' ',
+        "coord_sep": ' ',
+        "col_sep": ' ',
         "commentstr": "#",
         "giveoffsets": True,
         "maxname_size": 15,
         "first_line": None,
     },
     'P200': {
-        "sep": ':',
+        "coord_sep": ' ',
+        "col_sep": '  ',
         "commentstr": "!",
         "giveoffsets": False,
-        "maxname_size": 20,
+        "maxname_size": 18,
         "first_line": None,
     },
     'Shane': {
-        "sep": ' ',
+        "coord_sep": ' ',
+        "col_sep": ' ',
         "commentstr": "#",
         "giveoffsets": True,
         "maxname_size": 15,
@@ -697,7 +720,8 @@ def get_formatted_standards_list(
         starlist_format = starlist_formats["Keck"]
 
     space = " "
-    sep = starlist_format["sep"]
+    col_sep = starlist_format["col_sep"]
+    coord_sep = starlist_format["coord_sep"]
     commentstr = starlist_format["commentstr"]
     maxname_size = starlist_format["maxname_size"]
     if show_first_line and starlist_format["first_line"] not in [None, ""]:
@@ -711,12 +735,7 @@ def get_formatted_standards_list(
     tab = SkyCoord(df["ra"], df["dec"], unit=(u.hourangle, u.deg))
     df["ra_float"] = tab.ra.value
     df["dec_float"] = tab.dec.value
-    df["skycoord"] = [
-        x[1:]
-        for x in tab.to_string(
-            'hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True
-        )
-    ]
+    df["skycoord"] = [x[1:] for x in format_hmsdms(tab, coord_sep, col_sep)]
 
     # filter
     df = df[
@@ -754,10 +773,13 @@ def get_formatted_standards_list(
             starlist.append(
                 {
                     "str": (
-                        f"{row['name'].replace(' ',''):{space}<{maxname_size}} "
+                        f"{row['name'].replace(' ',''):{space}<{maxname_size}}"
+                        + col_sep
                         + f"{row.skycoord}"
-                        + f" {row.epoch} "
-                        + f" {commentstr} {row.comment}"
+                        + col_sep
+                        + f"{row.epoch}"
+                        + col_sep
+                        + f"{commentstr} {row.comment}"
                     )
                 }
             )
@@ -1065,7 +1087,8 @@ def get_nearby_offset_stars(
         log("Warning: Do not recognize this starlist format. Using Keck.")
         starlist_format = starlist_formats["Keck"]
 
-    sep = starlist_format["sep"]
+    col_sep = starlist_format["col_sep"]
+    coord_sep = starlist_format["coord_sep"]
     commentstr = starlist_format["commentstr"]
     giveoffsets = starlist_format["giveoffsets"]
     maxname_size = starlist_format["maxname_size"]
@@ -1080,10 +1103,15 @@ def get_nearby_offset_stars(
         abrev_basename = basename[3:maxname_size]
 
     space = " "
+    hmsdms = format_hmsdms(center, coord_sep, col_sep)
     star_list_format = (
-        f"{basename:{space}<{maxname_size}} "
-        + f"{center.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
-        + f" 2000.0  {commentstr} source_name={source_name}"
+        f"{basename:{space}<{maxname_size}}"
+        + col_sep
+        + f"{hmsdms}"
+        + col_sep
+        + "2000.0"
+        + col_sep
+        + f"{commentstr} source_name={source_name}"
     )
 
     star_list = [{"str": first_line}] if first_line else []
@@ -1110,11 +1138,18 @@ def get_nearby_offset_stars(
 
         name = f"{abrev_basename}_o{i+1}"
 
+        hmsdms = format_hmsdms(c, coord_sep, col_sep)
+
         star_list_format = (
-            f"{name:{space}<{maxname_size}} "
-            + f"{c.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
-            + f" 2000.0 {offsets}"
-            + f" {commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
+            f"{name:{space}<{maxname_size}}"
+            + col_sep
+            + f"{hmsdms}"
+            + col_sep
+            + "2000.0"
+            + col_sep
+            + f"{offsets}"
+            + f"{col_sep if giveoffsets else ''}"
+            + f"{commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
             + f"; {dras}, {ddecs} PA={pa:<0.02f} deg"
             + f" ID={source['source_id']}"
         )

@@ -103,8 +103,8 @@ if __name__ == "__main__":
 
     print('Testing connection...', end='')
 
-    RETRIES = 30
-    timeout = 3
+    RETRIES = 50
+    timeout = 5
     admin_token = None
     status = None
     for i in range(RETRIES):

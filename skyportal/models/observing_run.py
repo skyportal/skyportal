@@ -1,16 +1,17 @@
 __all__ = ['ObservingRun']
 
-from datetime import datetime, timezone
-
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
 from astropy import time as ap_time
 from astropy import units as u
+from dateutil.tz import tzutc
 
 import numpy as np
 
 from baselayer.app.models import Base, accessible_by_owner
+
+TZINFO = tzutc()
 
 
 class ObservingRun(Base):
@@ -82,19 +83,31 @@ class ObservingRun(Base):
         sa.Date, nullable=False, index=True, doc="The Local Calendar date of this Run."
     )
 
+    run_end_utc = sa.Column(
+        sa.DateTime,
+        nullable=True,
+        doc="The UTC end time of this Run.",
+    )
+
     @property
     def calendar_noon(self):
-        observer = self.instrument.telescope.observer
+        """The Local Calendar noon of this Run."""
         year = self.calendar_date.year
         month = self.calendar_date.month
         day = self.calendar_date.day
         hour = 12
-        noon = datetime(
-            year=year, month=month, day=day, hour=hour, tzinfo=observer.timezone
-        )
-        noon = noon.astimezone(timezone.utc).timestamp()
-        noon = ap_time.Time(noon, format='unix')
-        return noon
+        noon_str = f'{year}-{month}-{day}T{hour}:00:00.000'
+        return ap_time.Time(noon_str, format='isot', scale='utc')
+
+    def calculate_run_end_utc(self):
+        observer = self.instrument.telescope.observer
+        if observer is None:
+            return None
+        try:
+            end = self.instrument.telescope.next_sunrise(self.calendar_noon).isot
+        except Exception:
+            end = None
+        self.run_end_utc = end
 
     def rise_time(self, target_or_targets, altitude=30 * u.degree):
         """The rise time of the specified targets as an astropy.time.Time."""
@@ -136,7 +149,7 @@ class ObservingRun(Base):
     def set_time(self, target_or_targets, altitude=30 * u.degree):
         """The set time of the specified targets as an astropy.time.Time."""
         observer = self.instrument.telescope.observer
-        sunset = self.instrument.telescope.next_sunset(self.calendar_noon)
+        sunset = self.instrument.telescope.next_sunset(self.calendar_noon).reshape((1,))
         sunrise = self.instrument.telescope.next_sunrise(self.calendar_noon).reshape(
             (1,)
         )

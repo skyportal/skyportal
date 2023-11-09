@@ -47,7 +47,7 @@ const NewShift = () => {
     .utcOffset(0, true)
     .format("YYYY-MM-DDTHH:mm:ss");
 
-  if (!groups) {
+  if (!groups || groups?.length === 0) {
     return <CircularProgress />;
   }
 
@@ -132,7 +132,6 @@ const NewShift = () => {
             .add(i * 7, "day")
             .format("YYYY-MM-DDTHH:mm:ssZ")
             .replace(/[-+]\d\d:\d\d$/, "");
-          console.log(newFormData.start_date);
           if (i === weeks - 1) {
             newFormData.end_date = endDate
               .format("YYYY-MM-DDTHH:mm:ssZ")
@@ -203,12 +202,13 @@ const NewShift = () => {
     properties: {
       group_id: {
         type: "integer",
-        oneOf: groups.map((group) => ({
+        oneOf: (groups || []).map((group) => ({
           enum: [group.id],
+          type: "integer",
           title: `${group.name}`,
         })),
         title: "Group",
-        default: groups[0]?.id,
+        default: groups ? groups[0]?.id : null,
       },
       name: {
         type: "string",

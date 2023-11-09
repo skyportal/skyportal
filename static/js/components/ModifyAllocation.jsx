@@ -42,6 +42,9 @@ const ModifyAllocation = () => {
   const { allocationList } = useSelector((state) => state.allocations);
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
+  const allowedAllocationTypes = useSelector(
+    (state) => state.config.allowedAllocationTypes
+  );
   const allGroups = useSelector((state) => state.groups.all);
   const groups = useSelector((state) => state.groups.userAccessible);
   const group = useSelector((state) => state.group);
@@ -230,6 +233,16 @@ const ModifyAllocation = () => {
   const allocationFormSchema = {
     type: "object",
     properties: {
+      types: {
+        type: "array",
+        title: "Types",
+        items: {
+          type: "string",
+          enum: allowedAllocationTypes,
+        },
+        uniqueItems: true,
+        default: allocationLookUp[selectedAllocationId]?.types,
+      },
       pi: {
         type: "string",
         title: "PI",

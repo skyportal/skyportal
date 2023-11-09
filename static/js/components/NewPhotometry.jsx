@@ -66,8 +66,11 @@ const NewPhotometryForm = ({ obj_id }) => {
         type: "array",
         items: {
           type: "number",
-          enum: groups.map((group) => group.id),
-          enumNames: groups.map((group) => group.name),
+          anyOf: groups.map((group) => ({
+            enum: [group.id],
+            type: "number",
+            title: group.name,
+          })),
         },
         uniqueItems: true,
         title: "Share with Groups",

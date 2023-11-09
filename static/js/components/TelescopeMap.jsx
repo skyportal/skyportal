@@ -215,8 +215,8 @@ TelescopeMarker.propTypes = {
         id: PropTypes.number.isRequired,
         name: PropTypes.string.isRequired,
         nickname: PropTypes.string.isRequired,
-        lat: PropTypes.number.isRequired,
-        lon: PropTypes.number.isRequired,
+        lat: PropTypes.number,
+        lon: PropTypes.number,
         fixed_location: PropTypes.bool,
         is_night_astronomical: PropTypes.bool.isRequired,
       })
@@ -228,7 +228,11 @@ TelescopeMarker.propTypes = {
 };
 
 CustomZoomableGroup.propTypes = {
-  children: PropTypes.node.isRequired,
+  children: PropTypes.node,
+};
+
+CustomZoomableGroup.defaultProps = {
+  children: null,
 };
 
 export default TelescopeMap;

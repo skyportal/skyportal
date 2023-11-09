@@ -165,7 +165,7 @@ class ObservationPlanQueue:
                         > arrow.utcnow().shift(days=-1).datetime,
                         # we only want to process plans that have been created in the last 24 hours
                     )
-                    single_requests = session.execute(stmt).scalars().all()
+                    single_requests = session.execute(stmt).scalars().unique().all()
 
                     # requests is a list. We want to group that list of plans to be a list of list,
                     # we group based on the plans 'combined_id' which is a unique uuid for a group of plans

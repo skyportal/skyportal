@@ -199,7 +199,7 @@ class TelescopeHandler(BaseHandler):
                 if telescope is None:
                     continue
                 temp = telescope.to_dict()
-                temp = {**temp, **telescope.current_time}
+                temp = {**temp, **telescope.current_time()}
                 temp["morning"] = (
                     temp["morning"].iso if isinstance(temp["morning"], Time) else False
                 )
@@ -289,6 +289,9 @@ class TelescopeHandler(BaseHandler):
                 t.weather_link = data['weather_link']
 
             session.commit()
+
+            if any([k in data for k in ['lat', 'lon', 'elevation']]):
+                t.current_time(refresh=True)
 
             self.push_all(action="skyportal/REFRESH_TELESCOPES")
             return self.success()

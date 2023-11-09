@@ -112,7 +112,7 @@ const EditComment = ({
 EditComment.propTypes = {
   associatedResourceType: PropTypes.string,
   objID: PropTypes.string,
-  gcnEventID: PropTypes.string,
+  gcnEventID: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   spectrum_id: PropTypes.string,
   id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   hoverID: PropTypes.number,

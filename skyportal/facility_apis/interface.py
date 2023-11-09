@@ -162,7 +162,12 @@ class FollowUpAPI(_Base):
     # for examples.
     form_json_schema = None
 
-    # ui dictionary outlining any ui overrides for the form See
+    # jsonschema outlining the schema of the frontend form for forced photometry.
+    # See https://github.com/rjsf-team/react-jsonschema-form
+    # for examples.
+    form_json_schema_forced_photometry = None
+
+    # ui dictionary outlining any ui overrides for the form. See
     # https://react-jsonschema-form.readthedocs.io/en/latest/api-reference/uiSchema/
     # for documentation
     ui_json_schema = None

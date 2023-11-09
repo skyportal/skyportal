@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
@@ -369,9 +369,8 @@ const CommentListMobile = ({
                       }`}
                     >
                       <ReactMarkdown
-                        escapeHtml={false}
                         className={styles.commentMessage}
-                        renderers={{ text: emojiSupport }}
+                        components={{ text: emojiSupport }}
                       >
                         {renderCommentText(
                           text,
@@ -541,9 +540,8 @@ const CommentListMobile = ({
                         }`}
                       >
                         <ReactMarkdown
-                          escapeHtml={false}
                           className={styles.commentMessage}
-                          renderers={{ text: emojiSupport }}
+                          components={{ text: emojiSupport }}
                         >
                           {renderCommentText(
                             text,
@@ -599,7 +597,9 @@ const CommentListMobile = ({
       >
         <DialogTitle onClose={handleClose}>Comments</DialogTitle>
         <DialogContent dividers>
-          <CommentList isCandidate={isCandidate} />
+          <Suspense fallback={<div>Loading comments...</div>}>
+            <CommentList isCandidate={isCandidate} />
+          </Suspense>
         </DialogContent>
       </Dialog>
     </div>

@@ -119,7 +119,6 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   return (
     <div>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Typography variant="h6">Assign Target to Observing Run</Typography>
         <div className={classes.formContainer}>
           <FormControl className={classes.formControl}>
             <InputLabel id="assignmentSelectLabel">Choose Run</InputLabel>

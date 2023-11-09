@@ -31,7 +31,7 @@ def migrated():
     try:
         r = requests.get(
             f'http://{cfg["hosts.migration_manager"]}:{cfg["ports.migration_manager"]}',
-            timeout=10,
+            timeout=30,
         )
         data = r.json()
         return data["migrated"]

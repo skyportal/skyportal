@@ -404,7 +404,7 @@ const CommentList = ({
               title="Include Bots?"
               type="checkbox"
               onChange={(event) => setIncludeBots(event.target.checked)}
-              checked={includeBots}
+              checked={includeBots || false}
             />
           }
         />

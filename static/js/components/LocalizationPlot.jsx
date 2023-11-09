@@ -10,6 +10,7 @@ import * as d3 from "d3";
 import d3GeoZoom from "d3-geo-zoom";
 // eslint-disable-next-line
 import GeoPropTypes from "geojson-prop-types";
+import { sunGeoJSON, moonGeoJSON } from "../plotjs/positions";
 
 const useStyles = makeStyles(() => ({
   fieldStyle: {
@@ -23,6 +24,7 @@ const LocalizationPlot = ({
   galaxies,
   instrument,
   observations,
+  airmass_threshold = 2.5,
   options,
   height,
   width,
@@ -75,6 +77,7 @@ const LocalizationPlot = ({
       selectedFields={selectedFields}
       setSelectedFields={setSelectedFields}
       projectionType={projection}
+      airmass_threshold={airmass_threshold}
     />
   );
 };
@@ -115,7 +118,6 @@ LocalizationPlot.propTypes = {
             name: PropTypes.string,
           }),
         }),
-        spectrum_exists: PropTypes.bool,
         last_detected_at: PropTypes.string,
         last_detected_mag: PropTypes.number,
         peak_detected_at: PropTypes.string,
@@ -188,6 +190,7 @@ LocalizationPlot.propTypes = {
       })
     ),
   }),
+  airmass_threshold: PropTypes.number,
   options: PropTypes.shape({
     skymap: PropTypes.bool,
     sources: PropTypes.bool,
@@ -211,6 +214,7 @@ LocalizationPlot.defaultProps = {
   galaxies: null,
   instrument: null,
   observations: null,
+  airmass_threshold: 2.5,
   options: {
     skymap: false,
     sources: false,
@@ -371,6 +375,84 @@ const GeoJSONGlobePlot = ({
         .style("visibility", (d) => (visibleOnSphere(d) ? "visible" : "hidden"))
         .text((d) => d.properties.name);
 
+      if (data.sun?.geometry) {
+        svg
+          .selectAll("sun")
+          .data([data.sun])
+          .enter()
+          .append("circle")
+          .attr("fill", "yellow")
+          .attr("opacity", 0.99)
+          .attr("cx", (d) => projection(d.geometry.coordinates)[0])
+          .attr("cy", (d) => projection(d.geometry.coordinates)[1])
+          .attr("r", (d) => (d.properties.radius * projection.scale()) / 4)
+          .attr("stroke", "black")
+          .attr("stroke-width", 0.4)
+          .style("visibility", (d) =>
+            visibleOnSphere(d) ? "visible" : "hidden"
+          )
+          .append("title")
+          .text(
+            `Sun: \n
+            RA: ${data.sun?.properties.ra}° \n
+            Dec: ${data.sun?.properties.dec}° \n
+            Distance: ${data.sun?.properties.dist} km \n
+            Radius: ${data.sun?.properties.radius}° \n
+            `
+          );
+      }
+
+      svg
+        .selectAll(".label")
+        .data([data.sun])
+        .enter()
+        .append("text")
+        .attr("transform", translate)
+        .attr("dy", "1em")
+        .attr("text-anchor", "middle")
+        .style("font-size", "0.75rem")
+        .style("visibility", (d) => (visibleOnSphere(d) ? "visible" : "hidden"))
+        .text("Sun");
+
+      if (data.moon?.geometry) {
+        svg
+          .selectAll("moon")
+          .data([data.moon])
+          .enter()
+          .append("circle")
+          .attr("fill", "darkgray")
+          .attr("opacity", 0.99)
+          .attr("cx", (d) => projection(d.geometry.coordinates)[0])
+          .attr("cy", (d) => projection(d.geometry.coordinates)[1])
+          .attr("r", (d) => (d.properties.radius * projection.scale()) / 4)
+          .attr("stroke", "black")
+          .attr("stroke-width", 0.4)
+          .style("visibility", (d) =>
+            visibleOnSphere(d) ? "visible" : "hidden"
+          )
+          .append("title")
+          .text(
+            `Moon: \n
+            RA: ${data.moon?.properties.ra}° \n
+            Dec: ${data.moon?.properties.dec}° \n
+            Distance: ${data.moon?.properties.dist} km \n
+            Radius: ${data.moon?.properties.radius}° \n
+            `
+          );
+      }
+
+      svg
+        .selectAll(".label")
+        .data([data.moon])
+        .enter()
+        .append("text")
+        .attr("transform", translate)
+        .attr("dy", "1em")
+        .attr("text-anchor", "middle")
+        .style("font-size", "0.75rem")
+        .style("visibility", (d) => (visibleOnSphere(d) ? "visible" : "hidden"))
+        .text("Moon");
+
       if (data.skymap?.features && data.options.localization) {
         const x = (d) => projection(d.geometry.coordinates)[0];
         const y = (d) => projection(d.geometry.coordinates)[1];
@@ -426,11 +508,17 @@ const GeoJSONGlobePlot = ({
           return 0;
         });
 
+        const has_ref = data.instrument.fields.some(
+          (f) => (f.reference_filters || []).length > 0
+        );
+
         data.instrument.fields.forEach((f) => {
           const { field_id } = f;
           const { features } = f.contour_summary;
           const selected = selectedFields.includes(Number(f.id));
           const { airmass } = f;
+          const references = f.reference_filters || [];
+
           svg
             .data(features)
             .append("path")
@@ -444,7 +532,8 @@ const GeoJSONGlobePlot = ({
                 : airmass && airmass < airmass_threshold
                 ? "white"
                 : "gray"
-            )
+            ) // we make the field semi-transparent if it doesn't have references
+            .style("opacity", has_ref && references.length === 0 ? 0.4 : 0.95)
             .attr("d", geoGenerator)
             .on("click", () => {
               if (!selected) {
@@ -461,7 +550,10 @@ const GeoJSONGlobePlot = ({
             .text(
               `field ID: ${field_id} \nra: ${f.ra} \ndec: ${
                 f.dec
-              } \nfilters: ${data.instrument.filters.join(", ")}`
+              } \nfilters: ${data.instrument.filters.join(", ")}${
+                airmass ? ` \nairmass: ${airmass}` : ""
+              }${has_ref ? ` \nreferences: ${references.join(", ")}` : ""}
+              `
             );
         });
       }
@@ -561,6 +653,9 @@ const GeoJSONGlobePlot = ({
     d3GeoZoom().projection(projection).onMove(refresh)(svg.node());
   }
 
+  const sun = sunGeoJSON(new Date());
+  const moon = moonGeoJSON(new Date());
+
   const data = {
     skymap,
     sources,
@@ -568,6 +663,8 @@ const GeoJSONGlobePlot = ({
     instrument,
     observations,
     options,
+    sun,
+    moon,
   };
 
   const svgRef = useD3(renderMap, height, width, data);

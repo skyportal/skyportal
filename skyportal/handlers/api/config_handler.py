@@ -9,14 +9,18 @@ from ...enum_types import (
     default_spectrum_type,
     ALLOWED_SPECTRUM_TYPES,
     GCN_NOTICE_TYPES,
+    ALLOWED_ALLOCATION_TYPES,
 )
 
 from .recurring_api import ALLOWED_RECURRING_API_METHODS
 from .source import MAX_NUM_DAYS_USING_LOCALIZATION
+from skyportal.utils.tns import TNS_INSTRUMENT_IDS
 
 from skyportal.models import cosmo
 
 _, cfg = load_env()
+
+TNS_INSTRUMENTS = list(TNS_INSTRUMENT_IDS.keys())
 
 
 class ConfigHandler(BaseHandler):
@@ -79,6 +83,7 @@ class ConfigHandler(BaseHandler):
                 "openai_summary_apikey_set": openai_summary_apikey_set,
                 "openai_summary_parameters": openai_summary_parameters,
                 "cosmoref": cosmo.__doc__,
+                "allowedAllocationTypes": ALLOWED_ALLOCATION_TYPES,
                 "allowedSpectrumTypes": ALLOWED_SPECTRUM_TYPES,
                 "defaultSpectrumType": default_spectrum_type,
                 "gcnNoticeTypes": GCN_NOTICE_TYPES,
@@ -87,6 +92,7 @@ class ConfigHandler(BaseHandler):
                 "allowedRecurringAPIMethods": ALLOWED_RECURRING_API_METHODS,
                 "classificationsClasses": cfg["colors.classifications"],
                 "summary_sourcesClasses": cfg["colors.summary_sources"],
+                "tnsAllowedInstruments": TNS_INSTRUMENTS,
                 "gcnTagsClasses": cfg["colors.gcnTags"],
                 "colorPalette": getattr(
                     palettes, cfg.get("misc.bokeh_color_palette", "Turbo256")

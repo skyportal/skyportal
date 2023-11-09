@@ -22,6 +22,7 @@ import Button from "./Button";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 import * as tnsrobotsActions from "../ducks/tnsrobots";
+import * as streamsActions from "../ducks/streams";
 
 const useStyles = makeStyles(() => ({
   tnsrobots: {
@@ -47,13 +48,34 @@ const TNSRobots = ({ group_id }) => {
   const [tnsrobotToManage, setTnsrobotToManage] = useState(null);
 
   const { tnsrobotList } = useSelector((state) => state.tnsrobots);
+  const { instrumentList } = useSelector((state) => state.instruments);
+  const tnsAllowedInstruments = useSelector(
+    (state) => state.config.tnsAllowedInstruments
+  );
+  const streams = useSelector((state) => state.streams);
+
+  const [selectedFormData, setSelectedFormData] = useState({
+    bot_name: "",
+    bot_id: "",
+    source_group_id: "",
+    api_key: "",
+    auto_report: false,
+    auto_reporters: "",
+    auto_report_instrument_ids: [],
+    auto_report_stream_ids: [],
+  });
+
+  const allowedInstruments = instrumentList.filter((instrument) =>
+    (tnsAllowedInstruments || []).includes(instrument.name?.toLowerCase())
+  );
 
   useEffect(() => {
-    const getTNSRobots = async () => {
+    const fetchData = async () => {
       // Wait for the TNS robots to update before setting
       // the new default form fields, so that the TNS robots list can
       // update
       if (group_id) {
+        await dispatch(streamsActions.fetchStreams());
         await dispatch(
           tnsrobotsActions.fetchTNSRobots({
             groupID: group_id,
@@ -61,7 +83,7 @@ const TNSRobots = ({ group_id }) => {
         );
       }
     };
-    getTNSRobots();
+    fetchData();
   }, [dispatch, group_id]);
 
   const tnsrobotListLookup = {};
@@ -77,6 +99,23 @@ const TNSRobots = ({ group_id }) => {
   };
 
   const openEditDialog = (id) => {
+    setSelectedFormData({
+      bot_name: tnsrobotListLookup[id]?.bot_name || "",
+      bot_id: tnsrobotListLookup[id]?.bot_id || "",
+      source_group_id: tnsrobotListLookup[id]?.source_group_id || "",
+      api_key: "",
+      auto_report:
+        tnsrobotListLookup[id]?.auto_report_group_ids?.includes(group_id),
+      auto_reporters: tnsrobotListLookup[id]?.auto_reporters || "",
+      auto_report_instrument_ids:
+        tnsrobotListLookup[id]?.auto_report_instruments.map(
+          (instrument) => instrument.id
+        ) || [],
+      auto_report_stream_ids:
+        tnsrobotListLookup[id]?.auto_report_streams.map(
+          (stream) => stream.id
+        ) || [],
+    });
     setEditDialogOpen(true);
     setTnsrobotToManage(id);
   };
@@ -92,21 +131,44 @@ const TNSRobots = ({ group_id }) => {
   };
 
   const addTNSRobot = (formData) => {
-    const { bot_name, bot_id, source_group_id, auto_report, auto_reporters } =
-      formData.formData;
+    const {
+      bot_name,
+      bot_id,
+      source_group_id,
+      api_key,
+      auto_report,
+      auto_reporters,
+      auto_report_instrument_ids,
+      auto_report_stream_ids,
+    } = formData.formData;
 
     const auto_report_group_ids = [];
     if (auto_report) {
       auto_report_group_ids.push(group_id);
     }
 
+    if (api_key?.length === 0) {
+      dispatch(
+        showNotification(
+          "Error adding TNS Robot: API Key is required when creating a new robot.",
+          "error"
+        )
+      );
+      return;
+    }
+
     const data = {
       bot_name,
       bot_id,
       source_group_id,
+      _altdata: {
+        api_key,
+      },
       group_id,
       auto_report_group_ids,
       auto_reporters,
+      auto_report_instrument_ids,
+      auto_report_stream_ids,
     };
 
     dispatch(tnsrobotsActions.addTNSRobot(data)).then((result) => {
@@ -133,8 +195,16 @@ const TNSRobots = ({ group_id }) => {
   };
 
   const editTNSRobot = (formData) => {
-    const { bot_name, bot_id, source_group_id, auto_report, auto_reporters } =
-      formData.formData;
+    const {
+      bot_name,
+      bot_id,
+      source_group_id,
+      api_key,
+      auto_report,
+      auto_reporters,
+      auto_report_instrument_ids,
+      auto_report_stream_ids,
+    } = formData.formData;
 
     const auto_report_group_ids = [];
     if (auto_report) {
@@ -147,7 +217,16 @@ const TNSRobots = ({ group_id }) => {
       source_group_id,
       auto_report_group_ids,
       auto_reporters,
+      auto_report_instrument_ids,
+      auto_report_stream_ids,
     };
+
+    if (api_key?.length > 0) {
+      // eslint-disable-next-line no-underscore-dangle
+      data._altdata = {
+        api_key,
+      };
+    }
 
     dispatch(tnsrobotsActions.editTNSRobot(tnsrobotToManage, data)).then(
       (result) => {
@@ -199,9 +278,13 @@ const TNSRobots = ({ group_id }) => {
         default: tnsrobotListLookup[tnsrobotToManage]?.bot_id || "",
       },
       source_group_id: {
-        type: "number",
+        type: "integer",
         title: "Source group ID",
         default: tnsrobotListLookup[tnsrobotToManage]?.source_group_id || "",
+      },
+      api_key: {
+        type: "string",
+        title: "API Key",
       },
       auto_report: {
         type: "boolean",
@@ -211,47 +294,62 @@ const TNSRobots = ({ group_id }) => {
             group_id
           ) || false,
       },
-      auto_reporters: {
-        type: "string",
-        title: "Auto reporters",
-        default: tnsrobotListLookup[tnsrobotToManage]?.auto_reporters || "",
+    },
+    required: ["bot_name", "bot_id", "source_group_id"],
+    dependencies: {
+      auto_report: {
+        oneOf: [
+          {
+            properties: {
+              auto_report: {
+                enum: [true],
+              },
+              auto_reporters: {
+                type: "string",
+                title: "Auto reporters",
+                default:
+                  tnsrobotListLookup[tnsrobotToManage]?.auto_reporters || "",
+              },
+              auto_report_instrument_ids: {
+                type: "array",
+                items: {
+                  type: "integer",
+                  anyOf: (allowedInstruments || []).map((instrument) => ({
+                    enum: [instrument.id],
+                    type: "integer",
+                    title: instrument.name,
+                  })),
+                },
+                uniqueItems: true,
+                default: [],
+                title: "Instruments to restrict photometry to (optional)",
+              },
+              auto_report_stream_ids: {
+                type: "array",
+                items: {
+                  type: "integer",
+                  anyOf: (streams || []).map((stream) => ({
+                    enum: [stream.id],
+                    type: "integer",
+                    title: stream.name,
+                  })),
+                },
+                uniqueItems: true,
+                default: [],
+                title: "Streams to restrict photometry to (optional)",
+              },
+            },
+            required: ["auto_reporters"],
+          },
+        ],
       },
     },
   };
 
   const validate = (formData, errors) => {
-    const { bot_name, bot_id, source_group_id, auto_report, auto_reporters } =
-      formData;
-
-    if (bot_name === "" || bot_name === undefined || bot_name === null) {
-      errors.bot_name.addError("Bot name is required.");
-    }
-
-    if (Number.isNaN(bot_id)) {
-      errors.bot_id.addError("Bot ID must be a number.");
-    } else if (bot_id === "" || bot_id === undefined || bot_id === null) {
-      errors.bot_id.addError("Bot ID is required.");
-    }
-
-    if (Number.isNaN(source_group_id)) {
+    const { source_group_id } = formData;
+    if (source_group_id !== "" && Number.isNaN(source_group_id)) {
       errors.source_group_id.addError("Source group ID must be a number.");
-    } else if (
-      source_group_id === "" ||
-      source_group_id === undefined ||
-      source_group_id === null
-    ) {
-      errors.source_group_id.addError("Source group ID is required.");
-    }
-
-    if (
-      auto_report &&
-      (auto_reporters === "" ||
-        auto_reporters === undefined ||
-        auto_reporters === null)
-    ) {
-      errors.auto_reporters.addError(
-        "Auto reporters is required if auto report is enabled."
-      );
     }
     return errors;
   };
@@ -278,6 +376,8 @@ const TNSRobots = ({ group_id }) => {
           <DialogTitle id="form-dialog-title">Edit TNS Robot</DialogTitle>
           <DialogContent>
             <Form
+              formData={selectedFormData}
+              onChange={({ formData }) => setSelectedFormData(formData)}
               schema={schema}
               onSubmit={editTNSRobot}
               liveValidate
@@ -364,6 +464,46 @@ const TNSRobots = ({ group_id }) => {
       },
     },
     {
+      name: "auto_report_instruments",
+      label: "Auto Instrument",
+      options: {
+        filter: false,
+        sort: true,
+        customBodyRenderLite: (dataIndex) => {
+          const { auto_report_instruments } = tnsrobotList[dataIndex];
+          if (auto_report_instruments?.length > 0) {
+            return (
+              <span>
+                {auto_report_instruments
+                  .map((instrument) => instrument.name)
+                  .join(", ")}
+              </span>
+            );
+          }
+          return <span />;
+        },
+      },
+    },
+    {
+      name: "auto_report_streams",
+      label: "Auto Streams",
+      options: {
+        filter: false,
+        sort: true,
+        customBodyRenderLite: (dataIndex) => {
+          const { auto_report_streams } = tnsrobotList[dataIndex];
+          if (auto_report_streams?.length > 0) {
+            return (
+              <span>
+                {auto_report_streams.map((stream) => stream.name).join(", ")}
+              </span>
+            );
+          }
+          return <span />;
+        },
+      },
+    },
+    {
       name: "delete",
       label: "Manage",
       options: {
@@ -392,6 +532,16 @@ const TNSRobots = ({ group_id }) => {
             <IconButton
               name="new_tnsrobot"
               onClick={() => {
+                setSelectedFormData({
+                  bot_name: "",
+                  bot_id: "",
+                  source_group_id: "",
+                  api_key: "",
+                  auto_report: false,
+                  auto_reporters: "",
+                  auto_report_instrument_ids: [],
+                  auto_report_stream_ids: [],
+                });
                 setOpenNewTNSRobot(true);
               }}
             >
@@ -410,6 +560,8 @@ const TNSRobots = ({ group_id }) => {
         <DialogTitle id="form-dialog-title">Add TNS Robot</DialogTitle>
         <DialogContent>
           <Form
+            formData={selectedFormData}
+            onChange={({ formData }) => setSelectedFormData(formData)}
             schema={schema}
             onSubmit={addTNSRobot}
             liveValidate

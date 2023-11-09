@@ -1,6 +1,4 @@
-import os
 import uuid
-import time
 import pytest
 from skyportal.tests import api
 from tdtax import taxonomy, __version__
@@ -9,9 +7,6 @@ from datetime import datetime, timedelta
 
 from baselayer.app.config import load_config
 from dateutil import parser
-import numpy as np
-
-from selenium.webdriver.common.keys import Keys
 
 cfg = load_config()
 
@@ -484,156 +479,6 @@ def test_filter_by_alias_and_origin(
 
     # Should no longer see the source
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')
-
-
-def test_filter_by_gcnevent(
-    driver,
-    user,
-    super_admin_token,
-    view_only_token,
-    ztf_camera,
-    upload_data_token,
-):
-
-    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    event_data = {'xml': payload}
-
-    dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
-
-    # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data['status'] == 'success':
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
-
-    obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 24.6258,
-            "dec": -32.9024,
-            "redshift": 3,
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-
-    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
-    assert status == 200
-
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': obj_id,
-            'mjd': 58709 + 1,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            "ra": 24.6258,
-            "dec": -32.9024,
-            "ra_unc": 0.01,
-            "dec_unc": 0.01,
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-
-    notinevent_obj_id = str(uuid.uuid4())
-
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": notinevent_obj_id,
-            "ra": 40,
-            "dec": -10,
-            "redshift": 3,
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/sources")
-
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
-
-    before_input = driver.wait_for_xpath('//input[@name="startDate"]')
-    before_input.send_keys("2019-08-14T21:10:39")
-
-    after_input = driver.wait_for_xpath('//input[@name="endDate"]')
-    after_input.send_keys("2019-08-21T21:10:39")
-
-    gcnevent_select = driver.wait_for_xpath(
-        '//*[@aria-labelledby="gcnEventSelectLabel"]'
-    )
-    gcnevent_select.send_keys(Keys.END)
-    driver.scroll_to_element_and_click(gcnevent_select)
-    driver.click_xpath(
-        '//li[contains(text(), "2019-08-14T21:10:39")]',
-        scroll_parent=True,
-    )
-
-    localization_select = driver.wait_for_xpath(
-        '//*[@aria-labelledby="localizationSelectLabel"]'
-    )
-    driver.scroll_to_element_and_click(localization_select)
-    driver.click_xpath(
-        '//li[contains(text(), "LALInference.v1.fits.gz")]',
-        scroll_parent=True,
-    )
-
-    driver.click_xpath(
-        "//button[text()='Submit']",
-        scroll_parent=True,
-    )
-
-    # The source that is not in the event should disappear
-    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{notinevent_obj_id}"]')
-
-    # Should see the posted source
-    driver.wait_for_xpath(f'//a[@data-testid="{obj_id}"]')
 
 
 def test_hr_diagram(

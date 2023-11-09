@@ -1,3 +1,4 @@
+import copy
 import uuid
 import datetime
 import json
@@ -548,7 +549,7 @@ def get_values_table_and_condition(df):
                     row.Index,
                     row.obj_id,
                     row.instrument_id,
-                    row.origin,
+                    str(row.origin),
                     float(row.mjd),
                     float(row.standardized_fluxerr),
                     float(row.standardized_flux),
@@ -1240,11 +1241,23 @@ class PhotometryHandler(BaseHandler):
                     f'Cannot find photometry point with ID: {photometry_id}.'
                 )
 
+            original_user_data = copy.deepcopy(data)
+
+            nan_if_none_keys = {'flux', 'fluxerr', 'mag', 'magerr'}
+            for key in nan_if_none_keys:
+                if key in data and data[key] is None:
+                    data[key] = np.nan
+
+            optional_keys = {'ra', 'dec', 'ra_unc', 'dec_unc', 'assignment_id'}
+            for key in optional_keys:
+                if key not in data:
+                    data[key] = None
+
             try:
-                phot = PhotometryFlux.load(data)
+                phot = PhotometryFlux.load(data, partial=True)
             except ValidationError as e1:
                 try:
-                    phot = PhotometryMag.load(data)
+                    phot = PhotometryMag.load(data, partial=True)
                 except ValidationError as e2:
                     return self.error(
                         'Invalid input format: Tried to parse '
@@ -1254,7 +1267,7 @@ class PhotometryHandler(BaseHandler):
                         f' "{e2.normalized_messages()}."'
                     )
 
-            phot.original_user_data = data
+            phot.original_user_data = original_user_data
             phot.id = photometry_id
 
             session.merge(phot)

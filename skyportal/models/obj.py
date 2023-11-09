@@ -625,7 +625,32 @@ class Obj(Base, conesearch_alchemy.Point):
             host_coord = ap_coord.SkyCoord(host.ra, host.dec, unit='deg')
             sep = obj_coord.separation(host_coord)
 
-            print(sep)
+            return sep
+        return None
+
+    @property
+    def host_distance(self):
+        host = self.host
+        if host:
+            if host.redshift is not None:
+                host_distance = cosmo.luminosity_distance(host.redshift).to(u.Mpc)
+            else:
+                host_distance = host.distmpc * u.Mpc
+
+            if self.redshift:
+                obj_coord = ap_coord.SkyCoord(
+                    self.ra * u.deg,
+                    self.dec * u.deg,
+                    distance=cosmo.luminosity_distance(self.redshift).to(u.Mpc),
+                )
+            else:
+                obj_coord = ap_coord.SkyCoord(
+                    self.ra * u.deg, self.dec * u.deg, distance=host_distance
+                )
+            host_coord = ap_coord.SkyCoord(
+                host.ra * u.deg, host.dec * u.deg, distance=host_distance
+            )
+            sep = obj_coord.separation_3d(host_coord)
             return sep
         return None
 

@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React from "react";
+import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 
@@ -16,7 +16,6 @@ import Tooltip from "@mui/material/Tooltip";
 import Button from "./Button";
 
 import * as profileActions from "../ducks/profile";
-import * as recentGcnEventsActions from "../ducks/recentGcnEvents";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import GcnTags from "./GcnTags";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
@@ -95,12 +94,6 @@ const RecentGcnEvents = ({ classes }) => {
     useSelector((state) => state.profile.preferences?.recentGcnEvents) ||
     defaultPrefs;
 
-  const dispatch = useDispatch();
-
-  useEffect(() => {
-    dispatch(recentGcnEventsActions.fetchRecentGcnEvents());
-  }, [dispatch]);
-
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
@@ -139,7 +132,6 @@ const RecentGcnEvents = ({ classes }) => {
                     </Button>
                   </Link>
                   <Tooltip
-                    interactive
                     title={
                       <>
                         <b>This event has the following aliases:</b>
