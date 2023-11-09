@@ -12,6 +12,8 @@ dbdata
 dask-worker-space
 webdriver-console
 cache
+env
+kubernetes/config/*
 
 # Git
 .git
@@ -30,3 +32,11 @@ docker-compose.yml
 
 # Visual Studio Code
 .vscode
+
+# These are built from templates
+baselayer/conf/supervisor/supervisor.conf
+baselayer/services/dask/supervisor.conf
+baselayer/services/app/supervisor.conf
+baselayer/services/nginx/nginx.conf
+baselayer/conf/nginx.conf
+static/build

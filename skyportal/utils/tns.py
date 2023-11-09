@@ -259,7 +259,7 @@ def post_tns(
         'archival_comment': archival_comment,
     }
 
-    tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_submission_queue"]}'
+    tns_microservice_url = f'http://{cfg["hosts.tns_submission_queue"]}:{cfg["ports.tns_submission_queue"]}'
 
     resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
     if resp.status_code != 200:
@@ -292,7 +292,9 @@ def get_tns(
         'include_spectra': include_spectra,
     }
 
-    tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_retrieval_queue"]}'
+    tns_microservice_url = (
+        f'http://{cfg["hosts.tns_retrieval_queue"]}:{cfg["ports.tns_retrieval_queue"]}'
+    )
 
     resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
     if resp.status_code != 200:

@@ -18,7 +18,9 @@ def post_thumbnails(obj_ids, timeout=2):
 
     request_body = {'obj_ids': obj_ids}
 
-    thumbnail_microservice_url = f'http://127.0.0.1:{cfg["ports.thumbnail_queue"]}'
+    thumbnail_microservice_url = (
+        f'http://{cfg["ports.thumbnail_queue"]}:{cfg["ports.thumbnail_queue"]}'
+    )
 
     resp = requests.post(thumbnail_microservice_url, json=request_body, timeout=timeout)
     if resp.status_code != 200:

@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: app
+  labels:
+    app: app
+spec:
+  selector:
+    matchLabels:
+      app: app
+  serviceName: app-service
+  replicas: {{ processes }}
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+      - name: app
+        image: {{ image }}
+        imagePullPolicy: Never
+        ports:
+        - containerPort: {{ port }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-service
+spec:
+  selector:
+    app: app
+  clusterIP: None
+  ports:
+    - protocol: TCP
+      port: {{ port }}

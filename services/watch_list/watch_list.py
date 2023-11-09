@@ -230,9 +230,7 @@ def check_watch_list(time_info):
                         'target_id': listing_id,
                     }
 
-                    notifications_microservice_url = (
-                        f'http://127.0.0.1:{cfg["ports.notification_queue"]}'
-                    )
+                    notifications_microservice_url = f'http://{cfg["hosts.notification_queue"]}:{cfg["ports.notification_queue"]}'
 
                     resp = requests.post(
                         notifications_microservice_url,

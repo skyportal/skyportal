@@ -598,7 +598,6 @@ image_grayscale_params:
   adjust_color_bias: True
 
 slack:
-  microservice_port: 64100
   expected_url_preamble: "https://hooks.slack.com/"
 
 spectrum_types:
@@ -651,6 +650,12 @@ user:
   default_groups: []
   default_acls: []
 
+hosts:
+  slack: localhost
+  notification_queue: localhost
+  tns_retrieval_queue: localhost
+  tns_submission_queue: localhost
+
 ports:
   facility_queue: 64510
   notification_queue: 64610
@@ -658,6 +663,7 @@ ports:
   tns_retrieval_queue: 64810
   thumbnail_queue: 64910
   tns_submission_queue: 64812
+  slack: 64100
 
 gcn:
   server: gcn.nasa.gov

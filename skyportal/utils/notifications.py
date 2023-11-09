@@ -358,7 +358,7 @@ def source_email_notification(target, data=None):
 def post_notification(request_body, timeout=2):
 
     notifications_microservice_url = (
-        f'http://127.0.0.1:{cfg["ports.notification_queue"]}'
+        f'http://{cfg["hosts.notification_queue"]}:{cfg["ports.notification_queue"]}'
     )
 
     resp = requests.post(

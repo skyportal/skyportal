@@ -171,7 +171,7 @@ def send_slack_notification(target):
         return
     integration_url = target["user"]["preferences"]['slack_integration'].get('url')
 
-    slack_microservice_url = f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
+    slack_microservice_url = f'http://{cfg["hosts.slack"]}:{cfg["ports.slack"]}'
 
     app_url = get_app_base_url()
 

@@ -113,7 +113,7 @@ class SLACKAPI(FollowUpAPI):
         if not altdata:
             raise ValueError('Missing allocation information.')
 
-        slack_microservice_url = f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
+        slack_microservice_url = f'http://{cfg["hosts.slack"]}:{cfg["ports.slack"]}'
 
         data = json.dumps(
             {

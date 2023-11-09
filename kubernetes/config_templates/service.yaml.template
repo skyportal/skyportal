@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ service }}-deployment
+  labels:
+    app: {{ service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ service }}
+  template:
+    metadata:
+      labels:
+        app: {{ service }}
+    spec:
+      containers:
+      - name: {{ service }}
+        image: {{ image }}
+        imagePullPolicy: Never
+        ports:
+        - containerPort: {{ port }}
+        env:
+          - name: SERVICES_ENABLED
+            value: "{{ service_name }}"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ service }}-service
+spec:
+  type: NodePort
+  selector:
+    app: {{ service }}
+  ports:
+    - protocol: TCP # {{ service }}
+      port: {{ port }}
+      targetPort: {{ port }}

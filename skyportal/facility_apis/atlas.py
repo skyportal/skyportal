@@ -282,7 +282,7 @@ class ATLASAPI(FollowUpAPI):
             session.commit()
 
             facility_microservice_url = (
-                f'http://127.0.0.1:{cfg["ports.facility_queue"]}'
+                f'http://{cfg["hosts.facility_queue"]}:{cfg["ports.facility_queue"]}'
             )
             requests.post(
                 facility_microservice_url,
