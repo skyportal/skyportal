@@ -1301,6 +1301,12 @@ class CommentAttachmentHandler(BaseHandler):
                     except Exception as e:
                         log(f'Cannot render {attachment_name} as image: {str(e)}')
 
+                # we remove all non-ascii characters from the attachment name, which tornado does not like
+                # as they can't be encoded in latin-1
+                attachment_name = ''.join(
+                    [i if ord(i) < 128 else ' ' for i in attachment_name]
+                )
+
                 self.set_header(
                     "Content-Disposition",
                     "attachment; " f"filename={attachment_name}",
