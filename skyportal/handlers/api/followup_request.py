@@ -393,6 +393,20 @@ def post_followup_request(
                 raise ValueError(
                     'There is no source for one or more of the source_group_ids specified as a constraint, not submitting request.'
                 )
+        if len(constraints.get('ignore_source_group_ids', [])) > 0:
+            # verify that there is NO source saved to any of the group IDs
+            ignore_existing_sources = session.scalars(
+                Source.select(session.user_or_token).where(
+                    Source.group_id.in_(constraints['ignore_source_group_ids']),
+                    Source.obj_id == data['obj_id'],
+                    Source.active.is_(True),
+                )
+            ).all()
+            if len(ignore_existing_sources) > 0:
+                raise ValueError(
+                    'There is a source for one or more of the ignore_source_group_ids specified as a constraint, not submitting request.'
+                )
+
         if constraints.get("not_if_classified", False):
             # verify that the source is not classified
             existing_classifications = session.scalars(
@@ -923,6 +937,8 @@ class FollowupRequestHandler(BaseHandler):
         constraints = {}
         if 'source_group_ids' in data:
             constraints['source_group_ids'] = data.pop('source_group_ids')
+        if 'ignore_source_group_ids' in data:
+            constraints['ignore_source_group_ids'] = data.pop('ignore_source_group_ids')
         if 'not_if_classified' in data:
             constraints['not_if_classified'] = data.pop('not_if_classified')
         if 'not_if_spectra_exist' in data:
