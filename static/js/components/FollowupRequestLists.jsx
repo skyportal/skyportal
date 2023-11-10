@@ -445,10 +445,10 @@ const FollowupRequestLists = ({
     jumpToPage: true,
     serverSide,
     pagination: true,
-    count: totalMatches,
   };
   if (typeof handleTableChange === "function") {
     options.onTableChange = handleTableChange;
+    options.count = totalMatches;
   }
   if (typeof onDownload === "function") {
     options.onDownload = () => {
