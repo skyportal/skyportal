@@ -1,6 +1,8 @@
 import uuid
 import pytest
 
+from selenium.common.exceptions import TimeoutException
+
 
 @pytest.mark.flaky(reruns=2)
 def test_submit_and_delete_new_assignment(
@@ -8,7 +10,22 @@ def test_submit_and_delete_new_assignment(
 ):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.click_xpath('//*[@aria-labelledby="assignmentSelect"]', wait_clickable=False)
+
+    # wait for plots to load, if any
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
+            timeout=10,
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
+            timeout=10,
+        )
+    except TimeoutException:
+        pass
+
+    assign_select = driver.wait_for_xpath('//*[@aria-labelledby="assignmentSelect"]')
+    driver.scroll_to_element_and_click(assign_select)
     observingrun_title = (
         f"{red_transients_run.calendar_date} "
         f"{red_transients_run.instrument.name}/"
@@ -25,9 +42,14 @@ def test_submit_and_delete_new_assignment(
 
     comment_box = driver.wait_for_xpath("//textarea[@name='comment']")
     comment_text = str(uuid.uuid4())
+
+    driver.scroll_to_element_and_click(comment_box)
     comment_box.send_keys(comment_text)
 
-    driver.click_xpath('//*[@name="assignmentSubmitButton"]')
+    driver.click_xpath("//header")
+
+    submit_button = driver.wait_for_xpath('//*[@name="assignmentSubmitButton"]')
+    driver.scroll_to_element_and_click(submit_button)
 
     driver.click_xpath("//div[@id='observing-run-assignments-header']")
     driver.wait_for_xpath('//button[@aria-label="delete-assignment"]')

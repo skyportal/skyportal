@@ -97,6 +97,9 @@ class ZTFRequest:
                     )
                 ).first()
 
+                if field is None:
+                    raise ValueError(f"Could not find field {field_id} in instrument.")
+
                 target = {
                     'request_id': cnt,
                     'program_id': program_id,
@@ -345,7 +348,7 @@ class ZTFAPI(FollowUpAPI):
     """An interface to ZTF operations."""
 
     @staticmethod
-    def delete(request, session):
+    def delete(request, session, **kwargs):
 
         """Delete a follow-up request from ZTF queue.
 
@@ -363,6 +366,9 @@ class ZTFAPI(FollowUpAPI):
             FacilityTransactionRequest,
         )
 
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
+
         # this happens for failed submissions
         # just go ahead and delete
         if len(request.transactions) == 0:
@@ -370,9 +376,7 @@ class ZTFAPI(FollowUpAPI):
                 FollowupRequest.id == request.id
             ).delete()
             session.commit()
-            return
-
-        if request.payload["request_type"] == "triggered":
+        elif request.payload["request_type"] == "triggered":
             altdata = request.allocation.altdata
             if not altdata:
                 raise ValueError('Missing allocation information.')
@@ -412,6 +416,23 @@ class ZTFAPI(FollowUpAPI):
                 session.delete(transaction)
             session.delete(request)
             session.commit()
+            log(f"Deleted request {request.id} from ZTF queue.")
+        else:
+            raise ValueError('Unknown request type.')
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     # subclasses *must* implement the method below
     @staticmethod
@@ -525,6 +546,20 @@ class ZTFAPI(FollowUpAPI):
         )
 
         session.add(transaction)
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     # split the form above (that has triggered, and forced_photometry) into two forms
     form_json_schema = {

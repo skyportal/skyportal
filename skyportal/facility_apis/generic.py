@@ -290,16 +290,22 @@ class GENERICAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if 'refresh_source' in kwargs and kwargs['refresh_source']:
+        if kwargs.get('refresh_source', False):
             flow = Flow()
             flow.push(
                 '*',
                 'skyportal/REFRESH_SOURCE',
                 payload={'obj_key': request.obj.internal_key},
             )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     @staticmethod
-    def delete(request, session):
+    def delete(request, session, **kwargs):
         """Delete a follow-up request from the instrument queue.
 
         Parameters
@@ -311,6 +317,9 @@ class GENERICAPI(FollowUpAPI):
         """
 
         from ..models import DBSession, FollowupRequest, FacilityTransaction
+
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
 
         altdata = request.allocation.altdata
         has_valid_transaction = False
@@ -358,15 +367,22 @@ class GENERICAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        flow = Flow()
-        flow.push(
-            '*',
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': request.obj.internal_key},
-        )
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     @staticmethod
-    def update(request, session):
+    def update(request, session, **kwargs):
         """Update a request in the instrument queue.
 
         Parameters
@@ -420,12 +436,19 @@ class GENERICAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        flow = Flow()
-        flow.push(
-            '*',
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': request.obj.internal_key},
-        )
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     def custom_json_schema(instrument, user):
 

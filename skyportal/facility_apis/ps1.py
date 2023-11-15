@@ -3,13 +3,13 @@ import requests
 import numpy as np
 from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
-
 from . import FollowUpAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.calculations import great_circle_distance
 
 env, cfg = load_env()
 
@@ -118,7 +118,7 @@ class PS1API(FollowUpAPI):
     """An interface to PS1 forced photometry."""
 
     @staticmethod
-    def get(request, session):
+    def get(request, session, **kwargs):
 
         """Get a forced photometry request result from PS1.
 
@@ -150,7 +150,16 @@ class PS1API(FollowUpAPI):
 
         content = request.transactions[0].response["content"]
         tab = astropy.io.ascii.read(content)
-        objid = tab['objID'][0]
+
+        ra, dec = request.obj.ra, request.obj.dec
+        closest_row_index, closest_row_distance = 0, 1e10
+        for i in range(len(tab)):
+            row = tab[i]
+            dist = great_circle_distance(ra, dec, row['raMean'], row['decMean'])
+            if dist < closest_row_distance:
+                closest_row_index, closest_row_distance = i, dist
+
+        objid = tab['objID'][closest_row_index]
 
         params = {
             'objID': objid,
@@ -166,7 +175,7 @@ class PS1API(FollowUpAPI):
             ],
         }
 
-        url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/detections.csv"
+        url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/detection.csv"
         try:
             r = requests.get(url, params=params, timeout=5.0)  # timeout in seconds
         except TimeoutError:
@@ -197,6 +206,20 @@ class PS1API(FollowUpAPI):
 
         session.add(transaction)
         session.commit()
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     # subclasses *must* implement the method below
     @staticmethod
@@ -235,12 +258,17 @@ class PS1API(FollowUpAPI):
         url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/mean.csv"
         r = requests.get(url, params=params)
         if r.status_code == 200:
-            tab = astropy.io.ascii.read(r.text)
-
-            if len(tab) == 0:
+            try:
+                if len(r.text) == 0:
+                    raise ValueError('No data returned in request')
+                print(r.text)
+                tab = astropy.io.ascii.read(r.text)
+                if len(tab) == 0:
+                    raise ValueError('No data returned in request')
+                request.status = 'submitted'
+            except Exception as e:
+                log(str(e))
                 request.status = 'No DR2 source'
-            else:
-                request.status = 'Source available'
         else:
             request.status = f'rejected: {r.content}'
 
@@ -253,8 +281,22 @@ class PS1API(FollowUpAPI):
 
         session.add(transaction)
 
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
+
     @staticmethod
-    def delete(request, session):
+    def delete(request, session, **kwargs):
 
         """Delete a photometry request from PS1 DR2 API.
 
@@ -266,9 +308,40 @@ class PS1API(FollowUpAPI):
             Database session for this transaction
         """
 
-        session.delete(request)
+        from ..models import FollowupRequest
 
-    form_json_schema = {
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
+
+        if request.status.lower() != 'photometry committed to database':
+            if len(request.transactions) == 0:
+                session.query(FollowupRequest).filter(
+                    FollowupRequest.id == request.id
+                ).delete()
+                session.commit()
+            else:
+                request.status = 'deleted'
+                session.add(request)
+        else:
+            raise ValueError(
+                "Can't delete PS1 requests which photometry has been committed to the database."
+            )
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
+
+    form_json_schema_forced_photometry = {
         "type": "object",
         "properties": {
             "radius": {
