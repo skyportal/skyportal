@@ -170,24 +170,29 @@ def add_observations(instrument_id, obstable):
         obstable['field_id'] = field_ids
 
     try:
-        observations = []
+        id_mapper = {}  # mapper from Instrument.field_id to InstrumentField.id
         unique_field_ids = obstable['field_id'].unique()
         unique_field_ids_batched = np.array_split(unique_field_ids, 100)
-        missing = []
         for field_ids in unique_field_ids_batched:
-            fields = session.scalars(
-                sa.select(InstrumentField.field_id).where(
-                    InstrumentField.instrument_id == instrument_id,
-                    InstrumentField.field_id.in_(field_ids),
+            fields = (
+                session.scalars(
+                    sa.select(InstrumentField).where(
+                        InstrumentField.instrument_id == instrument_id,
+                        InstrumentField.field_id.in_(field_ids),
+                    )
                 )
-            ).all()
-            missing.extend(set(field_ids) - set(list(fields)))
-        if len(missing) > 0:
-            return log(
-                f"Unable to add observations for instrument {instrument_id}: {len(missing)} fields are missing: {missing[:100]}"
+                .unique()
+                .all()
             )
+            missing = list(set(field_ids) - set(list(f.field_id for f in fields)))
+            if len(missing) > 0:
+                return log(
+                    f"Unable to add observations for instrument {instrument_id}: {len(missing)} fields are missing: {missing[:100]}"
+                )
+            for field in fields:
+                id_mapper[field.field_id] = field.id
 
-        del missing, unique_field_ids, unique_field_ids_batched
+        del unique_field_ids, unique_field_ids_batched
 
         # same here, we batch query the DB to see what observations already exist
         unique_observation_ids = obstable['observation_id'].unique()
@@ -204,7 +209,7 @@ def add_observations(instrument_id, obstable):
 
         if len(missing) < len(unique_observation_ids):
             log(
-                f"Unable to add some observations for instrument {instrument_id}: {len(unique_observation_ids) - len(missing)} observations already exist. These will be skipped"
+                f"Unable to add some observations for instrument {instrument_id}: {len(unique_observation_ids) - len(missing)} observations (out of {len(unique_observation_ids)}) already exist. These will be skipped"
             )
 
         # remove the observations that already exist, so only keep those which id is in the missing list
@@ -230,7 +235,7 @@ def add_observations(instrument_id, obstable):
                         ExecutedObservation(
                             instrument_id=instrument_id,
                             observation_id=row["observation_id"],
-                            instrument_field_id=row["field_id"],
+                            instrument_field_id=id_mapper[row["field_id"]],
                             obstime=obstime.datetime,
                             seeing=row.get("seeing", None),
                             limmag=row["limmag"],
