@@ -177,8 +177,8 @@ def add_observations(instrument_id, obstable):
             fields = (
                 session.scalars(
                     sa.select(InstrumentField).where(
-                        InstrumentField.instrument_id == instrument_id,
-                        InstrumentField.field_id.in_(field_ids),
+                        InstrumentField.instrument_id == int(instrument_id),
+                        InstrumentField.field_id.in_([int(f) for f in field_ids]),
                     )
                 )
                 .unique()
@@ -201,8 +201,10 @@ def add_observations(instrument_id, obstable):
         for observation_ids in unique_observation_ids_batched:
             observations = session.scalars(
                 sa.select(ExecutedObservation.observation_id).where(
-                    ExecutedObservation.instrument_id == instrument_id,
-                    ExecutedObservation.observation_id.in_(observation_ids),
+                    ExecutedObservation.instrument_id == int(instrument_id),
+                    ExecutedObservation.observation_id.in_(
+                        [int(o) for o in observation_ids]
+                    ),
                 )
             ).all()
             missing.extend(set(observation_ids) - set(list(observations)))
@@ -234,14 +236,14 @@ def add_observations(instrument_id, obstable):
                     observations.append(
                         ExecutedObservation(
                             instrument_id=instrument_id,
-                            observation_id=row["observation_id"],
-                            instrument_field_id=id_mapper[row["field_id"]],
+                            observation_id=int(row["observation_id"]),
+                            instrument_field_id=int(id_mapper[row["field_id"]]),
                             obstime=obstime.datetime,
                             seeing=row.get("seeing", None),
-                            limmag=row["limmag"],
-                            exposure_time=row["exposure_time"],
+                            limmag=float(row["limmag"]),
+                            exposure_time=int(row["exposure_time"]),
                             filt=row["filter"],
-                            processed_fraction=row["processed_fraction"],
+                            processed_fraction=float(row["processed_fraction"]),
                             target_name=row["target_name"],
                         )
                     )
