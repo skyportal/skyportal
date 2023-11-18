@@ -2227,6 +2227,7 @@ def add_gcn_summary(
     photometry_in_window=True,
     stats_method='python',
     instrument_ids=None,
+    acknowledgements=None,
 ):
     if Session.registry.has():
         session = Session()
@@ -2740,6 +2741,8 @@ def add_gcn_summary(
                 if len(observations_text) > 0:
                     contents.extend(observations_text)
 
+        if not no_text and acknowledgements is not None and len(acknowledgements) > 0:
+            contents.append("\n" + acknowledgements)
         gcn_summary.text = "\n".join(contents)
         session.commit()
 
@@ -2873,6 +2876,11 @@ class GcnSummaryHandler(BaseHandler):
               schema:
                 type: string
               description: List of instrument ids to include in the summary. Defaults to all instruments if not specified.
+            - in: body
+              name: acknowledgements
+              schema:
+                type: string
+              description: Acknowledgements to include in the summary.
 
           responses:
             200:
@@ -2911,6 +2919,7 @@ class GcnSummaryHandler(BaseHandler):
         photometry_in_window = data.get("photometryInWindow", False)
         stats_method = data.get("statsMethod", "python")
         instrument_ids = data.get("instrumentIds", None)
+        acknowledgements = data.get("acknowledgements", None)
 
         class Validator(Schema):
             start_date = UTCTZnaiveDateTime(required=False, missing=None)
@@ -2988,6 +2997,11 @@ class GcnSummaryHandler(BaseHandler):
             else:
                 user_ids = []
 
+            if acknowledgements is not None:
+                acknowledgements = acknowledgements.strip('"')
+                if len(acknowledgements) == 0:
+                    acknowledgements = None
+
         with self.Session() as session:
             stmt = GcnEvent.select(session.user_or_token).where(
                 GcnEvent.dateobs == dateobs
@@ -3057,6 +3071,7 @@ class GcnSummaryHandler(BaseHandler):
                         photometry_in_window=photometry_in_window,
                         stats_method=stats_method,
                         instrument_ids=instrument_ids,
+                        acknowledgements=acknowledgements,
                     ),
                 )
                 return self.success({"id": summary_id})

@@ -684,6 +684,9 @@ gcn:
     - MAXI_UNKNOWN
   reject_tags: # reject notices with these tags (optional)
     - MDC
+  summary:
+    acknowledgements:
+      - The SkyPortal project acknowledges the generous support of The Gordon and Betty Moore Foundation.
 
 health_monitor:
   seconds_between_checks: 30.5

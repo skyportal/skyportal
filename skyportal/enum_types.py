@@ -202,3 +202,7 @@ sqla_enum_types = [
 ]
 
 GCN_NOTICE_TYPES = tuple(cfg.get('gcn.notice_types', []))
+GCN_ACKNOWLEDGEMENTS = tuple(
+    text.strip('"') if text is not None else text
+    for text in cfg.get('gcn.summary.acknowledgements', [])
+)

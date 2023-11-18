@@ -99,6 +99,13 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
     marginBottom: "1rem",
   },
+  select: {
+    width: "100%",
+  },
+  listItem: {
+    whiteSpace: "normal",
+    maxWidth: "30vw",
+  },
 }));
 
 const dialogTitleStyles = (theme) => ({
@@ -163,6 +170,15 @@ const GcnSummary = ({ dateobs }) => {
   const [photometryInWindow, setPhotometryInWindow] = useState(false);
   const [selectedGcnSummaryId, setSelectedGcnSummaryId] = useState(null);
   const [selectedInstruments, setSelectedInstruments] = useState([]);
+  const [selectedAcknowledgement, setSelectedAcknowledgement] = useState(null);
+
+  const gcnSummaryAcknowledgements = useSelector(
+    (state) => state.config.gcnSummaryAcknowledgements
+  );
+
+  const acknowledgmentOptions = selectedAcknowledgement
+    ? ["Clear selection", ...gcnSummaryAcknowledgements]
+    : gcnSummaryAcknowledgements;
 
   const [loading, setLoading] = useState(false);
 
@@ -253,6 +269,14 @@ const GcnSummary = ({ dateobs }) => {
 
   const handleClose = () => {
     setOpen(false);
+  };
+
+  const onAcknowledgementSelectChange = (event) => {
+    if (event.target.value === "Clear selection") {
+      setSelectedAcknowledgement(null);
+    } else {
+      setSelectedAcknowledgement(event.target.value);
+    }
   };
 
   const onUserSelectChange = (event) => {
@@ -362,6 +386,9 @@ const GcnSummary = ({ dateobs }) => {
       };
       if (nb !== "") {
         params.number = nb;
+      }
+      if (selectedAcknowledgement !== null) {
+        params.acknowledgements = selectedAcknowledgement;
       }
       if (params.instrumentIds?.length === 0) {
         delete params.instrumentIds;
@@ -483,6 +510,7 @@ const GcnSummary = ({ dateobs }) => {
                       value={localizationName || ""}
                       onChange={(e) => setLocalizationName(e.target.value)}
                       name="gcnSummaryLocalizationSelect"
+                      className={classes.select}
                     >
                       {gcnEvent.localizations?.map((localization) => (
                         <MenuItem
@@ -567,6 +595,29 @@ const GcnSummary = ({ dateobs }) => {
                       }
                       label="Photometry in Window (only between start and end dates)"
                     />
+                  </div>
+                  <div>
+                    <InputLabel id="acknowledgmentSelectLabel">
+                      Acknowledgement
+                    </InputLabel>
+                    <Select
+                      inputProps={{ MenuProps: { disableScrollLock: true } }}
+                      labelId="acknowledgmentSelectLabel"
+                      value={selectedAcknowledgement || ""}
+                      onChange={(e) => onAcknowledgementSelectChange(e)}
+                      name="gcnSummaryAcknowledgementSelect"
+                      className={classes.select}
+                    >
+                      {acknowledgmentOptions?.map((acknowledgment) => (
+                        <MenuItem
+                          value={acknowledgment}
+                          key={acknowledgment}
+                          className={classes.listItem}
+                        >
+                          {`${acknowledgment}`}
+                        </MenuItem>
+                      ))}
+                    </Select>
                   </div>
                   <div className={classes.buttons}>
                     <LoadingButton

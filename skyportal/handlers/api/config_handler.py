@@ -9,6 +9,7 @@ from ...enum_types import (
     default_spectrum_type,
     ALLOWED_SPECTRUM_TYPES,
     GCN_NOTICE_TYPES,
+    GCN_ACKNOWLEDGEMENTS,
     ALLOWED_ALLOCATION_TYPES,
 )
 
@@ -87,6 +88,7 @@ class ConfigHandler(BaseHandler):
                 "allowedSpectrumTypes": ALLOWED_SPECTRUM_TYPES,
                 "defaultSpectrumType": default_spectrum_type,
                 "gcnNoticeTypes": GCN_NOTICE_TYPES,
+                "gcnSummaryAcknowledgements": GCN_ACKNOWLEDGEMENTS,
                 "maxNumDaysUsingLocalization": MAX_NUM_DAYS_USING_LOCALIZATION,
                 "image_analysis": True if 'image_analysis' in cfg else False,
                 "allowedRecurringAPIMethods": ALLOWED_RECURRING_API_METHODS,
