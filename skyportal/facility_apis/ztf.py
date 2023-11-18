@@ -208,7 +208,13 @@ class ZTFRequest:
 
 
 def commit_photometry(
-    url, altdata, request_id, instrument_id, user_id, parent_session=None
+    url,
+    altdata,
+    request_id,
+    instrument_id,
+    user_id,
+    parent_session=None,
+    duplicates="error",
 ):
     """
     Commits ZTF forced photometry to the database
@@ -320,7 +326,11 @@ def commit_photometry(
         from skyportal.handlers.api.photometry import add_external_photometry
 
         if len(df.index) > 0:
-            add_external_photometry(data_out, request.requester)
+            ids, _ = add_external_photometry(
+                data_out, request.requester, duplicates=duplicates
+            )
+            if ids is None:
+                raise ValueError('Failed to commit photometry')
             request.status = "Photometry committed to database"
         else:
             request.status = "No photometry to commit to database"

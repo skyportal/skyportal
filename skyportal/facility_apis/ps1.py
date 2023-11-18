@@ -90,7 +90,11 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
         from skyportal.handlers.api.photometry import add_external_photometry
 
         if len(df.index) > 0:
-            add_external_photometry(data_out, request.requester)
+            ids, _ = add_external_photometry(
+                data_out, request.requester, duplicates="update"
+            )
+            if ids is None:
+                raise ValueError('Failed to commit photometry')
             request.status = "Photometry committed to database"
         else:
             request.status = "No photometry to commit to database"

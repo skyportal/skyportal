@@ -44,7 +44,7 @@ const airmassSpec = (url, ephemeris, titleFontSize, labelFontSize) => ({
   },
   transform: [
     {
-      calculate: "toDate(utcFormat(datum.time, '%Y-%m-%dT%H:%M:%S.%L'))",
+      calculate: "datetime(datum.time)",
       as: "formattedDate",
     },
   ],

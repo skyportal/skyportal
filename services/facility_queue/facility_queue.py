@@ -153,6 +153,7 @@ def service(queue):
                                         instrument.id,
                                         followup_request.requester.id,
                                         parent_session=session,
+                                        duplicates="update",
                                     )
                                     req.status = 'complete'
                                     session.add(req)
@@ -220,7 +221,12 @@ def service(queue):
                             ),
                         )
 
-                        if response.status_code == 200:
+                        if "Zero records returned" in str(response.text):
+                            log(
+                                "Found no records yet for this ZTF forced photometry account."
+                            )
+                            continue
+                        elif response.status_code == 200:
                             df_result = pd.read_html(response.text)[0]
                             df_result.rename(
                                 inplace=True,
@@ -300,13 +306,17 @@ def service(queue):
                                         instrument.id,
                                         followup_request.requester.id,
                                         parent_session=session,
+                                        duplicates="update",
                                     )
                                     req.status = 'complete'
                                     session.add(req)
                                     session.commit()
                                     log(f"Job with ID {req.id} completed")
-                                except Exception:
-                                    status = 'In progress: Light curve not yet available. Waiting for it to complete.'
+                                except Exception as e:
+                                    if 'Failed to commit photometry' in str(e):
+                                        status = f'error: {str(e)}'
+                                    else:
+                                        status = 'In progress: Light curve not yet available. Waiting for it to complete.'
                                     if followup_request.status != status:
                                         followup_request.status = status
                                         session.add(followup_request)
