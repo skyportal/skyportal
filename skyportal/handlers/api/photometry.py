@@ -900,7 +900,7 @@ def add_external_photometry(json, user, parent_session=None, duplicates="update"
             )
 
             id_map = {}
-
+            id_map_no_update_needed = {}
             for df_index, duplicate in duplicated_photometry:
                 id_map[df_index] = duplicate.id
 
@@ -910,6 +910,7 @@ def add_external_photometry(json, user, parent_session=None, duplicates="update"
                 duplicate_group_ids = {g.id for g in duplicate.groups}
                 duplicate_stream_ids = {s.id for s in duplicate.streams}
 
+                updated = False
                 # posting to new groups?
                 if len(set(group_ids) - duplicate_group_ids) > 0:
                     # select old + new groups
@@ -926,6 +927,7 @@ def add_external_photometry(json, user, parent_session=None, duplicates="update"
                     log(
                         f'Adding groups {group_ids_update} to photometry {duplicate.id}'
                     )
+                    updated = True
 
                 # posting to new streams?
                 if stream_ids:
@@ -941,7 +943,16 @@ def add_external_photometry(json, user, parent_session=None, duplicates="update"
                         log(
                             f'Adding streams {stream_ids_update} to photometry {duplicate.id}'
                         )
+                        updated = True
 
+                if updated:
+                    id_map_no_update_needed[df_index] = duplicate.id
+
+            if duplicates in ["update"] and len(id_map_no_update_needed) > 0:
+                # log that we didn't update these photometry points
+                log(
+                    f'A total of (len{id_map_no_update_needed}) duplicate photometry points did not need to be updated: {id_map_no_update_needed.values()}'
+                )
             # now safely drop the duplicates:
             new_photometry = df.loc[new_photometry_df_idxs]
             log(
