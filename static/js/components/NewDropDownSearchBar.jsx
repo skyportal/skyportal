@@ -52,5 +52,3 @@ InstrumentSearchBar.defaultProps = {
 };
 
 export default InstrumentSearchBar;
-
-
