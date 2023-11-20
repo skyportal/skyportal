@@ -76,3 +76,8 @@ def test_reprioritize_followup_request(
     assert status == 200
 
     assert data['data']["payload"]["priority"] == 5
+
+    # delete the event
+    status, data = api(
+        'DELETE', 'gcn_event/2019-04-25T08:18:05', token=super_admin_token
+    )

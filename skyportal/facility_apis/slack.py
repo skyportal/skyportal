@@ -7,6 +7,7 @@ from astropy import units as u
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 
 from ..app_utils import get_app_base_url
 from ..utils import http
@@ -92,7 +93,7 @@ class SLACKAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session):
+    def submit(request, session, **kwargs):
         """Submit a follow-up request to SLACK.
 
         Parameters
@@ -142,6 +143,51 @@ class SLACKAPI(FollowUpAPI):
         )
 
         session.add(transaction)
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
+
+    @staticmethod
+    def delete(request, session, **kwargs):
+        from ..models import FollowupRequest
+
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
+
+        if len(request.transactions) == 0:
+            session.query(FollowupRequest).filter(
+                FollowupRequest.id == request.id
+            ).delete()
+            session.commit()
+        else:
+            raise NotImplementedError(
+                "Can't delete requests already sent successfully to Slack."
+            )
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     def custom_json_schema(instrument, user):
 

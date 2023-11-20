@@ -494,7 +494,7 @@ class GroupUserHandler(BaseHandler):
             for stream in group.streams:
                 if stream.id not in user_streams:
                     return self.error(
-                        f'User with ID {user_id} does not have stream access with ID {stream.id}',
+                        f'User with ID {user_id} ({user.username}) does not have stream access with ID {stream.id} ({stream.name}). Please contact a super-admin to grant access.',
                         status=403,
                     )
 

@@ -3,12 +3,15 @@ import json
 import requests
 
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 from baselayer.app.flow import Flow
 
 from . import FollowUpAPI, Listener
 from ..utils import http
 
 env, cfg = load_env()
+
+log = make_log('facility_apis/sedm')
 
 
 class SEDMListener(Listener):
@@ -211,7 +214,7 @@ class SEDMAPI(FollowUpAPI):
             files={'jsonfile': ('jsonfile', content)},
         )
 
-        if r.status_code == 200:
+        if r.status_code == 200 and 'accepted' in r.content.decode().lower():
             request.status = 'submitted'
         else:
             request.status = f'rejected: {r.content}'
@@ -225,16 +228,22 @@ class SEDMAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if 'refresh_source' in kwargs and kwargs['refresh_source']:
+        if kwargs.get('refresh_source', False):
             flow = Flow()
             flow.push(
                 '*',
                 'skyportal/REFRESH_SOURCE',
                 payload={'obj_key': request.obj.internal_key},
             )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     @staticmethod
-    def delete(request, session):
+    def delete(request, session, **kwargs):
         """Delete a follow-up request from SEDM queue.
 
         Parameters
@@ -247,6 +256,9 @@ class SEDMAPI(FollowUpAPI):
 
         from ..models import FacilityTransaction
 
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
+
         payload = convert_request_to_sedm(request, method_value='delete')
         content = json.dumps(payload)
         r = requests.post(
@@ -254,8 +266,12 @@ class SEDMAPI(FollowUpAPI):
             files={'jsonfile': ('jsonfile', content)},
         )
 
-        r.raise_for_status()
-        request.status = "deleted"
+        if r.status_code == 200 and 'accepted' in r.content.decode().lower():
+            request.status = 'deleted'
+        elif "Rejected Deletion, ACTIVE" in r.content.decode().lower():
+            raise Exception("Cannot delete an active request. Data is being taken.")
+        else:
+            raise Exception(f"{r.content}")
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -267,14 +283,20 @@ class SEDMAPI(FollowUpAPI):
         session.add(transaction)
 
         flow = Flow()
-        flow.push(
-            '*',
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': request.obj.internal_key},
-        )
+        if kwargs.get('refresh_source', False):
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow.push(
+                last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     @staticmethod
-    def update(request, session):
+    def update(request, session, **kwargs):
         """Update a request in the SEDM queue.
 
         Parameters
@@ -294,10 +316,12 @@ class SEDMAPI(FollowUpAPI):
             files={'jsonfile': ('jsonfile', content)},
         )
 
-        if r.status_code == 200:
+        if r.status_code == 200 and 'accepted' in r.content.decode().lower():
             request.status = 'submitted'
+        elif "Rejected Edit Deletion, ACTIVE" in r.content.decode().lower():
+            raise Exception("Cannot edit an active request. Data is being taken.")
         else:
-            request.status = f'rejected: {r.content}'
+            raise Exception(f"{r.content}")
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -309,11 +333,17 @@ class SEDMAPI(FollowUpAPI):
         session.add(transaction)
 
         flow = Flow()
-        flow.push(
-            '*',
-            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            payload={"obj_key": request.obj.internal_key},
-        )
+        if kwargs.get('refresh_source', False):
+            flow.push(
+                '*',
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow.push(
+                request.last_modified_by_id,
+                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            )
 
     @staticmethod
     def prepare_payload(payload, existing_payload=None):

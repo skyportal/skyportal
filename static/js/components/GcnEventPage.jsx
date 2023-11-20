@@ -191,8 +191,6 @@ const GcnEventPage = ({ route }) => {
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const dispatch = useDispatch();
-  const [selectedLocalizationName, setSelectedLocalizationName] =
-    useState(null);
   const currentUser = useSelector((state) => state.profile);
   const permission =
     currentUser.permissions?.includes("System admin") ||
@@ -347,13 +345,7 @@ const GcnEventPage = ({ route }) => {
                   {route?.dateobs === gcnEvent?.dateobs &&
                     route?.dateobs &&
                     gcnEvent?.localizations?.length > 0 && (
-                      <GcnSelectionForm
-                        dateobs={route.dateobs}
-                        selectedLocalizationName={selectedLocalizationName}
-                        setSelectedLocalizationName={
-                          setSelectedLocalizationName
-                        }
-                      />
+                      <GcnSelectionForm dateobs={route.dateobs} />
                     )}
                   {route?.dateobs && !gcnEvent?.dateobs && (
                     <p> Fetching event... </p>

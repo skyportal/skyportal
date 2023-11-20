@@ -1,103 +1,103 @@
+import datetime
+import functools
+import io
+import operator  # noqa: F401
+import time
+from json.decoder import JSONDecodeError
+
+import arrow
 import astropy
-from astropy.coordinates import EarthLocation
-from astropy.time import Time
+import astropy.units as u
+import conesearch_alchemy as ca
+import healpix_alchemy as ha
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import python_http_client.exceptions
+import sqlalchemy as sa
 from astroplan import (
     AirmassConstraint,
     AtNightConstraint,
     Observer,
     is_event_observable,
 )
-import datetime
-from json.decoder import JSONDecodeError
-import astropy.units as u
-from geojson import Point, Feature
-import python_http_client.exceptions
-from twilio.base.exceptions import TwilioException
-from tornado.ioloop import IOLoop
-import io
+from astropy.coordinates import EarthLocation
+from astropy.time import Time
 from dateutil.parser import isoparse
-import numpy as np
-import pandas as pd
-import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy import func, or_, distinct
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.sql.expression import cast
-import arrow
+from geojson import Feature, Point
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 from matplotlib import dates
-import matplotlib.pyplot as plt
-import operator  # noqa: F401
-import functools
-import conesearch_alchemy as ca
-import healpix_alchemy as ha
-import time
+from sqlalchemy import distinct, func, or_
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
+from sqlalchemy.sql.expression import cast
+from tornado.ioloop import IOLoop
+from twilio.base.exceptions import TwilioException
 
-from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
-from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
-from ...utils.thumbnail import post_thumbnails
-
-from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
-from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.flow import Flow
+from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
-from ..base import BaseHandler
 from ...models import (
     Allocation,
     Annotation,
+    ClassicalAssignment,
+    Classification,
     Comment,
-    GroupUser,
-    Instrument,
-    Obj,
-    User,
-    Source,
-    Thumbnail,
-    Token,
-    Photometry,
-    PhotometricSeries,
+    FollowupRequest,
     Galaxy,
     Group,
-    FollowupRequest,
-    ClassicalAssignment,
-    ObservingRun,
-    SourceNotification,
-    Classification,
-    Taxonomy,
+    GroupUser,
+    Instrument,
+    Listing,
     Localization,
     LocalizationTile,
-    Listing,
+    Obj,
     ObjAnalysis,
+    ObservingRun,
+    PhotometricSeries,
+    Photometry,
     PhotStat,
-    Spectrum,
+    Source,
     SourceLabel,
-    SourceView,
+    SourceNotification,
     SourcesConfirmedInGCN,
+    SourceView,
     SpatialCatalog,
     SpatialCatalogEntry,
     SpatialCatalogEntryTile,
+    Spectrum,
+    Taxonomy,
     Telescope,
+    Thumbnail,
     TNSRobot,
+    Token,
+    User,
 )
 from ...utils.offset import (
-    get_nearby_offset_stars,
-    facility_parameters,
-    source_image_parameters,
-    get_finding_chart,
     _calculate_best_position_for_offset_stars,
+    facility_parameters,
+    get_finding_chart,
+    get_nearby_offset_stars,
+    source_image_parameters,
 )
+from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
+from ...utils.thumbnail import post_thumbnails
 from ...utils.tns import post_tns
+from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
+from ..base import BaseHandler
 from .candidate import (
     grab_query_results,
+    update_healpix_if_relevant,
     update_redshift_history_if_relevant,
     update_summary_history_if_relevant,
-    update_healpix_if_relevant,
 )
-from .photometry import serialize, add_external_photometry
 from .color_mag import get_color_mag
+from .photometry import add_external_photometry, serialize
+from .sources import get_sources as get_sources_experimental
 
 DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
@@ -503,7 +503,9 @@ async def get_sources(
     first_detected_date=None,
     last_detected_date=None,
     has_tns_name=False,
+    has_no_tns_name=False,  # not implemented here
     has_spectrum=False,
+    has_no_spectrum=False,  # not implemented here
     has_followup_request=False,
     has_been_labelled=False,
     has_not_been_labelled=False,
@@ -558,6 +560,9 @@ async def get_sources(
     save_summary=False,
     total_matches=None,
     includeGeoJSON=False,
+    use_cache=False,
+    query_id=None,
+    verbose=False,
 ):
     """Query multiple sources from database.
     user_id : int
@@ -566,6 +571,15 @@ async def get_sources(
         Database session for this transaction
     See Source Handler for optional arguments
     """
+
+    if has_no_tns_name:
+        raise NotImplementedError(
+            "hasNoTNSName is not implemented here yet, use experimental handler with useExperimentalSources=True"
+        )
+    if has_no_spectrum:
+        raise NotImplementedError(
+            "hasNoSpectrum is not implemented here yet, use experimental handler with useExperimentalSources=True"
+        )
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
@@ -1447,7 +1461,8 @@ async def get_sources(
                 include_thumbnails=False,
                 # include detection stats here as it is a query column,
                 include_detection_stats=include_detection_stats,
-                use_cache=True,
+                use_cache=use_cache,
+                query_id=query_id,
                 current_user=user,
             )
         except ValueError as e:
@@ -1563,7 +1578,7 @@ async def get_sources(
                 count_stmt = sa.select(func.count()).select_from(stmt.distinct())
                 total_spectrum = session.execute(count_stmt).scalar()
                 obj_list[-1]["spectrum_exists"] = total_spectrum > 0
-            if include_spectrum_exists:
+            if include_comment_exists:
                 stmt = Comment.select(session.user_or_token).where(
                     Comment.obj_id == obj.id
                 )
@@ -1588,6 +1603,7 @@ async def get_sources(
                         for period_str in period_str_options
                     ]
                 )
+
             if not remove_nested:
                 source_query = Source.select(session.user_or_token).where(
                     Source.obj_id == obj_list[-1]["id"]
@@ -1724,6 +1740,34 @@ def post_source(data, user_id, session, refresh_source=True):
             "Invalid group_ids field. Please specify at least "
             "one valid group ID that you belong to."
         )
+    # we use the ignore_if_in_group_ids field, to cancel saving to the specified group_ids if there is already a source
+    # saved to one of the ignore_if_in_group_ids
+    # ignore_if_in_group_ids is a dict, where each keys are the group_ids for which we want to specify groups to avoid
+    ignore_if_in_group_ids = {}
+    if 'ignore_if_in_group_ids' in data:
+        if not isinstance(data['ignore_if_in_group_ids'], dict):
+            raise AttributeError(
+                "Invalid ignore_if_in_group_ids field. Please specify a dict "
+                "of group_ids to ignore."
+            )
+        try:
+            ignore_if_in_group_ids = {
+                int(id): [int(gid) for gid in data['ignore_if_in_group_ids'][id]]
+                for id in data['ignore_if_in_group_ids']
+            }
+        except KeyError:
+            raise AttributeError(
+                "Invalid ignore_if_in_group_ids field. Please specify a dict "
+                "of group_ids to ignore."
+            )
+
+    # we verify that the ignore_if_in_group_ids are valid group_ids
+    if not set(ignore_if_in_group_ids).issubset(set(group_ids)):
+        raise AttributeError(
+            "Invalid ignore_if_in_group_ids field. Please specify a dict"
+            "which groups are in the group_ids field, and values are lists"
+            "of group_ids for which if there is a source, cancel saving to the associated group_id from the key"
+        )
 
     if not obj_already_exists:
         try:
@@ -1733,6 +1777,9 @@ def post_source(data, user_id, session, refresh_source=True):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
         session.add(obj)
+
+        # if the object doesn't exist, we can ignore the ignore_if_in_group_ids field
+        ignore_if_in_group_ids = {}
 
     if (ra is not None) and (dec is not None):
         # This adds a healpix index for a new object being created
@@ -1750,7 +1797,22 @@ def post_source(data, user_id, session, refresh_source=True):
 
     update_redshift_history_if_relevant(data, obj, user)
 
+    not_saved_to_group_ids = []
     for group in groups:
+        if len(list(ignore_if_in_group_ids.keys())) > 0:
+            existing_sources = session.scalars(
+                Source.select(user).where(
+                    Source.group_id.in_(ignore_if_in_group_ids[group.id]),
+                    Source.obj_id == obj.id,
+                    Source.active.is_(True),
+                )
+            ).all()
+            if len(existing_sources) > 0:
+                log(
+                    f"Not saving to group {group.id} because there is already a source saved to one or more of the ignore_if_in_group_ids: {ignore_if_in_group_ids[group.id]}"
+                )
+                not_saved_to_group_ids.append(group.id)
+                continue
         source = session.scalars(
             Source.select(user)
             .where(Source.obj_id == obj.id)
@@ -1779,6 +1841,8 @@ def post_source(data, user_id, session, refresh_source=True):
     session.commit()
 
     loop = None
+    # remove from groups that we didn't save to
+    groups = [group for group in groups if group.id not in not_saved_to_group_ids]
     for group in groups:
         tnsrobot = session.scalars(
             TNSRobot.select(user).where(
@@ -1800,6 +1864,10 @@ def post_source(data, user_id, session, refresh_source=True):
                     tnsrobot_id=tnsrobot.id,
                     user_id=user.id,
                     reporters=tnsrobot.auto_reporters,
+                    instrument_ids=[
+                        instrument.id for instrument in tnsrobot.auto_report_instruments
+                    ],
+                    stream_ids=[stream.id for stream in tnsrobot.auto_report_streams],
                     timeout=30,
                 ),
             )
@@ -1819,7 +1887,7 @@ def post_source(data, user_id, session, refresh_source=True):
                 '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
             )
 
-    return obj.id
+    return obj.id, list(set(group_ids) - set(not_saved_to_group_ids))
 
 
 def apply_active_or_requested_filtering(query, include_requested, requested_only):
@@ -2498,6 +2566,22 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to include associated GeoJSON. Defaults to
               false.
+          - in: query
+            name: useCache
+            nullable: true
+            schema:
+                type: boolean
+            description: |
+                Boolean indicating whether to use cached results. Defaults to
+                false.
+          - in: query
+            name: queryID
+            nullable: true
+            schema:
+                type: string
+            description: |
+                String to identify query. If provided, will be used to recover previous cached results
+                and speed up query. Defaults to None.
           responses:
             200:
               content:
@@ -2550,7 +2634,7 @@ class SourceHandler(BaseHandler):
         saved_before = self.get_query_argument('savedBefore', None)
         save_summary = self.get_query_argument('saveSummary', False)
         sort_by = self.get_query_argument("sortBy", None)
-        sort_order = self.get_query_argument("sortOrder", "asc")
+        sort_order = self.get_query_argument("sortOrder", "desc")
         include_comments = self.get_query_argument("includeComments", False)
         include_analyses = self.get_query_argument("includeAnalyses", False)
         include_photometry_exists = self.get_query_argument(
@@ -2595,6 +2679,7 @@ class SourceHandler(BaseHandler):
         min_latest_magnitude = self.get_query_argument("minLatestMagnitude", None)
         max_latest_magnitude = self.get_query_argument("maxLatestMagnitude", None)
         has_spectrum = self.get_query_argument("hasSpectrum", False)
+        has_no_spectrum = self.get_query_argument("hasNoSpectrum", False)
         has_spectrum_after = self.get_query_argument("hasSpectrumAfter", None)
         has_spectrum_before = self.get_query_argument("hasSpectrumBefore", None)
         has_followup_request = self.get_query_argument("hasFollowupRequest", False)
@@ -2617,6 +2702,10 @@ class SourceHandler(BaseHandler):
             "spatialCatalogEntryName", None
         )
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+
+        # optional, use caching
+        use_cache = self.get_query_argument("useCache", False)
+        query_id = self.get_query_argument("queryID", None)
 
         class Validator(Schema):
             saved_after = UTCTZnaiveDateTime(required=False, missing=None)
@@ -2712,11 +2801,21 @@ class SourceHandler(BaseHandler):
         alias = self.get_query_argument('alias', None)
         origin = self.get_query_argument('origin', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
+        has_no_tns_name = self.get_query_argument('hasNoTNSname', None)
         has_been_labelled = self.get_query_argument('hasBeenLabelled', False)
         has_not_been_labelled = self.get_query_argument('hasNotBeenLabelled', False)
         current_user_labeller = self.get_query_argument('currentUserLabeller', False)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
+
+        use_experimental = self.get_query_argument('useExperimentalSources', False)
+
+        method_get_sources = (
+            get_sources_experimental if use_experimental else get_sources
+        )
+
+        if not use_experimental and sort_by is None:
+            sort_order = "asc"
 
         if obj_id is not None:
             with self.Session() as session:
@@ -2755,7 +2854,7 @@ class SourceHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                query_results = await get_sources(
+                query_results = await method_get_sources(
                     self.associated_user_object.id,
                     session,
                     include_thumbnails=include_thumbnails,
@@ -2790,10 +2889,12 @@ class SourceHandler(BaseHandler):
                     alias=alias,
                     origin=origin,
                     has_tns_name=has_tns_name,
+                    has_no_tns_name=has_no_tns_name,
                     has_been_labelled=has_been_labelled,
                     has_not_been_labelled=has_not_been_labelled,
                     current_user_labeller=current_user_labeller,
                     has_spectrum=has_spectrum,
+                    has_no_spectrum=has_no_spectrum,
                     has_followup_request=has_followup_request,
                     followup_request_status=followup_request_status,
                     min_redshift=min_redshift,
@@ -2831,6 +2932,9 @@ class SourceHandler(BaseHandler):
                     save_summary=save_summary,
                     total_matches=total_matches,
                     includeGeoJSON=includeGeoJSON,
+                    use_cache=use_cache,
+                    query_id=query_id,
+                    verbose=True,
                 )
             except Exception as e:
                 return self.error(f'Cannot retrieve sources: {str(e)}')
@@ -2898,13 +3002,15 @@ class SourceHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                obj_id = post_source(
+                obj_id, saved_to_groups = post_source(
                     data,
                     self.associated_user_object.id,
                     session,
                     refresh_source=refresh_source,
                 )
-                return self.success(data={"id": obj_id})
+                return self.success(
+                    data={"id": obj_id, "saved_to_groups": saved_to_groups}
+                )
             except Exception as e:
                 return self.error(f'Failed to post source: {str(e)}')
 

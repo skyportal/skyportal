@@ -78,9 +78,8 @@ const CompactCommentList = ({
         name={`commentDiv${(spectrum_id ? "Spectrum" : "Source") + id}`}
       >
         <ReactMarkdown
-          escapeHtml={false}
           className={commentMessageStyle}
-          renderers={{ text: emojiSupport }}
+          components={{ text: emojiSupport }}
         >
           {renderCommentText()}
         </ReactMarkdown>

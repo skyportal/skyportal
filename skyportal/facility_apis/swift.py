@@ -16,6 +16,7 @@ from tornado.ioloop import IOLoop
 
 from . import FollowUpAPI, MMAAPI
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
@@ -375,7 +376,7 @@ class UVOTXRTAPI(FollowUpAPI):
     """An interface to Swift operations."""
 
     @staticmethod
-    def get(request, session):
+    def get(request, session, **kwargs):
 
         """Get an analysis request result from Swift.
 
@@ -452,6 +453,20 @@ class UVOTXRTAPI(FollowUpAPI):
 
             IOLoop.current().run_in_executor(None, download_obs)
 
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
+
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
@@ -521,14 +536,30 @@ class UVOTXRTAPI(FollowUpAPI):
         elif request.payload["request_type"] == "XRT/UVOT/BAT Data":
             swiftreq = UVOTXRTBATDataRequest(request)
             request.status = f'Number of observations: {len(swiftreq.requestgroup)}'
+        else:
+            raise ValueError('Invalid request type.')
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     form_json_schema = {
         "type": "object",
         "properties": {
             "request_type": {
                 "type": "string",
-                "enum": ["XRT/UVOT ToO", "XRT API", "XRT/UVOT/BAT Data"],
-                "default": "XRT/UVOT ToO",
+                "enum": ["XRT/UVOT/BAT Data", "XRT/UVOT ToO", "XRT API"],
+                "default": "XRT/UVOT/BAT Data",
                 "title": "Request Type",
             },
         },

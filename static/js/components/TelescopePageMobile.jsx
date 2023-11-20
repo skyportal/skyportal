@@ -84,6 +84,20 @@ const TelescopeList = ({ telescopes }) => {
   );
 };
 
+TelescopeList.propTypes = {
+  telescopes: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      name: PropTypes.string.isRequired,
+      nickname: PropTypes.string.isRequired,
+      lat: PropTypes.number,
+      lon: PropTypes.number,
+      elevation: PropTypes.number,
+      is_night_astronomical: PropTypes.bool.isRequired,
+    })
+  ).isRequired,
+};
+
 const TelescopePage = () => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const currentUser = useSelector((state) => state.profile);
@@ -111,20 +125,6 @@ const TelescopePage = () => {
       )}
     </Grid>
   );
-};
-
-TelescopeList.propTypes = {
-  telescopes: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.number.isRequired,
-      name: PropTypes.string.isRequired,
-      nickname: PropTypes.string.isRequired,
-      lat: PropTypes.number.isRequired,
-      lon: PropTypes.number.isRequired,
-      elevation: PropTypes.number.isRequired,
-      is_night_astronomical: PropTypes.bool.isRequired,
-    })
-  ).isRequired,
 };
 
 export default TelescopePage;

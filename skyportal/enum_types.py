@@ -101,6 +101,11 @@ WEBHOOK_STATUS_TYPES = (
     'cancelled',
     'timed_out',
 )
+ALLOWED_ALLOCATION_TYPES = (
+    "triggered",
+    "forced_photometry",
+    "observation_plan",
+)
 allowed_webbook_status_types = sa.Enum(
     *WEBHOOK_STATUS_TYPES, name='webhookstatustypes', validate_strings=True
 )
@@ -115,6 +120,10 @@ allowed_analysis_input_types = sa.Enum(
 
 allowed_external_authentication_types = sa.Enum(
     *AUTHENTICATION_TYPES, name='authenticationtypes', validate_strings=True
+)
+
+allowed_allocation_types = sa.Enum(
+    *ALLOWED_ALLOCATION_TYPES, name='allocationtypes', validate_strings=True
 )
 
 allowed_spectrum_types = sa.Enum(
@@ -193,6 +202,10 @@ sqla_enum_types = [
 ]
 
 GCN_NOTICE_TYPES = tuple(cfg.get('gcn.notice_types', []))
+GCN_ACKNOWLEDGEMENTS = tuple(
+    text.strip('"') if text is not None else text
+    for text in cfg.get('gcn.summary.acknowledgements', [])
+)
 
 COLOR_PALETTE = [
     "#30123b",

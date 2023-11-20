@@ -9,7 +9,6 @@ import Box from "@mui/material/Box";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import emoji from "emoji-dictionary";
-import LoadingButton from "@mui/lab/LoadingButton";
 import { showNotification } from "baselayer/components/Notifications";
 
 import Typography from "@mui/material/Typography";
@@ -204,14 +203,14 @@ const SummarySearch = () => {
       alignItems="center"
       justifyContent="center"
     >
-      <Grid item sx={12}>
+      <Grid item xs={12}>
         <div className={classes.source}>
           <Typography variant="h6" gutterBottom>
             Summary Search
           </Typography>
         </div>
       </Grid>
-      <Grid item sx={8}>
+      <Grid item xs={8}>
         <Paper elevation={1}>
           <Form
             schema={formSchema}
@@ -224,17 +223,15 @@ const SummarySearch = () => {
             customValidate={validate}
           >
             <div className={classes.buttons}>
-              <LoadingButton
-                loading={runningQuery}
+              <Button
                 disabled={runningQuery}
-                loadingPosition="end"
                 variant="contained"
                 className={classes.button}
                 type="submit"
-                primary
+                color="primary"
               >
                 Submit
-              </LoadingButton>
+              </Button>
               <Button
                 secondary
                 disabled={runningQuery}
@@ -247,7 +244,7 @@ const SummarySearch = () => {
           </Form>
         </Paper>
       </Grid>
-      <Grid item sx={12}>
+      <Grid item xs={12}>
         {runningQuery && (
           <div
             style={{

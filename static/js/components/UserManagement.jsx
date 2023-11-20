@@ -328,9 +328,15 @@ const UserManagement = () => {
   };
 
   const handleEditUserExpirationDate = async (formData) => {
+    if (!dayjs.utc(formData.date).isValid()) {
+      dispatch(
+        showNotification("Invalid date. Please use MM/DD/YYYY format.", "error")
+      );
+      return;
+    }
     const result = await dispatch(
       usersActions.patchUser(clickedUser.id, {
-        expirationDate: formData.date.format("YYYY/MM/DD"),
+        expirationDate: dayjs.utc(formData.date).toISOString(),
       })
     );
     if (result.status === "success") {
@@ -406,10 +412,9 @@ const UserManagement = () => {
   };
 
   const renderRolesHeader = () => (
-    <>
+    <div style={{ display: "flex", alignItems: "center" }}>
       Roles
       <Tooltip
-        interactive
         title={
           <>
             <b>Each role is associated with the following ACLs:</b>
@@ -425,7 +430,7 @@ const UserManagement = () => {
       >
         <HelpIcon color="disabled" size="small" className={classes.icon} />
       </Tooltip>
-    </>
+    </div>
   );
 
   const renderACLs = (dataIndex) => {
@@ -458,10 +463,9 @@ const UserManagement = () => {
   };
 
   const renderACLsHeader = () => (
-    <>
+    <div style={{ display: "flex", alignItems: "center" }}>
       ACLs
       <Tooltip
-        interactive
         title={
           <>
             <p>
@@ -473,7 +477,7 @@ const UserManagement = () => {
       >
         <HelpIcon color="disabled" size="small" className={classes.icon} />
       </Tooltip>
-    </>
+    </div>
   );
 
   const renderAffiliations = (dataIndex) => {
@@ -506,10 +510,9 @@ const UserManagement = () => {
   };
 
   const renderAffiliationsHeader = () => (
-    <>
+    <div style={{ display: "flex", alignItems: "center" }}>
       Affiliations
       <Tooltip
-        interactive
         title={
           <>
             <p>
@@ -521,7 +524,7 @@ const UserManagement = () => {
       >
         <HelpIcon color="disabled" size="small" className={classes.icon} />
       </Tooltip>
-    </>
+    </div>
   );
 
   const renderGroups = (dataIndex) => {
@@ -608,10 +611,9 @@ const UserManagement = () => {
   };
 
   const renderExpirationDateHeader = () => (
-    <>
+    <div style={{ display: "flex", alignItems: "center" }}>
       Expiration Date
       <Tooltip
-        interactive
         title={
           <>
             This is the expiration date assigned to the new user account. On
@@ -622,7 +624,7 @@ const UserManagement = () => {
       >
         <HelpIcon color="disabled" size="small" className={classes.icon} />
       </Tooltip>
-    </>
+    </div>
   );
 
   const handleFilterSubmit = async (formData) => {
@@ -1196,15 +1198,10 @@ const UserManagement = () => {
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DatePicker
                     value={value}
-                    onChange={(date) =>
-                      date ? onChange(dayjs.utc(date)) : onChange(date)
-                    }
+                    onChange={(newValue) => onChange(newValue)}
+                    slotProps={{ textField: { variant: "outlined" } }}
                     label="Expiration date (UTC)"
                     showTodayButton={false}
-                    renderInput={(params) => (
-                      /* eslint-disable-next-line react/jsx-props-no-spreading */
-                      <TextField id="expirationDatePicker" {...params} />
-                    )}
                   />
                 </LocalizationProvider>
               )}

@@ -11,19 +11,20 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from baselayer.app.models import (
-    join_model,
+    AccessibleIfUserMatches,
     Base,
+    CustomUserAccessControl,
     DBSession,
     User,
-    AccessibleIfUserMatches,
-    CustomUserAccessControl,
+    join_model,
     restricted,
 )
 
 from .group import Group, accessible_by_stream_members
-from .photometry import Photometry
-from .photometric_series import PhotometricSeries
 from .invitation import Invitation
+from .photometric_series import PhotometricSeries
+from .photometry import Photometry
+from .tns import TNSRobot
 
 
 class Stream(Base):
@@ -79,6 +80,15 @@ class Stream(Base):
         doc='Photometric series associated with this stream.',
     )
 
+    tnsrobots = relationship(
+        "TNSRobot",
+        secondary="stream_tnsrobots",
+        back_populates="auto_report_streams",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="TNS robots associated with this stream, used for auto-reporting.",
+    )
+
 
 def stream_delete_logic(cls, user_or_token):
     """Can only delete a stream from a user if none of the user's groups
@@ -124,3 +134,7 @@ StreamPhotometricSeries.__doc__ = "Join table mapping Streams to PhotometricSeri
 StreamPhotometricSeries.create = accessible_by_stream_members
 
 StreamInvitation = join_model('stream_invitations', Stream, Invitation)
+
+StreamTNSRobot = join_model("stream_tnsrobots", Stream, TNSRobot)
+StreamTNSRobot.__doc__ = "Join table mapping Streams to TNSRobots."
+StreamTNSRobot.create = accessible_by_stream_members

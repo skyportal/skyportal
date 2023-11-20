@@ -61,8 +61,8 @@ const NewDefaultObservationPlan = () => {
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [
-    instrumentObsplanFormParamsFetched,
-    setInstrumentObsplanFormParamsFetched,
+    fetchingInstrumentObsplanFormParams,
+    setFetchingInstrumentObsplanFormParams,
   ] = useState(false);
 
   const { instrumentList, instrumentObsplanFormParams } = useSelector(
@@ -88,15 +88,12 @@ const NewDefaultObservationPlan = () => {
 
     if (
       Object.keys(instrumentObsplanFormParams).length === 0 &&
-      !instrumentObsplanFormParamsFetched
+      !fetchingInstrumentObsplanFormParams
     ) {
-      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(
-        (response) => {
-          if (response.status === "success") {
-            setInstrumentObsplanFormParamsFetched(true);
-          }
-        }
-      );
+      setFetchingInstrumentObsplanFormParams(true);
+      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(() => {
+        setFetchingInstrumentObsplanFormParams(false);
+      });
     }
 
     // Don't want to reset everytime the component rerenders and
@@ -188,18 +185,21 @@ const NewDefaultObservationPlan = () => {
     instrumentObsplanFormParams[
       allocationLookUp[selectedAllocationId].instrument_id
     ];
-  formSchema.properties.default_plan_name = {
+
+  // make a copy
+  const formSchemaCopy = JSON.parse(JSON.stringify(formSchema));
+  formSchemaCopy.properties.default_plan_name = {
     default: "DEFAULT-PLAN-NAME",
     type: "string",
   };
 
   const keys_to_remove = ["start_date", "end_date", "queue_name"];
   keys_to_remove.forEach((key) => {
-    if (Object.keys(formSchema.properties).includes(key)) {
-      delete formSchema.properties[key];
+    if (Object.keys(formSchemaCopy.properties).includes(key)) {
+      delete formSchemaCopy.properties[key];
     }
-    if (formSchema.required.includes(key)) {
-      formSchema.required.splice(formSchema.required.indexOf(key), 1);
+    if (formSchemaCopy.required.includes(key)) {
+      formSchemaCopy.required.splice(formSchemaCopy.required.indexOf(key), 1);
     }
   });
 
@@ -249,7 +249,7 @@ const NewDefaultObservationPlan = () => {
       <div data-testid="observationplan-request-form">
         <div>
           <Form
-            schema={formSchema}
+            schema={formSchemaCopy}
             validator={validator}
             uiSchema={uiSchema}
             onSubmit={handleSubmit}

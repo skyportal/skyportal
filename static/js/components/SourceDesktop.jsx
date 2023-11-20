@@ -60,6 +60,7 @@ import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
 import Reminders from "./Reminders";
+import QuickSaveButton from "./QuickSaveSource";
 
 import SourcePlugins from "./SourcePlugins";
 
@@ -549,7 +550,11 @@ const SourceDesktop = ({ source }) => {
                 <div key="tns_name">
                   <a
                     key={source.tns_name}
-                    href={`https://www.wis-tns.org/object/${source.tns_name}`}
+                    href={`https://www.wis-tns.org/object/${
+                      source.tns_name.trim().includes(" ")
+                        ? source.tns_name.split(" ")[1]
+                        : source.tns_name
+                    }`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -654,6 +659,10 @@ const SourceDesktop = ({ source }) => {
           icon
         />
         <SourceSaveHistory groups={source.groups} />
+        <QuickSaveButton
+          sourceId={source.id}
+          alreadySavedGroups={source.groups?.map((g) => g.id)}
+        />
         <div className={classes.columnItem}>
           <ThumbnailList
             ra={source.ra}
@@ -808,38 +817,88 @@ const SourceDesktop = ({ source }) => {
 
         {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
         <div className={classes.columnItem}>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="followup-content"
-              id="followup-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Follow-up
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <div className={classes.followupContainer}>
-                <FollowupRequestForm
-                  obj_id={source.id}
-                  action="createNew"
-                  instrumentList={instrumentList}
-                  instrumentFormParams={instrumentFormParams}
-                />
-                <FollowupRequestLists
-                  followupRequests={source.followup_requests}
-                  instrumentList={instrumentList}
-                  instrumentFormParams={instrumentFormParams}
-                  totalMatches={source.followup_requests.length}
-                />
-                <AssignmentForm
-                  obj_id={source.id}
-                  observingRunList={observingRunList}
-                />
-                <AssignmentList assignments={source.assignments} />
-              </div>
-            </AccordionDetails>
-          </Accordion>
+          <div className={classes.columnItem}>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="followup-content"
+                id="followup-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Follow-up
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.followupContainer}>
+                  <FollowupRequestForm
+                    obj_id={source.id}
+                    action="createNew"
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                  />
+                  <FollowupRequestLists
+                    followupRequests={source.followup_requests}
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                    totalMatches={source.followup_requests.length}
+                  />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={classes.columnItem}>
+            <Accordion>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="followup-content"
+                id="forced-photometry-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Forced Photometry
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.followupContainer}>
+                  <FollowupRequestForm
+                    obj_id={source.id}
+                    action="createNew"
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                    requestType="forced_photometry"
+                  />
+                  <FollowupRequestLists
+                    followupRequests={source.followup_requests}
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                    totalMatches={source.followup_requests.length}
+                    requestType="forced_photometry"
+                  />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div className={classes.columnItem}>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="followup-content"
+                id="observing-run-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Assign Target to Observing Run
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.followupContainer}>
+                  <AssignmentForm
+                    obj_id={source.id}
+                    observingRunList={observingRunList}
+                  />
+                  <AssignmentList assignments={source.assignments} />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
         </div>
         <PhotometryTable
           obj_id={source.id}

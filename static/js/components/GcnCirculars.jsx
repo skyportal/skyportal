@@ -50,7 +50,7 @@ const GcnCirculars = ({ gcnEvent }) => {
 GcnCirculars.propTypes = {
   gcnEvent: PropTypes.shape({
     dateobs: PropTypes.string,
-    circulars: PropTypes.arrayOf(PropTypes.string),
+    circulars: PropTypes.objectOf(PropTypes.string),
   }).isRequired,
 };
 

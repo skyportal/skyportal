@@ -16,7 +16,7 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import Popover from "@mui/material/Popover";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
-import DatePicker from "@mui/lab/DatePicker";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
@@ -75,17 +75,29 @@ const InviteNewGroupUserForm = ({ group_id }) => {
     if (formState.role === "Full user") {
       admin = formState.admin;
     }
-    const result = await dispatch(
-      invitationsActions.inviteUser({
-        userEmail: formState.newUserEmail,
-        groupIDs: [group_id],
-        groupAdmin: [admin],
-        role: formState.role,
-        streamIDs: null,
-        canSave: [formState.canSave],
-        userExpirationDate: formState.userExpirationDate,
-      })
-    );
+    const data = {
+      userEmail: formState.newUserEmail,
+      groupIDs: [group_id],
+      groupAdmin: [admin],
+      role: formState.role,
+      streamIDs: null,
+      canSave: [formState.canSave],
+    };
+    if (formState.userExpirationDate?.length > 0) {
+      if (!dayjs.utc(formState.userExpirationDate).isValid()) {
+        dispatch(
+          showNotification(
+            "Invalid date. Please use MM/DD/YYYY format.",
+            "error"
+          )
+        );
+        return;
+      }
+      data.userExpirationDate = dayjs
+        .utc(formState.userExpirationDate)
+        .toISOString();
+    }
+    const result = await dispatch(invitationsActions.inviteUser(data));
     if (result.status === "success") {
       dispatch(
         showNotification(
@@ -109,7 +121,7 @@ const InviteNewGroupUserForm = ({ group_id }) => {
   const handleExpirationDateChange = (date) => {
     setFormState({
       ...formState,
-      userExpirationDate: date ? dayjs.utc(date) : date,
+      userExpirationDate: date,
     });
   };
 
@@ -155,12 +167,9 @@ const InviteNewGroupUserForm = ({ group_id }) => {
           <DatePicker
             value={formState.userExpirationDate}
             onChange={handleExpirationDateChange}
-            label="User expiration date (UTC)"
+            slotProps={{ textField: { variant: "outlined" } }}
+            label="Expiration date (UTC)"
             showTodayButton={false}
-            renderInput={(params) => (
-              /* eslint-disable-next-line react/jsx-props-no-spreading */
-              <TextField id="expirationDatePicker" {...params} />
-            )}
           />
         </LocalizationProvider>
         <IconButton

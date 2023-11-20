@@ -36,6 +36,7 @@ from skyportal.handlers.api import (
     IRSAQueryWISEHandler,
     VizierQueryHandler,
     DatalabQueryHandler,
+    PS1QueryHandler,
     DefaultFollowupRequestHandler,
     DefaultObservationPlanRequestHandler,
     DefaultSurveyEfficiencyRequestHandler,
@@ -473,6 +474,7 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/irsa', IRSAQueryWISEHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/vizier', VizierQueryHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/datalab', DatalabQueryHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/ps1', PS1QueryHandler),
     (
         r'/api/(sources|spectra|photometry)(/[0-9A-Za-z-_\.\+]+)/annotations',
         AnnotationHandler,

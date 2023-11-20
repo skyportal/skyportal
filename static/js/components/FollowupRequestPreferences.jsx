@@ -42,7 +42,7 @@ const FollowupRequestPreferences = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (defaultAllocationId && selectedAllocationId === -1) {
+    if (defaultAllocationId) {
       setSelectedAllocationId(defaultAllocationId);
     } else {
       setSelectedAllocationId(-1);
@@ -112,7 +112,8 @@ const FollowupRequestPreferences = () => {
         >
           {allocationListApiClassnameOptions?.map(
             (allocation) =>
-              instLookUp[allocation.instrument_id]?.telescope_id && (
+              (instLookUp[allocation.instrument_id]?.telescope_id ||
+                allocation.id === -1) && (
                 <MenuItem
                   value={allocation.id}
                   key={allocation.id}

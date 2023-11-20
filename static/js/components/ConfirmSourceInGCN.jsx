@@ -20,7 +20,7 @@ import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 
 import Button from "./Button";
 
-import * as SourceInGcnAction from "../ducks/confirmedsourcesingcn";
+import * as SourceInGcnAction from "../ducks/sourcesingcn";
 
 dayjs.extend(utc);
 
@@ -42,6 +42,7 @@ const defaultExplanationsReject = [
   "ROCK",
   "STELLAR",
   "AGN",
+  "BOGUS",
   "SpecReject",
 ];
 

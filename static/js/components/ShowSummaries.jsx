@@ -50,10 +50,7 @@ const ShowSummaries = ({ summaries = [] }) => {
       <div className={styles.compactContainer}>
         <Tooltip title="Latest Summary" placement="right-start">
           <div className={styles.compactWrap}>
-            <ReactMarkdown
-              escapeHtml={false}
-              components={{ text: emojiSupport }}
-            >
+            <ReactMarkdown components={{ text: emojiSupport }}>
               {renderCommentText()}
             </ReactMarkdown>
           </div>

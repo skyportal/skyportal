@@ -12,7 +12,7 @@ jobs:
     timeout-minutes: 120
     services:
       postgres:
-        image: postgres
+        image: postgres:14.9
         env:
           POSTGRES_USER: skyportal
           POSTGRES_PASSWORD: anything
@@ -36,12 +36,17 @@ jobs:
             "frontend_pt1",
             "frontend_pt2",
             "flaky",
+            "external",
           ]
 
     steps:
-      - uses: actions/setup-python@v1
+      - uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: "3.10"
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
 
       - name: Checkout main
         uses: actions/checkout@v2
@@ -88,9 +93,7 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-
-          sudo apt install -y wget nodejs unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
+          sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
           pip install pip==23.1.2
           pip install wheel numpy
@@ -158,7 +161,7 @@ jobs:
           make dependencies
 
       - name: Formatting and linting checks
-        if: ${{ github.ref != 'refs/heads/main' && matrix.test_subset == 'api_and_utils' }}
+        if: github.ref != 'refs/heads/main'
         run: |
           pip install pre-commit
           pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
@@ -174,12 +177,12 @@ jobs:
       - name: Run front-end tests part 1
         if: ${{ matrix.test_subset == 'frontend_pt1' }}
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/frontend/sources_and_followup_etc'
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/frontend/sources_and_observingruns_etc'
 
       - name: Run front-end tests part 2
         if: ${{ matrix.test_subset == 'frontend_pt2' }}
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '--ignore=skyportal/tests/frontend/sources_and_followup_etc skyportal/tests/frontend'
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '--ignore=skyportal/tests/frontend/sources_and_observingruns_etc skyportal/tests/frontend'
 
       - name: Run API & utils tests part 1
         if: ${{ matrix.test_subset == 'api_and_utils_pt1' }}
@@ -196,6 +199,12 @@ jobs:
         continue-on-error: true
         run: |
           PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/flaky'
+
+      - name: Run external tests
+        if: ${{ matrix.test_subset == 'external' }}
+        continue-on-error: true
+        run: |
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/external'
 
       - name: Upload logs
         uses: actions/upload-artifact@v2

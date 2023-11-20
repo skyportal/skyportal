@@ -1120,8 +1120,11 @@ const CandidateList = () => {
           key: {
             type: "string",
             title: "Key",
-            enum: fields?.map((field) => `${origin}<>${Object.keys(field)[0]}`),
-            enumNames: fields?.map((field) => Object.keys(field)[0]),
+            anyOf: fields?.map((field) => ({
+              enum: [`${origin}<>${Object.keys(field)[0]}`],
+              type: "string",
+              title: Object.keys(field)[0],
+            })),
           },
         },
       };

@@ -682,21 +682,9 @@ gcn:
     - MAXI_UNKNOWN
   reject_tags: # reject notices with these tags (optional)
     - MDC
-
-  observation_plans:
-    - allocation-proposal_id: ZTF-001
-      payload:
-        filter_strategy: block
-        schedule_type: greedy_slew
-        schedule_strategy: tiling
-        galaxy_catalog: CLU_mini
-        exposure_time: 300
-        filters: ztfg,ztfr,ztfg
-        maximum_airmass: 2
-        integrated_probability: 90
-        minimum_time_difference: 30
-        program_id: Partnership
-        subprogram_name: GRB
+  summary:
+    acknowledgements:
+      - The SkyPortal project acknowledges the generous support of The Gordon and Betty Moore Foundation.
 
 health_monitor:
   seconds_between_checks: 30.5

@@ -19,6 +19,8 @@ const useStyles = makeStyles(() => ({
 const EditFollowupRequestDialog = ({
   followupRequest,
   instrumentFormParams,
+  requestType,
+  serverSide,
 }) => {
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
@@ -38,30 +40,42 @@ const EditFollowupRequestDialog = ({
       obj_id: followupRequest.obj_id,
       payload: formData,
     };
+    if (serverSide) {
+      json.refreshRequests = true;
+    }
     dispatch(Actions.editFollowupRequest(json, followupRequest.id));
     handleClose();
   };
 
-  // Since we are editing exsiting follow-up requests,
+  // Since we are editing existing follow-up requests,
   // it makes more sense to set default form values to current request data
-  const { formSchema } =
+  const { formSchema, formSchemaForcedPhotometry } =
     instrumentFormParams[followupRequest.allocation.instrument.id];
-  Object.keys(formSchema.properties).forEach((key) => {
+
+  let formCopy;
+  // make a copy of the formSchema, so we can modify it
+  if (requestType === "triggered") {
+    formCopy = JSON.parse(JSON.stringify(formSchema));
+  } else {
+    formCopy = JSON.parse(JSON.stringify(formSchemaForcedPhotometry));
+  }
+
+  Object.keys(formCopy.properties).forEach((key) => {
     // Set the form value for "key" to the value in the existing request's
     // payload, which is the form data sent to the external follow-up API
     if (followupRequest.payload[key]) {
-      formSchema.properties[key].default = followupRequest.payload[key];
+      formCopy.properties[key].default = followupRequest.payload[key];
     }
   });
 
   // we do the same for formSchema.dependencies, where each key is a value that has dependencies, under a key called "oneOf"
   // in the oneOf.properties, if any key isnt in formSchema.properties, we set the their default value to the value in the existing request's payload
-  if (formSchema?.dependencies) {
-    Object.keys(formSchema.dependencies).forEach((key) => {
-      formSchema.dependencies[key].oneOf.forEach((oneOf) => {
+  if (formCopy?.dependencies) {
+    Object.keys(formCopy.dependencies).forEach((key) => {
+      formCopy.dependencies[key].oneOf.forEach((oneOf) => {
         Object.keys(oneOf.properties).forEach((oneOfKey) => {
           if (
-            !formSchema.properties[oneOfKey] &&
+            !formCopy.properties[oneOfKey] &&
             followupRequest.payload[oneOfKey]
           ) {
             oneOf.properties[oneOfKey].default =
@@ -98,7 +112,7 @@ const EditFollowupRequestDialog = ({
       <Dialog open={open} onClose={handleClose} className={classes.dialog}>
         <DialogContent>
           <Form
-            schema={formSchema}
+            schema={formCopy}
             validator={validator}
             uiSchema={
               instrumentFormParams[followupRequest.allocation.instrument.id]
@@ -140,6 +154,13 @@ EditFollowupRequestDialog.propTypes = {
     uiSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
     implementedMethods: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
   }).isRequired,
+  requestType: PropTypes.string,
+  serverSide: PropTypes.bool,
+};
+
+EditFollowupRequestDialog.defaultProps = {
+  requestType: "triggered",
+  serverSide: false,
 };
 
 export default EditFollowupRequestDialog;

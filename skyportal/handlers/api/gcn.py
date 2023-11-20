@@ -1641,18 +1641,22 @@ class GcnEventHandler(BaseHandler):
                 schema: Error
         """
         with self.Session() as session:
-            event = session.scalars(
-                GcnEvent.select(session.user_or_token, mode="delete").where(
-                    GcnEvent.dateobs == dateobs
-                )
-            ).first()
-            if event is None:
-                return self.error("GCN event not found", status=404)
+            try:
+                event = session.scalars(
+                    GcnEvent.select(session.user_or_token, mode="delete").where(
+                        GcnEvent.dateobs == dateobs
+                    )
+                ).first()
+                if event is None:
+                    return self.error("GCN event not found", status=404)
 
-            session.delete(event)
-            session.commit()
+                session.delete(event)
+                session.commit()
 
-            return self.success()
+                return self.success()
+            except Exception as e:
+                session.rollback()
+                return self.error(f"Cannot delete event: {e}")
 
 
 def add_tiles_and_properties_and_contour(
@@ -1856,24 +1860,6 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
         user = session.scalar(sa.select(User).where(User.id == user_id))
         localization = session.query(Localization).get(localization_id)
         dateobs = localization.dateobs
-        config_gcn_observation_plans_all = [
-            observation_plan for observation_plan in cfg["gcn.observation_plans"]
-        ]
-        config_gcn_observation_plans = []
-        for config_gcn_observation_plan in config_gcn_observation_plans_all:
-            allocation = session.scalars(
-                Allocation.select(user).where(
-                    Allocation.proposal_id
-                    == config_gcn_observation_plan["allocation-proposal_id"]
-                )
-            ).first()
-            if allocation is not None:
-                allocation_id = allocation.id
-                config_gcn_observation_plan["allocation_id"] = allocation_id
-                config_gcn_observation_plan["survey_efficiencies"] = []
-                config_gcn_observation_plans.append(config_gcn_observation_plan)
-            else:
-                allocation_id = None
 
         default_observation_plans = (
             session.scalars(DefaultObservationPlanRequest.select(user)).unique().all()
@@ -1887,7 +1873,6 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                 'default': plan.id,
             }
             gcn_observation_plans.append(gcn_observation_plan)
-        gcn_observation_plans = gcn_observation_plans + config_gcn_observation_plans
 
         event = session.scalars(
             GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
@@ -2222,6 +2207,7 @@ def nb_obs_to_word(nb_obs):
 def add_gcn_summary(
     summary_id,
     user_id,
+    user_accessible_group_ids,
     dateobs,
     title,
     number,
@@ -2241,6 +2227,7 @@ def add_gcn_summary(
     photometry_in_window=True,
     stats_method='python',
     instrument_ids=None,
+    acknowledgements=None,
 ):
     if Session.registry.has():
         session = Session()
@@ -2292,7 +2279,7 @@ def add_gcn_summary(
             if len(user_ids) > 0:
                 users = []
                 for mentioned_user_id in user_ids:
-                    mentioned_user = User.query.get(mentioned_user_id)
+                    mentioned_user = session.query(User).get(mentioned_user_id)
                     if mentioned_user is not None:
                         users.append(mentioned_user)
 
@@ -2337,7 +2324,7 @@ def add_gcn_summary(
                     user_id=user.id,
                     session=session,
                     group_ids=[group.id],
-                    user_accessible_group_ids=[g.id for g in user.accessible_groups],
+                    user_accessible_group_ids=user_accessible_group_ids,
                     first_detected_date=start_date,
                     last_detected_date=end_date,
                     localization_dateobs=dateobs,
@@ -2362,7 +2349,7 @@ def add_gcn_summary(
                     )
                 ).all()
 
-                ids, aliases, ras, decs, redshifts, status, explanation = (
+                ids, tns_name, ras, decs, redshifts, status, explanation = (
                     [],
                     [],
                     [],
@@ -2373,9 +2360,11 @@ def add_gcn_summary(
                 )
                 for source in sources:
                     ids.append(source['id'] if 'id' in source else None)
-                    aliases.append(source['alias'] if 'alias' in source else None)
-                    ras.append(np.round(source['ra'], 4) if 'ra' in source else None)
-                    decs.append(np.round(source['dec'], 4) if 'dec' in source else None)
+                    tns_name.append(
+                        source['tns_name'] if 'tns_name' in source else None
+                    )
+                    ras.append(np.round(source['ra'], 5) if 'ra' in source else None)
+                    decs.append(np.round(source['dec'], 5) if 'dec' in source else None)
                     redshift = source['redshift'] if 'redshift' in source else None
                     if 'redshift_error' in source and redshift is not None:
                         if source['redshift_error'] is not None:
@@ -2399,7 +2388,7 @@ def add_gcn_summary(
                 df = pd.DataFrame(
                     {
                         "id": ids,
-                        "alias": aliases,
+                        "tns": tns_name,
                         "ra": ras,
                         "dec": decs,
                         "redshift": redshifts,
@@ -2752,6 +2741,8 @@ def add_gcn_summary(
                 if len(observations_text) > 0:
                     contents.extend(observations_text)
 
+        if not no_text and acknowledgements is not None and len(acknowledgements) > 0:
+            contents.append("\n" + acknowledgements)
         gcn_summary.text = "\n".join(contents)
         session.commit()
 
@@ -2885,6 +2876,11 @@ class GcnSummaryHandler(BaseHandler):
               schema:
                 type: string
               description: List of instrument ids to include in the summary. Defaults to all instruments if not specified.
+            - in: body
+              name: acknowledgements
+              schema:
+                type: string
+              description: Acknowledgements to include in the summary.
 
           responses:
             200:
@@ -2923,6 +2919,7 @@ class GcnSummaryHandler(BaseHandler):
         photometry_in_window = data.get("photometryInWindow", False)
         stats_method = data.get("statsMethod", "python")
         instrument_ids = data.get("instrumentIds", None)
+        acknowledgements = data.get("acknowledgements", None)
 
         class Validator(Schema):
             start_date = UTCTZnaiveDateTime(required=False, missing=None)
@@ -3000,6 +2997,11 @@ class GcnSummaryHandler(BaseHandler):
             else:
                 user_ids = []
 
+            if acknowledgements is not None:
+                acknowledgements = acknowledgements.strip('"')
+                if len(acknowledgements) == 0:
+                    acknowledgements = None
+
         with self.Session() as session:
             stmt = GcnEvent.select(session.user_or_token).where(
                 GcnEvent.dateobs == dateobs
@@ -3039,6 +3041,9 @@ class GcnSummaryHandler(BaseHandler):
 
             summary_id = gcn_summary.id
             user_id = self.associated_user_object.id
+            user_accessible_group_ids = [
+                group.id for group in self.associated_user_object.accessible_groups
+            ]
 
             try:
                 IOLoop.current().run_in_executor(
@@ -3046,6 +3051,7 @@ class GcnSummaryHandler(BaseHandler):
                     lambda: add_gcn_summary(
                         summary_id=summary_id,
                         user_id=user_id,
+                        user_accessible_group_ids=user_accessible_group_ids,
                         dateobs=dateobs,
                         title=title,
                         number=number,
@@ -3065,6 +3071,7 @@ class GcnSummaryHandler(BaseHandler):
                         photometry_in_window=photometry_in_window,
                         stats_method=stats_method,
                         instrument_ids=instrument_ids,
+                        acknowledgements=acknowledgements,
                     ),
                 )
                 return self.success({"id": summary_id})
@@ -3238,6 +3245,7 @@ class GcnSummaryHandler(BaseHandler):
 def add_gcn_report(
     report_id,
     user_id,
+    user_accessible_group_ids,
     dateobs,
     group_id,
     start_date,
@@ -3259,6 +3267,7 @@ def add_gcn_report(
 
     try:
         user = session.query(User).get(user_id)
+        user_accessible_group_ids = [group.id for group in user.accessible_groups]
         session.user_or_token = user
 
         gcn_report = session.query(GcnReport).get(report_id)
@@ -3289,9 +3298,7 @@ def add_gcn_report(
                         user_id=user.id,
                         session=session,
                         group_ids=[group.id],
-                        user_accessible_group_ids=[
-                            g.id for g in user.accessible_groups
-                        ],
+                        user_accessible_group_ids=user_accessible_group_ids,
                         first_detected_date=start_date,
                         last_detected_date=end_date,
                         localization_dateobs=dateobs,
@@ -3677,6 +3684,9 @@ class GcnReportHandler(BaseHandler):
 
             report_id = gcn_report.id
             user_id = self.associated_user_object.id
+            user_accessible_group_ids = [
+                group.id for group in self.associated_user_object.accessible_groups
+            ]
 
             try:
                 IOLoop.current().run_in_executor(
@@ -3684,6 +3694,7 @@ class GcnReportHandler(BaseHandler):
                     lambda: add_gcn_report(
                         report_id=report_id,
                         user_id=user_id,
+                        user_accessible_group_ids=user_accessible_group_ids,
                         dateobs=dateobs,
                         group_id=group_id,
                         start_date=start_date,

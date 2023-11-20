@@ -24,6 +24,7 @@ import { isBrowser, withOrientationChange } from "react-device-detect";
 import { WidthProvider } from "react-grid-layout";
 import { log10, abs, ceil } from "mathjs";
 import RemoveIcon from "@mui/icons-material/Remove";
+import QuickSaveButton from "./QuickSaveSource";
 import Button from "./Button";
 
 import CommentListMobile from "./CommentListMobile";
@@ -526,7 +527,11 @@ const SourceMobile = WidthProvider(
                         <div key="tns_name">
                           <a
                             key={source.tns_name}
-                            href={`https://www.wis-tns.org/object/${source.tns_name}`}
+                            href={`https://www.wis-tns.org/object/${
+                              source.tns_name.trim().includes(" ")
+                                ? source.tns_name.split(" ")[1]
+                                : source.tns_name
+                            }`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -632,6 +637,10 @@ const SourceMobile = WidthProvider(
                   icon
                 />
                 <SourceSaveHistory groups={source.groups} />
+                <QuickSaveButton
+                  sourceId={source.id}
+                  alreadySavedGroups={source.groups?.map((g) => g.id)}
+                />
               </div>
               <div className={classes.thumbnails}>
                 <ThumbnailList
@@ -914,6 +923,50 @@ const SourceMobile = WidthProvider(
                     instrumentFormParams={instrumentFormParams}
                     totalMatches={source.followup_requests.length}
                   />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+            <Accordion>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="followup-content"
+                id="forced-photometry-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Forced Photometry
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.followupContainer}>
+                  <FollowupRequestForm
+                    obj_id={source.id}
+                    action="createNew"
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                    requestType="forced_photometry"
+                  />
+                  <FollowupRequestLists
+                    followupRequests={source.followup_requests}
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                    totalMatches={source.followup_requests.length}
+                    requestType="forced_photometry"
+                  />
+                </div>
+              </AccordionDetails>
+            </Accordion>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="followup-content"
+                id="observing-run-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Assign Target to Observing Run
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.followupContainer}>
                   <AssignmentForm
                     obj_id={source.id}
                     observingRunList={observingRunList}

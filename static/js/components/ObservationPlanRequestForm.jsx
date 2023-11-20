@@ -181,11 +181,13 @@ FieldSelect.defaultProps = {
 };
 
 const ObservationPlanGlobe = ({
+  gcnEvent,
   loc,
   skymapInstrument,
   selectedFields,
   setSelectedFields,
   selectedProjection,
+  airmassValue = 2.5,
 }) => {
   const displayOptions = [
     "localization",
@@ -199,7 +201,9 @@ const ObservationPlanGlobe = ({
   );
   displayOptionsDefault.localization = true;
   displayOptionsDefault.instrument = true;
-  return !loc ? (
+  return !loc ||
+    gcnEvent?.localizations?.length === 0 ||
+    gcnEvent?.localizations?.find((l) => l.id === loc.id) === undefined ? (
     <CircularProgress />
   ) : (
     <LocalizationPlot
@@ -209,11 +213,19 @@ const ObservationPlanGlobe = ({
       selectedFields={selectedFields}
       setSelectedFields={setSelectedFields}
       projection={selectedProjection}
+      airmass_threshold={airmassValue}
     />
   );
 };
 
 ObservationPlanGlobe.propTypes = {
+  gcnEvent: PropTypes.shape({
+    localizations: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+      })
+    ),
+  }).isRequired,
   loc: PropTypes.shape({
     id: PropTypes.number,
     dateobs: PropTypes.string,
@@ -249,11 +261,13 @@ ObservationPlanGlobe.propTypes = {
   selectedFields: PropTypes.arrayOf(PropTypes.number).isRequired,
   setSelectedFields: PropTypes.func.isRequired,
   selectedProjection: PropTypes.string,
+  airmassValue: PropTypes.number,
 };
 
 ObservationPlanGlobe.defaultProps = {
   skymapInstrument: null,
   selectedProjection: "orthographic",
+  airmassValue: 2.5,
 };
 
 const MyObjectFieldTemplate = (props) => {
@@ -302,17 +316,24 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   const [skymapInstrument, setSkymapInstrument] = useState(null);
   const [selectedFields, setSelectedFields] = useState([]);
   const [multiPlansChecked, setMultiPlansChecked] = useState(false);
-  const [
-    instrumentObsplanFormParamsFetched,
-    setInstrumentObsplanFormParamsFetched,
-  ] = useState(false);
 
   const defaultAirmassTime = new Date(
     dayjs(gcnEvent?.dateobs).format("YYYY-MM-DDTHH:mm:ssZ")
   );
   const [airmassTime, setAirmassTime] = useState(defaultAirmassTime);
+  const [airmassValue, setAirmassValue] = useState(2.5);
   const [temporaryAirmassTime, setTemporaryAirmassTime] =
     useState(defaultAirmassTime);
+
+  const [fetchingLocalization, setFetchingLocalization] = useState(false);
+  const [
+    fetchingInstrumentObsplanFormParams,
+    setFetchingInstrumentObsplanFormParams,
+  ] = useState(false);
+  const [
+    fetchingAllocationListApiObsplan,
+    setFetchingAllocationListApiObsplan,
+  ] = useState(false);
 
   const { instrumentList, instrumentObsplanFormParams } = useSelector(
     (state) => state.instruments
@@ -350,19 +371,30 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
 
   useEffect(() => {
     const fetchSkymapInstrument = async () => {
+      setFetchingLocalization(true);
       dispatch(
         instrumentActions.fetchInstrumentSkymap(
           instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id,
           obsplanLoc,
           airmassTime.toJSON()
         )
-      ).then((response) => setSkymapInstrument(response.data));
+      ).then((response) => {
+        setSkymapInstrument(response.data);
+        setFetchingLocalization(false);
+      });
     };
     if (
-      instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id &&
       gcnEvent &&
+      instrumentList?.length > 0 &&
+      selectedAllocationId &&
       airmassTime &&
-      obsplanLoc
+      obsplanLoc &&
+      instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id &&
+      gcnEvent?.localizations?.length > 0 &&
+      (gcnEvent?.localizations || []).find(
+        (loc) => loc.id === obsplanLoc?.id
+      ) &&
+      fetchingLocalization === false
     ) {
       fetchSkymapInstrument();
     }
@@ -372,6 +404,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     obsplanLoc,
     selectedAllocationId,
     airmassTime,
+    instrumentList,
   ]);
 
   useEffect(() => {
@@ -394,7 +427,12 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
       // the new default form fields, so that the allocations list can
       // update
 
-      if (!allocationListApiObsplan || allocationListApiObsplan?.length === 0) {
+      if (
+        !allocationListApiObsplan ||
+        (allocationListApiObsplan?.length === 0 &&
+          !fetchingAllocationListApiObsplan)
+      ) {
+        setFetchingAllocationListApiObsplan(true);
         dispatch(allocationActions.fetchAllocationsApiObsplan()).then(
           (response) => {
             if (response.status !== "success") {
@@ -409,6 +447,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
             setSelectedAllocationId(data[0]?.id);
             setSelectedGroupIds([data[0]?.group_id]);
             setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
+            setFetchingAllocationListApiObsplan(false);
           }
         );
       } else if (
@@ -429,15 +468,12 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
 
     if (
       Object.keys(instrumentObsplanFormParams).length === 0 &&
-      !instrumentObsplanFormParamsFetched
+      !fetchingInstrumentObsplanFormParams
     ) {
-      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(
-        (response) => {
-          if (response.status === "success") {
-            setInstrumentObsplanFormParamsFetched(true);
-          }
-        }
-      );
+      setFetchingInstrumentObsplanFormParams(true);
+      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(() => {
+        setFetchingInstrumentObsplanFormParams(false);
+      });
     }
 
     // Don't want to reset everytime the component rerenders and
@@ -451,6 +487,11 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     setSelectedLocalizationId,
   ]);
 
+  // filter out the allocations that dont have "observaton_plan" in the types
+  const filteredAllocationListApiObsplan = allocationListApiObsplan.filter(
+    (allocation) => allocation.types.includes("observation_plan")
+  );
+
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if allocationListApiObsplan is not
@@ -461,6 +502,15 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     Object.keys(instrumentObsplanFormParams).length === 0
   ) {
     return <h3>No allocations with an observation plan API...</h3>;
+  }
+
+  if (filteredAllocationListApiObsplan.length === 0) {
+    return (
+      <h3>
+        No allocations with an observation plan API and observation plan type
+        set...
+      </h3>
+    );
   }
 
   if (
@@ -575,11 +625,13 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
         <Grid container spacing={4} alignItems="center">
           <Grid item xs={12} sm={7} md={12}>
             <ObservationPlanGlobe
+              gcnEvent={gcnEvent}
               loc={obsplanLoc}
               skymapInstrument={skymapInstrument}
               selectedFields={selectedFields}
               setSelectedFields={setSelectedFields}
               selectedProjection={selectedProjection}
+              airmassValue={airmassValue}
             />
           </Grid>
           <Grid item xs={12} sm={5} md={12}>
@@ -609,9 +661,21 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                   </MenuItem>
                 ))}
               </Select>
-              <InputLabel id="airmassTimeSelectLabel">Airmass Time</InputLabel>
+              <InputLabel
+                id="airmassTimeSelectLabel"
+                style={{ marginBottom: "0.5rem" }}
+              >
+                Airmass Time
+              </InputLabel>
               <Grid container spacing={1} alignItems="center">
-                <Grid item>
+                <Grid
+                  item
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "3fr 1fr",
+                    gap: "0.2rem",
+                  }}
+                >
                   <LocalizationProvider dateAdapter={AdapterDateFns}>
                     <DateTimePicker
                       value={temporaryAirmassTime}
@@ -619,13 +683,26 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                       label="Time to compute airmass (UTC)"
                       showTodayButton={false}
                       ampm={useAMPM}
-                      renderInput={(params) => (
-                        /* eslint-disable-next-line react/jsx-props-no-spreading */
-                        <TextField id="airmassTimePicker" {...params} />
-                      )}
+                      slotProps={{ textField: { variant: "outlined" } }}
                       style={{ minWidth: "100%" }}
                     />
                   </LocalizationProvider>
+                  <TextField
+                    id="airmassThreshold"
+                    label="Threshold"
+                    type="number"
+                    value={airmassValue}
+                    onChange={(e) => setAirmassValue(e.target.value)}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                    inputProps={{
+                      step: 0.1,
+                      min: 1.0,
+                      max: 3.0,
+                    }}
+                    style={{ width: "100%" }}
+                  />
                 </Grid>
                 <Grid item>
                   <Button id="setAirmassSelect" onClick={() => setAirmass()}>
@@ -701,7 +778,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
             name="followupRequestAllocationSelect"
             className={classes.allocationSelect}
           >
-            {allocationListApiObsplan?.map((allocation) => (
+            {filteredAllocationListApiObsplan?.map((allocation) => (
               <MenuItem
                 value={allocation.id}
                 key={allocation.id}
@@ -794,6 +871,14 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                   ?.name
               }: ${plan.payload.queue_name}`}
               data-testid={`queueName_${plan.payload.queue_name}`}
+              onDelete={() => {
+                setPlanQueues(
+                  planQueues.filter(
+                    (queue) =>
+                      queue.payload.queue_name !== plan.payload.queue_name
+                  )
+                );
+              }}
             />
           ))}
         </div>

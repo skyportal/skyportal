@@ -6,6 +6,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import Tooltip from "@mui/material/Tooltip";
 
 const DisplayPhotStats = ({ photstats, display_header }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -15,15 +16,17 @@ const DisplayPhotStats = ({ photstats, display_header }) => {
       style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
     >
       {display_header ? <b>Photometry Statistics: </b> : ""}
-      <IconButton
-        data-testid="showPhotStatsIcon"
-        size="small"
-        onClick={() => {
-          setDialogOpen(true);
-        }}
-      >
-        <VisibilityIcon />
-      </IconButton>
+      <Tooltip title="Photometry Statistics">
+        <IconButton
+          data-testid="showPhotStatsIcon"
+          size="small"
+          onClick={() => {
+            setDialogOpen(true);
+          }}
+        >
+          <VisibilityIcon />
+        </IconButton>
+      </Tooltip>
       <Dialog
         open={dialogOpen}
         onClose={() => {
@@ -43,11 +46,12 @@ const DisplayPhotStats = ({ photstats, display_header }) => {
 };
 
 DisplayPhotStats.propTypes = {
-  photstats: PropTypes.shape(Object).isRequired,
+  photstats: PropTypes.shape(Object),
   display_header: PropTypes.bool,
 };
 
 DisplayPhotStats.defaultProps = {
+  photstats: {},
   display_header: true,
 };
 

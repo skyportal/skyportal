@@ -11,6 +11,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 import MUIDataTable from "mui-datatables";
 
+import UpdatePhotometry from "./UpdatePhotometry";
 import Button from "./Button";
 import * as Actions from "../ducks/photometry";
 
@@ -32,7 +33,7 @@ const isFloat = (x) =>
   typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
 
 const PhotometryTable = ({ obj_id, open, onClose }) => {
-  const { photometry } = useSelector((state) => state);
+  const photometry = useSelector((state) => state.photometry);
   let bodyContent = null;
 
   const classes = useStyles();
@@ -76,6 +77,26 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
           },
         },
       }));
+
+      const renderEdit = (dataIndex) => {
+        const phot = data[dataIndex];
+        return (
+          <div>
+            <div className={classes.actionButtons}>
+              <div>
+                <UpdatePhotometry phot={phot} />
+              </div>
+            </div>
+          </div>
+        );
+      };
+      columns.push({
+        name: "edit",
+        label: "Edit",
+        options: {
+          customBodyRenderLite: renderEdit,
+        },
+      });
 
       const renderDelete = (dataIndex) => {
         const phot = data[dataIndex];

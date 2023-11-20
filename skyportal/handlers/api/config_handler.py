@@ -8,17 +8,22 @@ from ...enum_types import (
     default_spectrum_type,
     ALLOWED_SPECTRUM_TYPES,
     GCN_NOTICE_TYPES,
+    GCN_ACKNOWLEDGEMENTS,
+    ALLOWED_ALLOCATION_TYPES,
     COLOR_PALETTE,
 )
 
 from .recurring_api import ALLOWED_RECURRING_API_METHODS
 from .source import MAX_NUM_DAYS_USING_LOCALIZATION
+from skyportal.utils.tns import TNS_INSTRUMENT_IDS
 
 from .photometry import BANDPASSES_COLORS
 
 from skyportal.models import cosmo
 
 _, cfg = load_env()
+
+TNS_INSTRUMENTS = list(TNS_INSTRUMENT_IDS.keys())
 
 
 class ConfigHandler(BaseHandler):
@@ -81,14 +86,17 @@ class ConfigHandler(BaseHandler):
                 "openai_summary_apikey_set": openai_summary_apikey_set,
                 "openai_summary_parameters": openai_summary_parameters,
                 "cosmoref": cosmo.__doc__,
+                "allowedAllocationTypes": ALLOWED_ALLOCATION_TYPES,
                 "allowedSpectrumTypes": ALLOWED_SPECTRUM_TYPES,
                 "defaultSpectrumType": default_spectrum_type,
                 "gcnNoticeTypes": GCN_NOTICE_TYPES,
+                "gcnSummaryAcknowledgements": GCN_ACKNOWLEDGEMENTS,
                 "maxNumDaysUsingLocalization": MAX_NUM_DAYS_USING_LOCALIZATION,
                 "image_analysis": True if 'image_analysis' in cfg else False,
                 "allowedRecurringAPIMethods": ALLOWED_RECURRING_API_METHODS,
                 "classificationsClasses": cfg["colors.classifications"],
                 "summary_sourcesClasses": cfg["colors.summary_sources"],
+                "tnsAllowedInstruments": TNS_INSTRUMENTS,
                 "gcnTagsClasses": cfg["colors.gcnTags"],
                 "colorPalette": COLOR_PALETTE,
                 "bandpassesColors": BANDPASSES_COLORS,

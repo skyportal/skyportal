@@ -31,18 +31,18 @@ log = make_log('tns_utils')
 # IDs here: https://www.wis-tns.org/api/values
 
 TNS_INSTRUMENT_IDS = {
-    'ALFOSC': 41,
-    'ASAS-SN': 195,
-    'ATLAS': [153, 159, 160, 255, 256, 167],
-    'DECam': 172,
-    'EFOSC2': 30,
-    'Gaia': 163,
-    'Goodman': 136,
-    'GOTO': [218, 264, 265, 266],
-    'PS1': [98, 154, 155, 257],
-    'SEDM': [149, 225],
-    'SPRAT': 156,
-    'ZTF': 196,
+    'alfosc': 41,
+    'asas-sn': 195,
+    'atlas': [153, 159, 160, 255, 256, 167],
+    'decam': 172,
+    'efosc2': 30,
+    'gaia': 163,
+    'goodman': 136,
+    'goto': [218, 264, 265, 266],
+    'ps1': [98, 154, 155, 257],
+    'sedm': [149, 225],
+    'sprat': 156,
+    'ztf': 196,
 }
 
 SNCOSMO_TO_TNSFILTER = {
@@ -247,6 +247,8 @@ def post_tns(
     reporters="",
     archival=False,
     archival_comment="",
+    instrument_ids=[],
+    stream_ids=[],
     timeout=2,
 ):
 
@@ -257,6 +259,8 @@ def post_tns(
         'reporters': reporters,
         'archival': archival,
         'archival_comment': archival_comment,
+        'instrument_ids': instrument_ids,
+        'stream_ids': stream_ids,
     }
 
     tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_submission_queue"]}'
@@ -316,7 +320,7 @@ def read_tns_photometry(photometry, session):
         raise ValueError(f'Cannot find TNS ID mapping for {tns_instrument_id}')
 
     instrument = session.scalars(
-        sa.select(Instrument).where(Instrument.name == inst_name)
+        sa.select(Instrument).where(sa.func.lower(Instrument.name) == inst_name)
     ).first()
     if instrument is None:
         raise ValueError(f'Cannot find instrument with name {inst_name}')
@@ -387,7 +391,7 @@ def read_tns_spectrum(spectrum, session):
         raise ValueError(f'Cannot find TNS ID mapping for {tns_instrument_id}')
 
     instrument = session.scalars(
-        sa.select(Instrument).where(Instrument.name == inst_name)
+        sa.select(Instrument).where(sa.func.lower(Instrument.name) == inst_name)
     ).first()
     if instrument is None:
         raise ValueError(f'Cannot find instrument with name {inst_name}')
@@ -409,8 +413,8 @@ def get_objects_from_soup(soup):
             if not {"public", "odd"}.issubset(set(row.attrs.get('class', []))):
                 continue
             name = str(
-                row.find('td', attrs={'class': 'cell-name'}).find('a').get("href")
-            ).split('/')[-1]
+                row.find('td', attrs={'class': 'cell-name'}).find('a').contents[0]
+            )
             ra = row.find('td', attrs={'class': 'cell-ra'}).text
             dec = row.find('td', attrs={'class': 'cell-decl'}).text
             if name is None or ra is None or dec is None:

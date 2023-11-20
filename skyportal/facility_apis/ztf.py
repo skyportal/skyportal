@@ -97,6 +97,9 @@ class ZTFRequest:
                     )
                 ).first()
 
+                if field is None:
+                    raise ValueError(f"Could not find field {field_id} in instrument.")
+
                 target = {
                     'request_id': cnt,
                     'program_id': program_id,
@@ -345,7 +348,7 @@ class ZTFAPI(FollowUpAPI):
     """An interface to ZTF operations."""
 
     @staticmethod
-    def delete(request, session):
+    def delete(request, session, **kwargs):
 
         """Delete a follow-up request from ZTF queue.
 
@@ -363,6 +366,9 @@ class ZTFAPI(FollowUpAPI):
             FacilityTransactionRequest,
         )
 
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
+
         # this happens for failed submissions
         # just go ahead and delete
         if len(request.transactions) == 0:
@@ -370,9 +376,7 @@ class ZTFAPI(FollowUpAPI):
                 FollowupRequest.id == request.id
             ).delete()
             session.commit()
-            return
-
-        if request.payload["request_type"] == "triggered":
+        elif request.payload["request_type"] == "triggered":
             altdata = request.allocation.altdata
             if not altdata:
                 raise ValueError('Missing allocation information.')
@@ -412,6 +416,23 @@ class ZTFAPI(FollowUpAPI):
                 session.delete(transaction)
             session.delete(request)
             session.commit()
+            log(f"Deleted request {request.id} from ZTF queue.")
+        else:
+            raise ValueError('Unknown request type.')
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
 
     # subclasses *must* implement the method below
     @staticmethod
@@ -526,91 +547,92 @@ class ZTFAPI(FollowUpAPI):
 
         session.add(transaction)
 
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
+
+    # split the form above (that has triggered, and forced_photometry) into two forms
     form_json_schema = {
         "type": "object",
         "properties": {
             "request_type": {
                 "type": "string",
-                "enum": ["triggered", "forced_photometry"],
+                "enum": ["triggered"],
                 "default": "triggered",
-                "title": "Request Type",
             },
-        },
-        "dependencies": {
-            "request_type": {
-                "oneOf": [
-                    {
-                        "properties": {
-                            "request_type": {
-                                "enum": ["triggered"],
-                            },
-                            "start_date": {
-                                "type": "string",
-                                "default": str(datetime.utcnow()).replace("T", ""),
-                                "title": "Start Date (UT)",
-                            },
-                            "end_date": {
-                                "type": "string",
-                                "title": "End Date (UT)",
-                                "default": str(
-                                    datetime.utcnow() + timedelta(days=1)
-                                ).replace("T", ""),
-                            },
-                            "program_id": {
-                                "type": "string",
-                                "enum": ["Partnership", "Caltech"],
-                                "default": "Partnership",
-                            },
-                            "subprogram_name": {
-                                "type": "string",
-                                "enum": [
-                                    "GW",
-                                    "GRB",
-                                    "Neutrino",
-                                    "SolarSystem",
-                                    "Other",
-                                ],
-                                "default": "GRB",
-                            },
-                            "exposure_time": {"type": "string", "default": "300"},
-                            "filters": {"type": "string", "default": "g,r,i"},
-                            "field_ids": {"type": "string", "default": "699,700"},
-                            "queue_name": {
-                                "type": "string",
-                                "default": datetime.utcnow(),
-                            },
-                        }
-                    },
-                    {
-                        "properties": {
-                            "request_type": {
-                                "enum": ["forced_photometry"],
-                            },
-                            "start_date": {
-                                "type": "string",
-                                "default": str(
-                                    datetime.utcnow() - timedelta(days=30)
-                                ).replace("T", ""),
-                                "title": "Start Date (UT)",
-                            },
-                            "end_date": {
-                                "type": "string",
-                                "title": "End Date (UT)",
-                                "default": str(datetime.utcnow()).replace("T", ""),
-                            },
-                        }
-                    },
-                ],
+            "start_date": {
+                "type": "string",
+                "default": str(datetime.utcnow()).replace("T", ""),
+                "title": "Start Date (UT)",
+            },
+            "end_date": {
+                "type": "string",
+                "title": "End Date (UT)",
+                "default": str(datetime.utcnow() + timedelta(days=1)).replace("T", ""),
+            },
+            "program_id": {
+                "type": "string",
+                "enum": ["Partnership", "Caltech"],
+                "default": "Partnership",
+            },
+            "subprogram_name": {
+                "type": "string",
+                "enum": ["GW", "GRB", "Neutrino", "SolarSystem", "Other"],
+                "default": "GRB",
+            },
+            "exposure_time": {"type": "string", "default": "300"},
+            "filters": {"type": "string", "default": "g,r,i"},
+            "field_ids": {"type": "string", "default": "699,700"},
+            "queue_name": {
+                "type": "string",
+                "default": datetime.utcnow(),
             },
         },
         "required": [
             "start_date",
             "end_date",
-            "request_type",
         ],
     }
 
-    ui_json_schema = {}
+    form_json_schema_forced_photometry = {
+        "type": "object",
+        "properties": {
+            "request_type": {
+                "type": "string",
+                "enum": ["forced_photometry"],
+                "default": "forced_photometry",
+            },
+            "start_date": {
+                "type": "string",
+                "default": str(datetime.utcnow() - timedelta(days=30)).replace("T", ""),
+                "title": "Start Date (UT)",
+            },
+            "end_date": {
+                "type": "string",
+                "title": "End Date (UT)",
+                "default": str(datetime.utcnow()).replace("T", ""),
+            },
+        },
+        "required": [
+            "start_date",
+            "end_date",
+        ],
+    }
+
+    # use the ui schema to hide the request type
+    ui_json_schema = {
+        "request_type": {"ui:widget": "hidden"},
+    }
 
 
 class ZTFMMAAPI(MMAAPI):
@@ -922,8 +944,20 @@ class ZTFMMAAPI(MMAAPI):
     def custom_json_schema(instrument, user):
         form_json_schema = MMAAPI.custom_json_schema(instrument, user)
 
+        # we make sure that all the boolean properties come last, which helps with the display
+        non_boolean_properties = {
+            k: v
+            for k, v in form_json_schema["properties"].items()
+            if v["type"] != "boolean"
+        }
+        boolean_properties = {
+            k: v
+            for k, v in form_json_schema["properties"].items()
+            if v["type"] == "boolean"
+        }
+
         form_json_schema["properties"] = {
-            **form_json_schema["properties"],
+            **non_boolean_properties,
             "program_id": {
                 "type": "string",
                 "enum": ["Partnership", "Caltech"],
@@ -938,12 +972,16 @@ class ZTFMMAAPI(MMAAPI):
             "use_primary": {
                 "title": "Use primary grid only?",
                 "type": "boolean",
+                "default": True,
             },
             "use_secondary": {
                 "title": "Use secondary grid only?",
                 "type": "boolean",
+                "default": False,
             },
+            **boolean_properties,
         }
+
         form_json_schema["required"] = form_json_schema["required"] + [
             "subprogram_name",
             "program_id",

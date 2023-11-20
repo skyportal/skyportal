@@ -52,6 +52,14 @@ const SourceAnnotationButtons = ({ source }) => {
     setIsSubmittingAnnotationPhotoz(null);
   };
 
+  const [isSubmittingAnnotationPS1, setIsSubmittingAnnotationPS1] =
+    useState(null);
+  const handleAnnotationPS1 = async (id) => {
+    setIsSubmittingAnnotationPS1(id);
+    await dispatch(sourceActions.fetchPS1(id));
+    setIsSubmittingAnnotationPS1(null);
+  };
+
   return (
     <div
       style={{
@@ -144,6 +152,23 @@ const SourceAnnotationButtons = ({ source }) => {
           data-testid={`photozRequest_${source.id}`}
         >
           Photoz
+        </Button>
+      )}
+      {isSubmittingAnnotationPS1 === source.id ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <Button
+          secondary
+          onClick={() => {
+            handleAnnotationPS1(source.id);
+          }}
+          size="small"
+          type="submit"
+          data-testid={`ps1Request_${source.id}`}
+        >
+          PS1
         </Button>
       )}
       <SourceAnnotationButtonPlugins source={source} />

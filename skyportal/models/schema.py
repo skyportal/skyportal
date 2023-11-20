@@ -1217,7 +1217,35 @@ class FollowupRequestPost(_Schema):
         required=False,
         metadata={
             'description': (
-                'IDs of groups to share the results of the f' 'ollowup request with.'
+                'IDs of groups to share the results of the followup request with.'
+            )
+        },
+    )
+
+    source_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            'description': (
+                'IDs of groups to which there must be a source for the object associated with the followup request.'
+            )
+        },
+    )
+
+    not_if_classified = fields.Boolean(
+        required=False,
+        metadata={
+            'description': (
+                'If true, the followup request will not be executed if the object is already classified.'
+            )
+        },
+    )
+
+    not_if_spectra_exist = fields.Boolean(
+        required=False,
+        metadata={
+            'description': (
+                'If true, the followup request will not be executed if the object already has spectra.'
             )
         },
     )

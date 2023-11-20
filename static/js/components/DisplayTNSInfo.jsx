@@ -41,11 +41,12 @@ const DisplayTNSInfo = ({ tns_info, display_header }) => {
 };
 
 DisplayTNSInfo.propTypes = {
-  tns_info: PropTypes.shape(Object).isRequired,
+  tns_info: PropTypes.shape(Object),
   display_header: PropTypes.bool,
 };
 
 DisplayTNSInfo.defaultProps = {
+  tns_info: {},
   display_header: true,
 };
 

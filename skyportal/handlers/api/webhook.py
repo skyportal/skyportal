@@ -142,6 +142,7 @@ class AnalysisWebhookHandler(BaseHandler):
         # check the analysis type and push to the source
         # if the analysis type is a summary
         try:
+            flow = Flow()
             if analysis.analysis_service.is_summary:
                 summary = {"summary": analysis.serialize_results_data()['summary']}
                 summary["created_at"] = analysis.created_at
@@ -152,12 +153,18 @@ class AnalysisWebhookHandler(BaseHandler):
                 )
                 session.commit()
                 log("analysis is a summary. Pushing to source.")
-                flow = Flow()
                 flow.push(
                     '*',
                     'skyportal/REFRESH_SOURCE',
                     payload={'obj_key': analysis.obj.internal_key},
                 )
+            else:
+                if analysis_resource_type.lower() == 'obj':
+                    flow.push(
+                        '*',
+                        'skyportal/REFRESH_OBJ_ANALYSES',
+                        payload={'obj_key': analysis.obj.internal_key},
+                    )
         except Exception as e:
             log(f"Error pushing update to source: {e}")
 
