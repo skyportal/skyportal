@@ -99,7 +99,9 @@ def allscalar(d):
     return all(np.isscalar(v) or v is None for v in d.values())
 
 
-def serialize(phot, outsys, format, created_at=True, groups=True, annotations=True):
+def serialize(
+    phot, outsys, format, created_at=True, groups=True, annotations=True, owner=False
+):
 
     return_value = {
         'obj_id': phot.obj_id,
@@ -126,6 +128,8 @@ def serialize(phot, outsys, format, created_at=True, groups=True, annotations=Tr
             if hasattr(phot, 'annotations')
             else []
         )
+    if owner:
+        return_value['owner'] = phot.owner.to_dict()
 
     if (
         phot.ref_flux is not None
@@ -1520,6 +1524,12 @@ class ObjPhotometryHandler(BaseHandler):
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
+        include_owner_info = self.get_query_argument('includeOwnerInfo', False)
+
+        if str(include_owner_info).lower() in ['true', 't', '1']:
+            include_owner_info = True
+        else:
+            include_owner_info = False
 
         with self.Session() as session:
 
@@ -1545,7 +1555,10 @@ class ObjPhotometryHandler(BaseHandler):
                     .all()
                 )
 
-                phot_data = [serialize(phot, outsys, format) for phot in photometry]
+                phot_data = [
+                    serialize(phot, outsys, format, owner=include_owner_info)
+                    for phot in photometry
+                ]
 
             if individual_or_series in ["series", "both"]:
 

@@ -17,7 +17,9 @@ const UPDATE_PHOTOMETRY = "skyportal/UPDATE_PHOTOMETRY";
 
 // eslint-disable-next-line import/prefer-default-export
 export function fetchSourcePhotometry(id) {
-  return API.GET(`/api/sources/${id}/photometry`, FETCH_SOURCE_PHOTOMETRY);
+  return API.GET(`/api/sources/${id}/photometry`, FETCH_SOURCE_PHOTOMETRY, {
+    includeOwnerInfo: true,
+  });
 }
 
 export function fetchFilterWavelengths(filterParams = {}) {
