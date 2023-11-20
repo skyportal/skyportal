@@ -254,7 +254,7 @@
 </pre></div>
 </div>
 <p>This component returns an element, that, when rendered into the DOM (more on this below), displays a header containing the text “Hello, Maria” (assuming we passed in <code class="docutils literal notranslate"><span class="pre">name='Maria'</span></code>). Inside <a class="reference external" href="https://reactjs.org/docs/introducing-jsx.html">JSX</a> tags, JavaScript expressions must be wrapped in curly braces, as <code class="docutils literal notranslate"><span class="pre">props.name</span></code> is above. If we instantiate this component and pass in the value ‘world’ to the <code class="docutils literal notranslate"><span class="pre">name</span></code> prop, the resulting value is identical to the first element we defined above:</p>
-<div class="highlight-jsx notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">helloWorldElement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Component</span> <span class="na">name</span><span class="o">=</span><span class="s">&quot;world&quot;</span> <span class="p">/&gt;;</span>
+<div class="highlight-jsx notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">helloWorldElement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Component</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">&quot;world&quot;</span><span class="w"> </span><span class="p">/&gt;;</span>
 </pre></div>
 </div>
 <p>is identical to:</p>
@@ -275,7 +275,7 @@
 <span class="p">);</span>
 
 <span class="c1">// Render the element it returns into the DOM (into the DOM element with ID &quot;root&quot;):</span>
-<span class="nx">ReactDOM</span><span class="p">.</span><span class="nx">render</span><span class="p">(&lt;</span><span class="nt">Component</span> <span class="na">name</span><span class="o">=</span><span class="s">&quot;world&quot;</span> <span class="p">/&gt;,</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;root&quot;</span><span class="p">));</span>
+<span class="nx">ReactDOM</span><span class="p">.</span><span class="nx">render</span><span class="p">(&lt;</span><span class="nt">Component</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">&quot;world&quot;</span><span class="w"> </span><span class="p">/&gt;,</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;root&quot;</span><span class="p">));</span>
 </pre></div>
 </div>
 <p>We define our component, then pass an instance of that component (which evaluates to a React element) as the first argument to <code class="docutils literal notranslate"><span class="pre">ReactDOM.render()</span></code>, and pass the DOM element that we want to render our element into as the second argument. (Note that in the above component definition, we’re using an <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions#Function_body">arrow function with a “concise body” implicit return</a>.)</p>
@@ -286,13 +286,13 @@
 
 <span class="kd">const</span><span class="w"> </span><span class="nx">HomePage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
 <span class="w">  </span><span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
-<span class="w">    </span><span class="p">&lt;</span><span class="nt">Welcome</span> <span class="na">name</span><span class="o">=</span><span class="s">&quot;Maria&quot;</span> <span class="p">/&gt;</span>
-<span class="w">    </span><span class="p">&lt;</span><span class="nt">Welcome</span> <span class="na">name</span><span class="o">=</span><span class="s">&quot;Sofia&quot;</span> <span class="p">/&gt;</span>
-<span class="w">    </span><span class="p">&lt;</span><span class="nt">Welcome</span> <span class="na">name</span><span class="o">=</span><span class="s">&quot;Li&quot;</span> <span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">Welcome</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">&quot;Maria&quot;</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">Welcome</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">&quot;Sofia&quot;</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">Welcome</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">&quot;Li&quot;</span><span class="w"> </span><span class="p">/&gt;</span>
 <span class="w">  </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
 <span class="p">);</span>
 
-<span class="nx">ReactDOM</span><span class="p">.</span><span class="nx">render</span><span class="p">(&lt;</span><span class="nt">HomePage</span> <span class="p">/&gt;,</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;root&quot;</span><span class="p">));</span>
+<span class="nx">ReactDOM</span><span class="p">.</span><span class="nx">render</span><span class="p">(&lt;</span><span class="nt">HomePage</span><span class="w"> </span><span class="p">/&gt;,</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;root&quot;</span><span class="p">));</span>
 </pre></div>
 </div>
 <p>This renders a <code class="docutils literal notranslate"><span class="pre">div</span></code> containing our three welcome headers into the DOM element whose ID is “root”.</p>
@@ -333,7 +333,7 @@
 <span class="w">         </span><span class="nx">Current</span><span class="w"> </span><span class="nx">count</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="nx">count</span><span class="p">}</span>
 <span class="w">       </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
 <span class="w">       </span><span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
-<span class="w">         </span><span class="p">&lt;</span><span class="nt">button</span> <span class="na">type</span><span class="o">=</span><span class="s">&quot;button&quot;</span> <span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">handleClick</span><span class="p">}&gt;</span>
+<span class="w">         </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">type</span><span class="o">=</span><span class="s">&quot;button&quot;</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">handleClick</span><span class="p">}&gt;</span>
 <span class="w">           </span><span class="nx">Increment</span><span class="o">!</span>
 <span class="w">         </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
 <span class="w">       </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
@@ -491,7 +491,7 @@
 <span class="w">        </span><span class="nx">Comments</span><span class="o">:</span>
 <span class="w">        </span><span class="p">&lt;</span><span class="nt">ul</span><span class="p">&gt;</span>
 <span class="w">          </span><span class="p">{</span><span class="nx">comments</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">comment</span><span class="p">,</span><span class="w"> </span><span class="nx">idx</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
-<span class="w">            </span><span class="p">&lt;</span><span class="nt">li</span> <span class="na">key</span><span class="o">=</span><span class="p">{</span><span class="nx">idx</span><span class="p">}&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="na">key</span><span class="o">=</span><span class="p">{</span><span class="nx">idx</span><span class="p">}&gt;</span>
 <span class="w">              </span><span class="p">{</span><span class="nx">comment</span><span class="p">.</span><span class="nx">text</span><span class="p">}</span>
 <span class="w">            </span><span class="p">&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
 <span class="w">           </span><span class="p">))}</span>
@@ -499,19 +499,19 @@
 <span class="w">      </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
 <span class="w">      </span><span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
 <span class="w">        </span><span class="nx">Submit</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">comment</span>
-<span class="w">        </span><span class="p">&lt;</span><span class="nt">br</span> <span class="p">/&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">br</span><span class="w"> </span><span class="p">/&gt;</span>
 <span class="w">        </span><span class="p">&lt;</span><span class="nt">input</span>
-          <span class="na">type</span><span class="o">=</span><span class="s">&quot;text&quot;</span>
-          <span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">newCommentText</span><span class="p">}</span>
-          <span class="na">onChange</span><span class="o">=</span><span class="p">{</span><span class="nx">handleCommentTextChange</span><span class="p">}</span>
-          <span class="na">data-testid</span><span class="o">=</span><span class="s">&quot;testCommentInput&quot;</span>
-        <span class="p">/&gt;</span>
-<span class="w">        </span><span class="p">&lt;</span><span class="nt">br</span> <span class="p">/&gt;</span>
+<span class="w">          </span><span class="na">type</span><span class="o">=</span><span class="s">&quot;text&quot;</span>
+<span class="w">          </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">newCommentText</span><span class="p">}</span>
+<span class="w">          </span><span class="na">onChange</span><span class="o">=</span><span class="p">{</span><span class="nx">handleCommentTextChange</span><span class="p">}</span>
+<span class="w">          </span><span class="na">data-testid</span><span class="o">=</span><span class="s">&quot;testCommentInput&quot;</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">br</span><span class="w"> </span><span class="p">/&gt;</span>
 <span class="w">        </span><span class="p">&lt;</span><span class="nt">button</span>
-          <span class="na">type</span><span class="o">=</span><span class="s">&quot;button&quot;</span>
-          <span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">handleSubmitNewComment</span><span class="p">}</span>
-          <span class="na">data-testid</span><span class="o">=</span><span class="s">&quot;testCommentSubmitButton&quot;</span>
-        <span class="p">&gt;</span>
+<span class="w">          </span><span class="na">type</span><span class="o">=</span><span class="s">&quot;button&quot;</span>
+<span class="w">          </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">handleSubmitNewComment</span><span class="p">}</span>
+<span class="w">          </span><span class="na">data-testid</span><span class="o">=</span><span class="s">&quot;testCommentSubmitButton&quot;</span>
+<span class="w">        </span><span class="p">&gt;</span>
 <span class="w">          </span><span class="nx">Submit</span>
 <span class="w">        </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
 <span class="w">      </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
