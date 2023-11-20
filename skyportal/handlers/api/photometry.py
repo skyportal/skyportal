@@ -949,7 +949,6 @@ def add_external_photometry(json, user, parent_session=None, duplicates="update"
                     id_map_no_update_needed[df_index] = duplicate.id
 
             if duplicates in ["update"] and len(id_map_no_update_needed) > 0:
-                # log that we didn't update these photometry points
                 log(
                     f'A total of (len{id_map_no_update_needed}) duplicate photometry points did not need to be updated: {id_map_no_update_needed.values()}'
                 )
