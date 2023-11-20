@@ -170,63 +170,90 @@ def add_observations(instrument_id, obstable):
         obstable['field_id'] = field_ids
 
     try:
-        observations = []
-        for index, row in obstable.iterrows():
-            field_id = int(row["field_id"])
-            field = (
-                session.query(InstrumentField)
-                .filter(
-                    InstrumentField.instrument_id == instrument_id,
-                    InstrumentField.field_id == field_id,
+        id_mapper = {}  # mapper from Instrument.field_id to InstrumentField.id
+        unique_field_ids = obstable['field_id'].unique()
+        unique_field_ids_batched = np.array_split(unique_field_ids, 100)
+        for field_ids in unique_field_ids_batched:
+            fields = (
+                session.scalars(
+                    sa.select(InstrumentField).where(
+                        InstrumentField.instrument_id == int(instrument_id),
+                        InstrumentField.field_id.in_([int(f) for f in field_ids]),
+                    )
                 )
-                .first()
+                .unique()
+                .all()
             )
-            if field is None:
+            missing = list(set(field_ids) - set(list(f.field_id for f in fields)))
+            if len(missing) > 0:
                 return log(
-                    f"Unable to add observations for instrument {instrument_id}: Missing field {field_id}"
+                    f"Unable to add observations for instrument {instrument_id}: {len(missing)} fields are missing: {missing[:100]}"
                 )
+            for field in fields:
+                id_mapper[field.field_id] = field.id
 
-            observation = (
-                session.query(ExecutedObservation)
-                .filter_by(
-                    instrument_id=instrument_id, observation_id=row["observation_id"]
+        del unique_field_ids, unique_field_ids_batched
+
+        # same here, we batch query the DB to see what observations already exist
+        unique_observation_ids = obstable['observation_id'].unique()
+        unique_observation_ids_batched = np.array_split(unique_observation_ids, 100)
+        missing = []
+        for observation_ids in unique_observation_ids_batched:
+            observations = session.scalars(
+                sa.select(ExecutedObservation.observation_id).where(
+                    ExecutedObservation.instrument_id == int(instrument_id),
+                    ExecutedObservation.observation_id.in_(
+                        [int(o) for o in observation_ids]
+                    ),
                 )
-                .first()
+            ).all()
+            missing.extend(set(observation_ids) - set(list(observations)))
+
+        if len(missing) < len(unique_observation_ids):
+            log(
+                f"Unable to add some observations for instrument {instrument_id}: {len(unique_observation_ids) - len(missing)} observations (out of {len(unique_observation_ids)}) already exist. These will be skipped"
             )
-            if observation is not None:
-                log(
-                    f"Observation {row['observation_id']} for instrument {instrument_id} already exists... continuing."
-                )
-                continue
 
-            # enable multiple obstime formats
+        # remove the observations that already exist, so only keep those which id is in the missing list
+        obstable = obstable[obstable['observation_id'].isin(missing)]
+
+        del missing, unique_observation_ids, unique_observation_ids_batched
+
+        # again, batch the insertions
+        obstable_batched = np.array_split(obstable, 100)
+        for chunk in obstable_batched:
+            observations = []
             try:
-                # can catch iso and isot this way
-                obstime = Time(row["obstime"])
-            except ValueError:
-                # otherwise catch jd as the numerical example
-                obstime = Time(row["obstime"], format='jd')
+                for _, row in chunk.iterrows():
+                    # enable multiple obstime formats
+                    try:
+                        # can catch iso and isot this way
+                        obstime = Time(row["obstime"])
+                    except ValueError:
+                        # otherwise catch jd as the numerical example
+                        obstime = Time(row["obstime"], format='jd')
 
-            observations.append(
-                ExecutedObservation(
-                    instrument_id=instrument_id,
-                    observation_id=row["observation_id"],
-                    instrument_field_id=field.id,
-                    obstime=obstime.datetime,
-                    seeing=row.get("seeing", None),
-                    limmag=row["limmag"],
-                    exposure_time=row["exposure_time"],
-                    filt=row["filter"],
-                    processed_fraction=row["processed_fraction"],
-                    target_name=row["target_name"],
+                    observations.append(
+                        ExecutedObservation(
+                            instrument_id=instrument_id,
+                            observation_id=int(row["observation_id"]),
+                            instrument_field_id=int(id_mapper[row["field_id"]]),
+                            obstime=obstime.datetime,
+                            seeing=row.get("seeing", None),
+                            limmag=float(row["limmag"]),
+                            exposure_time=int(row["exposure_time"]),
+                            filt=row["filter"],
+                            processed_fraction=float(row["processed_fraction"]),
+                            target_name=row["target_name"],
+                        )
+                    )
+                session.add_all(observations)
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                return log(
+                    f"Unable to add observations for instrument {instrument_id}: {e}"
                 )
-            )
-        session.add_all(observations)
-        session.commit()
-
-        flow = Flow()
-        flow.push('*', "skyportal/REFRESH_OBSERVATIONS")
-
         return log(f"Successfully added observations for instrument {instrument_id}")
     except Exception as e:
         return log(f"Unable to add observations for instrument {instrument_id}: {e}")
