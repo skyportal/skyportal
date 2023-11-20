@@ -18,10 +18,6 @@ const useStyles = makeStyles(() => ({
     textAlign: "center",
     margin: "1rem",
   },
-  editIcon: {
-    height: "0.75rem",
-    cursor: "pointer",
-  },
 }));
 
 const UpdatePhotometry = ({ phot }) => {
@@ -99,7 +95,6 @@ const UpdatePhotometry = ({ phot }) => {
         data-testid="updatePhotometryIconButton"
         size="small"
         type="submit"
-        className={classes.editIcon}
         onClick={() => {
           setDialogOpen(true);
         }}
