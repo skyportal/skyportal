@@ -169,7 +169,7 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
       };
       columns.push({
         name: "owner",
-        label: "Owner",
+        label: "owner",
         options: {
           customBodyRenderLite: renderOwner,
         },
