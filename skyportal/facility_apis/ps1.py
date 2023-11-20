@@ -38,7 +38,6 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
         DBSession,
         FollowupRequest,
         Instrument,
-        User,
     )
 
     Session = scoped_session(sessionmaker())
@@ -50,7 +49,9 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
     try:
         request = session.query(FollowupRequest).get(request_id)
         instrument = session.query(Instrument).get(instrument_id)
-        user = session.query(User).get(user_id)
+        allocation = request.allocation
+        if not allocation:
+            raise ValueError("Missing request's allocation information.")
 
         tab = astropy.io.ascii.read(text_response)
         # good data only
@@ -80,10 +81,18 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
         df['magsys'] = 'ab'
         df['zp'] = 8.90
 
+        # data is visible to the group attached to the allocation
+        # as well as to any of the allocation's default share groups
         data_out = {
             'obj_id': request.obj_id,
             'instrument_id': instrument.id,
-            'group_ids': [g.id for g in user.accessible_groups],
+            'group_ids': list(
+                set(
+                    [allocation.group_id] + allocation.default_share_group_ids
+                    if allocation.default_share_group_ids
+                    else []
+                )
+            ),
             **df.to_dict(orient='list'),
         }
 
@@ -265,7 +274,6 @@ class PS1API(FollowUpAPI):
             try:
                 if len(r.text) == 0:
                     raise ValueError('No data returned in request')
-                print(r.text)
                 tab = astropy.io.ascii.read(r.text)
                 if len(tab) == 0:
                     raise ValueError('No data returned in request')

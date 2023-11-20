@@ -99,7 +99,6 @@ def commit_photometry(
         DBSession,
         FollowupRequest,
         Instrument,
-        User,
     )
 
     if parent_session is None:
@@ -114,7 +113,9 @@ def commit_photometry(
     try:
         request = session.query(FollowupRequest).get(request_id)
         instrument = session.query(Instrument).get(instrument_id)
-        user = session.query(User).get(user_id)
+        allocation = request.allocation
+        if not allocation:
+            raise ValueError("Missing request's allocation information.")
 
         result_url = json_response['result_url']
         request.status = f"Task is complete with results available at {result_url}"
@@ -192,10 +193,18 @@ def commit_photometry(
         df['magsys'] = 'ab'
         df['origin'] = 'fp'
 
+        # data is visible to the group attached to the allocation
+        # as well as to any of the allocation's default share groups
         data_out = {
             'obj_id': request.obj_id,
             'instrument_id': instrument.id,
-            'group_ids': [g.id for g in user.accessible_groups],
+            'group_ids': list(
+                set(
+                    [allocation.group_id] + allocation.default_share_group_ids
+                    if allocation.default_share_group_ids
+                    else []
+                )
+            ),
             **df.to_dict(orient='list'),
         }
 
