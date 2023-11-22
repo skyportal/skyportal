@@ -39,7 +39,6 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
         DBSession,
         FollowupRequest,
         PhotometricSeries,
-        User,
     )
 
     Session = scoped_session(sessionmaker())
@@ -50,7 +49,9 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
 
     try:
         request = session.query(FollowupRequest).get(request_id)
-        user = session.query(User).get(user_id)
+        allocation = request.allocation
+        if not allocation:
+            raise ValueError("Missing request's allocation information.")
 
         lc['mjd'] = (
             Time(2457000, format='jd') + TimeDelta(lc['BTJD'], format='jd')
@@ -104,13 +105,21 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
             inplace=True,
         )
 
+        # data is visible to the group attached to the allocation
+        # as well as to any of the allocation's default share groups
         data_out = {
             'obj_id': request.obj.id,
             'series_name': 'tesstransients',
             'series_obj_id': request.obj.id,
             'exp_time': 2.0,
             'instrument_id': instrument_id,
-            'group_ids': [g.id for g in user.accessible_groups],
+            'group_ids': list(
+                set(
+                    [allocation.group_id] + allocation.default_share_group_ids
+                    if allocation.default_share_group_ids
+                    else []
+                )
+            ),
         }
 
         from skyportal.handlers.api.photometric_series import (
