@@ -448,7 +448,7 @@ server:
   # You need to have Google+ API enabled; it takes a few minutes to activate.
   protocol: http
   host: localhost
-  port: 5000  # This is the public-facing port
+  port: 5000 # This is the public-facing port
 
   # Whether the base URL is http or https
   ssl: False
