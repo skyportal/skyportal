@@ -20,6 +20,10 @@ import { hours_to_ra, dms_to_dec } from "../units";
 
 dayjs.extend(utc);
 
+const newSource = {
+  overflowY: 'scroll'
+};
+
 const NewSource = ({ classes }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -118,7 +122,7 @@ const NewSource = ({ classes }) => {
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
-        <div>
+        <div style={newSource}>
           <Typography variant="h6" display="inline">
             Add a Source
           </Typography>
