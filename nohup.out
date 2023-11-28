@@ -1,0 +1,85 @@
+sudo: apt-mirror: command not found
+Downloading 162 index files using 20 threads...
+Begin time: Mon Nov 27 15:14:28 2023
+[20]... [19]... [18]... [17]... [16]... [15]... [14]... [13]... [12]... [11]... [10]... [9]... [8]... [7]... [6]... [5]... [4]... [3]... [2]... [1]... [0]... 
+End time: Mon Nov 27 15:14:29 2023
+
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful/Release at /usr/bin/apt-mirror line 507.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful/Release at /usr/bin/apt-mirror line 507.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful/Release at /usr/bin/apt-mirror line 507.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful/Release at /usr/bin/apt-mirror line 507.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-security/Release at /usr/bin/apt-mirror line 507.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-security/Release at /usr/bin/apt-mirror line 507.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-security/Release at /usr/bin/apt-mirror line 507.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-security/Release at /usr/bin/apt-mirror line 507.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-updates/Release at /usr/bin/apt-mirror line 507.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-updates/Release at /usr/bin/apt-mirror line 507.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-updates/Release at /usr/bin/apt-mirror line 507.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-updates/Release at /usr/bin/apt-mirror line 507.
+Processing translation indexes: [TTT]
+
+Downloading 0 translation files using 0 threads...
+Begin time: Mon Nov 27 15:14:29 2023
+[0]... 
+End time: Mon Nov 27 15:14:29 2023
+
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful/Release at /usr/bin/apt-mirror line 653.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful/Release at /usr/bin/apt-mirror line 653.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful/Release at /usr/bin/apt-mirror line 653.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful/Release at /usr/bin/apt-mirror line 653.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-security/Release at /usr/bin/apt-mirror line 653.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-security/Release at /usr/bin/apt-mirror line 653.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-security/Release at /usr/bin/apt-mirror line 653.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-security/Release at /usr/bin/apt-mirror line 653.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-updates/Release at /usr/bin/apt-mirror line 653.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-updates/Release at /usr/bin/apt-mirror line 653.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-updates/Release at /usr/bin/apt-mirror line 653.
+Failed to open Release file from http://archive.ubuntu.com/ubuntu/dists/artful-updates/Release at /usr/bin/apt-mirror line 653.
+Processing DEP-11 indexes: [DDD]
+
+Downloading 0 dep11 files using 0 threads...
+Begin time: Mon Nov 27 15:14:29 2023
+[0]... 
+End time: Mon Nov 27 15:14:29 2023
+
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful/main/source/Sources in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful/restricted/source/Sources in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful/universe/source/Sources in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful/multiverse/source/Sources in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-security/main/source/Sources in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-security/restricted/source/Sources in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-security/universe/source/Sources in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-security/multiverse/source/Sources in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-updates/main/source/Sources in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-updates/restricted/source/Sources in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-updates/universe/source/Sources in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-updates/multiverse/source/Sources in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful/main/binary-amd64/Packages in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful/restricted/binary-amd64/Packages in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful/universe/binary-amd64/Packages in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful/multiverse/binary-amd64/Packages in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-security/main/binary-amd64/Packages in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-security/restricted/binary-amd64/Packages in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-security/universe/binary-amd64/Packages in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-security/multiverse/binary-amd64/Packages in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-updates/main/binary-amd64/Packages in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-updates/restricted/binary-amd64/Packages in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-updates/universe/binary-amd64/Packages in process_index at /usr/bin/apt-mirror line 800.
+apt-mirror: can't open index archive.ubuntu.com/ubuntu//dists/artful-updates/multiverse/binary-amd64/Packages in process_index at /usr/bin/apt-mirror line 800.
+Processing indexes: [SSSPPP]
+
+0 bytes will be downloaded into archive.
+Downloading 0 archive files using 0 threads...
+Begin time: Mon Nov 27 15:14:29 2023
+[0]... 
+End time: Mon Nov 27 15:14:29 2023
+
+0 bytes in 0 files and 0 directories can be freed.
+Run /var/spool/apt-mirror/var/clean.sh for this purpose.
+
+Running the Post Mirror script ...
+(/var/spool/apt-mirror/var/postmirror.sh)
+
+
+Post Mirror script has completed. See above output for any possible errors.
+
