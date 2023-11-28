@@ -21,7 +21,7 @@ import { hours_to_ra, dms_to_dec } from "../units";
 dayjs.extend(utc);
 
 const newSource = {
-  overflowY: 'scroll'
+  overflowY: "scroll",
 };
 
 const NewSource = ({ classes }) => {
