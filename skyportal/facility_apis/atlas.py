@@ -72,7 +72,6 @@ def commit_photometry(
     altdata,
     request_id,
     instrument_id,
-    user_id,
     parent_session=None,
     duplicates="error",
 ):
@@ -89,10 +88,10 @@ def commit_photometry(
         FollowupRequest SkyPortal ID
     instrument_id : int
         Instrument SkyPortal ID
-    user_id : int
-        User SkyPortal ID
     parent_session : sqlalchemy.orm.session.Session
         Session to use for database transactions. If None, a new session will be created.
+    duplicates : str
+        How to handle duplicate photometry. Must be one of "error", "update", "ignore".
     """
 
     from ..models import (

@@ -151,7 +151,6 @@ def service(queue):
                                         altdata,
                                         followup_request.id,
                                         instrument.id,
-                                        followup_request.requester.id,
                                         parent_session=session,
                                         duplicates="update",
                                     )
@@ -304,7 +303,6 @@ def service(queue):
                                         altdata,
                                         followup_request.id,
                                         instrument.id,
-                                        followup_request.requester.id,
                                         parent_session=session,
                                         duplicates="update",
                                     )
