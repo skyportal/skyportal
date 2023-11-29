@@ -66,11 +66,12 @@ const NewObservation = () => {
       onSubmit={handleSubmit}
     >
       <NewDropDownSearchBar
-        instrumentList={instrumentList}
-        selectedInstrument={selectedInstrument}
-        onInstrumentChange={handleInstrumentChange}
+        optionsList={instrumentList}
+        selectedOption={selectedInstrument}
+        onOptionChange={handleInstrumentChange}
         searchValue={searchValue}
         onSearchChange={handleSearchChange}
+        label="Select an instrument"
       />
     </Form>
   );
