@@ -271,5 +271,5 @@ class TESSAPI(FollowUpAPI):
                 'skyportal/REFRESH_FOLLOWUP_REQUESTS',
             )
 
-    form_json_schema = {}
+    form_json_schema_forced_photometry = {}
     ui_json_schema = {}
