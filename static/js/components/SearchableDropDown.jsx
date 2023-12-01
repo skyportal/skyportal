@@ -1,10 +1,10 @@
-// NewDropDownSearchBar.jsx
+// SearchableDropDown.jsx
 import React from "react";
 import PropTypes from "prop-types";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 
-const NewDropDownSearchBar = ({
+const SearchableDropDown = ({
   optionsList,
   selectedOption,
   onOptionChange,
@@ -29,7 +29,7 @@ const NewDropDownSearchBar = ({
   />
 );
 
-NewDropDownSearchBar.propTypes = {
+SearchableDropDown.propTypes = {
   optionsList: PropTypes.arrayOf(
     PropTypes.shape({
       telescopeName: PropTypes.string.isRequired,
@@ -47,8 +47,8 @@ NewDropDownSearchBar.propTypes = {
   label: PropTypes.string.isRequired,
 };
 
-NewDropDownSearchBar.defaultProps = {
+SearchableDropDown.defaultProps = {
   selectedOption: null, // Provide a default value for selectedOption
 };
 
-export default NewDropDownSearchBar;
+export default SearchableDropDown;

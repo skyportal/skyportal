@@ -6,7 +6,7 @@ import validator from "@rjsf/validator-ajv8";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { fetchObservations, uploadObservations } from "../ducks/observations";
-import NewDropDownSearchBar from "./NewDropDownSearchBar";
+import SearchableDropDown from "./SearchableDropDown";
 
 const NewObservation = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
@@ -58,14 +58,16 @@ const NewObservation = () => {
     required: ["file"],
   };
 
-  // Render the observation form with the NewDropDownSearchBar component
+  // Render the observation form with the SearchableDropDown component
   return (
-    <Form
-      schema={observationFormSchema}
-      validator={validator}
-      onSubmit={handleSubmit}
-    >
-      <NewDropDownSearchBar
+    <>
+      <Form
+        schema={observationFormSchema}
+        validator={validator}
+        onSubmit={handleSubmit}
+      />
+
+      <SearchableDropDown
         optionsList={instrumentList}
         selectedOption={selectedInstrument}
         onOptionChange={handleInstrumentChange}
@@ -73,7 +75,7 @@ const NewObservation = () => {
         onSearchChange={handleSearchChange}
         label="Select an instrument"
       />
-    </Form>
+    </>
   );
 };
 
