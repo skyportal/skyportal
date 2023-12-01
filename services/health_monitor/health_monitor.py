@@ -30,7 +30,8 @@ class DownStatus:
 def migrated():
     try:
         r = requests.get(
-            f'http://localhost:{cfg["ports.migration_manager"]}', timeout=30
+            f'http://{cfg["hosts.migration_manager"]}:{cfg["ports.migration_manager"]}',
+            timeout=30,
         )
         data = r.json()
         return data["migrated"]
@@ -45,7 +46,8 @@ def backends_down():
         port = cfg['ports.app_internal'] + i
         try:
             r = requests.get(
-                f'http://localhost:{port}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS
+                f'http://{cfg["hosts.app_internal"]}:{port}/api/sysinfo',
+                timeout=REQUEST_TIMEOUT_SECONDS,
             )
         except:  # noqa: E722
             status_code = 0

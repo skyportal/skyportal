@@ -148,9 +148,7 @@ for bandpass_name in ALLOWED_BANDPASSES:
 
 Session = scoped_session(sessionmaker())
 
-observation_plans_microservice_url = (
-    f'http://127.0.0.1:{cfg["ports.observation_plan_queue"]}'
-)
+observation_plans_microservice_url = f'http://{cfg["hosts.observation_plan_queue"]}:{cfg["ports.observation_plan_queue"]}'
 
 MAX_OBSERVATION_PLAN_REQUESTS = 1000
 

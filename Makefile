@@ -74,3 +74,85 @@ db_migrate:
 	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile $@
 
 .PHONY: Makefile force
+
+FLAGS:=$(if $(FLAGS),$(FLAGS),--config=config.yaml)
+PYTHON=PYTHONPATH=. python
+ENV_SUMMARY=$(PYTHON) baselayer/tools/env_summary.py $(FLAGS)
+
+SUPERVISORD_CFG_APP=baselayer/services/app/supervisor.conf
+SUPERVISORD_APP=$(PYTHON) -m supervisor.supervisord -s -c $(SUPERVISORD_CFG_APP)
+
+run_app: ## Start the web application.
+run_app: FLAGS:=$(FLAGS) --debug
+run_app:
+	@echo
+	$(call LOG, Starting APP)
+	@echo
+	@echo " - Run \`make log\` in another terminal to view logs"
+	@echo " - Run \`make monitor\` in another terminal to restart services"
+	@echo
+	@export FLAGS="$(FLAGS)" && \
+	$(ENV_SUMMARY) && echo && \
+	echo "Press Ctrl-C to abort the server" && \
+	echo && \
+	$(SUPERVISORD_APP)
+
+SUPERVISORD_CFG_WS=baselayer/services/websocket_server/supervisor.conf
+SUPERVISORD_WS=$(PYTHON) -m supervisor.supervisord -s -c $(SUPERVISORD_CFG_WS)
+
+run_websocket:
+	@echo
+	$(call LOG, Starting websocket server)
+	@echo
+	@echo " - Run \`make log\` in another terminal to view logs"
+	@echo " - Run \`make monitor\` in another terminal to restart services"
+	@echo
+	@export FLAGS="$(FLAGS)" && \
+	echo "Press Ctrl-C to abort the server" && \
+	echo && \
+	$(SUPERVISORD_WS)
+
+SUPERVISORD_CFG_MP=baselayer/services/message_proxy/supervisor.conf
+SUPERVISORD_MP=$(PYTHON) -m supervisor.supervisord -s -c $(SUPERVISORD_CFG_MP)
+
+run_message_proxy:
+	@echo
+	$(call LOG, Starting message proxy)
+	@echo
+	@echo " - Run \`make log\` in another terminal to view logs"
+	@echo " - Run \`make monitor\` in another terminal to restart services"
+	@echo
+	@export FLAGS="$(FLAGS)" && \
+	echo "Press Ctrl-C to abort the server" && \
+	echo && \
+	$(SUPERVISORD_MP)
+
+SUPERVISORD_CFG_FAKEOAUTH=baselayer/services/fake_oauth2/supervisor.conf
+SUPERVISORD_FAKEOAUTH=$(PYTHON) -m supervisor.supervisord -s -c $(SUPERVISORD_CFG_FAKEOAUTH)
+
+run_fake_oauth:
+	@echo
+	$(call LOG, Starting fake OAuth2 server)
+	@echo
+	@echo " - Run \`make log\` in another terminal to view logs"
+	@echo " - Run \`make monitor\` in another terminal to restart services"
+	@echo
+	@export FLAGS="$(FLAGS)" && \
+	echo "Press Ctrl-C to abort the server" && \
+	echo && \
+	$(SUPERVISORD_FAKEOAUTH)
+
+SUPERVISORD_CFG_NGINX=baselayer/services/nginx/supervisor.conf
+SUPERVISORD_NGINX=$(PYTHON) -m supervisor.supervisord -s -c $(SUPERVISORD_CFG_NGINX)
+
+run_nginx:
+	@echo
+	$(call LOG, Starting nginx)
+	@echo
+	@echo " - Run \`make log\` in another terminal to view logs"
+	@echo " - Run \`make monitor\` in another terminal to restart services"
+	@echo
+	@export FLAGS="$(FLAGS)" && \
+	echo "Press Ctrl-C to abort the server" && \
+	echo && \
+	$(SUPERVISORD_NGINX)

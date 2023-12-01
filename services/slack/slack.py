@@ -68,7 +68,7 @@ def make_app():
 if __name__ == "__main__":
     slack_poster = make_app()
 
-    port = cfg.get('slack.microservice_port', 64100)
+    port = cfg.get('ports.slack', 64100)
     slack_poster.listen(port)
     log(f'Listening on port {port}')
     tornado.ioloop.IOLoop.current().start()

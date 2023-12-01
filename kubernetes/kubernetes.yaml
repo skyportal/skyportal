@@ -1,0 +1,44 @@
+database:
+  database: skyportal
+  host: host.minikube.internal
+  password: password
+  port: 5432
+  user: skyportal
+hosts:
+  app: app-service
+  app_internal: app-service
+  facility_queue: facility-queue-service
+  fake_oauth2: fake-oauth2-service
+  migration_manager: migration-manager-service
+  ngsf_analysis_service: ngsf-analysis-service-service
+  notification_queue: notification-queue-service
+  observation_plan_queue: observation-plan-queue-service
+  openai_analysis_service: openai-analysis-service-service
+  slack: slack-service
+  sn_analysis_service: sn-analysis-service-service
+  spectral_cube_analysis_service: spectral-cube-analysis-service-service
+  status_server: status-server-service
+  thumbnail_queue: thumbnail-queue-service
+  tns_retrieval_queue: tns-retrieval-queue-service
+  tns_submission_queue: tns-submission-queue-service
+ports:
+  app: 8000
+  app_internal: 65000
+  facility_queue: 64510
+  fake_oauth2: 63000
+  migration_manager: 64501
+  ngsf_analysis_service: 7001
+  notification_queue: 64610
+  observation_plan_queue: 64710
+  openai_analysis_service: 7003
+  slack: 64100
+  sn_analysis_service: 6801
+  spectral_cube_analysis_service: 7002
+  status_server: 64500
+  thumbnail_queue: 64910
+  tns_retrieval_queue: 64810
+  tns_submission_queue: 64812
+server:
+  pods_processes: 4
+  processes: 1
+  url: http://localhost:5000

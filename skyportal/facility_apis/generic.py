@@ -211,7 +211,7 @@ class GENERICAPI(FollowUpAPI):
 
             elif 'type' in altdata and altdata['type'] == 'slack':
                 slack_microservice_url = (
-                    f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
+                    f'http://{cfg["hosts.slack"]}:{cfg["ports.slack"]}'
                 )
 
                 if altdata.get('comments') in ["True", "t", "true", "1", True, 1]:
