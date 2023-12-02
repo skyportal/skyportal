@@ -442,13 +442,13 @@ server:
   # From https://console.developers.google.com/
   #
   # - Create Client ID
-  # - Javascript origins: https://localhost:8000
-  # - Authorized redirect URLs: http://localhost:8000/complete/google-oauth2/
+  # - Javascript origins: https://localhost:5000
+  # - Authorized redirect URLs: http://localhost:5000/complete/google-oauth2/
   #
   # You need to have Google+ API enabled; it takes a few minutes to activate.
   protocol: http
   host: localhost
-  port: 8000  # This is the public-facing port
+  port: 5000  # This is the public-facing port
 
   # Whether the base URL is http or https
   ssl: False
