@@ -3,6 +3,7 @@ import requests
 import numpy as np
 from tornado.ioloop import IOLoop
 from . import FollowUpAPI
+from sqlalchemy.orm import sessionmaker, scoped_session
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
@@ -37,84 +38,92 @@ def commit_photometry(text_response, request_id, instrument_id):
         Instrument,
     )
 
-    with DBSession() as session:
-        try:
-            request = session.query(FollowupRequest).get(request_id)
-            instrument = session.query(Instrument).get(instrument_id)
-            allocation = request.allocation
-            if not allocation:
-                raise ValueError("Missing request's allocation information.")
+    Session = scoped_session(sessionmaker())
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
 
-            tab = astropy.io.ascii.read(text_response)
-            # good data only
-            tab = tab[tab['psfQfPerfect'] > 0.9]
-            id2filter = np.array(['ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y'])
-            tab['filter'] = id2filter[(tab['filterID'] - 1).data.astype(int)]
-            df = tab.to_pandas()
+    try:
+        request = session.query(FollowupRequest).get(request_id)
+        instrument = session.query(Instrument).get(instrument_id)
+        allocation = request.allocation
+        if not allocation:
+            raise ValueError("Missing request's allocation information.")
 
-            df.rename(
-                columns={
-                    'obsTime': 'mjd',
-                    'psfFlux': 'flux',
-                    'psfFluxerr': 'fluxerr',
-                },
-                inplace=True,
-            )
-            df = df.replace({np.nan: None})
+        tab = astropy.io.ascii.read(text_response)
+        # good data only
+        tab = tab[tab['psfQfPerfect'] > 0.9]
+        id2filter = np.array(['ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y'])
+        tab['filter'] = id2filter[(tab['filterID'] - 1).data.astype(int)]
+        df = tab.to_pandas()
 
-            df.drop(
-                columns=[
-                    'detectID',
-                    'filterID',
-                    'psfQfPerfect',
-                ],
-                inplace=True,
-            )
-            df['magsys'] = 'ab'
-            df['zp'] = 8.90
+        df.rename(
+            columns={
+                'obsTime': 'mjd',
+                'psfFlux': 'flux',
+                'psfFluxerr': 'fluxerr',
+            },
+            inplace=True,
+        )
+        df = df.replace({np.nan: None})
 
-            # data is visible to the group attached to the allocation
-            # as well as to any of the allocation's default share groups
-            data_out = {
-                'obj_id': request.obj_id,
-                'instrument_id': instrument.id,
-                'group_ids': list(
-                    set(
-                        [allocation.group_id] + allocation.default_share_group_ids
-                        if allocation.default_share_group_ids
-                        else []
-                    )
-                ),
-                **df.to_dict(orient='list'),
-            }
+        df.drop(
+            columns=[
+                'detectID',
+                'filterID',
+                'psfQfPerfect',
+            ],
+            inplace=True,
+        )
+        df['magsys'] = 'ab'
+        df['zp'] = 8.90
 
-            from skyportal.handlers.api.photometry import add_external_photometry
-
-            if len(df.index) > 0:
-                ids, _ = add_external_photometry(
-                    data_out, request.requester, duplicates="update"
+        # data is visible to the group attached to the allocation
+        # as well as to any of the allocation's default share groups
+        data_out = {
+            'obj_id': request.obj_id,
+            'instrument_id': instrument.id,
+            'group_ids': list(
+                set(
+                    [allocation.group_id] + allocation.default_share_group_ids
+                    if allocation.default_share_group_ids
+                    else []
                 )
-                if ids is None:
-                    raise ValueError('Failed to commit photometry')
-                request.status = "Photometry committed to database"
-            else:
-                request.status = "No photometry to commit to database"
+            ),
+            **df.to_dict(orient='list'),
+        }
 
-            session.add(request)
-            session.commit()
+        from skyportal.handlers.api.photometry import add_external_photometry
 
-            flow = Flow()
-            flow.push(
-                '*',
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
+        if len(df.index) > 0:
+            ids, _ = add_external_photometry(
+                data_out, request.requester, duplicates="update"
             )
-        except Exception as e:
-            log(f"Unable to commit photometry for {request_id}: {e}")
-            try:
-                session.rollback()
-            except Exception:
-                pass
+            if ids is None:
+                raise ValueError('Failed to commit photometry')
+            request.status = "Photometry committed to database"
+        else:
+            request.status = "No photometry to commit to database"
+
+        session.add(request)
+        session.commit()
+
+        flow = Flow()
+        flow.push(
+            '*',
+            "skyportal/REFRESH_SOURCE",
+            payload={"obj_key": request.obj.internal_key},
+        )
+    except Exception as e:
+        log(f"Unable to commit photometry for {request_id}: {e}")
+        try:
+            session.rollback()
+        except Exception:
+            pass
+    finally:
+        session.close()
+        Session.remove()
 
 
 class PS1API(FollowUpAPI):
