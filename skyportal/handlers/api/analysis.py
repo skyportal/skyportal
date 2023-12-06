@@ -348,7 +348,6 @@ def post_analysis(
                 ]
                 # drop duplicate mjd points, keeping first
                 df = df.drop_duplicates("mjd").reset_index(drop=True)
-                print(df)
             else:
                 input_data = [
                     generic_serialize(
