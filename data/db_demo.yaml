@@ -1295,20 +1295,20 @@ analysis_service:
     group_ids:
       - =program_A
       - =program_B
-  - name: "NMMA_Analysis"
-    display_name: "NMMA analysis"
-    description: "Use NMMA to fit fast transient light curves"
-    version: "1.0"
-    contact_name: "Michael Coughlin"
-    url: "http://localhost:4000/analysis"
-    authentication_type: "header_token"
-    _authinfo: '{"header_token": {"Authorization": "Bearer MY_TOKEN"}}'
-    analysis_type: "lightcurve_fitting"
-    input_data_types: ["photometry", "redshift"]
-    optional_analysis_parameters: '{"source": ["Me2017", "Piro2021", "nugent-hyper", "TrPi2018", "Bu2022Ye"], "tmin": {"type": "number", "default": 0.01}, "tmax": {"type": "number", "default": 7}, "dt": {"type": "number", "default": 0.1}, "filters (comma-separated)": {"type": "string", "default": "all"}}'
-    group_ids:
-      - =program_A
-      - =program_B
+  # - name: "NMMA_Analysis"
+  #   display_name: "NMMA analysis"
+  #   description: "Use NMMA to fit fast transient light curves"
+  #   version: "1.0"
+  #   contact_name: "Michael Coughlin"
+  #   url: "http://localhost:4000/analysis"
+  #   authentication_type: "header_token"
+  #   _authinfo: '{"header_token": {"Authorization": "Bearer MY_TOKEN"}}'
+  #   analysis_type: "lightcurve_fitting"
+  #   input_data_types: ["photometry", "redshift"]
+  #   optional_analysis_parameters: '{"source": ["Me2017", "Piro2021", "nugent-hyper", "TrPi2018", "Bu2022Ye"], "tmin": {"type": "number", "default": 0.01}, "tmax": {"type": "number", "default": 7}, "dt": {"type": "number", "default": 0.1}, "filters (comma-separated)": {"type": "string", "default": "all"}}'
+  #   group_ids:
+  #     - =program_A
+  #     - =program_B
 
 
 analysis_service/=Demo_Analysis/default_analysis:
