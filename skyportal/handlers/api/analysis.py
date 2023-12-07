@@ -359,11 +359,17 @@ def post_analysis(
                             )
                         ]
                     if len(input_filters.get('photometry').get('instruments', [])) > 0:
+                        # we want to make sure that after this runs, the user can still figure out
+                        # what instrument he filtered on, non trivial when only reporting the id used
+                        # the instrument could be edited, deleted, ...
+                        # so, we grab the name and inject that in the input_filters
                         df = df[
                             df['instrument_id'].isin(
                                 input_filters.get('photometry')['instruments']
                             )
                         ]
+                        instruments = df["instrument_name"].unique().tolist()
+                        input_filters['photometry']['instruments_by_name'] = instruments
 
                 df = df[associated_resource['allowed_export_columns']]
             else:
