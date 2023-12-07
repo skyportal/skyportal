@@ -158,9 +158,9 @@ const SourceAnalysisPage = ({ route }) => {
           {analysis?.analysis_parameters && (
             <div className={classes.div}>
               <b>Analysis Parameters</b>:
-              {Object.keys(analysis?.analysis_parameters).map((key, v) => (
+              {Object.keys(analysis?.analysis_parameters).map((key) => (
                 <Chip
-                  label={`${key}: ${v}`}
+                  label={`${key}: ${analysis?.analysis_parameters[key]}`}
                   key={`chip_ap_${key}`}
                   size="small"
                   className={classes.chip}
