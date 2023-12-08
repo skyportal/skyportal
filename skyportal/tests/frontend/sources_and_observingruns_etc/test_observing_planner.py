@@ -1,6 +1,6 @@
 import uuid
 import pytest
-from skyportal.models import DBSession, ObservingRun
+from skyportal.models import ThreadSession, ObservingRun
 from skyportal.tests import api
 import time
 
@@ -119,8 +119,8 @@ def test_observing_run_skycam_component(
     red_transients_run.instrument.telescope.skycam_link = (
         'http://this.is.a.bad.link.web.biz'
     )
-    DBSession().add(red_transients_run.instrument.telescope)
-    DBSession().commit()
+    ThreadSession().add(red_transients_run.instrument.telescope)
+    ThreadSession().commit()
 
     driver.get(f"/run/{red_transients_run.id}")
     driver.wait_for_xpath(
@@ -131,8 +131,8 @@ def test_observing_run_skycam_component(
     driver.wait_for_xpath(f'//img[contains(@src, "{fallback_url}")]')
 
     red_transients_run.instrument.telescope.skycam_link = None
-    DBSession().add(red_transients_run.instrument.telescope)
-    DBSession().commit()
+    ThreadSession().add(red_transients_run.instrument.telescope)
+    ThreadSession().commit()
 
     driver.get(f"/run/{red_transients_run.id}")
 

@@ -9,7 +9,7 @@ from baselayer.app.models import init_db
 from baselayer.app.env import load_env
 
 from skyportal.models import (
-    DBSession,
+    ThreadSession,
     RecurringAPI,
     User,
     UserNotification,
@@ -57,7 +57,7 @@ def service():
 
 def perform_api_calls():
     now = datetime.utcnow()
-    with DBSession() as session:
+    with ThreadSession() as session:
         try:
             user = session.query(User).where(User.id == 1).first()
             recurring_apis = session.scalars(

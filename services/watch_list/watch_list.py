@@ -12,7 +12,7 @@ from skyportal.handlers.api.alert import (
     get_alerts_by_position,
     post_alert,
 )
-from skyportal.models import DBSession, Listing, Telescope, User
+from skyportal.models import ThreadSession, Listing, Telescope, User
 
 env, cfg = load_env()
 
@@ -44,7 +44,7 @@ def is_loaded():
 
 
 def ztf_observing_times():
-    with DBSession() as session:
+    with ThreadSession() as session:
         telescope = (
             session.query(Telescope)
             .where(Telescope.nickname.in_(['ZTF', 'P48']))
@@ -79,7 +79,7 @@ def service():
 def check_watch_list(time_info):
     shortest_interval = 60
     start = time.time()
-    with DBSession() as session:
+    with ThreadSession() as session:
         try:
             user = session.query(User).where(User.id == 1).first()
             listings = session.scalars(
@@ -245,7 +245,7 @@ def check_watch_list(time_info):
                         )
             except Exception as e:
                 log(e)
-                DBSession.rollback()
+                session.rollback()
                 continue
     end = time.time()
     # if we took less than the shortest interval, sleep for the difference. Otherwise, don't sleep

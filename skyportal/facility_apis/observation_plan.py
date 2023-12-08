@@ -3,6 +3,7 @@ from astropy.time import Time
 import healpix_alchemy as ha
 import humanize
 import json
+import traceback
 import pandas as pd
 from regions import Regions
 import requests
@@ -15,13 +16,14 @@ import paramiko
 from paramiko import SSHClient
 from scp import SCPClient
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm import joinedload
 import tempfile
 
 from baselayer.log import make_log
 from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
+
+from skyportal.models import ThreadSession
 
 from ..utils.cache import Cache, array_to_bytes
 from ..email_utils import send_email
@@ -129,9 +131,19 @@ def generate_observation_plan_statistics(
         session.execute('ANALYZE')  # do we need this?
 
     for observation_plan_id, request_id in zip(observation_plan_ids, request_ids):
-        plan = session.query(EventObservationPlan).get(observation_plan_id)
-        request = session.query(ObservationPlanRequest).get(request_id)
-        event = session.query(GcnEvent).get(request.gcnevent_id)
+        plan = session.scalar(
+            sa.select(EventObservationPlan).where(
+                EventObservationPlan.id == observation_plan_id
+            )
+        )
+        request = session.scalar(
+            sa.select(ObservationPlanRequest).where(
+                ObservationPlanRequest.id == request_id
+            )
+        )
+        event = session.scalar(
+            sa.select(GcnEvent).where(GcnEvent.id == request.gcnevent_id)
+        )
 
         partition_key = event.dateobs
         # now get the dateobs in the format YYYY_MM
@@ -352,7 +364,6 @@ def generate_plan(
 ):
     """Use gwemopt to construct multiple observing plans."""
 
-    from ..models import DBSession
     from skyportal.handlers.api.instrument import add_tiles
 
     import gwemopt
@@ -372,511 +383,538 @@ def generate_plan(
         User,
     )
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
-
     plans, requests = [], []
     observation_plan_id_strings = [str(x) for x in observation_plan_ids]
 
-    try:
-        log(
-            f"Creating observation plan(s) for ID(s): {','.join(observation_plan_id_strings)}"
-        )
+    with ThreadSession() as session:
+        try:
+            log(
+                f"Creating observation plan(s) for ID(s): {','.join(observation_plan_id_strings)}"
+            )
 
-        session = Session()
-        for observation_plan_id, request_id in zip(observation_plan_ids, request_ids):
-            plan = session.query(EventObservationPlan).get(observation_plan_id)
-            request = session.query(ObservationPlanRequest).get(request_id)
+            for observation_plan_id, request_id in zip(
+                observation_plan_ids, request_ids
+            ):
+                plan = session.scalar(
+                    sa.select(EventObservationPlan).where(
+                        EventObservationPlan.id == observation_plan_id
+                    )
+                )
+                request = session.scalar(
+                    sa.select(ObservationPlanRequest).where(
+                        ObservationPlanRequest.id == request_id
+                    )
+                )
 
-            plans.append(plan)
-            requests.append(request)
+                plans.append(plan)
+                requests.append(request)
 
-        user = session.query(User).get(user_id)
-        log(
-            f"Running observation plan(s) for ID(s): {','.join(observation_plan_id_strings)} in session {user._sa_instance_state.session_id}"
-        )
+            user = session.scalar(sa.select(User).where(User.id == user_id))
+            log(
+                f"Running observation plan(s) for ID(s): {','.join(observation_plan_id_strings)} in session {user._sa_instance_state.session_id}"
+            )
 
-        event_time = Time(requests[0].gcnevent.dateobs, format='datetime', scale='utc')
-        start_time = Time(requests[0].payload["start_date"], format='iso', scale='utc')
-        end_time = Time(requests[0].payload["end_date"], format='iso', scale='utc')
+            event_time = Time(
+                requests[0].gcnevent.dateobs, format='datetime', scale='utc'
+            )
+            start_time = Time(
+                requests[0].payload["start_date"], format='iso', scale='utc'
+            )
+            end_time = Time(requests[0].payload["end_date"], format='iso', scale='utc')
 
-        params = {
-            # time
-            'Tobs': [start_time.mjd - event_time.mjd, end_time.mjd - event_time.mjd],
-            # geometry
-            'geometry': '3d' if request.localization.is_3d else '2d',
-            # gwemopt filter strategy
-            # options: block (blocks of single filters), integrated (series of alternating filters)
-            'doAlternatingFilters': True
-            if request.payload["filter_strategy"] == "block"
-            else False,
-            'doBlocks': True
-            if request.payload["filter_strategy"] == "block"
-            else False,
-            # flag to indicate fields come from DB
-            'doDatabase': True,
-            # only keep tiles within powerlaw_cl
-            'doMinimalTiling': True,
-            # single set of scheduled observations
-            'doSingleExposure': True,
-            # parallelize computation
-            'doParallel': False,
-            # gwemopt scheduling algorithms
-            # options: greedy, greedy_slew, sear, airmass_weighted
-            'scheduleType': request.payload["schedule_type"],
-            # list of filters to use for observations
-            'filters': request.payload["filters"].split(","),
-            # GPS time for event
-            'gpstime': event_time.gps,
-            # Dateobs of the event in UTC, used when doDatabase is True
-            'dateobs': requests[0].gcnevent.dateobs,
-            # Healpix nside for the skymap
-            'nside': 512,
-            # skymap probability powerlaw exponent
-            'powerlaw_n': 1,
-            # skymap distance powerlaw exponent
-            'powerlaw_dist_exp': 1,
-            # maximum integrated probability of the skymap to consider
-            'powerlaw_cl': request.payload["integrated_probability"],
-            'telescopes': [request.instrument.name for request in requests],
-            # minimum difference between observations of the same field
-            'doMindifFilt': True
-            if request.payload.get("minimum_time_difference", 0) > 0
-            else False,
-            'mindiff': request.payload.get("minimum_time_difference", 0) * 60,
-            # maximum airmass with which to observae
-            'airmass': request.payload["maximum_airmass"],
-            # array of exposure times (same length as filter array)
-            'exposuretimes': np.array(
-                [request.payload["exposure_time"]]
+            params = {
+                # time
+                'Tobs': [
+                    start_time.mjd - event_time.mjd,
+                    end_time.mjd - event_time.mjd,
+                ],
+                # geometry
+                'geometry': '3d' if request.localization.is_3d else '2d',
+                # gwemopt filter strategy
+                # options: block (blocks of single filters), integrated (series of alternating filters)
+                'doAlternatingFilters': True
+                if request.payload["filter_strategy"] == "block"
+                else False,
+                'doBlocks': True
+                if request.payload["filter_strategy"] == "block"
+                else False,
+                # flag to indicate fields come from DB
+                'doDatabase': True,
+                # only keep tiles within powerlaw_cl
+                'doMinimalTiling': True,
+                # single set of scheduled observations
+                'doSingleExposure': True,
+                # parallelize computation
+                'doParallel': False,
+                # gwemopt scheduling algorithms
+                # options: greedy, greedy_slew, sear, airmass_weighted
+                'scheduleType': request.payload["schedule_type"],
+                # list of filters to use for observations
+                'filters': request.payload["filters"].split(","),
+                # GPS time for event
+                'gpstime': event_time.gps,
+                # Dateobs of the event in UTC, used when doDatabase is True
+                'dateobs': requests[0].gcnevent.dateobs,
+                # Healpix nside for the skymap
+                'nside': 512,
+                # skymap probability powerlaw exponent
+                'powerlaw_n': 1,
+                # skymap distance powerlaw exponent
+                'powerlaw_dist_exp': 1,
+                # maximum integrated probability of the skymap to consider
+                'powerlaw_cl': request.payload["integrated_probability"],
+                'telescopes': [request.instrument.name for request in requests],
+                # minimum difference between observations of the same field
+                'doMindifFilt': True
+                if request.payload.get("minimum_time_difference", 0) > 0
+                else False,
+                'mindiff': request.payload.get("minimum_time_difference", 0) * 60,
+                # maximum airmass with which to observae
+                'airmass': request.payload["maximum_airmass"],
+                # array of exposure times (same length as filter array)
+                'exposuretimes': np.array(
+                    [request.payload["exposure_time"]]
+                    * len(request.payload["filters"].split(","))
+                ),
+                # avoid the galactic plane?
+                'doAvoidGalacticPlane': request.payload.get("galactic_plane", False),
+                # galactic latitude to exclude
+                'galactic_limit': request.payload.get("galactic_latitude", 10),
+                # Maximum number of fields to consider
+                'max_nb_tiles': request.payload.get("max_nb_tiles", 100)
                 * len(request.payload["filters"].split(","))
-            ),
-            # avoid the galactic plane?
-            'doAvoidGalacticPlane': request.payload.get("galactic_plane", False),
-            # galactic latitude to exclude
-            'galactic_limit': request.payload.get("galactic_latitude", 10),
-            # Maximum number of fields to consider
-            'max_nb_tiles': request.payload.get("max_nb_tiles", 100)
-            * len(request.payload["filters"].split(","))
-            if request.payload.get("max_tiles", False)
-            else None,
-            # balance observations by filter
-            'doBalanceExposure': request.payload.get("balance_exposure", False),
-            # slice observations by right ascension
-            'doRASlice': request.payload.get("ra_slice", False),
-            # try scheduling with multiple RA slices
-            'doRASlices': False,
-            # right ascension block
-            'raslice': [
-                request.payload.get("ra_slice_min", 0),
-                request.payload.get("ra_slice_max", 360),
-            ],
-            # use only primary grid
-            'doUsePrimary': request.payload.get("use_primary", False),
-            'doUseSecondary': request.payload.get("use_secondary", False),
-            # iterate through telescopes
-            'doIterativeTiling': False,
-            # amount of overlap to keep for multiple telescopes
-            'iterativeOverlap': 0.0,
-            # maximum overlap between telescopes
-            'maximumOverlap': 1.0,
-            # time allocation strategy
-            'timeallocationType': 'powerlaw',
-            # check for references, works in gwemopt only for ZTF and DECAM
-            'doReferences': request.payload.get("use_references", False),
-            # treasuremap interactions
-            'treasuremap_token': None,
-            # number of scheduling blocks to attempt
-            'Nblocks': 1,
-            # enable splitting by telescope
-            'splitType': None,
-            # perturb tiles to maximize probability
-            'doPerturbativeTiling': False,
-            # check for overlapping telescope schedules
-            'doOverlappingScheduling': False,
-            # which telescope tiles to turn off
-            'unbalanced_tiles': None,
-            # turn on diagnostic plotting?
-            'doPlots': False,
-            # parameters used for galaxy targeting
-            'galaxies_FoV_sep': 1.0,
-            'doChipGaps': False,
-        }
-
-        if len(requests) > 1:
-            params['doOrderByObservability'] = True
-
-        config = {}
-        for request in requests:
-            if "field_ids" in request.payload and len(request.payload["field_ids"]) > 0:
-                fields = [
-                    f
-                    for f in request.instrument.fields
-                    if f.field_id in request.payload["field_ids"]
-                ]
-            else:
-                fields = request.instrument.fields
-
-            # setup defaults for observation plans
-
-            # time in seconds to change the filter
-            filt_change_time = 0.0
-            # extra overhead in seconds
-            overhead_per_exposure = 0.0
-            # slew rate for the telescope [deg/s]
-            slew_rate = 2.6
-            # camera readout time
-            readout = 0.0
-
-            configuration_data = request.instrument.configuration_data
-            if configuration_data:
-                filt_change_time = configuration_data.get(
-                    'filt_change_time', float(filt_change_time)
-                )
-                overhead_per_exposure = configuration_data.get(
-                    'overhead_per_exposure', float(overhead_per_exposure)
-                )
-                slew_rate = configuration_data.get('slew_rate', float(slew_rate))
-                readout = configuration_data.get('readout', float(readout))
-
-            config[request.instrument.name] = {
-                # field list from skyportal
-                'tesselation': fields,
-                # telescope longitude [deg]
-                'longitude': request.instrument.telescope.lon,
-                # telescope latitude [deg]
-                'latitude': request.instrument.telescope.lat,
-                # telescope elevation [m]
-                'elevation': request.instrument.telescope.elevation,
-                # telescope name
-                'telescope': request.instrument.name,
-                # telescope horizon
-                'horizon': -12.0,
-                # time in seconds to change the filter
-                'filt_change_time': filt_change_time,
-                # extra overhead in seconds
-                'overhead_per_exposure': overhead_per_exposure,
-                # slew rate for the telescope [deg/s]
-                'slew_rate': slew_rate,
-                # camera readout time
-                'readout': readout,
-                # telescope FOV_type
-                'FOV_type': None,  # TODO: use the instrument FOV from the database
-                # telescope field of view
-                'FOV': 0.0,
-                # exposure time for the given limiting magnitude
-                'exposuretime': 1.0,
-                # limiting magnitude given telescope time
-                'magnitude': 0.0,
+                if request.payload.get("max_tiles", False)
+                else None,
+                # balance observations by filter
+                'doBalanceExposure': request.payload.get("balance_exposure", False),
+                # slice observations by right ascension
+                'doRASlice': request.payload.get("ra_slice", False),
+                # try scheduling with multiple RA slices
+                'doRASlices': False,
+                # right ascension block
+                'raslice': [
+                    request.payload.get("ra_slice_min", 0),
+                    request.payload.get("ra_slice_max", 360),
+                ],
+                # use only primary grid
+                'doUsePrimary': request.payload.get("use_primary", False),
+                'doUseSecondary': request.payload.get("use_secondary", False),
+                # iterate through telescopes
+                'doIterativeTiling': False,
+                # amount of overlap to keep for multiple telescopes
+                'iterativeOverlap': 0.0,
+                # maximum overlap between telescopes
+                'maximumOverlap': 1.0,
+                # time allocation strategy
+                'timeallocationType': 'powerlaw',
+                # check for references, works in gwemopt only for ZTF and DECAM
+                'doReferences': request.payload.get("use_references", False),
+                # treasuremap interactions
+                'treasuremap_token': None,
+                # number of scheduling blocks to attempt
+                'Nblocks': 1,
+                # enable splitting by telescope
+                'splitType': None,
+                # perturb tiles to maximize probability
+                'doPerturbativeTiling': False,
+                # check for overlapping telescope schedules
+                'doOverlappingScheduling': False,
+                # which telescope tiles to turn off
+                'unbalanced_tiles': None,
+                # turn on diagnostic plotting?
+                'doPlots': False,
+                # parameters used for galaxy targeting
+                'galaxies_FoV_sep': 1.0,
+                'doChipGaps': False,
             }
 
-            if request.payload.get("use_references", False):
-                config[request.instrument.name]["reference_images"] = {
-                    field.field_id: field.reference_filters
-                    if field.reference_filters is not None
-                    else []
-                    for field in fields
+            if len(requests) > 1:
+                params['doOrderByObservability'] = True
+
+            config = {}
+            for request in requests:
+                if (
+                    "field_ids" in request.payload
+                    and len(request.payload["field_ids"]) > 0
+                ):
+                    fields = [
+                        f
+                        for f in request.instrument.fields
+                        if f.field_id in request.payload["field_ids"]
+                    ]
+                else:
+                    fields = request.instrument.fields
+
+                # setup defaults for observation plans
+
+                # time in seconds to change the filter
+                filt_change_time = 0.0
+                # extra overhead in seconds
+                overhead_per_exposure = 0.0
+                # slew rate for the telescope [deg/s]
+                slew_rate = 2.6
+                # camera readout time
+                readout = 0.0
+
+                configuration_data = request.instrument.configuration_data
+                if configuration_data:
+                    filt_change_time = configuration_data.get(
+                        'filt_change_time', float(filt_change_time)
+                    )
+                    overhead_per_exposure = configuration_data.get(
+                        'overhead_per_exposure', float(overhead_per_exposure)
+                    )
+                    slew_rate = configuration_data.get('slew_rate', float(slew_rate))
+                    readout = configuration_data.get('readout', float(readout))
+
+                config[request.instrument.name] = {
+                    # field list from skyportal
+                    'tesselation': fields,
+                    # telescope longitude [deg]
+                    'longitude': request.instrument.telescope.lon,
+                    # telescope latitude [deg]
+                    'latitude': request.instrument.telescope.lat,
+                    # telescope elevation [m]
+                    'elevation': request.instrument.telescope.elevation,
+                    # telescope name
+                    'telescope': request.instrument.name,
+                    # telescope horizon
+                    'horizon': -12.0,
+                    # time in seconds to change the filter
+                    'filt_change_time': filt_change_time,
+                    # extra overhead in seconds
+                    'overhead_per_exposure': overhead_per_exposure,
+                    # slew rate for the telescope [deg/s]
+                    'slew_rate': slew_rate,
+                    # camera readout time
+                    'readout': readout,
+                    # telescope FOV_type
+                    'FOV_type': None,  # TODO: use the instrument FOV from the database
+                    # telescope field of view
+                    'FOV': 0.0,
+                    # exposure time for the given limiting magnitude
+                    'exposuretime': 1.0,
+                    # limiting magnitude given telescope time
+                    'magnitude': 0.0,
                 }
 
-        params['config'] = config
+                if request.payload.get("use_references", False):
+                    config[request.instrument.name]["reference_images"] = {
+                        field.field_id: field.reference_filters
+                        if field.reference_filters is not None
+                        else []
+                        for field in fields
+                    }
 
-        if request.payload["schedule_strategy"] == "galaxy":
-            params = {
-                **params,
-                'tilesType': 'galaxy',
-                'galaxy_catalog': request.payload["galaxy_catalog"],
-                'galaxy_grade': 'S',
-                'writeCatalog': False,
-                'catalog_n': 1.0,
-                'powerlaw_dist_exp': 1.0,
-                # TODO: Fix gwemopt.coverage.timeallocation doBlocks if statement
-                # which doesnt pass catalog_struct to gwemopt.tiles.powerlaw_tiles_struct -> gwemopt.tiles.compute_tiles_map
-                # in other methods (outside of doBlocks statement), it does use the catalog_struct we added in the tile_structs
-                # until then, we force doBlocks to False
-                'doBlocks': False,
-            }
-        elif request.payload["schedule_strategy"] == "tiling":
-            params = {**params, 'tilesType': 'moc'}
-        else:
-            raise AttributeError('scheduling_strategy should be tiling or galaxy')
+            params['config'] = config
 
-        # params = gwemopt.utils.params_checker(params)
-        params = gwemopt.segments.get_telescope_segments(params)
+            if request.payload["schedule_strategy"] == "galaxy":
+                params = {
+                    **params,
+                    'tilesType': 'galaxy',
+                    'galaxy_catalog': request.payload["galaxy_catalog"],
+                    'galaxy_grade': 'S',
+                    'writeCatalog': False,
+                    'catalog_n': 1.0,
+                    'powerlaw_dist_exp': 1.0,
+                    # TODO: Fix gwemopt.coverage.timeallocation doBlocks if statement
+                    # which doesnt pass catalog_struct to gwemopt.tiles.powerlaw_tiles_struct -> gwemopt.tiles.compute_tiles_map
+                    # in other methods (outside of doBlocks statement), it does use the catalog_struct we added in the tile_structs
+                    # until then, we force doBlocks to False
+                    'doBlocks': False,
+                }
+            elif request.payload["schedule_strategy"] == "tiling":
+                params = {**params, 'tilesType': 'moc'}
+            else:
+                raise AttributeError('scheduling_strategy should be tiling or galaxy')
 
-        map_struct = dict(
-            zip(
-                ['prob', 'distmu', 'distsigma', 'distnorm'],
-                request.localization.flat,
+            # params = gwemopt.utils.params_checker(params)
+            params = gwemopt.segments.get_telescope_segments(params)
+
+            map_struct = dict(
+                zip(
+                    ['prob', 'distmu', 'distsigma', 'distnorm'],
+                    request.localization.flat,
+                )
             )
-        )
 
-        log(f"Reading skymap for ID(s): {','.join(observation_plan_id_strings)}")
+            log(f"Reading skymap for ID(s): {','.join(observation_plan_id_strings)}")
 
-        # Function to read maps
-        params, map_struct = gwemopt.io.read_skymap(params, map_struct=map_struct)
+            # Function to read maps
+            params, map_struct = gwemopt.io.read_skymap(params, map_struct=map_struct)
 
-        # get the partition name for the localization tiles using the dateobs
-        # that way, we explicitely use the partition that contains the localization tiles we are interested in
-        # that should help not reach that "critical point" mentioned by @mcoughlin where the queries almost dont work anymore
-        # locally this takes anywhere between 0.08 and 0.5 seconds, but in production right now it takes 45 minutes...
-        # that is why we are considering to use a partitioned table for localization tiles
-        partition_key = requests[0].gcnevent.dateobs
-        # now get the dateobs in the format YYYY_MM
-        localizationtile_partition_name = (
-            f'{partition_key.year}_{partition_key.month:02d}'
-        )
-        localizationtilescls = LocalizationTile.partitions.get(
-            localizationtile_partition_name, None
-        )
-        if localizationtilescls is None:
+            # get the partition name for the localization tiles using the dateobs
+            # that way, we explicitely use the partition that contains the localization tiles we are interested in
+            # that should help not reach that "critical point" mentioned by @mcoughlin where the queries almost dont work anymore
+            # locally this takes anywhere between 0.08 and 0.5 seconds, but in production right now it takes 45 minutes...
+            # that is why we are considering to use a partitioned table for localization tiles
+            partition_key = requests[0].gcnevent.dateobs
+            # now get the dateobs in the format YYYY_MM
+            localizationtile_partition_name = (
+                f'{partition_key.year}_{partition_key.month:02d}'
+            )
             localizationtilescls = LocalizationTile.partitions.get(
-                'def', LocalizationTile
+                localizationtile_partition_name, None
             )
-        else:
-            # check that there is actually a localizationTile with the given localization_id in the partition
-            # if not, use the default partition
-            if not (
-                session.scalars(
-                    sa.select(localizationtilescls.localization_id).where(
-                        localizationtilescls.localization_id == request.localization.id
-                    )
-                ).first()
-            ):
+            if localizationtilescls is None:
                 localizationtilescls = LocalizationTile.partitions.get(
                     'def', LocalizationTile
                 )
-
-        start = time.time()
-
-        cum_prob = (
-            sa.func.sum(
-                localizationtilescls.probdensity * localizationtilescls.healpix.area
-            )
-            .over(order_by=localizationtilescls.probdensity.desc())
-            .label('cum_prob')
-        )
-        localizationtile_subquery = (
-            sa.select(localizationtilescls.probdensity, cum_prob).filter(
-                localizationtilescls.localization_id == request.localization.id
-            )
-        ).subquery()
-
-        # convert to 0-1
-        integrated_probability = request.payload["integrated_probability"] * 0.01
-        min_probdensity = (
-            sa.select(
-                sa.func.min(localizationtile_subquery.columns.probdensity)
-            ).filter(
-                localizationtile_subquery.columns.cum_prob <= integrated_probability
-            )
-        ).scalar_subquery()
-
-        if params["tilesType"] == "galaxy":
-            galaxies_query = sa.select(Galaxy, localizationtilescls.probdensity).where(
-                localizationtilescls.localization_id == request.localization.id,
-                localizationtilescls.healpix.contains(Galaxy.healpix),
-                localizationtilescls.probdensity >= min_probdensity,
-                Galaxy.catalog_name == params["galaxy_catalog"],
-            )
-            log("galaxies query is done")
-            galaxies, probs = zip(*session.execute(galaxies_query).all())
-            log("galaxies converted to list with zip")
-
-            catalog_struct = {}
-            catalog_struct["ra"] = np.array([g.ra for g in galaxies])
-            catalog_struct["dec"] = np.array([g.dec for g in galaxies])
-
-            if "galaxy_sorting" not in request.payload:
-                galaxy_sorting = "equal"
             else:
-                galaxy_sorting = request.payload["galaxy_sorting"]
-
-            if galaxy_sorting == "equal":
-                values = np.array([1.0 for g in galaxies])
-            elif galaxy_sorting == "sfr_fuv":
-                values = np.array([g.sfr_fuv for g in galaxies])
-            elif galaxy_sorting == "mstar":
-                values = np.array([g.mstar for g in galaxies])
-            elif galaxy_sorting == "magb":
-                values = np.array([g.magb for g in galaxies])
-            elif galaxy_sorting == "magk":
-                values = np.array([g.magk for g in galaxies])
-
-            idx = np.where(values != None)[0]  # noqa: E711
-
-            if len(idx) == 0:
-                raise ValueError('No galaxies available for scheduling.')
-
-            probs = np.array(probs)[idx]
-            values = values[idx]
-            if galaxy_sorting in ["magb", "magk"]:
-                # weigh brighter more heavily
-                values = -values
-                values = (values - np.min(values)) / (np.max(values) - np.min(values))
-
-            catalog_struct["ra"] = catalog_struct["ra"][idx]
-            catalog_struct["dec"] = catalog_struct["dec"][idx]
-            catalog_struct["S"] = values * probs
-            catalog_struct["Sloc"] = values * probs
-            catalog_struct["Smass"] = values * probs
-
-        elif params["tilesType"] == "moc":
-            field_ids = {}
-            if use_skyportal_fields is True:
-                for request in requests:
-                    query_id = f"{str(request.localization.id)}_{str(request.instrument.id)}_{str(int(request.payload['integrated_probability'])/100.0)}"
-                    cache_filename = cache[query_id]
-                    if cache_filename is not None:
-                        field_tiles = np.load(cache_filename).tolist()
-                    else:
-                        field_tiles_query = sa.select(InstrumentField.field_id).where(
+                # check that there is actually a localizationTile with the given localization_id in the partition
+                # if not, use the default partition
+                if not (
+                    session.scalars(
+                        sa.select(localizationtilescls.localization_id).where(
                             localizationtilescls.localization_id
-                            == request.localization.id,
-                            localizationtilescls.probdensity >= min_probdensity,
-                            InstrumentFieldTile.instrument_id == request.instrument.id,
-                            InstrumentFieldTile.instrument_field_id
-                            == InstrumentField.id,
-                            InstrumentFieldTile.healpix.overlaps(
-                                localizationtilescls.healpix
-                            ),
+                            == request.localization.id
                         )
-                        field_tiles = session.scalars(field_tiles_query).unique().all()
-                        if len(field_tiles) > 0:
-                            cache[query_id] = array_to_bytes(field_tiles)
-                    field_ids[request.instrument.name] = field_tiles
-
-        end = time.time()
-        log(f"Queries took {end - start} seconds")
-
-        log(f"Retrieving fields for ID(s): {','.join(observation_plan_id_strings)}")
-
-        if params["tilesType"] == "moc":
-            moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
-                params,
-                map_struct=map_struct,
-                field_ids=field_ids if use_skyportal_fields is True else None,
-            )
-            tile_structs = gwemopt.tiles.moc(params, map_struct, moc_structs)
-        elif params["tilesType"] == "galaxy":
-            for request in requests:
-                if request.instrument.region is None:
-                    raise ValueError(
-                        'Must define the instrument region in the case of galaxy requests'
+                    ).first()
+                ):
+                    localizationtilescls = LocalizationTile.partitions.get(
+                        'def', LocalizationTile
                     )
-                regions = Regions.parse(request.instrument.region, format='ds9')
-                tile_structs = gwemopt.skyportal.create_galaxy_from_skyportal(
-                    params, map_struct, catalog_struct, regions=regions
+
+            start = time.time()
+
+            cum_prob = (
+                sa.func.sum(
+                    localizationtilescls.probdensity * localizationtilescls.healpix.area
                 )
-
-        log(f"Creating schedule(s) for ID(s): {','.join(observation_plan_id_strings)}")
-
-        tile_structs, coverage_struct = gwemopt.coverage.timeallocation(
-            params, map_struct, tile_structs
-        )
-
-        # if the fields do not yet exist, we need to add them
-        if params["tilesType"] == "galaxy":
-            field_ids = np.array([-1] * len(coverage_struct["data"]))
-            for request in requests:
-                regions = Regions.parse(request.instrument.region, format='ds9')
-                idx = np.where(coverage_struct["telescope"] == request.instrument.name)[
-                    0
-                ]
-                data = {
-                    'RA': coverage_struct["data"][idx, 0],
-                    'Dec': coverage_struct["data"][idx, 1],
-                }
-                field_data = pd.DataFrame.from_dict(data)
-                idx = np.array(idx).astype(int)
-                field_id = add_tiles(
-                    request.instrument.id,
-                    request.instrument.name,
-                    regions,
-                    field_data,
-                    session=session,
-                )
-                field_ids[idx] = field_id
-        log(
-            f"Writing planned observations to database for ID(s): {','.join(observation_plan_id_strings)}"
-        )
-
-        planned_observations = []
-        for ii in range(len(coverage_struct["ipix"])):
-            data = coverage_struct["data"][ii, :]
-            filt = coverage_struct["filters"][ii]
-            mjd = data[2]
-            tt = Time(mjd, format='mjd')
-            instrument_name = coverage_struct["telescope"][ii]
-
-            overhead_per_exposure = params["config"][instrument_name][
-                "overhead_per_exposure"
-            ]
-
-            exposure_time, prob = data[4], data[6]
-            if params["tilesType"] == "galaxy":
-                field_id = int(field_ids[ii])
-            else:
-                field_id = data[5]
-
-            for plan, request in zip(plans, requests):
-                if request.instrument.name == instrument_name:
-                    break
-            field = session.scalars(
-                sa.select(InstrumentField).where(
-                    InstrumentField.instrument_id == request.instrument.id,
-                    InstrumentField.field_id == field_id,
-                )
-            ).first()
-            if field is None:
-                return log(f"Missing field {field_id} from list")
-
-            planned_observation = PlannedObservation(
-                obstime=tt.datetime,
-                dateobs=request.gcnevent.dateobs,
-                field_id=field.id,
-                exposure_time=exposure_time,
-                weight=prob,
-                filt=filt,
-                instrument_id=request.instrument.id,
-                planned_observation_id=ii,
-                observation_plan_id=plan.id,
-                overhead_per_exposure=overhead_per_exposure,
+                .over(order_by=localizationtilescls.probdensity.desc())
+                .label('cum_prob')
             )
-            planned_observations.append(planned_observation)
+            localizationtile_subquery = (
+                sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                    localizationtilescls.localization_id == request.localization.id
+                )
+            ).subquery()
 
-        session.add_all(planned_observations)
-        session.commit()
+            # convert to 0-1
+            integrated_probability = request.payload["integrated_probability"] * 0.01
+            min_probdensity = (
+                sa.select(
+                    sa.func.min(localizationtile_subquery.columns.probdensity)
+                ).filter(
+                    localizationtile_subquery.columns.cum_prob <= integrated_probability
+                )
+            ).scalar_subquery()
 
-        for plan in plans:
-            setattr(plan, 'status', 'complete')
-            session.merge(plan)
+            if params["tilesType"] == "galaxy":
+                galaxies_query = sa.select(
+                    Galaxy, localizationtilescls.probdensity
+                ).where(
+                    localizationtilescls.localization_id == request.localization.id,
+                    localizationtilescls.healpix.contains(Galaxy.healpix),
+                    localizationtilescls.probdensity >= min_probdensity,
+                    Galaxy.catalog_name == params["galaxy_catalog"],
+                )
+                log("galaxies query is done")
+                galaxies, probs = zip(*session.execute(galaxies_query).all())
+                log("galaxies converted to list with zip")
 
-        session.commit()
+                catalog_struct = {}
+                catalog_struct["ra"] = np.array([g.ra for g in galaxies])
+                catalog_struct["dec"] = np.array([g.dec for g in galaxies])
 
-        log(f"Generating statistics for ID(s): {','.join(observation_plan_id_strings)}")
+                if "galaxy_sorting" not in request.payload:
+                    galaxy_sorting = "equal"
+                else:
+                    galaxy_sorting = request.payload["galaxy_sorting"]
 
-        generate_observation_plan_statistics(observation_plan_ids, request_ids, session)
+                if galaxy_sorting == "equal":
+                    values = np.array([1.0 for g in galaxies])
+                elif galaxy_sorting == "sfr_fuv":
+                    values = np.array([g.sfr_fuv for g in galaxies])
+                elif galaxy_sorting == "mstar":
+                    values = np.array([g.mstar for g in galaxies])
+                elif galaxy_sorting == "magb":
+                    values = np.array([g.magb for g in galaxies])
+                elif galaxy_sorting == "magk":
+                    values = np.array([g.magk for g in galaxies])
 
-        flow = Flow()
-        flow.push(
-            '*',
-            "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-            payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
-        )
+                idx = np.where(values != None)[0]  # noqa: E711
 
-        log(f"Finished plan(s) for ID(s): {','.join(observation_plan_id_strings)}")
+                if len(idx) == 0:
+                    raise ValueError('No galaxies available for scheduling.')
 
-    except Exception as e:
-        log(
-            f"Failed to generate plans for ID(s): {','.join(observation_plan_id_strings)}: {str(e)}."
-        )
-        session.rollback()
+                probs = np.array(probs)[idx]
+                values = values[idx]
+                if galaxy_sorting in ["magb", "magk"]:
+                    # weigh brighter more heavily
+                    values = -values
+                    values = (values - np.min(values)) / (
+                        np.max(values) - np.min(values)
+                    )
 
-    session.close()
-    Session.remove()
+                catalog_struct["ra"] = catalog_struct["ra"][idx]
+                catalog_struct["dec"] = catalog_struct["dec"][idx]
+                catalog_struct["S"] = values * probs
+                catalog_struct["Sloc"] = values * probs
+                catalog_struct["Smass"] = values * probs
+
+            elif params["tilesType"] == "moc":
+                field_ids = {}
+                if use_skyportal_fields is True:
+                    for request in requests:
+                        query_id = f"{str(request.localization.id)}_{str(request.instrument.id)}_{str(int(request.payload['integrated_probability'])/100.0)}"
+                        cache_filename = cache[query_id]
+                        if cache_filename is not None:
+                            field_tiles = np.load(cache_filename).tolist()
+                        else:
+                            field_tiles_query = sa.select(
+                                InstrumentField.field_id
+                            ).where(
+                                localizationtilescls.localization_id
+                                == request.localization.id,
+                                localizationtilescls.probdensity >= min_probdensity,
+                                InstrumentFieldTile.instrument_id
+                                == request.instrument.id,
+                                InstrumentFieldTile.instrument_field_id
+                                == InstrumentField.id,
+                                InstrumentFieldTile.healpix.overlaps(
+                                    localizationtilescls.healpix
+                                ),
+                            )
+                            field_tiles = (
+                                session.scalars(field_tiles_query).unique().all()
+                            )
+                            if len(field_tiles) > 0:
+                                cache[query_id] = array_to_bytes(field_tiles)
+                        field_ids[request.instrument.name] = field_tiles
+
+            end = time.time()
+            log(f"Queries took {end - start} seconds")
+
+            log(f"Retrieving fields for ID(s): {','.join(observation_plan_id_strings)}")
+
+            if params["tilesType"] == "moc":
+                moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
+                    params,
+                    map_struct=map_struct,
+                    field_ids=field_ids if use_skyportal_fields is True else None,
+                )
+                tile_structs = gwemopt.tiles.moc(params, map_struct, moc_structs)
+            elif params["tilesType"] == "galaxy":
+                for request in requests:
+                    if request.instrument.region is None:
+                        raise ValueError(
+                            'Must define the instrument region in the case of galaxy requests'
+                        )
+                    regions = Regions.parse(request.instrument.region, format='ds9')
+                    tile_structs = gwemopt.skyportal.create_galaxy_from_skyportal(
+                        params, map_struct, catalog_struct, regions=regions
+                    )
+
+            log(
+                f"Creating schedule(s) for ID(s): {','.join(observation_plan_id_strings)}"
+            )
+
+            tile_structs, coverage_struct = gwemopt.coverage.timeallocation(
+                params, map_struct, tile_structs
+            )
+
+            # if the fields do not yet exist, we need to add them
+            if params["tilesType"] == "galaxy":
+                field_ids = np.array([-1] * len(coverage_struct["data"]))
+                for request in requests:
+                    regions = Regions.parse(request.instrument.region, format='ds9')
+                    idx = np.where(
+                        coverage_struct["telescope"] == request.instrument.name
+                    )[0]
+                    data = {
+                        'RA': coverage_struct["data"][idx, 0],
+                        'Dec': coverage_struct["data"][idx, 1],
+                    }
+                    field_data = pd.DataFrame.from_dict(data)
+                    idx = np.array(idx).astype(int)
+                    field_id = add_tiles(
+                        request.instrument.id,
+                        request.instrument.name,
+                        regions,
+                        field_data,
+                        session=session,
+                    )
+                    field_ids[idx] = field_id
+            log(
+                f"Writing planned observations to database for ID(s): {','.join(observation_plan_id_strings)}"
+            )
+
+            planned_observations = []
+            for ii in range(len(coverage_struct["ipix"])):
+                data = coverage_struct["data"][ii, :]
+                filt = coverage_struct["filters"][ii]
+                mjd = data[2]
+                tt = Time(mjd, format='mjd')
+                instrument_name = coverage_struct["telescope"][ii]
+
+                overhead_per_exposure = params["config"][instrument_name][
+                    "overhead_per_exposure"
+                ]
+
+                exposure_time, prob = data[4], data[6]
+                if params["tilesType"] == "galaxy":
+                    field_id = int(field_ids[ii])
+                else:
+                    field_id = data[5]
+
+                for plan, request in zip(plans, requests):
+                    if request.instrument.name == instrument_name:
+                        break
+                field = session.scalars(
+                    sa.select(InstrumentField).where(
+                        InstrumentField.instrument_id == request.instrument.id,
+                        InstrumentField.field_id == field_id,
+                    )
+                ).first()
+                if field is None:
+                    return log(f"Missing field {field_id} from list")
+
+                planned_observation = PlannedObservation(
+                    obstime=tt.datetime,
+                    dateobs=request.gcnevent.dateobs,
+                    field_id=field.id,
+                    exposure_time=exposure_time,
+                    weight=prob,
+                    filt=filt,
+                    instrument_id=request.instrument.id,
+                    planned_observation_id=ii,
+                    observation_plan_id=plan.id,
+                    overhead_per_exposure=overhead_per_exposure,
+                )
+                planned_observations.append(planned_observation)
+
+            session.add_all(planned_observations)
+            session.commit()
+
+            for plan in plans:
+                setattr(plan, 'status', 'complete')
+                session.merge(plan)
+
+            session.commit()
+
+            log(
+                f"Generating statistics for ID(s): {','.join(observation_plan_id_strings)}"
+            )
+
+            generate_observation_plan_statistics(
+                observation_plan_ids, request_ids, session
+            )
+
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
+            )
+
+            log(f"Finished plan(s) for ID(s): {','.join(observation_plan_id_strings)}")
+        except Exception as e:
+            traceback.print_exc()
+            log(
+                f"Failed to generate plans for ID(s): {','.join(observation_plan_id_strings)}: {str(e)}."
+            )
+            session.rollback()
 
 
 class GenericRequest:
@@ -954,7 +992,7 @@ class MMAAPI(FollowUpAPI):
         """
 
         from tornado.ioloop import IOLoop
-        from ..models import DBSession, EventObservationPlan
+        from ..models import EventObservationPlan
 
         plan_ids, request_ids = [], []
         for request in requests:
@@ -1022,13 +1060,16 @@ class MMAAPI(FollowUpAPI):
                     validity_window_start=start_time.datetime,
                     validity_window_end=end_time.datetime,
                 )
-
-                DBSession().add(plan)
-                DBSession().commit()
-
-                request.status = 'running'
-                DBSession().merge(request)
-                DBSession().commit()
+                with ThreadSession() as session:
+                    try:
+                        session.add(plan)
+                        session.commit()
+                        request.status = 'running'
+                        session.merge(request)
+                        session.commit()
+                    except Exception as e:
+                        session.rollback()
+                        raise e
 
                 log(
                     f"Created observation plan request for ID {plan.id} in session {plan._sa_instance_state.session_id}"
@@ -1084,133 +1125,144 @@ class MMAAPI(FollowUpAPI):
         """
 
         from tornado.ioloop import IOLoop
-        from ..models import DBSession, EventObservationPlan, ObservationPlanRequest
+        from ..models import EventObservationPlan, ObservationPlanRequest
 
         log(f"request_id: {request_id}")
-        with DBSession() as session:
-            request = session.scalar(
-                sa.select(ObservationPlanRequest).where(
-                    ObservationPlanRequest.id == request_id
+        with ThreadSession() as session:
+            try:
+                request = session.scalar(
+                    sa.select(ObservationPlanRequest).where(
+                        ObservationPlanRequest.id == request_id
+                    )
                 )
-            )
-            plan = session.scalars(
-                sa.select(EventObservationPlan).where(
-                    EventObservationPlan.plan_name == request.payload["queue_name"]
-                )
-            ).first()
+                plan = session.scalars(
+                    sa.select(EventObservationPlan).where(
+                        EventObservationPlan.plan_name == request.payload["queue_name"]
+                    )
+                ).first()
 
-            if plan is None:
+                if plan is None:
 
-                # check payload
-                required_parameters = {
-                    'start_date',
-                    'end_date',
-                    'schedule_type',
-                    'schedule_strategy',
-                    'filter_strategy',
-                    'exposure_time',
-                    'filters',
-                    'maximum_airmass',
-                    'integrated_probability',
-                }
+                    # check payload
+                    required_parameters = {
+                        'start_date',
+                        'end_date',
+                        'schedule_type',
+                        'schedule_strategy',
+                        'filter_strategy',
+                        'exposure_time',
+                        'filters',
+                        'maximum_airmass',
+                        'integrated_probability',
+                    }
 
-                if not required_parameters.issubset(set(request.payload.keys())):
-                    raise ValueError('Missing required planning parameter')
+                    if not required_parameters.issubset(set(request.payload.keys())):
+                        raise ValueError('Missing required planning parameter')
 
-                if (
-                    request.payload["filter_strategy"] == "integrated"
-                    and "minimum_time_difference" not in request.payload
-                ):
-                    raise ValueError(
-                        'minimum_time_difference must be defined for integrated scheduling'
+                    if (
+                        request.payload["filter_strategy"] == "integrated"
+                        and "minimum_time_difference" not in request.payload
+                    ):
+                        raise ValueError(
+                            'minimum_time_difference must be defined for integrated scheduling'
+                        )
+
+                    if request.payload["schedule_type"] not in [
+                        "greedy",
+                        "greedy_slew",
+                        "sear",
+                        "airmass_weighted",
+                    ]:
+                        raise ValueError(
+                            'schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted'
+                        )
+
+                    if (
+                        request.payload["integrated_probability"] < 0
+                        or request.payload["integrated_probability"] > 100
+                    ):
+                        raise ValueError(
+                            'integrated_probability must be between 0 and 100'
+                        )
+
+                    if request.payload["filter_strategy"] not in [
+                        "block",
+                        "integrated",
+                    ]:
+                        raise ValueError(
+                            'filter_strategy must be either block or integrated'
+                        )
+
+                    start_time = Time(
+                        request.payload["start_date"], format='iso', scale='utc'
+                    )
+                    end_time = Time(
+                        request.payload["end_date"], format='iso', scale='utc'
                     )
 
-                if request.payload["schedule_type"] not in [
-                    "greedy",
-                    "greedy_slew",
-                    "sear",
-                    "airmass_weighted",
-                ]:
-                    raise ValueError(
-                        'schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted'
+                    plan = EventObservationPlan(
+                        observation_plan_request_id=request.id,
+                        dateobs=request.gcnevent.dateobs,
+                        plan_name=request.payload['queue_name'],
+                        instrument_id=request.instrument.id,
+                        validity_window_start=start_time.datetime,
+                        validity_window_end=end_time.datetime,
                     )
 
-                if (
-                    request.payload["integrated_probability"] < 0
-                    or request.payload["integrated_probability"] > 100
-                ):
-                    raise ValueError('integrated_probability must be between 0 and 100')
+                    session.add(plan)
+                    session.commit()
 
-                if request.payload["filter_strategy"] not in ["block", "integrated"]:
-                    raise ValueError(
-                        'filter_strategy must be either block or integrated'
+                    plan_id = plan.id
+
+                    request.status = 'running'
+                    session.merge(request)
+                    session.commit()
+
+                    log(
+                        f"Created observation plan request for ID {plan.id} in session {plan._sa_instance_state.session_id}"
                     )
 
-                start_time = Time(
-                    request.payload["start_date"], format='iso', scale='utc'
-                )
-                end_time = Time(request.payload["end_date"], format='iso', scale='utc')
+                    flow = Flow()
+                    flow.push(
+                        '*',
+                        "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                        payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
+                    )
 
-                plan = EventObservationPlan(
-                    observation_plan_request_id=request.id,
-                    dateobs=request.gcnevent.dateobs,
-                    plan_name=request.payload['queue_name'],
-                    instrument_id=request.instrument.id,
-                    validity_window_start=start_time.datetime,
-                    validity_window_end=end_time.datetime,
-                )
+                    flow.push(
+                        '*',
+                        "skyportal/REFRESH_OBSERVATION_PLAN_NAMES",
+                    )
 
-                session.add(plan)
-                session.commit()
+                    log(f"Generating schedule for observation plan {plan.id}")
+                    requester_id = request.requester.id
 
-                plan_id = plan.id
-
-                request.status = 'running'
-                session.merge(request)
-                session.commit()
-
-                log(
-                    f"Created observation plan request for ID {plan.id} in session {plan._sa_instance_state.session_id}"
-                )
-
-                flow = Flow()
-                flow.push(
-                    '*',
-                    "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-                    payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
-                )
-
-                flow.push(
-                    '*',
-                    "skyportal/REFRESH_OBSERVATION_PLAN_NAMES",
-                )
-
-                log(f"Generating schedule for observation plan {plan.id}")
-                requester_id = request.requester.id
-
-                if asynchronous:
-                    IOLoop.current().run_in_executor(
-                        # TODO: add stats_method and stats_logging to the arguments
-                        None,
-                        lambda: generate_plan(
+                    if asynchronous:
+                        IOLoop.current().run_in_executor(
+                            # TODO: add stats_method and stats_logging to the arguments
+                            None,
+                            lambda: generate_plan(
+                                observation_plan_ids=[plan.id],
+                                request_ids=[request.id],
+                                user_id=requester_id,
+                            ),
+                        )
+                    else:
+                        generate_plan(
                             observation_plan_ids=[plan.id],
                             request_ids=[request.id],
                             user_id=requester_id,
-                        ),
-                    )
+                        )
+
+                    return plan_id
+
                 else:
-                    generate_plan(
-                        observation_plan_ids=[plan.id],
-                        request_ids=[request.id],
-                        user_id=requester_id,
+                    raise ValueError(
+                        f'plan_name {request.payload["queue_name"]} already exists.'
                     )
-
-                return plan_id
-
-            else:
-                raise ValueError(
-                    f'plan_name {request.payload["queue_name"]} already exists.'
-                )
+            except Exception as e:
+                session.rollback()
+                raise e
 
     @staticmethod
     def delete(request_id):
@@ -1222,299 +1274,322 @@ class MMAAPI(FollowUpAPI):
             The id of the skyportal.models.ObservationPlanRequest to delete from the queue and the SkyPortal database.
         """
 
-        from ..models import DBSession, ObservationPlanRequest
+        from ..models import ObservationPlanRequest
 
-        req = (
-            DBSession.execute(
-                sa.select(ObservationPlanRequest)
-                .filter(ObservationPlanRequest.id == request_id)
-                .options(joinedload(ObservationPlanRequest.observation_plans))
-            )
-            .unique()
-            .one()
-        )
-        req = req[0]
+        with ThreadSession() as session:
+            try:
+                req = (
+                    session.execute(
+                        sa.select(ObservationPlanRequest)
+                        .filter(ObservationPlanRequest.id == request_id)
+                        .options(joinedload(ObservationPlanRequest.observation_plans))
+                    )
+                    .unique()
+                    .one()
+                )
+                req = req[0]
 
-        if len(req.observation_plans) > 1:
-            raise ValueError(
-                'Should only be one observation plan associated to this request'
-            )
+                if len(req.observation_plans) > 1:
+                    raise ValueError(
+                        'Should only be one observation plan associated to this request'
+                    )
 
-        if len(req.observation_plans) > 0:
-            observation_plan = req.observation_plans[0]
-            DBSession().delete(observation_plan)
+                if len(req.observation_plans) > 0:
+                    observation_plan = req.observation_plans[0]
+                    session.delete(observation_plan)
 
-        DBSession().delete(req)
-        DBSession().commit()
+                session.delete(req)
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                raise e
 
     def custom_json_schema(instrument, user):
 
-        from ..models import DBSession, Galaxy, InstrumentField
+        from ..models import Galaxy, InstrumentField
 
-        galaxies = [g for g, in DBSession().query(Galaxy.catalog_name).distinct().all()]
-        end_date = instrument.telescope.next_sunrise()
-        if end_date is None:
-            end_date = str(datetime.utcnow() + timedelta(days=1))
-        else:
-            end_date = Time(end_date, format='jd').iso
+        with ThreadSession() as session:
+            try:
+                galaxy_catalogs = session.scalars(
+                    sa.select(Galaxy.catalog_name).distinct()
+                ).all()
+                end_date = instrument.telescope.next_sunrise()
+                if end_date is None:
+                    end_date = str(datetime.utcnow() + timedelta(days=1))
+                else:
+                    end_date = Time(end_date, format='jd').iso
 
-        # we add a use_references boolean to the schema if any of the instrument's fields has reference filters
-        has_references = (
-            DBSession()
-            .query(InstrumentField)
-            .filter(
-                InstrumentField.instrument_id == instrument.id,
-                InstrumentField.reference_filters != '{}',
-            )
-            .count()
-            > 0
-        )
+                # we add a use_references boolean to the schema if any of the instrument's fields has reference filters
+                has_references = (
+                    len(
+                        session.scalars(
+                            sa.select(InstrumentField).where(
+                                InstrumentField.instrument_id == instrument.id,
+                                InstrumentField.reference_filters != '{}',
+                            )
+                        ).all()
+                    )
+                    > 0
+                )
 
-        form_json_schema = {
-            "type": "object",
-            "properties": {
-                "queue_name": {
-                    "type": "string",
-                    "default": f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}",
-                },
-                "start_date": {
-                    "type": "string",
-                    "default": str(datetime.utcnow()),
-                    "title": "Start Date (UT)",
-                },
-                "end_date": {
-                    "type": "string",
-                    "title": "End Date (UT)",
-                    "default": end_date,
-                },
-                "filter_strategy": {
-                    "type": "string",
-                    "enum": ["block", "integrated"],
-                    "default": "block",
-                },
-                "schedule_type": {
-                    "type": "string",
-                    "enum": ["greedy", "greedy_slew", "sear", "airmass_weighted"],
-                    "default": "greedy",
-                },
-                "schedule_strategy": {
-                    "type": "string",
-                    "enum": ["tiling", "galaxy"],
-                    "default": "tiling",
-                },
-                "exposure_time": {
-                    "title": "Exposure Time [s]",
-                    "type": "number",
-                    "default": 300,
-                    "minimum": 1,
-                },
-                "filters": {"type": "string", "default": ",".join(default_filters)},
-                "maximum_airmass": {
-                    "title": "Maximum Airmass (1-3)",
-                    "type": "number",
-                    "default": 2.0,
-                    "minimum": 1,
-                    "maximum": 3,
-                },
-                "integrated_probability": {
-                    "title": "Integrated Probability (0-100)",
-                    "type": "number",
-                    "default": 90.0,
-                    "minimum": 0,
-                    "maximum": 100,
-                },
-                "galactic_plane": {
-                    "title": "Avoid the Galactic Plane?",
-                    "type": "boolean",
-                    "default": False,
-                },
-                "max_tiles": {
-                    "title": "Threshold on number of fields?",
-                    "type": "boolean",
-                    "default": False,
-                },
-                "balance_exposure": {
-                    "title": "Balance exposures across fields",
-                    "type": "boolean",
-                    "default": True,
-                },
-                "ra_slice": {
-                    "title": "RA Slicing",
-                    "type": "boolean",
-                    "default": False,
-                },
-            },
-            "required": [
-                "start_date",
-                "end_date",
-                "filters",
-                "queue_name",
-                "filter_strategy",
-                "schedule_type",
-                "schedule_strategy",
-                "exposure_time",
-                "maximum_airmass",
-                "integrated_probability",
-            ],
-            "dependencies": {
-                "galactic_plane": {
-                    "oneOf": [
-                        {
-                            "properties": {
-                                "galactic_plane": {
-                                    "enum": [True],
-                                },
-                                "galactic_latitude": {
-                                    "title": "Galactic latitude to exclude",
-                                    "type": "number",
-                                    "default": 10.0,
-                                    "minimum": 0,
-                                    "maximum": 90,
-                                },
-                            },
-                            "required": ["galactic_latitude"],
+                form_json_schema = {
+                    "type": "object",
+                    "properties": {
+                        "queue_name": {
+                            "type": "string",
+                            "default": f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}",
                         },
-                        {
-                            "properties": {
-                                "galactic_plane": {
-                                    "enum": [False],
-                                },
-                            },
+                        "start_date": {
+                            "type": "string",
+                            "default": str(datetime.utcnow()),
+                            "title": "Start Date (UT)",
                         },
+                        "end_date": {
+                            "type": "string",
+                            "title": "End Date (UT)",
+                            "default": end_date,
+                        },
+                        "filter_strategy": {
+                            "type": "string",
+                            "enum": ["block", "integrated"],
+                            "default": "block",
+                        },
+                        "schedule_type": {
+                            "type": "string",
+                            "enum": [
+                                "greedy",
+                                "greedy_slew",
+                                "sear",
+                                "airmass_weighted",
+                            ],
+                            "default": "greedy",
+                        },
+                        "schedule_strategy": {
+                            "type": "string",
+                            "enum": ["tiling", "galaxy"],
+                            "default": "tiling",
+                        },
+                        "exposure_time": {
+                            "title": "Exposure Time [s]",
+                            "type": "number",
+                            "default": 300,
+                            "minimum": 1,
+                        },
+                        "filters": {
+                            "type": "string",
+                            "default": ",".join(default_filters),
+                        },
+                        "maximum_airmass": {
+                            "title": "Maximum Airmass (1-3)",
+                            "type": "number",
+                            "default": 2.0,
+                            "minimum": 1,
+                            "maximum": 3,
+                        },
+                        "integrated_probability": {
+                            "title": "Integrated Probability (0-100)",
+                            "type": "number",
+                            "default": 90.0,
+                            "minimum": 0,
+                            "maximum": 100,
+                        },
+                        "galactic_plane": {
+                            "title": "Avoid the Galactic Plane?",
+                            "type": "boolean",
+                            "default": False,
+                        },
+                        "max_tiles": {
+                            "title": "Threshold on number of fields?",
+                            "type": "boolean",
+                            "default": False,
+                        },
+                        "balance_exposure": {
+                            "title": "Balance exposures across fields",
+                            "type": "boolean",
+                            "default": True,
+                        },
+                        "ra_slice": {
+                            "title": "RA Slicing",
+                            "type": "boolean",
+                            "default": False,
+                        },
+                    },
+                    "required": [
+                        "start_date",
+                        "end_date",
+                        "filters",
+                        "queue_name",
+                        "filter_strategy",
+                        "schedule_type",
+                        "schedule_strategy",
+                        "exposure_time",
+                        "maximum_airmass",
+                        "integrated_probability",
                     ],
-                },
-                "max_tiles": {
-                    "oneOf": [
-                        {
-                            "properties": {
-                                "max_tiles": {
-                                    "enum": [True],
+                    "dependencies": {
+                        "galactic_plane": {
+                            "oneOf": [
+                                {
+                                    "properties": {
+                                        "galactic_plane": {
+                                            "enum": [True],
+                                        },
+                                        "galactic_latitude": {
+                                            "title": "Galactic latitude to exclude",
+                                            "type": "number",
+                                            "default": 10.0,
+                                            "minimum": 0,
+                                            "maximum": 90,
+                                        },
+                                    },
+                                    "required": ["galactic_latitude"],
                                 },
-                                "max_nb_tiles": {
-                                    "title": "Maximum number of fields",
-                                    "type": "number",
-                                    "default": 100.0,
-                                    "minimum": 0,
-                                    "maximum": 1000,
+                                {
+                                    "properties": {
+                                        "galactic_plane": {
+                                            "enum": [False],
+                                        },
+                                    },
                                 },
-                            },
-                            "required": ["max_nb_tiles"],
+                            ],
                         },
-                        {
-                            "properties": {
-                                "max_tiles": {
-                                    "enum": [False],
+                        "max_tiles": {
+                            "oneOf": [
+                                {
+                                    "properties": {
+                                        "max_tiles": {
+                                            "enum": [True],
+                                        },
+                                        "max_nb_tiles": {
+                                            "title": "Maximum number of fields",
+                                            "type": "number",
+                                            "default": 100.0,
+                                            "minimum": 0,
+                                            "maximum": 1000,
+                                        },
+                                    },
+                                    "required": ["max_nb_tiles"],
                                 },
-                            },
+                                {
+                                    "properties": {
+                                        "max_tiles": {
+                                            "enum": [False],
+                                        },
+                                    },
+                                },
+                            ],
                         },
-                    ],
-                },
-                "ra_slice": {
-                    "oneOf": [
-                        {
-                            "properties": {
-                                "ra_slice": {
-                                    "enum": [True],
+                        "ra_slice": {
+                            "oneOf": [
+                                {
+                                    "properties": {
+                                        "ra_slice": {
+                                            "enum": [True],
+                                        },
+                                        "ra_slice_min": {
+                                            "title": "Minimum RA",
+                                            "type": "number",
+                                            "default": 0.0,
+                                            "minimum": 0,
+                                            "maximum": 360,
+                                        },
+                                        "ra_slice_max": {
+                                            "title": "Maximum RA",
+                                            "type": "number",
+                                            "default": 360.0,
+                                            "minimum": 0.0,
+                                            "maximum": 360,
+                                        },
+                                    },
+                                    "required": ["ra_slice_min", "ra_slice_max"],
                                 },
-                                "ra_slice_min": {
-                                    "title": "Minimum RA",
-                                    "type": "number",
-                                    "default": 0.0,
-                                    "minimum": 0,
-                                    "maximum": 360,
+                                {
+                                    "properties": {
+                                        "ra_slice": {
+                                            "enum": [False],
+                                        },
+                                    },
                                 },
-                                "ra_slice_max": {
-                                    "title": "Maximum RA",
-                                    "type": "number",
-                                    "default": 360.0,
-                                    "minimum": 0.0,
-                                    "maximum": 360,
-                                },
-                            },
-                            "required": ["ra_slice_min", "ra_slice_max"],
+                            ],
                         },
-                        {
-                            "properties": {
-                                "ra_slice": {
-                                    "enum": [False],
+                        "filter_strategy": {
+                            # we want to show min_time_difference only if filter_strategy is integrated
+                            "oneOf": [
+                                {
+                                    "properties": {
+                                        "filter_strategy": {
+                                            "enum": ["integrated"],
+                                        },
+                                        "minimum_time_difference": {
+                                            "title": "Minimum time difference [min] (0-180)",
+                                            "type": "number",
+                                            "default": 30.0,
+                                            "minimum": 0,
+                                            "maximum": 180,
+                                        },
+                                    },
+                                    "required": ["minimum_time_difference"],
                                 },
-                            },
+                                {
+                                    "properties": {
+                                        "filter_strategy": {
+                                            "enum": ["block"],
+                                        },
+                                    },
+                                },
+                            ],
                         },
-                    ],
-                },
-                "filter_strategy": {
-                    # we want to show min_time_difference only if filter_strategy is integrated
-                    "oneOf": [
-                        {
-                            "properties": {
-                                "filter_strategy": {
-                                    "enum": ["integrated"],
+                        # we want to show galaxy_catalog and galaxy_sorting only if schedule_strategy is galaxy
+                        "schedule_strategy": {
+                            "oneOf": [
+                                {
+                                    "properties": {
+                                        "schedule_strategy": {
+                                            "enum": ["galaxy"],
+                                        },
+                                        "galaxy_catalog": {
+                                            "type": "string",
+                                            "enum": galaxy_catalogs,
+                                            "default": galaxy_catalogs[0]
+                                            if len(galaxy_catalogs) > 0
+                                            else "",
+                                        },
+                                        "galaxy_sorting": {
+                                            "type": "string",
+                                            "enum": [
+                                                "equal",
+                                                "sfr_fuv",
+                                                "mstar",
+                                                "magb",
+                                                "magk",
+                                            ],
+                                            "default": "equal",
+                                        },
+                                    },
+                                    "required": ["galaxy_catalog", "galaxy_sorting"],
                                 },
-                                "minimum_time_difference": {
-                                    "title": "Minimum time difference [min] (0-180)",
-                                    "type": "number",
-                                    "default": 30.0,
-                                    "minimum": 0,
-                                    "maximum": 180,
+                                {
+                                    "properties": {
+                                        "schedule_strategy": {
+                                            "enum": ["tiling"],
+                                        },
+                                    },
                                 },
-                            },
-                            "required": ["minimum_time_difference"],
+                            ],
                         },
-                        {
-                            "properties": {
-                                "filter_strategy": {
-                                    "enum": ["block"],
-                                },
-                            },
-                        },
-                    ],
-                },
-                # we want to show galaxy_catalog and galaxy_sorting only if schedule_strategy is galaxy
-                "schedule_strategy": {
-                    "oneOf": [
-                        {
-                            "properties": {
-                                "schedule_strategy": {
-                                    "enum": ["galaxy"],
-                                },
-                                "galaxy_catalog": {
-                                    "type": "string",
-                                    "enum": galaxies,
-                                    "default": galaxies[0] if len(galaxies) > 0 else "",
-                                },
-                                "galaxy_sorting": {
-                                    "type": "string",
-                                    "enum": [
-                                        "equal",
-                                        "sfr_fuv",
-                                        "mstar",
-                                        "magb",
-                                        "magk",
-                                    ],
-                                    "default": "equal",
-                                },
-                            },
-                            "required": ["galaxy_catalog", "galaxy_sorting"],
-                        },
-                        {
-                            "properties": {
-                                "schedule_strategy": {
-                                    "enum": ["tiling"],
-                                },
-                            },
-                        },
-                    ],
-                },
-            },
-        }
+                    },
+                }
 
-        if has_references:
-            form_json_schema["properties"]["use_references"] = {
-                "title": "Use fields with references only?",
-                "type": "boolean",
-                "default": True,
-            }
-        return form_json_schema
+                if has_references:
+                    form_json_schema["properties"]["use_references"] = {
+                        "title": "Use fields with references only?",
+                        "type": "boolean",
+                        "default": True,
+                    }
+                return form_json_schema
+            except Exception as e:
+                session.rollback()
+                raise e
 
     @staticmethod
     def send(request, session):

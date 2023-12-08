@@ -2,7 +2,7 @@ import os
 import uuid
 import base64
 from skyportal.tests import api
-from skyportal.models import DBSession, Obj, Thumbnail
+from skyportal.models import ThreadSession, Obj, Thumbnail
 
 
 def test_token_user_delete_thumbnail_cascade_source(
@@ -28,7 +28,7 @@ def test_token_user_delete_thumbnail_cascade_source(
     assert data['data']['id'] == obj_id
 
     orig_source_thumbnail_count = len(
-        DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails
+        ThreadSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails
     )
     data = base64.b64encode(
         open(os.path.abspath('skyportal/tests/data/14gqr_new.png'), 'rb').read()
@@ -51,10 +51,13 @@ def test_token_user_delete_thumbnail_cascade_source(
     assert data['data']['type'] == 'new'
 
     assert (
-        DBSession.query(Thumbnail).filter(Thumbnail.id == thumbnail_id).first().obj.id
+        ThreadSession.query(Thumbnail)
+        .filter(Thumbnail.id == thumbnail_id)
+        .first()
+        .obj.id
     ) == obj_id
     assert (
-        len(DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails)
+        len(ThreadSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails)
         == orig_source_thumbnail_count + 1
     )
 
@@ -63,6 +66,6 @@ def test_token_user_delete_thumbnail_cascade_source(
     assert data['status'] == 'success'
 
     assert (
-        len(DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails)
+        len(ThreadSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails)
         == orig_source_thumbnail_count
     )

@@ -19,7 +19,7 @@ from sqlalchemy.sql.expression import cast
 
 from baselayer.app.models import (
     Base,
-    DBSession,
+    ThreadSession,
     join_model,
     User,
     public,
@@ -63,7 +63,7 @@ def updatable_by_token_with_listener_acl(cls, user_or_token):
     ]
 
     return (
-        DBSession()
+        ThreadSession()
         .query(cls)
         .join(Allocation)
         .join(Instrument)

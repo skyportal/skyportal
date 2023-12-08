@@ -47,7 +47,7 @@ from simsurvey.models import AngularTimeSeriesSource
 from simsurvey.utils import model_tools
 from sncosmo import get_bandpass
 from sqlalchemy import func
-from sqlalchemy.orm import joinedload, scoped_session, sessionmaker, undefer
+from sqlalchemy.orm import joinedload, undefer
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -65,8 +65,8 @@ from skyportal.handlers.api.source import post_source
 from skyportal.utils.calculations import get_rise_set_time
 
 from ...models import (
+    ThreadSession,
     Allocation,
-    DBSession,
     DefaultObservationPlanRequest,
     EventObservationPlan,
     GcnEvent,
@@ -145,8 +145,6 @@ for bandpass_name in ALLOWED_BANDPASSES:
         TREASUREMAP_FILTERS[bandpass_name] = [central_wavelength, bandwidth]
     except Exception as e:
         log(f'Error adding bandpass {bandpass_name} to treasuremap filters: {e}')
-
-Session = scoped_session(sessionmaker())
 
 observation_plans_microservice_url = (
     f'http://127.0.0.1:{cfg["ports.observation_plan_queue"]}'
@@ -433,9 +431,7 @@ def post_observation_plans(
         )
 
 
-def post_observation_plan(
-    plan, user_id, session, default_plan=False, asynchronous=True
-):
+def post_observation_plan(plan, user_id, default_plan=False):
     """Post ObservationPlan to database.
 
     Parameters
@@ -452,79 +448,90 @@ def post_observation_plan(
         Create asynchronous request. Defaults to True.
     """
 
-    user = session.query(User).get(user_id)
+    with ThreadSession() as session:
+        try:
+            user = session.query(User).get(user_id)
 
-    try:
-        data = ObservationPlanPost.load(plan)
-    except ValidationError as e:
-        raise ValidationError(
-            f'Invalid / missing parameters: {e.normalized_messages()}'
-        )
+            try:
+                data = ObservationPlanPost.load(plan)
+            except ValidationError as e:
+                raise ValidationError(
+                    f'Invalid / missing parameters: {e.normalized_messages()}'
+                )
 
-    data["requester_id"] = user.id
-    data["last_modified_by_id"] = user.id
-    data['allocation_id'] = int(data['allocation_id'])
-    data['localization_id'] = int(data['localization_id'])
-    data['default_plan'] = default_plan
+            data["requester_id"] = user.id
+            data["last_modified_by_id"] = user.id
+            data['allocation_id'] = int(data['allocation_id'])
+            data['localization_id'] = int(data['localization_id'])
+            data['default_plan'] = default_plan
 
-    allocation = session.scalars(
-        Allocation.select(user).where(Allocation.id == data['allocation_id'])
-    ).first()
-    if allocation is None:
-        raise AttributeError(
-            f"Cannot access allocation with ID: {data['allocation_id']}"
-        )
+            allocation = session.scalars(
+                Allocation.select(user).where(Allocation.id == data['allocation_id'])
+            ).first()
+            if allocation is None:
+                raise AttributeError(
+                    f"Cannot access allocation with ID: {data['allocation_id']}"
+                )
 
-    instrument = allocation.instrument
-    if instrument.api_classname_obsplan is None:
-        raise AttributeError('Instrument has no remote API.')
+            instrument = allocation.instrument
+            if instrument.api_classname_obsplan is None:
+                raise AttributeError('Instrument has no remote API.')
 
-    if not instrument.api_class_obsplan.implements()['submit']:
-        raise AttributeError(
-            'Cannot submit observation plan requests for this Instrument.'
-        )
+            if not instrument.api_class_obsplan.implements()['submit']:
+                raise AttributeError(
+                    'Cannot submit observation plan requests for this Instrument.'
+                )
 
-    target_groups = []
-    for group_id in data.pop('target_group_ids', []):
-        g = session.scalars(Group.select(user).where(Group.id == group_id)).first()
-        if g is None:
-            raise AttributeError(f"Cannot access group with ID: {group_id}")
-        target_groups.append(g)
+            target_groups = []
+            for group_id in data.pop('target_group_ids', []):
+                g = session.scalars(
+                    Group.select(user).where(Group.id == group_id)
+                ).first()
+                if g is None:
+                    raise AttributeError(f"Cannot access group with ID: {group_id}")
+                target_groups.append(g)
 
-    try:
-        formSchema = instrument.api_class_obsplan.custom_json_schema(instrument, user)
-    except AttributeError:
-        formSchema = instrument.api_class_obsplan.form_json_schema
+            try:
+                formSchema = instrument.api_class_obsplan.custom_json_schema(
+                    instrument, user
+                )
+            except AttributeError:
+                formSchema = instrument.api_class_obsplan.form_json_schema
 
-    # validate the payload
-    try:
-        jsonschema.validate(data['payload'], formSchema)
-    except jsonschema.exceptions.ValidationError as e:
-        raise jsonschema.exceptions.ValidationError(f'Payload failed to validate: {e}')
+            # validate the payload
+            try:
+                jsonschema.validate(data['payload'], formSchema)
+            except jsonschema.exceptions.ValidationError as e:
+                raise jsonschema.exceptions.ValidationError(
+                    f'Payload failed to validate: {e}'
+                )
 
-    observation_plan_request = ObservationPlanRequest.__schema__().load(data)
-    observation_plan_request.target_groups = target_groups
-    session.add(observation_plan_request)
-    session.commit()
+            observation_plan_request = ObservationPlanRequest.__schema__().load(data)
+            observation_plan_request.target_groups = target_groups
+            session.add(observation_plan_request)
+            session.commit()
 
-    dateobs = observation_plan_request.gcnevent.dateobs
-    observation_plan_request_id = observation_plan_request.id
+            dateobs = observation_plan_request.gcnevent.dateobs
+            observation_plan_request_id = observation_plan_request.id
 
-    flow = Flow()
+            flow = Flow()
 
-    flow.push(
-        '*',
-        "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-        payload={"gcnEvent_dateobs": dateobs},
-    )
+            flow.push(
+                '*',
+                "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                payload={"gcnEvent_dateobs": dateobs},
+            )
 
-    flow.push(
-        '*',
-        "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-        payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
-    )
+            flow.push(
+                '*',
+                "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
+            )
 
-    return observation_plan_request_id
+            return observation_plan_request_id
+        except Exception as e:
+            session.rollback()
+            log(f"Error posting observation plan: {e}")
 
 
 class ObservationPlanRequestHandler(BaseHandler):
@@ -563,7 +570,7 @@ class ObservationPlanRequestHandler(BaseHandler):
         combine_plans = json_data.get('combine_plans', False)
 
         # for each plan, verify that their payload has a 'queue_name' key that is unique
-        with DBSession() as session:
+        with self.Session() as session:
             for plan in observation_plans:
                 if 'queue_name' not in plan.get('payload', {}):
                     return self.error(
@@ -2493,265 +2500,263 @@ def observation_simsurvey(
         Optional parameters to specify the injection type, along with a list of possible values (to be used in a dropdown UI)
     """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
-
-    try:
-
-        localization = session.scalars(
-            sa.select(Localization).where(Localization.id == localization_id)
-        ).first()
-        if localization is None:
-            raise ValueError(f'No localization with ID {localization_id}')
-
-        instrument = session.scalars(
-            sa.select(Instrument).where(Instrument.id == instrument_id)
-        ).first()
-        if instrument is None:
-            raise ValueError(f'No instrument with ID {instrument_id}')
-
-        if survey_efficiency_analysis_type == "SurveyEfficiencyForObservations":
-            survey_efficiency_analysis = session.scalars(
-                sa.select(SurveyEfficiencyForObservations).where(
-                    SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
-                )
+    with ThreadSession() as session:
+        try:
+            localization = session.scalars(
+                sa.select(Localization).where(Localization.id == localization_id)
             ).first()
-            if survey_efficiency_analysis is None:
-                raise ValueError(
-                    f'No SurveyEfficiencyForObservations with ID {survey_efficiency_analysis_id}'
-                )
-        elif survey_efficiency_analysis_type == "SurveyEfficiencyForObservationPlan":
-            survey_efficiency_analysis = session.scalars(
-                sa.select(SurveyEfficiencyForObservationPlan).where(
-                    SurveyEfficiencyForObservationPlan.id
-                    == survey_efficiency_analysis_id
-                )
+            if localization is None:
+                raise ValueError(f'No localization with ID {localization_id}')
+
+            instrument = session.scalars(
+                sa.select(Instrument).where(Instrument.id == instrument_id)
             ).first()
-            if survey_efficiency_analysis is None:
-                raise ValueError(
-                    f'No SurveyEfficiencyForObservationPlan with ID {survey_efficiency_analysis_id}'
-                )
-        else:
-            raise ValueError(
-                'survey_efficiency_analysis_type must be SurveyEfficiencyForObservations or SurveyEfficiencyForObservationPlan'
-            )
+            if instrument is None:
+                raise ValueError(f'No instrument with ID {instrument_id}')
 
-        trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
-
-        keys = ['ra', 'dec', 'field_id', 'limMag', 'jd', 'filter', 'skynoise']
-        pointings = {k: [] for k in keys}
-        for obs in observations:
-            nmag = -2.5 * np.log10(
-                np.sqrt(
-                    instrument.sensitivity_data[obs["filt"]]['exposure_time']
-                    / obs["exposure_time"]
-                )
-            )
-
-            if "limmag" in obs:
-                limMag = obs["limmag"]
+            if survey_efficiency_analysis_type == "SurveyEfficiencyForObservations":
+                survey_efficiency_analysis = session.scalars(
+                    sa.select(SurveyEfficiencyForObservations).where(
+                        SurveyEfficiencyForObservations.id
+                        == survey_efficiency_analysis_id
+                    )
+                ).first()
+                if survey_efficiency_analysis is None:
+                    raise ValueError(
+                        f'No SurveyEfficiencyForObservations with ID {survey_efficiency_analysis_id}'
+                    )
+            elif (
+                survey_efficiency_analysis_type == "SurveyEfficiencyForObservationPlan"
+            ):
+                survey_efficiency_analysis = session.scalars(
+                    sa.select(SurveyEfficiencyForObservationPlan).where(
+                        SurveyEfficiencyForObservationPlan.id
+                        == survey_efficiency_analysis_id
+                    )
+                ).first()
+                if survey_efficiency_analysis is None:
+                    raise ValueError(
+                        f'No SurveyEfficiencyForObservationPlan with ID {survey_efficiency_analysis_id}'
+                    )
             else:
-                limMag = (
-                    instrument.sensitivity_data[obs["filt"]]['limiting_magnitude']
-                    + nmag
+                raise ValueError(
+                    'survey_efficiency_analysis_type must be SurveyEfficiencyForObservations or SurveyEfficiencyForObservationPlan'
                 )
-            zp = instrument.sensitivity_data[obs["filt"]]['zeropoint'] + nmag
 
-            pointings["ra"].append(obs["field"]["ra"])
-            pointings["dec"].append(obs["field"]["dec"])
-            pointings["filter"].append(obs["filt"])
-            pointings["jd"].append(Time(obs["obstime"], format='datetime').jd)
-            pointings["field_id"].append(obs["field"]["field_id"])
+            trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
 
-            pointings["limMag"].append(limMag)
-            pointings["skynoise"].append(10 ** (-0.4 * (limMag - zp)) / 5.0)
-            pointings["zp"] = zp
-
-        df = pd.DataFrame.from_dict(pointings)
-        plan = simsurvey.SurveyPlan(
-            time=df['jd'],
-            band=df['filter'],
-            obs_field=df['field_id'].astype(int),
-            skynoise=df['skynoise'],
-            zp=df['zp'],
-            width=width,
-            height=height,
-            fields={
-                k: v for k, v in pointings.items() if k in ['ra', 'dec', 'field_id']
-            },
-        )
-
-        order = hp.nside2order(localization.nside)
-        t = rasterize(localization.table, order)
-
-        if {'DISTMU', 'DISTSIGMA', 'DISTNORM'}.issubset(set(t.colnames)):
-            result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
-            hp_data = hp.reorder(result, 'NESTED', 'RING')
-            map_struct = {}
-            map_struct['prob'] = hp_data[0]
-            map_struct['distmu'] = hp_data[1]
-            map_struct['distsigma'] = hp_data[2]
-
-            distmean, diststd = parameters_to_marginal_moments(
-                map_struct['prob'], map_struct['distmu'], map_struct['distsigma']
-            )
-
-            distance_lower = astropy.coordinates.Distance(
-                np.max([1, (distmean - 5 * diststd)]) * u.Mpc
-            )
-            distance_upper = astropy.coordinates.Distance(
-                np.max([2, (distmean + 5 * diststd)]) * u.Mpc
-            )
-        else:
-            result = t['PROB']
-            hp_data = hp.reorder(result, 'NESTED', 'RING')
-            map_struct = {}
-            map_struct['prob'] = hp_data
-            distance_lower = astropy.coordinates.Distance(1 * u.Mpc)
-            distance_upper = astropy.coordinates.Distance(1000 * u.Mpc)
-
-        if model_name == "kilonova":
-            phase, wave, cos_theta, flux = model_tools.read_possis_file(
-                optional_injection_parameters["injection_filename"]
-            )
-            transientprop = {
-                'lcmodel': sncosmo.Model(
-                    AngularTimeSeriesSource(
-                        phase=phase, wave=wave, flux=flux, cos_theta=cos_theta
+            keys = ['ra', 'dec', 'field_id', 'limMag', 'jd', 'filter', 'skynoise']
+            pointings = {k: [] for k in keys}
+            for obs in observations:
+                nmag = -2.5 * np.log10(
+                    np.sqrt(
+                        instrument.sensitivity_data[obs["filt"]]['exposure_time']
+                        / obs["exposure_time"]
                     )
                 )
+
+                if "limmag" in obs:
+                    limMag = obs["limmag"]
+                else:
+                    limMag = (
+                        instrument.sensitivity_data[obs["filt"]]['limiting_magnitude']
+                        + nmag
+                    )
+                zp = instrument.sensitivity_data[obs["filt"]]['zeropoint'] + nmag
+
+                pointings["ra"].append(obs["field"]["ra"])
+                pointings["dec"].append(obs["field"]["dec"])
+                pointings["filter"].append(obs["filt"])
+                pointings["jd"].append(Time(obs["obstime"], format='datetime').jd)
+                pointings["field_id"].append(obs["field"]["field_id"])
+
+                pointings["limMag"].append(limMag)
+                pointings["skynoise"].append(10 ** (-0.4 * (limMag - zp)) / 5.0)
+                pointings["zp"] = zp
+
+            df = pd.DataFrame.from_dict(pointings)
+            plan = simsurvey.SurveyPlan(
+                time=df['jd'],
+                band=df['filter'],
+                obs_field=df['field_id'].astype(int),
+                skynoise=df['skynoise'],
+                zp=df['zp'],
+                width=width,
+                height=height,
+                fields={
+                    k: v for k, v in pointings.items() if k in ['ra', 'dec', 'field_id']
+                },
+            )
+
+            order = hp.nside2order(localization.nside)
+            t = rasterize(localization.table, order)
+
+            if {'DISTMU', 'DISTSIGMA', 'DISTNORM'}.issubset(set(t.colnames)):
+                result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
+                hp_data = hp.reorder(result, 'NESTED', 'RING')
+                map_struct = {}
+                map_struct['prob'] = hp_data[0]
+                map_struct['distmu'] = hp_data[1]
+                map_struct['distsigma'] = hp_data[2]
+
+                distmean, diststd = parameters_to_marginal_moments(
+                    map_struct['prob'], map_struct['distmu'], map_struct['distsigma']
+                )
+
+                distance_lower = astropy.coordinates.Distance(
+                    np.max([1, (distmean - 5 * diststd)]) * u.Mpc
+                )
+                distance_upper = astropy.coordinates.Distance(
+                    np.max([2, (distmean + 5 * diststd)]) * u.Mpc
+                )
+            else:
+                result = t['PROB']
+                hp_data = hp.reorder(result, 'NESTED', 'RING')
+                map_struct = {}
+                map_struct['prob'] = hp_data
+                distance_lower = astropy.coordinates.Distance(1 * u.Mpc)
+                distance_upper = astropy.coordinates.Distance(1000 * u.Mpc)
+
+            if model_name == "kilonova":
+                phase, wave, cos_theta, flux = model_tools.read_possis_file(
+                    optional_injection_parameters["injection_filename"]
+                )
+                transientprop = {
+                    'lcmodel': sncosmo.Model(
+                        AngularTimeSeriesSource(
+                            phase=phase, wave=wave, flux=flux, cos_theta=cos_theta
+                        )
+                    )
+                }
+                template = "AngularTimeSeriesSource"
+
+            elif model_name == "afterglow":
+                phases = np.linspace(
+                    optional_injection_parameters["t_i"],
+                    optional_injection_parameters["t_f"],
+                    optional_injection_parameters["ntime"],
+                )
+                wave = np.linspace(
+                    optional_injection_parameters["lambda_min"],
+                    optional_injection_parameters["lambda_max"],
+                    optional_injection_parameters["nlambda"],
+                )
+                nu = 3e8 / (wave * 1e-10)
+
+                grb_param_keys = [
+                    "jetType",
+                    "specType",
+                    "thetaObs",
+                    "E0",
+                    "thetaCore",
+                    "thetaWing",
+                    "n0",
+                    "p",
+                    "epsilon_e",
+                    "epsilon_B",
+                    "z",
+                    "d_L",
+                    "xi_N",
+                ]
+                grb_params = {
+                    k: optional_injection_parameters[k] for k in grb_param_keys
+                }
+                # explicitly case E0 and d_L as float as they like to be an int
+                grb_params["E0"] = float(grb_params["E0"])
+                grb_params["d_L"] = float(grb_params["d_L"])
+
+                flux = []
+                for phase in phases:
+                    t = phase * np.ones(nu.shape)
+                    mJys = afterglowpy.fluxDensity(t, nu, **grb_params)
+                    Jys = 1e-3 * mJys
+                    # convert to erg/s/cm^2/A
+                    flux.append(Jys * 2.99792458e-05 / (wave**2))
+                transientprop = {
+                    'lcmodel': sncosmo.Model(
+                        sncosmo.TimeSeriesSource(phases, wave, np.array(flux))
+                    ),
+                    'lcsimul_func': random_parameters_notheta,
+                }
+                template = None
+
+            elif model_name == "linear":
+                phases = np.linspace(
+                    optional_injection_parameters["t_i"],
+                    optional_injection_parameters["t_f"],
+                    optional_injection_parameters["ntime"],
+                )
+                wave = np.linspace(
+                    optional_injection_parameters["lambda_min"],
+                    optional_injection_parameters["lambda_max"],
+                    optional_injection_parameters["nlambda"],
+                )
+                magdiff = (
+                    optional_injection_parameters["mag"]
+                    + phases * optional_injection_parameters["dmag"]
+                )
+                F_Lxlambda2 = 10 ** (-(magdiff + 2.406) / 2.5)
+                waves, F_Lxlambda2s = np.meshgrid(wave, F_Lxlambda2)
+                flux = F_Lxlambda2s / (waves) ** 2
+                transientprop = {
+                    'lcmodel': sncosmo.Model(
+                        sncosmo.TimeSeriesSource(phases, wave, flux)
+                    ),
+                    'lcsimul_func': random_parameters_notheta,
+                }
+                template = None
+
+            tr = simsurvey.get_transient_generator(
+                [distance_lower.z, distance_upper.z],
+                transient="generic",
+                template=template,
+                ntransient=number_of_injections,
+                ratefunc=lambda z: 5e-7,
+                dec_range=(-90, 90),
+                ra_range=(0, 360),
+                mjd_range=(trigger_time.jd, trigger_time.jd),
+                transientprop=transientprop,
+                skymap=map_struct,
+            )
+
+            survey = simsurvey.SimulSurvey(
+                generator=tr,
+                plan=plan,
+                phase_range=(minimum_phase, maximum_phase),
+                n_det=number_of_detections,
+                threshold=detection_threshold,
+            )
+
+            lcs = survey.get_lightcurves(notebook=True)
+
+            data = {
+                'lcs': lcs._properties["lcs"],
+                'meta': lcs._properties["meta"],
+                'meta_rejected': lcs._properties["meta_rejected"],
+                'meta_notobserved': lcs._properties["meta_notobserved"],
+                'stats': lcs._derived_properties["stats"],
+                'side': lcs._side_properties,
             }
-            template = "AngularTimeSeriesSource"
 
-        elif model_name == "afterglow":
-            phases = np.linspace(
-                optional_injection_parameters["t_i"],
-                optional_injection_parameters["t_f"],
-                optional_injection_parameters["ntime"],
+            class NumpyEncoder(json.JSONEncoder):
+                def default(self, obj):
+                    if isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                    return json.JSONEncoder.default(self, obj)
+
+            survey_efficiency_analysis.lightcurves = json.dumps(data, cls=NumpyEncoder)
+            survey_efficiency_analysis.status = 'complete'
+
+            session.merge(survey_efficiency_analysis)
+            session.commit()
+
+            return log(
+                f"Finished survey efficiency analysis for ID {survey_efficiency_analysis.id}"
             )
-            wave = np.linspace(
-                optional_injection_parameters["lambda_min"],
-                optional_injection_parameters["lambda_max"],
-                optional_injection_parameters["nlambda"],
+        except Exception as e:
+            return log(
+                f"Unable to complete survey efficiency analysis {survey_efficiency_analysis.id}: {e}"
             )
-            nu = 3e8 / (wave * 1e-10)
-
-            grb_param_keys = [
-                "jetType",
-                "specType",
-                "thetaObs",
-                "E0",
-                "thetaCore",
-                "thetaWing",
-                "n0",
-                "p",
-                "epsilon_e",
-                "epsilon_B",
-                "z",
-                "d_L",
-                "xi_N",
-            ]
-            grb_params = {k: optional_injection_parameters[k] for k in grb_param_keys}
-            # explicitly case E0 and d_L as float as they like to be an int
-            grb_params["E0"] = float(grb_params["E0"])
-            grb_params["d_L"] = float(grb_params["d_L"])
-
-            flux = []
-            for phase in phases:
-                t = phase * np.ones(nu.shape)
-                mJys = afterglowpy.fluxDensity(t, nu, **grb_params)
-                Jys = 1e-3 * mJys
-                # convert to erg/s/cm^2/A
-                flux.append(Jys * 2.99792458e-05 / (wave**2))
-            transientprop = {
-                'lcmodel': sncosmo.Model(
-                    sncosmo.TimeSeriesSource(phases, wave, np.array(flux))
-                ),
-                'lcsimul_func': random_parameters_notheta,
-            }
-            template = None
-
-        elif model_name == "linear":
-            phases = np.linspace(
-                optional_injection_parameters["t_i"],
-                optional_injection_parameters["t_f"],
-                optional_injection_parameters["ntime"],
-            )
-            wave = np.linspace(
-                optional_injection_parameters["lambda_min"],
-                optional_injection_parameters["lambda_max"],
-                optional_injection_parameters["nlambda"],
-            )
-            magdiff = (
-                optional_injection_parameters["mag"]
-                + phases * optional_injection_parameters["dmag"]
-            )
-            F_Lxlambda2 = 10 ** (-(magdiff + 2.406) / 2.5)
-            waves, F_Lxlambda2s = np.meshgrid(wave, F_Lxlambda2)
-            flux = F_Lxlambda2s / (waves) ** 2
-            transientprop = {
-                'lcmodel': sncosmo.Model(sncosmo.TimeSeriesSource(phases, wave, flux)),
-                'lcsimul_func': random_parameters_notheta,
-            }
-            template = None
-
-        tr = simsurvey.get_transient_generator(
-            [distance_lower.z, distance_upper.z],
-            transient="generic",
-            template=template,
-            ntransient=number_of_injections,
-            ratefunc=lambda z: 5e-7,
-            dec_range=(-90, 90),
-            ra_range=(0, 360),
-            mjd_range=(trigger_time.jd, trigger_time.jd),
-            transientprop=transientprop,
-            skymap=map_struct,
-        )
-
-        survey = simsurvey.SimulSurvey(
-            generator=tr,
-            plan=plan,
-            phase_range=(minimum_phase, maximum_phase),
-            n_det=number_of_detections,
-            threshold=detection_threshold,
-        )
-
-        lcs = survey.get_lightcurves(notebook=True)
-
-        data = {
-            'lcs': lcs._properties["lcs"],
-            'meta': lcs._properties["meta"],
-            'meta_rejected': lcs._properties["meta_rejected"],
-            'meta_notobserved': lcs._properties["meta_notobserved"],
-            'stats': lcs._derived_properties["stats"],
-            'side': lcs._side_properties,
-        }
-
-        class NumpyEncoder(json.JSONEncoder):
-            def default(self, obj):
-                if isinstance(obj, np.ndarray):
-                    return obj.tolist()
-                return json.JSONEncoder.default(self, obj)
-
-        survey_efficiency_analysis.lightcurves = json.dumps(data, cls=NumpyEncoder)
-        survey_efficiency_analysis.status = 'complete'
-
-        session.merge(survey_efficiency_analysis)
-        session.commit()
-
-        return log(
-            f"Finished survey efficiency analysis for ID {survey_efficiency_analysis.id}"
-        )
-
-    except Exception as e:
-        return log(
-            f"Unable to complete survey efficiency analysis {survey_efficiency_analysis.id}: {e}"
-        )
-    finally:
-        session.close()
-        Session.remove()
 
 
 def observation_simsurvey_plot(

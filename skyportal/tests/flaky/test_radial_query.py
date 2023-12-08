@@ -21,8 +21,8 @@ def test_radial_query(n):
     point_cloud = [
         sp_models.Obj(id=id, ra=r, dec=d) for id, r, d in zip(ids, ras, decs)
     ]
-    sp_models.DBSession().add_all(point_cloud)
-    sp_models.DBSession().commit()
+    sp_models.ThreadSession().add_all(point_cloud)
+    sp_models.ThreadSession().commit()
 
     # generate the truth
     coord = ap_coord.SkyCoord(ra=ras, dec=decs, unit='deg')
@@ -39,7 +39,7 @@ def test_radial_query(n):
 
     # issue the query on the db
     db_ids = (
-        sp_models.DBSession()
+        sp_models.ThreadSession()
         .query(sp_models.Obj.id)
         .filter(
             sp_models.Obj.within(

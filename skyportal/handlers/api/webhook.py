@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy.orm import sessionmaker, scoped_session, contains_eager
+from sqlalchemy.orm import contains_eager
 
 from baselayer.log import make_log
 from baselayer.app.env import load_env
@@ -8,7 +8,7 @@ from baselayer.app.flow import Flow
 
 from ..base import BaseHandler
 
-from ...models import DBSession, ObjAnalysis
+from ...models import ThreadSession, ObjAnalysis
 
 from .candidate import (
     update_summary_history_if_relevant,
@@ -17,8 +17,6 @@ from .candidate import (
 log = make_log('app/webhook')
 
 _, cfg = load_env()
-
-Session = scoped_session(sessionmaker())
 
 
 class AnalysisWebhookHandler(BaseHandler):
@@ -72,52 +70,52 @@ class AnalysisWebhookHandler(BaseHandler):
             return self.error("Invalid analysis resource type", status=403)
 
         # Authenticate the token, then lock this analysis, before going on.
-        try:
-            if Session.registry.has():
-                session = Session()
-            else:
-                session = Session(bind=DBSession.session_factory.kw["bind"])
-            analysis = (
-                session.query(ObjAnalysis)
-                .join(ObjAnalysis.analysis_service)
-                .join(ObjAnalysis.obj)
-                .options(contains_eager(ObjAnalysis.analysis_service))
-                .options(contains_eager(ObjAnalysis.obj))
-                .filter(ObjAnalysis.token == token)
-                .first()
-            )
-            if not analysis:
-                return self.error("Invalid token", status=403)
-            last_active = analysis.last_activity
-            if analysis.status not in ['pending', 'queued']:
-                return self.error(
-                    f"Analysis already updated with status='{analysis.status}'"
-                    f" and message={analysis.status_message}",
-                    status=403,
+        with ThreadSession() as session:
+            try:
+                analysis = (
+                    session.query(ObjAnalysis)
+                    .join(ObjAnalysis.analysis_service)
+                    .join(ObjAnalysis.obj)
+                    .options(contains_eager(ObjAnalysis.analysis_service))
+                    .options(contains_eager(ObjAnalysis.obj))
+                    .filter(ObjAnalysis.token == token)
+                    .first()
                 )
-            if (
-                analysis.invalid_after
-                and datetime.datetime.utcnow() > analysis.invalid_after
-            ):
-                analysis.status = 'timed_out'
-                analysis.status_message = f'Analysis timed out before webhook call at {str(datetime.datetime.utcnow())}'
+                if not analysis:
+                    return self.error("Invalid token", status=403)
+                last_active = analysis.last_activity
+                if analysis.status not in ['pending', 'queued']:
+                    return self.error(
+                        f"Analysis already updated with status='{analysis.status}'"
+                        f" and message={analysis.status_message}",
+                        status=403,
+                    )
+                if (
+                    analysis.invalid_after
+                    and datetime.datetime.utcnow() > analysis.invalid_after
+                ):
+                    analysis.status = 'timed_out'
+                    analysis.status_message = f'Analysis timed out before webhook call at {str(datetime.datetime.utcnow())}'
+                    analysis.last_activity = datetime.datetime.utcnow()
+                    analysis.duration = (
+                        analysis.last_activity - last_active
+                    ).total_seconds()
+                    session.commit()
+                    session.close()
+                    return self.error("Token has expired", status=400)
+
+                # lock the analysis associated with this token and commit immediately to avoid race conditions,
+                # so that the results are not written more than once
+                analysis.status = 'completed'
                 analysis.last_activity = datetime.datetime.utcnow()
                 analysis.duration = (
                     analysis.last_activity - last_active
                 ).total_seconds()
                 session.commit()
-                session.close()
-                return self.error("Token has expired", status=400)
-
-            # lock the analysis associated with this token and commit immediately to avoid race conditions,
-            # so that the results are not written more than once
-            analysis.status = 'completed'
-            analysis.last_activity = datetime.datetime.utcnow()
-            analysis.duration = (analysis.last_activity - last_active).total_seconds()
-            session.commit()
-        except Exception as e:
-            log(f'Trouble accessing Analysis with token {token} {e}.')
-            return self.error("Invalid token", status=403)
+            except Exception as e:
+                session.rollback()
+                log(f'Trouble accessing Analysis with token {token} {e}.')
+                return self.error("Invalid token", status=403)
 
         data = self.get_json()
 

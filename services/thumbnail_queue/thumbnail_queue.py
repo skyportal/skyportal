@@ -8,7 +8,6 @@ import tornado.escape
 import json
 
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
 
 from baselayer.app.models import init_db
 from baselayer.app.env import load_env
@@ -16,7 +15,7 @@ from baselayer.log import make_log
 from baselayer.app.flow import Flow
 
 from skyportal.models import (
-    DBSession,
+    ThreadSession,
     Obj,
 )
 
@@ -25,15 +24,13 @@ log = make_log('thumbnail_queue')
 
 init_db(**cfg['database'])
 
-Session = scoped_session(sessionmaker())
-
 queue = []
 
 
 def service(queue):
 
     while True:
-        with DBSession() as session:
+        with ThreadSession() as session:
             try:
                 if len(queue) == 0:
                     time.sleep(1)

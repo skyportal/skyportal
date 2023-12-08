@@ -5,7 +5,7 @@ import sqlalchemy as sa
 import sncosmo
 
 from baselayer.app.env import load_env
-from skyportal.models import DBSession, Token
+from skyportal.models import ThreadSession, Token
 from skyportal.tests import api, assert_api
 from skyportal.models.photometry import Photometry
 
@@ -369,7 +369,7 @@ def test_query_magnitudes(upload_data_token, public_source, public_group, ztf_ca
 
     def get_photometry_points(*query_params):
         return (
-            DBSession()
+            ThreadSession()
             .scalars(
                 sa.select(Photometry).where(Photometry.origin == origin, *query_params)
             )
@@ -688,7 +688,7 @@ def test_token_user_post_put_get_photometry_data(
     assert len(group_ids) == 3
 
     token_object = (
-        DBSession()
+        ThreadSession()
         .query(Token)
         .filter(Token.id == upload_data_token_two_groups)
         .first()

@@ -4,7 +4,7 @@ from baselayer.app.access import permissions
 
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
+    ThreadSession,
     User,
     Annotation,
     Comment,
@@ -84,7 +84,7 @@ class StatsHandler(BaseHandler):
 
         # This query is done in raw session as it directly executes
         # sql, which is unsupported by the self.Session() syntax
-        with DBSession() as session:
+        with ThreadSession() as session:
             data["Number of photometry (approx)"] = list(
                 session.execute(
                     sa.text(

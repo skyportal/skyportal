@@ -22,7 +22,7 @@ from dustmaps.config import config
 from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
-    DBSession,
+    ThreadSession,
     public,
     restricted,
     CustomUserAccessControl,
@@ -68,7 +68,7 @@ def delete_obj_if_all_data_owned(cls, user_or_token):
         user_or_token, mode="delete"
     ).subquery()
     nondeletable_photometry = (
-        DBSession()
+        ThreadSession()
         .query(Photometry.obj_id)
         .join(
             deletable_photometry,
@@ -84,7 +84,7 @@ def delete_obj_if_all_data_owned(cls, user_or_token):
         user_or_token, mode="delete"
     ).subquery()
     nondeletable_photometric_series = (
-        DBSession()
+        ThreadSession()
         .query(PhotometricSeries.obj_id)
         .join(
             deletable_photometric_series,
@@ -100,7 +100,7 @@ def delete_obj_if_all_data_owned(cls, user_or_token):
         user_or_token, mode="delete"
     ).subquery()
     nondeletable_spectra = (
-        DBSession()
+        ThreadSession()
         .query(Spectrum.obj_id)
         .join(
             deletable_spectra,
@@ -116,7 +116,7 @@ def delete_obj_if_all_data_owned(cls, user_or_token):
         user_or_token, mode="delete"
     ).subquery()
     nondeletable_candidates = (
-        DBSession()
+        ThreadSession()
         .query(Candidate.obj_id)
         .join(
             deletable_candidates,
@@ -132,7 +132,7 @@ def delete_obj_if_all_data_owned(cls, user_or_token):
         user_or_token, mode="delete"
     ).subquery()
     nondeletable_sources = (
-        DBSession()
+        ThreadSession()
         .query(Source.obj_id)
         .join(
             deletable_sources,
@@ -145,7 +145,7 @@ def delete_obj_if_all_data_owned(cls, user_or_token):
     )
 
     return (
-        DBSession()
+        ThreadSession()
         .query(cls)
         .join(
             nondeletable_photometry,
@@ -462,7 +462,7 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Sources in a localization.",
     )
 
-    def add_linked_thumbnails(self, thumbnails, session=DBSession):
+    def add_linked_thumbnails(self, thumbnails, session=ThreadSession):
         """Determine the URLs of the SDSS, Legacy Survey DR9, and
         thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""

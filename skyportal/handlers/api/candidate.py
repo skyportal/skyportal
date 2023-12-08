@@ -13,7 +13,6 @@ import time
 
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
-from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import case, func, cast
 from sqlalchemy.sql import column, Values
 from sqlalchemy.dialects.postgresql import JSONB
@@ -59,8 +58,6 @@ cache = Cache(
     max_age=cfg["misc.minutes_to_keep_candidate_query_cache"] * 60,
 )
 log = make_log('api/candidate')
-
-Session = scoped_session(sessionmaker())
 
 
 def update_summary_history_if_relevant(results_data, obj, user):

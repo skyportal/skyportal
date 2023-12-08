@@ -17,7 +17,7 @@ from skyportal.handlers.api.gcn import (
     post_gcnevent_from_xml,
     post_skymap_from_notice,
 )
-from skyportal.models import DBSession, GcnEvent
+from skyportal.models import ThreadSession, GcnEvent
 from skyportal.utils.gcn import get_dateobs, get_skymap_metadata, get_trigger
 from skyportal.utils.notifications import post_notification
 
@@ -143,7 +143,7 @@ def poll_events():
                     )
                     continue
 
-                with DBSession() as session:
+                with ThreadSession() as session:
                     # we skip the ingestion of a retraction of the event does not exist in the DB
                     if notice_type == gcn.NoticeType.LVC_RETRACTION:
                         dateobs = get_dateobs(root)

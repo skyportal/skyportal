@@ -31,7 +31,7 @@ import sqlalchemy as sa
 
 from baselayer.app.models import join_model, User, AccessibleIfUserMatches
 
-from baselayer.app.models import DBSession, restricted, CustomUserAccessControl
+from baselayer.app.models import ThreadSession, restricted, CustomUserAccessControl
 from .photometry import Photometry
 from .photometric_series import PhotometricSeries
 from .taxonomy import Taxonomy
@@ -272,7 +272,7 @@ GroupStream.delete = (
 ) & CustomUserAccessControl(
     # Can only delete a stream from the group if none of the group's filters
     # are operating on the stream.
-    lambda cls, user_or_token: DBSession()
+    lambda cls, user_or_token: ThreadSession()
     .query(cls)
     .outerjoin(Stream)
     .outerjoin(
@@ -295,7 +295,7 @@ GroupStream.create = (
         # Can only add a stream to a group if all users in the group have
         # access to the stream.
         # Also, cannot add stream access to single user groups.
-        lambda cls, user_or_token: DBSession()
+        lambda cls, user_or_token: ThreadSession()
         .query(cls)
         .join(Group, cls.group)
         .outerjoin(User, Group.users)

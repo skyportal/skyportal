@@ -7,7 +7,6 @@ import os
 import pandas as pd
 import requests
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
 from swifttools.swift_too import ObsQuery, UVOT_mode, Swift_TOO, Data
 from swifttools.xrt_prods import XRTProductRequest
 import tarfile
@@ -18,6 +17,8 @@ from . import FollowUpAPI, MMAAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
+
+from skyportal.models import ThreadSession
 
 from ..utils import http
 
@@ -293,82 +294,74 @@ def download_observations(request_id, oq):
 
     from ..models import (
         Comment,
-        DBSession,
         FollowupRequest,
         Group,
     )
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    with ThreadSession() as session:
+        try:
+            req = session.scalars(
+                sa.select(FollowupRequest).where(FollowupRequest.id == request_id)
+            ).first()
 
-    try:
-        req = session.scalars(
-            sa.select(FollowupRequest).where(FollowupRequest.id == request_id)
-        ).first()
+            group_ids = [g.id for g in req.requester.accessible_groups]
+            groups = session.scalars(
+                Group.select(req.requester).where(Group.id.in_(group_ids))
+            ).all()
 
-        group_ids = [g.id for g in req.requester.accessible_groups]
-        groups = session.scalars(
-            Group.select(req.requester).where(Group.id.in_(group_ids))
-        ).all()
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                obsids = list({row.obsid for row in oq})
+                for obsid in obsids:
+                    data = Data()
+                    data.obsid = obsid
+                    data.xrt = req.payload.get("XRT", False)
+                    data.uvot = req.payload.get("UVOT", False)
+                    data.bat = req.payload.get("BAT", False)
+                    data.outdir = tmpdirname
 
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            obsids = list({row.obsid for row in oq})
-            for obsid in obsids:
-                data = Data()
-                data.obsid = obsid
-                data.xrt = req.payload.get("XRT", False)
-                data.uvot = req.payload.get("UVOT", False)
-                data.bat = req.payload.get("BAT", False)
-                data.outdir = tmpdirname
+                    if data.submit():
+                        data.outdir = os.path.expanduser(data.outdir)
+                        data.outdir = os.path.expandvars(data.outdir)
+                        data.outdir = os.path.abspath(data.outdir)
 
-                if data.submit():
-                    data.outdir = os.path.expanduser(data.outdir)
-                    data.outdir = os.path.expandvars(data.outdir)
-                    data.outdir = os.path.abspath(data.outdir)
+                        # Index any existing files
+                        for i in range(len(data.entries)):
+                            fullfilepath = os.path.join(
+                                data.outdir,
+                                data.entries[i].path,
+                                data.entries[i].filename,
+                            )
+                            if os.path.exists(fullfilepath):
+                                data.entries[i].localpath = fullfilepath
+                        topdir = os.path.join(data.outdir, str(obsid))
+                        if not os.path.isdir(topdir):
+                            os.makedirs(topdir)
 
-                    # Index any existing files
-                    for i in range(len(data.entries)):
-                        fullfilepath = os.path.join(
-                            data.outdir, data.entries[i].path, data.entries[i].filename
+                        for dfile in data.entries:
+                            if not dfile.download(outdir=data.outdir):
+                                raise ValueError(f"Error downloading {dfile.filename}")
+                        filename = os.path.join(tmpdirname, f'{obsid}.tar.gz')
+                        with tarfile.open(filename, "w:gz") as tar:
+                            tar.add(topdir, arcname=os.path.basename(topdir))
+
+                        attachment_name = filename.split("/")[-1]
+                        with open(filename, 'rb') as f:
+                            attachment_bytes = base64.b64encode(f.read())
+                        comment = Comment(
+                            text=f'Swift Data: {obsid}',
+                            obj_id=req.obj.id,
+                            attachment_bytes=attachment_bytes,
+                            attachment_name=attachment_name,
+                            author=req.requester,
+                            groups=groups,
+                            bot=True,
                         )
-                        if os.path.exists(fullfilepath):
-                            data.entries[i].localpath = fullfilepath
-                    topdir = os.path.join(data.outdir, str(obsid))
-                    if not os.path.isdir(topdir):
-                        os.makedirs(topdir)
-
-                    for dfile in data.entries:
-                        if not dfile.download(outdir=data.outdir):
-                            raise ValueError(f"Error downloading {dfile.filename}")
-                    filename = os.path.join(tmpdirname, f'{obsid}.tar.gz')
-                    with tarfile.open(filename, "w:gz") as tar:
-                        tar.add(topdir, arcname=os.path.basename(topdir))
-
-                    attachment_name = filename.split("/")[-1]
-                    with open(filename, 'rb') as f:
-                        attachment_bytes = base64.b64encode(f.read())
-                    comment = Comment(
-                        text=f'Swift Data: {obsid}',
-                        obj_id=req.obj.id,
-                        attachment_bytes=attachment_bytes,
-                        attachment_name=attachment_name,
-                        author=req.requester,
-                        groups=groups,
-                        bot=True,
-                    )
-                    session.add(comment)
-        req.status = 'Result posted as comment'
-        session.commit()
-
-    except Exception as e:
-        session.rollback()
-        log(f"Unable to post data for {request_id}: {e}")
-    finally:
-        session.close()
-        Session.remove()
+                        session.add(comment)
+            req.status = 'Result posted as comment'
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            log(f"Unable to post data for {request_id}: {e}")
 
 
 class UVOTXRTAPI(FollowUpAPI):
@@ -384,7 +377,7 @@ class UVOTXRTAPI(FollowUpAPI):
         ----------
         request : skyportal.models.FollowupRequest
             The request to retrieve Swift XRT data.
-        session : baselayer.DBSession
+        session : baselayer.HandlerSession
             Database session to use for photometry
         """
 

@@ -7,7 +7,7 @@ from baselayer.app.models import init_db
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from skyportal.models import (
-    DBSession,
+    ThreadSession,
     Reminder,
     ReminderOnSpectrum,
     ReminderOnGCN,
@@ -59,7 +59,7 @@ def service():
 def send_reminders():
     now = datetime.utcnow()
     reminders = []
-    with DBSession() as session:
+    with ThreadSession() as session:
         try:
             user = session.query(User).where(User.id == 1).first()
             reminders = (

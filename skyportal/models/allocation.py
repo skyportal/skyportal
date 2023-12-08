@@ -16,7 +16,7 @@ from baselayer.app.models import (
     join_model,
     UserAccessControl,
     CustomUserAccessControl,
-    DBSession,
+    ThreadSession,
     safe_aliased,
 )
 from .group import GroupUser, accessible_by_group_members
@@ -30,13 +30,15 @@ def allocationuser_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     user_allocation_admin = (
-        DBSession()
+        ThreadSession()
         .query(Allocation)
         .join(GroupUser, GroupUser.group_id == Allocation.group_id)
         .filter(sa.and_(GroupUser.user_id == user_id, GroupUser.admin.is_(True)))
     )
     query = (
-        DBSession().query(cls).join(aliased, cls.allocation_id == aliased.allocation_id)
+        ThreadSession()
+        .query(cls)
+        .join(aliased, cls.allocation_id == aliased.allocation_id)
     )
     if not user_or_token.is_system_admin:
         query = query.filter(

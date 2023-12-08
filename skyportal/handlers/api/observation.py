@@ -12,7 +12,6 @@ from regions import Regions
 import requests
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload, undefer
-from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import urllib
 from astropy.time import Time, TimeDelta
@@ -26,7 +25,7 @@ from baselayer.app.env import load_env
 from baselayer.app.custom_exceptions import AccessError
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
+    ThreadSession,
     Allocation,
     GcnEvent,
     Group,
@@ -62,8 +61,6 @@ env, cfg = load_env()
 
 log = make_log('api/observation')
 
-Session = scoped_session(sessionmaker())
-
 cache_dir = "cache/localization_instrument_queries"
 cache = Cache(
     cache_dir=cache_dir,
@@ -83,56 +80,49 @@ def add_queued_observations(instrument_id, obstable):
         A dataframe returned from the ZTF scheduler queue
     """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
-
-    try:
-        observations = []
-        for index, row in obstable.iterrows():
-            field_id = int(row["field_id"])
-            field = (
-                session.query(InstrumentField)
-                .filter(
-                    InstrumentField.instrument_id == instrument_id,
-                    InstrumentField.field_id == field_id,
+    with ThreadSession() as session:
+        try:
+            observations = []
+            for index, row in obstable.iterrows():
+                field_id = int(row["field_id"])
+                field = (
+                    session.query(InstrumentField)
+                    .filter(
+                        InstrumentField.instrument_id == instrument_id,
+                        InstrumentField.field_id == field_id,
+                    )
+                    .first()
                 )
-                .first()
+                if field is None:
+                    return log(
+                        f"Unable to add observations for instrument {instrument_id}: Missing field {field_id}"
+                    )
+
+                observations.append(
+                    QueuedObservation(
+                        queue_name=row['queue_name'],
+                        instrument_id=row['instrument_id'],
+                        instrument_field_id=field.id,
+                        obstime=row['obstime'],
+                        validity_window_start=row['validity_window_start'],
+                        validity_window_end=row['validity_window_end'],
+                        exposure_time=row["exposure_time"],
+                        filt=row['filter'],
+                    )
+                )
+            session.add_all(observations)
+            session.commit()
+
+            flow = Flow()
+            flow.push('*', "skyportal/REFRESH_QUEUED_OBSERVATIONS")
+
+            return log(
+                f"Successfully added queued observations for instrument {instrument_id}"
             )
-            if field is None:
-                return log(
-                    f"Unable to add observations for instrument {instrument_id}: Missing field {field_id}"
-                )
-
-            observations.append(
-                QueuedObservation(
-                    queue_name=row['queue_name'],
-                    instrument_id=row['instrument_id'],
-                    instrument_field_id=field.id,
-                    obstime=row['obstime'],
-                    validity_window_start=row['validity_window_start'],
-                    validity_window_end=row['validity_window_end'],
-                    exposure_time=row["exposure_time"],
-                    filt=row['filter'],
-                )
+        except Exception as e:
+            return log(
+                f"Unable to add queued observations for instrument {instrument_id}: {e}"
             )
-        session.add_all(observations)
-        session.commit()
-
-        flow = Flow()
-        flow.push('*', "skyportal/REFRESH_QUEUED_OBSERVATIONS")
-
-        return log(
-            f"Successfully added queued observations for instrument {instrument_id}"
-        )
-    except Exception as e:
-        return log(
-            f"Unable to add queued observations for instrument {instrument_id}: {e}"
-        )
-    finally:
-        session.close()
-        Session.remove()
 
 
 def add_observations(instrument_id, obstable):
@@ -154,112 +144,110 @@ def add_observations(instrument_id, obstable):
 4   ztfr                 1.0    None
      """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
-
-    # if the fields do not yet exist, we need to add them
-    if ('RA' in obstable) and ('Dec' in obstable) and not ('field_id' in obstable):
-        instrument = session.query(Instrument).get(instrument_id)
-        regions = Regions.parse(instrument.region, format='ds9')
-        field_data = obstable[['RA', 'Dec']]
-        field_ids = add_tiles(
-            instrument.id, instrument.name, regions, field_data, session=session
-        )
-        obstable['field_id'] = field_ids
-
-    try:
-        id_mapper = {}  # mapper from Instrument.field_id to InstrumentField.id
-        unique_field_ids = obstable['field_id'].unique()
-        unique_field_ids_batched = np.array_split(unique_field_ids, 100)
-        for field_ids in unique_field_ids_batched:
-            fields = (
-                session.scalars(
-                    sa.select(InstrumentField).where(
-                        InstrumentField.instrument_id == int(instrument_id),
-                        InstrumentField.field_id.in_([int(f) for f in field_ids]),
-                    )
-                )
-                .unique()
-                .all()
+    with ThreadSession() as session:
+        # if the fields do not yet exist, we need to add them
+        if ('RA' in obstable) and ('Dec' in obstable) and not ('field_id' in obstable):
+            instrument = session.query(Instrument).get(instrument_id)
+            regions = Regions.parse(instrument.region, format='ds9')
+            field_data = obstable[['RA', 'Dec']]
+            field_ids = add_tiles(
+                instrument.id, instrument.name, regions, field_data, session=session
             )
-            missing = list(set(field_ids) - set(list(f.field_id for f in fields)))
-            if len(missing) > 0:
-                return log(
-                    f"Unable to add observations for instrument {instrument_id}: {len(missing)} fields are missing: {missing[:100]}"
-                )
-            for field in fields:
-                id_mapper[field.field_id] = field.id
+            obstable['field_id'] = field_ids
 
-        del unique_field_ids, unique_field_ids_batched
-
-        # same here, we batch query the DB to see what observations already exist
-        unique_observation_ids = obstable['observation_id'].unique()
-        unique_observation_ids_batched = np.array_split(unique_observation_ids, 100)
-        missing = []
-        for observation_ids in unique_observation_ids_batched:
-            observations = session.scalars(
-                sa.select(ExecutedObservation.observation_id).where(
-                    ExecutedObservation.instrument_id == int(instrument_id),
-                    ExecutedObservation.observation_id.in_(
-                        [int(o) for o in observation_ids]
-                    ),
-                )
-            ).all()
-            missing.extend(set(observation_ids) - set(list(observations)))
-
-        if len(missing) < len(unique_observation_ids):
-            log(
-                f"Unable to add some observations for instrument {instrument_id}: {len(unique_observation_ids) - len(missing)} observations (out of {len(unique_observation_ids)}) already exist. These will be skipped"
-            )
-
-        # remove the observations that already exist, so only keep those which id is in the missing list
-        obstable = obstable[obstable['observation_id'].isin(missing)]
-
-        del missing, unique_observation_ids, unique_observation_ids_batched
-
-        # again, batch the insertions
-        obstable_batched = np.array_split(obstable, 100)
-        for chunk in obstable_batched:
-            observations = []
-            try:
-                for _, row in chunk.iterrows():
-                    # enable multiple obstime formats
-                    try:
-                        # can catch iso and isot this way
-                        obstime = Time(row["obstime"])
-                    except ValueError:
-                        # otherwise catch jd as the numerical example
-                        obstime = Time(row["obstime"], format='jd')
-
-                    observations.append(
-                        ExecutedObservation(
-                            instrument_id=instrument_id,
-                            observation_id=int(row["observation_id"]),
-                            instrument_field_id=int(id_mapper[row["field_id"]]),
-                            obstime=obstime.datetime,
-                            seeing=row.get("seeing", None),
-                            limmag=float(row["limmag"]),
-                            exposure_time=int(row["exposure_time"]),
-                            filt=row["filter"],
-                            processed_fraction=float(row["processed_fraction"]),
-                            target_name=row["target_name"],
+        try:
+            id_mapper = {}  # mapper from Instrument.field_id to InstrumentField.id
+            unique_field_ids = obstable['field_id'].unique()
+            unique_field_ids_batched = np.array_split(unique_field_ids, 100)
+            for field_ids in unique_field_ids_batched:
+                fields = (
+                    session.scalars(
+                        sa.select(InstrumentField).where(
+                            InstrumentField.instrument_id == int(instrument_id),
+                            InstrumentField.field_id.in_([int(f) for f in field_ids]),
                         )
                     )
-                session.add_all(observations)
-                session.commit()
-            except Exception as e:
-                session.rollback()
-                return log(
-                    f"Unable to add observations for instrument {instrument_id}: {e}"
+                    .unique()
+                    .all()
                 )
-        return log(f"Successfully added observations for instrument {instrument_id}")
-    except Exception as e:
-        return log(f"Unable to add observations for instrument {instrument_id}: {e}")
-    finally:
-        session.close()
-        Session.remove()
+                missing = list(set(field_ids) - set(list(f.field_id for f in fields)))
+                if len(missing) > 0:
+                    return log(
+                        f"Unable to add observations for instrument {instrument_id}: {len(missing)} fields are missing: {missing[:100]}"
+                    )
+                for field in fields:
+                    id_mapper[field.field_id] = field.id
+
+            del unique_field_ids, unique_field_ids_batched
+
+            # same here, we batch query the DB to see what observations already exist
+            unique_observation_ids = obstable['observation_id'].unique()
+            unique_observation_ids_batched = np.array_split(unique_observation_ids, 100)
+            missing = []
+            for observation_ids in unique_observation_ids_batched:
+                observations = session.scalars(
+                    sa.select(ExecutedObservation.observation_id).where(
+                        ExecutedObservation.instrument_id == int(instrument_id),
+                        ExecutedObservation.observation_id.in_(
+                            [int(o) for o in observation_ids]
+                        ),
+                    )
+                ).all()
+                missing.extend(set(observation_ids) - set(list(observations)))
+
+            if len(missing) < len(unique_observation_ids):
+                log(
+                    f"Unable to add some observations for instrument {instrument_id}: {len(unique_observation_ids) - len(missing)} observations (out of {len(unique_observation_ids)}) already exist. These will be skipped"
+                )
+
+            # remove the observations that already exist, so only keep those which id is in the missing list
+            obstable = obstable[obstable['observation_id'].isin(missing)]
+
+            del missing, unique_observation_ids, unique_observation_ids_batched
+
+            # again, batch the insertions
+            obstable_batched = np.array_split(obstable, 100)
+            for chunk in obstable_batched:
+                observations = []
+                try:
+                    for _, row in chunk.iterrows():
+                        # enable multiple obstime formats
+                        try:
+                            # can catch iso and isot this way
+                            obstime = Time(row["obstime"])
+                        except ValueError:
+                            # otherwise catch jd as the numerical example
+                            obstime = Time(row["obstime"], format='jd')
+
+                        observations.append(
+                            ExecutedObservation(
+                                instrument_id=instrument_id,
+                                observation_id=int(row["observation_id"]),
+                                instrument_field_id=int(id_mapper[row["field_id"]]),
+                                obstime=obstime.datetime,
+                                seeing=row.get("seeing", None),
+                                limmag=float(row["limmag"]),
+                                exposure_time=int(row["exposure_time"]),
+                                filt=row["filter"],
+                                processed_fraction=float(row["processed_fraction"]),
+                                target_name=row["target_name"],
+                            )
+                        )
+                    session.add_all(observations)
+                    session.commit()
+                except Exception as e:
+                    session.rollback()
+                    return log(
+                        f"Unable to add observations for instrument {instrument_id}: {e}"
+                    )
+            return log(
+                f"Successfully added observations for instrument {instrument_id}"
+            )
+        except Exception as e:
+            session.rollback()
+            return log(
+                f"Unable to add observations for instrument {instrument_id}: {e}"
+            )
 
 
 def get_observations(
@@ -1937,7 +1925,6 @@ class ObservationTreasureMapHandler(BaseHandler):
 
 
 def retrieve_observations_and_simsurvey(
-    session,
     start_date,
     end_date,
     localization_id,
@@ -1967,119 +1954,130 @@ def retrieve_observations_and_simsurvey(
         Either SurveyEfficiencyForObservations or SurveyEfficiencyForObservationPlan.
     """
 
-    if survey_efficiency_analysis_type == "SurveyEfficiencyForObservations":
-        survey_efficiency_analysis = session.scalars(
-            sa.select(SurveyEfficiencyForObservations).where(
-                SurveyEfficiencyForObservations.id == survey_efficiency_analysis_id
-            )
-        ).first()
-        if survey_efficiency_analysis is None:
-            raise ValueError(
-                f'No SurveyEfficiencyForObservations with ID {survey_efficiency_analysis_id}'
-            )
-    elif survey_efficiency_analysis_type == "SurveyEfficiencyForObservations":
-        survey_efficiency_analysis = session.scalars(
-            sa.select(SurveyEfficiencyForObservationPlan).where(
-                SurveyEfficiencyForObservationPlan.id == survey_efficiency_analysis_id
-            )
-        ).first()
-        if survey_efficiency_analysis is None:
-            raise ValueError(
-                f'No SurveyEfficiencyForObservationPlan with ID {survey_efficiency_analysis_id}'
-            )
-    else:
-        raise ValueError(
-            'survey_efficiency_analysis_type must be SurveyEfficiencyForObservations or SurveyEfficiencyForObservationPlan'
-        )
-
-    payload = survey_efficiency_analysis.payload
-
-    instrument = session.scalars(
-        sa.select(Instrument)
-        .options(joinedload(Instrument.telescope))
-        .where(Instrument.id == instrument_id)
-    ).first()
-
-    localization = session.scalars(
-        sa.select(Localization).where(Localization.id == localization_id)
-    ).first()
-
-    data = get_observations(
-        session,
-        start_date,
-        end_date,
-        telescope_name=instrument.telescope.name,
-        instrument_name=instrument.name,
-        localization_dateobs=localization.dateobs,
-        localization_name=localization.localization_name,
-        localization_cumprob=payload["localization_cumprob"],
-    )
-
-    observations = data["observations"]
-
-    if len(observations) == 0:
-        raise ValueError('Need at least one observation to run SimSurvey')
-
-    unique_filters = list({observation["filt"] for observation in observations})
-
-    if not set(unique_filters).issubset(set(instrument.sensitivity_data.keys())):
-        raise ValueError('Need sensitivity_data for all filters present')
-
-    for filt in unique_filters:
-        if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
-            set(instrument.sensitivity_data[filt].keys())
-        ):
-            raise ValueError(
-                f'Sensitivity_data dictionary missing keys for filter {filt}'
-            )
-
-    # get height and width
-    stmt = (
-        InstrumentField.select(session.user_or_token)
-        .where(InstrumentField.id == observations[0]["field"]["id"])
-        .options(undefer(InstrumentField.contour_summary))
-    )
-    field = session.scalars(stmt).first()
-    if field is None:
-        raise ValueError(
-            'Missing field {obs_dict["field"]["id"]} required to estimate field size'
-        )
-    contour_summary = field.to_dict()["contour_summary"]["features"][0]
-    coordinates = np.squeeze(np.array(contour_summary["geometry"]["coordinates"]))
-    coords = SkyCoord(
-        coordinates[:, 0] * u.deg, coordinates[:, 1] * u.deg, frame='icrs'
-    )
-    width, height = None, None
-    for c1 in coords:
-        for c2 in coords:
-            dra, ddec = c1.spherical_offsets_to(c2)
-            dra = dra.to(u.deg)
-            ddec = ddec.to(u.deg)
-            if width is None and height is None:
-                width = dra
-                height = ddec
+    with ThreadSession() as session:
+        try:
+            if survey_efficiency_analysis_type == "SurveyEfficiencyForObservations":
+                survey_efficiency_analysis = session.scalars(
+                    sa.select(SurveyEfficiencyForObservations).where(
+                        SurveyEfficiencyForObservations.id
+                        == survey_efficiency_analysis_id
+                    )
+                ).first()
+                if survey_efficiency_analysis is None:
+                    raise ValueError(
+                        f'No SurveyEfficiencyForObservations with ID {survey_efficiency_analysis_id}'
+                    )
+            elif survey_efficiency_analysis_type == "SurveyEfficiencyForObservations":
+                survey_efficiency_analysis = session.scalars(
+                    sa.select(SurveyEfficiencyForObservationPlan).where(
+                        SurveyEfficiencyForObservationPlan.id
+                        == survey_efficiency_analysis_id
+                    )
+                ).first()
+                if survey_efficiency_analysis is None:
+                    raise ValueError(
+                        f'No SurveyEfficiencyForObservationPlan with ID {survey_efficiency_analysis_id}'
+                    )
             else:
-                if dra > width:
-                    width = dra
-                if ddec > height:
-                    height = ddec
+                raise ValueError(
+                    'survey_efficiency_analysis_type must be SurveyEfficiencyForObservations or SurveyEfficiencyForObservationPlan'
+                )
 
-    observation_simsurvey(
-        observations,
-        localization.id,
-        instrument.id,
-        survey_efficiency_analysis_id,
-        survey_efficiency_analysis_type,
-        width=width.value,
-        height=height.value,
-        number_of_injections=payload['number_of_injections'],
-        number_of_detections=payload['number_of_detections'],
-        detection_threshold=payload['detection_threshold'],
-        minimum_phase=payload['minimum_phase'],
-        maximum_phase=payload['maximum_phase'],
-        model_name=payload['model_name'],
-        optional_injection_parameters=payload['optional_injection_parameters'],
-    )
+            payload = survey_efficiency_analysis.payload
+
+            instrument = session.scalars(
+                sa.select(Instrument)
+                .options(joinedload(Instrument.telescope))
+                .where(Instrument.id == instrument_id)
+            ).first()
+
+            localization = session.scalars(
+                sa.select(Localization).where(Localization.id == localization_id)
+            ).first()
+
+            data = get_observations(
+                session,
+                start_date,
+                end_date,
+                telescope_name=instrument.telescope.name,
+                instrument_name=instrument.name,
+                localization_dateobs=localization.dateobs,
+                localization_name=localization.localization_name,
+                localization_cumprob=payload["localization_cumprob"],
+            )
+
+            observations = data["observations"]
+
+            if len(observations) == 0:
+                raise ValueError('Need at least one observation to run SimSurvey')
+
+            unique_filters = list({observation["filt"] for observation in observations})
+
+            if not set(unique_filters).issubset(
+                set(instrument.sensitivity_data.keys())
+            ):
+                raise ValueError('Need sensitivity_data for all filters present')
+
+            for filt in unique_filters:
+                if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
+                    set(instrument.sensitivity_data[filt].keys())
+                ):
+                    raise ValueError(
+                        f'Sensitivity_data dictionary missing keys for filter {filt}'
+                    )
+
+            # get height and width
+            stmt = (
+                InstrumentField.select(session.user_or_token)
+                .where(InstrumentField.id == observations[0]["field"]["id"])
+                .options(undefer(InstrumentField.contour_summary))
+            )
+            field = session.scalars(stmt).first()
+            if field is None:
+                raise ValueError(
+                    'Missing field {obs_dict["field"]["id"]} required to estimate field size'
+                )
+            contour_summary = field.to_dict()["contour_summary"]["features"][0]
+            coordinates = np.squeeze(
+                np.array(contour_summary["geometry"]["coordinates"])
+            )
+            coords = SkyCoord(
+                coordinates[:, 0] * u.deg, coordinates[:, 1] * u.deg, frame='icrs'
+            )
+            width, height = None, None
+            for c1 in coords:
+                for c2 in coords:
+                    dra, ddec = c1.spherical_offsets_to(c2)
+                    dra = dra.to(u.deg)
+                    ddec = ddec.to(u.deg)
+                    if width is None and height is None:
+                        width = dra
+                        height = ddec
+                    else:
+                        if dra > width:
+                            width = dra
+                        if ddec > height:
+                            height = ddec
+
+            observation_simsurvey(
+                observations,
+                localization.id,
+                instrument.id,
+                survey_efficiency_analysis_id,
+                survey_efficiency_analysis_type,
+                width=width.value,
+                height=height.value,
+                number_of_injections=payload['number_of_injections'],
+                number_of_detections=payload['number_of_detections'],
+                detection_threshold=payload['detection_threshold'],
+                minimum_phase=payload['minimum_phase'],
+                maximum_phase=payload['maximum_phase'],
+                model_name=payload['model_name'],
+                optional_injection_parameters=payload['optional_injection_parameters'],
+            )
+        except Exception as e:
+            session.rollback()
+            return log(f"Error in retrieving observations and running SimSurvey: {e}")
 
 
 class ObservationSimSurveyHandler(BaseHandler):

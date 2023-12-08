@@ -17,7 +17,7 @@ from baselayer.app import models
 from baselayer.app.test_util import driver  # noqa: F401
 from skyportal.model_util import create_token, delete_token
 from skyportal.models import (
-    DBSession,
+    ThreadSession,
     User,
     Source,
     Candidate,
@@ -72,12 +72,12 @@ if shutil.which('geckodriver') is None:
 # proper author, if it doesn't already exist (the user may already be in
 # there if running the test server and running tests individually)
 if (
-    not DBSession()
+    not ThreadSession()
     .execute(sa.select(User).filter(User.username == "test factory"))
     .scalar()
 ):
-    DBSession.add(User(username="test factory"))
-    DBSession.commit()
+    ThreadSession.add(User(username="test factory"))
+    ThreadSession.commit()
 
 # Also add the test driver user (testuser-cesium-ml-org) if needed so that the driver
 # fixture has a user to login as (without needing an invitation token).
@@ -85,14 +85,14 @@ if (
 # without this user because the authenticator looks for the user or an
 # invitation token when neither exists initially on fresh test databases.
 if (
-    not DBSession()
+    not ThreadSession()
     .execute(sa.select(User).filter(User.username == "testuser-cesium-ml-org"))
     .scalar()
 ):
-    DBSession.add(
+    ThreadSession.add(
         User(username="testuser-cesium-ml-org", oauth_uid="testuser@cesium-ml.org")
     )
-    DBSession.commit()
+    ThreadSession.commit()
 
 
 def pytest_runtest_setup(item):
@@ -125,7 +125,7 @@ def test_driver_user(request):
     yield  # Yield immediately since we only need to run teardown code
     if 'driver' in request.node.funcargs:
         testuser = (
-            DBSession()
+            ThreadSession()
             .execute(sa.select(User).filter(User.username == "testuser-cesium-ml-org"))
             .scalars()
             .first()
@@ -293,7 +293,7 @@ def group_with_stream_with_users(
 @pytest.fixture()
 def public_groupstream(public_group):
     return (
-        DBSession()
+        ThreadSession()
         .execute(
             sa.select(GroupStream).filter(
                 GroupStream.group_id == public_group.id,
@@ -308,7 +308,7 @@ def public_groupstream(public_group):
 @pytest.fixture()
 def public_streamuser(public_stream, user):
     return (
-        DBSession()
+        ThreadSession()
         .execute(
             sa.select(StreamUser).filter(
                 StreamUser.user_id == user.id, StreamUser.stream_id == public_stream.id
@@ -322,7 +322,7 @@ def public_streamuser(public_stream, user):
 @pytest.fixture()
 def public_streamuser_no_groups(public_stream, user_no_groups):
     return (
-        DBSession()
+        ThreadSession()
         .execute(
             sa.select(StreamUser).filter(
                 StreamUser.user_id == user_no_groups.id,
@@ -353,8 +353,8 @@ def public_filter2(public_group2, public_stream):
 @pytest.fixture()
 def public_ZTF20acgrjqm(public_group):
     obj = ObjFactory(groups=[public_group], ra=65.0630767, dec=82.5880983)
-    DBSession().add(Source(obj_id=obj.id, group_id=public_group.id))
-    DBSession().commit()
+    ThreadSession().add(Source(obj_id=obj.id, group_id=public_group.id))
+    ThreadSession().commit()
     yield obj
     ObjFactory.teardown(obj)
 
@@ -362,8 +362,8 @@ def public_ZTF20acgrjqm(public_group):
 @pytest.fixture()
 def public_ZTF21aaeyldq(public_group):
     obj = ObjFactory(groups=[public_group], ra=123.813909, dec=-5.867007)
-    DBSession().add(Source(obj_id=obj.id, group_id=public_group.id))
-    DBSession().commit()
+    ThreadSession().add(Source(obj_id=obj.id, group_id=public_group.id))
+    ThreadSession().commit()
     yield obj
     ObjFactory.teardown(obj)
 
@@ -371,8 +371,8 @@ def public_ZTF21aaeyldq(public_group):
 @pytest.fixture()
 def public_ZTFe028h94k(public_group):
     obj = ObjFactory(groups=[public_group], ra=229.9620403, dec=34.8442757)
-    DBSession().add(Source(obj_id=obj.id, group_id=public_group.id))
-    DBSession().commit()
+    ThreadSession().add(Source(obj_id=obj.id, group_id=public_group.id))
+    ThreadSession().commit()
     yield obj
     ObjFactory.teardown(obj)
 
@@ -381,8 +381,8 @@ def public_ZTFe028h94k(public_group):
 def public_source(public_group):
     obj = ObjFactory(groups=[public_group])
     source = Source(obj_id=obj.id, group_id=public_group.id)
-    DBSession.add(source)
-    DBSession.commit()
+    ThreadSession.add(source)
+    ThreadSession.commit()
     yield obj
     ObjFactory.teardown(obj)
 
@@ -394,8 +394,8 @@ def public_source_two_groups(public_group, public_group2):
     for group in [public_group, public_group2]:
         source = Source(obj_id=obj.id, group_id=group.id)
         sources.append(source)
-        DBSession.add(source)
-    DBSession.commit()
+        ThreadSession.add(source)
+    ThreadSession.commit()
     yield obj
     ObjFactory.teardown(obj)
 
@@ -404,8 +404,8 @@ def public_source_two_groups(public_group, public_group2):
 def public_source_group2(public_group2):
     obj = ObjFactory(groups=[public_group2])
     source = Source(obj_id=obj.id, group_id=public_group2.id)
-    DBSession.add(source)
-    DBSession.commit()
+    ThreadSession.add(source)
+    ThreadSession.commit()
     yield obj
     ObjFactory.teardown(obj)
 
@@ -418,19 +418,24 @@ def public_source_no_data(public_group):
         dec=0.0,
         redshift=0.0,
     )
-    DBSession.add(obj)
-    DBSession().add(ThumbnailFactory(obj_id=obj.id, type="new"))
-    DBSession().add(ThumbnailFactory(obj_id=obj.id, type="ps1"))
+    ThreadSession.add(obj)
+    ThreadSession().add(ThumbnailFactory(obj_id=obj.id, type="new"))
+    ThreadSession().add(ThumbnailFactory(obj_id=obj.id, type="ps1"))
     source = Source(obj_id=obj.id, group_id=public_group.id)
-    DBSession.add(source)
-    DBSession.commit()
+    ThreadSession.add(source)
+    ThreadSession.commit()
     obj_id = obj.id
     yield obj
     # If the obj wasn't deleted by the test using it, clean up
-    DBSession().expire(obj)
-    if DBSession().execute(sa.select(Obj).filter(Obj.id == obj_id)).scalars().first():
-        DBSession().delete(obj)
-        DBSession().commit()
+    ThreadSession().expire(obj)
+    if (
+        ThreadSession()
+        .execute(sa.select(Obj).filter(Obj.id == obj_id))
+        .scalars()
+        .first()
+    ):
+        ThreadSession().delete(obj)
+        ThreadSession().commit()
 
 
 @pytest.fixture()
@@ -442,8 +447,8 @@ def public_candidate(public_filter, user):
         passed_at=datetime.utcnow() - timedelta(seconds=np.random.randint(0, 100)),
         uploader_id=user.id,
     )
-    DBSession.add(candidate)
-    DBSession.commit()
+    ThreadSession.add(candidate)
+    ThreadSession.commit()
     yield obj
     ObjFactory.teardown(obj)
 
@@ -472,8 +477,8 @@ def public_candidate_two_groups(
             uploader_id=user.id,
         )
         candidates.append(candidate)
-        DBSession.add(candidate)
-    DBSession.commit()
+        ThreadSession.add(candidate)
+    ThreadSession.commit()
     yield obj
     ObjFactory.teardown(obj)
 
@@ -481,7 +486,7 @@ def public_candidate_two_groups(
 @pytest.fixture()
 def public_candidate2(public_filter, user):
     obj = ObjFactory(groups=[public_filter.group])
-    DBSession.add(
+    ThreadSession.add(
         Candidate(
             obj=obj,
             filter=public_filter,
@@ -489,7 +494,7 @@ def public_candidate2(public_filter, user):
             uploader_id=user.id,
         )
     )
-    DBSession.commit()
+    ThreadSession.commit()
     yield obj
     ObjFactory.teardown(obj)
 
@@ -689,7 +694,7 @@ def user(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
             .scalars()
             .first()
@@ -706,7 +711,7 @@ def user_stream2_only(public_group, public_stream2):
     user = UserFactory(
         groups=[public_group],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
             .scalars()
             .first()
@@ -723,7 +728,7 @@ def user_group2(public_group2, public_stream):
     user = UserFactory(
         groups=[public_group2],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
             .scalars()
             .first()
@@ -738,9 +743,9 @@ def user_group2(public_group2, public_stream):
 @pytest.fixture()
 def public_groupuser(public_group, user):
     user.groups.append(public_group)
-    DBSession().commit()
+    ThreadSession().commit()
     return (
-        DBSession()
+        ThreadSession()
         .execute(
             sa.select(GroupUser).filter(
                 GroupUser.group_id == public_group.id, GroupUser.user_id == user.id
@@ -756,7 +761,7 @@ def user2(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
             .scalars()
             .first()
@@ -772,7 +777,7 @@ def user2(public_group, public_stream):
 def user_no_groups(public_stream):
     user = UserFactory(
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
             .scalars()
             .first()
@@ -788,7 +793,7 @@ def user_no_groups(public_stream):
 def user_no_groups_two_streams(public_stream, public_stream2):
     user = UserFactory(
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
             .scalars()
             .first()
@@ -804,7 +809,7 @@ def user_no_groups_two_streams(public_stream, public_stream2):
 def user_no_groups_no_streams():
     user = UserFactory(
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
             .scalars()
             .first()
@@ -877,7 +882,7 @@ def user_two_groups(public_group, public_group2, public_stream):
     user = UserFactory(
         groups=[public_group, public_group2],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
             .scalars()
             .first()
@@ -894,7 +899,7 @@ def view_only_user(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "View only"))
             .scalars()
             .first()
@@ -911,7 +916,7 @@ def view_only_user2(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "View only"))
             .scalars()
             .first()
@@ -928,7 +933,7 @@ def group_admin_user(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Group admin"))
             .scalars()
             .first()
@@ -937,7 +942,7 @@ def group_admin_user(public_group, public_stream):
     )
     user_id = user.id
     group_user = (
-        DBSession()
+        ThreadSession()
         .execute(
             sa.select(GroupUser).filter(
                 GroupUser.group_id == public_group.id, GroupUser.user_id == user.id
@@ -947,7 +952,7 @@ def group_admin_user(public_group, public_stream):
         .first()
     )
     group_user.admin = True
-    DBSession().commit()
+    ThreadSession().commit()
     yield user
     UserFactory.teardown(user_id)
 
@@ -957,7 +962,7 @@ def group_admin_user_two_groups(public_group, public_group2, public_stream):
     user = UserFactory(
         groups=[public_group, public_group2],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Group admin"))
             .scalars()
             .first()
@@ -974,7 +979,7 @@ def super_admin_user(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Super admin"))
             .scalars()
             .first()
@@ -991,7 +996,7 @@ def super_admin_user_group2(public_group2, public_stream):
     user = UserFactory(
         groups=[public_group2],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Super admin"))
             .scalars()
             .first()
@@ -1008,7 +1013,7 @@ def super_admin_user_two_groups(public_group, public_group2, public_stream):
     user = UserFactory(
         groups=[public_group, public_group2],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Super admin"))
             .scalars()
             .first()
@@ -1153,7 +1158,7 @@ def manage_users_token_group2(super_admin_user_group2):
 @pytest.fixture()
 def super_admin_token(super_admin_user):
     role = (
-        DBSession()
+        ThreadSession()
         .execute(sa.select(models.Role).filter(models.Role.id == "Super admin"))
         .scalars()
         .first()
@@ -1170,7 +1175,7 @@ def super_admin_token(super_admin_user):
 @pytest.fixture()
 def super_admin_token_two_groups(super_admin_user_two_groups):
     role = (
-        DBSession()
+        ThreadSession()
         .execute(sa.select(models.Role).filter(models.Role.id == "Super admin"))
         .scalars()
         .first()
@@ -1338,7 +1343,7 @@ def source_notification_user(public_group):
         contact_phone="+12345678910",
         groups=[public_group],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
             .scalars()
             .first()
@@ -1372,7 +1377,7 @@ def public_taxonomy(public_group):
 @pytest.fixture()
 def public_group_taxonomy(public_taxonomy):
     return (
-        DBSession()
+        ThreadSession()
         .execute(
             sa.select(GroupTaxonomy).filter(
                 GroupTaxonomy.group_id == public_taxonomy.groups[0].id,
@@ -1410,7 +1415,7 @@ def public_comment_on_gcn(gcn, public_group):
 @pytest.fixture()
 def public_groupcomment(public_comment):
     return (
-        DBSession()
+        ThreadSession()
         .execute(
             sa.select(GroupComment).filter(
                 GroupComment.group_id == public_comment.groups[0].id,
@@ -1434,7 +1439,7 @@ def public_annotation(user_no_groups, public_source, public_group):
 @pytest.fixture()
 def public_groupannotation(public_annotation):
     return (
-        DBSession()
+        ThreadSession()
         .execute(
             sa.select(GroupAnnotation).filter(
                 GroupAnnotation.group_id == public_annotation.groups[0].id,
@@ -1463,7 +1468,7 @@ def public_classification(
 @pytest.fixture()
 def public_groupclassification(public_classification):
     return (
-        DBSession()
+        ThreadSession()
         .execute(
             sa.select(GroupClassification).filter(
                 GroupClassification.group_id == public_classification.groups[0].id,
@@ -1488,7 +1493,7 @@ def public_source_spectrum(public_source):
 @pytest.fixture()
 def public_source_groupphotometry(public_source_photometry_point):
     return (
-        DBSession()
+        ThreadSession()
         .execute(
             sa.select(GroupPhotometry).filter(
                 GroupPhotometry.group_id == public_source_photometry_point.groups[0].id,
@@ -1503,7 +1508,7 @@ def public_source_groupphotometry(public_source_photometry_point):
 @pytest.fixture()
 def public_source_groupspectrum(public_source_spectrum):
     return (
-        DBSession()
+        ThreadSession()
         .execute(
             sa.select(GroupSpectrum).filter(
                 GroupSpectrum.group_id == public_source_spectrum.groups[0].id,
@@ -1518,7 +1523,7 @@ def public_source_groupspectrum(public_source_spectrum):
 @pytest.fixture()
 def public_source_followup_request_target_group(public_source_followup_request):
     return (
-        DBSession()
+        ThreadSession()
         .execute(
             sa.select(FollowupRequestTargetGroup).filter(
                 FollowupRequestTargetGroup.followuprequest_id
@@ -1535,7 +1540,7 @@ def public_source_followup_request_target_group(public_source_followup_request):
 @pytest.fixture()
 def public_thumbnail(public_source):
     return (
-        DBSession()
+        ThreadSession()
         .execute(
             sa.select(Thumbnail)
             .filter(Thumbnail.obj_id == public_source.id)
@@ -1574,7 +1579,7 @@ def shift_admin(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "Group admin"))
             .scalars()
             .first()
@@ -1591,14 +1596,14 @@ def shift_user(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
         roles=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.Role).filter(models.Role.id == "View only"))
             .scalars()
             .first()
         ],
         streams=[public_stream],
         acls=[
-            DBSession()
+            ThreadSession()
             .execute(sa.select(models.ACL).filter(models.ACL.id == "Manage shifts"))
             .scalars()
             .first()
@@ -1747,13 +1752,13 @@ def photometric_series(
     ps = PhotometricSeries(**data)
 
     try:
-        DBSession().add(ps)
+        ThreadSession().add(ps)
         ps.save_data(temp=True)
-        DBSession().commit()
+        ThreadSession().commit()
         ps.move_temp_data()
 
     except Exception as e:
-        DBSession().rollback()
+        ThreadSession().rollback()
         ps.delete_data(temp=True)
         raise e
 
@@ -1761,8 +1766,8 @@ def photometric_series(
 
     # tear down
     filename = ps.filename
-    DBSession().delete(ps)
-    DBSession().commit()
+    ThreadSession().delete(ps)
+    ThreadSession().commit()
     if os.path.isfile(filename):
         os.remove(filename)
 
@@ -1792,13 +1797,13 @@ def photometric_series2(
     ps = PhotometricSeries(**data)
 
     try:
-        DBSession().add(ps)
+        ThreadSession().add(ps)
         ps.save_data(temp=True)
-        DBSession().commit()
+        ThreadSession().commit()
         ps.move_temp_data()
 
     except Exception as e:
-        DBSession().rollback()
+        ThreadSession().rollback()
         ps.delete_data(temp=True)
         raise e
 
@@ -1806,8 +1811,8 @@ def photometric_series2(
 
     # tear down
     filename = ps.filename
-    DBSession().delete(ps)
-    DBSession().commit()
+    ThreadSession().delete(ps)
+    ThreadSession().commit()
     if os.path.isfile(filename):
         os.remove(filename)
 
@@ -1837,13 +1842,13 @@ def photometric_series3(
     ps = PhotometricSeries(**data)
 
     try:
-        DBSession().add(ps)
+        ThreadSession().add(ps)
         ps.save_data(temp=True)
-        DBSession().commit()
+        ThreadSession().commit()
         ps.move_temp_data()
 
     except Exception as e:
-        DBSession().rollback()
+        ThreadSession().rollback()
         ps.delete_data(temp=True)
         raise e
 
@@ -1851,8 +1856,8 @@ def photometric_series3(
 
     # tear down
     filename = ps.filename
-    DBSession().delete(ps)
-    DBSession().commit()
+    ThreadSession().delete(ps)
+    ThreadSession().commit()
     if os.path.isfile(filename):
         os.remove(filename)
 
@@ -1881,13 +1886,13 @@ def photometric_series_low_flux(
     ps = PhotometricSeries(**data)
 
     try:
-        DBSession().add(ps)
+        ThreadSession().add(ps)
         ps.save_data(temp=True)
-        DBSession().commit()
+        ThreadSession().commit()
         ps.move_temp_data()
 
     except Exception as e:
-        DBSession().rollback()
+        ThreadSession().rollback()
         ps.delete_data(temp=True)
         raise e
 
@@ -1895,8 +1900,8 @@ def photometric_series_low_flux(
 
     # tear down
     filename = ps.filename
-    DBSession().delete(ps)
-    DBSession().commit()
+    ThreadSession().delete(ps)
+    ThreadSession().commit()
     if os.path.isfile(filename):
         os.remove(filename)
 
@@ -1925,13 +1930,13 @@ def photometric_series_high_flux(
     ps = PhotometricSeries(**data)
 
     try:
-        DBSession().add(ps)
+        ThreadSession().add(ps)
         ps.save_data(temp=True)
-        DBSession().commit()
+        ThreadSession().commit()
         ps.move_temp_data()
 
     except Exception as e:
-        DBSession().rollback()
+        ThreadSession().rollback()
         ps.delete_data(temp=True)
         raise e
 
@@ -1939,8 +1944,8 @@ def photometric_series_high_flux(
 
     # tear down
     filename = ps.filename
-    DBSession().delete(ps)
-    DBSession().commit()
+    ThreadSession().delete(ps)
+    ThreadSession().commit()
     if os.path.isfile(filename):
         os.remove(filename)
 
@@ -1974,13 +1979,13 @@ def photometric_series_low_flux_with_outliers(
     ps = PhotometricSeries(**data)
 
     try:
-        DBSession().add(ps)
+        ThreadSession().add(ps)
         ps.save_data(temp=True)
-        DBSession().commit()
+        ThreadSession().commit()
         ps.move_temp_data()
 
     except Exception as e:
-        DBSession().rollback()
+        ThreadSession().rollback()
         ps.delete_data(temp=True)
         raise e
 
@@ -1988,8 +1993,8 @@ def photometric_series_low_flux_with_outliers(
 
     # tear down
     filename = ps.filename
-    DBSession().delete(ps)
-    DBSession().commit()
+    ThreadSession().delete(ps)
+    ThreadSession().commit()
     if os.path.isfile(filename):
         os.remove(filename)
 
@@ -2018,13 +2023,13 @@ def photometric_series_undetected(
     ps = PhotometricSeries(**data)
 
     try:
-        DBSession().add(ps)
+        ThreadSession().add(ps)
         ps.save_data(temp=True)
-        DBSession().commit()
+        ThreadSession().commit()
         ps.move_temp_data()
 
     except Exception as e:
-        DBSession().rollback()
+        ThreadSession().rollback()
         ps.delete_data(temp=True)
         raise e
 
@@ -2032,7 +2037,7 @@ def photometric_series_undetected(
 
     # tear down
     filename = ps.filename
-    DBSession().delete(ps)
-    DBSession().commit()
+    ThreadSession().delete(ps)
+    ThreadSession().commit()
     if os.path.isfile(filename):
         os.remove(filename)

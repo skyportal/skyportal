@@ -13,7 +13,7 @@ from PIL import Image, ImageChops
 
 from baselayer.app.config import load_config
 from skyportal.tests import api
-from skyportal.models import DBSession
+from skyportal.models import ThreadSession
 
 analysis_port = 6802
 
@@ -134,8 +134,8 @@ def test_comment_user_first_name_autosuggestion(driver, user, public_source):
 @pytest.mark.flaky(reruns=2)
 def test_public_source_page_null_z(driver, user, public_source, public_group):
     public_source.redshift = None
-    DBSession().add(public_source)
-    DBSession().commit()
+    ThreadSession().add(public_source)
+    ThreadSession().commit()
 
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
@@ -865,14 +865,14 @@ def test_hide_right_pane(public_source, driver, user):
 def test_javascript_sexagesimal_conversion(public_source, driver, user):
     public_source.ra = 342.0708127
     public_source.dec = 56.1130711
-    DBSession().commit()
+    ThreadSession().commit()
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath('//*[contains(., "22:48:17.00")]')
     driver.wait_for_xpath('//*[contains(., "+56:06:47.06")]')
     public_source.ra = 75.6377796
     public_source.dec = 15.606709
-    DBSession().commit()
+    ThreadSession().commit()
     driver.refresh()
     driver.wait_for_xpath('//*[contains(., "05:02:33.07")]')
     driver.wait_for_xpath('//*[contains(., "+15:36:24.15")]')

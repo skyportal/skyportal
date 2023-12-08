@@ -9,7 +9,7 @@ from astropy.time import Time
 import functools
 from marshmallow.exceptions import ValidationError
 import numpy as np
-from sqlalchemy.orm import sessionmaker, scoped_session
+from skyportal.models import ThreadSession
 from tornado.ioloop import IOLoop
 import pandas as pd
 import sqlalchemy as sa
@@ -212,8 +212,6 @@ def commit_photometry(
     altdata,
     request_id,
     instrument_id,
-    user_id,
-    parent_session=None,
     duplicates="error",
 ):
     """
@@ -236,130 +234,119 @@ def commit_photometry(
     """
 
     from ..models import (
-        DBSession,
         FollowupRequest,
         Instrument,
     )
 
-    if parent_session is None:
-        Session = scoped_session(sessionmaker())
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
-    else:
-        session = parent_session
+    with ThreadSession() as session:
+        try:
+            request = session.query(FollowupRequest).get(request_id)
+            instrument = session.query(Instrument).get(instrument_id)
+            allocation = request.allocation
+            if not allocation:
+                raise ValueError("Missing request's allocation information.")
 
-    try:
-        request = session.query(FollowupRequest).get(request_id)
-        instrument = session.query(Instrument).get(instrument_id)
-        allocation = request.allocation
-        if not allocation:
-            raise ValueError("Missing request's allocation information.")
-
-        r = requests.get(
-            url,
-            auth=HTTPBasicAuth(
-                altdata['ipac_http_user'], altdata['ipac_http_password']
-            ),
-        )
-        df = ascii.read(
-            r.content.decode(), header_start=0, data_start=1, comment='#'
-        ).to_pandas()
-
-        df.columns = df.columns.str.replace(',', '')
-        desired_columns = {
-            'jd',
-            'forcediffimflux',
-            'forcediffimfluxunc',
-            'diffmaglim',
-            'zpdiff',
-            'filter',
-        }
-        if not desired_columns.issubset(set(df.columns)):
-            raise ValueError('Missing expected column')
-        df.rename(
-            columns={'diffmaglim': 'limiting_mag'},
-            inplace=True,
-        )
-        df = df.replace({"null": np.nan})
-        df['mjd'] = astropy.time.Time(df['jd'], format='jd').mjd
-        df['filter'] = df['filter'].str.replace('_', '')
-        df['filter'] = df['filter'].str.lower()
-        df = df.astype({'forcediffimflux': 'float64', 'forcediffimfluxunc': 'float64'})
-
-        df['mag'] = df['zpdiff'] - 2.5 * np.log10(df['forcediffimflux'])
-        df['magerr'] = 1.0857 * df['forcediffimfluxunc'] / df['forcediffimflux']
-
-        snr = df['forcediffimflux'] / df['forcediffimfluxunc'] < 3
-        df.loc[snr, 'mag'] = None
-        df.loc[snr, 'magerr'] = None
-
-        iszero = df['forcediffimfluxunc'] == 0.0
-        df.loc[iszero, 'mag'] = None
-        df.loc[iszero, 'magerr'] = None
-
-        isnan = np.isnan(df['forcediffimflux'])
-        df.loc[isnan, 'mag'] = None
-        df.loc[isnan, 'magerr'] = None
-
-        df = df.replace({np.nan: None})
-
-        drop_columns = list(
-            set(df.columns.values)
-            - {'mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'}
-        )
-
-        df.drop(
-            columns=drop_columns,
-            inplace=True,
-        )
-        df['magsys'] = 'ab'
-        df['origin'] = 'fp'
-
-        # data is visible to the group attached to the allocation
-        # as well as to any of the allocation's default share groups
-        data_out = {
-            'obj_id': request.obj_id,
-            'instrument_id': instrument.id,
-            'group_ids': list(
-                set(
-                    [allocation.group_id] + allocation.default_share_group_ids
-                    if allocation.default_share_group_ids
-                    else []
-                )
-            ),
-            **df.to_dict(orient='list'),
-        }
-
-        from skyportal.handlers.api.photometry import add_external_photometry
-
-        if len(df.index) > 0:
-            ids, _ = add_external_photometry(
-                data_out, request.requester, duplicates=duplicates
+            r = requests.get(
+                url,
+                auth=HTTPBasicAuth(
+                    altdata['ipac_http_user'], altdata['ipac_http_password']
+                ),
             )
-            if ids is None:
-                raise ValueError('Failed to commit photometry')
-            request.status = "Photometry committed to database"
-        else:
-            request.status = "No photometry to commit to database"
+            df = ascii.read(
+                r.content.decode(), header_start=0, data_start=1, comment='#'
+            ).to_pandas()
 
-        session.add(request)
-        session.commit()
+            df.columns = df.columns.str.replace(',', '')
+            desired_columns = {
+                'jd',
+                'forcediffimflux',
+                'forcediffimfluxunc',
+                'diffmaglim',
+                'zpdiff',
+                'filter',
+            }
+            if not desired_columns.issubset(set(df.columns)):
+                raise ValueError('Missing expected column')
+            df.rename(
+                columns={'diffmaglim': 'limiting_mag'},
+                inplace=True,
+            )
+            df = df.replace({"null": np.nan})
+            df['mjd'] = astropy.time.Time(df['jd'], format='jd').mjd
+            df['filter'] = df['filter'].str.replace('_', '')
+            df['filter'] = df['filter'].str.lower()
+            df = df.astype(
+                {'forcediffimflux': 'float64', 'forcediffimfluxunc': 'float64'}
+            )
 
-        flow = Flow()
-        flow.push(
-            '*',
-            "skyportal/REFRESH_SOURCE",
-            payload={"obj_key": request.obj.internal_key},
-        )
-    except Exception as e:
-        session.rollback()
-        raise Exception(f"Unable to commit photometry for {request_id}: {e}")
-    finally:
-        if parent_session is None:
-            session.close()
-            Session.remove()
+            df['mag'] = df['zpdiff'] - 2.5 * np.log10(df['forcediffimflux'])
+            df['magerr'] = 1.0857 * df['forcediffimfluxunc'] / df['forcediffimflux']
+
+            snr = df['forcediffimflux'] / df['forcediffimfluxunc'] < 3
+            df.loc[snr, 'mag'] = None
+            df.loc[snr, 'magerr'] = None
+
+            iszero = df['forcediffimfluxunc'] == 0.0
+            df.loc[iszero, 'mag'] = None
+            df.loc[iszero, 'magerr'] = None
+
+            isnan = np.isnan(df['forcediffimflux'])
+            df.loc[isnan, 'mag'] = None
+            df.loc[isnan, 'magerr'] = None
+
+            df = df.replace({np.nan: None})
+
+            drop_columns = list(
+                set(df.columns.values)
+                - {'mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'}
+            )
+
+            df.drop(
+                columns=drop_columns,
+                inplace=True,
+            )
+            df['magsys'] = 'ab'
+            df['origin'] = 'fp'
+
+            # data is visible to the group attached to the allocation
+            # as well as to any of the allocation's default share groups
+            data_out = {
+                'obj_id': request.obj_id,
+                'instrument_id': instrument.id,
+                'group_ids': list(
+                    set(
+                        [allocation.group_id] + allocation.default_share_group_ids
+                        if allocation.default_share_group_ids
+                        else []
+                    )
+                ),
+                **df.to_dict(orient='list'),
+            }
+
+            from skyportal.handlers.api.photometry import add_external_photometry
+
+            if len(df.index) > 0:
+                ids, _ = add_external_photometry(
+                    data_out, request.requester, duplicates=duplicates
+                )
+                if ids is None:
+                    raise ValueError('Failed to commit photometry')
+                request.status = "Photometry committed to database"
+            else:
+                request.status = "No photometry to commit to database"
+
+            session.add(request)
+            session.commit()
+
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
+            )
+        except Exception as e:
+            session.rollback()
+            raise Exception(f"Unable to commit photometry for {request_id}: {e}")
 
 
 class ZTFAPI(FollowUpAPI):
@@ -720,51 +707,55 @@ class ZTFMMAAPI(MMAAPI):
             The request to delete from the queue and the SkyPortal database.
         """
 
-        from ..models import DBSession, ObservationPlanRequest, FacilityTransaction
+        from ..models import ObservationPlanRequest, FacilityTransaction
 
-        req = (
-            DBSession()
-            .query(ObservationPlanRequest)
-            .filter(ObservationPlanRequest.id == request.id)
-            .one()
-        )
+        with ThreadSession() as session:
+            try:
+                req = (
+                    session.query(ObservationPlanRequest)
+                    .filter(ObservationPlanRequest.id == request.id)
+                    .one()
+                )
 
-        # this happens for failed submissions
-        # just go ahead and delete
-        if len(req.transactions) == 0:
-            DBSession().query(ObservationPlanRequest).filter(
-                ObservationPlanRequest.id == request.id
-            ).delete()
-            DBSession().commit()
-            return
+                # this happens for failed submissions
+                # just go ahead and delete
+                if len(req.transactions) == 0:
+                    session.query(ObservationPlanRequest).filter(
+                        ObservationPlanRequest.id == request.id
+                    ).delete()
+                    session.commit()
+                    return
 
-        altdata = request.allocation.altdata
-        if not altdata:
-            raise ValueError('Missing allocation information.')
+                altdata = request.allocation.altdata
+                if not altdata:
+                    raise ValueError('Missing allocation information.')
 
-        queue_name = "ToO_" + request.payload["queue_name"]
-        headers = {"Authorization": f"Bearer {altdata['access_token']}"}
+                queue_name = "ToO_" + request.payload["queue_name"]
+                headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
-        payload = {'queue_name': queue_name, 'user': request.requester.username}
+                payload = {'queue_name': queue_name, 'user': request.requester.username}
 
-        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
-        s = Session()
-        ztfreq = Request('DELETE', url, json=payload, headers=headers)
-        prepped = ztfreq.prepare()
-        r = s.send(prepped)
-        if r.status_code == 200:
-            request.status = "deleted from telescope queue"
-        else:
-            request.status = f'rejected: {r.content}'
+                url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
+                s = Session()
+                ztfreq = Request('DELETE', url, json=payload, headers=headers)
+                prepped = ztfreq.prepare()
+                r = s.send(prepped)
+                if r.status_code == 200:
+                    request.status = "deleted from telescope queue"
+                else:
+                    request.status = f'rejected: {r.content}'
 
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
-            observation_plan_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
+                transaction = FacilityTransaction(
+                    request=http.serialize_requests_request(r.request),
+                    response=http.serialize_requests_response(r),
+                    observation_plan_request=request,
+                    initiator_id=request.last_modified_by_id,
+                )
 
-        DBSession().add(transaction)
+                session.add(transaction)
+            except Exception as e:
+                session.rollback()
+                raise e
 
     @staticmethod
     def queued(allocation, start_date=None, end_date=None, queues_only=False):

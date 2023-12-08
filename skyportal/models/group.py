@@ -10,7 +10,7 @@ from sqlalchemy.orm import relationship
 
 from baselayer.app.models import (
     Base,
-    DBSession,
+    ThreadSession,
     join_model,
     User,
     UserAccessControl,
@@ -29,7 +29,7 @@ _, cfg = load_env()
 def groupuser_update_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = DBSession().query(cls).join(aliased, cls.group_id == aliased.group_id)
+    query = ThreadSession().query(cls).join(aliased, cls.group_id == aliased.group_id)
     if not user_or_token.is_system_admin:
         query = query.filter(aliased.user_id == user_id, aliased.admin.is_(True))
     return query
@@ -111,9 +111,9 @@ class AccessibleIfGroupUserMatches(AccessibleIfUserMatches):
 
         # return only selected columns if requested
         if columns is not None:
-            query = DBSession().query(*columns).select_from(cls)
+            query = ThreadSession().query(*columns).select_from(cls)
         else:
-            query = DBSession().query(cls).select_from(cls)
+            query = ThreadSession().query(cls).select_from(cls)
 
         # traverse the relationship chain via sequential JOINs
         for relationship_name in self.relationship_names:
@@ -213,7 +213,7 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
         if not user_or_token.is_admin:
             # this avoids name collisions
             group_user_subq = (
-                DBSession()
+                ThreadSession()
                 .query(GroupUser)
                 .filter(GroupUser.admin.is_(True))
                 .subquery()
@@ -247,7 +247,7 @@ def delete_group_access_logic(cls, user_or_token):
     a single user group, and that they are an admin member of."""
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = (
-        DBSession()
+        ThreadSession()
         .query(cls)
         .join(GroupUser)
         .filter(cls.name != cfg['misc']['public_group_name'])
@@ -449,7 +449,7 @@ GroupUser.delete = (
     (accessible_by_group_admins | AccessibleIfUserMatches('user'))
     & GroupUser.read
     & CustomUserAccessControl(
-        lambda cls, user_or_token: DBSession()
+        lambda cls, user_or_token: ThreadSession()
         .query(cls)
         .join(Group)
         .filter(Group.single_user_group.is_(False))
@@ -467,7 +467,7 @@ def group_create_logic(cls, user_or_token):
     from .stream import Stream, StreamUser
 
     return (
-        DBSession()
+        ThreadSession()
         .query(cls)
         .join(Group)
         .outerjoin(Stream, Group.streams)

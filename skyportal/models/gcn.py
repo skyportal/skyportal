@@ -32,7 +32,7 @@ from baselayer.app.models import (
     AccessibleIfUserMatches,
     Base,
     CustomUserAccessControl,
-    DBSession,
+    ThreadSession,
     UserAccessControl,
     join_model,
     restricted,
@@ -70,7 +70,7 @@ def gcn_update_delete_logic(cls, user_or_token):
         # nothing accessible
         return restricted.query_accessible_rows(cls, user_or_token)
 
-    return DBSession().query(cls)
+    return ThreadSession().query(cls)
 
 
 class DefaultGcnTag(Base):
@@ -176,7 +176,7 @@ class GcnReport(Base):
             data = json.loads(data)
 
         localization = (
-            DBSession()
+            ThreadSession()
             .query(Localization)
             .where(Localization.dateobs == self.dateobs)
             .first()
@@ -660,7 +660,7 @@ class GcnEvent(Base):
     def tags(cls):
         """List of tags."""
         return (
-            DBSession()
+            ThreadSession()
             .query(GcnTag.text)
             .filter(GcnTag.dateobs == cls.dateobs)
             .subquery()
@@ -775,13 +775,15 @@ def gcntrigger_allocationuser_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     user_allocation_admin = (
-        DBSession()
+        ThreadSession()
         .query(Allocation)
         .join(AllocationUser, AllocationUser.allocation_id == Allocation.id)
         .filter(sa.and_(AllocationUser.user_id == user_id))
     )
     query = (
-        DBSession().query(cls).join(aliased, cls.allocation_id == aliased.allocation_id)
+        ThreadSession()
+        .query(cls)
+        .join(aliased, cls.allocation_id == aliased.allocation_id)
     )
     if not user_or_token.is_system_admin:
         query = query.filter(

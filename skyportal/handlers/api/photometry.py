@@ -24,7 +24,8 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
+    ThreadSession,
+    HandlerSession,
     Annotation,
     Group,
     Stream,
@@ -36,6 +37,7 @@ from ...models import (
     GroupPhotometry,
     StreamPhotometry,
     PhotStat,
+    User,
 )
 
 from ...models.schema import (
@@ -55,7 +57,7 @@ log = make_log('api/photometry')
 MAX_NUMBER_ROWS = 10000
 
 
-def save_data_using_copy(rows, table, columns):
+def save_data_using_copy(rows, table, columns, session):
     # Prepare data
     output = StringIO()
     df = pd.DataFrame.from_records(rows)
@@ -74,7 +76,7 @@ def save_data_using_copy(rows, table, columns):
     output.seek(0)
 
     # Insert data
-    connection = DBSession().connection().connection
+    connection = session.connection().connection
     cursor = connection.cursor()
     cursor.copy_from(
         output,
@@ -597,6 +599,7 @@ def insert_new_photometry_data(
                 'The following photometry already exists '
                 f'in the database: {dict_rep}.'
             )
+        print("VALIDATION PASSED")
 
     # pre-fetch the photometry PKs. these are not guaranteed to be
     # gapless (e.g., 1, 2, 3, 4, 5, ...) but they are guaranteed
@@ -608,6 +611,7 @@ def insert_new_photometry_data(
     )
 
     proxy = session.execute(pkq)
+    print("PKs fetched")
 
     # cache this as list for response
     ids = [i[0] for i in proxy]
@@ -719,6 +723,7 @@ def insert_new_photometry_data(
                 'ref_flux',
                 'ref_fluxerr',
             ),
+            session=session,
         )
 
     if len(group_photometry_params) > 0:
@@ -727,6 +732,7 @@ def insert_new_photometry_data(
             group_photometry_params,
             "group_photometry",
             ('photometr_id', 'group_id', 'created_at', 'modified'),
+            session=session,
         )
 
     if len(stream_photometry_params) > 0:
@@ -735,6 +741,7 @@ def insert_new_photometry_data(
             stream_photometry_params,
             "stream_photometry",
             ('photometr_id', 'stream_id', 'created_at', 'modified'),
+            session=session,
         )
 
     # add a phot stats for each photometry
@@ -764,12 +771,7 @@ def insert_new_photometry_data(
     return ids, upload_id
 
 
-def get_group_ids(data, user, parent_session=None):
-    if parent_session is None:
-        session = DBSession()
-    else:
-        session = parent_session
-
+def get_group_ids(data, user, session):
     group_ids = data.pop("group_ids", [])
     if isinstance(group_ids, (list, tuple)):
         for group_id in group_ids:
@@ -779,7 +781,7 @@ def get_group_ids(data, user, parent_session=None):
                 raise ValidationError(
                     f"Invalid format for group id {group_id}, must be an integer."
                 )
-            group = session.get(Group, group_id)
+            group = session.scalar(sa.select(Group).where(Group.id == group_id))
             if group is None:
                 raise ValidationError(f'No group with ID {group_id}')
     elif group_ids == 'all':
@@ -803,11 +805,7 @@ def get_group_ids(data, user, parent_session=None):
     return group_ids
 
 
-def get_stream_ids(data, user, parent_session=None):
-    if parent_session is None:
-        session = DBSession()
-    else:
-        session = parent_session
+def get_stream_ids(data, user, session):
     stream_ids = data.pop("stream_ids", [])
     if isinstance(stream_ids, (list, tuple)):
         for stream_id in stream_ids:
@@ -830,7 +828,7 @@ def get_stream_ids(data, user, parent_session=None):
     return stream_ids
 
 
-def add_external_photometry(json, user, parent_session=None, duplicates="update"):
+def add_external_photometry(json, user_id, duplicates="update"):
     """
     Posts external photometry to the database (as from
     another API)
@@ -851,160 +849,155 @@ def add_external_photometry(json, user, parent_session=None, duplicates="update"
             "duplicates argument can only be one of: error, ignore, update"
         )
 
-    if parent_session is None:
-        session = DBSession()
-    else:
-        session = parent_session
+    with ThreadSession() as session:
+        try:
+            user = session.scalar(sa.select(User).where(User.id == user_id))
+            group_ids = get_group_ids(json, user, session)
+            stream_ids = get_stream_ids(json, user, session)
+            df, instrument_cache = standardize_photometry_data(json)
 
-    group_ids = get_group_ids(json, user, session)
-    stream_ids = get_stream_ids(json, user, session)
-    df, instrument_cache = standardize_photometry_data(json)
-
-    if len(df.index) > MAX_NUMBER_ROWS:
-        raise ValueError(
-            f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
-            'Please break up the data into smaller sets and try again'
-        )
-
-    username = user.username
-    log(f'Pending request from {username} with {len(df.index)} rows')
-
-    # This lock ensures that the Photometry table data are not modified in any way
-    # between when the query for duplicate photometry is first executed and
-    # when the insert statement with the new photometry is performed.
-    # From the psql docs: This mode protects a table against concurrent
-    # data changes, and is self-exclusive so that only one session can
-    # hold it at a time.
-    try:
-        session.execute(
-            sa.text(
-                f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
-            )
-        )
-        if duplicates in ["ignore", "update"]:
-            values_table, condition = get_values_table_and_condition(df)
-
-            new_photometry_query = session.execute(
-                sa.select(values_table.c.pdidx)
-                .outerjoin(Photometry, condition)
-                .filter(Photometry.id.is_(None))
-            )
-
-            new_photometry_df_idxs = [g[0] for g in new_photometry_query]
-
-            duplicated_photometry = (
-                session.execute(
-                    sa.select(values_table.c.pdidx, Photometry)
-                    .join(Photometry, condition)
-                    .options(joinedload(Photometry.groups))
-                    .options(joinedload(Photometry.streams))
+            if len(df.index) > MAX_NUMBER_ROWS:
+                raise ValueError(
+                    f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
+                    'Please break up the data into smaller sets and try again'
                 )
-                .unique()
-                .all()
+
+            username = user.username
+            log(f'Pending request from {username} with {len(df.index)} rows')
+
+            # This lock ensures that the Photometry table data are not modified in any way
+            # between when the query for duplicate photometry is first executed and
+            # when the insert statement with the new photometry is performed.
+            # From the psql docs: This mode protects a table against concurrent
+            # data changes, and is self-exclusive so that only one session can
+            # hold it at a time.
+
+            session.execute(
+                sa.text(
+                    f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                )
             )
+            if duplicates in ["ignore", "update"]:
+                values_table, condition = get_values_table_and_condition(df)
 
-            id_map = {}
-            id_map_no_update_needed = {}
-            for df_index, duplicate in duplicated_photometry:
-                id_map[df_index] = duplicate.id
+                new_photometry_query = session.execute(
+                    sa.select(values_table.c.pdidx)
+                    .outerjoin(Photometry, condition)
+                    .filter(Photometry.id.is_(None))
+                )
 
-                if duplicates in ["ignore"]:
-                    continue
+                new_photometry_df_idxs = [g[0] for g in new_photometry_query]
 
-                duplicate_group_ids = {g.id for g in duplicate.groups}
-                duplicate_stream_ids = {s.id for s in duplicate.streams}
-
-                updated = False
-                # posting to new groups?
-                if len(set(group_ids) - duplicate_group_ids) > 0:
-                    # select old + new groups
-                    group_ids_update = set(group_ids).union(duplicate_group_ids)
-                    groups = (
-                        session.execute(
-                            sa.select(Group).filter(Group.id.in_(group_ids_update))
-                        )
-                        .scalars()
-                        .all()
+                duplicated_photometry = (
+                    session.execute(
+                        sa.select(values_table.c.pdidx, Photometry)
+                        .join(Photometry, condition)
+                        .options(joinedload(Photometry.groups))
+                        .options(joinedload(Photometry.streams))
                     )
-                    # update the corresponding photometry entry in the db
-                    duplicate.groups = groups
-                    log(
-                        f'Adding groups {group_ids_update} to photometry {duplicate.id}'
-                    )
-                    updated = True
+                    .unique()
+                    .all()
+                )
 
-                # posting to new streams?
-                if stream_ids:
-                    # Add new stream_photometry rows if not already present
-                    stream_ids_update = set(stream_ids) - duplicate_stream_ids
-                    if len(stream_ids_update) > 0:
-                        for id in stream_ids_update:
-                            session.add(
-                                StreamPhotometry(
-                                    photometr_id=duplicate.id, stream_id=id
-                                )
+                id_map = {}
+                id_map_no_update_needed = {}
+                for df_index, duplicate in duplicated_photometry:
+                    id_map[df_index] = duplicate.id
+
+                    if duplicates in ["ignore"]:
+                        continue
+
+                    duplicate_group_ids = {g.id for g in duplicate.groups}
+                    duplicate_stream_ids = {s.id for s in duplicate.streams}
+
+                    updated = False
+                    # posting to new groups?
+                    if len(set(group_ids) - duplicate_group_ids) > 0:
+                        # select old + new groups
+                        group_ids_update = set(group_ids).union(duplicate_group_ids)
+                        groups = (
+                            session.execute(
+                                sa.select(Group).filter(Group.id.in_(group_ids_update))
                             )
+                            .scalars()
+                            .all()
+                        )
+                        # update the corresponding photometry entry in the db
+                        duplicate.groups = groups
                         log(
-                            f'Adding streams {stream_ids_update} to photometry {duplicate.id}'
+                            f'Adding groups {group_ids_update} to photometry {duplicate.id}'
                         )
                         updated = True
 
-                if updated:
-                    id_map_no_update_needed[df_index] = duplicate.id
+                    # posting to new streams?
+                    if stream_ids:
+                        # Add new stream_photometry rows if not already present
+                        stream_ids_update = set(stream_ids) - duplicate_stream_ids
+                        if len(stream_ids_update) > 0:
+                            for id in stream_ids_update:
+                                session.add(
+                                    StreamPhotometry(
+                                        photometr_id=duplicate.id, stream_id=id
+                                    )
+                                )
+                            log(
+                                f'Adding streams {stream_ids_update} to photometry {duplicate.id}'
+                            )
+                            updated = True
 
-            if duplicates in ["update"] and len(id_map_no_update_needed) > 0:
+                    if updated:
+                        id_map_no_update_needed[df_index] = duplicate.id
+
+                if duplicates in ["update"] and len(id_map_no_update_needed) > 0:
+                    log(
+                        f'A total of (len{id_map_no_update_needed}) duplicate photometry points did not need to be updated: {id_map_no_update_needed.values()}'
+                    )
+                # now safely drop the duplicates:
+                new_photometry = df.loc[new_photometry_df_idxs]
                 log(
-                    f'A total of (len{id_map_no_update_needed}) duplicate photometry points did not need to be updated: {id_map_no_update_needed.values()}'
+                    f'Inserting {len(new_photometry.index)} '
+                    f'(out of {len(df.index)}) new photometry points'
                 )
-            # now safely drop the duplicates:
-            new_photometry = df.loc[new_photometry_df_idxs]
-            log(
-                f'Inserting {len(new_photometry.index)} '
-                f'(out of {len(df.index)}) new photometry points'
-            )
-        else:
-            new_photometry = df.copy()
+            else:
+                new_photometry = df.copy()
 
-        if len(new_photometry) > 0:
-            ids, upload_id = insert_new_photometry_data(
-                new_photometry,
-                instrument_cache,
-                group_ids,
-                stream_ids,
-                user,
-                session,
-                validate=True if duplicates in ["error"] else False,
-            )
+            if len(new_photometry) > 0:
+                ids, upload_id = insert_new_photometry_data(
+                    new_photometry,
+                    instrument_cache,
+                    group_ids,
+                    stream_ids,
+                    user,
+                    session,
+                    validate=True if duplicates in ["error"] else False,
+                )
+
+                if duplicates in ["ignore", "update"]:
+                    for (df_index, _), id in zip(new_photometry.iterrows(), ids):
+                        id_map[df_index] = id
+
+            # release the lock
+            session.commit()
 
             if duplicates in ["ignore", "update"]:
-                for (df_index, _), id in zip(new_photometry.iterrows(), ids):
-                    id_map[df_index] = id
+                # get ids in the correct order
+                ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
 
-        # release the lock
-        session.commit()
-
-        if duplicates in ["ignore", "update"]:
-            # get ids in the correct order
-            ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
-
-        if len(new_photometry) > 0:
-            log(
-                f'Request from {username} with '
-                f'{len(new_photometry.index)} rows complete with upload_id {upload_id}.'
-            )
-        else:
-            log(
-                f'Request from {username} with '
-                f'{len(new_photometry.index)} rows complete with no new photometry.'
-            )
-        return ids, upload_id
-    except Exception as e:
-        session.rollback()
-        log(f"Unable to post photometry: {e}")
-        return None, None
-    finally:
-        if parent_session is None:
-            session.close()
+            if len(new_photometry) > 0:
+                log(
+                    f'Request from {username} with '
+                    f'{len(new_photometry.index)} rows complete with upload_id {upload_id}.'
+                )
+            else:
+                log(
+                    f'Request from {username} with '
+                    f'{len(new_photometry.index)} rows complete with no new photometry.'
+                )
+            return ids, upload_id
+        except Exception as e:
+            session.rollback()
+            log(f"Unable to post photometry: {e}")
+            return None, None
 
 
 class PhotometryHandler(BaseHandler):
@@ -1047,14 +1040,19 @@ class PhotometryHandler(BaseHandler):
                                 points in a single request.
         """
 
-        try:
-            group_ids = get_group_ids(self.get_json(), self.associated_user_object)
-        except ValidationError as e:
-            return self.error(e.args[0])
-        try:
-            stream_ids = get_stream_ids(self.get_json(), self.associated_user_object)
-        except ValidationError as e:
-            return self.error(e.args[0])
+        with self.Session() as session:
+            try:
+                group_ids = get_group_ids(
+                    self.get_json(), self.associated_user_object, session
+                )
+            except ValidationError as e:
+                return self.error(e.args[0])
+            try:
+                stream_ids = get_stream_ids(
+                    self.get_json(), self.associated_user_object, session
+                )
+            except ValidationError as e:
+                return self.error(e.args[0])
 
         try:
             df, instrument_cache = standardize_photometry_data(self.get_json())
@@ -1079,7 +1077,7 @@ class PhotometryHandler(BaseHandler):
         # From the psql docs: This mode protects a table against concurrent
         # data changes, and is self-exclusive so that only one session can
         # hold it at a time.
-        with DBSession() as session:
+        with HandlerSession() as session:
             try:
                 session.execute(
                     sa.text(
@@ -1097,7 +1095,6 @@ class PhotometryHandler(BaseHandler):
             except Exception:
                 session.rollback()
                 return self.error(traceback.format_exc())
-
             log(
                 f'Request from {username} for object {obj_id} with {len(df.index)} rows complete with upload_id {upload_id}'
             )
@@ -1142,34 +1139,39 @@ class PhotometryHandler(BaseHandler):
                                 added in request. Can be used to later delete all
                                 points in a single request.
         """
+        with self.Session() as session:
+            try:
+                group_ids = get_group_ids(
+                    self.get_json(), self.associated_user_object, session
+                )
+            except ValidationError as e:
+                return self.error(e.args[0])
 
-        try:
-            group_ids = get_group_ids(self.get_json(), self.associated_user_object)
-        except ValidationError as e:
-            return self.error(e.args[0])
+            try:
+                stream_ids = get_stream_ids(
+                    self.get_json(), self.associated_user_object, session
+                )
+            except ValidationError as e:
+                return self.error(e.args[0])
 
-        try:
-            stream_ids = get_stream_ids(self.get_json(), self.associated_user_object)
-        except ValidationError as e:
-            return self.error(e.args[0])
+            try:
+                df, instrument_cache = standardize_photometry_data(self.get_json())
+            except ValidationError as e:
+                return self.error(e.args[0])
 
-        try:
-            df, instrument_cache = standardize_photometry_data(self.get_json())
-        except ValidationError as e:
-            return self.error(e.args[0])
+            if len(df.index) > MAX_NUMBER_ROWS:
+                return self.error(
+                    f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
+                    'Please break up the data into smaller sets and try again'
+                )
 
-        if len(df.index) > MAX_NUMBER_ROWS:
-            return self.error(
-                f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
-                'Please break up the data into smaller sets and try again'
+            obj_id = df['obj_id'].unique()[0]
+            username = self.associated_user_object.username
+            log(
+                f'Pending request from {username} for object {obj_id} with {len(df.index)} rows'
             )
 
-        obj_id = df['obj_id'].unique()[0]
-        username = self.associated_user_object.username
-        log(
-            f'Pending request from {username} for object {obj_id} with {len(df.index)} rows'
-        )
-
+        print("CALLED THE PUT HANDLER")
         values_table, condition = get_values_table_and_condition(df)
 
         # This lock ensures that the Photometry table data are not modified
@@ -1179,7 +1181,7 @@ class PhotometryHandler(BaseHandler):
         # concurrent data changes, and is self-exclusive so that only one
         # session can hold it at a time.
 
-        with DBSession() as session:
+        with HandlerSession() as session:
             try:
                 session.execute(
                     sa.text(

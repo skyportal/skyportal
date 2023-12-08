@@ -12,7 +12,7 @@ from astropy.time import Time
 from healpix_alchemy import Tile
 from marshmallow.exceptions import ValidationError
 from regions import CircleSkyRegion, PolygonSkyRegion, RectangleSkyRegion, Regions
-from sqlalchemy.orm import joinedload, scoped_session, sessionmaker, undefer
+from sqlalchemy.orm import joinedload, undefer
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -22,7 +22,7 @@ from skyportal.utils.calculations import get_airmass
 
 from ...enum_types import ALLOWED_BANDPASSES
 from ...models import (
-    DBSession,
+    ThreadSession,
     GcnEvent,
     Instrument,
     InstrumentField,
@@ -46,8 +46,6 @@ cache = Cache(
     max_age=cfg.get("misc.minutes_to_keep_localization_instrument_query_cache", 24 * 60)
     * 60,  # defaults to 1 day
 )
-
-Session = scoped_session(sessionmaker())
 
 
 class InstrumentHandler(BaseHandler):
@@ -1092,167 +1090,125 @@ def add_tiles(
     session=None,
 ):
     field_ids = []
-    if session is None:
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
+    with ThreadSession() as session:
+        try:
+            if references is not None:
+                reference_filters = {}
+                reference_filter_mags = {}
+                for name, group in references.groupby('field'):
+                    reference_filters[name] = group['filter'].tolist()
+                    if 'limmag' in list(references.columns):
+                        reference_filter_mags[name] = group['limmag'].tolist()
 
-    try:
-        if references is not None:
-            reference_filters = {}
-            reference_filter_mags = {}
-            for name, group in references.groupby('field'):
-                reference_filters[name] = group['filter'].tolist()
-                if 'limmag' in list(references.columns):
-                    reference_filter_mags[name] = group['limmag'].tolist()
-
-        # if we are only adding/modifying references, no need to modify anything else
-        if field_data is None and references is not None:
-            fields = (
-                session.scalars(
-                    sa.select(InstrumentField).where(
-                        InstrumentField.instrument_id == instrument_id
+            # if we are only adding/modifying references, no need to modify anything else
+            if field_data is None and references is not None:
+                fields = (
+                    session.scalars(
+                        sa.select(InstrumentField).where(
+                            InstrumentField.instrument_id == instrument_id
+                        )
                     )
+                    .unique()
+                    .all()
                 )
-                .unique()
-                .all()
-            )
-            for field in fields:
-                if field.field_id in reference_filters:
-                    setattr(
-                        field, 'reference_filters', reference_filters[field.field_id]
-                    )
-                    if field.field_id in reference_filter_mags:
+                for field in fields:
+                    if field.field_id in reference_filters:
                         setattr(
                             field,
-                            'reference_filter_mags',
-                            reference_filter_mags[field.field_id],
+                            'reference_filters',
+                            reference_filters[field.field_id],
                         )
-                    session.add(field)
-            session.commit()
-            return
+                        if field.field_id in reference_filter_mags:
+                            setattr(
+                                field,
+                                'reference_filter_mags',
+                                reference_filter_mags[field.field_id],
+                            )
+                        session.add(field)
+                session.commit()
+                return
 
-        # Loop over the telescope tiles and create fields for each
-        skyoffset_frames = coordinates.SkyCoord(
-            field_data['RA'], field_data['Dec'], unit=u.deg
-        ).skyoffset_frame()
+            # Loop over the telescope tiles and create fields for each
+            skyoffset_frames = coordinates.SkyCoord(
+                field_data['RA'], field_data['Dec'], unit=u.deg
+            ).skyoffset_frame()
 
-        # code expects to loop over regions
-        if type(regions) in [RectangleSkyRegion, CircleSkyRegion, PolygonSkyRegion]:
-            regions = [regions]
+            # code expects to loop over regions
+            if type(regions) in [RectangleSkyRegion, CircleSkyRegion, PolygonSkyRegion]:
+                regions = [regions]
 
-        ra, dec = [], []
-        needs_summary = False
-        for ii, reg in enumerate(regions):
-            if type(reg) == RectangleSkyRegion:
-                height = reg.height.value
-                width = reg.width.value
+            ra, dec = [], []
+            needs_summary = False
+            for ii, reg in enumerate(regions):
+                if type(reg) == RectangleSkyRegion:
+                    height = reg.height.value
+                    width = reg.width.value
 
-                geometry = np.array(
-                    [
-                        (-width / 2.0, -height / 2.0),
-                        (width / 2.0, -height / 2.0),
-                        (width / 2.0, height / 2.0),
-                        (-width / 2.0, height / 2.0),
-                        (-width / 2.0, -height / 2.0),
-                    ]
-                )
-                ra_tmp = geometry[:, 0]
-                dec_tmp = geometry[:, 1]
-            elif type(reg) == CircleSkyRegion:
-                radius = reg.radius.value
-                N = 10
-                phi = np.linspace(0, 2 * np.pi, N)
-                ra_tmp = radius * np.cos(phi)
-                dec_tmp = radius * np.sin(phi)
-            elif type(reg) == PolygonSkyRegion:
-                ra_tmp = reg.vertices.ra
-                dec_tmp = reg.vertices.dec
-                needs_summary = True
-
-            ra.append(ra_tmp)
-            dec.append(dec_tmp)
-        coords = np.stack([np.array(ra), np.array(dec)])
-
-        # Copy the tile coordinates such that there is one per field
-        # in the grid
-        coords_icrs = coordinates.SkyCoord(
-            *np.tile(coords[:, np.newaxis, ...], (len(field_data['RA']), 1, 1)),
-            unit=u.deg,
-            frame=skyoffset_frames[:, np.newaxis, np.newaxis],
-        ).transform_to(coordinates.ICRS)
-
-        if 'ID' in field_data:
-            ids = field_data['ID']
-        else:
-            ids = [-1] * len(field_data['RA'])
-
-        for ii, (field_id, ra, dec, coords) in enumerate(
-            zip(ids, field_data['RA'], field_data['Dec'], coords_icrs)
-        ):
-
-            if field_id == -1:
-                field = InstrumentField.query.filter(
-                    InstrumentField.instrument_id == instrument_id,
-                    InstrumentField.ra == ra,
-                    InstrumentField.dec == dec,
-                ).first()
-                if field is not None:
-                    field_ids.append(field.field_id)
-                    continue
-
-            # compute full contour
-            geometry = []
-            for coord in coords:
-                tab = list(
-                    zip(
-                        (*coord.ra.deg, coord.ra.deg[0]),
-                        (*coord.dec.deg, coord.dec.deg[0]),
+                    geometry = np.array(
+                        [
+                            (-width / 2.0, -height / 2.0),
+                            (width / 2.0, -height / 2.0),
+                            (width / 2.0, height / 2.0),
+                            (-width / 2.0, height / 2.0),
+                            (-width / 2.0, -height / 2.0),
+                        ]
                     )
-                )
-                geometry.append(tab)
+                    ra_tmp = geometry[:, 0]
+                    dec_tmp = geometry[:, 1]
+                elif type(reg) == CircleSkyRegion:
+                    radius = reg.radius.value
+                    N = 10
+                    phi = np.linspace(0, 2 * np.pi, N)
+                    ra_tmp = radius * np.cos(phi)
+                    dec_tmp = radius * np.sin(phi)
+                elif type(reg) == PolygonSkyRegion:
+                    ra_tmp = reg.vertices.ra
+                    dec_tmp = reg.vertices.dec
+                    needs_summary = True
 
-            contour = {
-                'properties': {
-                    'instrument': instrument_name,
-                    'field_id': int(field_id),
-                    'ra': ra,
-                    'dec': dec,
-                },
-                'type': 'FeatureCollection',
-                'features': [
-                    {
-                        'type': 'Feature',
-                        'geometry': {
-                            'type': 'MultiLineString',
-                            'coordinates': geometry,
-                        },
-                    },
-                ],
-            }
-            if field_id == -1:
-                del contour['properties']['field_id']
+                ra.append(ra_tmp)
+                dec.append(dec_tmp)
+            coords = np.stack([np.array(ra), np.array(dec)])
 
-            if needs_summary:
-                # compute summary (bounding-box) contour
+            # Copy the tile coordinates such that there is one per field
+            # in the grid
+            coords_icrs = coordinates.SkyCoord(
+                *np.tile(coords[:, np.newaxis, ...], (len(field_data['RA']), 1, 1)),
+                unit=u.deg,
+                frame=skyoffset_frames[:, np.newaxis, np.newaxis],
+            ).transform_to(coordinates.ICRS)
+
+            if 'ID' in field_data:
+                ids = field_data['ID']
+            else:
+                ids = [-1] * len(field_data['RA'])
+
+            for ii, (field_id, ra, dec, coords) in enumerate(
+                zip(ids, field_data['RA'], field_data['Dec'], coords_icrs)
+            ):
+
+                if field_id == -1:
+                    field = InstrumentField.query.filter(
+                        InstrumentField.instrument_id == instrument_id,
+                        InstrumentField.ra == ra,
+                        InstrumentField.dec == dec,
+                    ).first()
+                    if field is not None:
+                        field_ids.append(field.field_id)
+                        continue
+
+                # compute full contour
                 geometry = []
-                min_ra, max_ra = np.min(coords[0].ra.deg), np.max(coords[0].ra.deg)
-                min_dec, max_dec = np.min(coords[0].dec.deg), np.max(coords[0].dec.deg)
                 for coord in coords:
-                    min_ra = min(min_ra, np.min(coord.ra.deg))
-                    max_ra = max(max_ra, np.max(coord.ra.deg))
-                    min_dec = min(min_dec, np.min(coord.dec.deg))
-                    max_dec = max(max_dec, np.max(coord.dec.deg))
-                geometry_summary = [
-                    (min_ra, min_dec),
-                    (max_ra, min_dec),
-                    (max_ra, max_dec),
-                    (min_ra, max_dec),
-                    (min_ra, min_dec),
-                ]
+                    tab = list(
+                        zip(
+                            (*coord.ra.deg, coord.ra.deg[0]),
+                            (*coord.dec.deg, coord.dec.deg[0]),
+                        )
+                    )
+                    geometry.append(tab)
 
-                contour_summary = {
+                contour = {
                     'properties': {
                         'instrument': instrument_name,
                         'field_id': int(field_id),
@@ -1264,119 +1220,160 @@ def add_tiles(
                         {
                             'type': 'Feature',
                             'geometry': {
-                                'type': 'LineString',
-                                'coordinates': geometry_summary,
+                                'type': 'MultiLineString',
+                                'coordinates': geometry,
                             },
                         },
                     ],
                 }
                 if field_id == -1:
-                    del contour_summary['properties']['field_id']
-            else:
-                contour_summary = contour
+                    del contour['properties']['field_id']
 
-            if field_id == -1:
-                max_field_id = session.execute(
-                    sa.select(sa.func.max(InstrumentField.field_id)).where(
-                        InstrumentField.instrument_id == instrument_id,
+                if needs_summary:
+                    # compute summary (bounding-box) contour
+                    geometry = []
+                    min_ra, max_ra = np.min(coords[0].ra.deg), np.max(coords[0].ra.deg)
+                    min_dec, max_dec = np.min(coords[0].dec.deg), np.max(
+                        coords[0].dec.deg
                     )
-                ).scalar_one()
-                if max_field_id is None:
-                    max_field_id = 0
+                    for coord in coords:
+                        min_ra = min(min_ra, np.min(coord.ra.deg))
+                        max_ra = max(max_ra, np.max(coord.ra.deg))
+                        min_dec = min(min_dec, np.min(coord.dec.deg))
+                        max_dec = max(max_dec, np.max(coord.dec.deg))
+                    geometry_summary = [
+                        (min_ra, min_dec),
+                        (max_ra, min_dec),
+                        (max_ra, max_dec),
+                        (min_ra, max_dec),
+                        (min_ra, min_dec),
+                    ]
 
-                field = InstrumentField(
-                    instrument_id=instrument_id,
-                    contour=contour,
-                    contour_summary=contour_summary,
-                    ra=ra,
-                    dec=dec,
-                    field_id=max_field_id + 1,
-                )
-                session.add(field)
-                session.commit()
-            else:
-                create_field = True
-                if modify:
-                    field = session.scalars(
-                        sa.select(InstrumentField).where(
+                    contour_summary = {
+                        'properties': {
+                            'instrument': instrument_name,
+                            'field_id': int(field_id),
+                            'ra': ra,
+                            'dec': dec,
+                        },
+                        'type': 'FeatureCollection',
+                        'features': [
+                            {
+                                'type': 'Feature',
+                                'geometry': {
+                                    'type': 'LineString',
+                                    'coordinates': geometry_summary,
+                                },
+                            },
+                        ],
+                    }
+                    if field_id == -1:
+                        del contour_summary['properties']['field_id']
+                else:
+                    contour_summary = contour
+
+                if field_id == -1:
+                    max_field_id = session.execute(
+                        sa.select(sa.func.max(InstrumentField.field_id)).where(
                             InstrumentField.instrument_id == instrument_id,
-                            InstrumentField.field_id == int(field_id),
                         )
-                    ).first()
+                    ).scalar_one()
+                    if max_field_id is None:
+                        max_field_id = 0
 
-                    if field is not None:
-                        session.execute(
-                            sa.delete(InstrumentFieldTile).where(
-                                InstrumentFieldTile.instrument_id == instrument_id,
-                                InstrumentFieldTile.instrument_field_id == field.id,
-                            )
-                        )
-                        session.commit()
-
-                        create_field = False
-
-                if create_field:
                     field = InstrumentField(
                         instrument_id=instrument_id,
-                        field_id=int(field_id),
                         contour=contour,
                         contour_summary=contour_summary,
                         ra=ra,
                         dec=dec,
+                        field_id=max_field_id + 1,
                     )
-
                     session.add(field)
                     session.commit()
                 else:
-                    # we update the contour and contour_summary
-                    setattr(field, 'contour', contour)
-                    setattr(field, 'contour_summary', contour_summary)
-                    session.add(field)
-                    session.commit()
+                    create_field = True
+                    if modify:
+                        field = session.scalars(
+                            sa.select(InstrumentField).where(
+                                InstrumentField.instrument_id == instrument_id,
+                                InstrumentField.field_id == int(field_id),
+                            )
+                        ).first()
 
-                if references is not None and field_id in reference_filters:
-                    setattr(field, 'reference_filters', reference_filters[field_id])
-                    if 'limmag' in list(references.columns):
-                        setattr(
-                            field,
-                            'reference_filter_mags',
-                            reference_filter_mags[field_id],
-                        )
-                    session.add(field)
-                    session.commit()
+                        if field is not None:
+                            session.execute(
+                                sa.delete(InstrumentFieldTile).where(
+                                    InstrumentFieldTile.instrument_id == instrument_id,
+                                    InstrumentFieldTile.instrument_field_id == field.id,
+                                )
+                            )
+                            session.commit()
 
-            field_ids.append(field.field_id)
+                            create_field = False
 
-            tiles = []
-            for coord in coords:
-                for hpx in Tile.tiles_from_polygon_skycoord(coord):
-                    tiles.append(
-                        InstrumentFieldTile(
+                    if create_field:
+                        field = InstrumentField(
                             instrument_id=instrument_id,
-                            instrument_field_id=field.id,
-                            healpix=hpx,
+                            field_id=int(field_id),
+                            contour=contour,
+                            contour_summary=contour_summary,
+                            ra=ra,
+                            dec=dec,
                         )
-                    )
-            session.add_all(tiles)
+
+                        session.add(field)
+                        session.commit()
+                    else:
+                        # we update the contour and contour_summary
+                        setattr(field, 'contour', contour)
+                        setattr(field, 'contour_summary', contour_summary)
+                        session.add(field)
+                        session.commit()
+
+                    if references is not None and field_id in reference_filters:
+                        setattr(field, 'reference_filters', reference_filters[field_id])
+                        if 'limmag' in list(references.columns):
+                            setattr(
+                                field,
+                                'reference_filter_mags',
+                                reference_filter_mags[field_id],
+                            )
+                        session.add(field)
+                        session.commit()
+
+                field_ids.append(field.field_id)
+
+                tiles = []
+                for coord in coords:
+                    for hpx in Tile.tiles_from_polygon_skycoord(coord):
+                        tiles.append(
+                            InstrumentFieldTile(
+                                instrument_id=instrument_id,
+                                instrument_field_id=field.id,
+                                healpix=hpx,
+                            )
+                        )
+                session.add_all(tiles)
+                session.commit()
+
+            instrument = session.scalars(
+                sa.select(Instrument).where(
+                    Instrument.id == instrument_id,
+                )
+            ).first()
+            if instrument is not None and len(instrument.fields) > 0:
+                instrument.has_fields = True
+            else:
+                instrument.has_fields = False
             session.commit()
 
-        instrument = session.scalars(
-            sa.select(Instrument).where(
-                Instrument.id == instrument_id,
-            )
-        ).first()
-        if instrument is not None and len(instrument.fields) > 0:
-            instrument.has_fields = True
-        else:
-            instrument.has_fields = False
-        session.commit()
-
-        log(f"Successfully generated fields for instrument {instrument_id}")
-    except Exception as e:
-        log(f"Unable to generate fields for instrument {instrument_id}: {e}")
-    finally:
-        Session.remove()
-        return field_ids
+            log(f"Successfully generated fields for instrument {instrument_id}")
+        except Exception as e:
+            session.rollback()
+            log(f"Unable to generate fields for instrument {instrument_id}: {e}")
+        finally:
+            return field_ids
 
 
 class InstrumentFieldHandler(BaseHandler):

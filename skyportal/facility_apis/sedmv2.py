@@ -8,12 +8,13 @@ import requests
 from astropy.time import Time, TimeDelta
 from paramiko import AutoAddPolicy, SSHClient
 from requests.auth import HTTPBasicAuth
-from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
+
+from skyportal.models import ThreadSession
 
 from ..utils import http
 from ..utils.instrument_log import read_logs
@@ -168,7 +169,7 @@ class SEDMV2API(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import DBSession, FacilityTransaction, FollowupRequest
+        from ..models import FacilityTransaction, FollowupRequest
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
@@ -177,8 +178,7 @@ class SEDMV2API(FollowUpAPI):
             altdata = request.allocation.altdata
 
             req = (
-                DBSession()
-                .query(FollowupRequest)
+                session.query(FollowupRequest)
                 .filter(FollowupRequest.id == request.id)
                 .one()
             )
@@ -505,57 +505,51 @@ def fetch_nightly_logs(instrument_id, altdata, request_start, request_end):
         End time for the request.
     """
 
-    from ..models import DBSession, InstrumentLog
+    from ..models import InstrumentLog
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    with ThreadSession() as session:
+        try:
+            days = np.arange(np.floor(request_start.mjd), np.ceil(request_end.mjd) + 1)
+            for day in days:
+                day = Time(day, format='mjd').strftime('%Y%m%d')
+                r = requests.get(
+                    f"{altdata['url']}/Archive/{day}/robo_test.{day}.log",
+                    auth=HTTPBasicAuth(altdata['user'], altdata['password']),
+                )
+                logs = read_logs(r.text)
 
-    try:
-        days = np.arange(np.floor(request_start.mjd), np.ceil(request_end.mjd) + 1)
-        for day in days:
-            day = Time(day, format='mjd').strftime('%Y%m%d')
-            r = requests.get(
-                f"{altdata['url']}/Archive/{day}/robo_test.{day}.log",
-                auth=HTTPBasicAuth(altdata['user'], altdata['password']),
-            )
-            logs = read_logs(r.text)
+                if not logs['logs']:
+                    log(
+                        f'Log for {day} unavailable for instrument with ID {instrument_id}'
+                    )
+                    continue
 
-            if not logs['logs']:
-                log(f'Log for {day} unavailable for instrument with ID {instrument_id}')
-                continue
+                start_date = None
+                end_date = None
 
-            start_date = None
-            end_date = None
+                for log_dict in logs['logs']:
+                    if start_date is None:
+                        start_date = log_dict['mjd']
+                    else:
+                        start_date = np.min([start_date, log_dict['mjd']])
 
-            for log_dict in logs['logs']:
-                if start_date is None:
-                    start_date = log_dict['mjd']
-                else:
-                    start_date = np.min([start_date, log_dict['mjd']])
+                    if end_date is None:
+                        end_date = log_dict['mjd']
+                    else:
+                        end_date = np.max([end_date, log_dict['mjd']])
 
-                if end_date is None:
-                    end_date = log_dict['mjd']
-                else:
-                    end_date = np.max([end_date, log_dict['mjd']])
+                start_date = Time(start_date, format='mjd').datetime
+                end_date = Time(end_date, format='mjd').datetime
 
-            start_date = Time(start_date, format='mjd').datetime
-            end_date = Time(end_date, format='mjd').datetime
+                instrument_log = InstrumentLog(
+                    log=logs,
+                    start_date=start_date,
+                    end_date=end_date,
+                    instrument_id=instrument_id,
+                )
 
-            instrument_log = InstrumentLog(
-                log=logs,
-                start_date=start_date,
-                end_date=end_date,
-                instrument_id=instrument_id,
-            )
-
-            session.add(instrument_log)
-            session.commit()
-
-    except Exception as e:
-        log(f"Unable to commit logs for instrument with ID {instrument_id}: {e}")
-    finally:
-        session.close()
-        Session.remove()
+                session.add(instrument_log)
+                session.commit()
+        except Exception as e:
+            session.rollback()
+            log(f"Unable to commit logs for instrument with ID {instrument_id}: {e}")

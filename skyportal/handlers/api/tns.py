@@ -8,7 +8,7 @@ import astropy.units as u
 import requests
 from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
-from sqlalchemy.orm import scoped_session, sessionmaker, joinedload
+from sqlalchemy.orm import joinedload
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -30,8 +30,6 @@ from ...utils.tns import get_IAUname, get_tns, post_tns, TNS_INSTRUMENT_IDS
 from ..base import BaseHandler
 
 _, cfg = load_env()
-
-Session = scoped_session(sessionmaker())
 
 TNS_URL = cfg['app.tns.endpoint']
 upload_url = urllib.parse.urljoin(TNS_URL, 'api/file-upload')

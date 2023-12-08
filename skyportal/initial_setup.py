@@ -8,7 +8,7 @@ import model_util
 from baselayer.app.env import load_env
 from baselayer.app.model_util import create_tables, drop_tables, status
 from baselayer.app.psa import TornadoStorage
-from skyportal.models import Base, DBSession, User, init_db
+from skyportal.models import Base, ThreadSession, User, init_db
 
 """
 usage: initial_setup.py [-h] [--nodrop] [--adminusername ADMINUSER]
@@ -92,33 +92,34 @@ if __name__ == "__main__":
     with status("Creating permissions"):
         model_util.setup_permissions()
 
-    if adminuser != '':
-        with status(f"Creating super admin ({adminuser})"):
-            super_admin_user = User(
-                username=results.adminuser, role_ids=['Super admin']
-            )
-
-            DBSession().add_all([super_admin_user])
-
-            for u in [super_admin_user]:
-                DBSession().add(
-                    TornadoStorage.user.create_social_auth(
-                        u, u.username, 'google-oauth2'
-                    )
+    with ThreadSession() as session:
+        if adminuser != '':
+            with status(f"Creating super admin ({adminuser})"):
+                super_admin_user = User(
+                    username=results.adminuser, role_ids=['Super admin']
                 )
-    if user != '':
-        with status(f"Creating user ({user})"):
-            user = User(username=results.user, role_ids=['Full user'])
 
-            DBSession().add_all([user])
+                session.add_all([super_admin_user])
 
-            for u in [user]:
-                DBSession().add(
-                    TornadoStorage.user.create_social_auth(
-                        u, u.username, 'google-oauth2'
+                for u in [super_admin_user]:
+                    session.add(
+                        TornadoStorage.user.create_social_auth(
+                            u, u.username, 'google-oauth2'
+                        )
                     )
-                )
-    if adminuser == '' and results.adminuser is not None:
-        print("Note: adminuser is not a valid email address")
-    if user == '' and results.user is not None:
-        print("Note: user is not a valid email address")
+        if user != '':
+            with status(f"Creating user ({user})"):
+                user = User(username=results.user, role_ids=['Full user'])
+
+                session.add_all([user])
+
+                for u in [user]:
+                    session.add(
+                        TornadoStorage.user.create_social_auth(
+                            u, u.username, 'google-oauth2'
+                        )
+                    )
+        if adminuser == '' and results.adminuser is not None:
+            print("Note: adminuser is not a valid email address")
+        if user == '' and results.user is not None:
+            print("Note: user is not a valid email address")

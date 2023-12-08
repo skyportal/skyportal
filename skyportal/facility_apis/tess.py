@@ -2,7 +2,7 @@ from astropy.time import Time, TimeDelta
 from astropy.table import Table
 import numpy as np
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
+from skyportal.models import ThreadSession
 from tornado.ioloop import IOLoop
 
 from . import FollowUpAPI
@@ -19,7 +19,7 @@ lightcurve_url = f"{TESS_URL}/light_curves/"
 log = make_log('facility_apis/tess')
 
 
-def commit_photometry(lc, request_id, instrument_id, user_id):
+def commit_photometry(lc, request_id, instrument_id):
     """
     Commits TESS photometry to the database
 
@@ -31,139 +31,129 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
         FollowupRequest SkyPortal ID
     instrument_id : int
         Instrument SkyPortal ID
-    user_id : int
-        User SkyPortal ID
     """
 
     from ..models import (
-        DBSession,
         FollowupRequest,
         PhotometricSeries,
     )
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    with ThreadSession() as session:
+        try:
+            request = session.query(FollowupRequest).get(request_id)
+            allocation = request.allocation
+            if not allocation:
+                raise ValueError("Missing request's allocation information.")
 
-    try:
-        request = session.query(FollowupRequest).get(request_id)
-        allocation = request.allocation
-        if not allocation:
-            raise ValueError("Missing request's allocation information.")
+            lc['mjd'] = (
+                Time(2457000, format='jd') + TimeDelta(lc['BTJD'], format='jd')
+            ).mjd
+            lc['ra'] = request.obj.ra
+            lc['dec'] = request.obj.dec
+            lc['limiting_mag'] = 18.4
+            lc['zp'] = 20.5
+            lc['filter'] = 'tess'
+            lc['magsys'] = 'ab'
 
-        lc['mjd'] = (
-            Time(2457000, format='jd') + TimeDelta(lc['BTJD'], format='jd')
-        ).mjd
-        lc['ra'] = request.obj.ra
-        lc['dec'] = request.obj.dec
-        lc['limiting_mag'] = 18.4
-        lc['zp'] = 20.5
-        lc['filter'] = 'tess'
-        lc['magsys'] = 'ab'
+            df = lc.to_pandas()
+            df.rename(
+                columns={
+                    'e_mag': 'magerr',
+                    'cts_per_s': 'flux',
+                    'e_cts_per_s': 'fluxerr',
+                },
+                inplace=True,
+            )
 
-        df = lc.to_pandas()
-        df.rename(
-            columns={
-                'e_mag': 'magerr',
-                'cts_per_s': 'flux',
-                'e_cts_per_s': 'fluxerr',
-            },
-            inplace=True,
-        )
+            magerr_none = df['magerr'] == None  # noqa: E711
+            df.loc[magerr_none, 'mag'] = None
 
-        magerr_none = df['magerr'] == None  # noqa: E711
-        df.loc[magerr_none, 'mag'] = None
+            isnan = np.isnan(df['magerr'])
+            df.loc[isnan, 'mag'] = None
+            df.loc[isnan, 'magerr'] = None
 
-        isnan = np.isnan(df['magerr'])
-        df.loc[isnan, 'mag'] = None
-        df.loc[isnan, 'magerr'] = None
+            is99 = np.isclose(df['magerr'], 99.9)
+            df.loc[is99, 'mag'] = None
+            df.loc[is99, 'magerr'] = None
 
-        is99 = np.isclose(df['magerr'], 99.9)
-        df.loc[is99, 'mag'] = None
-        df.loc[is99, 'magerr'] = None
+            drop_columns = list(
+                set(df.columns.values)
+                - {
+                    'mjd',
+                    'ra',
+                    'dec',
+                    'mag',
+                    'magerr',
+                    'flux',
+                    'fluxerr',
+                    'zp',
+                    'limiting_mag',
+                    'filter',
+                    'magsys',
+                }
+            )
+            df.drop(
+                columns=drop_columns,
+                inplace=True,
+            )
 
-        drop_columns = list(
-            set(df.columns.values)
-            - {
-                'mjd',
-                'ra',
-                'dec',
-                'mag',
-                'magerr',
-                'flux',
-                'fluxerr',
-                'zp',
-                'limiting_mag',
-                'filter',
-                'magsys',
+            # data is visible to the group attached to the allocation
+            # as well as to any of the allocation's default share groups
+            data_out = {
+                'obj_id': request.obj.id,
+                'series_name': 'tesstransients',
+                'series_obj_id': request.obj.id,
+                'exp_time': 2.0,
+                'instrument_id': instrument_id,
+                'group_ids': list(
+                    set(
+                        [allocation.group_id] + allocation.default_share_group_ids
+                        if allocation.default_share_group_ids
+                        else []
+                    )
+                ),
             }
-        )
-        df.drop(
-            columns=drop_columns,
-            inplace=True,
-        )
 
-        # data is visible to the group attached to the allocation
-        # as well as to any of the allocation's default share groups
-        data_out = {
-            'obj_id': request.obj.id,
-            'series_name': 'tesstransients',
-            'series_obj_id': request.obj.id,
-            'exp_time': 2.0,
-            'instrument_id': instrument_id,
-            'group_ids': list(
-                set(
-                    [allocation.group_id] + allocation.default_share_group_ids
-                    if allocation.default_share_group_ids
-                    else []
-                )
-            ),
-        }
+            from skyportal.handlers.api.photometric_series import (
+                post_photometric_series,
+                update_photometric_series,
+            )
 
-        from skyportal.handlers.api.photometric_series import (
-            post_photometric_series,
-            update_photometric_series,
-        )
-
-        if len(df.index) > 0:
-            try:
-                post_photometric_series(data_out, df, {}, request.requester, session)
-                request.status = "Photometry committed to database"
-            except Exception:
-                ps = session.scalars(
-                    sa.select(PhotometricSeries).where(
-                        PhotometricSeries.series_obj_id == request.obj.id,
-                        PhotometricSeries.obj_id == request.obj.id,
+            if len(df.index) > 0:
+                try:
+                    post_photometric_series(
+                        data_out, df, {}, request.requester, session
                     )
-                ).first()
-                if ps is not None:
-                    update_photometric_series(
-                        ps, data_out, df, {}, request.requester, session
-                    )
-                    request.status = "Photometry updated in database"
-                else:
-                    request.status = "No photometry to commit to database"
-        else:
-            request.status = "No photometry to commit to database"
+                    request.status = "Photometry committed to database"
+                except Exception:
+                    ps = session.scalars(
+                        sa.select(PhotometricSeries).where(
+                            PhotometricSeries.series_obj_id == request.obj.id,
+                            PhotometricSeries.obj_id == request.obj.id,
+                        )
+                    ).first()
+                    if ps is not None:
+                        update_photometric_series(
+                            ps, data_out, df, {}, request.requester, session
+                        )
+                        request.status = "Photometry updated in database"
+                    else:
+                        request.status = "No photometry to commit to database"
+            else:
+                request.status = "No photometry to commit to database"
 
-        session.add(request)
-        session.commit()
+            session.add(request)
+            session.commit()
 
-        flow = Flow()
-        flow.push(
-            '*',
-            "skyportal/REFRESH_SOURCE",
-            payload={"obj_key": request.obj.internal_key},
-        )
-
-    except Exception as e:
-        session.rollback()
-        log(f"Unable to commit photometry for {request_id}: {e}")
-    finally:
-        session.close()
-        Session.remove()
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
+            )
+        except Exception as e:
+            session.rollback()
+            log(f"Unable to commit photometry for {request_id}: {e}")
 
 
 class TESSAPI(FollowUpAPI):

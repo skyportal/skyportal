@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from baselayer.app.models import (
     Base,
-    DBSession,
+    ThreadSession,
     restricted,
     AccessibleIfRelatedRowsAreAccessible,
     CustomUserAccessControl,
@@ -24,7 +24,7 @@ def taxonomy_update_logic(cls, user_or_token):
         # nothing accessible
         return restricted.query_accessible_rows(cls, user_or_token)
 
-    return DBSession().query(cls)
+    return ThreadSession().query(cls)
 
 
 def taxonomy_delete_logic(cls, user_or_token):
@@ -43,7 +43,7 @@ def taxonomy_delete_logic(cls, user_or_token):
 
     # dont allow deletion of any taxonomies that have classifications attached
     return (
-        DBSession()
+        ThreadSession()
         .query(cls)
         .outerjoin(Classification)
         .group_by(cls.id)

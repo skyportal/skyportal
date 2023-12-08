@@ -38,7 +38,7 @@ from baselayer.app.models import (
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from skyportal.models import DBSession
+from skyportal.models import ThreadSession
 
 from ..enum_types import (
     allowed_analysis_types,
@@ -732,10 +732,9 @@ def create_default_analysis(mapper, connection, target):
                         f'Creating default analysis {default_analysis.analysis_service.name} for classification {target.id}'
                     )
 
-                    with DBSession() as db_session:
-
+                    with ThreadSession() as thread_session:
                         try:
-                            default_analysis = db_session.scalars(
+                            default_analysis = thread_session.scalars(
                                 DefaultAnalysis.select(
                                     default_analysis.author, mode="update"
                                 ).where(DefaultAnalysis.id == default_analysis.id)
@@ -772,7 +771,7 @@ def create_default_analysis(mapper, connection, target):
                                     "%Y-%m-%dT%H:%M:%S.%f"
                                 ),
                             }
-                            db_session.add(default_analysis)
+                            thread_session.add(default_analysis)
 
                             post_analysis(
                                 "obj",
@@ -786,12 +785,12 @@ def create_default_analysis(mapper, connection, target):
                                 show_plots=default_analysis.show_plots,
                                 show_corner=default_analysis.show_corner,
                                 notification=f"Default analysis {default_analysis.analysis_service.name} triggered by classification {target_data['classification']}",
-                                session=db_session,
+                                session=thread_session,
                             )
                         except Exception as e:
                             log(
                                 f'Error creating default analysis with id {default_analysis.id}: {e}'
                             )
-                            db_session.rollback()
+                            thread_session.rollback()
         except Exception as e:
             log(f'Error creating default analyses on classification {target.id}: {e}')

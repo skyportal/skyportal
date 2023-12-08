@@ -2,14 +2,13 @@ import itertools
 import time
 import arrow
 import sqlalchemy as sa
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.observation_plan import post_survey_efficiency_analysis
 from skyportal.models import (
-    DBSession,
+    ThreadSession,
     DefaultObservationPlanRequest,
     EventObservationPlan,
     ObservationPlanRequest,
@@ -20,19 +19,8 @@ log = make_log('observation_plan_queue')
 
 init_db(**cfg['database'])
 
-Session = scoped_session(sessionmaker())
-
 
 class ObservationPlanQueue:
-    def __init__(self):
-        self.scoped_session = scoped_session(sessionmaker())
-
-    def Session(self):
-        if self.scoped_session.registry.has():
-            return self.scoped_session()
-        else:
-            return self.scoped_session(bind=DBSession.session_factory.kw["bind"])
-
     def prioritize_requests(self, requests):
         try:
             if (
@@ -157,7 +145,7 @@ class ObservationPlanQueue:
     def service(self):
         log("Starting observation plan queue.")
         while True:
-            with self.Session() as session:
+            with ThreadSession() as session:
                 try:
                     stmt = sa.select(ObservationPlanRequest).where(
                         ObservationPlanRequest.status == "pending submission",

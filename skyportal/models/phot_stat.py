@@ -17,7 +17,7 @@ from datetime import datetime
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (
-    DBSession,
+    ThreadSession,
     Base,
     public,
     restricted,
@@ -907,9 +907,8 @@ class PhotStat(Base):
 
 @event.listens_for(Photometry, 'after_insert')
 def insert_into_phot_stat(mapper, connection, target):
-
     # Create or update PhotStat object
-    @event.listens_for(DBSession(), "before_flush", once=True)
+    @event.listens_for(ThreadSession(), "before_flush", once=True)
     def receive_after_flush(session, context, instances):
         obj_id = target.obj_id
         phot_stat = session.scalars(

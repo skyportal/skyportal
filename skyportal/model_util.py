@@ -3,7 +3,7 @@ import sqlalchemy as sa
 from baselayer.app.env import load_env
 from baselayer.app.psa import TornadoStorage
 from skyportal.enum_types import LISTENER_CLASSES, sqla_enum_types
-from skyportal.models import ACL, DBSession, Group, Role, Token, User
+from skyportal.models import ThreadSession, ACL, Group, Role, Token, User
 
 all_acl_ids = [
     'Become user',
@@ -66,7 +66,7 @@ env, cfg = load_env()
 
 def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
 
-    with DBSession() as session:
+    with ThreadSession() as session:
         user = session.scalars(sa.select(User).where(User.username == username)).first()
 
         if user is None:
@@ -98,11 +98,11 @@ def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
         user.groups.append(public_group)
         session.commit()
 
-    return DBSession().query(User).filter(User.username == username).first()
+        return session.query(User).filter(User.username == username).first()
 
 
 def refresh_enums():
-    with DBSession() as session:
+    with ThreadSession() as session:
         for type in sqla_enum_types:
             for key in type.enums:
                 session.execute(
@@ -127,58 +127,63 @@ def provision_token():
     )
     token_name = 'Initial admin token'
 
-    token = (
-        DBSession().query(Token).filter_by(created_by=admin, name=token_name).first()
-    )
+    with ThreadSession() as session:
+        token = session.scalar(
+            sa.select(Token).where(
+                Token.name == token_name, Token.created_by_id == admin.id
+            )
+        )
+        if token is None:
+            token_id = create_token(all_acl_ids, user_id=admin.id, name=token_name)
+            token = session.get(Token, token_id)
 
-    if token is None:
-        token_id = create_token(all_acl_ids, user_id=admin.id, name=token_name)
-        token = DBSession().get(Token, token_id)
-
-    return token
+        return token
 
 
 def provision_public_group():
     """If public group name is set in the config file, create it."""
     env, cfg = load_env()
     public_group_name = cfg['misc.public_group_name']
-    pg = DBSession().query(Group).filter(Group.name == public_group_name).first()
-
-    if pg is None:
-        DBSession().add(Group(name=public_group_name))
-        DBSession().commit()
+    with ThreadSession() as session:
+        pg = session.query(Group).filter(Group.name == public_group_name).first()
+        if pg is None:
+            session.add(Group(name=public_group_name))
+            session.commit()
 
 
 def setup_permissions():
     """Create default ACLs/Roles needed by application.
 
     If a given ACL or Role already exists, it will be skipped."""
-    all_acls = [ACL.create_or_get(a) for a in all_acl_ids]
-    DBSession().add_all(all_acls)
-    DBSession().commit()
+    with ThreadSession() as session:
+        all_acls = [ACL.create_or_get(a, session) for a in all_acl_ids]
+        session.add_all(all_acls)
+        session.commit()
 
-    for r, acl_ids in role_acls.items():
-        role = DBSession().get(Role, r)
-        if role is None:
-            role = Role(id=r)
-        role.acls = [DBSession().get(ACL, a) for a in acl_ids]
-        DBSession().add(role)
-    DBSession().commit()
+        for r, acl_ids in role_acls.items():
+            role = session.get(Role, r)
+            if role is None:
+                role = Role(id=r)
+            role.acls = [session.get(ACL, a) for a in acl_ids]
+            session.add(role)
+        session.commit()
 
 
 def create_token(ACLs, user_id, name):
-    t = Token(permissions=ACLs, name=name)
-    u = DBSession().get(User, user_id)
-    u.tokens.append(t)
-    t.created_by = u
-    DBSession().add(u)
-    DBSession().add(t)
-    DBSession().commit()
-    return t.id
+    with ThreadSession() as session:
+        t = Token(permissions=ACLs, name=name)
+        session.add(t)
+        u = session.scalar(sa.select(User).where(User.id == user_id))
+        u.tokens.append(t)
+        t.created_by = u
+        session.add(u)
+        session.commit()
+        return t.id
 
 
 def delete_token(token_id):
-    t = DBSession().get(Token, token_id)
-    if t is not None:
-        DBSession().delete(t)
-        DBSession().commit()
+    with ThreadSession() as session:
+        t = session.get(Token, token_id)
+        if t is not None:
+            session.delete(t)
+            session.commit()

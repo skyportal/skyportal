@@ -1,7 +1,7 @@
 import uuid
 from skyportal.tests import api
 from skyportal.model_util import create_token
-from skyportal.models import DBSession, Token
+from skyportal.models import ThreadSession, Token
 
 
 def test_get_user_info(manage_users_token, user):
@@ -24,7 +24,7 @@ def test_delete_user_cascades_to_tokens(super_admin_token, user, public_group):
     assert Token.query.get(token_id)
 
     # end the transaction on the test-side
-    DBSession().commit()
+    ThreadSession().commit()
 
     status, data = api('DELETE', f'user/{user.id}', token=super_admin_token)
     assert status == 200

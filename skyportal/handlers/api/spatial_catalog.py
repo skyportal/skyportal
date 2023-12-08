@@ -2,7 +2,6 @@ import numpy as np
 from tornado.ioloop import IOLoop
 import sqlalchemy as sa
 from sqlalchemy import func
-from sqlalchemy.orm import sessionmaker, scoped_session
 from io import StringIO
 import pandas as pd
 import time
@@ -13,7 +12,7 @@ from baselayer.log import make_log
 
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
+    ThreadSession,
     SpatialCatalog,
     SpatialCatalogEntry,
     SpatialCatalogEntryTile,
@@ -25,8 +24,6 @@ from ...utils.gcn import (
 
 log = make_log('api/spatial_catalog')
 
-Session = scoped_session(sessionmaker())
-
 MAX_SPATIAL_CATALOG_ENTRIES = 1000
 
 
@@ -35,119 +32,115 @@ def add_catalog(catalog_id, catalog_data):
     log(f"Generating catalog with ID {catalog_id}")
     start = time.time()
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    with ThreadSession() as session:
+        try:
+            entries = []
+            # check for cone key
+            if {'radius'}.issubset(set(catalog_data.keys())):
+                for ra, dec, name, radius in zip(
+                    catalog_data['ra'],
+                    catalog_data['dec'],
+                    catalog_data['name'],
+                    catalog_data['radius'],
+                ):
+                    name = name.strip().replace(" ", "-")
+                    skymap = from_cone(ra, dec, radius, n_sigma=2)
+                    del skymap['localization_name']
+                    skymap['entry_name'] = name
 
-    try:
-        entries = []
-        # check for cone key
-        if {'radius'}.issubset(set(catalog_data.keys())):
-            for ra, dec, name, radius in zip(
-                catalog_data['ra'],
-                catalog_data['dec'],
-                catalog_data['name'],
-                catalog_data['radius'],
-            ):
-                name = name.strip().replace(" ", "-")
-                skymap = from_cone(ra, dec, radius, n_sigma=2)
-                del skymap['localization_name']
-                skymap['entry_name'] = name
+                    data = {'ra': ra, 'dec': dec, 'radius': radius}
 
-                data = {'ra': ra, 'dec': dec, 'radius': radius}
+                    entry = SpatialCatalogEntry(
+                        **{**skymap, 'catalog_id': catalog_id, 'data': data}
+                    )
+                    entries.append(entry)
+            elif {'amaj', 'amin', 'phi'}.issubset(set(catalog_data.keys())):
+                for ra, dec, name, amaj, amin, phi in zip(
+                    catalog_data['ra'],
+                    catalog_data['dec'],
+                    catalog_data['name'],
+                    catalog_data['amaj'],
+                    catalog_data['amin'],
+                    catalog_data['phi'],
+                ):
 
-                entry = SpatialCatalogEntry(
-                    **{**skymap, 'catalog_id': catalog_id, 'data': data}
-                )
-                entries.append(entry)
-        elif {'amaj', 'amin', 'phi'}.issubset(set(catalog_data.keys())):
-            for ra, dec, name, amaj, amin, phi in zip(
-                catalog_data['ra'],
-                catalog_data['dec'],
-                catalog_data['name'],
-                catalog_data['amaj'],
-                catalog_data['amin'],
-                catalog_data['phi'],
-            ):
+                    name = name.strip().replace(" ", "-")
+                    if np.isclose(amaj, amin):
+                        skymap = from_cone(ra, dec, amaj, n_sigma=1)
+                    else:
+                        skymap = from_ellipse(name, ra, dec, amaj, amin, phi)
+                    skymap['entry_name'] = skymap['localization_name']
+                    del skymap['localization_name']
 
-                name = name.strip().replace(" ", "-")
-                if np.isclose(amaj, amin):
-                    skymap = from_cone(ra, dec, amaj, n_sigma=1)
-                else:
-                    skymap = from_ellipse(name, ra, dec, amaj, amin, phi)
-                skymap['entry_name'] = skymap['localization_name']
-                del skymap['localization_name']
+                    data = {
+                        'ra': ra,
+                        'dec': dec,
+                        'amaj': amaj,
+                        'amin': amin,
+                        'phi': phi,
+                    }
 
-                data = {'ra': ra, 'dec': dec, 'amaj': amaj, 'amin': amin, 'phi': phi}
+                    entry = SpatialCatalogEntry(
+                        **{**skymap, 'catalog_id': catalog_id, 'data': data}
+                    )
+                    entries.append(entry)
 
-                entry = SpatialCatalogEntry(
-                    **{**skymap, 'catalog_id': catalog_id, 'data': data}
-                )
-                entries.append(entry)
+            else:
+                return ValueError('Could not disambiguate keys')
 
-        else:
-            return ValueError('Could not disambiguate keys')
+            session.add_all(entries)
+            session.commit()
 
-        session.add_all(entries)
-        session.commit()
+            for entry in entries:
+                tiles = [
+                    SpatialCatalogEntryTile(
+                        entry_name=entry.entry_name,
+                        healpix=uniq,
+                        probdensity=probdensity,
+                    )
+                    for uniq, probdensity in zip(entry.uniq, entry.probdensity)
+                ]
 
-        for entry in entries:
-            tiles = [
-                SpatialCatalogEntryTile(
-                    entry_name=entry.entry_name, healpix=uniq, probdensity=probdensity
-                )
-                for uniq, probdensity in zip(entry.uniq, entry.probdensity)
-            ]
+                session.add_all(tiles)
+            session.commit()
 
-            session.add_all(tiles)
-        session.commit()
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_SPATIAL_CATALOGS",
+            )
 
-        flow = Flow()
-        flow.push(
-            '*',
-            "skyportal/REFRESH_SPATIAL_CATALOGS",
-        )
+            end = time.time()
+            duration = end - start
 
-        end = time.time()
-        duration = end - start
-
-        log(f"Generated catalog with ID {catalog_id} in {duration} seconds")
-    except Exception as e:
-        log(f"Unable to generate catalog: {e}")
-    finally:
-        session.close()
-        Session.remove()
+            log(f"Generated catalog with ID {catalog_id} in {duration} seconds")
+        except Exception as e:
+            session.rollback()
+            log(f"Unable to generate catalog: {e}")
 
 
 def delete_catalog(catalog_id):
 
     log(f"Deleting catalog with ID {catalog_id}")
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    with ThreadSession() as session:
+        try:
+            catalog = session.scalar(
+                sa.select(SpatialCatalog).where(SpatialCatalog.id == int(catalog_id))
+            )
+            session.delete(catalog)
+            session.commit()
 
-    try:
-        catalog = session.scalar(
-            sa.select(SpatialCatalog).where(SpatialCatalog.id == int(catalog_id))
-        )
-        session.delete(catalog)
-        session.commit()
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_SPATIAL_CATALOGS",
+            )
 
-        flow = Flow()
-        flow.push(
-            '*',
-            "skyportal/REFRESH_SPATIAL_CATALOGS",
-        )
-
-        log(f"Deleted catalog with ID {catalog_id}")
-    except Exception as e:
-        log(f"Unable to delete catalog: {e}")
-    finally:
-        session.close()
-        Session.remove()
+            log(f"Deleted catalog with ID {catalog_id}")
+        except Exception as e:
+            session.rollback()
+            log(f"Unable to delete catalog: {e}")
 
 
 class SpatialCatalogHandler(BaseHandler):

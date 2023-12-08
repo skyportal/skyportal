@@ -5,7 +5,6 @@ import astropy.units as u
 import asyncio
 import requests
 import re
-from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import urllib
 
@@ -16,15 +15,13 @@ from baselayer.app.flow import Flow
 
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
+    ThreadSession,
     Obj,
     User,
 )
 
 env, cfg = load_env()
 log = make_log('api/mpc')
-
-Session = scoped_session(sessionmaker())
 
 MPC_ENDPOINT = cfg['app.mpc_endpoint']
 mpcheck_url = urllib.parse.urljoin(MPC_ENDPOINT, 'cgi-bin/mpcheck.cgi')
@@ -175,47 +172,39 @@ def query_mpc(obj_id, user_id, url):
         MPC query URL
     """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
-
     log(f'Querying MPC for {obj_id}: {url}')
 
-    try:
-        user = session.query(User).get(user_id)
+    with ThreadSession() as session:
+        try:
+            user = session.query(User).get(user_id)
 
-        obj = session.scalars(Obj.select(user).where(Obj.id == obj_id)).first()
+            obj = session.scalars(Obj.select(user).where(Obj.id == obj_id)).first()
 
-        requests_session = requests.Session()
-        response = requests_session.get(url)
+            requests_session = requests.Session()
+            response = requests_session.get(url)
 
-        if re.findall("The following objects,.*", response.text):
-            responseSplit = response.text.split("(1)")[-1].split(" ")
-            mpc_name = list(filter(None, responseSplit))[0]
+            if re.findall("The following objects,.*", response.text):
+                responseSplit = response.text.split("(1)")[-1].split(" ")
+                mpc_name = list(filter(None, responseSplit))[0]
 
-            log(f'{obj_id}: identified MPC name {mpc_name}')
+                log(f'{obj_id}: identified MPC name {mpc_name}')
 
-            obj.is_roid = True
-            obj.mpc_name = mpc_name
-            session.commit()
-        elif re.findall("No known minor planets,.*", response.text):
-            log(f'{obj_id}: No known minor planets')
-            obj.is_roid = False
-            session.commit()
-        else:
-            log(f'Message from MPC for {obj_id} not parsable: {response.text}')
+                obj.is_roid = True
+                obj.mpc_name = mpc_name
+                session.commit()
+            elif re.findall("No known minor planets,.*", response.text):
+                log(f'{obj_id}: No known minor planets')
+                obj.is_roid = False
+                session.commit()
+            else:
+                log(f'Message from MPC for {obj_id} not parsable: {response.text}')
 
-        flow = Flow()
-        flow.push(
-            '*',
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': obj.internal_key},
-        )
-
-    except Exception as e:
-        log(f"Error checking MPC for {obj_id}: {(str(e))}")
-        session.rollback()
-    finally:
-        session.close()
-        Session.remove()
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj.internal_key},
+            )
+        except Exception as e:
+            log(f"Error checking MPC for {obj_id}: {(str(e))}")
+            session.rollback()

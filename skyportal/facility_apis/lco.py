@@ -4,7 +4,6 @@ import json
 import requests
 from datetime import datetime, timedelta
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import urllib
 
@@ -12,6 +11,8 @@ from . import FollowUpAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
+
+from skyportal.models import ThreadSession
 
 from ..utils import http
 
@@ -505,48 +506,39 @@ def download_observations(request_id, ar):
 
     from ..models import (
         Comment,
-        DBSession,
         FollowupRequest,
         Group,
     )
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    with ThreadSession() as session:
+        try:
+            req = session.scalars(
+                sa.select(FollowupRequest).where(FollowupRequest.id == request_id)
+            ).first()
 
-    try:
-        req = session.scalars(
-            sa.select(FollowupRequest).where(FollowupRequest.id == request_id)
-        ).first()
-
-        group_ids = [g.id for g in req.requester.accessible_groups]
-        groups = session.scalars(
-            Group.select(req.requester).where(Group.id.in_(group_ids))
-        ).all()
-        for image in ar.json()['results']:
-            attachment_name = image['filename']
-            with urllib.request.urlopen(image['url']) as f:
-                attachment_bytes = base64.b64encode(f.read())
-            comment = Comment(
-                text=f'LCO: {attachment_name}',
-                obj_id=req.obj.id,
-                attachment_bytes=attachment_bytes,
-                attachment_name=attachment_name,
-                author=req.requester,
-                groups=groups,
-                bot=True,
-            )
-            session.add(comment)
-        req.status = f'{ar.json()["count"]} images posted as comment'
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        log(f"Unable to post data for {request_id}: {e}")
-    finally:
-        session.close()
-        Session.remove()
+            group_ids = [g.id for g in req.requester.accessible_groups]
+            groups = session.scalars(
+                Group.select(req.requester).where(Group.id.in_(group_ids))
+            ).all()
+            for image in ar.json()['results']:
+                attachment_name = image['filename']
+                with urllib.request.urlopen(image['url']) as f:
+                    attachment_bytes = base64.b64encode(f.read())
+                comment = Comment(
+                    text=f'LCO: {attachment_name}',
+                    obj_id=req.obj.id,
+                    attachment_bytes=attachment_bytes,
+                    attachment_name=attachment_name,
+                    author=req.requester,
+                    groups=groups,
+                    bot=True,
+                )
+                session.add(comment)
+            req.status = f'{ar.json()["count"]} images posted as comment'
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            log(f"Unable to post data for {request_id}: {e}")
 
 
 class LCOAPI(FollowUpAPI):

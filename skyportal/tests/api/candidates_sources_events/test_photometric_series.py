@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
 
 from skyportal.tests import api, assert_api, assert_api_fail
-from skyportal.models import DBSession, PhotometricSeries
+from skyportal.models import ThreadSession, PhotometricSeries
 from skyportal.utils.hdf5_files import (
     dump_dataframe_to_bytestream,
     load_dataframe_from_bytestream,
@@ -763,7 +763,7 @@ def test_unique_constraint(phot_series_maker, user, public_source, ztf_camera):
             'origin': 'ZTF',
             'channel': 0,
         }
-        session = DBSession()
+        session = ThreadSession()
         ps = PhotometricSeries(data=df, **metadata)
         ps.filename = filename
         original_hash = ps.hash
@@ -823,8 +823,8 @@ def test_autodelete_series(photometric_series):
     assert os.path.isfile(filename)
     assert photometric_series.autodelete
 
-    DBSession().delete(photometric_series)
-    DBSession().commit()
+    ThreadSession().delete(photometric_series)
+    ThreadSession().commit()
 
     assert not os.path.isfile(filename)
 
@@ -834,8 +834,8 @@ def test_no_autodelete_series(photometric_series):
     assert os.path.isfile(filename)
     photometric_series.autodelete = False
 
-    DBSession().delete(photometric_series)
-    DBSession().commit()
+    ThreadSession().delete(photometric_series)
+    ThreadSession().commit()
 
     assert os.path.isfile(filename)
     os.remove(filename)

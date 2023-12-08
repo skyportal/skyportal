@@ -8,7 +8,7 @@ from slugify import slugify
 
 from baselayer.app.models import (
     join_model,
-    DBSession,
+    ThreadSession,
     User,
     Token,
     public,
@@ -50,7 +50,7 @@ def user_update_delete_logic(cls, user_or_token):
     # non admin users can only update or delete themselves
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
 
-    return DBSession().query(cls).filter(cls.id == user_id)
+    return ThreadSession().query(cls).filter(cls.id == user_id)
 
 
 @property
@@ -76,7 +76,7 @@ def user_or_token_accessible_streams(self):
 @property
 def get_single_user_group(self):
     group = (
-        DBSession()
+        ThreadSession()
         .scalars(
             sa.select(Group)
             .join(GroupUser)

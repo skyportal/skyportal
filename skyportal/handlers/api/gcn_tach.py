@@ -4,17 +4,15 @@ import re
 from tornado.ioloop import IOLoop
 from ..base import BaseHandler
 from baselayer.app.access import auth_or_token, permissions
-from ...models import GcnEvent, DBSession, User
+from ...models import GcnEvent, User
 from astropy.time import Time
 
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
+from skyportal.models import ThreadSession
 from sqlalchemy.orm.attributes import flag_modified
-
-Session = scoped_session(sessionmaker())
 
 log = make_log('api/gcn_tach')
 
@@ -213,53 +211,49 @@ def get_tach_event_aliases(id, gcn_event):
 
 def post_aliases(dateobs, tach_id, user_id):
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    with ThreadSession() as session:
+        try:
+            flow = Flow()
+            user = session.scalars(sa.select(User).where(User.id == user_id)).first()
+            stmt = GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+            gcn_event = session.scalars(stmt).first()
+            if gcn_event is None:
+                return
+            gcn_event.tach_id = tach_id
+            new_gcn_aliases, new_gcn_circulars = get_tach_event_aliases(
+                tach_id, gcn_event
+            )
 
-    try:
-        flow = Flow()
-        user = session.scalars(sa.select(User).where(User.id == user_id)).first()
-        stmt = GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-        gcn_event = session.scalars(stmt).first()
-        if gcn_event is None:
-            return
-        gcn_event.tach_id = tach_id
-        new_gcn_aliases, new_gcn_circulars = get_tach_event_aliases(tach_id, gcn_event)
+            if len(new_gcn_circulars) == 0:
+                # no new circulars, no need to update aliases
+                return
 
-        if len(new_gcn_circulars) == 0:
-            # no new circulars, no need to update aliases
-            return
-
-        if not gcn_event.circulars:
-            gcn_event.circulars = new_gcn_circulars
-        else:
-            gcn_event.circulars = {**gcn_event.circulars, **new_gcn_circulars}
-
-        if len(new_gcn_aliases) > 0:
-            if not gcn_event.aliases:  # empty list or None
-                gcn_event.aliases = new_gcn_aliases
+            if not gcn_event.circulars:
+                gcn_event.circulars = new_gcn_circulars
             else:
-                gcn_aliases = [alias for alias in gcn_event.aliases]
-                for new_gcn_alias in new_gcn_aliases:
-                    if new_gcn_alias not in gcn_aliases:
-                        gcn_aliases.append(new_gcn_alias)
-                setattr(gcn_event, 'aliases', gcn_aliases)
-                flag_modified(gcn_event, 'aliases')
+                gcn_event.circulars = {**gcn_event.circulars, **new_gcn_circulars}
 
-        session.commit()
+            if len(new_gcn_aliases) > 0:
+                if not gcn_event.aliases:  # empty list or None
+                    gcn_event.aliases = new_gcn_aliases
+                else:
+                    gcn_aliases = [alias for alias in gcn_event.aliases]
+                    for new_gcn_alias in new_gcn_aliases:
+                        if new_gcn_alias not in gcn_aliases:
+                            gcn_aliases.append(new_gcn_alias)
+                    setattr(gcn_event, 'aliases', gcn_aliases)
+                    flag_modified(gcn_event, 'aliases')
 
-        flow.push(
-            user_id='*',
-            action_type='skyportal/REFRESH_GCN_EVENT',
-            payload={'gcnEvent_dateobs': dateobs},
-        )
-    except Exception:
-        log(f'Failed to post aliases for {dateobs}')
-    finally:
-        session.close()
-        Session.remove()
+            session.commit()
+
+            flow.push(
+                user_id='*',
+                action_type='skyportal/REFRESH_GCN_EVENT',
+                payload={'gcnEvent_dateobs': dateobs},
+            )
+        except Exception:
+            session.rollback()
+            log(f'Failed to post aliases for {dateobs}')
 
 
 class GcnTachHandler(BaseHandler):

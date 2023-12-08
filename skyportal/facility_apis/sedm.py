@@ -6,6 +6,8 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 from baselayer.app.flow import Flow
 
+from skyportal.models import ThreadSession
+
 from . import FollowUpAPI, Listener
 from ..utils import http
 
@@ -72,7 +74,7 @@ def convert_request_to_sedm(request, method_value='new'):
         The desired SEDM queue action.
     """
 
-    from ..models import DBSession, UserInvitation, Invitation
+    from ..models import UserInvitation, Invitation
 
     photometry = sorted(request.obj.photometry, key=lambda p: p.mjd, reverse=True)
     photometry_payload = {}
@@ -117,7 +119,7 @@ def convert_request_to_sedm(request, method_value='new'):
     email = request.requester.contact_email
     if email is None:
         invitation = (
-            DBSession()
+            ThreadSession()
             .query(Invitation)
             .join(UserInvitation)
             .filter(

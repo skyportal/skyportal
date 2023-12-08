@@ -5,7 +5,7 @@ import time
 import uuid
 import base64
 from skyportal.tests import api, assert_api
-from skyportal.models import DBSession, Obj, Thumbnail
+from skyportal.models import ThreadSession, Obj, Thumbnail
 
 
 def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_camera):
@@ -34,7 +34,7 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
 
     while not thumbnails_loaded and nretries < 5:
         thumbnails = (
-            DBSession()
+            ThreadSession()
             .scalars(sa.select(Obj).where(Obj.id == obj_id))
             .first()
             .thumbnails
@@ -66,10 +66,13 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     assert data['data']['type'] == 'new'
 
     assert (
-        DBSession.query(Thumbnail).filter(Thumbnail.id == thumbnail_id).first().obj.id
+        ThreadSession.query(Thumbnail)
+        .filter(Thumbnail.id == thumbnail_id)
+        .first()
+        .obj.id
     ) == obj_id
     assert (
-        len(DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails)
+        len(ThreadSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails)
         == orig_source_thumbnail_count + 1
     )
 
@@ -260,7 +263,9 @@ def test_delete_thumbnail_deletes_file_on_disk(
     assert data['status'] == 'success'
     assert data['data']['type'] == ttype
 
-    thumbnail = DBSession.query(Thumbnail).filter(Thumbnail.id == thumbnail_id).first()
+    thumbnail = (
+        ThreadSession.query(Thumbnail).filter(Thumbnail.id == thumbnail_id).first()
+    )
     assert thumbnail.obj_id == obj_id
     fpath = thumbnail.file_uri
     assert os.path.exists(fpath)

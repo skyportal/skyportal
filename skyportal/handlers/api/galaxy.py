@@ -16,20 +16,17 @@ from geojson import Feature, Point
 from scipy.stats import norm
 from scipy.integrate import quad
 from sqlalchemy import func
-from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 
-from ...models import DBSession, Galaxy, Localization, LocalizationTile, Obj
+from ...models import ThreadSession, Galaxy, Localization, LocalizationTile, Obj
 from ..base import BaseHandler
 
 log = make_log('api/galaxy')
 env, cfg = load_env()
-
-Session = scoped_session(sessionmaker())
 
 MAX_GALAXIES = 10000
 
@@ -607,93 +604,83 @@ class GalaxyCatalogHandler(BaseHandler):
 
 def delete_galaxies(catalog_name):
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
-
-    try:
-        session.execute(sa.delete(Galaxy).where(Galaxy.catalog_name == catalog_name))
-        session.commit()
-        return log(f"Deleted galaxy table: {catalog_name}")
-    except Exception as e:
-        return log(f"Unable to generate galaxy table: {e}")
-    finally:
-        session.close()
-        Session.remove()
+    with ThreadSession() as session:
+        try:
+            session.execute(
+                sa.delete(Galaxy).where(Galaxy.catalog_name == catalog_name)
+            )
+            session.commit()
+            return log(f"Deleted galaxy table: {catalog_name}")
+        except Exception as e:
+            session.rollback()
+            return log(f"Unable to generate galaxy table: {e}")
 
 
 def add_galaxies(catalog_name, catalog_data):
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    with ThreadSession() as session:
+        try:
+            galaxies = [
+                Galaxy(
+                    catalog_name=catalog_name,
+                    ra=ra,
+                    dec=dec,
+                    name=name,
+                    alt_name=alt_name,
+                    distmpc=distmpc,
+                    distmpc_unc=distmpc_unc,
+                    redshift=redshift,
+                    redshift_error=redshift_error,
+                    sfr_fuv=sfr_fuv,
+                    sfr_w4=sfr_w4,
+                    mstar=mstar,
+                    magk=magk,
+                    magb=magb,
+                    mag_nuv=mag_nuv,
+                    mag_fuv=mag_fuv,
+                    mag_w1=mag_w1,
+                    mag_w2=mag_w2,
+                    mag_w3=mag_w3,
+                    mag_w4=mag_w4,
+                    a=a,
+                    b2a=b2a,
+                    pa=pa,
+                    btc=btc,
+                    healpix=ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg),
+                )
+                for ra, dec, name, alt_name, distmpc, distmpc_unc, redshift, redshift_error, sfr_fuv, sfr_w4, mstar, magb, magk, mag_fuv, mag_nuv, mag_w1, mag_w2, mag_w3, mag_w4, a, b2a, pa, btc in zip(
+                    catalog_data['ra'],
+                    catalog_data['dec'],
+                    catalog_data['name'],
+                    catalog_data['alt_name'],
+                    catalog_data['distmpc'],
+                    catalog_data['distmpc_unc'],
+                    catalog_data['redshift'],
+                    catalog_data['redshift_error'],
+                    catalog_data['sfr_fuv'],
+                    catalog_data['sfr_w4'],
+                    catalog_data['mstar'],
+                    catalog_data['magb'],
+                    catalog_data['magk'],
+                    catalog_data['mag_fuv'],
+                    catalog_data['mag_nuv'],
+                    catalog_data['mag_w1'],
+                    catalog_data['mag_w2'],
+                    catalog_data['mag_w3'],
+                    catalog_data['mag_w4'],
+                    catalog_data['a'],
+                    catalog_data['b2a'],
+                    catalog_data['pa'],
+                    catalog_data['btc'],
+                )
+            ]
 
-    try:
-        galaxies = [
-            Galaxy(
-                catalog_name=catalog_name,
-                ra=ra,
-                dec=dec,
-                name=name,
-                alt_name=alt_name,
-                distmpc=distmpc,
-                distmpc_unc=distmpc_unc,
-                redshift=redshift,
-                redshift_error=redshift_error,
-                sfr_fuv=sfr_fuv,
-                sfr_w4=sfr_w4,
-                mstar=mstar,
-                magk=magk,
-                magb=magb,
-                mag_nuv=mag_nuv,
-                mag_fuv=mag_fuv,
-                mag_w1=mag_w1,
-                mag_w2=mag_w2,
-                mag_w3=mag_w3,
-                mag_w4=mag_w4,
-                a=a,
-                b2a=b2a,
-                pa=pa,
-                btc=btc,
-                healpix=ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg),
-            )
-            for ra, dec, name, alt_name, distmpc, distmpc_unc, redshift, redshift_error, sfr_fuv, sfr_w4, mstar, magb, magk, mag_fuv, mag_nuv, mag_w1, mag_w2, mag_w3, mag_w4, a, b2a, pa, btc in zip(
-                catalog_data['ra'],
-                catalog_data['dec'],
-                catalog_data['name'],
-                catalog_data['alt_name'],
-                catalog_data['distmpc'],
-                catalog_data['distmpc_unc'],
-                catalog_data['redshift'],
-                catalog_data['redshift_error'],
-                catalog_data['sfr_fuv'],
-                catalog_data['sfr_w4'],
-                catalog_data['mstar'],
-                catalog_data['magb'],
-                catalog_data['magk'],
-                catalog_data['mag_fuv'],
-                catalog_data['mag_nuv'],
-                catalog_data['mag_w1'],
-                catalog_data['mag_w2'],
-                catalog_data['mag_w3'],
-                catalog_data['mag_w4'],
-                catalog_data['a'],
-                catalog_data['b2a'],
-                catalog_data['pa'],
-                catalog_data['btc'],
-            )
-        ]
-
-        session.add_all(galaxies)
-        session.commit()
-        return log("Generated galaxy table")
-    except Exception as e:
-        return log(f"Unable to generate galaxy table: {e}")
-    finally:
-        session.close()
-        Session.remove()
+            session.add_all(galaxies)
+            session.commit()
+            return log("Generated galaxy table")
+        except Exception as e:
+            session.rollback()
+            return log(f"Unable to generate galaxy table: {e}")
 
 
 class GalaxyASCIIFileHandler(BaseHandler):
@@ -1036,22 +1023,27 @@ def add_glade(file_path=None, file_url=None):
                 quotechar="'",
             )
             output.seek(0)
-            connection = DBSession().connection().connection
-            cursor = connection.cursor()
-            cursor.copy_from(
-                output,
-                "galaxys",
-                sep='\t',
-                null='',
-                columns=columns,
-            )
-            cursor.close()
-            output.close()
-            DBSession().commit()
-            end_timer = time.perf_counter()
-            log(
-                f"add_glade - File part {ii}: Added {length} galaxies (including {blueshift_length} with a negative redshift) in {end_timer - start_timer:0.4f} seconds"
-            )
+            with ThreadSession() as session:
+                try:
+                    connection = session.connection().connection
+                    cursor = connection.cursor()
+                    cursor.copy_from(
+                        output,
+                        "galaxys",
+                        sep='\t',
+                        null='',
+                        columns=columns,
+                    )
+                    cursor.close()
+                    output.close()
+                    connection.commit()
+                    end_timer = time.perf_counter()
+                    log(
+                        f"add_glade - File part {ii}: Added {length} galaxies (including {blueshift_length} with a negative redshift) in {end_timer - start_timer:0.4f} seconds"
+                    )
+                except Exception as e:
+                    session.rollback()
+                    raise e
         except Exception as e:
             log(f"add_glade - File part {ii}: Error: {e}")
             continue

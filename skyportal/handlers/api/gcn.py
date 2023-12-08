@@ -25,7 +25,6 @@ import requests
 import sqlalchemy as sa
 from sqlalchemy import String, func
 from sqlalchemy.orm import joinedload
-from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import cast
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm.attributes import flag_modified
@@ -57,7 +56,7 @@ from .gcn_gracedb import post_gracedb_data
 from .source import post_source
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
+    ThreadSession,
     Allocation,
     CatalogQuery,
     DefaultGcnTag,
@@ -112,8 +111,6 @@ from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 log = make_log('api/gcn_event')
 
 env, cfg = load_env()
-
-Session = scoped_session(sessionmaker())
 
 MAX_GCNEVENTS = 1000
 
@@ -249,14 +246,15 @@ def post_gcnevent_from_xml(
         else:
             post_gracedb_data(event.dateobs, gracedb_id, user_id)
 
+    print(f"GCN event {event_id} created with notice {notice_id}.")
+    print(f"post_skymap: {post_skymap}")
     found_skymap = False
     if post_skymap:
         try:
-            post_skymap_from_notice(
-                dateobs, notice_id, user_id, session, asynchronous, notify
-            )
+            post_skymap_from_notice(dateobs, notice_id, user_id, asynchronous, notify)
             found_skymap = True
-        except Exception:
+        except Exception as e:
+            log(f"Failed to post skymap from notice {notice_id}: {e}")
             found_skymap = False
             pass
 
@@ -285,138 +283,151 @@ def post_gcnevent_from_xml(
 
 
 def post_skymap_from_notice(
-    dateobs, notice_id, user_id, session, asynchronous=True, notify=True
+    dateobs, notice_id, user_id, asynchronous=True, notify=True
 ):
     """Post skymap to database from gcn notice."""
-    user = session.query(User).get(user_id)
-
-    gcn_notice = session.scalars(
-        GcnNotice.select(user).where(GcnNotice.id == notice_id)
-    ).first()
-
-    if gcn_notice is None:
-        raise ValueError(f"No GcnNotice with id {notice_id} found.")
-
-    root = lxml.etree.fromstring(gcn_notice.content)
-    notice_type = gcn.get_notice_type(root)
-
-    skymap, url, properties, tags = None, None, None, None
-    try:
-        skymap, url, properties, tags = get_skymap(root, notice_type)
-    except Exception as e:
-        raise ValueError(f"Failed to get skymap from gcn notice {gcn_notice.id}: {e}")
-
-    if skymap is None:
-        raise Exception(f"No skymap found for event {dateobs} with notice {notice_id}")
-
-    skymap["dateobs"] = dateobs
-    skymap["sent_by_id"] = user_id
-
-    localization_id = None
-    localization = session.scalars(
-        Localization.select(user).where(
-            Localization.dateobs == skymap["dateobs"],
-            Localization.localization_name == skymap["localization_name"],
-        )
-    ).first()
-    if localization is None:
-        localization = Localization(**skymap, notice_id=notice_id)
-        session.add(localization)
-        session.commit()
-        localization_id = localization.id
-
-        log(f"Generating tiles/properties/contours for localization {localization.id}")
-        if asynchronous:
-            try:
-                loop = asyncio.get_event_loop()
-            except Exception:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_tiles_properties_contour_and_obsplan(
-                    localization_id,
-                    user_id,
-                    url=url,
-                    notify=notify,
-                    properties=properties,
-                    tags=tags,
-                ),
-            )
-        else:
-            add_tiles_properties_contour_and_obsplan(
-                localization_id,
-                user_id,
-                session,
-                url=url,
-                notify=notify,
-                properties=properties,
-                tags=tags,
-            )
-
-        gcn_notice.localization_ingested = True
-        session.add(gcn_notice)
-        session.commit()
+    log(f"Posting skymap from notice {notice_id} for event {dateobs}")
+    with ThreadSession() as session:
         try:
-            ra, dec, error = (
-                float(val) for val in skymap["localization_name"].split("_")
-            )
-            if error < SOURCE_RADIUS_THRESHOLD:
-                source = {}
-                name = root.find('./Why/Inference/Name')
-                if name is not None:
-                    source = {
-                        'id': (name.text).replace(' ', ''),
-                        'ra': ra,
-                        'dec': dec,
-                    }
-                elif any(
-                    [
-                        True if 'GRB' in tag.text.upper() else False
-                        for tag in get_tags(root)
-                    ]
-                ):
-                    dateobs_txt = Time(dateobs).isot
-                    source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                    source = {
-                        'id': source_name,
-                        'ra': ra,
-                        'dec': dec,
-                    }
-                elif any(
-                    [
-                        True if 'GW' in tag.text.upper() else False
-                        for tag in get_tags(root)
-                    ]
-                ):
-                    dateobs_txt = Time(dateobs).isot
-                    source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                    source = {
-                        'id': source_name,
-                        'ra': ra,
-                        'dec': dec,
-                    }
+            user = session.query(User).get(user_id)
+
+            gcn_notice = session.scalars(
+                GcnNotice.select(user).where(GcnNotice.id == notice_id)
+            ).first()
+
+            if gcn_notice is None:
+                raise ValueError(f"No GcnNotice with id {notice_id} found.")
+
+            root = lxml.etree.fromstring(gcn_notice.content)
+            notice_type = gcn.get_notice_type(root)
+
+            skymap, url, properties, tags = None, None, None, None
+            try:
+                skymap, url, properties, tags = get_skymap(root, notice_type)
+            except Exception as e:
+                raise ValueError(
+                    f"Failed to get skymap from gcn notice {gcn_notice.id}: {e}"
+                )
+
+            if skymap is None:
+                raise Exception(
+                    f"No skymap found for event {dateobs} with notice {notice_id}"
+                )
+
+            skymap["dateobs"] = dateobs
+            skymap["sent_by_id"] = user_id
+
+            localization_id = None
+            localization = session.scalars(
+                Localization.select(user).where(
+                    Localization.dateobs == skymap["dateobs"],
+                    Localization.localization_name == skymap["localization_name"],
+                )
+            ).first()
+            if localization is None:
+                localization = Localization(**skymap, notice_id=notice_id)
+                session.add(localization)
+                session.commit()
+                localization_id = localization.id
+
+                log(
+                    f"Generating tiles/properties/contours for localization {localization.id}"
+                )
+                if asynchronous:
+                    try:
+                        loop = asyncio.get_event_loop()
+                    except Exception:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                    IOLoop.current().run_in_executor(
+                        None,
+                        lambda: add_tiles_properties_contour_and_obsplan(
+                            localization_id,
+                            user_id,
+                            url=url,
+                            notify=notify,
+                            properties=properties,
+                            tags=tags,
+                        ),
+                    )
                 else:
-                    source = {
-                        'id': Time(dateobs).isot.replace(":", "-"),
-                        'ra': ra,
-                        'dec': dec,
-                    }
+                    add_tiles_properties_contour_and_obsplan(
+                        localization_id,
+                        user_id,
+                        url=url,
+                        notify=notify,
+                        properties=properties,
+                        tags=tags,
+                    )
 
-                if source.get('id', None) is not None:
-                    existing_source = session.scalars(
-                        Source.select(user).where(Source.id == source['id'])
-                    ).first()
-                    if existing_source is None:
-                        post_source(source, user_id, session)
-        except Exception:
-            pass
+                gcn_notice.localization_ingested = True
+                session.add(gcn_notice)
+                session.commit()
+                try:
+                    ra, dec, error = (
+                        float(val) for val in skymap["localization_name"].split("_")
+                    )
+                    if error < SOURCE_RADIUS_THRESHOLD:
+                        source = {}
+                        name = root.find('./Why/Inference/Name')
+                        if name is not None:
+                            source = {
+                                'id': (name.text).replace(' ', ''),
+                                'ra': ra,
+                                'dec': dec,
+                            }
+                        elif any(
+                            [
+                                True if 'GRB' in tag.text.upper() else False
+                                for tag in get_tags(root)
+                            ]
+                        ):
+                            dateobs_txt = Time(dateobs).isot
+                            source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                            source = {
+                                'id': source_name,
+                                'ra': ra,
+                                'dec': dec,
+                            }
+                        elif any(
+                            [
+                                True if 'GW' in tag.text.upper() else False
+                                for tag in get_tags(root)
+                            ]
+                        ):
+                            dateobs_txt = Time(dateobs).isot
+                            source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                            source = {
+                                'id': source_name,
+                                'ra': ra,
+                                'dec': dec,
+                            }
+                        else:
+                            source = {
+                                'id': Time(dateobs).isot.replace(":", "-"),
+                                'ra': ra,
+                                'dec': dec,
+                            }
 
-    else:
-        localization_id = localization.id
-        log(f"Localization {localization_id} already exists.")
+                        if source.get('id', None) is not None:
+                            existing_source = session.scalars(
+                                Source.select(user).where(Source.id == source['id'])
+                            ).first()
+                            if existing_source is None:
+                                post_source(source, user_id, session)
+                except Exception:
+                    pass
 
-    return localization_id
+            else:
+                localization_id = localization.id
+                log(f"Localization {localization_id} already exists.")
+
+            return localization_id
+        except Exception as e:
+            log(f"Failed to post skymap from gcn notice {gcn_notice.id}: {e}")
+            raise ValueError(
+                f"Failed to post skymap from gcn notice {gcn_notice.id}: {e}"
+            )
 
 
 def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
@@ -1662,113 +1673,104 @@ class GcnEventHandler(BaseHandler):
 def add_tiles_and_properties_and_contour(
     localization_id,
     user_id,
-    parent_session=None,
     url=None,
     notify=True,
     properties=None,
     tags=None,
 ):
-    if parent_session is None:
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
-    else:
-        session = parent_session
+    with ThreadSession() as session:
+        try:
+            user = session.scalar(sa.select(User).where(User.id == user_id))
+            localization = session.scalar(
+                sa.select(Localization).where(Localization.id == localization_id)
+            )
 
-    try:
-        user = session.scalar(sa.select(User).where(User.id == user_id))
-        localization = session.scalar(
-            sa.select(Localization).where(Localization.id == localization_id)
-        )
+            properties_dict, tags_list = get_skymap_properties(localization)
+            if properties is not None:
+                properties_dict.update(properties)
+            if tags is not None:
+                tags_list.extend(tags)
 
-        properties_dict, tags_list = get_skymap_properties(localization)
-        if properties is not None:
-            properties_dict.update(properties)
-        if tags is not None:
-            tags_list.extend(tags)
-
-        properties = LocalizationProperty(
-            localization_id=localization_id, sent_by_id=user.id, data=properties_dict
-        )
-        session.add(properties)
-
-        tags = [
-            LocalizationTag(
+            properties = LocalizationProperty(
                 localization_id=localization_id,
-                text=text,
                 sent_by_id=user.id,
+                data=properties_dict,
             )
-            for text in tags_list
-        ]
-        session.add_all(tags)
+            session.add(properties)
 
-        gcn_tags = add_default_gcn_tags(user, session, localization=localization)
-        if gcn_tags is not None and len(gcn_tags) > 0:
-            session.add_all(gcn_tags)
-            session.commit()
+            tags = [
+                LocalizationTag(
+                    localization_id=localization_id,
+                    text=text,
+                    sent_by_id=user.id,
+                )
+                for text in tags_list
+            ]
+            session.add_all(tags)
 
-        if notify:
-            try:
-                loop = asyncio.get_event_loop()
-            except Exception:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+            gcn_tags = add_default_gcn_tags(user, session, localization=localization)
+            if gcn_tags is not None and len(gcn_tags) > 0:
+                session.add_all(gcn_tags)
+                session.commit()
 
-            request_body = {
-                'target_class_name': 'Localization',
-                'target_id': localization_id,
-            }
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: post_notification(request_body, timeout=30),
-            )
+            if notify:
+                try:
+                    loop = asyncio.get_event_loop()
+                except Exception:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
 
-        tiles = [
-            LocalizationTile(
-                localization_id=localization_id,
-                healpix=uniq,
-                probdensity=probdensity,
-                dateobs=localization.dateobs,
-            )
-            for uniq, probdensity in zip(localization.uniq, localization.probdensity)
-        ]
-
-        if parent_session is None:
-            session.add(localization)
-        session.add_all(tiles)
-        session.commit()
-
-        localization = get_contour(localization)
-        session.add(localization)
-        session.commit()
-
-        if url is not None:
-            try:
-                r = requests.get(url, allow_redirects=True, timeout=15)
-                data_to_disk = r.content
-                urlpath = urlsplit(url).path
-                localization_name = os.path.basename(urlpath)
-                if data_to_disk is not None:
-                    localization.save_data(localization_name, data_to_disk)
-                    session.commit()
-            except Exception as e:
-                log(
-                    f"Localization {localization_id} URL {url} failed to download: {str(e)}."
+                request_body = {
+                    'target_class_name': 'Localization',
+                    'target_id': localization_id,
+                }
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: post_notification(request_body, timeout=30),
                 )
 
-        return log(
-            f"Generated tiles / properties / contour for localization {localization_id}"
-        )
-    except Exception as e:
-        log(
-            f"Unable to generate tiles / properties / contour for localization {localization_id}: {e}"
-        )
-        session.rollback()
-    finally:
-        if parent_session is None:
-            session.close()
-            Session.remove()
+            tiles = [
+                LocalizationTile(
+                    localization_id=localization_id,
+                    healpix=uniq,
+                    probdensity=probdensity,
+                    dateobs=localization.dateobs,
+                )
+                for uniq, probdensity in zip(
+                    localization.uniq, localization.probdensity
+                )
+            ]
+
+            session.add(localization)
+            session.add_all(tiles)
+            session.commit()
+
+            localization = get_contour(localization)
+            session.add(localization)
+            session.commit()
+
+            if url is not None:
+                try:
+                    r = requests.get(url, allow_redirects=True, timeout=15)
+                    data_to_disk = r.content
+                    urlpath = urlsplit(url).path
+                    localization_name = os.path.basename(urlpath)
+                    if data_to_disk is not None:
+                        localization.save_data(localization_name, data_to_disk)
+                        session.commit()
+                except Exception as e:
+                    log(
+                        f"Localization {localization_id} URL {url} failed to download: {str(e)}."
+                    )
+
+            return log(
+                f"Generated tiles / properties / contour for localization {localization_id}"
+            )
+        except Exception as e:
+            session.rollback()
+            log(
+                f"Unable to generate tiles / properties / contour for localization {localization_id}: {e}"
+            )
 
 
 def add_default_gcn_tags(user, session, dateobs=None, localization=None):
@@ -1846,124 +1848,101 @@ def add_default_gcn_tags(user, session, dateobs=None, localization=None):
     return gcn_tags
 
 
-def add_observation_plans(localization_id, user_id, parent_session=None):
+def add_observation_plans(localization_id, user_id):
+    with ThreadSession() as session:
+        try:
+            user = session.scalar(sa.select(User).where(User.id == user_id))
+            localization = session.query(Localization).get(localization_id)
+            dateobs = localization.dateobs
 
-    if parent_session is None:
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
-    else:
-        session = parent_session
+            default_observation_plans = (
+                session.scalars(DefaultObservationPlanRequest.select(user))
+                .unique()
+                .all()
+            )
+            gcn_observation_plans = []
+            for plan in default_observation_plans:
+                gcn_observation_plan = {
+                    'allocation_id': plan.allocation_id,
+                    'filters': plan.filters,
+                    'payload': plan.payload,
+                    'default': plan.id,
+                }
+                gcn_observation_plans.append(gcn_observation_plan)
 
-    try:
-        user = session.scalar(sa.select(User).where(User.id == user_id))
-        localization = session.query(Localization).get(localization_id)
-        dateobs = localization.dateobs
-
-        default_observation_plans = (
-            session.scalars(DefaultObservationPlanRequest.select(user)).unique().all()
-        )
-        gcn_observation_plans = []
-        for plan in default_observation_plans:
-            gcn_observation_plan = {
-                'allocation_id': plan.allocation_id,
-                'filters': plan.filters,
-                'payload': plan.payload,
-                'default': plan.id,
-            }
-            gcn_observation_plans.append(gcn_observation_plan)
-
-        event = session.scalars(
-            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-        ).first()
-        start_date = str(datetime.datetime.utcnow()).replace("T", "")
-
-        for ii, gcn_observation_plan in enumerate(gcn_observation_plans):
-            allocation_id = gcn_observation_plan['allocation_id']
-            allocation = session.scalars(
-                Allocation.select(user).where(Allocation.id == allocation_id)
+            event = session.scalars(
+                GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
             ).first()
-            if allocation is not None:
+            start_date = str(datetime.datetime.utcnow()).replace("T", "")
 
-                end_date = allocation.instrument.telescope.next_sunrise()
-                if end_date is None:
-                    end_date = str(
-                        datetime.datetime.utcnow() + datetime.timedelta(days=1)
-                    ).replace("T", "")
-                else:
-                    end_date = Time(end_date, format='jd').iso
+            for ii, gcn_observation_plan in enumerate(gcn_observation_plans):
+                allocation_id = gcn_observation_plan['allocation_id']
+                allocation = session.scalars(
+                    Allocation.select(user).where(Allocation.id == allocation_id)
+                ).first()
+                if allocation is not None:
 
-                payload = {
-                    **gcn_observation_plan['payload'],
-                    'start_date': start_date,
-                    'end_date': end_date,
-                    'queue_name': f'{allocation.instrument.name}-{start_date}-{ii}',
-                }
-                if 'default' in gcn_observation_plan:
-                    payload['default'] = gcn_observation_plan['default']
-                plan = {
-                    'payload': payload,
-                    'allocation_id': allocation.id,
-                    'gcnevent_id': event.id,
-                    'localization_id': localization_id,
-                }
+                    end_date = allocation.instrument.telescope.next_sunrise()
+                    if end_date is None:
+                        end_date = str(
+                            datetime.datetime.utcnow() + datetime.timedelta(days=1)
+                        ).replace("T", "")
+                    else:
+                        end_date = Time(end_date, format='jd').iso
 
-                post_observation_plan(
-                    plan,
-                    user_id=user.id,
-                    session=session,
-                    default_plan=True,
-                    asynchronous=False,
-                )
-        log(f"Triggered observation plans for localization {localization_id}")
-    except Exception as e:
-        log(
-            f"Unable to trigger observation plans for localization {localization_id}: {e}"
-        )
-    finally:
-        if parent_session is None:
-            session.close()
-            Session.remove()
+                    payload = {
+                        **gcn_observation_plan['payload'],
+                        'start_date': start_date,
+                        'end_date': end_date,
+                        'queue_name': f'{allocation.instrument.name}-{start_date}-{ii}',
+                    }
+                    if 'default' in gcn_observation_plan:
+                        payload['default'] = gcn_observation_plan['default']
+                    plan = {
+                        'payload': payload,
+                        'allocation_id': allocation.id,
+                        'gcnevent_id': event.id,
+                        'localization_id': localization_id,
+                    }
+
+                    post_observation_plan(
+                        plan,
+                        user_id=user.id,
+                        default_plan=True,
+                    )
+            log(f"Triggered observation plans for localization {localization_id}")
+        except Exception as e:
+            session.rollback()
+            log(
+                f"Unable to trigger observation plans for localization {localization_id}: {e}"
+            )
 
 
 def add_tiles_properties_contour_and_obsplan(
     localization_id,
     user_id,
-    parent_session=None,
     url=None,
     notify=True,
     properties=None,
     tags=None,
 ):
 
-    if parent_session is None:
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
-    else:
-        session = parent_session
-
-    try:
-        add_tiles_and_properties_and_contour(
-            localization_id,
-            user_id,
-            session,
-            url=url,
-            notify=notify,
-            properties=properties,
-            tags=tags,
-        )
-        add_observation_plans(localization_id, user_id, session)
-    except Exception as e:
-        log(
-            f"Unable to generate tiles / properties / observation plans / contour for localization {localization_id}: {e}"
-        )
-    finally:
-        if parent_session is None:
-            session.close()
-            Session.remove()
+    with ThreadSession() as session:
+        try:
+            add_tiles_and_properties_and_contour(
+                localization_id,
+                user_id,
+                url=url,
+                notify=notify,
+                properties=properties,
+                tags=tags,
+            )
+            add_observation_plans(localization_id, user_id)
+        except Exception as e:
+            session.rollback()
+            log(
+                f"Unable to generate tiles / properties / observation plans / contour for localization {localization_id}: {e}"
+            )
 
 
 class LocalizationHandler(BaseHandler):
@@ -2229,553 +2208,598 @@ def add_gcn_summary(
     instrument_ids=None,
     acknowledgements=None,
 ):
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    with ThreadSession() as session:
+        try:
+            user = session.query(User).get(user_id)
+            session.user_or_token = user
 
-    try:
-        user = session.query(User).get(user_id)
-        session.user_or_token = user
-
-        gcn_summary = session.query(GcnSummary).get(summary_id)
-        group = session.query(Group).get(group_id)
-        event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
-        localization = (
-            session.query(Localization)
-            .filter(
-                Localization.dateobs == dateobs,
-                Localization.localization_name == localization_name,
+            gcn_summary = session.query(GcnSummary).get(summary_id)
+            group = session.query(Group).get(group_id)
+            event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
+            localization = (
+                session.query(Localization)
+                .filter(
+                    Localization.dateobs == dateobs,
+                    Localization.localization_name == localization_name,
+                )
+                .first()
             )
-            .first()
-        )
 
-        start_date_mjd = Time(arrow.get(start_date).datetime).mjd
-        end_date_mjd = Time(arrow.get(end_date).datetime).mjd
+            start_date_mjd = Time(arrow.get(start_date).datetime).mjd
+            end_date_mjd = Time(arrow.get(end_date).datetime).mjd
 
-        contents = []
-        if not no_text:
-            header_text = []
-            header_text.append(f"""TITLE: {title.upper()}\n""")
-            if number is not None:
-                header_text.append(f"""NUMBER: {number}\n""")
-            header_text.append(f"""SUBJECT: {subject[0].upper()+subject[1:]}\n""")
-            now_date = astropy.time.Time.now()
-            header_text.append(f"""DATE: {now_date}\n""")
+            contents = []
+            if not no_text:
+                header_text = []
+                header_text.append(f"""TITLE: {title.upper()}\n""")
+                if number is not None:
+                    header_text.append(f"""NUMBER: {number}\n""")
+                header_text.append(f"""SUBJECT: {subject[0].upper()+subject[1:]}\n""")
+                now_date = astropy.time.Time.now()
+                header_text.append(f"""DATE: {now_date}\n""")
 
-            if user.affiliations is not None and len(user.affiliations) > 0:
-                affiliations = ", ".join(user.affiliations)
-            else:
-                affiliations = "..."
+                if user.affiliations is not None and len(user.affiliations) > 0:
+                    affiliations = ", ".join(user.affiliations)
+                else:
+                    affiliations = "..."
 
-            # add a "FROM full name and affiliation"
-            from_str = (
-                f"""FROM:  {user.first_name} {user.last_name} at {affiliations}"""
-            )
-            if user.contact_email is not None:
-                from_str += f""" <{user.contact_email}>\n"""
-            header_text.append(from_str)
+                # add a "FROM full name and affiliation"
+                from_str = (
+                    f"""FROM:  {user.first_name} {user.last_name} at {affiliations}"""
+                )
+                if user.contact_email is not None:
+                    from_str += f""" <{user.contact_email}>\n"""
+                header_text.append(from_str)
 
-            if len(user_ids) > 0:
-                users = []
-                for mentioned_user_id in user_ids:
-                    mentioned_user = session.query(User).get(mentioned_user_id)
-                    if mentioned_user is not None:
-                        users.append(mentioned_user)
+                if len(user_ids) > 0:
+                    users = []
+                    for mentioned_user_id in user_ids:
+                        mentioned_user = session.query(User).get(mentioned_user_id)
+                        if mentioned_user is not None:
+                            users.append(mentioned_user)
 
-                users_txt = []
-                for mentioned_user in users:
-                    if (
-                        mentioned_user.first_name is not None
-                        and mentioned_user.last_name is not None
-                    ):
+                    users_txt = []
+                    for mentioned_user in users:
                         if (
-                            mentioned_user.affiliations is not None
-                            and len(mentioned_user.affiliations) > 0
+                            mentioned_user.first_name is not None
+                            and mentioned_user.last_name is not None
                         ):
-                            affiliations = ", ".join(mentioned_user.affiliations)
-                        else:
-                            affiliations = "..."
-
-                        users_txt.append(
-                            f"""{mentioned_user.first_name[0].upper()}. {mentioned_user.last_name} ({affiliations})"""
-                        )
-                # create a string of all users, with 5 users per line
-                users_txt = "\n".join(
-                    [
-                        ", ".join(users_txt[i : i + 5])
-                        for i in range(0, len(users_txt), 5)
-                    ]
-                )
-                header_text.append(f"""\n{users_txt}\n""")
-
-            header_text.append(f"""\non behalf of the {group.name}, report:\n""")
-            contents.extend(header_text)
-
-        if show_sources:
-            sources_text = []
-            source_page_number = 1
-            sources = []
-            while True:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                # get the sources in the event
-                coroutine = get_sources(
-                    user_id=user.id,
-                    session=session,
-                    group_ids=[group.id],
-                    user_accessible_group_ids=user_accessible_group_ids,
-                    first_detected_date=start_date,
-                    last_detected_date=end_date,
-                    localization_dateobs=dateobs,
-                    localization_name=localization_name,
-                    localization_cumprob=localization_cumprob,
-                    number_of_detections=number_of_detections,
-                    page_number=source_page_number,
-                    num_per_page=MAX_SOURCES_PER_PAGE,
-                )
-                sources_data = loop.run_until_complete(coroutine)
-                sources.extend(sources_data['sources'])
-                source_page_number += 1
-
-                if len(sources_data['sources']) < MAX_SOURCES_PER_PAGE:
-                    break
-            if len(sources) > 0:
-                obj_ids = [source['id'] for source in sources]
-                sources_with_status = session.scalars(
-                    SourcesConfirmedInGCN.select(user).where(
-                        SourcesConfirmedInGCN.obj_id.in_(obj_ids),
-                        SourcesConfirmedInGCN.dateobs == dateobs,
-                    )
-                ).all()
-
-                ids, tns_name, ras, decs, redshifts, status, explanation = (
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                )
-                for source in sources:
-                    ids.append(source['id'] if 'id' in source else None)
-                    tns_name.append(
-                        source['tns_name'] if 'tns_name' in source else None
-                    )
-                    ras.append(np.round(source['ra'], 5) if 'ra' in source else None)
-                    decs.append(np.round(source['dec'], 5) if 'dec' in source else None)
-                    redshift = source['redshift'] if 'redshift' in source else None
-                    if 'redshift_error' in source and redshift is not None:
-                        if source['redshift_error'] is not None:
-                            redshift = f"{redshift}±{source['redshift_error']}"
-                    redshifts.append(redshift)
-                    source_in_gcn = next(
-                        (
-                            source_in_gcn
-                            for source_in_gcn in sources_with_status
-                            if source_in_gcn.obj_id == source['id']
-                        ),
-                        None,
-                    )
-                    if source_in_gcn is not None:
-                        status.append(source_in_gcn.confirmed)
-                        explanation.append(source_in_gcn.explanation)
-                    else:
-                        status.append(None)
-                        explanation.append(None)
-
-                df = pd.DataFrame(
-                    {
-                        "id": ids,
-                        "tns": tns_name,
-                        "ra": ras,
-                        "dec": decs,
-                        "redshift": redshifts,
-                        "status": status,
-                        "comment": explanation,
-                    }
-                )
-
-                df_rejected = df[
-                    (
-                        df['id'].isin(
-                            [
-                                source.obj_id
-                                for source in sources_with_status
-                                if source.confirmed is False
-                            ]
-                        )
-                    )
-                ]
-
-                df_confirmed_or_unknown = df[(~df['id'].isin(df_rejected['id']))]
-
-                df_confirmed_or_unknown = df_confirmed_or_unknown.drop(
-                    columns=['status']
-                )
-                df_rejected = df_rejected.drop(columns=['status'])
-                df = df.fillna("--")
-
-                sources_text.append(
-                    f"\nFound {len(sources)} {'sources' if len(sources) > 1 else 'source'} in the event's localization, {df_rejected.shape[0]} of which {'have' if df_rejected.shape[0]>1 else 'has'} been rejected after characterization:\n"
-                ) if not no_text else None
-
-                if df_confirmed_or_unknown.shape[0] > 0:
-                    if not no_text:
-                        sources_text.append("Sources:")
-                    sources_text.append(
-                        tabulate(
-                            df_confirmed_or_unknown,
-                            headers='keys',
-                            tablefmt='psql',
-                            showindex=False,
-                            floatfmt=".4f",
-                        )
-                        + "\n"
-                    )
-                if df_rejected.shape[0] > 0:
-                    if not no_text:
-                        sources_text.append("Rejected sources:")
-                    sources_text.append(
-                        tabulate(
-                            df_rejected,
-                            headers='keys',
-                            tablefmt='psql',
-                            showindex=False,
-                            floatfmt=".4f",
-                        )
-                        + "\n"
-                    )
-
-                for source in sources:
-                    stmt = Photometry.select(user).where(
-                        Photometry.obj_id == source['id']
-                    )
-                    if photometry_in_window:
-                        stmt = stmt.where(
-                            Photometry.mjd >= start_date_mjd,
-                            Photometry.mjd <= end_date_mjd,
-                        )
-                    photometry = session.scalars(stmt).all()
-                    if len(photometry) > 0:
-                        sources_text.append(
-                            f"""\nPhotometry for source {source['id']}:\n"""
-                        ) if not no_text else None
-                        mjds, mags, filters, origins, instruments = (
-                            [],
-                            [],
-                            [],
-                            [],
-                            [],
-                        )
-                        for phot in photometry:
-                            phot = serialize(phot, 'ab', 'mag')
-                            mjds.append(phot['mjd'] if 'mjd' in phot else None)
                             if (
-                                'mag' in phot
-                                and 'magerr' in phot
-                                and phot['mag'] is not None
-                                and phot['magerr'] is not None
+                                mentioned_user.affiliations is not None
+                                and len(mentioned_user.affiliations) > 0
                             ):
-                                mags.append(
-                                    f"{np.round(phot['mag'],2)}±{np.round(phot['magerr'],2)}"
-                                )
-                            elif (
-                                'limiting_mag' in phot
-                                and phot['limiting_mag'] is not None
-                            ):
-                                mags.append(f"< {np.round(phot['limiting_mag'], 1)}")
+                                affiliations = ", ".join(mentioned_user.affiliations)
                             else:
-                                mags.append(None)
-                            filters.append(phot['filter'] if 'filter' in phot else None)
-                            origins.append(phot['origin'] if 'origin' in phot else None)
-                            instruments.append(
-                                phot['instrument_name']
-                                if 'instrument_name' in phot
-                                else None
-                            )
-                        df_phot = pd.DataFrame(
-                            {
-                                "mjd": mjds,
-                                "mag±err (ab)": mags,
-                                "filter": filters,
-                                "origin": origins,
-                                "instrument": instruments,
-                            }
-                        )
-                        if no_text:
-                            df_phot.insert(
-                                loc=0,
-                                column='obj_id',
-                                value=[p.obj_id for p in photometry],
-                            )
-                        df_phot = df_phot.fillna("--")
-                        sources_text.append(
-                            tabulate(
-                                df_phot,
-                                headers='keys',
-                                tablefmt='psql',
-                                showindex=False,
-                                floatfmt=".5f",
-                            )
-                            + "\n"
-                        )
-            contents.extend(sources_text)
+                                affiliations = "..."
 
-        if show_galaxies:
-            galaxies_text = []
-            galaxies_page_number = 1
-            galaxies = []
-            # get the galaxies in the event
-            while True:
-                galaxies_data = get_galaxies(
-                    session,
-                    localization_dateobs=event.dateobs,
-                    localization_name=localization_name,
-                    localization_cumprob=localization_cumprob,
-                    page_number=galaxies_page_number,
-                    num_per_page=MAX_GALAXIES,
-                    return_probability=True,
-                )
-                galaxies.extend(galaxies_data['galaxies'])
-                galaxies_page_number += 1
-                if len(galaxies_data['galaxies']) < MAX_GALAXIES:
-                    break
-            if len(galaxies) > 0:
-                galaxies_text.append(
-                    f"""\nFound {len(galaxies)} {'galaxies' if len(galaxies) > 1 else 'galaxy'} in the event's localization:\n"""
-                ) if not no_text else None
-                names, ras, decs, distmpcs, magks, mag_nuvs, mag_w1s, probabilities = (
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                )
-                for galaxy in galaxies:
-                    if galaxy['probability'] is None or galaxy['probability'] == 0:
-                        continue
-
-                    names.append(galaxy['name'] if 'name' in galaxy else None)
-                    ras.append(galaxy['ra'] if 'ra' in galaxy else None)
-                    decs.append(galaxy['dec'] if 'dec' in galaxy else None)
-                    distmpcs.append(galaxy['distmpc'] if 'distmpc' in galaxy else None)
-                    magks.append(galaxy['magk'] if 'magk' in galaxy else None)
-                    mag_nuvs.append(galaxy['mag_nuv'] if 'mag_nuv' in galaxy else None)
-                    mag_w1s.append(galaxy['mag_w1'] if 'mag_w1' in galaxy else None)
-                    probabilities.append(
-                        galaxy['probability'] if 'probability' in galaxy else None
+                            users_txt.append(
+                                f"""{mentioned_user.first_name[0].upper()}. {mentioned_user.last_name} ({affiliations})"""
+                            )
+                    # create a string of all users, with 5 users per line
+                    users_txt = "\n".join(
+                        [
+                            ", ".join(users_txt[i : i + 5])
+                            for i in range(0, len(users_txt), 5)
+                        ]
                     )
-                df = pd.DataFrame(
-                    {
-                        "name": names,
-                        "ra": ras,
-                        "dec": decs,
-                        "distmpc": distmpcs,
-                        "magk": magks,
-                        "mag_nuv": mag_nuvs,
-                        "mag_w1": mag_w1s,
-                        "probability": probabilities,
-                    }
-                )
-                df.sort_values("probability", inplace=True, ascending=False)
-                df = df[df["probability"] >= np.max(df["probability"]) * 0.01]
-                df = df.fillna("--")
-                galaxies_text.append(
-                    tabulate(
-                        df,
-                        headers=[
-                            'Galaxy',
-                            'RA [deg]',
-                            'Dec [deg]',
-                            'Distance [Mpc]',
-                            'm_Ks [mag]',
-                            'm_NUV [mag]',
-                            'm_W1 [mag]',
-                            'dP_dV',
-                        ],
-                        tablefmt='psql',
-                        showindex=False,
-                        floatfmt=(str, ".4f", ".4f", ".1f", ".1f", ".1f", ".1f", ".3e"),
-                    )
-                    + "\n"
-                )
-            contents.extend(galaxies_text)
+                    header_text.append(f"""\n{users_txt}\n""")
 
-            if localization is not None:
-                distmean, distsigma = localization.marginal_moments
-                if (distmean is not None) and (distsigma is not None):
-                    min_distance = np.max([distmean - 3 * distsigma, 0])
-                    max_distance = np.min([distmean + 3 * distsigma, 10000])
-                    try:
-                        completeness = get_galaxies_completeness(
-                            galaxies, dist_min=min_distance, dist_max=max_distance
-                        )
-                    except Exception:
-                        completeness = None
+                header_text.append(f"""\non behalf of the {group.name}, report:\n""")
+                contents.extend(header_text)
 
-                    if completeness is not None and not no_text:
-                        completeness_text = f"\n\nThe estimated mass completeness of the catalog for the skymap distance is ~{int(round(completeness*100,0))}%. This calculation was made by comparing the total mass within the catalog to a stellar mass function described by a Schechter function in the range {distmean:.1f} ± {distsigma:.1f} Mpc (within 3 sigma of the skymap).\n"
-                        contents.append(completeness_text)
-
-        if show_observations:
-            # get the executed obs, by instrument
-            observations_text = []
-            start_date = arrow.get(start_date).datetime
-            end_date = arrow.get(end_date).datetime
-
-            if instrument_ids is not None:
-                stmt = Instrument.select(user).where(Instrument.id.in_(instrument_ids))
-            else:
-                stmt = Instrument.select(user).options(joinedload(Instrument.telescope))
-            instruments = session.scalars(stmt).all()
-            if instruments is not None:
-                for instrument in instruments:
-                    data = get_observations(
-                        session,
-                        start_date,
-                        end_date,
-                        telescope_name=instrument.telescope.name,
-                        instrument_name=instrument.name,
+            if show_sources:
+                sources_text = []
+                source_page_number = 1
+                sources = []
+                while True:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    # get the sources in the event
+                    coroutine = get_sources(
+                        user_id=user.id,
+                        group_ids=[group.id],
+                        user_accessible_group_ids=user_accessible_group_ids,
+                        first_detected_date=start_date,
+                        last_detected_date=end_date,
                         localization_dateobs=dateobs,
                         localization_name=localization_name,
                         localization_cumprob=localization_cumprob,
-                        min_observations_per_field=number_of_observations,
-                        return_statistics=True,
-                        stats_method=stats_method,
-                        n_per_page=MAX_OBSERVATIONS,
-                        page_number=1,
+                        number_of_detections=number_of_detections,
+                        page_number=source_page_number,
+                        num_per_page=MAX_SOURCES_PER_PAGE,
+                    )
+                    sources_data = loop.run_until_complete(coroutine)
+                    sources.extend(sources_data['sources'])
+                    source_page_number += 1
+
+                    if len(sources_data['sources']) < MAX_SOURCES_PER_PAGE:
+                        break
+                if len(sources) > 0:
+                    obj_ids = [source['id'] for source in sources]
+                    sources_with_status = session.scalars(
+                        SourcesConfirmedInGCN.select(user).where(
+                            SourcesConfirmedInGCN.obj_id.in_(obj_ids),
+                            SourcesConfirmedInGCN.dateobs == dateobs,
+                        )
+                    ).all()
+
+                    ids, tns_name, ras, decs, redshifts, status, explanation = (
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                    )
+                    for source in sources:
+                        ids.append(source['id'] if 'id' in source else None)
+                        tns_name.append(
+                            source['tns_name'] if 'tns_name' in source else None
+                        )
+                        ras.append(
+                            np.round(source['ra'], 5) if 'ra' in source else None
+                        )
+                        decs.append(
+                            np.round(source['dec'], 5) if 'dec' in source else None
+                        )
+                        redshift = source['redshift'] if 'redshift' in source else None
+                        if 'redshift_error' in source and redshift is not None:
+                            if source['redshift_error'] is not None:
+                                redshift = f"{redshift}±{source['redshift_error']}"
+                        redshifts.append(redshift)
+                        source_in_gcn = next(
+                            (
+                                source_in_gcn
+                                for source_in_gcn in sources_with_status
+                                if source_in_gcn.obj_id == source['id']
+                            ),
+                            None,
+                        )
+                        if source_in_gcn is not None:
+                            status.append(source_in_gcn.confirmed)
+                            explanation.append(source_in_gcn.explanation)
+                        else:
+                            status.append(None)
+                            explanation.append(None)
+
+                    df = pd.DataFrame(
+                        {
+                            "id": ids,
+                            "tns": tns_name,
+                            "ra": ras,
+                            "dec": decs,
+                            "redshift": redshifts,
+                            "status": status,
+                            "comment": explanation,
+                        }
                     )
 
-                    observations = data["observations"]
-                    num_observations = len(observations)
-                    if num_observations > 0:
-                        start_observation = astropy.time.Time(
-                            min(obs["obstime"] for obs in observations),
-                            format='datetime',
+                    df_rejected = df[
+                        (
+                            df['id'].isin(
+                                [
+                                    source.obj_id
+                                    for source in sources_with_status
+                                    if source.confirmed is False
+                                ]
+                            )
                         )
-                        unique_filters = list({obs["filt"] for obs in observations})
-                        total_time = sum(obs["exposure_time"] for obs in observations)
-                        probability = data["probability"]
-                        area = data["area"]
+                    ]
 
-                        dt = start_observation.datetime - event.dateobs
-                        before_after = "after" if dt.total_seconds() > 0 else "before"
-                        observations_text.append(
-                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format='datetime').isot} UTC.  We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees of the localization at least {nb_obs_to_word(number_of_observations)}, beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.\nThe table below shows the photometry for each observation.\n"""
-                        ) if not no_text else None
-                        t0s, mjds, ras, decs, filters, exposures, limmags = (
-                            [],
-                            [],
-                            [],
-                            [],
-                            [],
-                            [],
-                            [],
-                        )
-                        for obs in observations:
-                            t0s.append(
-                                (obs["obstime"] - event.dateobs)
-                                / datetime.timedelta(hours=1)
-                                if "obstime" in obs
-                                else None
-                            )
-                            mjds.append(
-                                astropy.time.Time(obs["obstime"], format='datetime').mjd
-                                if "obstime" in obs
-                                else None
-                            )
-                            ras.append(
-                                obs['field']["ra"] if "ra" in obs['field'] else None
-                            )
-                            decs.append(
-                                obs['field']["dec"] if "dec" in obs['field'] else None
-                            )
-                            filters.append(obs["filt"] if "filt" in obs else None)
-                            exposures.append(
-                                obs["exposure_time"] if "exposure_time" in obs else None
-                            )
-                            limmags.append(obs["limmag"] if "limmag" in obs else None)
-                        df_obs = pd.DataFrame(
-                            {
-                                "T-T0 (hr)": t0s,
-                                "mjd": mjds,
-                                "ra": ras,
-                                "dec": decs,
-                                "filter": filters,
-                                "exposure": exposures,
-                                "limmag (ab)": limmags,
-                            }
-                        )
-                        if no_text:
-                            df_obs.insert(
-                                loc=0,
-                                column="tel/inst",
-                                value=[
-                                    f"{instrument.telescope.name}/{instrument.name}"
-                                    for obs in observations
-                                ],
-                            )
-                        df_obs = df_obs.fillna("--")
-                        floatfmt = [".2f", ".5f", ".5f", ".5f", "%s", "%d", ".2f"]
-                        if no_text:
-                            floatfmt.insert(0, "%s")
+                    df_confirmed_or_unknown = df[(~df['id'].isin(df_rejected['id']))]
 
-                        observations_text.append(
+                    df_confirmed_or_unknown = df_confirmed_or_unknown.drop(
+                        columns=['status']
+                    )
+                    df_rejected = df_rejected.drop(columns=['status'])
+                    df = df.fillna("--")
+
+                    sources_text.append(
+                        f"\nFound {len(sources)} {'sources' if len(sources) > 1 else 'source'} in the event's localization, {df_rejected.shape[0]} of which {'have' if df_rejected.shape[0]>1 else 'has'} been rejected after characterization:\n"
+                    ) if not no_text else None
+
+                    if df_confirmed_or_unknown.shape[0] > 0:
+                        if not no_text:
+                            sources_text.append("Sources:")
+                        sources_text.append(
                             tabulate(
-                                df_obs,
+                                df_confirmed_or_unknown,
                                 headers='keys',
                                 tablefmt='psql',
                                 showindex=False,
-                                floatfmt=floatfmt,
+                                floatfmt=".4f",
                             )
                             + "\n"
                         )
-                if len(observations_text) > 0 and not no_text:
-                    observations_text.insert(0, "\nObservations:")
+                    if df_rejected.shape[0] > 0:
+                        if not no_text:
+                            sources_text.append("Rejected sources:")
+                        sources_text.append(
+                            tabulate(
+                                df_rejected,
+                                headers='keys',
+                                tablefmt='psql',
+                                showindex=False,
+                                floatfmt=".4f",
+                            )
+                            + "\n"
+                        )
 
-                if len(observations_text) > 0:
-                    contents.extend(observations_text)
+                    for source in sources:
+                        stmt = Photometry.select(user).where(
+                            Photometry.obj_id == source['id']
+                        )
+                        if photometry_in_window:
+                            stmt = stmt.where(
+                                Photometry.mjd >= start_date_mjd,
+                                Photometry.mjd <= end_date_mjd,
+                            )
+                        photometry = session.scalars(stmt).all()
+                        if len(photometry) > 0:
+                            sources_text.append(
+                                f"""\nPhotometry for source {source['id']}:\n"""
+                            ) if not no_text else None
+                            mjds, mags, filters, origins, instruments = (
+                                [],
+                                [],
+                                [],
+                                [],
+                                [],
+                            )
+                            for phot in photometry:
+                                phot = serialize(phot, 'ab', 'mag')
+                                mjds.append(phot['mjd'] if 'mjd' in phot else None)
+                                if (
+                                    'mag' in phot
+                                    and 'magerr' in phot
+                                    and phot['mag'] is not None
+                                    and phot['magerr'] is not None
+                                ):
+                                    mags.append(
+                                        f"{np.round(phot['mag'],2)}±{np.round(phot['magerr'],2)}"
+                                    )
+                                elif (
+                                    'limiting_mag' in phot
+                                    and phot['limiting_mag'] is not None
+                                ):
+                                    mags.append(
+                                        f"< {np.round(phot['limiting_mag'], 1)}"
+                                    )
+                                else:
+                                    mags.append(None)
+                                filters.append(
+                                    phot['filter'] if 'filter' in phot else None
+                                )
+                                origins.append(
+                                    phot['origin'] if 'origin' in phot else None
+                                )
+                                instruments.append(
+                                    phot['instrument_name']
+                                    if 'instrument_name' in phot
+                                    else None
+                                )
+                            df_phot = pd.DataFrame(
+                                {
+                                    "mjd": mjds,
+                                    "mag±err (ab)": mags,
+                                    "filter": filters,
+                                    "origin": origins,
+                                    "instrument": instruments,
+                                }
+                            )
+                            if no_text:
+                                df_phot.insert(
+                                    loc=0,
+                                    column='obj_id',
+                                    value=[p.obj_id for p in photometry],
+                                )
+                            df_phot = df_phot.fillna("--")
+                            sources_text.append(
+                                tabulate(
+                                    df_phot,
+                                    headers='keys',
+                                    tablefmt='psql',
+                                    showindex=False,
+                                    floatfmt=".5f",
+                                )
+                                + "\n"
+                            )
+                contents.extend(sources_text)
 
-        if not no_text and acknowledgements is not None and len(acknowledgements) > 0:
-            contents.append("\n" + acknowledgements)
-        gcn_summary.text = "\n".join(contents)
-        session.commit()
+            if show_galaxies:
+                galaxies_text = []
+                galaxies_page_number = 1
+                galaxies = []
+                # get the galaxies in the event
+                while True:
+                    galaxies_data = get_galaxies(
+                        session,
+                        localization_dateobs=event.dateobs,
+                        localization_name=localization_name,
+                        localization_cumprob=localization_cumprob,
+                        page_number=galaxies_page_number,
+                        num_per_page=MAX_GALAXIES,
+                        return_probability=True,
+                    )
+                    galaxies.extend(galaxies_data['galaxies'])
+                    galaxies_page_number += 1
+                    if len(galaxies_data['galaxies']) < MAX_GALAXIES:
+                        break
+                if len(galaxies) > 0:
+                    galaxies_text.append(
+                        f"""\nFound {len(galaxies)} {'galaxies' if len(galaxies) > 1 else 'galaxy'} in the event's localization:\n"""
+                    ) if not no_text else None
+                    (
+                        names,
+                        ras,
+                        decs,
+                        distmpcs,
+                        magks,
+                        mag_nuvs,
+                        mag_w1s,
+                        probabilities,
+                    ) = (
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                        [],
+                    )
+                    for galaxy in galaxies:
+                        if galaxy['probability'] is None or galaxy['probability'] == 0:
+                            continue
 
-        flow = Flow()
-        flow.push(
-            user_id='*',
-            action_type="skyportal/REFRESH_GCN_EVENT",
-            payload={"gcnEvent_dateobs": event.dateobs},
-        )
+                        names.append(galaxy['name'] if 'name' in galaxy else None)
+                        ras.append(galaxy['ra'] if 'ra' in galaxy else None)
+                        decs.append(galaxy['dec'] if 'dec' in galaxy else None)
+                        distmpcs.append(
+                            galaxy['distmpc'] if 'distmpc' in galaxy else None
+                        )
+                        magks.append(galaxy['magk'] if 'magk' in galaxy else None)
+                        mag_nuvs.append(
+                            galaxy['mag_nuv'] if 'mag_nuv' in galaxy else None
+                        )
+                        mag_w1s.append(galaxy['mag_w1'] if 'mag_w1' in galaxy else None)
+                        probabilities.append(
+                            galaxy['probability'] if 'probability' in galaxy else None
+                        )
+                    df = pd.DataFrame(
+                        {
+                            "name": names,
+                            "ra": ras,
+                            "dec": decs,
+                            "distmpc": distmpcs,
+                            "magk": magks,
+                            "mag_nuv": mag_nuvs,
+                            "mag_w1": mag_w1s,
+                            "probability": probabilities,
+                        }
+                    )
+                    df.sort_values("probability", inplace=True, ascending=False)
+                    df = df[df["probability"] >= np.max(df["probability"]) * 0.01]
+                    df = df.fillna("--")
+                    galaxies_text.append(
+                        tabulate(
+                            df,
+                            headers=[
+                                'Galaxy',
+                                'RA [deg]',
+                                'Dec [deg]',
+                                'Distance [Mpc]',
+                                'm_Ks [mag]',
+                                'm_NUV [mag]',
+                                'm_W1 [mag]',
+                                'dP_dV',
+                            ],
+                            tablefmt='psql',
+                            showindex=False,
+                            floatfmt=(
+                                str,
+                                ".4f",
+                                ".4f",
+                                ".1f",
+                                ".1f",
+                                ".1f",
+                                ".1f",
+                                ".3e",
+                            ),
+                        )
+                        + "\n"
+                    )
+                contents.extend(galaxies_text)
 
-        notification = UserNotification(
-            user=user,
-            text=f"GCN summary *{gcn_summary.title}* on *{event.dateobs}* created.",
-            notification_type="gcn_summary",
-            url=f"/gcn_events/{event.dateobs}",
-        )
-        session.add(notification)
-        session.commit()
+                if localization is not None:
+                    distmean, distsigma = localization.marginal_moments
+                    if (distmean is not None) and (distsigma is not None):
+                        min_distance = np.max([distmean - 3 * distsigma, 0])
+                        max_distance = np.min([distmean + 3 * distsigma, 10000])
+                        try:
+                            completeness = get_galaxies_completeness(
+                                galaxies, dist_min=min_distance, dist_max=max_distance
+                            )
+                        except Exception:
+                            completeness = None
 
-        log(f"Successfully generated GCN summary {gcn_summary.id}")
+                        if completeness is not None and not no_text:
+                            completeness_text = f"\n\nThe estimated mass completeness of the catalog for the skymap distance is ~{int(round(completeness*100,0))}%. This calculation was made by comparing the total mass within the catalog to a stellar mass function described by a Schechter function in the range {distmean:.1f} ± {distsigma:.1f} Mpc (within 3 sigma of the skymap).\n"
+                            contents.append(completeness_text)
 
-    except Exception as e:
-        try:
-            gcn_summary = session.query(GcnSummary).get(summary_id)
-            gcn_summary.text = "Failed to generate summary."
+            if show_observations:
+                # get the executed obs, by instrument
+                observations_text = []
+                start_date = arrow.get(start_date).datetime
+                end_date = arrow.get(end_date).datetime
+
+                if instrument_ids is not None:
+                    stmt = Instrument.select(user).where(
+                        Instrument.id.in_(instrument_ids)
+                    )
+                else:
+                    stmt = Instrument.select(user).options(
+                        joinedload(Instrument.telescope)
+                    )
+                instruments = session.scalars(stmt).all()
+                if instruments is not None:
+                    for instrument in instruments:
+                        data = get_observations(
+                            session,
+                            start_date,
+                            end_date,
+                            telescope_name=instrument.telescope.name,
+                            instrument_name=instrument.name,
+                            localization_dateobs=dateobs,
+                            localization_name=localization_name,
+                            localization_cumprob=localization_cumprob,
+                            min_observations_per_field=number_of_observations,
+                            return_statistics=True,
+                            stats_method=stats_method,
+                            n_per_page=MAX_OBSERVATIONS,
+                            page_number=1,
+                        )
+
+                        observations = data["observations"]
+                        num_observations = len(observations)
+                        if num_observations > 0:
+                            start_observation = astropy.time.Time(
+                                min(obs["obstime"] for obs in observations),
+                                format='datetime',
+                            )
+                            unique_filters = list({obs["filt"] for obs in observations})
+                            total_time = sum(
+                                obs["exposure_time"] for obs in observations
+                            )
+                            probability = data["probability"]
+                            area = data["area"]
+
+                            dt = start_observation.datetime - event.dateobs
+                            before_after = (
+                                "after" if dt.total_seconds() > 0 else "before"
+                            )
+                            observations_text.append(
+                                f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format='datetime').isot} UTC.  We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees of the localization at least {nb_obs_to_word(number_of_observations)}, beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.\nThe table below shows the photometry for each observation.\n"""
+                            ) if not no_text else None
+                            t0s, mjds, ras, decs, filters, exposures, limmags = (
+                                [],
+                                [],
+                                [],
+                                [],
+                                [],
+                                [],
+                                [],
+                            )
+                            for obs in observations:
+                                t0s.append(
+                                    (obs["obstime"] - event.dateobs)
+                                    / datetime.timedelta(hours=1)
+                                    if "obstime" in obs
+                                    else None
+                                )
+                                mjds.append(
+                                    astropy.time.Time(
+                                        obs["obstime"], format='datetime'
+                                    ).mjd
+                                    if "obstime" in obs
+                                    else None
+                                )
+                                ras.append(
+                                    obs['field']["ra"] if "ra" in obs['field'] else None
+                                )
+                                decs.append(
+                                    obs['field']["dec"]
+                                    if "dec" in obs['field']
+                                    else None
+                                )
+                                filters.append(obs["filt"] if "filt" in obs else None)
+                                exposures.append(
+                                    obs["exposure_time"]
+                                    if "exposure_time" in obs
+                                    else None
+                                )
+                                limmags.append(
+                                    obs["limmag"] if "limmag" in obs else None
+                                )
+                            df_obs = pd.DataFrame(
+                                {
+                                    "T-T0 (hr)": t0s,
+                                    "mjd": mjds,
+                                    "ra": ras,
+                                    "dec": decs,
+                                    "filter": filters,
+                                    "exposure": exposures,
+                                    "limmag (ab)": limmags,
+                                }
+                            )
+                            if no_text:
+                                df_obs.insert(
+                                    loc=0,
+                                    column="tel/inst",
+                                    value=[
+                                        f"{instrument.telescope.name}/{instrument.name}"
+                                        for obs in observations
+                                    ],
+                                )
+                            df_obs = df_obs.fillna("--")
+                            floatfmt = [".2f", ".5f", ".5f", ".5f", "%s", "%d", ".2f"]
+                            if no_text:
+                                floatfmt.insert(0, "%s")
+
+                            observations_text.append(
+                                tabulate(
+                                    df_obs,
+                                    headers='keys',
+                                    tablefmt='psql',
+                                    showindex=False,
+                                    floatfmt=floatfmt,
+                                )
+                                + "\n"
+                            )
+                    if len(observations_text) > 0 and not no_text:
+                        observations_text.insert(0, "\nObservations:")
+
+                    if len(observations_text) > 0:
+                        contents.extend(observations_text)
+
+            if (
+                not no_text
+                and acknowledgements is not None
+                and len(acknowledgements) > 0
+            ):
+                contents.append("\n" + acknowledgements)
+            gcn_summary.text = "\n".join(contents)
             session.commit()
-        except Exception:
-            pass
-        log(f"Unable to create GCN summary: {e}")
-        raise e
-    finally:
-        session.close()
-        Session.remove()
+
+            flow = Flow()
+            flow.push(
+                user_id='*',
+                action_type="skyportal/REFRESH_GCN_EVENT",
+                payload={"gcnEvent_dateobs": event.dateobs},
+            )
+
+            notification = UserNotification(
+                user=user,
+                text=f"GCN summary *{gcn_summary.title}* on *{event.dateobs}* created.",
+                notification_type="gcn_summary",
+                url=f"/gcn_events/{event.dateobs}",
+            )
+            session.add(notification)
+            session.commit()
+
+            log(f"Successfully generated GCN summary {gcn_summary.id}")
+        except Exception as e:
+            session.rollback()
+            try:
+                gcn_summary = session.query(GcnSummary).get(summary_id)
+                gcn_summary.text = "Failed to generate summary."
+                session.commit()
+            except Exception:
+                session.rollback()
+                pass
+            log(f"Unable to create GCN summary: {e}")
+            raise e
 
 
 class GcnSummaryHandler(BaseHandler):
@@ -3260,231 +3284,225 @@ def add_gcn_report(
     stats_method='python',
     instrument_ids=None,
 ):
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
-
-    try:
-        user = session.query(User).get(user_id)
-        user_accessible_group_ids = [group.id for group in user.accessible_groups]
-        session.user_or_token = user
-
-        gcn_report = session.query(GcnReport).get(report_id)
-
+    with ThreadSession() as session:
         try:
-            group = session.query(Group).get(group_id)
-            event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
-            localization = (
-                session.query(Localization)
-                .filter(
-                    Localization.dateobs == dateobs,
-                    Localization.localization_name == localization_name,
+            user = session.query(User).get(user_id)
+            user_accessible_group_ids = [group.id for group in user.accessible_groups]
+            session.user_or_token = user
+
+            gcn_report = session.query(GcnReport).get(report_id)
+
+            try:
+                group = session.query(Group).get(group_id)
+                event = (
+                    session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
                 )
-                .first()
-            )
-            start_date_mjd = Time(arrow.get(start_date).datetime).mjd
-            end_date_mjd = Time(arrow.get(end_date).datetime).mjd
-
-            contents = {}
-            if show_sources:
-                source_page_number = 1
-                sources = []
-                while True:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    # get the sources in the event
-                    coroutine = get_sources(
-                        user_id=user.id,
-                        session=session,
-                        group_ids=[group.id],
-                        user_accessible_group_ids=user_accessible_group_ids,
-                        first_detected_date=start_date,
-                        last_detected_date=end_date,
-                        localization_dateobs=dateobs,
-                        localization_name=localization_name,
-                        localization_cumprob=localization_cumprob,
-                        number_of_detections=number_of_detections,
-                        page_number=source_page_number,
-                        num_per_page=MAX_SOURCES_PER_PAGE,
+                localization = (
+                    session.query(Localization)
+                    .filter(
+                        Localization.dateobs == dateobs,
+                        Localization.localization_name == localization_name,
                     )
-                    sources_data = loop.run_until_complete(coroutine)
-                    sources.extend(sources_data['sources'])
-                    source_page_number += 1
+                    .first()
+                )
+                start_date_mjd = Time(arrow.get(start_date).datetime).mjd
+                end_date_mjd = Time(arrow.get(end_date).datetime).mjd
 
-                    if len(sources_data['sources']) < MAX_SOURCES_PER_PAGE:
-                        break
-                if len(sources) > 0:
-                    obj_ids = [source['id'] for source in sources]
-                    sources_with_status = session.scalars(
-                        SourcesConfirmedInGCN.select(user).where(
-                            SourcesConfirmedInGCN.obj_id.in_(obj_ids),
-                            SourcesConfirmedInGCN.dateobs == dateobs,
-                        )
-                    ).all()
-                    for source in sources:
-                        source["source_in_gcn"] = next(
-                            (
-                                source_in_gcn.to_dict()
-                                for source_in_gcn in sources_with_status
-                                if source_in_gcn.obj_id == source['id']
-                            ),
-                            None,
-                        )
-
-                        stmt = Photometry.select(user).where(
-                            Photometry.obj_id == source['id']
-                        )
-                        if photometry_in_window:
-                            stmt = stmt.where(
-                                Photometry.mjd >= start_date_mjd,
-                                Photometry.mjd <= end_date_mjd,
-                            )
-                        photometry = session.scalars(stmt).all()
-                        if len(photometry) > 0:
-                            source["photometry"] = [
-                                serialize(phot, 'ab', 'mag') for phot in photometry
-                            ]
-                        else:
-                            source["photometry"] = []
-
-                contents["sources"] = sources
-
-            if show_observations:
-                # get the executed obs, by instrument
-                observations = []
-                observation_statistics = []
-
-                start_date = arrow.get(start_date).datetime
-                end_date = arrow.get(end_date).datetime
-
-                if instrument_ids is not None:
-                    stmt = Instrument.select(user).where(
-                        Instrument.id.in_(instrument_ids)
-                    )
-                else:
-                    stmt = Instrument.select(user).options(
-                        joinedload(Instrument.telescope)
-                    )
-                instruments = session.scalars(stmt).all()
-                if instruments is not None:
-                    for instrument in instruments:
-                        data = get_observations(
-                            session,
-                            start_date,
-                            end_date,
-                            telescope_name=instrument.telescope.name,
-                            instrument_name=instrument.name,
+                contents = {}
+                if show_sources:
+                    source_page_number = 1
+                    sources = []
+                    while True:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        # get the sources in the event
+                        coroutine = get_sources(
+                            user_id=user.id,
+                            group_ids=[group.id],
+                            user_accessible_group_ids=user_accessible_group_ids,
+                            first_detected_date=start_date,
+                            last_detected_date=end_date,
                             localization_dateobs=dateobs,
                             localization_name=localization_name,
                             localization_cumprob=localization_cumprob,
-                            return_statistics=True,
-                            includeGeoJSON=True,
-                            stats_method=stats_method,
-                            n_per_page=MAX_OBSERVATIONS,
-                            page_number=1,
+                            number_of_detections=number_of_detections,
+                            page_number=source_page_number,
+                            num_per_page=MAX_SOURCES_PER_PAGE,
                         )
-                        observation_statistics.append(
-                            {
-                                'telescope_name': instrument.telescope.name,
-                                'instrument_name': instrument.name,
-                                'probability': data['probability'],
-                                'area': data['area'],
-                            }
+                        sources_data = loop.run_until_complete(coroutine)
+                        sources.extend(sources_data['sources'])
+                        source_page_number += 1
+
+                        if len(sources_data['sources']) < MAX_SOURCES_PER_PAGE:
+                            break
+                    if len(sources) > 0:
+                        obj_ids = [source['id'] for source in sources]
+                        sources_with_status = session.scalars(
+                            SourcesConfirmedInGCN.select(user).where(
+                                SourcesConfirmedInGCN.obj_id.in_(obj_ids),
+                                SourcesConfirmedInGCN.dateobs == dateobs,
+                            )
+                        ).all()
+                        for source in sources:
+                            source["source_in_gcn"] = next(
+                                (
+                                    source_in_gcn.to_dict()
+                                    for source_in_gcn in sources_with_status
+                                    if source_in_gcn.obj_id == source['id']
+                                ),
+                                None,
+                            )
+
+                            stmt = Photometry.select(user).where(
+                                Photometry.obj_id == source['id']
+                            )
+                            if photometry_in_window:
+                                stmt = stmt.where(
+                                    Photometry.mjd >= start_date_mjd,
+                                    Photometry.mjd <= end_date_mjd,
+                                )
+                            photometry = session.scalars(stmt).all()
+                            if len(photometry) > 0:
+                                source["photometry"] = [
+                                    serialize(phot, 'ab', 'mag') for phot in photometry
+                                ]
+                            else:
+                                source["photometry"] = []
+
+                    contents["sources"] = sources
+
+                if show_observations:
+                    # get the executed obs, by instrument
+                    observations = []
+                    observation_statistics = []
+
+                    start_date = arrow.get(start_date).datetime
+                    end_date = arrow.get(end_date).datetime
+
+                    if instrument_ids is not None:
+                        stmt = Instrument.select(user).where(
+                            Instrument.id.in_(instrument_ids)
                         )
-                        observations.extend(data["observations"])
-
-                for o in observations:
-                    o["field_coordinates"] = o["field"]["contour_summary"]["features"][
-                        0
-                    ]["geometry"]["coordinates"]
-                    del o["field"]
-                    del o["instrument"]
-
-                contents["observations"] = observations
-                contents["observation_statistics"] = observation_statistics
-
-            if show_survey_efficiencies:
-                if instrument_ids is not None:
-                    stmt = SurveyEfficiencyForObservations.select(user).where(
-                        SurveyEfficiencyForObservations.instrument_id.in_(
-                            instrument_ids
+                    else:
+                        stmt = Instrument.select(user).options(
+                            joinedload(Instrument.telescope)
                         )
-                    )
-                else:
-                    stmt = SurveyEfficiencyForObservations.select(user)
-                survey_efficiency_analyses = session.scalars(stmt).all()
+                    instruments = session.scalars(stmt).all()
+                    if instruments is not None:
+                        for instrument in instruments:
+                            data = get_observations(
+                                session,
+                                start_date,
+                                end_date,
+                                telescope_name=instrument.telescope.name,
+                                instrument_name=instrument.name,
+                                localization_dateobs=dateobs,
+                                localization_name=localization_name,
+                                localization_cumprob=localization_cumprob,
+                                return_statistics=True,
+                                includeGeoJSON=True,
+                                stats_method=stats_method,
+                                n_per_page=MAX_OBSERVATIONS,
+                                page_number=1,
+                            )
+                            observation_statistics.append(
+                                {
+                                    'telescope_name': instrument.telescope.name,
+                                    'instrument_name': instrument.name,
+                                    'probability': data['probability'],
+                                    'area': data['area'],
+                                }
+                            )
+                            observations.extend(data["observations"])
 
-                contents["survey_efficiency_analyses"] = [
-                    {
-                        **analysis.to_dict(),
-                        'number_of_transients': analysis.number_of_transients,
-                        'number_in_covered': analysis.number_in_covered,
-                        'number_detected': analysis.number_detected,
-                        'efficiency': analysis.efficiency,
-                    }
-                    for analysis in survey_efficiency_analyses
-                ]
+                    for o in observations:
+                        o["field_coordinates"] = o["field"]["contour_summary"][
+                            "features"
+                        ][0]["geometry"]["coordinates"]
+                        del o["field"]
+                        del o["instrument"]
 
-            tags = event.tags
-            aliases = event.aliases
-            event_properties = event.properties
-            localization_properties = localization.properties
+                    contents["observations"] = observations
+                    contents["observation_statistics"] = observation_statistics
 
-            name = None
-            for alias in aliases:
-                if alias.startswith("LVC#") or alias.startswith("FERMI#"):
-                    name = alias.split("#")[1]
-                    break
+                if show_survey_efficiencies:
+                    if instrument_ids is not None:
+                        stmt = SurveyEfficiencyForObservations.select(user).where(
+                            SurveyEfficiencyForObservations.instrument_id.in_(
+                                instrument_ids
+                            )
+                        )
+                    else:
+                        stmt = SurveyEfficiencyForObservations.select(user)
+                    survey_efficiency_analyses = session.scalars(stmt).all()
 
-            contents["event"] = {
-                "status": "success",
-                "name": name,
-                "localization_name": localization_name,
-                "cumulative_probability": float(localization_cumprob) * 100,
-                "tags": list(set(tags)),
-                "aliases": list(set(aliases)),
-                "event_properties": event_properties,
-                "localization_properties": localization_properties,
-            }
+                    contents["survey_efficiency_analyses"] = [
+                        {
+                            **analysis.to_dict(),
+                            'number_of_transients': analysis.number_of_transients,
+                            'number_in_covered': analysis.number_in_covered,
+                            'number_detected': analysis.number_detected,
+                            'efficiency': analysis.efficiency,
+                        }
+                        for analysis in survey_efficiency_analyses
+                    ]
 
-            gcn_report.data = to_json(contents)
-            session.commit()
-        except Exception as e:
-            try:
-                session.rollback()
-                gcn_report = session.query(GcnReport).get(report_id)
-                gcn_report.data = to_json({"status": "error", "message": str(e)})
+                tags = event.tags
+                aliases = event.aliases
+                event_properties = event.properties
+                localization_properties = localization.properties
+
+                name = None
+                for alias in aliases:
+                    if alias.startswith("LVC#") or alias.startswith("FERMI#"):
+                        name = alias.split("#")[1]
+                        break
+
+                contents["event"] = {
+                    "status": "success",
+                    "name": name,
+                    "localization_name": localization_name,
+                    "cumulative_probability": float(localization_cumprob) * 100,
+                    "tags": list(set(tags)),
+                    "aliases": list(set(aliases)),
+                    "event_properties": event_properties,
+                    "localization_properties": localization_properties,
+                }
+
+                gcn_report.data = to_json(contents)
                 session.commit()
-            except Exception:
-                session.rollback()
-                pass
-            log(f"Unable to update GCN report: {str(e)}")
+            except Exception as e:
+                try:
+                    session.rollback()
+                    gcn_report = session.query(GcnReport).get(report_id)
+                    gcn_report.data = to_json({"status": "error", "message": str(e)})
+                    session.commit()
+                except Exception:
+                    session.rollback()
+                    pass
+                log(f"Unable to update GCN report: {str(e)}")
 
-        flow = Flow()
-        flow.push(
-            user_id='*',
-            action_type="skyportal/REFRESH_GCNEVENT_REPORTS",
-            payload={"gcnEvent_dateobs": event.dateobs},
-        )
+            flow = Flow()
+            flow.push(
+                user_id='*',
+                action_type="skyportal/REFRESH_GCNEVENT_REPORTS",
+                payload={"gcnEvent_dateobs": event.dateobs},
+            )
 
-        notification = UserNotification(
-            user=user,
-            text=f"GCN report *{gcn_report.report_name}* on *{event.dateobs}* created.",
-            notification_type="gcn_report",
-            url=f"/gcn_events/{event.dateobs}",
-        )
-        session.add(notification)
-        session.commit()
+            notification = UserNotification(
+                user=user,
+                text=f"GCN report *{gcn_report.report_name}* on *{event.dateobs}* created.",
+                notification_type="gcn_report",
+                url=f"/gcn_events/{event.dateobs}",
+            )
+            session.add(notification)
+            session.commit()
 
-        log(f"Successfully generated GCN report {gcn_report.id}")
-
-    except Exception as e:
-        log(f"Unable to create GCN report: {str(e)}")
-        raise e
-    finally:
-        session.close()
-        Session.remove()
+            log(f"Successfully generated GCN report {gcn_report.id}")
+        except Exception as e:
+            session.rollback()
+            log(f"Unable to create GCN report: {str(e)}")
+            raise e
 
 
 class GcnReportHandler(BaseHandler):
@@ -4524,108 +4542,103 @@ def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.
         Confidence level up to which to perform crossmatch
     """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
-
-    user = session.scalar(sa.select(User).where(User.id == user_id))
-
-    try:
-        obj = session.scalars(
-            Obj.select(user, mode='update').where(Obj.id == obj_id)
-        ).first()
-        if obj is None:
-            raise ValueError(f"Cannot find object with ID {obj_id}.")
-
-        events = []
-        for event_id in event_ids:
-
-            event = session.scalars(
-                GcnEvent.select(
-                    user,
-                    options=[
-                        joinedload(GcnEvent.localizations),
-                    ],
-                ).where(GcnEvent.id == event_id)
+    with ThreadSession() as session:
+        user = session.scalar(sa.select(User).where(User.id == user_id))
+        try:
+            obj = session.scalars(
+                Obj.select(user, mode='update').where(Obj.id == obj_id)
             ).first()
-            if event is None:
-                continue
-            if len(event.localizations) == 0:
-                continue
-            localization_id = event.localizations[0].id
+            if obj is None:
+                raise ValueError(f"Cannot find object with ID {obj_id}.")
 
-            partition_key = event.dateobs
-            # now get the dateobs in the format YYYY_MM
-            localizationtile_partition_name = (
-                f'{partition_key.year}_{partition_key.month:02d}'
-            )
-            localizationtilescls = LocalizationTile.partitions.get(
-                localizationtile_partition_name, None
-            )
-            if localizationtilescls is None:
-                localizationtilescls = LocalizationTile
-            else:
-                # check that there is actually a localizationTile with the given localization_id in the partition
-                # if not, use the default partition
-                if not (
-                    session.scalars(
-                        sa.select(localizationtilescls.localization_id).where(
-                            localizationtilescls.localization_id == localization_id
+            events = []
+            for event_id in event_ids:
+
+                event = session.scalars(
+                    GcnEvent.select(
+                        user,
+                        options=[
+                            joinedload(GcnEvent.localizations),
+                        ],
+                    ).where(GcnEvent.id == event_id)
+                ).first()
+                if event is None:
+                    continue
+                if len(event.localizations) == 0:
+                    continue
+                localization_id = event.localizations[0].id
+
+                partition_key = event.dateobs
+                # now get the dateobs in the format YYYY_MM
+                localizationtile_partition_name = (
+                    f'{partition_key.year}_{partition_key.month:02d}'
+                )
+                localizationtilescls = LocalizationTile.partitions.get(
+                    localizationtile_partition_name, None
+                )
+                if localizationtilescls is None:
+                    localizationtilescls = LocalizationTile
+                else:
+                    # check that there is actually a localizationTile with the given localization_id in the partition
+                    # if not, use the default partition
+                    if not (
+                        session.scalars(
+                            sa.select(localizationtilescls.localization_id).where(
+                                localizationtilescls.localization_id == localization_id
+                            )
+                        ).first()
+                    ):
+                        localizationtilescls = LocalizationTile.partitions.get(
+                            'def', LocalizationTile
                         )
-                    ).first()
-                ):
-                    localizationtilescls = LocalizationTile.partitions.get(
-                        'def', LocalizationTile
+
+                cum_prob = (
+                    sa.func.sum(
+                        localizationtilescls.probdensity
+                        * localizationtilescls.healpix.area
                     )
-
-            cum_prob = (
-                sa.func.sum(
-                    localizationtilescls.probdensity * localizationtilescls.healpix.area
+                    .over(order_by=localizationtilescls.probdensity.desc())
+                    .label('cum_prob')
                 )
-                .over(order_by=localizationtilescls.probdensity.desc())
-                .label('cum_prob')
+                localizationtile_subquery = (
+                    sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                        localizationtilescls.localization_id == localization_id
+                    )
+                ).subquery()
+
+                min_probdensity = (
+                    sa.select(
+                        sa.func.min(localizationtile_subquery.columns.probdensity)
+                    ).filter(
+                        localizationtile_subquery.columns.cum_prob
+                        <= integrated_probability
+                    )
+                ).scalar_subquery()
+
+                obj_query = sa.select(Obj.id).where(
+                    Obj.id == obj.id,
+                    localizationtilescls.localization_id == localization_id,
+                    localizationtilescls.probdensity >= min_probdensity,
+                    localizationtilescls.healpix.contains(Obj.healpix),
+                )
+                obj_check = session.scalars(obj_query).first()
+                if obj_check is not None:
+                    events.append(event.dateobs)
+
+            obj.gcn_crossmatch = events
+            session.commit()
+
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj.internal_key},
             )
-            localizationtile_subquery = (
-                sa.select(localizationtilescls.probdensity, cum_prob).filter(
-                    localizationtilescls.localization_id == localization_id
-                )
-            ).subquery()
 
-            min_probdensity = (
-                sa.select(
-                    sa.func.min(localizationtile_subquery.columns.probdensity)
-                ).filter(
-                    localizationtile_subquery.columns.cum_prob <= integrated_probability
-                )
-            ).scalar_subquery()
-
-            obj_query = sa.select(Obj.id).where(
-                Obj.id == obj.id,
-                localizationtilescls.localization_id == localization_id,
-                localizationtilescls.probdensity >= min_probdensity,
-                localizationtilescls.healpix.contains(Obj.healpix),
-            )
-            obj_check = session.scalars(obj_query).first()
-            if obj_check is not None:
-                events.append(event.dateobs)
-
-        obj.gcn_crossmatch = events
-        session.commit()
-
-        flow = Flow()
-        flow.push(
-            '*',
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': obj.internal_key},
-        )
-
-        log(f"Generated GCN crossmatch for {obj_id}")
-    except Exception as e:
-        log(f"Unable to generate GCN crossmatch for {obj_id}: {e}")
-    finally:
-        session.close()
-        Session.remove()
+            log(f"Generated GCN crossmatch for {obj_id}")
+        except Exception as e:
+            session.rollback()
+            log(f"Unable to generate GCN crossmatch for {obj_id}: {e}")
 
 
 class DefaultGcnTagHandler(BaseHandler):

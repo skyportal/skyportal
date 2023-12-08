@@ -14,7 +14,7 @@ from baselayer.app.models import (
     AccessibleIfUserMatches,
     Base,
     CustomUserAccessControl,
-    DBSession,
+    ThreadSession,
     User,
     join_model,
     restricted,
@@ -97,7 +97,7 @@ def stream_delete_logic(cls, user_or_token):
     from .group_joins import GroupStream
 
     return (
-        DBSession()
+        ThreadSession()
         .query(cls)
         .filter(sa.literal(user_or_token.is_admin))
         .join(User, cls.user)

@@ -8,7 +8,7 @@ from twilio.rest import Client as TwilioClient
 
 from baselayer.app.models import (
     Base,
-    DBSession,
+    ThreadSession,
     AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
 )
@@ -72,14 +72,14 @@ def send_source_notification(mapper, connection, target):
         sent_by_name = target.sent_by.username
 
     group_ids = map(lambda group: group.id, target.groups)
-    groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
+    groups = ThreadSession().query(Group).filter(Group.id.in_(group_ids)).all()
 
     target_users = set()
     for group in groups:
         # Use a set to get unique iterable of users
         target_users.update(group.users)
 
-    source = DBSession().query(Obj).get(target.source_id)
+    source = ThreadSession().query(Obj).get(target.source_id)
     source_info = ""
     if source.ra is not None:
         source_info += f'RA={source.ra} '
