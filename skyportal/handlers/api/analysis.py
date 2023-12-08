@@ -346,8 +346,8 @@ def post_analysis(
                 df = pd.DataFrame(input_data)[
                     associated_resource['allowed_export_columns']
                 ]
-                # drop duplicate mjd points, keeping first
-                df = df.drop_duplicates("mjd").reset_index(drop=True)
+                # drop duplicate mjd/filter points, keeping first
+                df = df.drop_duplicates(["mjd", "filter"]).reset_index(drop=True)
             else:
                 input_data = [
                     generic_serialize(
