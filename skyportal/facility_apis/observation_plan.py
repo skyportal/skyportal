@@ -23,8 +23,6 @@ from baselayer.log import make_log
 from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
 
-from skyportal.models import ThreadSession
-
 from ..utils.cache import Cache, array_to_bytes
 from ..email_utils import send_email
 from . import FollowUpAPI
@@ -373,6 +371,7 @@ def generate_plan(
     import gwemopt.skyportal
 
     from ..models import (
+        ThreadSession,
         EventObservationPlan,
         Galaxy,
         InstrumentField,
@@ -992,7 +991,7 @@ class MMAAPI(FollowUpAPI):
         """
 
         from tornado.ioloop import IOLoop
-        from ..models import EventObservationPlan
+        from ..models import ThreadSession, EventObservationPlan
 
         plan_ids, request_ids = [], []
         for request in requests:
@@ -1125,7 +1124,7 @@ class MMAAPI(FollowUpAPI):
         """
 
         from tornado.ioloop import IOLoop
-        from ..models import EventObservationPlan, ObservationPlanRequest
+        from ..models import ThreadSession, EventObservationPlan, ObservationPlanRequest
 
         log(f"request_id: {request_id}")
         with ThreadSession() as session:
@@ -1274,7 +1273,7 @@ class MMAAPI(FollowUpAPI):
             The id of the skyportal.models.ObservationPlanRequest to delete from the queue and the SkyPortal database.
         """
 
-        from ..models import ObservationPlanRequest
+        from ..models import ThreadSession, ObservationPlanRequest
 
         with ThreadSession() as session:
             try:
@@ -1306,7 +1305,7 @@ class MMAAPI(FollowUpAPI):
 
     def custom_json_schema(instrument, user):
 
-        from ..models import Galaxy, InstrumentField
+        from ..models import ThreadSession, Galaxy, InstrumentField
 
         with ThreadSession() as session:
             try:
