@@ -2,7 +2,6 @@ from astropy.time import Time, TimeDelta
 from astropy.table import Table
 import numpy as np
 import sqlalchemy as sa
-from skyportal.models import ThreadSession
 from tornado.ioloop import IOLoop
 
 from . import FollowUpAPI
@@ -34,6 +33,7 @@ def commit_photometry(lc, request_id, instrument_id):
     """
 
     from ..models import (
+        ThreadSession,
         FollowupRequest,
         PhotometricSeries,
     )

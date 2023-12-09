@@ -9,7 +9,6 @@ from astropy.time import Time
 import functools
 from marshmallow.exceptions import ValidationError
 import numpy as np
-from skyportal.models import ThreadSession
 from tornado.ioloop import IOLoop
 import pandas as pd
 import sqlalchemy as sa
@@ -234,6 +233,7 @@ def commit_photometry(
     """
 
     from ..models import (
+        ThreadSession,
         FollowupRequest,
         Instrument,
     )
@@ -707,7 +707,7 @@ class ZTFMMAAPI(MMAAPI):
             The request to delete from the queue and the SkyPortal database.
         """
 
-        from ..models import ObservationPlanRequest, FacilityTransaction
+        from ..models import ThreadSession, ObservationPlanRequest, FacilityTransaction
 
         with ThreadSession() as session:
             try:

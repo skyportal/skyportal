@@ -14,8 +14,6 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from skyportal.models import ThreadSession
-
 from ..utils import http
 from ..utils.instrument_log import read_logs
 from . import FollowUpAPI
@@ -505,7 +503,7 @@ def fetch_nightly_logs(instrument_id, altdata, request_start, request_end):
         End time for the request.
     """
 
-    from ..models import InstrumentLog
+    from ..models import ThreadSession, InstrumentLog
 
     with ThreadSession() as session:
         try:

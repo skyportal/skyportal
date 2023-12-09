@@ -7,8 +7,6 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from skyportal.models import ThreadSession
-
 from ..utils import http
 from ..utils.calculations import great_circle_distance
 
@@ -36,6 +34,7 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
     """
 
     from ..models import (
+        ThreadSession,
         FollowupRequest,
         Instrument,
     )

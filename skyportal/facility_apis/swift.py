@@ -18,8 +18,6 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from skyportal.models import ThreadSession
-
 from ..utils import http
 
 env, cfg = load_env()
@@ -293,6 +291,7 @@ def download_observations(request_id, oq):
     """
 
     from ..models import (
+        ThreadSession,
         Comment,
         FollowupRequest,
         Group,
