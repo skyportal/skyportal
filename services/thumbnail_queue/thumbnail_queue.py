@@ -8,7 +8,6 @@ import tornado.escape
 import json
 
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
 
 from baselayer.app.models import init_db
 from baselayer.app.env import load_env
@@ -24,8 +23,6 @@ env, cfg = load_env()
 log = make_log('thumbnail_queue')
 
 init_db(**cfg['database'])
-
-Session = scoped_session(sessionmaker())
 
 queue = []
 
@@ -133,6 +130,14 @@ if __name__ == "__main__":
         while True:
             log(f"Current thumbnail queue length: {len(queue)}")
             time.sleep(60)
+            if not t.is_alive():
+                log("Thumbnail queue thread died, restarting")
+                t = Thread(target=service, args=(queue,))
+                t.start()
+            if not t2.is_alive():
+                log("Thumbnail queue API thread died, restarting")
+                t2 = Thread(target=api, args=(queue,))
+                t2.start()
     except Exception as e:
         log(f"Error starting thumbnail queue: {str(e)}")
         raise e
