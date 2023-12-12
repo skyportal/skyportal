@@ -599,7 +599,6 @@ def insert_new_photometry_data(
                 'The following photometry already exists '
                 f'in the database: {dict_rep}.'
             )
-        print("VALIDATION PASSED")
 
     # pre-fetch the photometry PKs. these are not guaranteed to be
     # gapless (e.g., 1, 2, 3, 4, 5, ...) but they are guaranteed
@@ -611,7 +610,6 @@ def insert_new_photometry_data(
     )
 
     proxy = session.execute(pkq)
-    print("PKs fetched")
 
     # cache this as list for response
     ids = [i[0] for i in proxy]
@@ -1171,7 +1169,6 @@ class PhotometryHandler(BaseHandler):
                 f'Pending request from {username} for object {obj_id} with {len(df.index)} rows'
             )
 
-        print("CALLED THE PUT HANDLER")
         values_table, condition = get_values_table_and_condition(df)
 
         # This lock ensures that the Photometry table data are not modified

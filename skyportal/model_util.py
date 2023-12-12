@@ -170,20 +170,18 @@ def setup_permissions():
 
 
 def create_token(ACLs, user_id, name):
-    with ThreadSession() as session:
-        t = Token(permissions=ACLs, name=name)
-        session.add(t)
-        u = session.scalar(sa.select(User).where(User.id == user_id))
-        u.tokens.append(t)
-        t.created_by = u
-        session.add(u)
-        session.commit()
-        return t.id
+    t = Token(permissions=ACLs, name=name)
+    ThreadSession.add(t)
+    u = ThreadSession().scalar(sa.select(User).where(User.id == user_id))
+    u.tokens.append(t)
+    t.created_by = u
+    ThreadSession.add(u)
+    ThreadSession.commit()
+    return t.id
 
 
 def delete_token(token_id):
-    with ThreadSession() as session:
-        t = session.get(Token, token_id)
-        if t is not None:
-            session.delete(t)
-            session.commit()
+    t = ThreadSession().scalar(sa.select(Token).where(Token.id == token_id))
+    if t is not None:
+        ThreadSession.delete(t)
+        ThreadSession.commit()
