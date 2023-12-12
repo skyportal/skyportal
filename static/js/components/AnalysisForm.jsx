@@ -53,6 +53,7 @@ const AnalysisForm = ({ obj_id }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
+  const photometry = useSelector((state) => state.photometry[obj_id]);
   const { analysisServiceList } = useSelector(
     (state) => state.analysis_services
   );
@@ -116,12 +117,39 @@ const AnalysisForm = ({ obj_id }) => {
     delete analysis_parameters.show_plots;
     delete analysis_parameters.show_corner;
 
+    const input_filters = {};
+    if (
+      (
+        analysisServiceLookUp[selectedAnalysisServiceId]?.input_data_types || []
+      ).includes("photometry")
+    ) {
+      input_filters.photometry = {};
+      if (analysis_parameters.input_filters_photometry_filters) {
+        delete analysis_parameters.input_filters_photometry_filters;
+        input_filters.photometry.filters =
+          formData.input_filters_photometry_filters;
+      }
+      if (analysis_parameters.input_filters_photometry_instruments) {
+        delete analysis_parameters.input_filters_photometry_instruments;
+        input_filters.photometry.instruments =
+          formData.input_filters_photometry_instruments;
+      }
+    }
+
     const params = {
       show_parameters: formData.show_parameters,
       show_plots: formData.show_plots,
       show_corner: formData.show_corner,
       analysis_parameters,
+      input_filters,
     };
+
+    if (formData.filters) {
+      params.photometry_filters = formData.filters;
+    }
+    if (formData.instruments) {
+      params.photometry_instruments = formData.instruments;
+    }
 
     if (selectedGroupIds.length >= 0) {
       params.group_ids = selectedGroupIds;
@@ -200,6 +228,58 @@ const AnalysisForm = ({ obj_id }) => {
         RequiredParameters.push(key);
       }
     });
+    if (
+      (
+        analysisServiceLookUp[selectedAnalysisServiceId]?.input_data_types || []
+      ).includes("photometry") &&
+      photometry
+    ) {
+      const filters = [];
+      const instrumentLookUp = {};
+      photometry.forEach((photometryData) => {
+        const { filter } = photometryData;
+        if (filter && !filters.includes(filter)) {
+          filters.push(filter);
+        }
+
+        const { instrument_name, instrument_id } = photometryData;
+        if (
+          instrument_name &&
+          instrument_id &&
+          !instrumentLookUp[instrument_id]
+        ) {
+          instrumentLookUp[instrument_id] = instrument_name;
+        }
+      });
+
+      // transform the instrumentLookUp into an array of objects
+      const instruments = Object.keys(instrumentLookUp).map(
+        (instrument_id) => ({
+          const: parseInt(instrument_id, 10),
+          title: instrumentLookUp[instrument_id],
+        })
+      );
+
+      OptionalParameters.input_filters_photometry_filters = {
+        type: "array",
+        title: "Filters to include (optional)",
+        items: {
+          type: "string",
+          anyOf: filters.map((filter) => ({ const: filter, title: filter })),
+        },
+        uniqueItems: true,
+      };
+
+      OptionalParameters.input_filters_photometry_instruments = {
+        type: "array",
+        title: "Instruments to include (optional)",
+        items: {
+          type: "integer",
+          anyOf: instruments,
+        },
+        uniqueItems: true,
+      };
+    }
   }
 
   const AnalysisSelectionFormSchema = {
