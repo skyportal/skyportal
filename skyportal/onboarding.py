@@ -2,7 +2,7 @@ import datetime
 import sqlalchemy as sa
 
 from .models import (
-    DBSession,
+    HandlerSession,
     User,
     Group,
     GroupUser,
@@ -26,7 +26,9 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
     invite_token = strategy.session_get("invite_token")
 
     try:
-        existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
+        existing_user = (
+            HandlerSession().query(User).filter(User.oauth_uid == uid).first()
+        )
 
         if cfg["invitations.enabled"]:
 
@@ -45,7 +47,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                 )
 
             invitation = (
-                DBSession()
+                HandlerSession()
                 .query(Invitation)
                 .filter(Invitation.token == invite_token)
                 .first()
@@ -72,10 +74,10 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                 expiration_date=invitation.user_expiration_date,
             )
             user.roles.append(invitation.role)
-            DBSession().add(user)
-            DBSession().flush()
-            set_default_acls(user, DBSession())
-            DBSession().commit()
+            HandlerSession().add(user)
+            HandlerSession().flush()
+            set_default_acls(user, HandlerSession())
+            HandlerSession().commit()
             return {"is_new": True, "user": user}
         elif not cfg["invitations.enabled"]:
             if existing_user is not None:
@@ -90,13 +92,13 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                 for name in backend.setting("USER_FIELDS", USER_FIELDS)
             }
             user = strategy.create_user(**fields, **{"oauth_uid": uid})
-            set_default_role(user, DBSession())
-            set_default_acls(user, DBSession())
-            set_default_group(user, DBSession())
-            DBSession().commit()
+            set_default_role(user, HandlerSession())
+            set_default_acls(user, HandlerSession())
+            set_default_group(user, HandlerSession())
+            HandlerSession().commit()
             return {"is_new": True, "user": user}
     except Exception as e:
-        DBSession().rollback()
+        HandlerSession().rollback()
         raise e
 
 
@@ -106,7 +108,7 @@ def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
     storage = strategy.storage
 
     existing_user = (
-        DBSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
+        HandlerSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
     )
 
     if not user and existing_user is None:
@@ -128,7 +130,7 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
         return
 
     existing_user = (
-        DBSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
+        HandlerSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
     )
 
     invite_token = strategy.session_get("invite_token")
@@ -164,13 +166,13 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
 
     # Add user to specified streams
     for stream_id in stream_ids:
-        DBSession().add(StreamUser(stream_id=stream_id, user_id=user.id))
+        HandlerSession().add(StreamUser(stream_id=stream_id, user_id=user.id))
 
     # Add user to specified groups
     for group_id, admin, can_save in zip(
         group_ids, invitation.admin_for_groups, invitation.can_save_to_groups
     ):
-        DBSession().add(
+        HandlerSession().add(
             GroupUser(
                 user_id=user.id, group_id=group_id, admin=admin, can_save=can_save
             )
@@ -178,16 +180,16 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
 
     # Add user to sitewide public group
     public_group = (
-        DBSession()
+        HandlerSession()
         .scalars(sa.select(Group).where(Group.name == cfg["misc"]["public_group_name"]))
         .first()
     )
 
     if public_group is not None and public_group not in invitation.groups:
-        DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
+        HandlerSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
 
     invitation.used = True
-    DBSession().commit()
+    HandlerSession().commit()
 
 
 def user_details(strategy, details, backend, uid, user=None, *args, **kwargs):
@@ -196,7 +198,7 @@ def user_details(strategy, details, backend, uid, user=None, *args, **kwargs):
         return
 
     existing_user = (
-        DBSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
+        HandlerSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
     )
 
     if not (

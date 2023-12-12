@@ -16,7 +16,7 @@ args = parser.parse_args()
 
 import sqlalchemy as sa  # noqa: E402
 from baselayer.app.env import load_env  # noqa: E402
-from baselayer.app.models import init_db, User, DBSession  # noqa: E402
+from baselayer.app.models import init_db, User, ThreadSession  # noqa: E402
 from skyportal.model_util import add_user, setup_permissions, role_acls  # noqa: E402
 
 
@@ -31,7 +31,7 @@ YELLOW = '\033[93m'
 
 
 def get_users(role=None):
-    return [user[0] for user in DBSession().execute(sa.select(User))]
+    return [user[0] for user in ThreadSession().execute(sa.select(User))]
 
 
 def roles_user_has(user):
