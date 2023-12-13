@@ -270,6 +270,28 @@ const FollowupRequestForm = ({
           allocationLookUp[selectedAllocationId].instrument_id
         ].formSchema;
 
+  if (
+    schema &&
+    requestType === "forced_photometry" &&
+    schema.properties?.start_date &&
+    schema.properties?.end_date
+  ) {
+    // edit the start and end date to be 30 days ending right now (in UTC)
+    const endDate = new Date();
+    const startDate = new Date(endDate - 30 * 24 * 60 * 60 * 1000);
+    // eslint-disable-next-line no-param-reassign
+    schema.properties.start_date.default = startDate // eslint-disable-line prefer-destructuring
+      .toISOString()
+      .replace("Z", "")
+      .replace("T", " ")
+      .split(".")[0];
+    schema.properties.end_date.default = endDate // eslint-disable-line prefer-destructuring
+      .toISOString()
+      .replace("Z", "")
+      .replace("T", " ")
+      .split(".")[0];
+  }
+
   const { uiSchema } =
     instrumentFormParams[allocationLookUp[selectedAllocationId].instrument_id];
 
