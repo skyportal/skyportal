@@ -115,9 +115,12 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
             'instrument_id': instrument_id,
             'group_ids': list(
                 set(
-                    [allocation.group_id] + allocation.default_share_group_ids
-                    if allocation.default_share_group_ids
-                    else []
+                    [allocation.group_id]
+                    + (
+                        allocation.default_share_group_ids
+                        if allocation.default_share_group_ids
+                        else []
+                    )
                 )
             ),
         }

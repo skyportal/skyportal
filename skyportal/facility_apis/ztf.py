@@ -324,9 +324,12 @@ def commit_photometry(
             'instrument_id': instrument.id,
             'group_ids': list(
                 set(
-                    [allocation.group_id] + allocation.default_share_group_ids
-                    if allocation.default_share_group_ids
-                    else []
+                    [allocation.group_id]
+                    + (
+                        allocation.default_share_group_ids
+                        if allocation.default_share_group_ids
+                        else []
+                    )
                 )
             ),
             **df.to_dict(orient='list'),
