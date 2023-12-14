@@ -372,6 +372,8 @@ def post_analysis(
                         input_filters['photometry']['instruments_by_name'] = instruments
 
                 df = df[associated_resource['allowed_export_columns']]
+                # drop duplicate mjd/filter points, keeping first
+                df = df.drop_duplicates(["mjd", "filter"]).reset_index(drop=True)
             else:
                 input_data = [
                     generic_serialize(
