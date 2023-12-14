@@ -581,6 +581,7 @@ async def get_sources(
     with ThreadSession() as session:
         try:
             user = session.scalar(sa.select(User).where(User.id == user_id))
+            session.user_or_token = user
 
             obj_query = Obj.select(user, columns=[Obj.id])
             source_query = Source.select(user)

@@ -6,8 +6,9 @@ from pathlib import Path
 import model_util
 
 from baselayer.app.env import load_env
-from baselayer.app.model_util import create_tables, drop_tables, status
+from baselayer.app.model_util import create_tables, drop_tables
 from baselayer.app.psa import TornadoStorage
+from baselayer.tools import status
 from skyportal.models import Base, ThreadSession, User, init_db
 
 """
@@ -123,3 +124,5 @@ if __name__ == "__main__":
             print("Note: adminuser is not a valid email address")
         if user == '' and results.user is not None:
             print("Note: user is not a valid email address")
+
+        session.commit()
