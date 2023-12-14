@@ -965,6 +965,7 @@ def add_external_photometry(json, user, parent_session=None, duplicates="update"
         else:
             new_photometry = df.copy()
 
+        ids, upload_id = [], None
         if len(new_photometry) > 0:
             ids, upload_id = insert_new_photometry_data(
                 new_photometry,
