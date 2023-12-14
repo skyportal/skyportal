@@ -500,6 +500,14 @@ class AnalysisMixin:
         doc=('Optional parameters that are passed to the analysis service'),
     )
 
+    input_filters = sa.Column(
+        JSONType,
+        nullable=True,
+        doc=(
+            'Optional filters that are applied to the input data that is passed to the analysis service'
+        ),
+    )
+
     @classmethod
     def backref_name(cls):
         if cls.__name__ == 'ObjAnalysis':

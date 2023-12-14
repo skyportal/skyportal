@@ -130,6 +130,14 @@ if __name__ == "__main__":
         while True:
             log(f"Current thumbnail queue length: {len(queue)}")
             time.sleep(60)
+            if not t.is_alive():
+                log("Thumbnail queue thread died, restarting")
+                t = Thread(target=service, args=(queue,))
+                t.start()
+            if not t2.is_alive():
+                log("Thumbnail queue API thread died, restarting")
+                t2 = Thread(target=api, args=(queue,))
+                t2.start()
     except Exception as e:
         log(f"Error starting thumbnail queue: {str(e)}")
         raise e

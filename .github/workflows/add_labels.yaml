@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     # Add labels based on contents of .github/labeler.yml
     steps:
-      - uses: actions/labeler@main
+      - uses: actions/labeler@v5
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           sync-labels: true
