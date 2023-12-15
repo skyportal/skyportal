@@ -11,6 +11,7 @@ from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 from ...models import (
+    ThreadSession,
     User,
     Role,
     UserRole,
@@ -22,7 +23,7 @@ from ...models import (
     Stream,
 )
 
-from skyportal.model_util import role_acls, all_acl_ids
+from skyportal.model_util import role_acls, all_acl_ids, create_user
 
 log = make_log("api/user")
 env, cfg = load_env()
@@ -97,7 +98,6 @@ def set_default_group(user, session):
 
 
 def add_user_and_setup_groups(
-    session,
     username,
     first_name=None,
     last_name=None,
@@ -108,60 +108,49 @@ def add_user_and_setup_groups(
     group_ids_and_admin=[],
     oauth_uid=None,
     expiration_date=None,
+    session=None,
 ):
+    with (ThreadSession() if session is None else session) as session:
+        try:
+            user = create_user(
+                username=username.lower(),
+                roles=role_ids,
+                first_name=first_name,
+                last_name=last_name,
+                affiliations=affiliations,
+                contact_phone=contact_phone,
+                contact_email=contact_email,
+                oauth_uid=oauth_uid,
+                expiration_date=expiration_date,
+                session=session,
+            )
 
-    try:
-        # the roles come from the association_proxy
-        # in baselayer/app/models.py line 1851
-        # they are queried from a different session
-        # in the "creator" lambda. Until we figure out
-        # how to do this in the same session, this should
-        # solve the problem.
-        roles = session.scalars(sa.select(Role).where(Role.id.in_(role_ids))).all()
-        user = User(
-            username=username.lower(),
-            roles=roles,
-            first_name=first_name,
-            last_name=last_name,
-            affiliations=affiliations,
-            contact_phone=contact_phone,
-            contact_email=contact_email,
-            oauth_uid=oauth_uid,
-            expiration_date=expiration_date,
-        )
-        session.add(user)
-        session.flush()
+            if role_ids == []:
+                set_default_role(user, session)
 
-        if role_ids == []:
-            set_default_role(user, session)
+            if group_ids_and_admin == []:
+                set_default_group(user, session)
+            else:
+                for group_id, admin in group_ids_and_admin:
+                    session.add(
+                        GroupUser(user_id=user.id, group_id=group_id, admin=admin)
+                    )
+                    group = session.scalars(
+                        sa.select(Group).where(Group.id == group_id)
+                    ).first()
+                    if group.streams:
+                        for stream in group.streams:
+                            session.add(
+                                StreamUser(stream_id=stream.id, user_id=user.id)
+                            )
 
-        if group_ids_and_admin == []:
-            set_default_group(user, session)
-        else:
-            for group_id, admin in group_ids_and_admin:
-                session.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
-                group = session.scalars(
-                    sa.select(Group).where(Group.id == group_id)
-                ).first()
-                if group.streams:
-                    for stream in group.streams:
-                        session.add(StreamUser(stream_id=stream.id, user_id=user.id))
-
-            # Add user to sitewide public group
-            if cfg["misc.public_group_name"] is not None:
-                public_group = session.scalars(
-                    sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
-                ).first()
-                if public_group is not None:
-                    session.add(GroupUser(group_id=public_group.id, user_id=user.id))
-
-        set_default_acls(user, session)
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        log(str(e))
-        raise e
-    return user.id
+            set_default_acls(user, session)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            log(str(e))
+            raise e
+        return user.id
 
 
 class UserHandler(BaseHandler):
@@ -470,7 +459,6 @@ class UserHandler(BaseHandler):
         with self.Session() as session:
             try:
                 user_id = add_user_and_setup_groups(
-                    session=session,
                     username=data["username"],
                     first_name=data.get("first_name"),
                     last_name=data.get("last_name"),
@@ -480,6 +468,7 @@ class UserHandler(BaseHandler):
                     oauth_uid=data.get("oauth_uid"),
                     role_ids=role_ids,
                     group_ids_and_admin=group_ids_and_admin,
+                    session=session,
                 )
             except Exception as e:
                 session.rollback()

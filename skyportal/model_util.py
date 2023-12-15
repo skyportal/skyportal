@@ -64,41 +64,61 @@ role_acls = {
 env, cfg = load_env()
 
 
-def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
-
-    with ThreadSession() as session:
+def create_user(
+    username,
+    roles=[],
+    auth=False,
+    first_name=None,
+    last_name=None,
+    contact_email=None,
+    contact_phone=None,
+    expiration_date=None,
+    add_to_public_group=True,
+    session=None,
+):
+    with (ThreadSession() if session is None else session) as session:
         user = session.scalars(sa.select(User).where(User.username == username)).first()
-
         if user is None:
-            user = User(username=username, first_name=first_name, last_name=last_name)
-            if auth:
-                TornadoStorage.user.create_social_auth(
-                    user, user.username, 'google-oauth2'
-                )
-
-        for rolename in roles:
-            role = session.scalars(sa.select(Role).where(Role.id == rolename)).first()
-            if role not in user.roles:
-                user.roles.append(role)
+            user = User(
+                username=username,
+                first_name=first_name,
+                last_name=last_name,
+                contact_email=contact_email,
+                contact_phone=contact_phone,
+                expiration_date=expiration_date,
+            )
+            if auth is not None and auth is not False:
+                if isinstance(bool(auth), bool):
+                    TornadoStorage.user.create_social_auth(
+                        user, user.username, 'google-oauth2'
+                    )
+                else:
+                    user.oauth_uid = auth
 
         session.add(user)
         session.flush()
+        for rolename in roles:
+            role = session.scalars(sa.select(Role).where(Role.id == rolename)).first()
+            if role.id not in [r.id for r in user.roles]:
+                user.roles.append(role)
 
-        # Add user to sitewide public group
-        public_group_name = cfg['misc.public_group_name']
-        if public_group_name:
-            public_group = session.scalars(
-                sa.select(Group).where(Group.name == public_group_name)
-            ).first()
-            if public_group is None:
-                public_group = Group(name=public_group_name)
-                session.add(public_group)
-                session.flush()
+        if add_to_public_group:
+            # Add user to sitewide public group
+            public_group_name = cfg['misc.public_group_name']
+            if public_group_name:
+                public_group = session.scalars(
+                    sa.select(Group).where(Group.name == public_group_name)
+                ).first()
+                if public_group is None:
+                    public_group = Group(name=public_group_name)
+                    session.add(public_group)
+                    session.flush()
 
-        user.groups.append(public_group)
+            user.groups.append(public_group)
+
         session.commit()
 
-        return session.query(User).filter(User.username == username).first()
+        return session.scalar(sa.select(User).where(User.username == username))
 
 
 def refresh_enums():
@@ -114,20 +134,20 @@ def refresh_enums():
 def make_super_user(username):
     """Initializes a super user with full permissions."""
     setup_permissions()  # make sure permissions already exist
-    add_user(username, roles=['Super admin'], auth=True)
+    create_user(username, roles=['Super admin'], auth=True)
 
 
 def provision_token():
     """Provision an initial administrative token."""
-    admin = add_user(
-        'provisioned_admin',
-        roles=['Super admin'],
-        first_name="provisioned",
-        last_name="admin",
-    )
-    token_name = 'Initial admin token'
-
     with ThreadSession() as session:
+        admin = create_user(
+            'provisioned_admin',
+            roles=['Super admin'],
+            first_name="provisioned",
+            last_name="admin",
+            session=session,
+        )
+        token_name = 'Initial admin token'
         token = session.scalar(
             sa.select(Token).where(
                 Token.name == token_name, Token.created_by_id == admin.id
@@ -156,8 +176,13 @@ def setup_permissions():
 
     If a given ACL or Role already exists, it will be skipped."""
     with ThreadSession() as session:
-        all_acls = [ACL.create_or_get(a, session) for a in all_acl_ids]
-        session.add_all(all_acls)
+        all_acls = []
+        for acl_id in all_acl_ids:
+            acl = session.get(ACL, acl_id)
+            if acl is None:
+                acl = ACL(id=acl_id)
+                session.add(acl)
+            all_acls.append(acl)
         session.commit()
 
         for r, acl_ids in role_acls.items():
@@ -169,19 +194,26 @@ def setup_permissions():
         session.commit()
 
 
-def create_token(ACLs, user_id, name):
-    t = Token(permissions=ACLs, name=name)
-    ThreadSession.add(t)
-    u = ThreadSession().scalar(sa.select(User).where(User.id == user_id))
-    u.tokens.append(t)
-    t.created_by = u
-    ThreadSession.add(u)
-    ThreadSession.commit()
-    return t.id
+def create_token(ACLs, user_id, name, session=None):
+    """Create a token with the given ACLs for the given user."""
+    with (ThreadSession() if session is None else session) as session:
+        ACLs = session.scalars(sa.select(ACL).where(ACL.id.in_(ACLs))).all()
+        t = Token(name=name)
+        session.add(t)
+        for acl in ACLs:
+            t.acls.append(acl)
+        u = session.scalar(sa.select(User).where(User.id == user_id))
+        u.tokens.append(t)
+        t.created_by = u
+        session.add(u)
+        session.commit()
+        return t.id
 
 
-def delete_token(token_id):
-    t = ThreadSession().scalar(sa.select(Token).where(Token.id == token_id))
-    if t is not None:
-        ThreadSession.delete(t)
-        ThreadSession.commit()
+def delete_token(token_id, session=None):
+    """Delete a token."""
+    with (ThreadSession() if session is None else session) as session:
+        t = session.scalar(sa.select(Token).where(Token.id == token_id))
+        if t is not None:
+            session.delete(t)
+            session.commit()

@@ -17,7 +17,7 @@ args = parser.parse_args()
 import sqlalchemy as sa  # noqa: E402
 from baselayer.app.env import load_env  # noqa: E402
 from baselayer.app.models import init_db, User, ThreadSession  # noqa: E402
-from skyportal.model_util import add_user, setup_permissions, role_acls  # noqa: E402
+from skyportal.model_util import create_user, setup_permissions, role_acls  # noqa: E402
 
 
 env, cfg = load_env()
@@ -94,7 +94,7 @@ def set_user_role(username=None, role=None):
                 ]
             ]:
                 setup_permissions()
-                add_user(username, roles=[role], auth=True)
+                create_user(username, roles=[role], auth=True)
                 print(
                     f'\nSuccessfully assigned role {BOLD}{GREEN}{role}{END} to {BOLD}{YELLOW}User {username}{END}\n'
                 )
