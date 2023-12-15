@@ -1,5 +1,4 @@
 from PIL import Image, ImageStat, UnidentifiedImageError
-import requests
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
@@ -12,17 +11,6 @@ MSE_cutoff = cfg["image_grayscale_params.MSE_cutoff"]
 adjust_color_bias = cfg["image_grayscale_params.adjust_color_bias"]
 
 log = make_log('thumbnail')
-
-
-def post_thumbnails(obj_ids, timeout=2):
-
-    request_body = {'obj_ids': obj_ids}
-
-    thumbnail_microservice_url = f'http://127.0.0.1:{cfg["ports.thumbnail_queue"]}'
-
-    resp = requests.post(thumbnail_microservice_url, json=request_body, timeout=timeout)
-    if resp.status_code != 200:
-        log(f'Thumbnail request failed for {request_body["obj_id"]}: {resp.content}')
 
 
 def image_is_grayscale(

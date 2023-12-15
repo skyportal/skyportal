@@ -85,7 +85,6 @@ from ...utils.offset import (
     source_image_parameters,
 )
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
-from ...utils.thumbnail import post_thumbnails
 from ...utils.tns import post_tns
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 from ..base import BaseHandler
@@ -285,9 +284,13 @@ async def get_source(
 
     if include_thumbnails:
         existing_thumbnail_types = [thumb.type for thumb in s.thumbnails]
-        thumbnails = list({"ps1", "ls", "sdss"} - set(existing_thumbnail_types))
+        thumbnails = list({"sdss", "ls"} - set(existing_thumbnail_types))
         if len(thumbnails) > 0:
-            post_thumbnails([obj_id])
+            try:
+                s.add_linked_thumbnails(thumbnails, session)
+            except Exception as e:
+                session.rollback()
+                log(f"Error generating thumbnail for object {obj_id}: {e}")
 
     if include_comments:
         comments = (
@@ -1876,7 +1879,11 @@ def post_source(data, user_id, session, refresh_source=True):
             break
 
     if not obj_already_exists:
-        post_thumbnails([obj.id])
+        try:
+            obj.add_linked_thumbnails(['sdss', 'ls'], session)
+        except Exception:
+            session.rollback()
+            pass
     else:
         if refresh_source:
             flow = Flow()
@@ -3673,7 +3680,20 @@ class SurveyThumbnailHandler(BaseHandler):
         if obj_id is not None:
             obj_ids = [obj_id]
 
-        post_thumbnails(obj_ids)
+        with self.Session() as session:
+            objs = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id.in_(obj_ids))
+            ).all()
+
+            if len(objs) != len(obj_ids):
+                return self.error("Not all objects found")
+
+            for obj in objs:
+                try:
+                    obj.add_linked_thumbnails(['sdss', 'ps1', 'ls'], session)
+                except Exception:
+                    session.rollback()
+                    return self.error(f"Error adding thumbnails for {obj.id}")
 
         return self.success()
 

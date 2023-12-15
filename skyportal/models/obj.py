@@ -473,9 +473,9 @@ class Obj(Base, conesearch_alchemy.Point):
             session.add(
                 Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type='ls')
             )
-
         if "ps1" in thumbnails:
             session.add(Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1"))
+
         session.commit()
 
     @property
