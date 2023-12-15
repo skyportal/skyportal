@@ -959,6 +959,7 @@ def add_external_photometry(json, user_id, duplicates="update"):
             else:
                 new_photometry = df.copy()
 
+            ids, upload_id = [], None
             if len(new_photometry) > 0:
                 ids, upload_id = insert_new_photometry_data(
                     new_photometry,
@@ -969,13 +970,6 @@ def add_external_photometry(json, user_id, duplicates="update"):
                     session,
                     validate=True if duplicates in ["error"] else False,
                 )
-
-                if duplicates in ["ignore", "update"]:
-                    for (df_index, _), id in zip(new_photometry.iterrows(), ids):
-                        id_map[df_index] = id
-
-            # release the lock
-            session.commit()
 
             if duplicates in ["ignore", "update"]:
                 # get ids in the correct order

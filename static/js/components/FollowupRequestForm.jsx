@@ -270,6 +270,41 @@ const FollowupRequestForm = ({
           allocationLookUp[selectedAllocationId].instrument_id
         ].formSchema;
 
+  if (schema && schema.properties?.start_date && schema.properties?.end_date) {
+    if (requestType === "forced_photometry") {
+      // edit the start and end date to be 30 days ending right now (in UTC)
+      const endDate = new Date();
+      const startDate = new Date(endDate - 30 * 24 * 60 * 60 * 1000);
+      schema.properties.start_date.default = startDate // eslint-disable-line prefer-destructuring
+        .toISOString()
+        .replace("Z", "")
+        .replace("T", " ")
+        .split(".")[0];
+      schema.properties.end_date.default = endDate // eslint-disable-line prefer-destructuring
+        .toISOString()
+        .replace("Z", "")
+        .replace("T", " ")
+        .split(".")[0];
+    } else {
+      // here, the range isn't necessarily 30 days, so we look at the values provided
+      // calculate the range, and then update the default to be:
+      // - start_date: now
+      // - end_date: now + range
+      const { start_date, end_date } = schema.properties;
+      const startDate = new Date(start_date.default);
+      const endDate = new Date(end_date.default);
+      const range = endDate - startDate;
+      const newStartDate = new Date();
+      const newEndDate = new Date(newStartDate.getTime() + range);
+      schema.properties.start_date.default = newStartDate // eslint-disable-line prefer-destructuring
+        .toISOString()
+        .split("T")[0];
+      schema.properties.end_date.default = newEndDate // eslint-disable-line prefer-destructuring
+        .toISOString()
+        .split("T")[0];
+    }
+  }
+
   const { uiSchema } =
     instrumentFormParams[allocationLookUp[selectedAllocationId].instrument_id];
 
