@@ -110,47 +110,44 @@ def add_user_and_setup_groups(
     expiration_date=None,
     session=None,
 ):
-    with (ThreadSession() if session is None else session) as session:
-        try:
-            user = create_user(
-                username=username.lower(),
-                roles=role_ids,
-                first_name=first_name,
-                last_name=last_name,
-                affiliations=affiliations,
-                contact_phone=contact_phone,
-                contact_email=contact_email,
-                oauth_uid=oauth_uid,
-                expiration_date=expiration_date,
-                session=session,
-            )
+    try:
+        if session is None:
+            session = ThreadSession()
+        user = create_user(
+            username=username.lower(),
+            roles=role_ids,
+            first_name=first_name,
+            last_name=last_name,
+            affiliations=affiliations,
+            contact_phone=contact_phone,
+            contact_email=contact_email,
+            oauth_uid=oauth_uid,
+            expiration_date=expiration_date,
+            session=session,
+        )
 
-            if role_ids == []:
-                set_default_role(user, session)
+        if role_ids == []:
+            set_default_role(user, session)
 
-            if group_ids_and_admin == []:
-                set_default_group(user, session)
-            else:
-                for group_id, admin in group_ids_and_admin:
-                    session.add(
-                        GroupUser(user_id=user.id, group_id=group_id, admin=admin)
-                    )
-                    group = session.scalars(
-                        sa.select(Group).where(Group.id == group_id)
-                    ).first()
-                    if group.streams:
-                        for stream in group.streams:
-                            session.add(
-                                StreamUser(stream_id=stream.id, user_id=user.id)
-                            )
+        if group_ids_and_admin == []:
+            set_default_group(user, session)
+        else:
+            for group_id, admin in group_ids_and_admin:
+                session.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
+                group = session.scalars(
+                    sa.select(Group).where(Group.id == group_id)
+                ).first()
+                if group.streams:
+                    for stream in group.streams:
+                        session.add(StreamUser(stream_id=stream.id, user_id=user.id))
 
-            set_default_acls(user, session)
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            log(str(e))
-            raise e
-        return user.id
+        set_default_acls(user, session)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        log(str(e))
+        raise e
+    return user.id
 
 
 class UserHandler(BaseHandler):

@@ -466,19 +466,18 @@ class Obj(Base, conesearch_alchemy.Point):
         """Determine the URLs of the SDSS, Legacy Survey DR9, and
         thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
-        with (ThreadSession() if session is None else session) as session:
-            if "sdss" in thumbnails:
-                session.add(Thumbnail(obj=self, public_url=self.sdss_url, type='sdss'))
-            if "ls" in thumbnails:
-                session.add(
-                    Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type='ls')
-                )
-            if "ps1" in thumbnails:
-                session.add(
-                    Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1")
-                )
+        if session is None:
+            session = ThreadSession()
+        if "sdss" in thumbnails:
+            session.add(Thumbnail(obj=self, public_url=self.sdss_url, type='sdss'))
+        if "ls" in thumbnails:
+            session.add(
+                Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type='ls')
+            )
+        if "ps1" in thumbnails:
+            session.add(Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1"))
 
-            session.commit()
+        session.commit()
 
     @property
     def sdss_url(self):
