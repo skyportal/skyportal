@@ -19,8 +19,6 @@ log = make_log('thumbnail_queue')
 
 init_db(**cfg['database'])
 
-queue = []
-
 THUMBNAIL_TYPES = ["sdss", "ls", "ps1"]
 
 REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']

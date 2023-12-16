@@ -462,11 +462,12 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Sources in a localization.",
     )
 
-    def add_linked_thumbnails(self, thumbnails, session=DBSession):
+    def add_linked_thumbnails(self, thumbnails, session=None):
         """Determine the URLs of the SDSS, Legacy Survey DR9, and
         thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
-
+        if session is None:
+            session = DBSession()
         if "sdss" in thumbnails:
             session.add(Thumbnail(obj=self, public_url=self.sdss_url, type='sdss'))
         if "ls" in thumbnails:
@@ -515,14 +516,11 @@ class Obj(Base, conesearch_alchemy.Point):
         try:
             response = requests.get(ps_query_url, timeout=PS1_CUTOUT_TIMEOUT)
             response.raise_for_status()
-            no_stamps = re.search(
-                "No PS1 3PI images were found", response.content.decode()
-            )
+            content = response.content.decode()
+            no_stamps = re.search("No PS1 3PI images were found", content)
             if no_stamps:
                 cutout_url = "/static/images/outside_survey.png"
-            match = re.search(
-                'src="//ps1images.stsci.edu.*?"', response.content.decode()
-            )
+            match = re.search('src="//ps1images.stsci.edu.*?"', content)
             if match:
                 cutout_url = match.group().replace('src="', 'https:').replace('"', '')
         except requests.exceptions.HTTPError as http_err:
@@ -535,6 +533,8 @@ class Obj(Base, conesearch_alchemy.Point):
             )
         except requests.exceptions.RequestException as other_err:
             log(f"Unexpected error in getting thumbnail for {self.id}: {other_err}")
+        except Exception as e:
+            log(f"Unexpected error in getting thumbnail for {self.id}: {e}")
         finally:
             return cutout_url
 
