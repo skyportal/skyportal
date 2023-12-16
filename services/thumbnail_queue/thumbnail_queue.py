@@ -1,3 +1,5 @@
+import time
+
 import sqlalchemy as sa
 
 from baselayer.app.models import init_db
@@ -52,6 +54,9 @@ def service():
     while True:
         try:
             obj_ids = fetch_obj_ids()
+            if len(obj_ids) == 0:
+                time.sleep(5)
+                continue
             for obj_id in obj_ids:
                 internal_key = None
                 with DBSession() as session:
