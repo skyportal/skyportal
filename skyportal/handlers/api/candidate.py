@@ -1598,7 +1598,12 @@ class CandidateHandler(BaseHandler):
                     f"Failed to post candidate for object {obj.id}: {e.args[0]}"
                 )
             try:
-                obj.add_linked_thumbnails(['sdss', 'ls'], session)
+                # for new objects, the thumbnails queue will anyway take care of generating thumbnails
+                if obj_already_exists:
+                    existing_thumbnail_types = [thumb.type for thumb in obj.thumbnails]
+                    thumbnails = list({"sdss", "ls"} - set(existing_thumbnail_types))
+                    if len(thumbnails) > 0:
+                        obj.add_linked_thumbnails(thumbnails, session)
             except Exception:
                 session.rollback()
                 pass

@@ -1,5 +1,7 @@
 import itertools
+import requests
 import time
+
 import arrow
 import sqlalchemy as sa
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -21,6 +23,26 @@ log = make_log('observation_plan_queue')
 init_db(**cfg['database'])
 
 Session = scoped_session(sessionmaker())
+
+REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
+
+host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
+    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
+)
+
+
+def is_loaded():
+    try:
+        r = requests.get(f'{host}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS)
+    except:  # noqa: E722
+        status_code = 0
+    else:
+        status_code = r.status_code
+
+    if status_code == 200:
+        return True
+    else:
+        return False
 
 
 class ObservationPlanQueue:
@@ -278,6 +300,9 @@ class ObservationPlanQueue:
 
 if __name__ == "__main__":
     try:
+        while not is_loaded():
+            log("Waiting for the app to start...")
+            time.sleep(15)
         queue = ObservationPlanQueue()
         queue.service()
     except Exception as e:

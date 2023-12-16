@@ -1,5 +1,6 @@
 import time
 
+import requests
 import sqlalchemy as sa
 
 from baselayer.app.models import init_db
@@ -22,8 +23,28 @@ queue = []
 
 THUMBNAIL_TYPES = ["sdss", "ls", "ps1"]
 
+REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
 
-def fetch_obj_ids():
+host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
+    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
+)
+
+
+def is_loaded():
+    try:
+        r = requests.get(f'{host}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS)
+    except:  # noqa: E722
+        status_code = 0
+    else:
+        status_code = r.status_code
+
+    if status_code == 200:
+        return True
+    else:
+        return False
+
+
+def fetch_obj(session):
     stmt = (
         sa.select(Obj.id)
         .where(
@@ -42,68 +63,71 @@ def fetch_obj_ids():
         .order_by(Obj.created_at.desc())
         .limit(1)
     )
-
-    with DBSession() as session:
-        objs = session.execute(stmt).all()
-
-    objs_ids = [str(o.id) for o in objs]
-    return objs_ids
+    objs = session.execute(stmt).scalars().all()
+    if len(objs) == 0:
+        return None
+    else:
+        return session.scalar(sa.select(Obj).where(Obj.id == objs[0]))
 
 
 def service():
     while True:
         try:
-            obj_ids = fetch_obj_ids()
-            if len(obj_ids) == 0:
-                time.sleep(5)
-                continue
-            for obj_id in obj_ids:
-                internal_key = None
-                with DBSession() as session:
-                    try:
-                        obj = session.scalars(
-                            sa.select(Obj).where(Obj.id == obj_id)
-                        ).first()
-                        if obj is None:
-                            log(f"Source {obj_id} not found")
-                            continue
+            internal_key = None
+            with DBSession() as session:
+                try:
+                    obj = fetch_obj(session)
+                except Exception as e:
+                    log(f"Error fetching object with missing thumbnails: {str(e)}")
+                    time.sleep(5)
+                    continue
 
-                        existing_thumbnail_types = [
-                            thumb.type for thumb in obj.thumbnails
-                        ]
-                        thumbnails = list(
-                            set(THUMBNAIL_TYPES) - set(existing_thumbnail_types)
-                        )
-                        if len(thumbnails) == 0:
-                            log(f"Source {obj_id} has all thumbnails.")
-                            continue
+                if obj is None:
+                    time.sleep(5)
+                    continue
 
-                        obj.add_linked_thumbnails(thumbnails, session)
-                        internal_key = obj.internal_key
-                    except Exception as e:
-                        log(
-                            f"Error processing thumbnail request for object {obj_id}: {str(e)}"
-                        )
-                        session.rollback()
+                try:
+                    existing_thumbnail_types = [thumb.type for thumb in obj.thumbnails]
+                    thumbnails = list(
+                        set(THUMBNAIL_TYPES) - set(existing_thumbnail_types)
+                    )
+                    if len(thumbnails) == 0:
+                        log(f"Source {obj.id} has all thumbnails.")
                         continue
 
-                flow = Flow()
-                flow.push(
-                    '*',
-                    "skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": internal_key},
-                )
-                flow.push(
-                    '*',
-                    "skyportal/REFRESH_CANDIDATE",
-                    payload={"id": internal_key},
-                )
+                    obj.add_linked_thumbnails(thumbnails, session)
+                    internal_key = obj.internal_key
+                except Exception as e:
+                    log(
+                        f"Error processing thumbnail request for object {obj.id}: {str(e)}"
+                    )
+                    session.rollback()
+                    continue
+
+            if internal_key is None:
+                continue
+
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": internal_key},
+            )
+            flow.push(
+                '*',
+                "skyportal/REFRESH_CANDIDATE",
+                payload={"id": internal_key},
+            )
         except Exception as e:
             log(f"Error processing thumbnail request: {str(e)}")
+            time.sleep(5)
 
 
 if __name__ == "__main__":
     try:
+        while not is_loaded():
+            log("Waiting for the app to start...")
+            time.sleep(15)
         log("Starting thumbnail queue...")
         service()
     except Exception as e:
