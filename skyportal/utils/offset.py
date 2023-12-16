@@ -43,7 +43,7 @@ log = make_log('finder-chart')
 
 _, cfg = load_env()
 
-PS1_CUTOUT_TIMEOUT = 10
+PS1_CUTOUT_TIMEOUT = 15  # seconds
 
 
 class GaiaQuery:

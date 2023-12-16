@@ -18,32 +18,32 @@ init_db(**cfg['database'])
 
 queue = []
 
-BATCH_SIZE = 10
 THUMBNAIL_TYPES = ["sdss", "ls", "ps1"]
 
 
 def fetch_obj_ids():
-    subquery = (
-        sa.select(Thumbnail.obj_id)
-        .where(Thumbnail.type.in_(THUMBNAIL_TYPES))
-        .group_by(Thumbnail.obj_id)
-        .having(sa.func.count(Thumbnail.obj_id) == len(THUMBNAIL_TYPES))
-        .alias()
-    )
     stmt = (
-        sa.select(Obj.id, Obj.created_at)
-        .outerjoin(subquery, Obj.id == subquery.c.obj_id)
-        .filter(subquery.c.obj_id.is_(None))
+        sa.select(Obj.id)
+        .where(
+            ~sa.exists(
+                sa.select(Thumbnail.obj_id)
+                .where(
+                    sa.and_(
+                        Thumbnail.obj_id == Obj.id,
+                        Thumbnail.type.in_(THUMBNAIL_TYPES),
+                    )
+                )
+                .group_by(Thumbnail.obj_id)
+                .having(sa.func.count(Thumbnail.obj_id) == len(THUMBNAIL_TYPES))
+            )
+        )
+        .order_by(Obj.created_at.desc())
+        .limit(1)
     )
-    # sort by created_at, most recent first
-    stmt = stmt.order_by(sa.desc(Obj.created_at))
-    # limit to 10 objects
-    stmt = stmt.limit(BATCH_SIZE)
 
     with DBSession() as session:
         objs = session.execute(stmt).all()
 
-    objs = sorted(objs, key=lambda o: o.created_at, reverse=True)
     objs_ids = [str(o.id) for o in objs]
     return objs_ids
 

@@ -42,7 +42,7 @@ log = make_log('models.obj')
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
-PS1_CUTOUT_TIMEOUT = 10
+PS1_CUTOUT_TIMEOUT = 15  # seconds
 
 # download dustmap if required
 config['data_dir'] = cfg['misc.dustmap_folder']
