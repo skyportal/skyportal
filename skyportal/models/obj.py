@@ -529,6 +529,10 @@ class Obj(Base, conesearch_alchemy.Point):
             log(f"HTTPError getting thumbnail for {self.id}: {http_err}")
         except requests.exceptions.Timeout as timeout_err:
             log(f"Timeout in getting thumbnail for {self.id}: {timeout_err}")
+        except requests.exceptions.ChunkedEncodingError as chunk_err:
+            log(
+                f"Chunked encoding error in getting thumbnail for {self.id}: {chunk_err}"
+            )
         except requests.exceptions.RequestException as other_err:
             log(f"Unexpected error in getting thumbnail for {self.id}: {other_err}")
         finally:
