@@ -1,9 +1,10 @@
 __all__ = ['Obj']
 
-import uuid
+import io
 import requests
 import re
 import os
+import uuid
 
 import sqlalchemy as sa
 from sqlalchemy import event
@@ -11,8 +12,11 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
 from astropy import coordinates as ap_coord
+from astropy.io.votable import parse
+from astropy.table import unique
 from astropy import units as u
 import astroplan
+from astroquery.mast import Observations
 import conesearch_alchemy
 import healpix_alchemy
 import numpy as np
@@ -42,7 +46,7 @@ log = make_log('models.obj')
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
-PS1_CUTOUT_TIMEOUT = 10
+CUTOUT_TIMEOUT = 10
 
 # download dustmap if required
 config['data_dir'] = cfg['misc.dustmap_folder']
@@ -473,9 +477,15 @@ class Obj(Base, conesearch_alchemy.Point):
             session.add(
                 Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type='ls')
             )
-
         if "ps1" in thumbnails:
             session.add(Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1"))
+        if "hst" in thumbnails and self.hst_url is not None:
+            session.add(Thumbnail(obj=self, public_url=self.hst_url, type="hst"))
+        if "chandra" in thumbnails and self.chandra_url is not None:
+            session.add(
+                Thumbnail(obj=self, public_url=self.chandra_url, type="chandra")
+            )
+
         session.commit()
 
     @property
@@ -503,7 +513,7 @@ class Obj(Base, conesearch_alchemy.Point):
         best we can do is request a page that contains a link to the image we
         want (in this case a combination of the g/r/i filters).
 
-        If this page does not return without PS1_CUTOUT_TIMEOUT seconds then
+        If this page does not return without CUTOUT_TIMEOUT seconds then
         we assume that the image is not available and return None.
         """
         ps_query_url = (
@@ -513,7 +523,7 @@ class Obj(Base, conesearch_alchemy.Point):
         )
         cutout_url = "/static/images/currently_unavailable.png"
         try:
-            response = requests.get(ps_query_url, timeout=PS1_CUTOUT_TIMEOUT)
+            response = requests.get(ps_query_url, timeout=CUTOUT_TIMEOUT)
             response.raise_for_status()
             no_stamps = re.search(
                 "No PS1 3PI images were found", response.content.decode()
@@ -525,6 +535,194 @@ class Obj(Base, conesearch_alchemy.Point):
             )
             if match:
                 cutout_url = match.group().replace('src="', 'https:').replace('"', '')
+        except requests.exceptions.HTTPError as http_err:
+            log(f"HTTPError getting thumbnail for {self.id}: {http_err}")
+        except requests.exceptions.Timeout as timeout_err:
+            log(f"Timeout in getting thumbnail for {self.id}: {timeout_err}")
+        except requests.exceptions.RequestException as other_err:
+            log(f"Unexpected error in getting thumbnail for {self.id}: {other_err}")
+        finally:
+            return cutout_url
+
+    @property
+    def hst_url(self):
+        """Construct URL for public Hubble Space Telescope (HST) cutouts."""
+
+        mask = {
+            'instrument_name': [
+                'WFPC2/WFC',
+                'PC/WFC',
+                'ACS/WFC',
+                'ACS/HRC',
+                'ACS/SBC',
+                'WFC3/UVIS',
+                'WFC3/IR',
+            ],
+            't_exptime': 40,
+            'obs_collection': ['HST', 'HLA'],
+            'filters': [
+                'F220W',
+                'F250W',
+                'F330W',
+                'F344N',
+                'F435W',
+                'F475W',
+                'F550M',
+                'F555W',
+                'F606W',
+                'F625W',
+                'F658N',
+                'F660N',
+                'F660N',
+                'F775W',
+                'F814W',
+                'F850LP',
+                'F892N',
+                'F098M',
+                'F105W',
+                'F110W',
+                'F125W',
+                'F126N',
+                'F127M',
+                'F128N',
+                'F130N',
+                'F132N',
+                'F139M',
+                'F140W',
+                'F153M',
+                'F160W',
+                'F164N',
+                'F167N',
+                'F200LP',
+                'F218W',
+                'F225W',
+                'F275W',
+                'F280N',
+                'F300X',
+                'F336W',
+                'F343N',
+                'F350LP',
+                'F373N',
+                'F390M',
+                'F390W',
+                'F395N',
+                'F410M',
+                'F438W',
+                'F467M',
+                'F469N',
+                'F475X',
+                'F487N',
+                'F502N',
+                'F547M',
+                'F600LP',
+                'F621M',
+                'F625W',
+                'F631N',
+                'F645N',
+                'F656N',
+                'F657N',
+                'F658N',
+                'F665N',
+                'F673N',
+                'F680N',
+                'F689M',
+                'F763M',
+                'F845M',
+                'F953N',
+                'F122M',
+                'F160BW',
+                'F185W',
+                'F218W',
+                'F255W',
+                'F300W',
+                'F375N',
+                'F380W',
+                'F390N',
+                'F437N',
+                'F439W',
+                'F450W',
+                'F569W',
+                'F588N',
+                'F622W',
+                'F631N',
+                'F673N',
+                'F675W',
+                'F702W',
+                'F785LP',
+                'F791W',
+                'F953N',
+                'F1042M',
+                'F502N',
+            ],
+        }
+
+        radius = 1 * u.arcsec
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
+
+        table = Observations.query_region(coord, radius=radius)
+
+        # HST-specific masks
+        filmask = [table['filters'] == good for good in mask['filters']]
+        filmask = [any(idx) for idx in list(map(list, zip(*filmask)))]
+        expmask = table['t_exptime'] > mask['t_exptime']
+        obsmask = [table['obs_collection'] == good for good in mask['obs_collection']]
+        obsmask = [any(idx) for idx in list(map(list, zip(*obsmask)))]
+        detmask = [table['instrument_name'] == good for good in mask['instrument_name']]
+        detmask = [any(idx) for idx in list(map(list, zip(*detmask)))]
+
+        # Construct and apply mask
+        mask = [all(idx) for idx in zip(filmask, expmask, obsmask, detmask)]
+        obstable = table[mask]
+
+        if obstable and len(obstable) > 0:
+            obsid = obstable['obs_id'][0]
+            hst_query_url = (
+                f"https://hla.stsci.edu/cgi-bin/fitscut.cgi"
+                f"?red={obsid}&amp;RA={self.ra}&amp;DEC={self.dec}&amp;size=256"
+                f"&amp;format=jpg&amp;config=ops&amp;asinh=1&amp;autoscale=90"
+            )
+            return hst_query_url
+        else:
+            return None
+
+    @property
+    def chandra_url(self):
+        """Construct URL for public Chandra cutouts.
+
+        The cutout service doesn't allow directly querying for an image; the
+        best we can do is request a page that contains a link to the image we
+        want.
+
+        If this page does not return without CUTOUT_TIMEOUT seconds then
+        we assume that the image is not available and return None.
+        """
+
+        radius = 0.1
+        query_url = (
+            f"https://cxcfps.cfa.harvard.edu/cgi-bin/cda/footprint/get_vo_table.pl?"
+            f"pos={self.ra},{self.dec}&size={radius}"
+            f"&inst=ACIS-I,ACIS-S&grating=NONE"
+        )
+
+        cutout_url = None
+        try:
+            response = requests.get(query_url, timeout=CUTOUT_TIMEOUT)
+            response.raise_for_status()
+
+            f = io.BytesIO(response.text.encode())
+            votable = parse(f)
+            obsdata = votable.get_first_table().to_table()
+
+            if len(obsdata) > 0:
+                table = unique(obsdata, keys='ObsId')
+                uri = table['preview_uri'][0].replace('redirect', 'link')
+                response = requests.get(uri, timeout=CUTOUT_TIMEOUT)
+                match = re.search(
+                    'href="https://cdaftp.cfa.harvard.edu.*?"',
+                    response.content.decode(),
+                )
+                if match:
+                    cutout_url = match.group().replace('href="', '').replace('"', '')
         except requests.exceptions.HTTPError as http_err:
             log(f"HTTPError getting thumbnail for {self.id}: {http_err}")
         except requests.exceptions.Timeout as timeout_err:
