@@ -1,6 +1,5 @@
 import time
 
-import requests
 import sqlalchemy as sa
 
 from baselayer.app.models import init_db
@@ -13,6 +12,7 @@ from skyportal.models import (
     Obj,
     Thumbnail,
 )
+from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
 log = make_log('thumbnail_queue')
@@ -20,26 +20,6 @@ log = make_log('thumbnail_queue')
 init_db(**cfg['database'])
 
 THUMBNAIL_TYPES = ["sdss", "ls", "ps1"]
-
-REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
-
-host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
-    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
-)
-
-
-def is_loaded():
-    try:
-        r = requests.get(f'{host}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS)
-    except:  # noqa: E722
-        status_code = 0
-    else:
-        status_code = r.status_code
-
-    if status_code == 200:
-        return True
-    else:
-        return False
 
 
 def fetch_obj(session):
@@ -55,7 +35,9 @@ def fetch_obj(session):
                     )
                 )
                 .group_by(Thumbnail.obj_id)
-                .having(sa.func.count(Thumbnail.obj_id) == len(THUMBNAIL_TYPES))
+                .having(
+                    sa.func.count(sa.distinct(Thumbnail.type)) == len(THUMBNAIL_TYPES)
+                )
             )
         )
         .order_by(Obj.created_at.desc())
@@ -68,7 +50,8 @@ def fetch_obj(session):
         return session.scalar(sa.select(Obj).where(Obj.id == objs[0]))
 
 
-def service():
+@check_loaded(logger=log)
+def service(*args, **kwargs):
     while True:
         try:
             internal_key = None
@@ -123,10 +106,6 @@ def service():
 
 if __name__ == "__main__":
     try:
-        while not is_loaded():
-            log("Waiting for the app to start...")
-            time.sleep(15)
-        log("Starting thumbnail queue...")
         service()
     except Exception as e:
         log(f"Error starting thumbnail queue: {str(e)}")

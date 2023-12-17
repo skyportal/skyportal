@@ -468,16 +468,25 @@ class Obj(Base, conesearch_alchemy.Point):
         insert them into the Thumbnails table, and link them to the object."""
         if session is None:
             session = DBSession()
+
+        # first we create and commit the thumbnails that don't require any request
+        # to external services to get their URLs
+        # that way we don't end up committing nothing if one of the external requests
+        # fails for some reason, and we provide the user with as many thumbnails as
+        # possible, as quickly as possible
         if "sdss" in thumbnails:
             session.add(Thumbnail(obj=self, public_url=self.sdss_url, type='sdss'))
         if "ls" in thumbnails:
             session.add(
                 Thumbnail(obj=self, public_url=self.legacysurvey_dr9_url, type='ls')
             )
-        if "ps1" in thumbnails:
-            session.add(Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1"))
-
         session.commit()
+
+        # now we create the thumbnails that require external requests
+        if "ps1" in thumbnails:
+            url = self.panstarrs_url
+            session.add(Thumbnail(obj=self, public_url=url, type="ps1"))
+            session.commit()
 
     @property
     def sdss_url(self):
