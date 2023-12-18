@@ -67,6 +67,8 @@ def service(*args, **kwargs):
                     time.sleep(5)
                     continue
 
+                log(f"Processing thumbnail request for object {obj.id}.")
+
                 try:
                     existing_thumbnail_types = [thumb.type for thumb in obj.thumbnails]
                     thumbnails = list(
