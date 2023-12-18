@@ -1250,6 +1250,16 @@ class FollowupRequestPost(_Schema):
         },
     )
 
+    ignore_source_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            'description': (
+                'If the source is saved in any of these groups, the followup request will be executed.'
+            )
+        },
+    )
+
 
 class ObservationPlanPost(_Schema):
 
