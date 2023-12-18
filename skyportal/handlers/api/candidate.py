@@ -48,7 +48,6 @@ from ...models import (
 
 from ...utils.cache import Cache, array_to_bytes
 from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
-from ...utils.thumbnail import post_thumbnails
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31
 
@@ -1598,10 +1597,14 @@ class CandidateHandler(BaseHandler):
                 return self.error(
                     f"Failed to post candidate for object {obj.id}: {e.args[0]}"
                 )
-
-            obj_id = obj.id
-            if not obj_already_exists:
-                post_thumbnails([obj_id])
+            try:
+                existing_thumbnail_types = [thumb.type for thumb in obj.thumbnails]
+                thumbnails = list({"sdss", "ls"} - set(existing_thumbnail_types))
+                if len(thumbnails) > 0:
+                    obj.add_linked_thumbnails(thumbnails, session)
+            except Exception:
+                session.rollback()
+                pass
 
             return self.success(data={"ids": [c.id for c in candidates]})
 
