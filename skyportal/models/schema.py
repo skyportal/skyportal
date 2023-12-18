@@ -1255,7 +1255,7 @@ class FollowupRequestPost(_Schema):
         required=False,
         metadata={
             'description': (
-                'If the source is saved in any of these groups, the followup request will be executed.'
+                'If the source is saved to any of these groups, the followup request will not be executed.'
             )
         },
     )
