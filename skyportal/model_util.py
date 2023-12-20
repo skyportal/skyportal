@@ -70,6 +70,7 @@ def create_user(
     auth=False,
     first_name=None,
     last_name=None,
+    affiliations=[],
     contact_email=None,
     contact_phone=None,
     expiration_date=None,
@@ -88,6 +89,7 @@ def create_user(
             contact_email=contact_email,
             contact_phone=contact_phone,
             expiration_date=expiration_date,
+            affiliations=affiliations,
         )
         if auth is not None and auth is not False:
             if isinstance(bool(auth), bool):
