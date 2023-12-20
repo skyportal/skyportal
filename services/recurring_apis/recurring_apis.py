@@ -1,8 +1,7 @@
-from astropy.time import Time
-from datetime import datetime, timedelta
 import json
-import requests
-import time
+from datetime import datetime, timedelta
+
+from astropy.time import Time
 
 from baselayer.log import make_log
 from baselayer.app.models import init_db
@@ -15,6 +14,7 @@ from skyportal.models import (
     UserNotification,
 )
 from skyportal.tests import api
+from skyportal.utils.services import check_loaded, HOST
 
 env, cfg = load_env()
 
@@ -22,37 +22,7 @@ init_db(**cfg['database'])
 
 log = make_log('recurring_apis')
 
-REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
 MAX_RETRIES = 10
-
-
-host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
-    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
-)
-
-
-def is_loaded():
-    try:
-        r = requests.get(f'{host}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS)
-    except:  # noqa: E722
-        status_code = 0
-    else:
-        status_code = r.status_code
-
-    if status_code == 200:
-        return True
-    else:
-        return False
-
-
-def service():
-    while True:
-        if is_loaded():
-            try:
-                perform_api_calls()
-            except Exception as e:
-                log(e)
-        time.sleep(30)
 
 
 def perform_api_calls():
@@ -83,7 +53,7 @@ def perform_api_calls():
                     recurring_api.method.upper(),
                     recurring_api.endpoint,
                     token=token,
-                    host=host,
+                    host=HOST,
                     data=data,
                 )
             elif recurring_api.method.upper() == "GET":
@@ -91,7 +61,7 @@ def perform_api_calls():
                     recurring_api.method.upper(),
                     recurring_api.endpoint,
                     token=token,
-                    host=host,
+                    host=HOST,
                     params=data,
                 )
             else:
@@ -124,6 +94,15 @@ def perform_api_calls():
                 )
             )
             session.commit()
+
+
+@check_loaded(logger=log)
+def service(*args, **kwargs):
+    while True:
+        try:
+            perform_api_calls()
+        except Exception as e:
+            log(e)
 
 
 if __name__ == "__main__":

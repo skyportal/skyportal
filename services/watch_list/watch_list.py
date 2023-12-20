@@ -13,34 +13,13 @@ from skyportal.handlers.api.alert import (
     post_alert,
 )
 from skyportal.models import ThreadSession, Listing, Telescope, User
+from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
 
 init_db(**cfg['database'])
 
 log = make_log('watchlist')
-
-REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
-MAX_RETRIES = 10
-
-
-host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
-    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
-)
-
-
-def is_loaded():
-    try:
-        r = requests.get(f'{host}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS)
-    except:  # noqa: E722
-        status_code = 0
-    else:
-        status_code = r.status_code
-
-    if status_code == 200:
-        return True
-    else:
-        return False
 
 
 def ztf_observing_times():
@@ -54,26 +33,6 @@ def ztf_observing_times():
             raise Exception('Could not find ZTF')
         time_info = telescope.current_time
         return time_info
-
-
-def service():
-    while True:
-        loaded = is_loaded()
-        time_info = None
-        if loaded and alert_available:
-            try:
-                time_info = ztf_observing_times()
-            except Exception as e:
-                log(e)
-                time.sleep(5)
-                continue
-            try:
-                check_watch_list(time_info)
-            except Exception as e:
-                log(e)
-                time.sleep(5)
-        else:
-            time.sleep(60)
 
 
 def check_watch_list(time_info):
@@ -251,6 +210,26 @@ def check_watch_list(time_info):
     # if we took less than the shortest interval, sleep for the difference. Otherwise, don't sleep
     if end - start < shortest_interval:
         time.sleep(shortest_interval - (end - start))
+
+
+@check_loaded(logger=log)
+def service(*args, **kwargs):
+    while True:
+        time_info = None
+        if alert_available:
+            try:
+                time_info = ztf_observing_times()
+            except Exception as e:
+                log(e)
+                time.sleep(5)
+                continue
+            try:
+                check_watch_list(time_info)
+            except Exception as e:
+                log(e)
+                time.sleep(5)
+        else:
+            time.sleep(60)
 
 
 if __name__ == "__main__":

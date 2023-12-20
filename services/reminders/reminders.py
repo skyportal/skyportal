@@ -1,6 +1,6 @@
-from astropy.time import Time
 from datetime import datetime, timedelta
-import requests
+
+from astropy.time import Time
 
 from baselayer.log import make_log
 from baselayer.app.models import init_db
@@ -17,43 +17,14 @@ from skyportal.models import (
 from skyportal.models.gcn import GcnEvent
 from skyportal.models.shift import Shift
 from baselayer.app.models import User
-import time
+
+from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
 
 init_db(**cfg['database'])
 
 log = make_log('reminders')
-
-REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
-
-host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
-    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
-)
-
-
-def is_loaded():
-    try:
-        r = requests.get(f'{host}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS)
-    except:  # noqa: E722
-        status_code = 0
-    else:
-        status_code = r.status_code
-
-    if status_code == 200:
-        return True
-    else:
-        return False
-
-
-def service():
-    while True:
-        if is_loaded():
-            try:
-                send_reminders()
-            except Exception as e:
-                log(e)
-        time.sleep(60)
 
 
 def send_reminders():
@@ -144,6 +115,15 @@ def send_reminders():
             session.commit()
 
             ws_flow.push(reminder.user.id, "skyportal/FETCH_NOTIFICATIONS")
+
+
+@check_loaded(logger=log)
+def service(*args, **kwargs):
+    while True:
+        try:
+            send_reminders()
+        except Exception as e:
+            log(e)
 
 
 if __name__ == "__main__":

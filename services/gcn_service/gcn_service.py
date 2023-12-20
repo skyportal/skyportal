@@ -1,10 +1,8 @@
 import os
-import time
 import uuid
 
 import gcn
 import lxml
-import requests
 import sqlalchemy as sa
 import xmlschema
 from gcn_kafka import Consumer
@@ -20,6 +18,7 @@ from skyportal.handlers.api.gcn import (
 from skyportal.models import ThreadSession, GcnEvent
 from skyportal.utils.gcn import get_dateobs, get_skymap_metadata, get_trigger
 from skyportal.utils.notifications import post_notification
+from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
 
@@ -37,38 +36,6 @@ reject_tags = cfg.get('gcn.reject_tags', [])
 log = make_log('gcnserver')
 
 user_id = 1
-
-REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
-
-host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
-    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
-)
-
-
-def is_loaded():
-    try:
-        r = requests.get(f'{host}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS)
-    except:  # noqa: E722
-        status_code = 0
-    else:
-        status_code = r.status_code
-
-    if status_code == 200:
-        return True
-    else:
-        return False
-
-
-def service():
-    if not is_configured():
-        return
-    while True:
-        if is_loaded():
-            try:
-                poll_events()
-            except Exception as e:
-                log(e)
-        time.sleep(15)
 
 
 def get_root_from_payload(payload):
@@ -101,7 +68,8 @@ def is_configured():
     return True
 
 
-def poll_events():
+@check_loaded(logger=log)
+def poll_events(*args, **kwargs):
     client_group_id = cfg.get('gcn.client_group_id')
     if client_group_id is None or client_group_id == '':
         client_group_id = str(uuid.uuid4())
@@ -224,6 +192,16 @@ def poll_events():
 
         except Exception as e:
             log(f'Failed to consume gcn event: {e}')
+
+
+def service():
+    if not is_configured():
+        return
+    while True:
+        try:
+            poll_events()
+        except Exception as e:
+            log(e)
 
 
 if __name__ == "__main__":
