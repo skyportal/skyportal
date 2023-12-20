@@ -43,7 +43,7 @@ log = make_log('finder-chart')
 
 _, cfg = load_env()
 
-PS1_CUTOUT_TIMEOUT = 10
+PS1_CUTOUT_TIMEOUT = 15  # seconds
 
 
 class GaiaQuery:
@@ -309,6 +309,22 @@ def get_ps1_url(ra, dec, imsize, *args, **kwargs):
 
 
 @memcache
+def get_ps1_cds_url(ra, dec, imsize, *args, **kwargs):
+    """
+    Returns the URL that points to the PS1 image for the
+    requested position, using CDS service
+    """
+
+    fov = imsize / 60.0  # from arcmin to degrees
+    url = (
+        f"https://alasky.cds.unistra.fr/hips-image-services/hips2fits"
+        f"?width=500&height=500&fov={fov}&ra={ra}&dec={dec}"
+        f"&hips=CDS/P/PanSTARRS/DR1/r"
+    )
+    return url
+
+
+@memcache
 def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
     """
     From:
@@ -403,6 +419,13 @@ source_image_parameters = {
         'npixels': 500,
         'smooth': None,
         'str': 'PS1 r-band',
+    },
+    'ps1_cds': {
+        'url': get_ps1_cds_url,
+        'reproject': True,
+        'npixels': 500,
+        'smooth': None,
+        'str': 'PS1 r-band (CDS)',
     },
 }
 
@@ -1273,7 +1296,7 @@ def get_finding_chart(
     imsize=3.0,
     tick_offset=0.02,
     tick_length=0.03,
-    fallback_image_source='dss',
+    fallback_image_source='ps1_cds',
     zscale_contrast=0.045,
     zscale_krej=2.5,
     extra_display_string="",

@@ -250,6 +250,7 @@ def post_analysis(
     show_parameters=False,
     show_plots=False,
     show_corner=False,
+    input_filters=None,
 ):
     """
     Post an analysis to the database.
@@ -278,6 +279,8 @@ def post_analysis(
         Whether to show the plots in the analysis.
     show_corner: bool
         Whether to show the corner plot in the analysis.
+    input_filters: list of str
+        The filters to apply on the input data before sending it to the analysis service.
 
     Returns
     -------
@@ -343,9 +346,34 @@ def post_analysis(
             input_data = session.scalars(stmt).all()
             if input_type == 'photometry':
                 input_data = [serialize(phot, 'ab', 'both') for phot in input_data]
-                df = pd.DataFrame(input_data)[
-                    associated_resource['allowed_export_columns']
-                ]
+                df = pd.DataFrame(input_data)
+
+                if (
+                    input_filters is not None
+                    and input_filters.get('photometry') is not None
+                ):
+                    if len(input_filters.get('photometry').get('filters', [])) > 0:
+                        df = df[
+                            df['filter'].isin(
+                                input_filters.get('photometry')['filters']
+                            )
+                        ]
+                    if len(input_filters.get('photometry').get('instruments', [])) > 0:
+                        # we want to make sure that after this runs, the user can still figure out
+                        # what instrument he filtered on, non trivial when only reporting the id used
+                        # the instrument could be edited, deleted, ...
+                        # so, we grab the name and inject that in the input_filters
+                        df = df[
+                            df['instrument_id'].isin(
+                                input_filters.get('photometry')['instruments']
+                            )
+                        ]
+                        instruments = df["instrument_name"].unique().tolist()
+                        input_filters['photometry']['instruments_by_name'] = instruments
+
+                df = df[associated_resource['allowed_export_columns']]
+                # drop duplicate mjd/filter points, keeping first
+                df = df.drop_duplicates(["mjd", "filter"]).reset_index(drop=True)
             else:
                 input_data = [
                     generic_serialize(
@@ -372,6 +400,7 @@ def post_analysis(
             status='queued',
             handled_by_url="api/webhook/obj_analysis",
             invalid_after=invalid_after,
+            input_filters=input_filters,
         )
     # Add more analysis_resource_types here one day (eg. GCN)
     else:
@@ -1008,6 +1037,9 @@ class AnalysisHandler(BaseHandler):
                   show_corner:
                     type: boolean
                     description: Whether to render the corner plots of this analysis
+                  input_filters:
+                    type: array
+                    description: Filters to apply to the input data
                   analysis_parameters:
                     type: object
                     description: Dictionary of parameters to be passed thru to the analysis
@@ -1118,6 +1150,26 @@ class AnalysisHandler(BaseHandler):
                 )
 
             author = self.associated_user_object
+            input_filters = data.get('input_filters', {})
+            if input_filters is not None:
+                if (
+                    "photometry" in analysis_service.input_data_types
+                    and "photometry" in input_filters
+                ):
+                    filters = input_filters.get('photometry', {}).get('filters', [])
+                    instruments = input_filters.get('photometry', {}).get(
+                        'instruments', []
+                    )
+                    if filters is not None:
+                        filters = [f.strip() for f in filters if f.strip() != ""]
+                        if len(filters) > 0:
+                            input_filters['photometry']['filters'] = filters
+                    if instruments is not None:
+                        instruments = [
+                            int(i.strip()) for i in instruments if isinstance(i, str)
+                        ]
+                        if len(instruments) > 0:
+                            input_filters['photometry']['instruments'] = instruments
 
             try:
                 analysis_id = post_analysis(
@@ -1131,6 +1183,7 @@ class AnalysisHandler(BaseHandler):
                     show_parameters=data.get('show_parameters', False),
                     show_plots=data.get('show_plots', False),
                     show_corner=data.get('show_corner', False),
+                    input_filters=input_filters,
                     session=session,
                 )
                 return self.success(data={"id": analysis_id})

@@ -158,9 +158,9 @@ const SourceAnalysisPage = ({ route }) => {
           {analysis?.analysis_parameters && (
             <div className={classes.div}>
               <b>Analysis Parameters</b>:
-              {Object.keys(analysis?.analysis_parameters).map((key, v) => (
+              {Object.keys(analysis?.analysis_parameters).map((key) => (
                 <Chip
-                  label={`${key}: ${v}`}
+                  label={`${key}: ${analysis?.analysis_parameters[key]}`}
                   key={`chip_ap_${key}`}
                   size="small"
                   className={classes.chip}
@@ -168,6 +168,29 @@ const SourceAnalysisPage = ({ route }) => {
               ))}
             </div>
           )}
+          {analysis?.input_filters &&
+            Object.keys(analysis?.input_filters || {}).every(
+              (input_type) =>
+                Object.keys(analysis?.input_filters[input_type]).length > 0
+            ) && (
+              <div className={classes.div}>
+                <b>Input Data Filters</b>:
+                {Object.keys(analysis?.input_filters).map((input_type) =>
+                  Object.keys(analysis?.input_filters[input_type]).map(
+                    (key) => (
+                      <Chip
+                        label={`${input_type}.${key}: ${JSON.stringify(
+                          analysis?.input_filters[input_type][key]
+                        )}`}
+                        key={`chip_if_${key}`}
+                        size="small"
+                        className={classes.chip}
+                      />
+                    )
+                  )
+                )}
+              </div>
+            )}
           {analysis?.show_parameters &&
             analysisResults &&
             analysis?.status === "completed" && (

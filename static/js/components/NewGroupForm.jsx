@@ -73,7 +73,11 @@ const NewGroupForm = () => {
   const useStyles = makeStyles((theme) => ({
     formControl: {
       margin: `${theme.spacing(1)} 0`,
-      minWidth: 130,
+      minWidth: "50%",
+    },
+    customTextField: {
+      width: "50%", // Set the desired width
+      marginBottom: theme.spacing(2), // Example spacing
     },
     chips: {
       display: "flex",
@@ -112,6 +116,7 @@ const NewGroupForm = () => {
             name="name"
             value={formState.name}
             onChange={handleChange}
+            className={classes.customTextField}
           />
         </Box>
         <Box>
@@ -120,6 +125,7 @@ const NewGroupForm = () => {
             name="nickname"
             value={formState.nickname}
             onChange={handleChange}
+            className={classes.customTextField}
           />
         </Box>
         <Box>
@@ -128,6 +134,7 @@ const NewGroupForm = () => {
             name="description"
             value={formState.description}
             onChange={handleChange}
+            className={classes.customTextField}
           />
         </Box>
         <Box>

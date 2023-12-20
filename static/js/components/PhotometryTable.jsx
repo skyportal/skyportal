@@ -8,6 +8,12 @@ import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import makeStyles from "@mui/styles/makeStyles";
+import {
+  createTheme,
+  ThemeProvider,
+  StyledEngineProvider,
+  useTheme,
+} from "@mui/material/styles";
 import CircularProgress from "@mui/material/CircularProgress";
 import MUIDataTable from "mui-datatables";
 
@@ -23,6 +29,50 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+const getMuiTheme = (theme) =>
+  createTheme({
+    palette: theme.palette,
+    components: {
+      MUITableCell: {
+        styleOverrides: {
+          paddingCheckbox: {
+            padding: 0,
+            margin: 0,
+          },
+        },
+      },
+      MUIDataTableBodyCell: {
+        styleOverrides: {
+          root: {
+            padding: "0.25rem",
+            paddingRight: 0,
+            margin: 0,
+          },
+        },
+      },
+      MUIDataTableHeadCell: {
+        styleOverrides: {
+          root: {
+            padding: "0.5rem",
+            paddingRight: 0,
+            margin: 0,
+          },
+          sortLabelRoot: {
+            height: "1.4rem",
+          },
+        },
+      },
+    },
+  });
+
+const defaultHiddenColumns = [
+  "instrument_id",
+  "snr",
+  "magsys",
+  "annotations",
+  "created_at",
+];
+
 // eslint-disable-next-line
 const Transition = React.forwardRef(function Transition(props, ref) {
   // eslint-disable-next-line
@@ -37,6 +87,7 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
   let bodyContent = null;
 
   const classes = useStyles();
+  const theme = useTheme();
   const dispatch = useDispatch();
 
   const [isDeleting, setIsDeleting] = useState(null);
@@ -57,7 +108,34 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
     if (data.length === 0) {
       bodyContent = <p>Source has no photometry.</p>;
     } else {
-      const keys = Object.keys(data[0]).filter((key) => key !== "groups");
+      const keys = [
+        "id",
+        "mjd",
+        "mag",
+        "magerr",
+        "limiting_mag",
+        "filter",
+        "instrument_name",
+        "instrument_id",
+        "snr",
+        "magsys",
+        "origin",
+        "altdata",
+        "ra",
+        "dec",
+        "ra_unc",
+        "dec_unc",
+        "created_at",
+      ];
+      Object.keys(data[0]).forEach((key) => {
+        if (
+          !keys.includes(key) &&
+          !["groups", "owner", "obj_id", "id"].includes(key)
+        ) {
+          keys.push(key);
+        }
+      });
+
       const columns = keys.map((key) => ({
         name: key,
         options: {
@@ -75,8 +153,27 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
             }
             return value;
           },
+          display: !defaultHiddenColumns.includes(key),
         },
       }));
+
+      const renderOwner = (dataIndex) => {
+        const phot = data[dataIndex];
+        return (
+          <div>
+            <div className={classes.actionButtons}>
+              <div>{phot.owner.username}</div>
+            </div>
+          </div>
+        );
+      };
+      columns.push({
+        name: "owner",
+        label: "owner",
+        options: {
+          customBodyRenderLite: renderOwner,
+        },
+      });
 
       const renderEdit = (dataIndex) => {
         const phot = data[dataIndex];
@@ -158,12 +255,16 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
 
       bodyContent = (
         <div>
-          <MUIDataTable
-            title={`Photometry of ${obj_id}`}
-            columns={columns}
-            data={data}
-            options={options}
-          />
+          <StyledEngineProvider injectFirst>
+            <ThemeProvider theme={getMuiTheme(theme)}>
+              <MUIDataTable
+                title={`Photometry of ${obj_id}`}
+                columns={columns}
+                data={data}
+                options={options}
+              />
+            </ThemeProvider>
+          </StyledEngineProvider>
         </div>
       );
     }
