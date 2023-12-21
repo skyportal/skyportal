@@ -66,8 +66,9 @@ import SourcePlugins from "./SourcePlugins";
 
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
-import PhotometryPlot from "./PhotometryPlot";
+// import PhotometryPlot from "./PhotometryPlot";
 import SpectraPlot from "./SpectraPlot";
+import PhotometryPlotV2 from "./PhotometryPlot_v2";
 
 const CommentList = React.lazy(() => import("./CommentList"));
 
@@ -718,8 +719,9 @@ const SourceDesktop = ({ source }) => {
                         </div>
                       }
                     >
-                      <PhotometryPlot
+                      <PhotometryPlotV2
                         obj_id={source.id}
+                        dm={source.dm}
                         photometry={photometry}
                         annotations={source?.annotations || []}
                       />
