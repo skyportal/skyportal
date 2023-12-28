@@ -301,6 +301,9 @@ def get_ps1_url(ra, dec, imsize, *args, **kwargs):
             return ""
         url = match.group().replace('src="', 'http:').replace('"', '')
         url += f"&format=fits&imagename=ps1{ra}{dec:+f}.fits"
+    except requests.exceptions.SSLError as e:
+        log(f"Error getting PS1 image URL {str(e)}")
+        return ""
     except Exception as e:
         log(f"Error getting PS1 image URL {e.message}")
         return ""
