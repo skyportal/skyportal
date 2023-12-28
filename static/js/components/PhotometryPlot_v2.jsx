@@ -552,7 +552,12 @@ const PhotometryPlotV2 = ({
               // the native autoScale2d and resetScale2d buttons are not working
               // as they are not resetting to the specified ranges
               // so, we remove them and add our own
-              modeBarButtonsToRemove: ["autoScale2d", "resetScale2d"],
+              modeBarButtonsToRemove: [
+                "autoScale2d",
+                "resetScale2d",
+                "select2d",
+                "lasso2d",
+              ],
               modeBarButtonsToAdd: [
                 {
                   name: "Reset",
