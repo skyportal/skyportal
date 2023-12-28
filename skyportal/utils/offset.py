@@ -1255,7 +1255,8 @@ def fits_image(
         )
 
     if url in [None, ""]:
-        raise Exception(f"Could not get FITS image for source {image_source}")
+        log(f"Could not get FITS image for source {image_source}")
+        return None
 
     cache = Cache(cache_dir=cache_dir, max_items=cache_max_items)
 
