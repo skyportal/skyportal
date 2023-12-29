@@ -224,7 +224,7 @@ const TopScannersList = ({ scanners, styles }) => {
 
 TopScannersList.propTypes = {
   scanners: PropTypes.arrayOf(
-    PropTypes.shape({
+    PropTypes.objectOf({
       author: PropTypes.shape({
         first_name: PropTypes.string,
         last_name: PropTypes.string,
@@ -233,7 +233,7 @@ TopScannersList.propTypes = {
         contact_phone: PropTypes.string,
         gravatar_url: PropTypes.string,
       }).isRequired,
-      saves: PropTypes.Number.isRequired,
+      saves: PropTypes.number.isRequired,
     })
   ),
   styles: PropTypes.shape(Object).isRequired,
