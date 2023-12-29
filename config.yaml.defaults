@@ -399,6 +399,16 @@ app:
         sm: [3, 3, 3, 3]
         xs: [0, 7, 4, 3]
 
+    TopScanners:
+      resizeable: true
+      minW: 2
+      layouts:
+        xlg: [5, 0, 5, 3]
+        lg: [4, 3, 3, 3]
+        md: [5, 3, 5, 3]
+        sm: [3, 3, 3, 3]
+        xs: [0, 7, 4, 3]
+
     RecentGcnEvents:
       resizeable: true
       minW: 3
