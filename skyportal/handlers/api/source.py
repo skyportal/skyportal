@@ -414,9 +414,10 @@ async def get_source(
         ]
         if deduplicate_photometry:
             df_phot = pd.DataFrame.from_records(source_info["photometry"])
-            # drop duplicate mjd/filter points, keeping first
+            # drop duplicate mjd/filter points, keeping most recent
             source_info["photometry"] = (
-                df_phot.drop_duplicates(["mjd", "filter"])
+                df_phot.sort_values(by="created_at", ascending=False)
+                .drop_duplicates(["mjd", "filter"])
                 .reset_index(drop=True)
                 .to_dict(orient='records')
             )
