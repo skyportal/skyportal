@@ -2419,3 +2419,80 @@ def test_copy_photometry_sources(
     assert status == 200
     assert data["status"] == "success"
     assert any([np.isclose(p['mjd'], 59801.3) for p in data["data"]["photometry"]])
+
+
+def test_deduplicate_photometry(
+    public_group, upload_data_token, ztf_camera, view_only_token
+):
+    obj_id = str(uuid.uuid4())
+    ra = 200.0 * np.random.random()
+    dec = 89.0 * np.random.random()
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": ra,
+            "dec": dec,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": obj_id,
+            "mjd": 59801.4,
+            "instrument_id": ztf_camera.id,
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "mag": 12.4,
+            "magerr": 0.3,
+            "limiting_mag": 22,
+            "magsys": "ab",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": obj_id,
+            "mjd": 59801.4,
+            "instrument_id": ztf_camera.id,
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "mag": 12.8,
+            "magerr": 0.3,
+            "limiting_mag": 22,
+            "magsys": "ab",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        f"sources/{obj_id}",
+        params={"includePhotometry": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["photometry"]) == 2
+
+    status, data = api(
+        "GET",
+        f"sources/{obj_id}",
+        params={"includePhotometry": "true", "deduplicatePhotometry": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["photometry"]) == 1
+    # should be the second one (which is first in the list)
+    assert np.isclose(data["data"]["photometry"][0]["mag"], 12.8)

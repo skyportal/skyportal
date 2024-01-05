@@ -1526,6 +1526,7 @@ class ObjPhotometryHandler(BaseHandler):
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
         include_owner_info = self.get_query_argument('includeOwnerInfo', False)
+        deduplicate_photometry = self.get_query_argument('deduplicatePhotometry', False)
 
         if str(include_owner_info).lower() in ['true', 't', '1']:
             include_owner_info = True
@@ -1560,6 +1561,15 @@ class ObjPhotometryHandler(BaseHandler):
                     serialize(phot, outsys, format, owner=include_owner_info)
                     for phot in photometry
                 ]
+                if deduplicate_photometry:
+                    df_phot = pd.DataFrame.from_records(phot_data)
+                    # drop duplicate mjd/filter points, keeping most recent
+                    phot_data = (
+                        df_phot.sort_values(by="created_at", ascending=False)
+                        .drop_duplicates(["mjd", "filter"])
+                        .reset_index(drop=True)
+                        .to_dict(orient='records')
+                    )
 
             if individual_or_series in ["series", "both"]:
 
