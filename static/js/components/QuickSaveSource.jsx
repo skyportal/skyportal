@@ -27,9 +27,12 @@ const QuickSaveButton = ({ sourceId, alreadySavedGroups }) => {
 
   const quickSaveSource = () => {
     setIsSaving(true);
+    const saveGroups = [...quickSaveGroupsSet].filter(
+      (x) => !alreadySavedGroupsSet.has(x)
+    );
     const data = {
       id: sourceId,
-      group_ids: [...alreadySavedGroupsSet, ...quickSaveGroupsSet],
+      group_ids: saveGroups,
     };
     dispatch(sourceActions.saveSource(data)).then((response) => {
       if (response.status === "success") {
