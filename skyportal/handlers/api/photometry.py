@@ -1563,11 +1563,12 @@ class ObjPhotometryHandler(BaseHandler):
                 ]
                 if deduplicate_photometry:
                     df_phot = pd.DataFrame.from_records(phot_data)
-                    # drop duplicate mjd/filter points, keeping first
+                    # drop duplicate mjd/filter points, keeping most recent
                     phot_data = (
-                        df_phot.drop_duplicates(["mjd", "filter"])
+                        df_phot.sort_values(by="created_at", ascending=False)
+                        .drop_duplicates(["mjd", "filter"])
                         .reset_index(drop=True)
-                        .to_dict(orient='list')
+                        .to_dict(orient='records')
                     )
 
             if individual_or_series in ["series", "both"]:
