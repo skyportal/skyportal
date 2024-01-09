@@ -287,7 +287,7 @@ def get_ps1_url(ra, dec, imsize, *args, **kwargs):
     numpix = math.ceil(60 * imsize / 0.25)
 
     ps_query_url = (
-        f"https://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+        f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
         f"?pos={ra}+{dec}&"
         f"filter=r&filetypes=stack&size={numpix}"
     )

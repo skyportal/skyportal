@@ -517,7 +517,7 @@ class Obj(Base, conesearch_alchemy.Point):
         we assume that the image is not available and return None.
         """
         ps_query_url = (
-            f"https://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+            f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
             f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
             f"&filter=r&filter=i&filetypes=stack&size=250"
         )
