@@ -79,7 +79,7 @@
     "react-json-tree": "0.18.0",
     "react-json-view": "1.21.3",
     "react-markdown": "8.0.7",
-    "react-qr-code": "^2.0.12",
+    "react-qr-code": "2.0.12",
     "react-redux": "8.1.2",
     "react-resizable": "3.0.5",
     "react-responsive": "9.0.2",
