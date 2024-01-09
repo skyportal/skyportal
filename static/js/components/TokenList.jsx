@@ -15,6 +15,7 @@ import {
 import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
+import QRCode from "react-qr-code";
 import Button from "./Button";
 import UpdateTokenACLs from "./UpdateTokenACLs";
 
@@ -88,6 +89,15 @@ const TokenList = ({ tokens }) => {
     </div>
   );
 
+  const renderQRCode = (dataIndex) => {
+    const tokenId = tokens[dataIndex].id;
+    return (
+      <div>
+        <QRCode value={tokenId} />
+      </div>
+    );
+  };
+
   const renderACLs = (dataIndex) => {
     const tokenId = tokens[dataIndex].id;
     const tokenACLs = tokens[dataIndex].acls;
@@ -120,6 +130,13 @@ const TokenList = ({ tokens }) => {
       label: "Value",
       options: {
         customBodyRender: renderValue,
+      },
+    },
+    {
+      name: "qr",
+      label: "QR Code",
+      options: {
+        customBodyRenderLite: renderQRCode,
       },
     },
     { name: "name", label: "Name" },
