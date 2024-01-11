@@ -49,22 +49,24 @@ class SourceSaverHandler(BaseHandler):
 
     @auth_or_token
     def get(self):
-
         with self.Session() as session:
-            query_results = SourceSaverHandler.get_top_source_savers(
-                self.current_user, session
-            )
-            savers = []
-            for rank, (saved, user_id) in enumerate(query_results):
-                s = session.scalars(
-                    User.select(session.user_or_token).where(User.id == user_id)
-                ).first()
-                savers.append(
-                    {
-                        'rank': rank + 1,
-                        'author': {**s.to_dict(), "gravatar_url": s.gravatar_url},
-                        'saves': saved,
-                    }
+            try:
+                query_results = SourceSaverHandler.get_top_source_savers(
+                    self.current_user, session
                 )
+                savers = []
+                for rank, (saved, user_id) in enumerate(query_results):
+                    s = session.scalars(
+                        User.select(session.user_or_token).where(User.id == user_id)
+                    ).first()
+                    savers.append(
+                        {
+                            'rank': rank + 1,
+                            'author': {**s.to_dict(), "gravatar_url": s.gravatar_url},
+                            'saves': saved,
+                        }
+                    )
 
-            return self.success(data=savers)
+                return self.success(data=savers)
+            except Exception as e:
+                return self.error(f'Failed to fetch source savers: {e}')
