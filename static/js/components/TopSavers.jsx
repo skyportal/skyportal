@@ -13,6 +13,7 @@ import ListItem from "@mui/material/ListItem";
 import Divider from "@mui/material/Divider";
 import TextField from "@mui/material/TextField";
 import SearchIcon from "@mui/icons-material/Search";
+import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import InputAdornment from "@mui/material/InputAdornment";
 
 import makeStyles from "@mui/styles/makeStyles";
@@ -78,47 +79,24 @@ const defaultPrefs = {
   candidatesOnly: true,
 };
 
-const getStarType = (index) => {
-  const positions = ["gold", "silver", "bronze"];
-
-  if (index < positions.length) {
-    return positions[index];
-  }
-  return index + 1; // Continue with numbers after bronze
-};
-
-const Star = ({ type }) => {
-  let starColor;
-  let starIcon;
-
+const starColor = (rank) => {
+  let color = "#000000"; // Default color (black) for unknown type
   // Set star color and icon based on the type prop
-  switch (type) {
-    case "gold":
-      starColor = "#FFD700"; // Gold color
-      starIcon = "★"; // Gold star icon
+  switch (rank) {
+    case 1:
+      color = "#D1B000"; // Gold color
       break;
-    case "silver":
-      starColor = "#C0C0C0"; // Silver color
-      starIcon = "★"; // Silver star icon
+    case 2:
+      color = "#C0C0C0"; // Silver color
       break;
-    case "bronze":
-      starColor = "#CD7F32"; // Bronze color
-      starIcon = "★"; // Bronze star icon
+    case 3:
+      color = "#CD7F32"; // Bronze color
       break;
     default:
-      starColor = "#000000"; // Default color (black) for unknown type
-      starIcon = "?"; // Default icon for unknown type
+      break;
   }
 
-  return (
-    <div className="star" style={{ color: starColor }}>
-      {starIcon}
-    </div>
-  );
-};
-
-Star.propTypes = {
-  type: PropTypes.string.isRequired,
+  return color;
 };
 
 const TopSaversSearch = ({ savers, setOptions }) => {
@@ -211,7 +189,15 @@ const TopSaversList = ({ savers, styles }) => {
   const renderRank = (index) => {
     const { rank } = options[index];
     return (
-      <div>{rank < 4 ? <Star type={getStarType(index)} /> : <p>{rank}</p>}</div>
+      <div>
+        {rank < 4 ? (
+          <WorkspacePremiumIcon
+            sx={{ color: starColor(rank), marginTop: "0.3rem" }}
+          />
+        ) : (
+          rank
+        )}
+      </div>
     );
   };
 
