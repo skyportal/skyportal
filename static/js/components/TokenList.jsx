@@ -15,9 +15,9 @@ import {
 import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
-import QRCode from "react-qr-code";
 import Button from "./Button";
 import UpdateTokenACLs from "./UpdateTokenACLs";
+import SharePage from "./SharePage";
 
 import * as Action from "../ducks/profile";
 
@@ -93,7 +93,7 @@ const TokenList = ({ tokens }) => {
     const tokenId = tokens[dataIndex].id;
     return (
       <div>
-        <QRCode value={tokenId} />
+        <SharePage value={tokenId} />
       </div>
     );
   };
