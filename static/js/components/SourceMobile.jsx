@@ -71,7 +71,6 @@ import * as sourceActions from "../ducks/source";
 
 import PhotometryPlot from "./PhotometryPlot";
 import SpectraPlot from "./SpectraPlot";
-import PhotometryPlotV2 from "./PhotometryPlot_v2";
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
@@ -731,7 +730,7 @@ const SourceMobile = WidthProvider(
                           </div>
                         }
                       >
-                        <PhotometryPlotV2
+                        <PhotometryPlot
                           obj_id={source.id}
                           dm={source.dm}
                           photometry={photometry}
