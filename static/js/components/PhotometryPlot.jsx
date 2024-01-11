@@ -171,8 +171,6 @@ const PhotometryPlotV2 = ({
 
   const [layoutReset, setLayoutReset] = useState(false);
 
-  const dm_flux = dm ? 10 ** (-0.4 * (dm - PHOT_ZP)) : null;
-
   const preparePhotometry = (photometryData) => {
     const stats = {
       mag: {
@@ -378,17 +376,9 @@ const PhotometryPlotV2 = ({
           };
           if (plotType === "mag" && dm && photStats) {
             secondaryAxisY.y = [photStats.mag.max - dm, photStats.mag.min - dm];
-          } else if (plotType === "flux" && dm_flux && photStats) {
-            secondaryAxisY.y = [
-              photStats.flux.max - dm_flux,
-              photStats.flux.min - dm_flux,
-            ];
           }
 
-          if (
-            (photStats && plotType === "mag" && dm) ||
-            (plotType === "flux" && dm_flux)
-          ) {
+          if (photStats && plotType === "mag" && dm) {
             return [
               detectionsTrace,
               upperLimitsTrace,
@@ -532,12 +522,7 @@ const PhotometryPlotV2 = ({
     return null;
   };
 
-  const createLayouts = (
-    plotType,
-    photStats_value,
-    dm_value,
-    dm_flux_value
-  ) => {
+  const createLayouts = (plotType, photStats_value, dm_value) => {
     const newLayouts = {};
     if (plotType === "mag" || plotType === "flux") {
       newLayouts.xaxis = {
@@ -591,19 +576,6 @@ const PhotometryPlotV2 = ({
         range: [...photStats_value.flux.range],
         ...BASE_LAYOUT,
       };
-      if (dm_flux_value && photStats_value) {
-        newLayouts.yaxis2 = {
-          title: "Flux",
-          range: [
-            photStats_value.flux.range[0] - dm_flux_value,
-            photStats_value.flux.range[1] - dm_flux_value,
-          ],
-          overlaying: "y",
-          side: "right",
-          showgrid: false,
-          ...BASE_LAYOUT,
-        };
-      }
     }
     return newLayouts;
   };
@@ -628,12 +600,7 @@ const PhotometryPlotV2 = ({
         setPlotData(traces);
       }
 
-      const newLayouts = createLayouts(
-        tabToPlotType(tabIndex),
-        photStats,
-        dm,
-        dm_flux
-      );
+      const newLayouts = createLayouts(tabToPlotType(tabIndex), photStats, dm);
       setLayouts(newLayouts);
       if (layoutReset) {
         setLayoutReset(false);
