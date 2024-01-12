@@ -14,7 +14,6 @@ import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
 import ThumbUp from "@mui/icons-material/ThumbUp";
 import ThumbDown from "@mui/icons-material/ThumbDown";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
@@ -2090,7 +2089,6 @@ const SourceTable = ({
             style={{ position: "fixed" }}
             maxWidth="md"
           >
-            <DialogTitle onClose={handleClose}>New Source</DialogTitle>
             <DialogContent dividers>
               <NewSource classes={classes} />
             </DialogContent>

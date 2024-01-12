@@ -250,6 +250,8 @@ class ProfileHandler(BaseHandler):
                 self.push(action="skyportal/FETCH_NEWSFEED")
             if "topSources" in preferences:
                 self.push(action="skyportal/FETCH_TOP_SOURCES")
+            if "topSavers" in preferences:
+                self.push(action="skyportal/FETCH_TOP_SAVERS")
             if "recentGcnEvents" in preferences:
                 self.push(action="skyportal/FETCH_RECENT_GCNEVENTS")
             if "recentSources" in preferences:

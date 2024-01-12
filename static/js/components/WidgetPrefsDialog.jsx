@@ -158,6 +158,35 @@ const WidgetPrefsDialog = ({
                   </div>
                 );
               }
+              if (typeof initialValues[key] === "boolean") {
+                return (
+                  <div key={key} className={classes.inputSectionDiv}>
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              onChange={(event) =>
+                                onChange(event.target.checked)
+                              }
+                              checked={value}
+                              data-testid={key}
+                            />
+                          }
+                          label={
+                            key === "candidatesOnly"
+                              ? "Only if source has candidate(s)"
+                              : key
+                          }
+                        />
+                      )}
+                      name={key}
+                      control={control}
+                      defaultValue={initialValues[key]}
+                    />
+                  </div>
+                );
+              }
               return <div key={key} />;
             })}
             <div className={classes.saveButton}>

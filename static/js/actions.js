@@ -10,6 +10,7 @@ import * as defaultObservationPlansActions from "./ducks/default_observation_pla
 import * as defaultSurveyEfficienciesActions from "./ducks/default_survey_efficiencies";
 import * as newsFeedActions from "./ducks/newsFeed";
 import * as topSourcesActions from "./ducks/topSources";
+import * as topSaversActions from "./ducks/topSavers";
 import * as recentSourcesActions from "./ducks/recentSources";
 import * as mmadetectorActions from "./ducks/mmadetector";
 import * as observationPlansActions from "./ducks/observationPlans";
@@ -99,6 +100,7 @@ export default function hydrate(
     // dashboard data, always refreshed
     dispatch(newsFeedActions.fetchNewsFeed());
     dispatch(topSourcesActions.fetchTopSources());
+    dispatch(topSaversActions.fetchTopSavers());
     dispatch(recentSourcesActions.fetchRecentSources());
     dispatch(sourceCountsActions.fetchSourceCounts());
     dispatch(recentGcnEventsActions.fetchRecentGcnEvents());
