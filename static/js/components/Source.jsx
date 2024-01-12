@@ -12,7 +12,7 @@ import Spinner from "./Spinner";
 
 import withRouter from "./withRouter";
 
-const sidebarWidth = 190;
+const sidebarWidth = 170;
 
 const Source = ({ route }) => {
   const ref = useRef(null);

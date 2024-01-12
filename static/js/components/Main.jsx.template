@@ -57,7 +57,7 @@ const useStyles = makeStyles((theme) => ({
       duration: theme.transitions.duration.leavingScreen,
     }),
     marginTop: "4em", // top bar height
-    marginLeft: isMobile ? "0" : "190px",
+    marginLeft: isMobile ? "0" : "170px",
     "& a": {
       textDecoration: "none",
       color: "gray",
@@ -69,7 +69,7 @@ const useStyles = makeStyles((theme) => ({
       easing: theme.transitions.easing.easeOut,
       duration: theme.transitions.duration.enteringScreen,
     }),
-    marginLeft: 0,
+    marginLeft: isMobile ? "0" : "50px",
   },
   websocket: {
     display: "none",

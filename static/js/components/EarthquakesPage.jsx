@@ -4,7 +4,7 @@ import { useTheme } from "@mui/material/styles";
 import EarthquakesPageDesktop from "./EarthquakesPageDesktop";
 import EarthquakesPageMobile from "./EarthquakesPageMobile";
 
-const sidebarWidth = 190;
+const sidebarWidth = 170;
 
 const EarthquakesPage = () => {
   const ref = useRef(null);

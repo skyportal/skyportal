@@ -4,7 +4,7 @@ import { useTheme } from "@mui/material/styles";
 import TelescopePageDesktop from "./TelescopePageDesktop";
 import TelescopePageMobile from "./TelescopePageMobile";
 
-const sidebarWidth = 190;
+const sidebarWidth = 170;
 
 const TelescopePage = () => {
   const ref = useRef(null);

@@ -97,7 +97,7 @@ DownloadXMLButton.propTypes = {
   }).isRequired,
 };
 
-const sidebarWidth = 190;
+const sidebarWidth = 170;
 
 const EarthquakePage = ({ route }) => {
   const ref = useRef(null);

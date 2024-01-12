@@ -4,7 +4,7 @@ import { useTheme } from "@mui/material/styles";
 import MMADetectorPageDesktop from "./MMADetectorPageDesktop";
 import MMADetectorPageMobile from "./MMADetectorPageMobile";
 
-const sidebarWidth = 190;
+const sidebarWidth = 170;
 
 const MMADetectorPage = () => {
   const ref = useRef(null);
