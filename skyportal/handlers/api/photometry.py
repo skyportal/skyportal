@@ -1561,7 +1561,7 @@ class ObjPhotometryHandler(BaseHandler):
                     serialize(phot, outsys, format, owner=include_owner_info)
                     for phot in photometry
                 ]
-                if deduplicate_photometry:
+                if deduplicate_photometry and len(phot_data) > 0:
                     df_phot = pd.DataFrame.from_records(phot_data)
                     # drop duplicate mjd/filter points, keeping most recent
                     phot_data = (
