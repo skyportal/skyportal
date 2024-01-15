@@ -13,10 +13,10 @@ default_prefs = {'maxNumSavers': 100, 'sinceDaysAgo': 7, 'candidatesOnly': True}
 
 class SourceSaverHandler(BaseHandler):
     @classmethod
-    def get_top_source_savers(self, current_user, session):
+    def get_top_source_savers(self, current_user, session, user_options):
         user_prefs = getattr(current_user, 'preferences', None) or {}
         top_savers_prefs = user_prefs.get('topSavers', {})
-        top_savers_prefs = {**default_prefs, **top_savers_prefs}
+        top_savers_prefs = {**default_prefs, **top_savers_prefs, **user_options}
 
         max_num_savers = int(top_savers_prefs['maxNumSavers'])
         since_days_ago = int(top_savers_prefs['sinceDaysAgo'])
@@ -49,10 +49,53 @@ class SourceSaverHandler(BaseHandler):
 
     @auth_or_token
     def get(self):
+        """
+        ---
+        description: Retrieve a stream
+        tags:
+          - sources
+        parameters:
+          - in: query
+            name: maxNumSavers
+            required: false
+            schema:
+              type: integer
+          - in: query
+            name: sinceDaysAgo
+            required: false
+            schema:
+              type: integer
+          - in: query
+            name: candidatesOnly
+            required: false
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfUsers
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        max_num_savers = self.get_query_argument('maxNumSavers', None)
+        since_days_ago = self.get_query_argument('sinceDaysAgo', None)
+        candidates_only = self.get_query_argument('candidatesOnly', None)
+
+        user_options = {}
+        if max_num_savers is not None:
+            user_options['maxNumSavers'] = max_num_savers
+        if since_days_ago is not None:
+            user_options['sinceDaysAgo'] = since_days_ago
+        if candidates_only is not None:
+            user_options['candidatesOnly'] = candidates_only
+
         with self.Session() as session:
             try:
                 query_results = SourceSaverHandler.get_top_source_savers(
-                    self.current_user, session
+                    self.current_user, session, user_options
                 )
                 savers = []
                 for rank, (saved, user_id) in enumerate(query_results):
