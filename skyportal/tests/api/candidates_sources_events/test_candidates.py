@@ -1713,7 +1713,6 @@ def test_candidate_savers(
         "internal/source_savers",
         token=view_only_token,
     )
-    print(data)
     assert status == 200
     assert data["status"] == "success"
 
