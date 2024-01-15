@@ -51,7 +51,7 @@ class SourceSaverHandler(BaseHandler):
     def get(self):
         """
         ---
-        description: Retrieve a stream
+        description: Retrieve users saving candidates
         tags:
           - sources
         parameters:
