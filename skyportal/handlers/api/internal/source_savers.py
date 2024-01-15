@@ -69,7 +69,7 @@ class SourceSaverHandler(BaseHandler):
             name: candidatesOnly
             required: false
             schema:
-              type: integer
+              type: boolean
         responses:
           200:
             content:
