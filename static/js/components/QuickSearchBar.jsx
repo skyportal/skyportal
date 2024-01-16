@@ -5,24 +5,43 @@ import makeStyles from "@mui/styles/makeStyles";
 
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
-import SearchIcon from "@mui/icons-material/Search";
-import InputAdornment from "@mui/material/InputAdornment";
 import CircularProgress from "@mui/material/CircularProgress";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 
 import { GET } from "../API";
+
+const ALLOWED_TYPES = ["Sources", "GCN Events"];
 
 const useStyles = makeStyles((theme) => ({
   root: {
     "& .MuiOutlinedInput-root": {
       "& fieldset": {
         borderColor: theme.palette.info.main,
+        borderRadius: "0 1rem 1rem 0",
       },
       "&:hover fieldset": {
         borderColor: theme.palette.info.main,
+        borderRadius: "0 1rem 1rem 0",
       },
       "&.Mui-focused fieldset": {
         borderColor: theme.palette.info.main,
+        borderRadius: "0 1rem 1rem 0",
       },
+    },
+    margin: 0,
+    padding: 0,
+  },
+  typeSelect: {
+    color: theme.palette.info.main,
+    margin: 0,
+    padding: 0,
+    "& .MuiSelect-icon": {
+      color: theme.palette.info.main,
+    },
+    "& fieldset": {
+      borderColor: theme.palette.info.main,
+      borderRadius: "1rem 0 0 1rem",
     },
   },
   textField: {
@@ -59,27 +78,43 @@ function useDebouncer(value, delay) {
 }
 
 const QuickSearchBar = () => {
+  const classes = useStyles();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+
   const [options, setOptions] = useState([]);
   const [value, setValue] = useState(null);
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const navigate = useNavigate();
-
-  const classes = useStyles();
+  const [type, setType] = useState(ALLOWED_TYPES[0]);
 
   const debouncedInputValue = useDebouncer(inputValue, 500);
   const cache = useRef({});
 
   useEffect(() => {
-    const get = (val) =>
-      dispatch(
+    // empty the cache when the type changes
+    cache.current = {};
+  }, [type]);
+
+  useEffect(() => {
+    const get = (val) => {
+      if (type === "GCN Events") {
+        return dispatch(
+          GET(
+            `/api/gcn_event?partialdateobs=${val}&pageNumber=1&totalMatches=25`,
+            "skyportal/FETCH_AUTOCOMPLETE_GCN_EVENTS"
+          )
+        );
+      }
+      return dispatch(
         GET(
           `/api/sources?sourceID=${val}&pageNumber=1&totalMatches=25&includeComments=false&removeNested=true`,
           "skyportal/FETCH_AUTOCOMPLETE_SOURCES"
         )
       );
+    };
+
     (async () => {
       if (debouncedInputValue === "") {
         setOptions([]);
@@ -98,12 +133,29 @@ const QuickSearchBar = () => {
         const response = await get(debouncedInputValue);
         setLoading(false);
 
-        const matchingSources = await response.data.sources;
-
-        if (matchingSources) {
-          const rez = Object.keys(matchingSources).map(
-            (key) => matchingSources[key].id
-          );
+        let matchingEntries = [];
+        if (type === "Sources") {
+          matchingEntries = await response.data.sources;
+        } else if (type === "GCN Events") {
+          matchingEntries = await response.data.events;
+        }
+        if (matchingEntries) {
+          const rez = Object.keys(matchingEntries).map((key) => {
+            if (type === "GCN Events") {
+              let name = matchingEntries[key].dateobs;
+              if ((matchingEntries[key].aliases || []).length > 0) {
+                name = `${name} (${matchingEntries[key].aliases[0]})`;
+              }
+              return {
+                id: matchingEntries[key].dateobs,
+                name,
+              };
+            }
+            return {
+              id: matchingEntries[key].id,
+              name: matchingEntries[key].id,
+            };
+          });
           newOptions = [...newOptions, ...rez];
         }
         cache.current[debouncedInputValue] = newOptions;
@@ -114,62 +166,94 @@ const QuickSearchBar = () => {
     })();
   }, [dispatch, debouncedInputValue]);
 
+  const handleChangeType = (event) => {
+    setType(event.target.value);
+  };
+
+  const goToPage = (id, resourceType) => {
+    if (resourceType === "Sources") {
+      navigate(`/source/${id}`);
+    } else if (resourceType === "GCN Events") {
+      navigate(`/gcn_events/${id}`);
+    }
+  };
+
   return (
-    <Autocomplete
-      color="primary"
-      id="quick-search-bar"
-      style={{ padding: "0.3rem" }}
-      classes={{ root: classes.root, paper: classes.paper }}
-      isOptionEqualToValue={(option, val) => option.name === val.name}
-      getOptionLabel={(option) => option}
-      onInputChange={(e, val) => setInputValue(val)}
-      onChange={(event, newValue, reason) => {
-        setValue(newValue);
-        if (reason === "selectOption") {
-          navigate(`/source/${newValue}`);
-        }
-        if (reason === "clear") {
-          setOpen(false);
-        }
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        width: "100%",
+        justifyContent: "flex-end",
       }}
-      onClose={() => setOpen(false)}
-      size="small"
-      noOptionsText="No matching sources."
-      options={options}
-      open={open}
-      loading={loading}
-      clearOnEscape
-      clearOnBlur
-      selectOnFocus
-      limitTags={15}
-      value={value}
-      popupIcon={null}
-      renderInput={(params) => (
-        <TextField
-          // eslint-disable-next-line react/jsx-props-no-spreading
-          {...params}
-          variant="outlined"
-          placeholder="Source"
-          fullWidth
-          InputProps={{
-            ...params.InputProps,
-            className: classes.textField,
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" className={classes.icon} />
-              </InputAdornment>
-            ),
-            endAdornment: (
-              <div className={classes.progress}>
-                {loading ? (
-                  <CircularProgress size={20} color="inherit" />
-                ) : null}
-              </div>
-            ),
-          }}
-        />
-      )}
-    />
+    >
+      <Select
+        id="type-select"
+        value={type}
+        onChange={handleChangeType}
+        size="small"
+        className={classes.typeSelect}
+      >
+        {ALLOWED_TYPES.map((allowedType) => (
+          <MenuItem key={type} value={allowedType}>
+            {allowedType}
+          </MenuItem>
+        ))}
+      </Select>
+      <Autocomplete
+        color="primary"
+        id="quick-search-bar"
+        classes={{ root: classes.root, paper: classes.paper }}
+        isOptionEqualToValue={(option, val) => option.name === val.name}
+        getOptionLabel={(option) => option.name || ""}
+        onInputChange={(e, val) => setInputValue(val)}
+        onChange={(event, newValue, reason) => {
+          if (reason === "selectOption") {
+            setInputValue("");
+            setValue("");
+            setOpen(false);
+            goToPage(newValue.id, type);
+          } else if (reason === "clear") {
+            setOpen(false);
+          } else {
+            setValue(newValue);
+          }
+        }}
+        onClose={() => setOpen(false)}
+        size="small"
+        noOptionsText={`No matching ${type}.`}
+        options={options}
+        open={open}
+        loading={loading}
+        clearOnEscape
+        clearOnBlur
+        selectOnFocus
+        limitTags={15}
+        value={value}
+        popupIcon={null}
+        renderInput={(params) => (
+          <TextField
+            // eslint-disable-next-line react/jsx-props-no-spreading
+            {...params}
+            variant="outlined"
+            placeholder="Search"
+            fullWidth
+            InputProps={{
+              ...params.InputProps,
+              className: classes.textField,
+              endAdornment: (
+                <div className={classes.progress}>
+                  {loading ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : null}
+                </div>
+              ),
+            }}
+          />
+        )}
+      />
+    </div>
   );
 };
 

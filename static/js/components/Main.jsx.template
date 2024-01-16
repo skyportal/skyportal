@@ -12,16 +12,14 @@ import { BrowserRouter, Routes, Route, useLocation, useParams } from "react-rout
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import {
-  createTheme,
   ThemeProvider,
   StyledEngineProvider,
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
-import { isMobile } from "react-device-detect";
+import { useMediaQuery } from "@mui/material";
 import Spinner from "./Spinner";
 
-import DayJSUtils from "@date-io/dayjs";
 import clsx from "clsx";
 
 // WebSocket
@@ -51,13 +49,11 @@ messageHandler.init(store.dispatch, store.getState);
 const useStyles = makeStyles((theme) => ({
   content: {
     flexGrow: 1,
-    padding: theme.spacing(2),
     transition: theme.transitions.create("margin", {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
     }),
-    marginTop: "4em", // top bar height
-    marginLeft: isMobile ? "0" : "170px",
+    marginTop: "2.5em", // top bar height
     "& a": {
       textDecoration: "none",
       color: "gray",
@@ -69,7 +65,6 @@ const useStyles = makeStyles((theme) => ({
       easing: theme.transitions.easing.easeOut,
       duration: theme.transitions.duration.enteringScreen,
     }),
-    marginLeft: isMobile ? "0" : "50px",
   },
   websocket: {
     display: "none",
@@ -92,6 +87,18 @@ const MainContentInternal = ({ root }) => {
 
   const classes = useStyles();
   const theme = useTheme();
+
+  const isSmall = useMediaQuery(theme.breakpoints.down("md"));
+
+  const marginLeft = () => {
+    if (isSmall) {
+      return "0";
+    } else if (open) {
+      return "170px";
+    } else {
+      return "65px";
+    }
+  };
 
   useEffect(() => {
     store.dispatch(rotateLogoActions.rotateLogo());
@@ -142,6 +149,7 @@ const MainContentInternal = ({ root }) => {
           className={clsx(classes.content, {
             [classes.contentShift]: !open,
           })}
+          style={{"{{marginLeft: marginLeft(), padding: window?.location?.pathname === '/' ? 0 : '0.625rem'}}"}}
         >
 
           <Notifications />

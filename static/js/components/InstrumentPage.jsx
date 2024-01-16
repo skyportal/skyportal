@@ -28,7 +28,6 @@ const useStyles = makeStyles((theme) => ({
   },
   paper: {
     padding: "1rem",
-    marginTop: "0.625rem",
   },
   root: {
     display: "flex",
@@ -198,13 +197,13 @@ const InstrumentList = () => {
       {post_permission && (
         <Grid item md={4} sm={12}>
           <Paper>
-            <div className={classes.paperContent}>
+            <div className={classes.paper}>
               <Typography variant="h6">Add a New Instrument</Typography>
               <NewInstrument />
             </div>
           </Paper>
           <Paper>
-            <div className={classes.paperContent}>
+            <div className={classes.paper}>
               <Typography variant="h6">Modify an Instrument</Typography>
               <ModifyInstrument />
             </div>

@@ -12,13 +12,13 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import IconButton from "@mui/material/IconButton";
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import makeStyles from '@mui/styles/makeStyles';
 import Collapse from '@mui/material/Collapse';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import Divider from "@mui/material/Divider";
 import Tooltip from "@mui/material/Tooltip";
+import { useMediaQuery } from "@mui/material";
 
 {% for group in app.sidebar -%}
   {% if not group.name.startswith('main') and group.icon %}
@@ -29,9 +29,7 @@ import Tooltip from "@mui/material/Tooltip";
   {%- endfor %}
 {%- endfor %}
 import MenuIcon from "@material-ui/icons/Menu";
-import { isMobile } from "react-device-detect";
 
-import QuickSearchBar from "./QuickSearchBar";
 import HeaderContent from "./HeaderContent";
 import * as Actions from "../ducks/sidebar";
 import hydrate from "../actions";
@@ -41,6 +39,8 @@ const drawerWidth = 170;
 const useStyles = makeStyles((theme) => ({
   root: {
     display: 'flex',
+    padding: 0,
+    margin: 0,
   },
   appBar: {
     position: "fixed",
@@ -49,8 +49,10 @@ const useStyles = makeStyles((theme) => ({
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
     }),
-    height: "5.5em",
+    height: "4em",
     background: theme.palette.primary.dark,
+    padding: 0,
+    margin: 0,
   },
   appBarShift: {
     width: `calc(100% - ${drawerWidth}px)`,
@@ -75,13 +77,20 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     height: "4em",
     alignItems: "center",
+    justifyContent: "space-between",
+    //padding: "0.5rem",
+    paddingLeft: "1.5rem",
+    paddingRight: 0,
+    [theme.breakpoints.up("md")]: {
+      paddingRight: "1rem",
+    },
   },
   drawerHeader: {
     display: 'flex',
     alignItems: 'center',
     // necessary for content to be below app bar
     ...theme.mixins.toolbar,
-    paddingTop: "5em",
+    paddingTop: "3em",
   },
   link: {
     color: theme.palette.info.main,
@@ -102,7 +111,6 @@ const useStyles = makeStyles((theme) => ({
     }),
   }
 }));
-
 
 const SidebarLinkText = ({ route, title, open }) => {
   const classes = useStyles();
@@ -128,6 +136,8 @@ const SidebarAndHeader = () => {
   const dispatch = useDispatch();
   const classes = useStyles();
 
+  const isSmall = useMediaQuery(theme => theme.breakpoints.down("md"));
+
   {% for group in app.sidebar -%}
     {% if not group.name.startswith('main') %}
       const [{{ group.name }}Open, set{{ group.name }}Open] = React.useState(false);
@@ -146,33 +156,12 @@ const SidebarAndHeader = () => {
   };
 
   useEffect(() => {
-    const handleResize = () => {
-      if (window.matchMedia("(max-width: 768px)").matches) {
-        dispatch(Actions.setSidebar(false));
-      }
-    };
-
-    // For bigger screens, let home page know content window has resized
-    // so that it can adjust widget sizes
-    // A slight delay is used to make sure the sidebar is finished
-    // closing/opening before new content window size is computed
-    if (!window.matchMedia("(max-width: 768px)").matches) {
-      setTimeout(() => {
-        window.dispatchEvent(new Event("resize"));
-      }, 250);
+    if (isSmall && open) {
+      dispatch(Actions.setSidebar(false));
     }
+  }, [isSmall, dispatch]);
 
-    if (open) {
-      window.addEventListener("resize", handleResize);
-    }
-
-    const cleanupListener = () => {
-      window.removeEventListener("resize", handleResize);
-    };
-    return cleanupListener;
-  }, [open, dispatch]);
-
-  const drawerType = isMobile ? "temporary" : "permanent";
+  const drawerType = isSmall ? "temporary" : "permanent";
 
   const hydrateIfDashboardClicked = (url) => {
     if (url === "/") {
@@ -241,7 +230,7 @@ const SidebarAndHeader = () => {
     {% endif %}
     <>
     <Tooltip title="{{ group.name }}" placement="right" enterDelay={250}>
-      <ListItem name="sidebar{{ group.name }}Button" disablePadding sx={{ "{{ display: 'block' }}" }}>
+      <ListItem name="sidebar{{ group.name }}Button" disablePadding sx={{ "{{ display: 'block' }}"}} className={classes.link}>
         <ListItemButton
             sx={{"{{
               minHeight: 48,
@@ -286,7 +275,7 @@ const SidebarAndHeader = () => {
       <AppBar
         className={classes.appBar}
       >
-        <Toolbar>
+        <Toolbar className={classes.toolbar}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
@@ -304,10 +293,10 @@ const SidebarAndHeader = () => {
         variant={drawerType}
         anchor="left"
         open={open}
-        onClose={isMobile ? handleToggleSidebarOpen : undefined}
+        onClose={isSmall ? handleToggleSidebarOpen : undefined}
         classes={{ "{{ paper: classes.drawerPaper }}" }}
       >
-        {!isMobile && <div className={classes.drawerHeader} />}
+        {!isSmall && <div className={classes.drawerHeader} />}
         <List>
         {% for group in app.sidebar -%}
           {% if group.name.startswith('main') %}

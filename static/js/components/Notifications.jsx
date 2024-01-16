@@ -100,9 +100,9 @@ const Notifications = () => {
     <>
       <IconButton
         onClick={handleClickOpen}
-        style={{ margin: "0.5rem" }}
         data-testid="notificationsButton"
         size="large"
+        style={{ padding: 0, margin: 0 }}
       >
         <Badge
           badgeContent={unreadCount}
