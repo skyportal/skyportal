@@ -29,7 +29,6 @@ const useStyles = makeStyles((theme) => ({
   },
   title: {
     marginLeft: "0.5rem",
-    textDecoration: "none",
     color: "white",
     fontSize: "160%",
     fontWeight: "bold",
@@ -84,7 +83,7 @@ const HeaderContent = () => {
 
   return (
     <div className={classes.topBannerContent} style={{"{{justifyContent: openSearch ? 'flex-end' : 'space-between'}}"}}>
-      <Link onClick={() => dispatch(hydrate())} to="/" style={{"{{ display: openSearch ? 'none' : 'inline-flex', flexDirection: 'row', alignItems: 'center' }}"}}>
+      <Link onClick={() => dispatch(hydrate())} to="/" style={{"{{ display: openSearch ? 'none' : 'inline-flex', flexDirection: 'row', alignItems: 'center', textDecoration: 'none' }}"}}>
         <div className={classes.logos}>
           {%- for logo in app.logos %}
           <div className={classes.logoContainer}>
