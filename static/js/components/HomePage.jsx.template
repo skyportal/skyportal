@@ -19,11 +19,11 @@ import * as profileActions from "../ducks/profile";
 import RecentSources from "./RecentSources";
 import GroupList from "./GroupList";
 import NewsFeed from "./NewsFeed";
+import TopSavers from "./TopSavers";
 import TopSources from "./TopSources";
 import RecentGcnEvents from "./RecentGcnEvents";
 import SourceCounts from "./SourceCounts";
 import WeatherWidget from "./WeatherWidget";
-import NewSource from "./NewSource";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 

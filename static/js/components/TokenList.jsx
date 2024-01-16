@@ -17,6 +17,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 import Button from "./Button";
 import UpdateTokenACLs from "./UpdateTokenACLs";
+import SharePage from "./SharePage";
 
 import * as Action from "../ducks/profile";
 
@@ -88,6 +89,15 @@ const TokenList = ({ tokens }) => {
     </div>
   );
 
+  const renderQRCode = (dataIndex) => {
+    const tokenId = tokens[dataIndex].id;
+    return (
+      <div>
+        <SharePage value={tokenId} />
+      </div>
+    );
+  };
+
   const renderACLs = (dataIndex) => {
     const tokenId = tokens[dataIndex].id;
     const tokenACLs = tokens[dataIndex].acls;
@@ -120,6 +130,13 @@ const TokenList = ({ tokens }) => {
       label: "Value",
       options: {
         customBodyRender: renderValue,
+      },
+    },
+    {
+      name: "qr",
+      label: "QR Code",
+      options: {
+        customBodyRenderLite: renderQRCode,
       },
     },
     { name: "name", label: "Name" },

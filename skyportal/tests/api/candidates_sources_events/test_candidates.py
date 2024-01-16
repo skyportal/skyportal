@@ -1613,3 +1613,109 @@ def test_candidates_annotation_filtering(
     )
     assert status == 200
     assert len(data["data"]["candidates"]) == 0
+
+
+def test_candidate_savers(
+    upload_data_token,
+    upload_data_token_two_groups,
+    view_only_token,
+    public_filter,
+    public_group,
+):
+
+    # Post three candidates for the same filter
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    obj_id3 = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id3,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+
+    # Save the three candidates as sources
+    # obj_id1 is saved by the upload_data_token token
+    status, data = api(
+        "POST",
+        "sources",
+        data={"id": obj_id1, "group_ids": [public_group.id]},
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id1
+
+    # obj_id2 is also saved by the upload_data_token token
+    status, data = api(
+        "POST",
+        "sources",
+        data={"id": obj_id2, "group_ids": [public_group.id]},
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id2
+
+    # obj_id3 is saved by the upload_data_token_two_groups token
+    status, data = api(
+        "POST",
+        "sources",
+        data={"id": obj_id3, "group_ids": [public_group.id]},
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id3
+
+    # Check scanning statistics
+    status, data = api(
+        "GET",
+        "internal/source_savers",
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    assert len(data["data"]) == 2
+    assert data["data"][0]["saves"] == 2
+    assert data["data"][1]["saves"] == 1

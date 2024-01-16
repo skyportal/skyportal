@@ -351,11 +351,11 @@ app:
       resizeable: true
       minW: 2
       layouts:
-        xlg: [0, 3, 5, 2]
-        lg: [0, 3, 4, 1]
-        md: [0, 6, 5, 2]
-        sm: [0, 6, 6, 1]
-        xs: [0, 12, 4, 1]
+        xlg: [12, 3, 4, 2]
+        lg: [9, 3, 3, 2]
+        md: [6, 6, 4, 3]
+        sm: [0, 9, 6, 1]
+        xs: [0, 19, 5, 1]
 
     SourceCounts:
       props:
@@ -375,7 +375,7 @@ app:
       layouts:
         xlg: [0, 0, 5, 3]
         lg: [0, 0, 4, 3]
-        md: [0, 3, 5, 3]
+        md: [0, 0, 4, 3]
         sm: [0, 3, 3, 3]
         xs: [0, 4, 4, 3]
 
@@ -385,7 +385,7 @@ app:
       layouts:
         xlg: [10, 0, 4, 3]
         lg: [7, 0, 3, 3]
-        md: [0, 0, 8, 3]
+        md: [4, 0, 4, 3]
         sm: [0, 0, 4.5, 3]
         xs: [0, 1, 4, 3]
 
@@ -394,20 +394,30 @@ app:
       minW: 2
       layouts:
         xlg: [5, 0, 5, 3]
-        lg: [4, 3, 3, 3]
-        md: [5, 3, 5, 3]
+        lg: [4, 0, 3, 3]
+        md: [0, 3, 4, 3]
         sm: [3, 3, 3, 3]
         xs: [0, 7, 4, 3]
+
+    TopSavers:
+      resizeable: true
+      minW: 3
+      layouts:
+        xlg: [7, 3, 5, 3]
+        lg: [5, 3, 4, 2]
+        md: [0, 6, 6, 3]
+        sm: [0, 10, 6, 3]
+        xs: [0, 14, 4, 3]
 
     RecentGcnEvents:
       resizeable: true
       minW: 3
       layouts:
-        xlg: [5, 3, 5, 2]
-        lg: [4, 3, 5, 2]
-        md: [5, 6, 5, 2]
-        sm: [0, 7, 6, 2]
-        xs: [0, 13, 4, 2]
+        xlg: [0, 3, 7, 3]
+        lg: [0, 3, 5, 2]
+        md: [4, 3, 6, 3]
+        sm: [0, 6, 6, 3]
+        xs: [0, 10, 4, 4]
 
     GroupList:
       props:
@@ -419,17 +429,7 @@ app:
         lg: [10, 1, 2, 2]
         md: [8, 1, 2, 2]
         sm: [4.5, 1, 1.5, 2]
-        xs: [0, 10, 4, 2]
-
-    NewSource:
-      resizeable: true
-      minW: 3
-      layouts:
-        xlg: [10, 3, 4, 3]
-        lg: [9, 3, 3, 3]
-        md: [0, 0, 8, 3]
-        sm: [0, 0, 4.5, 3]
-        xs: [0, 1, 4, 3]
+        xs: [0, 17, 4, 2]
 
 database:
   database: skyportal

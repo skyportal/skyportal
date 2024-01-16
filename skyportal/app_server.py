@@ -182,6 +182,7 @@ from skyportal.handlers.api import (
 from skyportal.handlers.api.internal import (
     SourceViewsHandler,
     SourceCountHandler,
+    SourceSaverHandler,
     TokenHandler,
     DBInfoHandler,
     ProfileHandler,
@@ -535,6 +536,7 @@ skyportal_handlers = [
     (r'/api/internal/dbinfo', DBInfoHandler),
     (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
     (r'/api/internal/source_counts(/.*)?', SourceCountHandler),
+    (r'/api/internal/source_savers(/.*)?', SourceSaverHandler),
     (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
     (r'/api/internal/standards', StandardsHandler),
     (r'/api/internal/wavelengths(/.*)?', FilterWavelengthHandler),

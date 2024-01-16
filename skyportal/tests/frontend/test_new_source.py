@@ -13,6 +13,7 @@ def test_new_source(driver, user, super_admin_token, view_only_token, public_gro
     driver.get('/')
 
     driver.wait_for_xpath('//*[text()="Add a Source"]')
+    driver.click_xpath('//*[text()="Add a Source"]')
 
     source_name = uuid.uuid4().hex
     driver.click_xpath("//div[@id='selectGroups']", scroll_parent=True)
