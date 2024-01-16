@@ -126,15 +126,18 @@ const SourceList = () => {
     return sourceAll;
   };
 
-  if (sourceTableEmpty) {
-    return <UninitializedDBMessage />;
-  }
-  if (!sourcesState.sources) {
+  if (!sourceTableEmpty && !sourcesState.sources) {
     return <Spinner />;
   }
 
   return (
     <>
+      {sourceTableEmpty && (
+        <div>
+          <UninitializedDBMessage />
+          <br />
+        </div>
+      )}
       {sourcesState?.sources ? (
         <SourceTable
           title="Sources"

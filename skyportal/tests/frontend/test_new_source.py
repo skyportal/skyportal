@@ -10,10 +10,10 @@ from selenium.common.exceptions import TimeoutException
 def test_new_source(driver, user, super_admin_token, view_only_token, public_group):
 
     driver.get(f'/become_user/{user.id}')
-    driver.get('/')
+    driver.get('/sources')
 
-    driver.wait_for_xpath('//*[text()="Add a Source"]')
-    driver.click_xpath('//*[text()="Add a Source"]')
+    driver.wait_for_xpath('//button[@name="new_source"]')
+    driver.click_xpath('//button[@name="new_source"]')
 
     source_name = uuid.uuid4().hex
     driver.click_xpath("//div[@id='selectGroups']", scroll_parent=True)
