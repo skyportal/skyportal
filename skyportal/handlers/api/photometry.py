@@ -176,7 +176,14 @@ def allscalar(d):
 
 
 def serialize(
-    phot, outsys, format, created_at=True, groups=True, annotations=True, owner=False
+    phot,
+    outsys,
+    format,
+    created_at=True,
+    groups=True,
+    annotations=True,
+    owner=False,
+    stream=False,
 ):
 
     return_value = {
@@ -206,6 +213,8 @@ def serialize(
         )
     if owner:
         return_value['owner'] = phot.owner.to_dict()
+    if stream:
+        return_value['streams'] = [stream.to_dict() for stream in phot.streams]
 
     if (
         phot.ref_flux is not None
@@ -1602,12 +1611,18 @@ class ObjPhotometryHandler(BaseHandler):
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
         include_owner_info = self.get_query_argument('includeOwnerInfo', False)
+        include_stream_info = self.get_query_argument('includeStreamInfo', False)
         deduplicate_photometry = self.get_query_argument('deduplicatePhotometry', False)
 
         if str(include_owner_info).lower() in ['true', 't', '1']:
             include_owner_info = True
         else:
             include_owner_info = False
+
+        if str(include_stream_info).lower() in ['true', 't', '1']:
+            include_stream_info = True
+        else:
+            include_stream_info = False
 
         with self.Session() as session:
 
@@ -1634,7 +1649,13 @@ class ObjPhotometryHandler(BaseHandler):
                 )
 
                 phot_data = [
-                    serialize(phot, outsys, format, owner=include_owner_info)
+                    serialize(
+                        phot,
+                        outsys,
+                        format,
+                        owner=include_owner_info,
+                        stream=include_stream_info,
+                    )
                     for phot in photometry
                 ]
                 if deduplicate_photometry and len(phot_data) > 0:

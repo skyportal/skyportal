@@ -204,10 +204,27 @@ const PhotometryPlot = ({
       if (point.mag !== null) {
         point.flux = 10 ** (-0.4 * (point.mag - PHOT_ZP));
         point.fluxerr = (point.magerr / (2.5 / Math.log(10))) * point.flux;
+        point.snr = point.flux / point.fluxerr;
+        if (point.snr < 0) {
+          point.snr = null;
+        }
       } else {
         point.flux = 10 ** (-0.4 * (point.limiting_mag - PHOT_ZP));
         point.fluxerr = 0;
+        point.snr = null;
       }
+      point.streams = (point.streams || [])
+        .map((stream) => stream.name)
+        .filter((value, index, self) => self.indexOf(value) === index);
+      // also, we only want to keep the stream names that are not substrings of others
+      // for example, if we have a stream called 'ZTF Public', we don't want to keep
+      // 'ZTF Public+Partnership' because it's a substring of 'ZTF Public'.
+      point.streams = point.streams.filter((name) => {
+        const names = point.streams.filter(
+          (c) => c !== name && c.includes(name)
+        );
+        return names.length === 0;
+      });
       point.text = `MJD: ${point.mjd.toFixed(6)}
         `;
       if (point.mag !== null) {
@@ -242,6 +259,12 @@ const PhotometryPlot = ({
         point.altdata?.exposure !== ""
       ) {
         point.text += `<br>Exposure: ${point.altdata?.exposure || ""}`;
+      }
+      if (point.snr !== null) {
+        point.text += `<br>SNR: ${point.snr.toFixed(3)}`;
+      }
+      if (point.streams.length > 0) {
+        point.text += `<br>Streams: ${point.streams.join(", ")}`;
       }
 
       stats.mag.min = Math.min(stats.mag.min, point.mag || point.limiting_mag);
@@ -654,7 +677,7 @@ const PhotometryPlot = ({
   };
 
   useEffect(() => {
-    const [newPhotometry, newPhotStats] = preparePhotometry(photometry);
+    const [newPhotometry, newPhotStats] = preparePhotometry([...photometry]);
     const groupedPhotometry = groupPhotometry(newPhotometry);
     setPhotStats(newPhotStats);
     setData(groupedPhotometry);
