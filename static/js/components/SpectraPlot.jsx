@@ -217,7 +217,7 @@ const smoothing_func = (values, window_size) => {
   return output;
 };
 
-const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
+const SpectraPlot = ({ spectra, redshift, mode }) => {
   const [data, setData] = useState(null);
   const [plotData, setPlotData] = useState(null);
 

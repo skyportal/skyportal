@@ -151,10 +151,10 @@ const PhotometryPlot = ({
   obj_id,
   dm,
   photometry,
-  annotations = [],
-  spectra = [],
-  gcn_events = [],
-  mode = "desktop",
+  annotations,
+  spectra,
+  gcn_events,
+  mode,
 }) => {
   const [data, setData] = useState(null);
   const [plotData, setPlotData] = useState(null);
@@ -1231,9 +1231,9 @@ PhotometryPlot.propTypes = {
 PhotometryPlot.defaultProps = {
   dm: null,
   annotations: [],
-  mode: "desktop",
   gcn_events: [],
   spectra: [],
+  mode: "desktop",
 };
 
 export default PhotometryPlot;
