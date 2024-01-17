@@ -504,7 +504,7 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
     setTabIndex(newValue);
   };
 
-  const shapes = selectedLines
+  const lineTraces = selectedLines
     .map((line_name) => {
       const line = lines
         .concat(userCustomLines)
@@ -596,7 +596,7 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
       )}
       <div style={{ width: "100%", height: "60vh", overflowX: "scroll" }}>
         <Plot
-          data={(plotData || []).concat(shapes || [])}
+          data={(plotData || []).concat(lineTraces || [])}
           layout={{
             ...layouts,
             legend: {

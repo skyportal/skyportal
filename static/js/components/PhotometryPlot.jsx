@@ -152,6 +152,8 @@ const PhotometryPlot = ({
   dm,
   photometry,
   annotations = [],
+  spectra = [],
+  gcn_events = [],
   mode = "desktop",
 }) => {
   const [data, setData] = useState(null);
@@ -199,90 +201,106 @@ const PhotometryPlot = ({
 
     const now = ModifiedJulianDateNow();
 
-    photometryData.forEach((point) => {
-      point.days_ago = now - point.mjd;
-      if (point.mag !== null) {
-        point.flux = 10 ** (-0.4 * (point.mag - PHOT_ZP));
-        point.fluxerr = (point.magerr / (2.5 / Math.log(10))) * point.flux;
-        point.snr = point.flux / point.fluxerr;
-        if (point.snr < 0) {
-          point.snr = null;
+    const newPhotometryData = photometryData.map((point) => {
+      const newPoint = { ...point };
+      newPoint.days_ago = now - newPoint.mjd;
+      if (newPoint.mag !== null) {
+        newPoint.flux = 10 ** (-0.4 * (newPoint.mag - PHOT_ZP));
+        newPoint.fluxerr =
+          (newPoint.magerr / (2.5 / Math.log(10))) * newPoint.flux;
+        newPoint.snr = newPoint.flux / newPoint.fluxerr;
+        if (newPoint.snr < 0) {
+          newPoint.snr = null;
         }
       } else {
-        point.flux = 10 ** (-0.4 * (point.limiting_mag - PHOT_ZP));
-        point.fluxerr = 0;
-        point.snr = null;
+        newPoint.flux = 10 ** (-0.4 * (newPoint.limiting_mag - PHOT_ZP));
+        newPoint.fluxerr = 0;
+        newPoint.snr = null;
       }
-      point.streams = (point.streams || [])
-        .map((stream) => stream.name)
+      newPoint.streams = (newPoint.streams || [])
+        .map((stream) => stream?.name || stream)
         .filter((value, index, self) => self.indexOf(value) === index);
       // also, we only want to keep the stream names that are not substrings of others
       // for example, if we have a stream called 'ZTF Public', we don't want to keep
       // 'ZTF Public+Partnership' because it's a substring of 'ZTF Public'.
-      point.streams = point.streams.filter((name) => {
-        const names = point.streams.filter(
+      newPoint.streams = newPoint.streams.filter((name) => {
+        const names = newPoint.streams.filter(
           (c) => c !== name && c.includes(name)
         );
         return names.length === 0;
       });
-      point.text = `MJD: ${point.mjd.toFixed(6)}
+      newPoint.text = `MJD: ${newPoint.mjd.toFixed(6)}
         `;
-      if (point.mag !== null) {
-        point.text += `
-        <br>Mag: ${point.mag ? point.mag.toFixed(3) : "NaN"}
-        <br>Magerr: ${point.magerr ? point.magerr.toFixed(3) : "NaN"}
+      if (newPoint.mag !== null) {
+        newPoint.text += `
+        <br>Mag: ${newPoint.mag ? newPoint.mag.toFixed(3) : "NaN"}
+        <br>Magerr: ${newPoint.magerr ? newPoint.magerr.toFixed(3) : "NaN"}
         `;
       }
-      point.text += `
+      newPoint.text += `
         <br>Limiting Mag: ${
-          point.limiting_mag ? point.limiting_mag.toFixed(3) : "NaN"
+          newPoint.limiting_mag ? newPoint.limiting_mag.toFixed(3) : "NaN"
         }
-        <br>Flux: ${point.flux ? point.flux.toFixed(3) : "NaN"}
+        <br>Flux: ${newPoint.flux ? newPoint.flux.toFixed(3) : "NaN"}
       `;
-      if (point.mag !== null) {
-        point.text += `<br>Fluxerr: ${point.fluxerr.toFixed(3) || "NaN"}`;
+      if (newPoint.mag !== null) {
+        newPoint.text += `<br>Fluxerr: ${newPoint.fluxerr.toFixed(3) || "NaN"}`;
       }
-      point.text += `
-        <br>Filter: ${point.filter}
-        <br>Instrument: ${point.instrument_name}
+      newPoint.text += `
+        <br>Filter: ${newPoint.filter}
+        <br>Instrument: ${newPoint.instrument_name}
       `;
       if (
-        point.origin !== "None" &&
-        point.origin !== "" &&
-        point.origin !== null
+        newPoint.origin !== "None" &&
+        newPoint.origin !== "" &&
+        newPoint.origin !== null
       ) {
-        point.text += `<br>Origin: ${point.origin}`;
+        newPoint.text += `<br>Origin: ${newPoint.origin}`;
       }
       if (
-        point.altdata?.exposure !== null &&
-        point.altdata?.exposure !== undefined &&
-        point.altdata?.exposure !== ""
+        newPoint.altdata?.exposure !== null &&
+        newPoint.altdata?.exposure !== undefined &&
+        newPoint.altdata?.exposure !== ""
       ) {
-        point.text += `<br>Exposure: ${point.altdata?.exposure || ""}`;
+        newPoint.text += `<br>Exposure: ${newPoint.altdata?.exposure || ""}`;
       }
-      if (point.snr !== null) {
-        point.text += `<br>SNR: ${point.snr.toFixed(3)}`;
+      if (newPoint.snr !== null) {
+        newPoint.text += `<br>SNR: ${newPoint.snr.toFixed(3)}`;
       }
-      if (point.streams.length > 0) {
-        point.text += `<br>Streams: ${point.streams.join(", ")}`;
+      if (newPoint.streams.length > 0) {
+        newPoint.text += `<br>Streams: ${newPoint.streams.join(", ")}`;
       }
 
-      stats.mag.min = Math.min(stats.mag.min, point.mag || point.limiting_mag);
-      stats.mag.max = Math.max(stats.mag.max, point.mag || point.limiting_mag);
-      stats.mjd.min = Math.min(stats.mjd.min, point.mjd);
-      stats.mjd.max = Math.max(stats.mjd.max, point.mjd);
-      stats.days_ago.min = Math.min(stats.days_ago.min, point.days_ago);
-      stats.days_ago.max = Math.max(stats.days_ago.max, point.days_ago);
-      stats.flux.min = Math.min(stats.flux.min, point.flux || point.fluxerr);
-      stats.flux.max = Math.max(stats.flux.max, point.flux || point.fluxerr);
+      stats.mag.min = Math.min(
+        stats.mag.min,
+        newPoint.mag || newPoint.limiting_mag
+      );
+      stats.mag.max = Math.max(
+        stats.mag.max,
+        newPoint.mag || newPoint.limiting_mag
+      );
+      stats.mjd.min = Math.min(stats.mjd.min, newPoint.mjd);
+      stats.mjd.max = Math.max(stats.mjd.max, newPoint.mjd);
+      stats.days_ago.min = Math.min(stats.days_ago.min, newPoint.days_ago);
+      stats.days_ago.max = Math.max(stats.days_ago.max, newPoint.days_ago);
+      stats.flux.min = Math.min(
+        stats.flux.min,
+        newPoint.flux || newPoint.fluxerr
+      );
+      stats.flux.max = Math.max(
+        stats.flux.max,
+        newPoint.flux || newPoint.fluxerr
+      );
+
+      return newPoint;
     });
 
-    stats.mag.range = [stats.mag.max + 0.2, stats.mag.min - 0.2];
+    stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
     stats.mjd.range = [stats.mjd.min - 1, stats.mjd.max + 1];
     stats.days_ago.range = [stats.days_ago.max + 1, stats.days_ago.min - 1];
     stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
 
-    return [photometryData, stats];
+    return [newPhotometryData, stats];
   };
 
   const groupPhotometry = (photometryData) => {
@@ -779,6 +797,88 @@ const PhotometryPlot = ({
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
   };
+
+  const yMarkers = [];
+  if (photStats) {
+    yMarkers.push(
+      ["mag", "period"].includes(tabToPlotType(tabIndex))
+        ? photStats.mag.range[1]
+        : photStats.flux.range[1]
+    );
+  }
+
+  const eventMarkers = photStats
+    ? spectra
+        .map((spectrum) => {
+          const hovertext = `<br>Observed at (UTC): ${spectrum.observed_at}
+    <br>Observed at (MJD): ${spectrum.observed_at_mjd.toFixed(6)})
+    <br>Instrument: ${spectrum.instrument_name}
+    <br>Telescope: ${spectrum.telescope_name}
+    <br>PI: ${spectrum.pi || ""}
+    <br>Origin: ${spectrum.origin || ""}
+    <extra></extra>
+    `;
+          return {
+            x: [spectrum.observed_at_mjd],
+            y: yMarkers,
+            mode: "text",
+            type: "scatter",
+            name: "Spectrum",
+            legendgroup: "Spectrum",
+            text: ["S"],
+            textposition: "bottom center",
+            textfont: { color: "black", size: 16 },
+            marker: {
+              line: {
+                width: 1,
+              },
+              opacity: 1,
+            },
+            visible: true,
+            showlegend: false,
+            hoverlabel: {
+              bgcolor: "white",
+              font: { size: 14 },
+              align: "left",
+            },
+            hovertemplate: hovertext,
+          };
+        })
+        .concat(
+          (gcn_events || []).map((event) => {
+            const hovertext = `<br>Dateobs: ${event.dateobs}
+    <br>Aliases: ${(event.aliases || []).join(", ")}
+    <extra></extra>
+    `;
+            return {
+              x: [event.dateobs_mjd],
+              y: yMarkers,
+              mode: "text",
+              type: "scatter",
+              name: "GCN Event",
+              legendgroup: "GCN Event",
+              text: ["G"],
+              textposition: "bottom center",
+              textfont: { color: "black", size: 16 },
+              marker: {
+                line: {
+                  width: 1,
+                },
+                opacity: 1,
+              },
+              visible: true,
+              showlegend: false,
+              hoverlabel: {
+                bgcolor: "white",
+                font: { size: 14 },
+                align: "left",
+              },
+              hovertemplate: hovertext,
+            };
+          })
+        )
+    : [];
+
   return (
     <div style={{ width: "100%", height: "100%" }}>
       <Tabs
@@ -802,7 +902,7 @@ const PhotometryPlot = ({
 
       <div style={{ width: "100%", height: "65vh", overflowX: "scroll" }}>
         <Plot
-          data={plotData}
+          data={(plotData || []).concat(eventMarkers || [])}
           layout={{
             ...layouts,
             legend: {
@@ -1114,6 +1214,17 @@ PhotometryPlot.propTypes = {
       created_at: PropTypes.string.isRequired,
     })
   ),
+  spectra: PropTypes.arrayOf(
+    PropTypes.shape({
+      observed_at: PropTypes.string.isRequired,
+      observed_at_mjd: PropTypes.number.isRequired,
+      instrument_name: PropTypes.string.isRequired,
+      telescope_name: PropTypes.string.isRequired,
+      pi: PropTypes.string,
+      origin: PropTypes.string,
+    })
+  ),
+  gcn_events: PropTypes.arrayOf(PropTypes.string),
   mode: PropTypes.string,
 };
 
@@ -1121,6 +1232,8 @@ PhotometryPlot.defaultProps = {
   dm: null,
   annotations: [],
   mode: "desktop",
+  gcn_events: [],
+  spectra: [],
 };
 
 export default PhotometryPlot;

@@ -26,11 +26,11 @@ const SourceGCNCrossmatchList = ({ gcn_crossmatches }) => {
       <>
         <div className={classes.row}>
           <Link
-            to={`/gcn_events/${gcn_crossmatches[0].replace(" ", "T")}`}
+            to={`/gcn_events/${gcn_crossmatches[0].dateobs.replace(" ", "T")}`}
             role="link"
-            key={gcn_crossmatches[0]}
+            key={gcn_crossmatches[0].dateobs}
           >
-            <Button size="small">{gcn_crossmatches[0]}</Button>
+            <Button size="small">{gcn_crossmatches[0].dateobs}</Button>
           </Link>
           <AddIcon
             data-testid="addGcnEventAliasIconButton"
@@ -72,11 +72,11 @@ const SourceGCNCrossmatchList = ({ gcn_crossmatches }) => {
   if (gcn_crossmatches?.length === 1) {
     return (
       <Link
-        to={`/gcn_events/${gcn_crossmatches[0].replace(" ", "T")}`}
+        to={`/gcn_events/${gcn_crossmatches[0].dateobs.replace(" ", "T")}`}
         role="link"
-        key={gcn_crossmatches[0]}
+        key={gcn_crossmatches[0].dateobs}
       >
-        <Button size="small">{gcn_crossmatches[0]}</Button>
+        <Button size="small">{gcn_crossmatches[0].dateobs}</Button>
       </Link>
     );
   }

@@ -723,6 +723,8 @@ const SourceDesktop = ({ source }) => {
                         dm={source.dm}
                         photometry={photometry}
                         annotations={source?.annotations || []}
+                        spectra={spectra || []}
+                        gcn_events={source.gcn_crossmatch || []}
                       />
                     </Suspense>
                   )}

@@ -1333,6 +1333,7 @@ class ObjSpectraHandler(BaseHandler):
                 spec_dict["groups"] = spec.groups
                 spec_dict["reducers"] = spec.reducers
                 spec_dict["observers"] = spec.observers
+                spec_dict["observed_at_mjd"] = Time(spec.observed_at).mjd
 
                 external_reducer = session.scalars(
                     SpectrumReducer.select(session.user_or_token).where(
