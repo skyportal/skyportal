@@ -725,6 +725,9 @@ const SourceDesktop = ({ source }) => {
                         annotations={source?.annotations || []}
                         spectra={spectra || []}
                         gcn_events={source.gcn_crossmatch || []}
+                        plotStyle={{
+                          height: rightPaneVisible ? "65vh" : "75vh",
+                        }}
                       />
                     </Suspense>
                   )}
@@ -801,6 +804,9 @@ const SourceDesktop = ({ source }) => {
                       <SpectraPlot
                         spectra={spectra}
                         redshift={source.redshift || 0}
+                        plotStyle={{
+                          height: rightPaneVisible ? "55vh" : "70vh",
+                        }}
                       />
                     </Suspense>
                   )}

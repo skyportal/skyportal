@@ -155,6 +155,7 @@ const PhotometryPlot = ({
   spectra,
   gcn_events,
   mode,
+  plotStyle,
 }) => {
   const [data, setData] = useState(null);
   const [plotData, setPlotData] = useState(null);
@@ -904,7 +905,13 @@ const PhotometryPlot = ({
         <Tab label="Period" />
       </Tabs>
 
-      <div style={{ width: "100%", height: "65vh", overflowX: "scroll" }}>
+      <div
+        style={{
+          width: "100%",
+          height: plotStyle?.height || "65vh",
+          overflowX: "scroll",
+        }}
+      >
         <Plot
           data={(plotData || []).concat(eventMarkers || [])}
           layout={{
@@ -1230,6 +1237,9 @@ PhotometryPlot.propTypes = {
   ),
   gcn_events: PropTypes.arrayOf(PropTypes.string),
   mode: PropTypes.string,
+  plotStyle: PropTypes.shape({
+    height: PropTypes.string,
+  }),
 };
 
 PhotometryPlot.defaultProps = {
@@ -1238,6 +1248,9 @@ PhotometryPlot.defaultProps = {
   gcn_events: [],
   spectra: [],
   mode: "desktop",
+  plotStyle: {
+    height: "65vh",
+  },
 };
 
 export default PhotometryPlot;

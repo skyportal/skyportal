@@ -16,11 +16,11 @@ const SUBMIT_PHOTOMETRY = "skyportal/SUBMIT_PHOTOMETRY";
 const UPDATE_PHOTOMETRY = "skyportal/UPDATE_PHOTOMETRY";
 
 // eslint-disable-next-line import/prefer-default-export
-export function fetchSourcePhotometry(id) {
+export function fetchSourcePhotometry(id, params = {}) {
   return API.GET(`/api/sources/${id}/photometry`, FETCH_SOURCE_PHOTOMETRY, {
     includeOwnerInfo: true,
     includeStreamInfo: true,
-    deduplicatePhotometry: true,
+    ...params,
   });
 }
 

@@ -217,7 +217,7 @@ const smoothing_func = (values, window_size) => {
   return output;
 };
 
-const SpectraPlot = ({ spectra, redshift, mode }) => {
+const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
   const [data, setData] = useState(null);
   const [plotData, setPlotData] = useState(null);
 
@@ -374,6 +374,7 @@ const SpectraPlot = ({ spectra, redshift, mode }) => {
           type: "scatter",
           mode: "lines",
           name,
+          legendgroup: `${spectrum.instrument_name}/${spectrum.observed_at}`,
           line: {
             shape: "hvh",
             width: 0.8,
@@ -384,6 +385,7 @@ const SpectraPlot = ({ spectra, redshift, mode }) => {
             font: { size: 14 },
             align: "left",
           },
+          visible: true,
           hovertemplate: "%{text}<extra></extra>",
         };
 
@@ -594,7 +596,13 @@ const SpectraPlot = ({ spectra, redshift, mode }) => {
           ))}
         </Tabs>
       )}
-      <div style={{ width: "100%", height: "60vh", overflowX: "scroll" }}>
+      <div
+        style={{
+          width: "100%",
+          height: plotStyle?.height || "55vh",
+          overflowX: "scroll",
+        }}
+      >
         <Plot
           data={(plotData || []).concat(lineTraces || [])}
           layout={{
@@ -602,7 +610,7 @@ const SpectraPlot = ({ spectra, redshift, mode }) => {
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
-              y: mode === "desktop" ? 1 : -0.25,
+              y: mode === "desktop" ? 1 : -0.3,
               x: mode === "desktop" ? 1.02 : 0,
             },
             showlegend: true,
@@ -949,11 +957,17 @@ SpectraPlot.propTypes = {
   ).isRequired,
   redshift: PropTypes.number,
   mode: PropTypes.string,
+  plotStyle: PropTypes.shape({
+    height: PropTypes.string,
+  }),
 };
 
 SpectraPlot.defaultProps = {
   redshift: 0,
   mode: "desktop",
+  plotStyle: {
+    height: "55vh",
+  },
 };
 
 export default SpectraPlot;
