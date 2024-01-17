@@ -316,6 +316,10 @@ const PhotometryPlot = ({
       ) {
         key += `/${point.origin}`;
       }
+      // limit the key to 30 characters
+      if (key.length > 30) {
+        key = `${key.substring(0, 27)}...`;
+      }
       if (!acc[key]) {
         acc[key] = [];
       }
