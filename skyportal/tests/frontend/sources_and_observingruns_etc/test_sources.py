@@ -765,7 +765,10 @@ def test_show_photometry_table(public_source, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
 
-    driver.click_xpath('//*[@data-testid="show-photometry-table-button"]')
+    photometry_table_button = driver.wait_for_xpath(
+        '//*[@data-testid="show-photometry-table-button"]'
+    )
+    driver.scroll_to_element_and_click(photometry_table_button)
     driver.wait_for_xpath(f'//*[contains(text(), "Photometry of {public_source.id}")]')
 
     driver.click_xpath('//*[@data-testid="close-photometry-table-button"]')
