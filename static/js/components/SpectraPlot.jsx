@@ -6,7 +6,7 @@ import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
 import Slider from "@mui/material/Slider";
-import MuiInput from "@mui/material/Input";
+import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
@@ -168,6 +168,20 @@ const lines = [
   },
 ];
 
+const BASE_LAYOUT = {
+  automargin: true,
+  ticks: "outside",
+  ticklen: 12,
+  minor: {
+    ticks: "outside",
+    ticklen: 6,
+    tickcolor: "black",
+  },
+  showline: true,
+  titlefont: { size: 18 },
+  tickfont: { size: 14 },
+};
+
 function median(values) {
   if (values.length === 0) throw new Error("No inputs");
 
@@ -206,11 +220,18 @@ const smoothing_func = (values, window_size) => {
 const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
   const [data, setData] = useState(null);
   const [plotData, setPlotData] = useState(null);
+
   const [selectedLines, setSelectedLines] = useState([]);
+
   const [vExpInput, setVExpInput] = useState(0);
   const [redshiftInput, setRedshiftInput] = useState(redshift || 0);
   const [smoothingInput, setSmoothingInput] = useState(0);
   const [customWavelengthInput, setCustomWavelengthInput] = useState(0);
+
+  const [specStats, setSpecStats] = useState(null);
+  const [layouts, setLayouts] = useState({});
+
+  const [layoutReset, setLayoutReset] = useState(false);
 
   const { preferences } = useSelector((state) => state.profile);
 
@@ -226,6 +247,16 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
 
   const [types, setTypes] = useState([]);
   const [tabIndex, setTabIndex] = useState(0);
+
+  function calcColor(min, max, val) {
+    const minHue = 240;
+    const maxHue = 0;
+    const curPercent = (val - min) / (max - min);
+    const colString = `hsl(${
+      curPercent * (maxHue - minHue) + minHue
+    },100%,50%)`;
+    return colString;
+  }
 
   const findTypes = (spectraData) => {
     let spectrumTypes = [];
@@ -251,12 +282,22 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
     return spectrumTypes;
   };
 
-  const prepareSpectra = (spectraData) => {
-    // TODO
-    // iterate through each spectrum
-    // for each, normalize the fluxes to the median flux
-    // normfac = np.nanmedian(np.abs(s.fluxes))
-    // normfac = normfac if normfac != 0.0 else 1e-20
+  const prepareSpectra = (spectraData, spectrumTypes) => {
+    const stats = {};
+    spectrumTypes.forEach((type) => {
+      stats[type] = {
+        flux: {
+          min: 0,
+          max: 0,
+          range: [0, 1],
+        },
+        wavelength: {
+          min: 100000,
+          max: 0,
+          range: [0, 100000],
+        },
+      };
+    });
 
     const newSpectra = spectraData.map((spectrum) => {
       const newSpectrum = { ...spectrum };
@@ -265,115 +306,194 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
       newSpectrum.fluxes_normed = newSpectrum.fluxes.map(
         (flux) => flux / normfac
       );
+      newSpectrum.text = newSpectrum.wavelengths.map(
+        (wavelength, index) =>
+          `Wavelength: ${wavelength.toFixed(3)}
+          <br>Flux: ${newSpectrum.fluxes_normed[index].toFixed(3)}
+          <br>Telescope: ${newSpectrum.telescope_name}
+          <br>Instrument: ${newSpectrum.instrument_name}
+          <br>Observed at (UTC): ${newSpectrum.observed_at}
+          <br>PI: ${newSpectrum.pi || ""}
+          <br>Origin: ${newSpectrum.origin || ""}
+          `
+      );
+
+      stats[spectrum.type].wavelength.min = Math.min(
+        stats[spectrum.type].wavelength.min,
+        Math.min(...newSpectrum.wavelengths)
+      );
+      stats[spectrum.type].wavelength.max = Math.max(
+        stats[spectrum.type].wavelength.max,
+        Math.max(...newSpectrum.wavelengths)
+      );
+      stats[spectrum.type].flux.max = Math.max(
+        stats[spectrum.type].flux.max,
+        Math.max(...newSpectrum.fluxes_normed)
+      );
       return newSpectrum;
     });
 
-    return newSpectra;
+    spectrumTypes.forEach((type) => {
+      stats[type].wavelength.range = [
+        stats[type].wavelength.min - 100,
+        stats[type].wavelength.max + 100,
+      ];
+      stats[type].flux.range = [0, stats[type].flux.max * 1.05];
+    });
+
+    return [newSpectra, stats];
   };
 
   const createTraces = (
     spectraData,
     spectrumTypes,
     tabValue,
-    smoothing = 0
+    smoothingValue = 0
   ) => {
     // for now (testing), we just grab the first spectrum
 
-    if (spectraData !== null) {
-      const traces = spectraData.map((spectrum) => {
+    if (spectraData !== null && specStats !== null) {
+      const spectraFiltered = spectraData.filter((spectrum) => {
+        if (spectrum.type === spectrumTypes[tabValue]) {
+          return true;
+        }
+        return false;
+      });
+
+      const traces = spectraFiltered.map((spectrum, index) => {
         const name = `${spectrum.instrument_name}/${
           spectrum.observed_at.split("T")[0]
         }`;
         const trace = {
           x: spectrum.wavelengths,
           y:
-            smoothing === 0
+            smoothingValue === 0
               ? spectrum.fluxes_normed
-              : smoothing_func(spectrum.fluxes_normed, smoothing),
+              : smoothing_func([...spectrum.fluxes_normed], smoothingValue),
+          text: spectrum.text,
           type: "scatter",
           mode: "lines",
           name,
           line: {
             shape: "hvh",
+            width: 0.8,
+            color: calcColor(0, spectraFiltered.length - 1, index),
           },
-          // legendgroup: name,
+          hoverlabel: {
+            bgcolor: "white",
+            font: { size: 14 },
+            align: "left",
+          },
+          hovertemplate: "%{text}<extra></extra>",
         };
 
-        if (spectrumTypes?.length > 0) {
-          if (spectrum.type === spectrumTypes[tabValue]) {
-            trace.visible = true;
-          } else {
-            trace.visible = false;
-          }
-        }
         return trace;
       });
-      return traces;
+
+      const secondaryAxisX = {
+        x: [
+          specStats[spectrumTypes[tabValue]].wavelength.min /
+            (1 + redshift || 0),
+          specStats[spectrumTypes[tabValue]].wavelength.max /
+            (1 + redshift || 0),
+        ],
+        y: [
+          specStats[spectrumTypes[tabValue]].flux.min,
+          specStats[spectrumTypes[tabValue]].flux.max,
+        ],
+        mode: "markers",
+        type: "scatter",
+        name: "secondaryAxisX",
+        legendgroup: "secondaryAxisX",
+        marker: {
+          line: {
+            width: 1,
+          },
+          opacity: 0,
+        },
+        visible: true,
+        showlegend: false,
+        xaxis: "x2",
+        hoverinfo: "skip",
+      };
+      return traces.concat([secondaryAxisX]);
     }
     return [];
   };
 
-  const maxFlux = () => {
-    if (data !== null) {
-      const maxFluxes = data.map((spectrum) =>
-        Math.max(...spectrum.fluxes_normed)
-      );
-      return Math.max(...maxFluxes);
-    }
-    return 1;
+  const createLayouts = (spectrumType, specStats_value, redshift_value) => {
+    const newLayouts = {
+      xaxis: {
+        title: "Wavelength (Å)",
+        side: "bottom",
+        range: [...specStats_value[spectrumType].wavelength.range],
+        tickformat: "digits",
+        ...BASE_LAYOUT,
+      },
+      yaxis: {
+        title: "Flux",
+        side: "left",
+        range: [...specStats_value[spectrumType].flux.range],
+        ...BASE_LAYOUT,
+      },
+      xaxis2: {
+        title: "Rest Wavelength (Å)",
+        side: "top",
+        overlaying: "x",
+        showgrid: false,
+        range: specStats_value[spectrumType].wavelength.range.map(
+          (w) => w / (1 + (redshift_value || 0))
+        ),
+        tickformat: "digits",
+        ...BASE_LAYOUT,
+      },
+    };
+
+    return newLayouts;
   };
 
   useEffect(() => {
     const spectrumTypes = findTypes(spectra);
     setTypes(spectrumTypes);
-    const newSpectra = prepareSpectra(spectra);
+    const [newSpectra, newSpecStats] = prepareSpectra(spectra, spectrumTypes);
+    setSpecStats(newSpecStats);
     setData(newSpectra);
     const traces = createTraces(newSpectra, spectrumTypes, 0, smoothingInput);
     setPlotData(traces);
   }, [spectra]);
 
   useEffect(() => {
-    if (plotData !== null) {
-      const newPlotData = [...plotData];
-      for (let i = 0; i < newPlotData.length; i += 1) {
-        newPlotData[i].y =
-          smoothingInput < 1
-            ? data[i].fluxes_normed
-            : smoothing_func(data[i].fluxes_normed, smoothingInput);
+    if (data !== null && types?.length > 0 && specStats !== null) {
+      if (!layoutReset) {
+        const traces = createTraces(data, types, tabIndex, smoothingInput);
+        setPlotData(traces);
       }
-      setPlotData(newPlotData);
-    }
-  }, [smoothingInput]);
 
-  useEffect(() => {
-    if (plotData !== null && types?.length > 0) {
-      // if tabIndex has changes, we make invisible all traces that are not of the type of the new tab
-      const type = types[tabIndex];
-      const newPlotData = [...plotData];
-      for (let i = 0; i < newPlotData.length; i += 1) {
-        const spectrumType = data[i].type;
-        if (spectrumType !== type) {
-          newPlotData[i].visible = false;
-        } else {
-          newPlotData[i].visible = true;
-        }
+      const newLayouts = createLayouts(types[tabIndex], specStats, redshift);
+      setLayouts(newLayouts);
+      if (layoutReset) {
+        setLayoutReset(false);
       }
-      setPlotData(newPlotData);
     }
-  }, [tabIndex]);
+  }, [
+    data,
+    types,
+    tabIndex,
+    specStats,
+    layoutReset,
+    tabIndex,
+    redshift,
+    smoothingInput,
+  ]);
 
   const ShowOrHideAllSpectra = (showOrHide) => {
     if (plotData !== null) {
-      const type = types[tabIndex] || types[0];
       const newPlotData = [...plotData];
       for (let i = 0; i < newPlotData.length; i += 1) {
-        const spectrumType = data[i].type;
-        if (spectrumType === type) {
-          if (showOrHide === "show") {
-            newPlotData[i].visible = true;
-          } else {
-            newPlotData[i].visible = false;
-          }
+        if (showOrHide === "show") {
+          newPlotData[i].visible = true;
+        } else {
+          newPlotData[i].visible = "legendonly";
         }
       }
       setPlotData(newPlotData);
@@ -394,17 +514,24 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
           (x * (1 + parseFloat(redshiftInput, 10))) /
           (1 + parseFloat(vExpInput, 10) / c);
         return {
-          type: "line",
-          xref: "x",
-          yref: "y",
-          x0: shiftedX,
-          y0: 0,
-          x1: shiftedX,
-          y1: maxFlux(),
+          mode: "lines",
+          x: [...Array(10).keys()].map((i) => shiftedX), // eslint-disable-line no-unused-vars
+          y: [...Array(10).keys()].map(
+            (i) =>
+              (specStats[types[tabIndex]].flux.max * 1.05 || 1.05) * (i / 9)
+          ),
           line: {
             color: line.color,
             width: 1,
           },
+          type: "scatter",
+          hovertemplate: `Name: ${line.name}<br>Wavelength: ${x.toFixed(
+            3
+          )}<extra></extra>`,
+          name: line.name,
+          legendgroup: line.name,
+          showlegend: false,
+          visible: true,
         };
       });
     })
@@ -416,18 +543,30 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
               type: "line",
               xref: "x",
               yref: "y",
-              x0:
-                (customWavelengthInput * (1 + parseFloat(redshiftInput, 10))) /
-                (1 + parseFloat(vExpInput, 10) / c),
-              y0: 0,
-              x1:
-                (customWavelengthInput * (1 + parseFloat(redshiftInput, 10))) /
-                (1 + parseFloat(vExpInput, 10) / c),
-              y1: maxFlux(),
+              x: [...Array(10).keys()].map(
+                (
+                  i // eslint-disable-line no-unused-vars
+                ) =>
+                  (parseFloat(customWavelengthInput, 10) *
+                    (1 + parseFloat(redshiftInput, 10))) /
+                  (1 + parseFloat(vExpInput, 10) / c)
+              ),
+              y: [...Array(10).keys()].map(
+                (i) =>
+                  (specStats[types[tabIndex]].flux.max * 1.05 || 1.05) * (i / 9)
+              ),
               line: {
                 color: "#000000",
                 width: 1,
               },
+              hovertemplate: `Name: Custom Wavelength<br>Wavelength: ${parseFloat(
+                customWavelengthInput,
+                10
+              ).toFixed(3)}<extra></extra>`,
+              name: "Custom Wavelength",
+              legendgroup: "Custom Wavelength",
+              showlegend: false,
+              visible: true,
             },
           ]
         : []
@@ -457,38 +596,43 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
       )}
       <div style={{ width: "100%", height: "60vh", overflowX: "scroll" }}>
         <Plot
-          data={plotData}
+          data={(plotData || []).concat(shapes || [])}
           layout={{
-            xaxis: {
-              title: "Wavelength (Å)",
-            },
-            yaxis: {
-              title: "Flux (erg/s/cm²/Å)",
-              rangemode: "nonnegative",
-            },
+            ...layouts,
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
-              y: mode === "desktop" ? 1 : -0.15,
+              y: mode === "desktop" ? 1 : -0.25,
+              x: mode === "desktop" ? 1.02 : 0,
             },
             showlegend: true,
             autosize: true,
-            margin: {
-              l: 60,
-              r: 15,
-              b: 50,
-              t: 30,
-            },
-            // plot_bgcolor: '#EFF2F5',
-            // paper_bgcolor: '#EFF2F5'
-            shapes,
+            automargin: true,
           }}
           config={{
-            // scrollZoom: true,
             displaylogo: false,
+            // the native autoScale2d and resetScale2d buttons are not working
+            // as they are not resetting to the specified ranges
+            // so, we remove them and add our own
+            modeBarButtonsToRemove: [
+              "autoScale2d",
+              "resetScale2d",
+              "select2d",
+              "lasso2d",
+            ],
+            modeBarButtonsToAdd: [
+              {
+                name: "Reset",
+                icon: Plotly.Icons.home,
+                click: () => {
+                  setLayoutReset(true);
+                },
+              },
+            ],
           }}
           useResizeHandler
           style={{ width: "100%", height: "100%" }}
+          onDoubleClick={() => setLayoutReset(true)}
         />
       </div>
       <div
@@ -559,7 +703,7 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
           gridAutoFlow: "row",
           // we want to display a grid with divs that contain a slider and an input
           // each of the columns should be 12rem wide, and we want to have as many columns as possible
-          gridTemplateColumns: "repeat(auto-fit, minmax(14rem, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(16rem, 1fr))",
           rowGap: "0.5rem",
           columnGap: "2rem",
           width: "100%",
@@ -598,18 +742,19 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
               min={0}
               max={30000}
             />
-            <MuiInput
+            <TextField
               value={vExpInput}
               onChange={(e) => setVExpInput(e.target.value)}
               margin="dense"
+              type="number"
               inputProps={{
                 step: 1,
                 min: 0,
                 max: 30000,
-                type: "number",
                 "aria-labelledby": "input-slider",
               }}
-              style={{ width: "7rem" }}
+              style={{ width: "8.5rem" }}
+              size="small"
             />
           </div>
         </div>
@@ -645,18 +790,19 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
               min={0}
               max={3}
             />
-            <MuiInput
+            <TextField
               value={redshiftInput}
               onChange={(e) => setRedshiftInput(e.target.value)}
               margin="dense"
+              type="number"
               inputProps={{
                 step: 0.0001,
                 min: 0,
                 max: 3.0,
-                type: "number",
                 "aria-labelledby": "input-slider",
               }}
-              style={{ width: "7rem" }}
+              style={{ width: "8.5rem" }}
+              size="small"
             />
           </div>
         </div>
@@ -692,18 +838,19 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
               min={0}
               max={100}
             />
-            <MuiInput
+            <TextField
               value={smoothingInput}
               onChange={(e) => setSmoothingInput(e.target.value)}
               margin="dense"
+              type="number"
               inputProps={{
                 step: 1,
                 min: 0,
                 max: 100,
-                type: "number",
                 "aria-labelledby": "input-slider",
               }}
-              style={{ width: "7rem" }}
+              style={{ width: "8.5rem" }}
+              size="small"
             />
           </div>
         </div>
@@ -735,22 +882,23 @@ const SpectraPlot = ({ spectra, redshift = 0, mode = "desktop" }) => {
               onChange={(e, newValue) => setCustomWavelengthInput(newValue)}
               aria-labelledby="input-slider"
               valueLabelDisplay="auto"
-              step={0.001}
+              step={1}
               min={0}
               max={50000}
             />
-            <MuiInput
+            <TextField
               value={customWavelengthInput}
               onChange={(e) => setCustomWavelengthInput(e.target.value)}
               margin="dense"
+              type="number"
               inputProps={{
-                step: 0.001,
+                step: 1,
                 min: 0,
                 max: 50000,
-                type: "number",
                 "aria-labelledby": "input-slider",
               }}
-              style={{ width: "7rem" }}
+              style={{ width: "8.5rem" }}
+              size="small"
             />
           </div>
         </div>

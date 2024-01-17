@@ -468,6 +468,8 @@ class SpectrumHandler(BaseHandler):
 
                 spec_dict = recursive_to_dict(spectrum)
                 spec_dict["instrument_name"] = spectrum.instrument.name
+                spec_dict["telescope_id"] = spectrum.instrument.telescope.id
+                spec_dict["telescope_name"] = spectrum.instrument.telescope.name
                 spec_dict["groups"] = spectrum.groups
                 spec_dict["reducers"] = spectrum.reducers
                 spec_dict["observers"] = spectrum.observers
@@ -766,6 +768,8 @@ class SpectrumHandler(BaseHandler):
                     spec_dict['observers'] = recursive_to_dict(spec.observers)
 
                     spec_dict['instrument_name'] = spec.instrument.name
+                    spec_dict['telescope_id'] = spec.instrument.telescope.id
+                    spec_dict['telescope_name'] = spec.instrument.telescope.name
 
                     spec_dict['groups'] = recursive_to_dict(spec.groups)
                     spec_dict['owner'] = recursive_to_dict(spec.owner)
@@ -1324,6 +1328,8 @@ class ObjSpectraHandler(BaseHandler):
                 ]
                 spec_dict["annotations"] = annotations
                 spec_dict["instrument_name"] = spec.instrument.name
+                spec_dict["telescope_id"] = spec.instrument.telescope.id
+                spec_dict["telescope_name"] = spec.instrument.telescope.name
                 spec_dict["groups"] = spec.groups
                 spec_dict["reducers"] = spec.reducers
                 spec_dict["observers"] = spec.observers

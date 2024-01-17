@@ -7,6 +7,7 @@ import createPlotlyComponent from "react-plotly.js/factory";
 
 import Slider from "@mui/material/Slider";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import SaveAsIcon from "@mui/icons-material/SaveAs";
 import IconButton from "@mui/material/IconButton";
@@ -39,7 +40,6 @@ function ModifiedJulianDateNow() {
 
 const PHOT_ZP = 23.9;
 const BASE_LAYOUT = {
-  // tickformat: "digits",
   automargin: true,
   ticks: "outside",
   ticklen: 12,
@@ -112,13 +112,15 @@ const PeriodAnnotationDialog = ({ obj_id, period }) => {
 
   return (
     <>
-      <IconButton
-        onClick={() => setDialogOpen(true)}
-        size="small"
-        style={{ marginLeft: "0.5rem" }}
-      >
-        <SaveAsIcon />
-      </IconButton>
+      <Tooltip title="Save period as annotation">
+        <IconButton
+          onClick={() => setDialogOpen(true)}
+          size="small"
+          style={{ marginLeft: "0.5rem" }}
+        >
+          <SaveAsIcon />
+        </IconButton>
+      </Tooltip>
 
       <Dialog
         open={dialogOpen}
@@ -145,7 +147,7 @@ PeriodAnnotationDialog.propTypes = {
   period: PropTypes.number.isRequired,
 };
 
-const PhotometryPlotV2 = ({
+const PhotometryPlot = ({
   obj_id,
   dm,
   photometry,
@@ -206,6 +208,42 @@ const PhotometryPlotV2 = ({
         point.flux = 10 ** (-0.4 * (point.limiting_mag - PHOT_ZP));
         point.fluxerr = 0;
       }
+      point.text = `MJD: ${point.mjd.toFixed(6)}
+        `;
+      if (point.mag !== null) {
+        point.text += `
+        <br>Mag: ${point.mag ? point.mag.toFixed(3) : "NaN"}
+        <br>Magerr: ${point.magerr ? point.magerr.toFixed(3) : "NaN"}
+        `;
+      }
+      point.text += `
+        <br>Limiting Mag: ${
+          point.limiting_mag ? point.limiting_mag.toFixed(3) : "NaN"
+        }
+        <br>Flux: ${point.flux ? point.flux.toFixed(3) : "NaN"}
+      `;
+      if (point.mag !== null) {
+        point.text += `<br>Fluxerr: ${point.fluxerr.toFixed(3) || "NaN"}`;
+      }
+      point.text += `
+        <br>Filter: ${point.filter}
+        <br>Instrument: ${point.instrument_name}
+      `;
+      if (
+        point.origin !== "None" &&
+        point.origin !== "" &&
+        point.origin !== null
+      ) {
+        point.text += `<br>Origin: ${point.origin}`;
+      }
+      if (
+        point.altdata?.exposure !== null &&
+        point.altdata?.exposure !== undefined &&
+        point.altdata?.exposure !== ""
+      ) {
+        point.text += `<br>Exposure: ${point.altdata?.exposure || ""}`;
+      }
+
       stats.mag.min = Math.min(stats.mag.min, point.mag || point.limiting_mag);
       stats.mag.max = Math.max(stats.mag.max, point.mag || point.limiting_mag);
       stats.mjd.min = Math.min(stats.mjd.min, point.mjd);
@@ -291,6 +329,7 @@ const PhotometryPlotV2 = ({
             y: upperLimits.map((point) =>
               plotType === "mag" ? point.limiting_mag : point.flux
             ),
+            text: upperLimits.map((point) => point.text),
             mode: "markers",
             type: "scatter",
             name: key,
@@ -306,6 +345,12 @@ const PhotometryPlotV2 = ({
               symbol: "triangle-down",
             },
             visible: true,
+            hoverlabel: {
+              bgcolor: "white",
+              font: { size: 14 },
+              align: "left",
+            },
+            hovertemplate: "%{text}<extra></extra>",
           };
 
           const detectionsTrace = {
@@ -323,6 +368,7 @@ const PhotometryPlotV2 = ({
               width: 1,
               thickness: 2,
             },
+            text: detections.map((point) => point.text),
             mode: "markers",
             type: "scatter",
             name: key,
@@ -336,6 +382,12 @@ const PhotometryPlotV2 = ({
               size: markerSize,
             },
             visible: true,
+            hoverlabel: {
+              bgcolor: "white",
+              font: { size: 14 },
+              align: "left",
+            },
+            hovertemplate: "%{text}<extra></extra>",
           };
 
           const secondaryAxisX = {
@@ -431,28 +483,36 @@ const PhotometryPlotV2 = ({
           // to do so, use the indices and the groupedPhotometry[key] array to know which index corresponds to a detection or an upper limit
           let detectionsX = [];
           let detectionsY = [];
+          let detectionsText = [];
           let upperLimitsX = [];
           let upperLimitsY = [];
+          let upperLimitsText = [];
+
           for (let i = 0; i < indices.length; i += 1) {
             if (groupedPhotometry[key][indices[i]].mag !== null) {
               detectionsX.push(x[i]);
               detectionsY.push(y[i]);
+              detectionsText.push(groupedPhotometry[key][indices[i]].text);
             } else {
               upperLimitsX.push(x[i]);
               upperLimitsY.push(y[i]);
+              upperLimitsText.push(groupedPhotometry[key][indices[i]].text);
             }
           }
 
           if (phaseValue === 2) {
             detectionsX = detectionsX.concat(detectionsX.map((p) => p + 1));
             detectionsY = detectionsY.concat(detectionsY);
+            detectionsText = detectionsText.concat(detectionsText);
             upperLimitsX = upperLimitsX.concat(upperLimitsX.map((p) => p + 1));
             upperLimitsY = upperLimitsY.concat(upperLimitsY);
+            upperLimitsText = upperLimitsText.concat(upperLimitsText);
           }
 
           const detectionsTrace = {
             x: detectionsX,
             y: detectionsY,
+            text: detectionsText,
             mode: "markers",
             type: "scatter",
             name: key,
@@ -466,11 +526,18 @@ const PhotometryPlotV2 = ({
               size: markerSize,
             },
             visible: true,
+            hoverlabel: {
+              bgcolor: "white",
+              font: { size: 14 },
+              align: "left",
+            },
+            hovertemplate: "%{text}<extra></extra>",
           };
 
           const upperLimitsTrace = {
             x: upperLimitsX,
             y: upperLimitsY,
+            text: upperLimitsText,
             mode: "markers",
             type: "scatter",
             name: key,
@@ -485,6 +552,12 @@ const PhotometryPlotV2 = ({
               symbol: "triangle-down",
             },
             visible: true,
+            hoverlabel: {
+              bgcolor: "white",
+              font: { size: 14 },
+              align: "left",
+            },
+            hovertemplate: "%{text}<extra></extra>",
           };
 
           let secondaryAxisY = {};
@@ -704,7 +777,7 @@ const PhotometryPlotV2 = ({
         <Tab label="Period" />
       </Tabs>
 
-      <div style={{ width: "100%", height: "60vh", overflowX: "scroll" }}>
+      <div style={{ width: "100%", height: "65vh", overflowX: "scroll" }}>
         <Plot
           data={plotData}
           layout={{
@@ -712,7 +785,7 @@ const PhotometryPlotV2 = ({
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
-              y: mode === "desktop" ? 1 : -0.15,
+              y: mode === "desktop" ? 1 : -0.25,
               x: mode === "desktop" ? 1.15 : 0,
             },
             showlegend: true,
@@ -758,33 +831,45 @@ const PhotometryPlotV2 = ({
       >
         <div
           style={{
-            minHeight: "2rem",
             display: "flex",
-            flexDirection: "row",
+            flexDirection: "column",
             justifyContent: "flex-start",
-            alignItems: "center",
-            gap: "0.5rem",
+            alignItems: "left",
+            gap: 0,
             width: "100%",
-            marginTop: "1rem",
-            marginBottom: "1rem",
+            gridColumn: "span 1",
           }}
         >
-          <Button
-            onClick={() => ShowOrHideAllPhotometry("show")}
-            variant="contained"
-            color="primary"
-            size="small"
+          <Typography id="photometry-show-hide">Photometry</Typography>
+          <div
+            style={{
+              minHeight: "2rem",
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "flex-start",
+              alignItems: "center",
+              gap: "0.5rem",
+              width: "100%",
+              marginTop: "0.25rem",
+            }}
           >
-            Show All
-          </Button>
-          <Button
-            onClick={() => ShowOrHideAllPhotometry("hide")}
-            variant="contained"
-            color="primary"
-            size="small"
-          >
-            Hide All
-          </Button>
+            <Button
+              onClick={() => ShowOrHideAllPhotometry("show")}
+              variant="contained"
+              color="primary"
+              size="small"
+            >
+              Show All
+            </Button>
+            <Button
+              onClick={() => ShowOrHideAllPhotometry("hide")}
+              variant="contained"
+              color="primary"
+              size="small"
+            >
+              Hide All
+            </Button>
+          </div>
         </div>
         <div
           style={{
@@ -986,7 +1071,7 @@ const PhotometryPlotV2 = ({
   );
 };
 
-PhotometryPlotV2.propTypes = {
+PhotometryPlot.propTypes = {
   obj_id: PropTypes.string.isRequired,
   dm: PropTypes.number,
   photometry: PropTypes.arrayOf(
@@ -1009,10 +1094,10 @@ PhotometryPlotV2.propTypes = {
   mode: PropTypes.string,
 };
 
-PhotometryPlotV2.defaultProps = {
+PhotometryPlot.defaultProps = {
   dm: null,
   annotations: [],
   mode: "desktop",
 };
 
-export default PhotometryPlotV2;
+export default PhotometryPlot;
