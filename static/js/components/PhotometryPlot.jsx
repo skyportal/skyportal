@@ -11,9 +11,12 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import SaveAsIcon from "@mui/icons-material/SaveAs";
 import IconButton from "@mui/material/IconButton";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import Switch from "@mui/material/Switch";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -175,6 +178,9 @@ const PhotometryPlot = ({
   );
 
   const [layoutReset, setLayoutReset] = useState(false);
+
+  const [showHideAction, setShowHideAction] = useState("show");
+  const [anchorEl, setAnchorEl] = useState(null);
 
   const preparePhotometry = (photometryData) => {
     const stats = {
@@ -371,6 +377,7 @@ const PhotometryPlot = ({
           const colorError = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 0.5)`;
 
           const upperLimitsTrace = {
+            dataType: "upperLimits",
             x: upperLimits.map((point) => point.mjd),
             y: upperLimits.map((point) =>
               plotType === "mag" ? point.limiting_mag : point.flux
@@ -400,6 +407,7 @@ const PhotometryPlot = ({
           };
 
           const detectionsTrace = {
+            dataType: "detections",
             x: detections.map((point) => point.mjd),
             y: detections.map((point) =>
               plotType === "mag" ? point.mag : point.flux
@@ -556,6 +564,7 @@ const PhotometryPlot = ({
           }
 
           const detectionsTrace = {
+            dataType: "detections",
             x: detectionsX,
             y: detectionsY,
             text: detectionsText,
@@ -581,6 +590,7 @@ const PhotometryPlot = ({
           };
 
           const upperLimitsTrace = {
+            dataType: "upperLimits",
             x: upperLimitsX,
             y: upperLimitsY,
             text: upperLimitsText,
@@ -784,18 +794,34 @@ const PhotometryPlot = ({
     }
   }, [markerSize]);
 
-  const ShowOrHideAllPhotometry = (showOrHide) => {
+  const handleClick = (event, action) => {
+    setShowHideAction(action);
+    setAnchorEl(event.currentTarget);
+  };
+
+  const ShowOrHideAllPhotometry = (showOrHide, type) => {
     if (plotData !== null) {
       const newPlotData = plotData.map((trace) => {
         const newTrace = { ...trace };
         if (showOrHide === "hide") {
-          newTrace.visible = "legendonly";
+          if (
+            (newTrace.dataType === type || type === "all") &&
+            newTrace.visible !== false
+          ) {
+            newTrace.visible = "legendonly";
+          }
         } else if (showOrHide === "show") {
-          newTrace.visible = true;
+          if (
+            (newTrace.dataType === type || type === "all") &&
+            newTrace.visible !== true
+          ) {
+            newTrace.visible = true;
+          }
         }
         return newTrace;
       });
       setPlotData(newPlotData);
+      setAnchorEl(null);
     }
   };
 
@@ -988,21 +1014,50 @@ const PhotometryPlot = ({
             }}
           >
             <Button
-              onClick={() => ShowOrHideAllPhotometry("show")}
+              onClick={(e) => handleClick(e, "show")}
               variant="contained"
               color="primary"
               size="small"
+              endIcon={<KeyboardArrowDownIcon />}
             >
-              Show All
+              Show
             </Button>
             <Button
-              onClick={() => ShowOrHideAllPhotometry("hide")}
+              onClick={(e) => handleClick(e, "hide")}
               variant="contained"
               color="primary"
               size="small"
+              endIcon={<KeyboardArrowDownIcon />}
             >
-              Hide All
+              Hide
             </Button>
+            <Menu
+              id="photometry-show-hide"
+              anchorEl={anchorEl}
+              keepMounted
+              open={Boolean(anchorEl)}
+              onClose={() => setAnchorEl(null)}
+            >
+              <MenuItem
+                onClick={() => ShowOrHideAllPhotometry(showHideAction, "all")}
+              >
+                All
+              </MenuItem>
+              <MenuItem
+                onClick={() =>
+                  ShowOrHideAllPhotometry(showHideAction, "detections")
+                }
+              >
+                Detections
+              </MenuItem>
+              <MenuItem
+                onClick={() =>
+                  ShowOrHideAllPhotometry(showHideAction, "upperLimits")
+                }
+              >
+                Non-Detections
+              </MenuItem>
+            </Menu>
           </div>
         </div>
         <div

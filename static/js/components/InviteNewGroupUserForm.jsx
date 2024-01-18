@@ -227,7 +227,6 @@ const InviteNewGroupUserForm = ({ group_id }) => {
         data-testid="inviteNewUserButton"
         onClick={() => setConfirmDialogOpen(true)}
         size="small"
-        disableElevation
       >
         Invite new user
       </Button>
