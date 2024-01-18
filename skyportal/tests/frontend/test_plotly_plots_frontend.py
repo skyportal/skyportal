@@ -35,9 +35,3 @@ def test_export_bold_light_curve_as_csv_button(driver, user, public_source):
             time.sleep(3)
 
     assert button_present
-
-    # btn = driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
-    # driver.scroll_to_element_and_click(btn)
-    # assert f"{public_source.id}.csv" in os.listdir(
-    #    os.path.abspath(cfg["paths.downloads_folder"])
-    # )
