@@ -293,6 +293,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         flux: {
           min: 0,
           max: 0,
+          maxLines: 0,
           range: [0, 1],
         },
         wavelength: {
@@ -363,6 +364,11 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           maxFlux
         );
       }
+      // for the lines we show on top of the plot, we want to use the max flux of all spectra
+      stats[spectrum.type].flux.maxLines = Math.max(
+        stats[spectrum.type].flux.maxLines,
+        maxFlux
+      );
 
       return newSpectrum;
     });
@@ -553,17 +559,18 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           (x * (1 + parseFloat(redshiftInput, 10))) /
           (1 + parseFloat(vExpInput, 10) / c);
         return {
+          type: "scatter",
           mode: "lines",
-          x: [...Array(10).keys()].map((i) => shiftedX), // eslint-disable-line no-unused-vars
-          y: [...Array(10).keys()].map(
+          x: [...Array(100).keys()].map((i) => shiftedX), // eslint-disable-line no-unused-vars
+          y: [...Array(100).keys()].map(
             (i) =>
-              (specStats[types[tabIndex]].flux.max * 1.05 || 1.05) * (i / 9)
+              (specStats[types[tabIndex]].flux.maxLines * 1.05 || 1.05) *
+              (i / 99)
           ),
           line: {
             color: line.color,
             width: 1,
           },
-          type: "scatter",
           hovertemplate: `Name: ${line.name}<br>Wavelength: ${x.toFixed(
             3
           )}<extra></extra>`,
@@ -579,10 +586,9 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
       customWavelengthInput > 0
         ? [
             {
-              type: "line",
-              xref: "x",
-              yref: "y",
-              x: [...Array(10).keys()].map(
+              type: "scatter",
+              mode: "lines",
+              x: [...Array(100).keys()].map(
                 (
                   i // eslint-disable-line no-unused-vars
                 ) =>
@@ -590,9 +596,10 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
                     (1 + parseFloat(redshiftInput, 10))) /
                   (1 + parseFloat(vExpInput, 10) / c)
               ),
-              y: [...Array(10).keys()].map(
+              y: [...Array(100).keys()].map(
                 (i) =>
-                  (specStats[types[tabIndex]].flux.max * 1.05 || 1.05) * (i / 9)
+                  (specStats[types[tabIndex]].flux.maxLines * 1.05 || 1.05) *
+                  (i / 99)
               ),
               line: {
                 color: "#000000",
