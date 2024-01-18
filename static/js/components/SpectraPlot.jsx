@@ -194,6 +194,12 @@ function median(values) {
   return (sorted[half - 1] + sorted[half]) / 2.0;
 }
 
+function mean(values) {
+  if (values.length === 0) throw new Error("No inputs");
+
+  return values.reduce((a, b) => a + b) / values.length;
+}
+
 const smoothing_func = (values, window_size) => {
   if (values === undefined || values === null) {
     return null;
@@ -252,9 +258,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     const minHue = 240;
     const maxHue = 0;
     const curPercent = (val - min) / (max - min);
-    const colString = `hsl(${
-      curPercent * (maxHue - minHue) + minHue
-    },100%,50%)`;
+    const colString = `hsl(${curPercent * (maxHue - minHue) + minHue},80%,50%)`;
     return colString;
   }
 
@@ -326,10 +330,40 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         stats[spectrum.type].wavelength.max,
         Math.max(...newSpectrum.wavelengths)
       );
-      stats[spectrum.type].flux.max = Math.max(
-        stats[spectrum.type].flux.max,
-        Math.max(...newSpectrum.fluxes_normed)
-      );
+
+      // it happens that some spectra have a few ridiculously large flux peaks, and that messes up the plot
+      // the problem here is that we use the max of the fluxes to set the range of the y axis
+      // so when a spectrum's max value is > 10 times the median or the mean,
+      // we'll use the upper fence of the interquartile range to set the max flux
+      const medianFlux = median(newSpectrum.fluxes_normed);
+      const meanFlux = mean(newSpectrum.fluxes_normed);
+      const maxFlux = Math.max(...newSpectrum.fluxes_normed);
+
+      if (maxFlux > 10 * medianFlux || maxFlux > 10 * meanFlux) {
+        const sortedFluxes = [...newSpectrum.fluxes_normed].sort(
+          (a, b) => a - b
+        );
+        // set negative fluxes to 0
+        sortedFluxes.forEach((flux, index) => {
+          if (flux < 0) {
+            sortedFluxes[index] = 0;
+          }
+        });
+        const q1 = sortedFluxes[Math.floor(sortedFluxes.length * 0.25)];
+        const q3 = sortedFluxes[Math.floor(sortedFluxes.length * 0.75)];
+        const iqr = q3 - q1;
+        const upperFence = q3 + 1.5 * iqr;
+        stats[spectrum.type].flux.max = Math.max(
+          stats[spectrum.type].flux.max,
+          upperFence
+        );
+      } else {
+        stats[spectrum.type].flux.max = Math.max(
+          stats[spectrum.type].flux.max,
+          maxFlux
+        );
+      }
+
       return newSpectrum;
     });
 
@@ -391,6 +425,9 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
 
         return trace;
       });
+
+      // reverse the order to have most recent spectra on top
+      traces.reverse();
 
       const secondaryAxisX = {
         x: [
@@ -612,6 +649,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               yanchor: "top",
               y: mode === "desktop" ? 1 : -0.3,
               x: mode === "desktop" ? 1.02 : 0,
+              traceorder: "reversed",
             },
             showlegend: true,
             autosize: true,

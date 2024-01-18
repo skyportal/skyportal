@@ -130,7 +130,7 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
       Object.keys(data[0]).forEach((key) => {
         if (
           !keys.includes(key) &&
-          !["groups", "owner", "obj_id", "id"].includes(key)
+          !["groups", "owner", "obj_id", "id", "streams"].includes(key)
         ) {
           keys.push(key);
         }
@@ -172,6 +172,26 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
         label: "owner",
         options: {
           customBodyRenderLite: renderOwner,
+        },
+      });
+
+      const renderStreams = (dataIndex) => {
+        const phot = data[dataIndex];
+        return (
+          <div>
+            <div className={classes.actionButtons}>
+              <div>{phot.streams.map((stream) => stream.name).join(", ")}</div>
+            </div>
+          </div>
+        );
+      };
+
+      columns.push({
+        name: "streams",
+        label: "streams",
+        options: {
+          customBodyRenderLite: renderStreams,
+          display: false,
         },
       });
 

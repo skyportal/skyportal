@@ -52,7 +52,6 @@ const useStyles = makeStyles((theme) => ({
 // eslint-disable-next-line no-unused-vars
 const InstrumentPlot = ({ instrumentId, startDate, endDate }) => {
   // eslint-disable-next-line no-unused-vars
-  const plotWidth = 1600;
   const plot = (
     <Suspense
       fallback={
