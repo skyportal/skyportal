@@ -150,7 +150,7 @@ jobs:
 
       - name: Install Geckodriver / Selenium
         run: |
-          GECKO_VER=0.30.0
+          GECKO_VER=0.34.0
           CACHED_DOWNLOAD_DIR=~/.local/downloads
           FILENAME=geckodriver-v${GECKO_VER}-linux64.tar.gz
 
