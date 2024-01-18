@@ -8,7 +8,7 @@ import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
-import React, { Suspense, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
@@ -48,34 +48,6 @@ const useStyles = makeStyles((theme) => ({
     fontWeight: theme.typography.fontWeightRegular,
   },
 }));
-
-// eslint-disable-next-line no-unused-vars
-const InstrumentPlot = ({ instrumentId, startDate, endDate }) => {
-  // eslint-disable-next-line no-unused-vars
-  const plot = (
-    <Suspense
-      fallback={
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      }
-    >
-      <div>TODO</div>
-    </Suspense>
-  );
-  return plot;
-};
-
-InstrumentPlot.propTypes = {
-  instrumentId: PropTypes.number.isRequired,
-  startDate: PropTypes.string,
-  endDate: PropTypes.string,
-};
-
-InstrumentPlot.defaultProps = {
-  startDate: null,
-  endDate: null,
-};
 
 const InstrumentSummary = ({ route }) => {
   const dispatch = useDispatch();

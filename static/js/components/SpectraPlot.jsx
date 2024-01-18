@@ -13,6 +13,8 @@ import Tab from "@mui/material/Tab";
 
 import Button from "./Button";
 
+import { BASE_LAYOUT, smoothing_func } from "./PhotometryPlot";
+
 const Plot = createPlotlyComponent(Plotly);
 
 const c = 299792.458; // km/s
@@ -168,20 +170,6 @@ const lines = [
   },
 ];
 
-const BASE_LAYOUT = {
-  automargin: true,
-  ticks: "outside",
-  ticklen: 12,
-  minor: {
-    ticks: "outside",
-    ticklen: 6,
-    tickcolor: "black",
-  },
-  showline: true,
-  titlefont: { size: 18 },
-  tickfont: { size: 14 },
-};
-
 function median(values) {
   if (values.length === 0) throw new Error("No inputs");
 
@@ -199,29 +187,6 @@ function mean(values) {
 
   return values.reduce((a, b) => a + b) / values.length;
 }
-
-const smoothing_func = (values, window_size) => {
-  if (values === undefined || values === null) {
-    return null;
-  }
-  const output = new Array(values.length).fill(0);
-  const under = parseInt((window_size + 1) / 2, 10) - 1;
-  const over = parseInt(window_size / 2, 10);
-
-  for (let i = 0; i < values.length; i += 1) {
-    const idx_low = i - under >= 0 ? i - under : 0;
-    const idx_high = i + over < values.length ? i + over : values.length - 1;
-    let N = 0;
-    for (let j = idx_low; j <= idx_high; j += 1) {
-      if (Number.isNaN(values[j]) === false) {
-        N += 1;
-        output[i] += values[j];
-      }
-    }
-    output[i] /= N;
-  }
-  return output;
-};
 
 const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
   const [data, setData] = useState(null);
@@ -472,7 +437,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         title: "Wavelength (Å)",
         side: "bottom",
         range: [...specStats_value[spectrumType].wavelength.range],
-        tickformat: "digits",
+        tickformat: ".6~f",
         ...BASE_LAYOUT,
       },
       yaxis: {
@@ -489,7 +454,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         range: specStats_value[spectrumType].wavelength.range.map(
           (w) => w / (1 + (redshift_value || 0))
         ),
-        tickformat: "digits",
+        tickformat: ".6~f",
         ...BASE_LAYOUT,
       },
     };
@@ -1016,5 +981,3 @@ SpectraPlot.defaultProps = {
 };
 
 export default SpectraPlot;
-
-export { smoothing_func };

@@ -29,22 +29,14 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import { addAnnotation } from "../ducks/source";
-import { smoothing_func } from "./SpectraPlot";
 
 const Plot = createPlotlyComponent(Plotly);
-
-function ModifiedJulianDateFromUnixTime(t) {
-  return t / 86400000 + 40587;
-}
-
-function ModifiedJulianDateNow() {
-  return ModifiedJulianDateFromUnixTime(new Date().getTime());
-}
 
 const PHOT_ZP = 23.9;
 const BASE_LAYOUT = {
   automargin: true,
   ticks: "outside",
+  nticks: 8,
   ticklen: 12,
   minor: {
     ticks: "outside",
@@ -55,6 +47,37 @@ const BASE_LAYOUT = {
   titlefont: { size: 18 },
   tickfont: { size: 14 },
 };
+
+const smoothing_func = (values, window_size) => {
+  if (values === undefined || values === null) {
+    return null;
+  }
+  const output = new Array(values.length).fill(0);
+  const under = parseInt((window_size + 1) / 2, 10) - 1;
+  const over = parseInt(window_size / 2, 10);
+
+  for (let i = 0; i < values.length; i += 1) {
+    const idx_low = i - under >= 0 ? i - under : 0;
+    const idx_high = i + over < values.length ? i + over : values.length - 1;
+    let N = 0;
+    for (let j = idx_low; j <= idx_high; j += 1) {
+      if (Number.isNaN(values[j]) === false) {
+        N += 1;
+        output[i] += values[j];
+      }
+    }
+    output[i] /= N;
+  }
+  return output;
+};
+
+function ModifiedJulianDateFromUnixTime(t) {
+  return t / 86400000 + 40587;
+}
+
+function ModifiedJulianDateNow() {
+  return ModifiedJulianDateFromUnixTime(new Date().getTime());
+}
 
 const PeriodAnnotationDialog = ({ obj_id, period }) => {
   const dispatch = useDispatch();
@@ -658,7 +681,7 @@ const PhotometryPlot = ({
         title: "MJD",
         side: "top",
         range: [...photStats_value.mjd.range],
-        tickformat: "digits",
+        tickformat: ".6~f",
         ...BASE_LAYOUT,
       };
       newLayouts.xaxis2 = {
@@ -667,7 +690,7 @@ const PhotometryPlot = ({
         overlaying: "x",
         side: "bottom",
         showgrid: false,
-        tickformat: "digits",
+        tickformat: ".6~f",
         ...BASE_LAYOUT,
       };
     } else if (plotType === "period") {
@@ -974,8 +997,8 @@ const PhotometryPlot = ({
             ],
           }}
           useResizeHandler
-          style={{ width: "100%", height: "100%" }}
           onDoubleClick={() => setLayoutReset(true)}
+          style={{ width: "100%", height: "100%" }}
         />
       </div>
       <div
@@ -1309,3 +1332,10 @@ PhotometryPlot.defaultProps = {
 };
 
 export default PhotometryPlot;
+
+export {
+  BASE_LAYOUT,
+  ModifiedJulianDateNow,
+  ModifiedJulianDateFromUnixTime,
+  smoothing_func,
+};

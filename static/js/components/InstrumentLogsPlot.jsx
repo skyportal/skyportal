@@ -4,25 +4,9 @@ import PropTypes from "prop-types";
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
-const Plot = createPlotlyComponent(Plotly);
+import { ModifiedJulianDateNow, BASE_LAYOUT } from "./PhotometryPlot";
 
-const LOGTYPE_TO_INT = {
-  Message_robo: 1,
-  Power_robo: 2,
-  Weather_robo: 3,
-  Data_robo: 4,
-  VIC_robo: 5,
-  TCS_robo: 6,
-  SPEC_robo: 7,
-  Queue_robo: 8,
-  FITS_robo: 9,
-  Filter_robo: 10,
-  Control: 11,
-  Motion_robo: 12,
-  BestFocus: 13,
-  reset_server: 14,
-  Other: 0,
-};
+const Plot = createPlotlyComponent(Plotly);
 
 // we want a color map, that maps the logtype to a color
 // we can use the int to map to a color
@@ -45,7 +29,7 @@ const LOGTYPE_TO_COLOR = {
 };
 
 const checkLogtype = (logtype) => {
-  let type = Object.keys(LOGTYPE_TO_INT).map((key) => {
+  let type = Object.keys(LOGTYPE_TO_COLOR).map((key) => {
     if (logtype.includes(key)) {
       return key;
     }
@@ -62,21 +46,44 @@ const checkLogtype = (logtype) => {
 };
 
 const InstrumentLogsPlot = ({ instrument_logs }) => {
+  const [logStats, setLogStats] = useState(null);
+  const [data, setData] = useState(null);
   const [plotData, setPlotData] = useState([]);
+  const [layouts, setLayouts] = useState({});
 
-  const createTraces = (instrumentLogs) => {
+  const [layoutReset, setLayoutReset] = useState(false);
+
+  const prepareInstrumentLogs = (instrumentLogs) => {
+    if (instrumentLogs === null) {
+      return null;
+    }
+    return instrumentLogs.map((log) => log?.log?.logs || []).flat();
+  };
+
+  const getLogStats = (instrumentLogs) => {
     if (instrumentLogs !== null) {
-      // the instrumentLogs is a list of instrument logs
-      // each instrument logs has a log key, with a logs key. This logs key is a list of log entries
-      // each entry has a type, message and mjd
-      // we can flatten the instrument logs' log.logs into a single list of log entries
-      // and then create a trace for each logtype
-      const logEntries = instrumentLogs
-        .map((log) => log?.log?.logs || [])
-        .flat();
+      const minMJD = Math.min(...instrumentLogs.map((entry) => entry.mjd));
+      const maxMJD = Math.max(...instrumentLogs.map((entry) => entry.mjd));
 
+      const now = ModifiedJulianDateNow();
+      // days ago is now - mjd, so its a reversed axis
+      const daysAgoMin = now - maxMJD;
+      const daysAgoMax = now - minMJD;
+
+      return {
+        minMJD,
+        maxMJD,
+        daysAgoMin,
+        daysAgoMax,
+      };
+    }
+    return null;
+  };
+
+  const createTraces = (instrumentLogs, stats) => {
+    if (instrumentLogs !== null) {
       const traces = {};
-      Object.keys(LOGTYPE_TO_INT).forEach((key) => {
+      Object.keys(LOGTYPE_TO_COLOR).forEach((key) => {
         traces[key] = {
           x: [],
           y: [],
@@ -87,45 +94,123 @@ const InstrumentLogsPlot = ({ instrument_logs }) => {
             color: LOGTYPE_TO_COLOR[key],
             size: 8,
           },
-          name: `${LOGTYPE_TO_INT[key]}: ${key}`,
+          name: key,
         };
       });
 
-      logEntries.forEach((entry) => {
+      instrumentLogs.forEach((entry) => {
         const logtype = checkLogtype(entry.type);
         traces[logtype].x.push(entry.mjd);
-        traces[logtype].y.push(LOGTYPE_TO_INT[logtype]);
+        traces[logtype].y.push(logtype);
         traces[logtype].text.push(entry.message);
       });
 
-      return Object.keys(traces).map((key) => traces[key]);
+      // we create a secondary xaxis that will be on top of the plot, showing 'Days ago'
+      const secondaryAxisX = {
+        x: [stats.daysAgoMax, stats.daysAgoMin],
+        y: ["Message_robo", "Message_robo"],
+        mode: "markers",
+        type: "scatter",
+        name: "secondaryAxisX",
+        legendgroup: "secondaryAxisX",
+        marker: {
+          line: {
+            width: 1,
+          },
+          opacity: 0,
+        },
+        visible: true,
+        showlegend: false,
+        xaxis: "x2",
+        hoverinfo: "skip",
+      };
+
+      return Object.keys(traces)
+        .map((key) => traces[key])
+        .concat(secondaryAxisX);
     }
     return [];
   };
 
+  const createLayouts = (stats) => {
+    // compute a 10% margin for time axes
+    const margin = (stats ? stats.maxMJD - stats.minMJD : 1) * 0.1;
+    return {
+      xaxis: {
+        title: "MJD",
+        range: stats ? [stats.minMJD - margin, stats.maxMJD + margin] : [0, 1],
+        side: "top",
+        tickformat: ".6~f",
+        ...BASE_LAYOUT,
+      },
+      yaxis: {
+        title: "Log Type",
+        ...BASE_LAYOUT,
+      },
+      xaxis2: {
+        title: "Days Ago",
+        range: stats
+          ? [stats.daysAgoMax - margin, stats.daysAgoMin + margin]
+          : [1, 0],
+        overlaying: "x",
+        side: "bottom",
+        showgrid: false,
+        tickformat: ".6~f",
+        ...BASE_LAYOUT,
+      },
+      showlegend: false,
+      autosize: true,
+      automargin: true,
+    };
+  };
+
   useEffect(() => {
-    const traces = createTraces(instrument_logs);
-    setPlotData(traces);
+    const newData = prepareInstrumentLogs(instrument_logs);
+    const stats = getLogStats(newData);
+    setData(newData);
+    setLogStats(stats);
   }, [instrument_logs]);
+
+  useEffect(() => {
+    if (logStats !== null && data !== null) {
+      if (!layoutReset) {
+        const traces = createTraces(data, logStats);
+        setPlotData(traces);
+      }
+      setLayouts(createLayouts(logStats));
+    }
+  }, [data, layoutReset]);
 
   return (
     <div style={{ width: "100%", height: "60vh", overflowX: "scroll" }}>
       <Plot
         data={plotData}
         layout={{
-          xaxis: {
-            title: "MJD",
-          },
-          yaxis: {
-            title: "Log Type",
-          },
-          showlegend: true,
+          ...layouts,
+          showlegend: false,
           autosize: true,
+          automargin: true,
         }}
         config={{
           displaylogo: false,
+          modeBarButtonsToRemove: [
+            "autoScale2d",
+            "resetScale2d",
+            "select2d",
+            "lasso2d",
+          ],
+          modeBarButtonsToAdd: [
+            {
+              name: "Reset",
+              icon: Plotly.Icons.home,
+              click: () => {
+                setLayoutReset(true);
+              },
+            },
+          ],
         }}
         useResizeHandler
+        onDoubleClick={() => setLayoutReset(true)}
         style={{ width: "100%", height: "100%" }}
       />
     </div>
