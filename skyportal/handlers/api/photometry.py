@@ -63,9 +63,12 @@ def hex2rgb(hex):
     return tuple(int(hex[i : i + 2], 16) for i in (0, 2, 4))
 
 
-def get_effective_wavelength(bandpass_name):
+def get_effective_wavelength(bandpass_name, radius=None):
     try:
-        bandpass = snc.get_bandpass(bandpass_name)
+        args = {}
+        if radius is not None:
+            args['radius'] = radius
+        bandpass = snc.get_bandpass(bandpass_name, **args)
     except ValueError as e:
         raise ValueError(
             f"Could not get bandpass for {bandpass_name} due to sncosmo error: {e}"
