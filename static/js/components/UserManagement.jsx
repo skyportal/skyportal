@@ -191,13 +191,13 @@ const UserManagement = () => {
           userID: clickedUser.id,
           admin: false,
           group_id: gid,
-        })
-      )
+        }),
+      ),
     );
     const results = await Promise.all(promises);
     if (results.every((result) => result.status === "success")) {
       dispatch(
-        showNotification("User successfully added to specified group(s).")
+        showNotification("User successfully added to specified group(s)."),
       );
       reset({ groups: [] });
       setAddUserGroupsDialogOpen(false);
@@ -213,13 +213,13 @@ const UserManagement = () => {
         streamsActions.addStreamUser({
           user_id: clickedUser.id,
           stream_id: sid,
-        })
-      )
+        }),
+      ),
     );
     const results = await Promise.all(promises);
     if (results.every((result) => result.status === "success")) {
       dispatch(
-        showNotification("User successfully added to specified stream(s).")
+        showNotification("User successfully added to specified stream(s)."),
       );
       reset({ streams: [] });
       setAddUserStreamsDialogOpen(false);
@@ -233,7 +233,7 @@ const UserManagement = () => {
       aclsActions.addUserACLs({
         userID: clickedUser.id,
         aclIds: formData.acls,
-      })
+      }),
     );
     if (result.status === "success") {
       dispatch(showNotification("User successfully granted specified ACL(s)."));
@@ -246,7 +246,7 @@ const UserManagement = () => {
 
   const handleAddUserAffiliations = async (formData) => {
     const result = await dispatch(
-      ProfileActions.updateBasicUserInfo(formData, clickedUser.id)
+      ProfileActions.updateBasicUserInfo(formData, clickedUser.id),
     );
     if (result.status === "success") {
       dispatch(showNotification("Successfully updated user's affiliations."));
@@ -261,11 +261,11 @@ const UserManagement = () => {
       rolesActions.addUserRoles({
         userID: clickedUser.id,
         roleIds: formData.roles?.map((role) => role.id),
-      })
+      }),
     );
     if (result.status === "success") {
       dispatch(
-        showNotification("User successfully granted specified role(s).")
+        showNotification("User successfully granted specified role(s)."),
       );
       reset({ roles: [] });
       setAddUserRolesDialogOpen(false);
@@ -276,11 +276,11 @@ const UserManagement = () => {
 
   const handleClickRemoveUserFromGroup = async (userID, group_id) => {
     const result = await dispatch(
-      groupsActions.deleteGroupUser({ userID, group_id })
+      groupsActions.deleteGroupUser({ userID, group_id }),
     );
     if (result.status === "success") {
       dispatch(
-        showNotification("User successfully removed from specified group.")
+        showNotification("User successfully removed from specified group."),
       );
       dispatch(usersActions.fetchUsers(fetchParams));
     }
@@ -288,7 +288,7 @@ const UserManagement = () => {
 
   const handleClickRemoveUserStreamAccess = async (user_id, stream_id) => {
     const result = await dispatch(
-      streamsActions.deleteStreamUser({ user_id, stream_id })
+      streamsActions.deleteStreamUser({ user_id, stream_id }),
     );
     if (result.status === "success") {
       dispatch(showNotification("Stream access successfully revoked."));
@@ -309,7 +309,7 @@ const UserManagement = () => {
       affiliations: user.affiliations.filter((value) => value !== affiliation),
     };
     const result = await dispatch(
-      ProfileActions.updateBasicUserInfo(data, user.id)
+      ProfileActions.updateBasicUserInfo(data, user.id),
     );
     if (result.status === "success") {
       dispatch(showNotification("Successfully deleted user's affiliation."));
@@ -319,7 +319,7 @@ const UserManagement = () => {
 
   const handleClickDeleteUserRole = async (userID, role) => {
     const result = await dispatch(
-      rolesActions.deleteUserRole({ userID, role })
+      rolesActions.deleteUserRole({ userID, role }),
     );
     if (result.status === "success") {
       dispatch(showNotification("User role successfully removed."));
@@ -330,14 +330,17 @@ const UserManagement = () => {
   const handleEditUserExpirationDate = async (formData) => {
     if (!dayjs.utc(formData.date).isValid()) {
       dispatch(
-        showNotification("Invalid date. Please use MM/DD/YYYY format.", "error")
+        showNotification(
+          "Invalid date. Please use MM/DD/YYYY format.",
+          "error",
+        ),
       );
       return;
     }
     const result = await dispatch(
       usersActions.patchUser(clickedUser.id, {
         expirationDate: dayjs.utc(formData.date).toISOString(),
-      })
+      }),
     );
     if (result.status === "success") {
       dispatch(showNotification("User expiration date successfully updated."));
@@ -630,10 +633,10 @@ const UserManagement = () => {
   const handleFilterSubmit = async (formData) => {
     setQueryInProgress(true);
     Object.keys(formData).forEach(
-      (key) => !formData[key] && delete formData[key]
+      (key) => !formData[key] && delete formData[key],
     );
     setTableFilterList(
-      Object.entries(formData).map(([key, value]) => `${key}: ${value}`)
+      Object.entries(formData).map(([key, value]) => `${key}: ${value}`),
     );
     const params = {
       pageNumber: 1,
@@ -892,7 +895,7 @@ const UserManagement = () => {
                   value={value}
                   options={allGroups?.filter(
                     (g) =>
-                      !clickedUser?.groups?.map((gr) => gr.id)?.includes(g.id)
+                      !clickedUser?.groups?.map((gr) => gr.id)?.includes(g.id),
                   )}
                   getOptionLabel={(group) => group.name}
                   filterSelectedOptions
@@ -953,7 +956,7 @@ const UserManagement = () => {
                     (s) =>
                       !clickedUser?.streams
                         ?.map((strm) => strm.id)
-                        ?.includes(s.id)
+                        ?.includes(s.id),
                   )}
                   getOptionLabel={(stream) => stream.name}
                   filterSelectedOptions
@@ -1011,7 +1014,7 @@ const UserManagement = () => {
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={acls?.filter(
-                    (acl) => !clickedUser?.permissions?.includes(acl)
+                    (acl) => !clickedUser?.permissions?.includes(acl),
                   )}
                   getOptionLabel={(acl) => acl}
                   filterSelectedOptions
@@ -1073,7 +1076,7 @@ const UserManagement = () => {
                     const { inputValue } = params;
                     // Suggest the creation of a new value
                     const isExisting = options.some(
-                      (option) => inputValue === option
+                      (option) => inputValue === option,
                     );
                     if (inputValue !== "" && !isExisting) {
                       filtered.push(inputValue);
@@ -1146,7 +1149,7 @@ const UserManagement = () => {
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={roles?.filter(
-                    (role) => !clickedUser?.roles?.includes(role.id)
+                    (role) => !clickedUser?.roles?.includes(role.id),
                   )}
                   getOptionLabel={(role) => role.id}
                   filterSelectedOptions

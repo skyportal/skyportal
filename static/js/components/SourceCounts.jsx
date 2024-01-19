@@ -30,7 +30,7 @@ const SourceCounts = ({ classes, sinceDaysAgo }) => {
   const styles = useStyles();
   const sourceCounts = useSelector((state) => state.sourceCounts?.sourceCounts);
   const userPrefs = useSelector(
-    (state) => state.profile.preferences.sourceCounts
+    (state) => state.profile.preferences.sourceCounts,
   );
 
   const defaultPrefs = {

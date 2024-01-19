@@ -65,7 +65,6 @@ def test_source_is_added_to_observing_run_via_frontend(
 def test_assignment_posts_to_observing_run(
     driver, super_admin_user, public_source, red_transients_run, super_admin_token
 ):
-
     driver.get(f"/become_user/{super_admin_user.id}")
 
     status, data = post_assignment(

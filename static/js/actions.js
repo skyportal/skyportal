@@ -61,7 +61,7 @@ import * as hydrationActions from "./ducks/hydration";
 
 export default function hydrate(
   dashboardOnly = false,
-  ducks_to_hydrate = hydrationActions.DUCKS_TO_HYDRATE
+  ducks_to_hydrate = hydrationActions.DUCKS_TO_HYDRATE,
 ) {
   return (dispatch) => {
     if (!dashboardOnly) {
@@ -164,7 +164,7 @@ export default function hydrate(
       if (ducks_to_hydrate.includes("allocationsApiClassname")) {
         dispatch(allocationsActions.fetchAllocationsApiClassname()).then(() => {
           dispatch(
-            hydrationActions.finishedHydrating("allocationsApiClassname")
+            hydrationActions.finishedHydrating("allocationsApiClassname"),
           );
         });
       }
@@ -172,7 +172,7 @@ export default function hydrate(
         dispatch(observationPlansActions.fetchObservationPlanNames()).then(
           () => {
             dispatch(hydrationActions.finishedHydrating("observationPlans"));
-          }
+          },
         );
       }
       if (ducks_to_hydrate.includes("analysisServices")) {
@@ -182,28 +182,28 @@ export default function hydrate(
       }
       if (ducks_to_hydrate.includes("defaultFollowupRequests")) {
         dispatch(
-          defaultFollowupRequestsActions.fetchDefaultFollowupRequests()
+          defaultFollowupRequestsActions.fetchDefaultFollowupRequests(),
         ).then(() => {
           dispatch(
-            hydrationActions.finishedHydrating("defaultFollowupRequests")
+            hydrationActions.finishedHydrating("defaultFollowupRequests"),
           );
         });
       }
       if (ducks_to_hydrate.includes("defaultObservationPlans")) {
         dispatch(
-          defaultObservationPlansActions.fetchDefaultObservationPlans()
+          defaultObservationPlansActions.fetchDefaultObservationPlans(),
         ).then(() => {
           dispatch(
-            hydrationActions.finishedHydrating("defaultObservationPlans")
+            hydrationActions.finishedHydrating("defaultObservationPlans"),
           );
         });
       }
       if (ducks_to_hydrate.includes("defaultSurveyEfficiencies")) {
         dispatch(
-          defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies()
+          defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies(),
         ).then(() => {
           dispatch(
-            hydrationActions.finishedHydrating("defaultSurveyEfficiencies")
+            hydrationActions.finishedHydrating("defaultSurveyEfficiencies"),
           );
         });
       }

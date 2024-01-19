@@ -49,7 +49,6 @@ def test_finder(upload_data_token, public_source):
 
 @pytest.mark.xfail(strict=False)
 def test_unsourced_finder(upload_data_token):
-
     # get a finder by gaia ID
     response = api(
         "GET",

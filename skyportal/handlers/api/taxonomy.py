@@ -162,7 +162,6 @@ class TaxonomyHandler(BaseHandler):
             del data['hierarchy_file']
 
         with self.Session() as session:
-
             existing_matches = session.scalars(
                 Taxonomy.select(session.user_or_token)
                 .where(Taxonomy.name == name)

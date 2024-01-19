@@ -100,7 +100,7 @@ const EarthquakesFilterForm = ({ handleFilterSubmit }) => {
 
   let earthquakeStatuses = [];
   earthquakeStatuses = earthquakeStatuses.concat(
-    useSelector((state) => state.earthquakeStatuses)
+    useSelector((state) => state.earthquakeStatuses),
   );
   earthquakeStatuses.sort();
 

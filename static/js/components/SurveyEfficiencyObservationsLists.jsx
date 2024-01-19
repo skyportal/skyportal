@@ -97,7 +97,9 @@ const SurveyEfficiencyObservationsLists = ({ survey_efficiency_analyses }) => {
   const handleDelete = async (id) => {
     setIsDeleting(id);
     const result = await dispatch(
-      surveyEfficiencyObservationsActions.deleteSurveyEfficiencyObservations(id)
+      surveyEfficiencyObservationsActions.deleteSurveyEfficiencyObservations(
+        id,
+      ),
     );
     setIsDeleting(null);
     if (result.status === "success") {
@@ -377,7 +379,7 @@ SurveyEfficiencyObservationsLists.propTypes = {
       number_in_covered: PropTypes.number,
       number_detected: PropTypes.number,
       efficiency: PropTypes.number,
-    })
+    }),
   ).isRequired,
 };
 

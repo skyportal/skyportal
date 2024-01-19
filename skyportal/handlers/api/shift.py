@@ -417,7 +417,7 @@ class ShiftUserHandler(BaseHandler):
 
         needs_replacement = data.get("needs_replacement", False)
         # test if bool already
-        if type(needs_replacement) != bool:
+        if not isinstance(needs_replacement, bool):
             try:
                 needs_replacement = bool(needs_replacement)
             except (ValueError, TypeError):
@@ -561,7 +561,7 @@ class ShiftUserHandler(BaseHandler):
 
             needs_replacement = data.get("needs_replacement", False)
             # test if bool already
-            if type(needs_replacement) != bool:
+            if not isinstance(needs_replacement, bool):
                 try:
                     needs_replacement = bool(needs_replacement)
                 except (ValueError, TypeError):
@@ -731,7 +731,6 @@ class ShiftSummary(BaseHandler):
                 return self.error("Please provide a period of less than 4 weeks")
 
         with self.Session() as session:
-
             report = {}
             if start_date and end_date:
                 s = (

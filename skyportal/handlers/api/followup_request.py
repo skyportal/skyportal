@@ -163,7 +163,6 @@ class AssignmentHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             # get owned assignments
             assignments = ClassicalAssignment.select(self.current_user)
 
@@ -715,7 +714,6 @@ class FollowupRequestHandler(BaseHandler):
                 return self.error("Allocation ID must be an integer.")
 
         with self.Session() as session:
-
             if allocationID is not None:
                 # verify that the user can access the allocation
                 allocation = session.scalars(
@@ -1004,7 +1002,6 @@ class FollowupRequestHandler(BaseHandler):
             return self.error('Request id must be an int.')
 
         with self.Session() as session:
-
             followup_request = session.scalars(
                 FollowupRequest.select(session.user_or_token, mode="update").where(
                     FollowupRequest.id == request_id
@@ -1135,7 +1132,6 @@ class FollowupRequestHandler(BaseHandler):
         )
 
         with self.Session() as session:
-
             followup_request = session.scalars(
                 FollowupRequest.select(session.user_or_token, mode="delete").where(
                     FollowupRequest.id == request_id
@@ -1182,7 +1178,6 @@ class HourAngleConstraint(Constraint):
         self.max = max
 
     def compute_constraint(self, times, observer, targets):
-
         jds = np.array([t.jd for t in times])
         GMST = 18.697374558 + 24.06570982441908 * (jds - 2451545)
         GMST = np.mod(GMST, 24)
@@ -1258,7 +1253,6 @@ def observation_schedule(
     output_format='csv',
     figsize=(10, 8),
 ):
-
     """Create a schedule to display observations for a particular instrument
     Parameters
     ----------
@@ -1674,9 +1668,10 @@ class FollowupRequestSchedulerHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             instrument = session.scalars(
-                Instrument.select(self.current_user,).where(
+                Instrument.select(
+                    self.current_user,
+                ).where(
                     Instrument.id == instrument_id,
                 )
             ).first()
@@ -1874,7 +1869,6 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
             )
 
         with self.Session() as session:
-
             followup_requests = []
             for request_id in request_ids:
                 # get owned assignments
@@ -2179,7 +2173,6 @@ class DefaultFollowupRequestHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             stmt = DefaultFollowupRequest.select(
                 session.user_or_token, mode="delete"
             ).where(DefaultFollowupRequest.id == default_followup_request_id)
@@ -2231,7 +2224,6 @@ class FollowupRequestWatcherHandler(BaseHandler):
         )
 
         with self.Session() as session:
-
             # get owned assignments
             followup_requests = FollowupRequest.select(self.current_user)
 
@@ -2309,7 +2301,6 @@ class FollowupRequestWatcherHandler(BaseHandler):
         )
 
         with self.Session() as session:
-
             # get owned assignments
             followup_requests = FollowupRequest.select(self.current_user)
 

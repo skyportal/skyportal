@@ -52,7 +52,6 @@ class MMADetectorHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
-
             schema = MMADetector.__schema__()
             try:
                 mmadetector = schema.load(data)
@@ -121,7 +120,6 @@ class MMADetectorHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             if mmadetector_id is not None:
                 t = session.scalars(
                     MMADetector.select(
@@ -443,7 +441,6 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.error(f'Cannot parse time input value "{observed_after}".')
 
         with self.Session() as session:
-
             try:
                 detector_ids = parse_id_list(detector_ids, MMADetector, session)
                 group_ids = parse_id_list(group_ids, Group, session)
@@ -831,7 +828,6 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             return self.error(f'Cannot parse time input value "{observed_after}".')
 
         with self.Session() as session:
-
             try:
                 detector_ids = parse_id_list(detector_ids, MMADetector, session)
                 group_ids = parse_id_list(group_ids, Group, session)

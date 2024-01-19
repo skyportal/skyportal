@@ -42,7 +42,7 @@ const ClassificationRow = ({ classifications, fontSize }) => {
   const currentUser = useSelector((state) => state.profile);
   const groupUsers = useSelector((state) => state.group?.group_users);
   const currentGroupUser = groupUsers?.filter(
-    (groupUser) => groupUser.user_id === currentUser.id
+    (groupUser) => groupUser.user_id === currentUser.id,
   )[0];
 
   useEffect(() => {
@@ -52,13 +52,13 @@ const ClassificationRow = ({ classifications, fontSize }) => {
     ) {
       window.localStorage.setItem(
         "CURRENT_GROUP_ADMIN",
-        JSON.stringify(currentGroupUser.admin)
+        JSON.stringify(currentGroupUser.admin),
       );
     }
   }, [currentGroupUser]);
 
   const isGroupAdmin = JSON.parse(
-    window.localStorage.getItem("CURRENT_GROUP_ADMIN")
+    window.localStorage.getItem("CURRENT_GROUP_ADMIN"),
   );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [votesVisible, setVotesVisible] = useState(false);
@@ -74,7 +74,7 @@ const ClassificationRow = ({ classifications, fontSize }) => {
 
   const addVote = (classification_id, vote) => {
     dispatch(
-      sourceActions.addClassificationVote(classification_id, { vote })
+      sourceActions.addClassificationVote(classification_id, { vote }),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Vote registered"));
@@ -93,14 +93,14 @@ const ClassificationRow = ({ classifications, fontSize }) => {
           dispatch(showNotification("Classification deleted"));
           closeDialog();
         }
-      }
+      },
     );
   };
 
   const classification = classifications[0];
 
   const classifications_classes = useSelector(
-    (state) => state.config.classificationsClasses
+    (state) => state.config.classificationsClasses,
   );
 
   const upvoterIds = [];
@@ -332,15 +332,15 @@ ClassificationRow.propTypes = {
         PropTypes.shape({
           id: PropTypes.number,
           name: PropTypes.string,
-        })
+        }),
       ),
       votes: PropTypes.arrayOf(
         PropTypes.shape({
           id: PropTypes.number,
           vote: PropTypes.number,
-        })
+        }),
       ),
-    })
+    }),
   ).isRequired,
   fontSize: PropTypes.string,
 };
@@ -365,8 +365,8 @@ export const getSortedClasses = (classifications) => {
 
   Object.keys(groupedClasses)?.forEach((item) =>
     sortedClasses.push(
-      groupedClasses[item].sort((a, b) => (a.modified < b.modified ? 1 : -1))
-    )
+      groupedClasses[item].sort((a, b) => (a.modified < b.modified ? 1 : -1)),
+    ),
   );
 
   return sortedClasses;
@@ -379,7 +379,7 @@ function ShowClassification({
   fontSize,
 }) {
   const sorted_classifications = (classifications || []).sort((a, b) =>
-    a.created_at > b.created_at ? -1 : 1
+    a.created_at > b.created_at ? -1 : 1,
   );
 
   const classificationsGrouped = sorted_classifications.reduce((r, a) => {
@@ -391,7 +391,7 @@ function ShowClassification({
   keys.forEach((key) => {
     classificationsGrouped[key].forEach((item, index) => {
       let taxname = taxonomyList.filter(
-        (i) => i.id === classificationsGrouped[key][index].taxonomy_id
+        (i) => i.id === classificationsGrouped[key][index].taxonomy_id,
       );
       if (taxname.length > 0) {
         taxname = taxname[0].name;

@@ -104,7 +104,7 @@ GroupShareSelect.propTypes = {
     PropTypes.shape({
       id: PropTypes.number,
       name: PropTypes.string,
-    })
+    }),
   ).isRequired,
   groupIDs: PropTypes.arrayOf(PropTypes.number).isRequired,
   setGroupIDs: PropTypes.func.isRequired,

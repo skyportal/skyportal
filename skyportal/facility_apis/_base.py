@@ -2,7 +2,6 @@ from copy import deepcopy
 
 
 class _ListenerBase:
-
     # subclasses should not modify this
     @classmethod
     def complete_schema(cls):
@@ -34,7 +33,6 @@ class _ListenerBase:
 
 
 class _Base:
-
     # subclasses should not modify this
     @classmethod
     def _isimplemented(cls, method_name):
@@ -72,7 +70,6 @@ class _Base:
     # subclasses should not modify this
     @classmethod
     def frontend_render_info(cls, instrument, user):
-
         try:
             formSchema = cls.custom_json_schema(instrument, user)
         except AttributeError:

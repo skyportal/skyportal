@@ -6,7 +6,6 @@ import pytest
 def test_analysis_service_frontend(
     super_admin_token, super_admin_user, analysis_service_token, view_only_user, driver
 ):
-
     driver.get(f"/become_user/{super_admin_user.id}")
 
     # go to the analysis services page

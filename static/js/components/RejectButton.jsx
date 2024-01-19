@@ -56,7 +56,7 @@ const ButtonInvisible = (objID) => {
 
 const RejectButton = ({ objID }) => {
   const { rejected_candidates } = useSelector(
-    (state) => state.rejected_candidates
+    (state) => state.rejected_candidates,
   );
 
   if (!objID) {

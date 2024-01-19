@@ -1077,7 +1077,7 @@ def test_minimal_spectrum(
 
     assert status == 200
     assert data['status'] == 'success'
-    assert type(data['data']) == dict
+    assert isinstance(data['data'], dict)
     assert data['data']['id'] == spectrum_id
     single_spec = data['data']
 
@@ -1092,7 +1092,7 @@ def test_minimal_spectrum(
     )
     assert status == 200
     assert data['status'] == 'success'
-    assert type(data['data']) == list
+    assert isinstance(data['data'], list)
     assert len(data['data']) == 1
     full_spec = data['data'][0]
 
@@ -1108,7 +1108,7 @@ def test_minimal_spectrum(
 
     assert status == 200
     assert data['status'] == 'success'
-    assert type(data['data']) == list
+    assert isinstance(data['data'], list)
     assert len(data['data']) == 1
     minimal_spec = data['data'][0]
 
@@ -1839,7 +1839,6 @@ def test_token_user_post_to_foreign_group_and_retrieve(
 
 
 def test_parse_integer_spectrum_ascii(upload_data_token):
-
     status, data = api(
         'POST',
         'spectrum/parse/ascii',
@@ -1944,7 +1943,6 @@ def test_spectrum_plot_only_some_spectra(
 
 
 def test_post_get_spectrum_type(upload_data_token, public_source, public_group, lris):
-
     # post this spectrum without a type (should default to "source")
     status, data = api(
         'POST',
@@ -1971,7 +1969,6 @@ def test_post_get_spectrum_type(upload_data_token, public_source, public_group, 
     assert default_spectrum_type in ALLOWED_SPECTRUM_TYPES
 
     if len(ALLOWED_SPECTRUM_TYPES) > 1:
-
         new_allowed_types = list(ALLOWED_SPECTRUM_TYPES)
         new_allowed_types.remove(default_spectrum_type)
 
@@ -2000,7 +1997,6 @@ def test_post_get_spectrum_type(upload_data_token, public_source, public_group, 
 
 
 def test_post_wrong_spectrum_type(upload_data_token, public_source, public_group, lris):
-
     # post this spectrum with the wrong type
     status, data = api(
         'POST',

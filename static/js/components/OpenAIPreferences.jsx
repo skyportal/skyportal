@@ -27,7 +27,7 @@ const OpenAIPreferences = () => {
   const profile = useSelector((state) => state.profile.preferences);
   const dispatch = useDispatch();
   const [OpenAIapikey, setOpenAIapikey] = useState(
-    profile.summary?.OpenAI?.openai_apikey
+    profile.summary?.OpenAI?.openai_apikey,
   );
   const [OpenAIapikeyerror, setOpenAIapikeyerror] = useState(false);
 

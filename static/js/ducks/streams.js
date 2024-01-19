@@ -39,7 +39,7 @@ export function addGroupStream({ group_id, stream_id }) {
 export function deleteGroupStream({ group_id, stream_id }) {
   return API.DELETE(
     `/api/groups/${group_id}/streams/${stream_id}`,
-    DELETE_GROUP_STREAM
+    DELETE_GROUP_STREAM,
   );
 }
 
@@ -52,7 +52,7 @@ export function addStreamUser({ user_id, stream_id }) {
 export function deleteStreamUser({ user_id, stream_id }) {
   return API.DELETE(
     `/api/streams/${stream_id}/users/${user_id}`,
-    DELETE_STREAM_USER
+    DELETE_STREAM_USER,
   );
 }
 

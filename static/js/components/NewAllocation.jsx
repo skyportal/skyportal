@@ -38,7 +38,7 @@ const NewAllocation = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const allowedAllocationTypes = useSelector(
-    (state) => state.config.allowedAllocationTypes
+    (state) => state.config.allowedAllocationTypes,
   );
   const groups = useSelector((state) => state.groups.userAccessible);
   const group = useSelector((state) => state.group);
@@ -114,12 +114,12 @@ const NewAllocation = () => {
   function validate(formData, validationErrors) {
     if (nowDate > formData.end_date) {
       validationErrors.end_date.addError(
-        "End date must be after current time, please fix."
+        "End date must be after current time, please fix.",
       );
     }
     if (formData.start_date > formData.end_date) {
       validationErrors.start_date.addError(
-        "Start date must be before end date, please fix."
+        "Start date must be before end date, please fix.",
       );
     }
     return validationErrors;
@@ -163,7 +163,7 @@ const NewAllocation = () => {
           enum: [instrument.id],
           title: `${
             telescopeList.find(
-              (telescope) => telescope.id === instrument.telescope_id
+              (telescope) => telescope.id === instrument.telescope_id,
             )?.name
           } / ${instrument.name}`,
         })),

@@ -37,7 +37,6 @@ class UVOTXRTMMAAPI(MMAAPI):
 
     @staticmethod
     def retrieve(allocation, start_date, end_date):
-
         """Retrieve executed observations by Swift.
 
         Parameters
@@ -377,7 +376,6 @@ class UVOTXRTAPI(FollowUpAPI):
 
     @staticmethod
     def get(request, session, **kwargs):
-
         """Get an analysis request result from Swift.
 
         Parameters
@@ -470,7 +468,6 @@ class UVOTXRTAPI(FollowUpAPI):
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
-
         """Submit a follow-up request to Swift's UVOT/XRT
 
         Parameters

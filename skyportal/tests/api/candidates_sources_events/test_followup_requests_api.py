@@ -38,7 +38,6 @@ def test_token_user_post_robotic_followup_request(
 def test_token_user_delete_owned_followup_request(
     public_group_sedm_allocation, public_source, upload_data_token
 ):
-
     request_data = {
         'allocation_id': public_group_sedm_allocation.id,
         'obj_id': public_source.id,
@@ -68,7 +67,6 @@ def test_token_user_delete_owned_followup_request(
 def test_token_user_modify_owned_followup_request(
     public_group_sedm_allocation, public_source, upload_data_token
 ):
-
     request_data = {
         'allocation_id': public_group_sedm_allocation.id,
         'obj_id': public_source.id,
@@ -120,7 +118,6 @@ def test_token_user_modify_owned_followup_request(
 def test_regular_user_delete_super_admin_followup_request(
     public_group_sedm_allocation, public_source, upload_data_token, super_admin_token
 ):
-
     request_data = {
         'allocation_id': public_group_sedm_allocation.id,
         'obj_id': public_source.id,
@@ -153,7 +150,6 @@ def test_group1_user_cannot_see_group2_followup_request(
     super_admin_token,
     view_only_token,
 ):
-
     request_data = {
         'allocation_id': public_group2_sedm_allocation.id,
         'obj_id': public_source_group2.id,

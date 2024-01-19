@@ -107,7 +107,7 @@ export function fetchGcnEventSources(dateobs, filterParams = {}) {
 export function fetchSpatialCatalogSources(
   catalogName,
   entryName,
-  filterParams = {}
+  filterParams = {},
 ) {
   addFilterParamDefaults(filterParams);
   filterParams.spatialCatalogName = catalogName;
@@ -146,13 +146,13 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
           sources[branchName].sources.forEach((obj) => {
             if (obj.internal_key === payload.obj_key && !fetched) {
               dispatch(
-                sourceActions.fetchSource(obj.id, FETCH_SOURCE_AND_MERGE)
+                sourceActions.fetchSource(obj.id, FETCH_SOURCE_AND_MERGE),
               );
               fetched = true;
             }
           });
         }
-      }
+      },
     );
   }
 });
@@ -163,7 +163,7 @@ const reducer = (
     savedGroupSources: initialState,
     pendingGroupSources: initialState,
   },
-  action
+  action,
 ) => {
   switch (action.type) {
     case FETCH_SOURCES: {
@@ -217,7 +217,7 @@ const reducer = (
           newState[branchName] = {
             ...state[branchName],
             sources: state[branchName].sources.map((obj) =>
-              obj.id === action.data.id ? action.data : obj
+              obj.id === action.data.id ? action.data : obj,
             ),
           };
         }

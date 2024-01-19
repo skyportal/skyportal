@@ -68,7 +68,7 @@ const textStyles = makeStyles(() => ({
 export function followupRequestTitle(
   default_followup_request,
   instrumentList,
-  telescopeList
+  telescopeList,
 ) {
   const { allocation, default_followup_name } = default_followup_request;
   const { instrument_id } = allocation;
@@ -96,14 +96,14 @@ export function defaultFollowupRequestInfo(default_followup_request) {
     result += `Payload: ${JSON.stringify(
       default_followup_request?.payload,
       null,
-      " "
+      " ",
     )}`;
   }
   if (default_followup_request?.source_filter) {
     result += ` / Filter: ${JSON.stringify(
       default_followup_request?.source_filter,
       null,
-      " "
+      " ",
     )}`;
   }
 
@@ -136,8 +136,8 @@ const DefaultFollowupRequestList = ({
   const deleteDefaultFollowupRequest = () => {
     dispatch(
       defaultFollowupRequestsActions.deleteDefaultFollowupRequest(
-        defaultFollowupRequestToDelete
-      )
+        defaultFollowupRequestToDelete,
+      ),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Default follow-up request deleted"));
@@ -155,11 +155,11 @@ const DefaultFollowupRequestList = ({
               primary={followupRequestTitle(
                 default_followup_request,
                 instrumentList,
-                telescopeList
+                telescopeList,
               )}
               secondary={defaultFollowupRequestInfo(
                 default_followup_request,
-                groups
+                groups,
               )}
               classes={textClasses}
             />
@@ -193,13 +193,13 @@ const defaultNumPerPage = 10;
 const FollowupRequestPage = () => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { instrumentList, instrumentFormParams } = useSelector(
-    (state) => state.instruments
+    (state) => state.instruments,
   );
   const { followupRequestList, totalMatches } = useSelector(
-    (state) => state.followup_requests
+    (state) => state.followup_requests,
   );
   const { defaultFollowupRequestList } = useSelector(
-    (state) => state.default_followup_requests
+    (state) => state.default_followup_requests,
   );
   const currentUser = useSelector((state) => state.profile);
   const classes = useStyles();
@@ -294,7 +294,7 @@ const FollowupRequestPage = () => {
         };
         // eslint-disable-next-line no-await-in-loop
         const response = await dispatch(
-          followupRequestActions.fetchFollowupRequests(params)
+          followupRequestActions.fetchFollowupRequests(params),
         );
         if (response && response.data && response?.status === "success") {
           const { data } = response;
@@ -312,15 +312,15 @@ const FollowupRequestPage = () => {
             dispatch(
               showNotification(
                 "Failed to fetch some follow-up requests. Download cancelled.",
-                "error"
-              )
+                "error",
+              ),
             );
           } else {
             dispatch(
               showNotification(
                 "Failed to fetch some follow-up requests, please try again. Follow-up requests fetched so far will be downloaded.",
-                "error"
-              )
+                "error",
+              ),
             );
           }
           break;
@@ -332,7 +332,7 @@ const FollowupRequestPage = () => {
         allFollowupRequests?.length === allFollowupRequests.totalMatches?.length
       ) {
         dispatch(
-          showNotification("Follow-up requests downloaded successfully")
+          showNotification("Follow-up requests downloaded successfully"),
         );
       }
       return allFollowupRequests;

@@ -137,7 +137,6 @@ def test_driver_user(request):
 # check if a test has failed
 @pytest.fixture(scope="function", autouse=True)
 def test_failed_check(request):
-
     gecko = Path('geckodriver.log')
     gecko.touch(exist_ok=True)
 

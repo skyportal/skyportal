@@ -56,7 +56,6 @@ def test_add_bad_taxonomy(taxonomy_token, public_group):
 
 
 def test_latest_taxonomy(taxonomy_token, public_group):
-
     # add one, then add another with the same name
     name = str(uuid.uuid4())
     status, data = api(
@@ -105,7 +104,6 @@ def test_latest_taxonomy(taxonomy_token, public_group):
 
 
 def test_get_many_taxonomies(taxonomy_token, public_group):
-
     n_tax = 5
     ids = []
     names = []
@@ -141,7 +139,6 @@ def test_get_many_taxonomies(taxonomy_token, public_group):
 def test_taxonomy_group_view(
     taxonomy_token_two_groups, taxonomy_token, public_group, public_group2
 ):
-
     name = "test taxonomy" + str(uuid.uuid4())
     status, data = api(
         'POST',

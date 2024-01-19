@@ -72,8 +72,8 @@ const VegaHR = React.lazy(() => import("./VegaHR"));
 
 const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
-const CentroidPlot = React.lazy(() =>
-  import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
+const CentroidPlot = React.lazy(
+  () => import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot"),
 );
 
 const green = "#359d73";
@@ -252,7 +252,7 @@ const SourceDesktop = ({ source }) => {
   const image_analysis = useSelector((state) => state.config.image_analysis);
 
   const { instrumentList, instrumentFormParams } = useSelector(
-    (state) => state.instruments
+    (state) => state.instruments,
   );
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -279,7 +279,7 @@ const SourceDesktop = ({ source }) => {
   const currentUser = useSelector((state) => state.profile);
 
   const groups = (useSelector((state) => state.groups.all) || []).filter(
-    (g) => !g.single_user_group
+    (g) => !g.single_user_group,
   );
 
   const spectra = useSelector((state) => state.spectra)[source.id];
@@ -1122,7 +1122,7 @@ SourceDesktop.propTypes = {
       PropTypes.shape({
         origin: PropTypes.string.isRequired,
         data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
-      })
+      }),
     ),
     host: PropTypes.shape({
       catalog_name: PropTypes.string,
@@ -1164,7 +1164,7 @@ SourceDesktop.propTypes = {
         b2a: PropTypes.number,
         pa: PropTypes.number,
         btc: PropTypes.number,
-      })
+      }),
     ),
     classifications: PropTypes.arrayOf(
       PropTypes.shape({
@@ -1177,7 +1177,7 @@ SourceDesktop.propTypes = {
         author_id: PropTypes.number,
         taxonomy_id: PropTypes.number,
         created_at: PropTypes.string,
-      })
+      }),
     ),
     followup_requests: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
     assignments: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
@@ -1187,7 +1187,7 @@ SourceDesktop.propTypes = {
         abs_mag: PropTypes.number,
         color: PropTypes.number,
         origin: PropTypes.string,
-      })
+      }),
     ),
     duplicates: PropTypes.arrayOf(PropTypes.string),
     alias: PropTypes.arrayOf(PropTypes.string),

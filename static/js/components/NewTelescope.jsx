@@ -39,21 +39,21 @@ const NewTelescope = () => {
     if (formData.fixed_location === true) {
       if (formData.lon === undefined) {
         errors.lon.addError(
-          "Longitude must be specified if telescope is fixed."
+          "Longitude must be specified if telescope is fixed.",
         );
       } else if (formData.lon < -180 || formData.lon > 180) {
         errors.lon.addError("Longitude must be between -180 and 180.");
       }
       if (formData.lat === undefined) {
         errors.lat.addError(
-          "Latitude must be specified if telescope is fixed."
+          "Latitude must be specified if telescope is fixed.",
         );
       } else if (formData.lat < -90 || formData.lat > 90) {
         errors.lat.addError("Latitude must be between -90 and 90.");
       }
       if (formData.elevation === undefined) {
         errors.elevation.addError(
-          "Elevation must be specified if telescope is fixed."
+          "Elevation must be specified if telescope is fixed.",
         );
       } else if (formData.elevation < 0) {
         errors.elevation.addError("Elevation must be positive.");

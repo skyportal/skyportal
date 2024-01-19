@@ -59,7 +59,7 @@ const ScanningPageCandidateAnnotations = ({
   annotations?.sort((a, b) => a.origin.localeCompare(b.origin));
   annotations?.forEach((annotation) => {
     annotation.data = Object.fromEntries(
-      Object.entries(annotation.data).sort((a, b) => a[0].localeCompare(b[0]))
+      Object.entries(annotation.data).sort((a, b) => a[0].localeCompare(b[0])),
     );
   });
 
@@ -70,7 +70,7 @@ const ScanningPageCandidateAnnotations = ({
   const [openedOrigins, setOpenedOrigins] = useState(initState);
 
   const selectedAnnotationSortOptions = useSelector(
-    (state) => state.candidates.selectedAnnotationSortOptions
+    (state) => state.candidates.selectedAnnotationSortOptions,
   );
 
   const handleClick = (origin) => {
@@ -87,7 +87,7 @@ const ScanningPageCandidateAnnotations = ({
       ? null
       : { origin, key, order: null };
     dispatch(
-      candidatesActions.setCandidatesAnnotationSortOptions(annotationItem)
+      candidatesActions.setCandidatesAnnotationSortOptions(annotationItem),
     );
   };
 
@@ -154,7 +154,7 @@ ScanningPageCandidateAnnotations.propTypes = {
     PropTypes.shape({
       origin: PropTypes.string.isRequired,
       data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
-    })
+    }),
   ).isRequired,
   listWidth: PropTypes.number,
   listItemWidth: PropTypes.number,

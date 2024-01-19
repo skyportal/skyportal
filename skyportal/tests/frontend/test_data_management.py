@@ -38,7 +38,6 @@ def test_share_data(
 
 
 def test_delete_spectrum(driver, public_source):
-
     spectrum = public_source.spectra[0]
     driver.get(f"/become_user/{spectrum.owner_id}")
     driver.get(f"/share_data/{public_source.id}")

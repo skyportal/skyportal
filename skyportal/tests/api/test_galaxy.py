@@ -8,7 +8,6 @@ from skyportal.tests import api
 
 
 def test_galaxy(super_admin_token, view_only_token):
-
     catalog_name = 'test_galaxy_catalog'
 
     # in case the catalog already exists, delete it.
@@ -155,7 +154,6 @@ def test_galaxy(super_admin_token, view_only_token):
 def test_source_host(
     super_admin_token, upload_data_token, view_only_token, public_group
 ):
-
     catalog_name = 'test_galaxy_catalog'
 
     # in case the catalog already exists, delete it.

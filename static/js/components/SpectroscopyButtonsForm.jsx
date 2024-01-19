@@ -26,7 +26,7 @@ const SpectroscopyButtonsForm = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const { spectroscopyButtons } = useSelector(
-    (state) => state.profile.preferences
+    (state) => state.profile.preferences,
   );
   const {
     handleSubmit,
@@ -39,7 +39,7 @@ const SpectroscopyButtonsForm = () => {
 
   const onColorSelectChange = (event) => {
     setSelectedColor(
-      event.target.value.includes("Clear selections") ? [] : event.target.value
+      event.target.value.includes("Clear selections") ? [] : event.target.value,
     );
   };
 

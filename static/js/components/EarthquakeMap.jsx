@@ -103,14 +103,14 @@ const EarthquakeMap = ({ earthquakes }) => {
             Math.abs(
               normalizeLatitudeDiff(
                 earthquakes[i].notices[0].lat,
-                nestedEarthquakes[j].lat
-              )
+                nestedEarthquakes[j].lat,
+              ),
             ) < 1 &&
             Math.abs(
               normalizeLongitudeDiff(
                 earthquakes[i].notices[0].lon,
-                nestedEarthquakes[j].lon
-              )
+                nestedEarthquakes[j].lon,
+              ),
             ) < 2
           ) {
             nestedEarthquakes[j].earthquakes.push(earthquakes[i]);
@@ -154,7 +154,7 @@ const EarthquakeMap = ({ earthquakes }) => {
                     nestedEarthquake={nestedEarthquake}
                     position={position}
                   />
-                )
+                ),
             )}
           </>
         )}
@@ -173,9 +173,9 @@ EarthquakeMap.propTypes = {
           lat: PropTypes.number,
           lon: PropTypes.number,
           depth: PropTypes.number,
-        })
+        }),
       ),
-    })
+    }),
   ).isRequired,
 };
 
@@ -190,7 +190,7 @@ EarthquakeMarker.propTypes = {
         lat: PropTypes.number,
         lon: PropTypes.number,
         depth: PropTypes.number,
-      })
+      }),
     ),
   }).isRequired,
   position: PropTypes.shape({

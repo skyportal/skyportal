@@ -19,7 +19,7 @@ const UPDATE_ADMISSION_REQUEST_STATUS =
 export function fetchGroupAdmissionRequests(groupID) {
   return API.GET(
     `/api/group_admission_requests?groupID=${groupID}`,
-    FETCH_GROUP_ADMISSION_REQUESTS
+    FETCH_GROUP_ADMISSION_REQUESTS,
   );
 }
 
@@ -32,14 +32,14 @@ export const requestGroupAdmission = (userID, groupID) =>
 export const deleteAdmissionRequest = (ID) =>
   API.DELETE(
     `/api/group_admission_requests/${ID}`,
-    DELETE_GROUP_ADMISSION_REQUEST
+    DELETE_GROUP_ADMISSION_REQUEST,
   );
 
 export const updateAdmissionRequestStatus = ({ requestID, status }) =>
   API.PATCH(
     `/api/group_admission_requests/${requestID}`,
     UPDATE_ADMISSION_REQUEST_STATUS,
-    { status }
+    { status },
   );
 
 // Websocket message handler

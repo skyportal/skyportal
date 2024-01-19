@@ -30,7 +30,7 @@ const InstrumentTrie = () => {
       Object.keys(currNode)
         .filter(
           (key) =>
-            key !== "matchTerminatesHere" && key !== "matchingInstrumentsMap"
+            key !== "matchTerminatesHere" && key !== "matchingInstrumentsMap",
         )
         .forEach((char) => {
           traverseAndSaveMatches(currNode[char]);

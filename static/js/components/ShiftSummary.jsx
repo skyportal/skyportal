@@ -100,7 +100,7 @@ const ShiftSummary = () => {
   function validate(formData, errors) {
     if (formData.start_date > formData.end_date) {
       errors.start_date.addError(
-        "Start date must be before end date, please fix."
+        "Start date must be before end date, please fix.",
       );
     }
     // if the period is over 4 weeks, then error
@@ -122,7 +122,7 @@ const ShiftSummary = () => {
         shiftActions.getShiftsSummary({
           startDate: formData.start_date,
           endDate: formData.end_date,
-        })
+        }),
       );
       showNotification("Shifts Summary", "Shifts Summary", "success");
     }
@@ -145,7 +145,7 @@ const ShiftSummary = () => {
                   member.first_name && member.last_name
                     ? `(${member.first_name}  ${member.last_name})`
                     : null
-                }`
+                }`,
             )
             .join(", ")}`}
         </p>
@@ -184,7 +184,7 @@ const ShiftSummary = () => {
       <div className={classes.info} id={`gcn_info_${gcn.dateobs}`}>
         <p className={classes.info}>{`discovered during shift: ${shifts
           .map((shift) =>
-            gcn?.shiftIDs?.includes(shift.id) ? shift.name : null
+            gcn?.shiftIDs?.includes(shift.id) ? shift.name : null,
           )
           .join(", ")}`}</p>
       </div>
@@ -200,7 +200,7 @@ const ShiftSummary = () => {
           numPerPage: sourcesRowsPerPage,
           sortBy: sortData.name,
           sortOrder: sortData.direction,
-        })
+        }),
       );
     };
 
@@ -208,7 +208,7 @@ const ShiftSummary = () => {
       pageNumber,
       numPerPage,
       sortData,
-      filterData
+      filterData,
     ) => {
       setSourcesRowsPerPage(numPerPage);
       const data = {
@@ -259,7 +259,7 @@ const ShiftSummary = () => {
                   };
                   dispatch(
                     sourcesActions.fetchGcnEventSources(gcn.dateobs),
-                    data
+                    data,
                   );
                 }
               }}

@@ -62,8 +62,8 @@ export function addCommentOnShift(formData) {
           API.POST(
             `/api/shift/${formData.shiftID}/comments`,
             ADD_COMMENT_ON_SHIFT,
-            formData
-          )
+            formData,
+          ),
         );
       });
     };
@@ -71,7 +71,7 @@ export function addCommentOnShift(formData) {
   return API.POST(
     `/api/shift/${formData.shiftID}/comments`,
     ADD_COMMENT_ON_SHIFT,
-    formData
+    formData,
   );
 }
 
@@ -93,8 +93,8 @@ export function editCommentOnShift(commentID, formData) {
           API.PUT(
             `/api/shift/${formData.shift_id}/comments/${commentID}`,
             EDIT_COMMENT_ON_SHIFT,
-            formData
-          )
+            formData,
+          ),
         );
       });
     };
@@ -102,28 +102,28 @@ export function editCommentOnShift(commentID, formData) {
   return API.PUT(
     `/api/shift/${formData.shift_id}/comments/${commentID}`,
     EDIT_COMMENT_ON_SHIFT,
-    formData
+    formData,
   );
 }
 
 export function deleteCommentOnShift(shiftID, commentID) {
   return API.DELETE(
     `/api/shift/${shiftID}/comments/${commentID}`,
-    DELETE_COMMENT_ON_SHIFT
+    DELETE_COMMENT_ON_SHIFT,
   );
 }
 
 export function getCommentOnShiftAttachment(shiftID, commentID) {
   return API.GET(
     `/api/shift/${shiftID}/comments/${commentID}/attachment`,
-    GET_COMMENT_ON_SHIFT_ATTACHMENT
+    GET_COMMENT_ON_SHIFT_ATTACHMENT,
   );
 }
 
 export function getCommentOnShiftAttachmentPreview(shiftID, commentID) {
   return API.GET(
     `/api/shift/${shiftID}/comments/${commentID}`,
-    GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW
+    GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW,
   );
 }
 
@@ -150,7 +150,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 
 const reducer = (
   state = { currentShift: {}, selectedUsers: [], shiftsSummary: [] },
-  action
+  action,
 ) => {
   switch (action.type) {
     case FETCH_SHIFT_OK: {

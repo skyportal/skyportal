@@ -14,7 +14,7 @@ const UPDATE_REMINDER = "skyportal/UPDATE_REMINDER";
 export function fetchReminders(resourceId, resourceType) {
   return API.GET(
     `/api/${resourceType}/${resourceId}/reminders`,
-    FETCH_REMINDERS
+    FETCH_REMINDERS,
   );
 }
 
@@ -22,7 +22,7 @@ export function submitReminder(resourceId, resourceType, data) {
   return API.POST(
     `/api/${resourceType}/${resourceId}/reminders`,
     SUBMIT_REMINDER,
-    data
+    data,
   );
 }
 
@@ -30,14 +30,14 @@ export function updateReminder(resourceId, resourceType, reminderID, data) {
   return API.PATCH(
     `/api/${resourceType}/${resourceId}/reminders/${reminderID}`,
     UPDATE_REMINDER,
-    data
+    data,
   );
 }
 
 export function deleteReminder(resourceId, resourceType, reminderID) {
   return API.DELETE(
     `/api/${resourceType}/${resourceId}/reminders/${reminderID}`,
-    DELETE_REMINDER
+    DELETE_REMINDER,
   );
 }
 
@@ -90,7 +90,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 
 const reducer = (
   state = { resourceId: null, resourceType: null, remindersList: [] },
-  action
+  action,
 ) => {
   switch (action.type) {
     case FETCH_REMINDERS_OK: {

@@ -95,7 +95,7 @@ export default function GcnReportEdit() {
       (observation) => ({
         ...observation,
         id: randomId(),
-      })
+      }),
     );
     setObservationRows(initialObservationRows);
     setObservationRowModesModel({});
@@ -139,7 +139,7 @@ export default function GcnReportEdit() {
     });
     // remove the sources that are no longer in the sourceRows
     data.sources = (data?.sources || []).filter((source) =>
-      sourceRows.find((sourceRow) => sourceRow?.obj_id === source?.id)
+      sourceRows.find((sourceRow) => sourceRow?.obj_id === source?.id),
     );
     // TODO: update observations (not needed for now as they can't be edited)
     dispatch(
@@ -150,7 +150,7 @@ export default function GcnReportEdit() {
           ...report,
           data,
         },
-      })
+      }),
     ).then((response) => {
       if (response.status === "success") {
         dispatch(showNotification("Report updated"));
@@ -232,14 +232,14 @@ export default function GcnReportEdit() {
       dispatch(
         showNotification(
           "You can't change the obj_id of a source, canceling row update",
-          "warning"
-        )
+          "warning",
+        ),
       );
       handleCancelClick(newRow?.id, "source")();
       updatedRow = existingRow;
     } else {
       setSourceRows(
-        sourceRows.map((row) => (row?.id === newRow?.id ? updatedRow : row))
+        sourceRows.map((row) => (row?.id === newRow?.id ? updatedRow : row)),
       );
     }
     return updatedRow;
@@ -472,7 +472,7 @@ export default function GcnReportEdit() {
         formData: {
           published,
         },
-      })
+      }),
     ).then((response) => {
       if (response.status === "success") {
         if (published) {

@@ -153,7 +153,6 @@ class UnsourcedFinderHandler(BaseHandler):
         catalog_id = self.get_query_argument('catalog_id', 'unknown')
 
         if location_type != "pos":
-
             # a Gaia source must be all integer characters
             if not catalog_id.isnumeric():
                 return self.error('`catalog_id` must be a number')

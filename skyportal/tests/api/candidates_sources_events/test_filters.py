@@ -83,7 +83,6 @@ def test_token_user_post_delete_filter(
 def test_post_filter_with_unauthorized_stream(
     manage_groups_token, group_with_stream, public_stream
 ):
-
     status, data = api(
         "POST",
         "filters",

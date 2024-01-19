@@ -9,7 +9,6 @@ from skyportal.tests import api
 
 @pytest.mark.flaky(reruns=3)
 def test_spatial_catalog(super_admin_token, upload_data_token, view_only_token):
-
     catalog_name = str(uuid.uuid4())
 
     datafile = f'{os.path.dirname(__file__)}/../data/gll_psc_v27_small.csv'

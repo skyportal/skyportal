@@ -42,7 +42,7 @@ const ShowSummaries = ({ summaries = [] }) => {
 
   const emojiSupport = (textComment) =>
     textComment.value.replace(/:\w+:/gi, (name) =>
-      emoji.getUnicode(name) ? emoji.getUnicode(name) : name
+      emoji.getUnicode(name) ? emoji.getUnicode(name) : name,
     );
 
   return (

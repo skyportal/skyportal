@@ -134,7 +134,7 @@ const SourceTableFilterForm = ({
   let classifications = [];
   latestTaxonomyList?.forEach((taxonomy) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy).map(
-      (option) => `${taxonomy.name}: ${option.class}`
+      (option) => `${taxonomy.name}: ${option.class}`,
     );
     classifications = classifications.concat(currentClasses);
   });
@@ -142,7 +142,7 @@ const SourceTableFilterForm = ({
 
   const [selectedClassifications, setSelectedClassifications] = useState([]);
   const [selectedNonClassifications, setSelectedNonClassifications] = useState(
-    []
+    [],
   );
 
   const [byMe, setByMe] = useState(false);
@@ -151,7 +151,7 @@ const SourceTableFilterForm = ({
   };
 
   const maxNumDaysUsingLocalization = useSelector(
-    (state) => state.config.maxNumDaysUsingLocalization
+    (state) => state.config.maxNumDaysUsingLocalization,
   );
   const gcnEvents = useSelector((state) => state.gcnEvents);
   const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
@@ -178,7 +178,7 @@ const SourceTableFilterForm = ({
   useEffect(() => {
     if (selectedSpatialCatalogId) {
       dispatch(
-        spatialCatalogsActions.fetchSpatialCatalog(selectedSpatialCatalogId)
+        spatialCatalogsActions.fetchSpatialCatalog(selectedSpatialCatalogId),
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -232,8 +232,8 @@ const SourceTableFilterForm = ({
       dispatch(
         showNotification(
           "Please specify whether to filter for labelled or not labelled sources by the current user",
-          "error"
-        )
+          "error",
+        ),
       );
       valid = false;
     }
@@ -242,16 +242,16 @@ const SourceTableFilterForm = ({
         dispatch(
           showNotification(
             "Please enter First and Last Detected dates when filtering by GCN Event",
-            "error"
-          )
+            "error",
+          ),
         );
         valid = false;
       } else if (new Date(formData.startDate) > new Date(formData.endDate)) {
         dispatch(
           showNotification(
             "First Detected date must be before Last Detected date",
-            "error"
-          )
+            "error",
+          ),
         );
         valid = false;
       } // check if there are more than maxNumDaysUsingLocalization days between start and end date
@@ -265,8 +265,8 @@ const SourceTableFilterForm = ({
             `Please enter a date range less than ${
               maxNumDaysUsingLocalization || 31
             } days`,
-            "error"
-          )
+            "error",
+          ),
         );
         valid = false;
       }
@@ -283,7 +283,7 @@ const SourceTableFilterForm = ({
           formData.localizationName = gcnEventsLookUp[
             formData.gcneventid
           ]?.localizations?.filter(
-            (l) => l.id === formData.localizationid
+            (l) => l.id === formData.localizationid,
           )[0]?.localization_name;
           formData.localizationid = "";
         }
@@ -294,7 +294,7 @@ const SourceTableFilterForm = ({
           spatialCatalogsLookUp[formData.spatialcatalogid]?.catalog_name;
         if (formData.spatialcatalogentryid !== "") {
           formData.spatialCatalogEntryName = spatialCatalog?.entries?.filter(
-            (l) => l.id === formData.spatialcatalogentryid
+            (l) => l.id === formData.spatialcatalogentryid,
           )[0]?.entry_name;
           formData.spatialcatalogentryid = "";
         }
@@ -524,7 +524,7 @@ const SourceTableFilterForm = ({
                     style={getMultiselectStyles(
                       classification,
                       selectedClassifications,
-                      theme
+                      theme,
                     )}
                   >
                     {classification}
@@ -598,7 +598,7 @@ const SourceTableFilterForm = ({
                     style={getMultiselectStyles(
                       classification,
                       selectedNonClassifications,
-                      theme
+                      theme,
                     )}
                   >
                     {classification}
@@ -1207,7 +1207,7 @@ const SourceTableFilterForm = ({
                       >
                         {`${localization.localization_name}`}
                       </MenuItem>
-                    )
+                    ),
                   )}
                 </Select>
               )}

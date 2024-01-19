@@ -21,7 +21,7 @@ const DELETE_GROUP_USER = "skyportal/DELETE_GROUP_USER";
 export function fetchGroups(includeSingleUserGroups = false) {
   return API.GET(
     `/api/groups?includeSingleUserGroups=${includeSingleUserGroups}`,
-    FETCH_GROUPS
+    FETCH_GROUPS,
   );
 }
 
@@ -54,7 +54,7 @@ export function deleteGroupUser({ userID, group_id }) {
   return API.DELETE(
     `/api/groups/${group_id}/users/${userID}`,
     DELETE_GROUP_USER,
-    { userID, group_id }
+    { userID, group_id },
   );
 }
 

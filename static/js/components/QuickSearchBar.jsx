@@ -103,15 +103,15 @@ const QuickSearchBar = () => {
         return dispatch(
           GET(
             `/api/gcn_event?partialdateobs=${val}&pageNumber=1&totalMatches=25`,
-            "skyportal/FETCH_AUTOCOMPLETE_GCN_EVENTS"
-          )
+            "skyportal/FETCH_AUTOCOMPLETE_GCN_EVENTS",
+          ),
         );
       }
       return dispatch(
         GET(
           `/api/sources?sourceID=${val}&pageNumber=1&totalMatches=25&includeComments=false&removeNested=true`,
-          "skyportal/FETCH_AUTOCOMPLETE_SOURCES"
-        )
+          "skyportal/FETCH_AUTOCOMPLETE_SOURCES",
+        ),
       );
     };
 

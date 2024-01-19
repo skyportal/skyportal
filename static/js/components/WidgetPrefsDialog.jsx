@@ -128,7 +128,7 @@ const WidgetPrefsDialog = ({
                           }
                           label={subKey}
                         />
-                      )
+                      ),
                     )}
                   </div>
                 );
@@ -208,7 +208,7 @@ const WidgetPrefsDialog = ({
 
 WidgetPrefsDialog.propTypes = {
   initialValues: PropTypes.objectOf(
-    PropTypes.oneOfType([PropTypes.string, PropTypes.shape({})])
+    PropTypes.oneOfType([PropTypes.string, PropTypes.shape({})]),
   ).isRequired,
   stateBranchName: PropTypes.string.isRequired,
   onSubmit: PropTypes.func.isRequired,

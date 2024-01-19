@@ -176,7 +176,6 @@ class TESSAPI(FollowUpAPI):
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
-
         """Get photometry from TESS API.
 
         Parameters
@@ -253,7 +252,6 @@ class TESSAPI(FollowUpAPI):
 
     @staticmethod
     def delete(request, session, **kwargs):
-
         """Delete a photometry request from TESS API.
 
         Parameters

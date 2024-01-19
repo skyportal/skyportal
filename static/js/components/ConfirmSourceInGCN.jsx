@@ -47,7 +47,7 @@ const defaultExplanationsReject = [
 ];
 
 const defaultExplanations = defaultExplanationsHighlight.concat(
-  defaultExplanationsReject
+  defaultExplanationsReject,
 );
 
 const useStyles = makeStyles((theme) => ({
@@ -108,7 +108,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
         </IconButton>
       ) : null}
     </MuiDialogTitle>
-  )
+  ),
 );
 
 const ConfirmSourceInGCN = ({
@@ -182,7 +182,7 @@ const ConfirmSourceInGCN = ({
       SourceInGcnAction.fetchSourcesInGcn(dateobs, {
         localizationName: localization_name,
         sourcesIdList: sources_id_list,
-      })
+      }),
     ).then((response) => {
       if (response.status === "success") {
         reset();
@@ -203,7 +203,7 @@ const ConfirmSourceInGCN = ({
           confirmed: true,
           explanation: data.explanation,
           notes: data.notes,
-        })
+        }),
       ).then((response) => {
         if (response.status === "success") {
           handleUpdate();
@@ -216,7 +216,7 @@ const ConfirmSourceInGCN = ({
           confirmed: true,
           explanation: data.explanation,
           notes: data.notes,
-        })
+        }),
       ).then((response) => {
         if (response.status === "success") {
           handleUpdate();
@@ -239,7 +239,7 @@ const ConfirmSourceInGCN = ({
           confirmed: false,
           explanation: data.explanation,
           notes: data.notes,
-        })
+        }),
       ).then((response) => {
         if (response.status === "success") {
           handleUpdate();
@@ -252,7 +252,7 @@ const ConfirmSourceInGCN = ({
           confirmed: false,
           explanation: data.explanation,
           notes: data.notes,
-        })
+        }),
       ).then((response) => {
         if (response.status === "success") {
           handleUpdate();
@@ -275,7 +275,7 @@ const ConfirmSourceInGCN = ({
           confirmed: null,
           explanation: data.explanation,
           notes: data.notes,
-        })
+        }),
       ).then((response) => {
         if (response.status === "success") {
           handleUpdate();
@@ -288,7 +288,7 @@ const ConfirmSourceInGCN = ({
           confirmed: null,
           explanation: data.explanation,
           notes: data.notes,
-        })
+        }),
       ).then((response) => {
         if (response.status === "success") {
           handleUpdate();
@@ -305,7 +305,7 @@ const ConfirmSourceInGCN = ({
           handleUpdate();
           handleClose();
         }
-      }
+      },
     );
   };
 

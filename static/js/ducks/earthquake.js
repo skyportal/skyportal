@@ -43,7 +43,7 @@ export const submitPrediction = (id, mmadetector_id, params = {}) =>
   API.POST(
     `/api/earthquake/${id}/mmadetector/${mmadetector_id}/predictions`,
     ADD_EARTHQUAKE_PREDICTION,
-    params
+    params,
   );
 
 // eslint-disable-next-line import/prefer-default-export
@@ -68,8 +68,8 @@ export function addCommentOnEarthquake(formData) {
           API.POST(
             `/api/earthquake/${formData.earthquake_id}/comments`,
             ADD_COMMENT_ON_EARTHQUAKE,
-            formData
-          )
+            formData,
+          ),
         );
       });
     };
@@ -77,31 +77,31 @@ export function addCommentOnEarthquake(formData) {
   return API.POST(
     `/api/earthquake/${formData.earthquake_id}/comments`,
     ADD_COMMENT_ON_EARTHQUAKE,
-    formData
+    formData,
   );
 }
 
 export function deleteCommentOnEarthquake(earthquakeID, commentID) {
   return API.DELETE(
     `/api/earthquake/${earthquakeID}/comments/${commentID}`,
-    DELETE_COMMENT_ON_EARTHQUAKE
+    DELETE_COMMENT_ON_EARTHQUAKE,
   );
 }
 
 export function getCommentOnEarthquakeAttachment(earthquakeID, commentID) {
   return API.GET(
     `/api/earthquake/${earthquakeID}/comments/${commentID}/attachment`,
-    GET_COMMENT_ON_EARTHQUAKE_ATTACHMENT
+    GET_COMMENT_ON_EARTHQUAKE_ATTACHMENT,
   );
 }
 
 export function getCommentOnEarthquakeAttachmentPreview(
   earthquakeID,
-  commentID
+  commentID,
 ) {
   return API.GET(
     `/api/earthquake/${earthquakeID}/comments/${commentID}`,
-    GET_COMMENT_ON_EARTHQUAKE_ATTACHMENT_PREVIEW
+    GET_COMMENT_ON_EARTHQUAKE_ATTACHMENT_PREVIEW,
   );
 }
 
@@ -125,7 +125,7 @@ const reducer_earthquake = (
     currentEarthquakes: null,
     currentEarthquakeMenu: "Earthquake List",
   },
-  action
+  action,
 ) => {
   switch (action.type) {
     case GET_COMMENT_ON_EARTHQUAKE_ATTACHMENT_OK: {

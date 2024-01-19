@@ -98,8 +98,8 @@ const SurveyEfficiencyObservationPlanLists = ({
     setIsDeleting(id);
     const result = await dispatch(
       surveyEfficiencyObservationPlansActions.deleteSurveyEfficiencyObservationPlan(
-        id
-      )
+        id,
+      ),
     );
     setIsDeleting(null);
     if (result.status === "success") {
@@ -314,7 +314,7 @@ SurveyEfficiencyObservationPlanLists.propTypes = {
       number_in_covered: PropTypes.number,
       number_detected: PropTypes.number,
       efficiency: PropTypes.number,
-    })
+    }),
   ).isRequired,
 };
 

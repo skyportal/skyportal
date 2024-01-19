@@ -526,7 +526,6 @@ class SpectrumHandler(BaseHandler):
             return self.error(f'Cannot parse time input value "{observed_after}".')
 
         with self.Session() as session:
-
             try:
                 instrument_ids = parse_id_list(instrument_ids, Instrument, session)
                 group_ids = parse_id_list(group_ids, Group, session)
@@ -730,7 +729,7 @@ class SpectrumHandler(BaseHandler):
                 result_spectra = new_result_spectra
 
             if not minimal_payload:  # add other data to each spectrum
-                for (spec, spec_dict) in zip(spectra, result_spectra):
+                for spec, spec_dict in zip(spectra, result_spectra):
                     annotations = (
                         session.scalars(
                             AnnotationOnSpectrum.select(session.user_or_token).where(
@@ -1436,7 +1435,6 @@ class SpectrumRangeHandler(BaseHandler):
         max_date = self.get_query_argument('max_date', None)
 
         with self.Session() as session:
-
             if len(instrument_ids) > 0:
                 query = Spectrum.select(session.user_or_token).where(
                     Spectrum.instrument_id.in_(instrument_ids)
@@ -1490,7 +1488,6 @@ class SyntheticPhotometryHandler(BaseHandler):
         filters = data.get('filters')
 
         with self.Session() as session:
-
             spectrum = session.scalars(
                 Spectrum.select(session.user_or_token).where(Spectrum.id == spectrum_id)
             ).first()

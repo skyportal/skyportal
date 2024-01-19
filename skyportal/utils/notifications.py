@@ -115,7 +115,6 @@ def gcn_notification_content(target, session):
 
 
 def gcn_slack_notification(target, data=None, new_tag=False):
-
     # Now, we will create json that describes the message we want to send to slack (and how to display it)
     # We will use the slack blocks API, which is a bit more complicated than the simple message API, but allows for more flexibility
     # https://api.slack.com/reference/block-kit/blocks
@@ -180,7 +179,6 @@ def gcn_slack_notification(target, data=None, new_tag=False):
 
 
 def gcn_email_notification(target, data=None, new_tag=False):
-
     # Now, we will create an HTML email that describes the message we want to send by email
 
     if data['new_event']:
@@ -235,7 +233,6 @@ def gcn_email_notification(target, data=None, new_tag=False):
 
 
 def source_notification_content(target, target_type="classification"):
-
     # get the most recent classification for this source that has the same classification as the notification
     if target_type == "classification":
         data = {
@@ -281,7 +278,6 @@ def source_notification_content(target, target_type="classification"):
 
 
 def source_slack_notification(target, data=None):
-
     # Now, we will create json that describes the message we want to send to slack (and how to display it)
     # We will use the slack blocks API, which is a bit more complicated than the simple message API, but allows for more flexibility
     # https://api.slack.com/reference/block-kit/blocks
@@ -291,7 +287,6 @@ def source_slack_notification(target, data=None):
         raise ValueError("No data provided for source notification")
 
     if 'classification_name' in data:
-
         header_text = f"New *{data['classification_name']}*: <{app_url}{target['url']}|*{data['source_name']}*>"
 
         classification_stats = f"*Classification Stats:*\n - Score/Probability: {data['classification_probability']:.2f} \n - Date: {data['classification_date']}"
@@ -389,7 +384,6 @@ def source_email_notification(target, data=None):
         raise ValueError("No data provided for source notification")
 
     if 'classification_name' in data:
-
         header_text = f"<h3>New {data['classification_name']}: <a href='{app_url}{target['url']}'>{data['source_name']}</a></h3>"
         subject = f"{cfg['app.title']} - New {data['classification_name']}: {data['source_name']}"
 
@@ -437,7 +431,6 @@ def source_email_notification(target, data=None):
 
 
 def post_notification(request_body, timeout=2):
-
     notifications_microservice_url = (
         f'http://127.0.0.1:{cfg["ports.notification_queue"]}'
     )

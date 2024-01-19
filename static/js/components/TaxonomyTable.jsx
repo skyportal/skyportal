@@ -112,7 +112,7 @@ const TaxonomyTable = ({
           dispatch(showNotification("Taxonomy deleted"));
           closeDialog();
         }
-      }
+      },
     );
   };
 
@@ -204,7 +204,7 @@ const TaxonomyTable = ({
         paginateCallback(
           tableState.page + 1,
           tableState.rowsPerPage,
-          tableState.sortOrder
+          tableState.sortOrder,
         );
         break;
       case "sort":

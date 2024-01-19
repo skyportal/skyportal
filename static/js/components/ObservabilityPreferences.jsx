@@ -19,7 +19,7 @@ const ObservabilityPreferences = () => {
       observabilityTelescopes: event.target.value.includes("Clear selections")
         ? []
         : event.target.value.map(
-            (telescopeName) => telescopeNametoID[telescopeName]
+            (telescopeName) => telescopeNametoID[telescopeName],
           ),
     };
     dispatch(profileActions.updateUserPreferences(prefs));
@@ -47,7 +47,7 @@ const ObservabilityPreferences = () => {
         label="Telescopes to show"
         id="selectTelescopes"
         initValue={profile?.observabilityTelescopes?.map(
-          (telescopeID) => telescopeIDToName[telescopeID]
+          (telescopeID) => telescopeIDToName[telescopeID],
         )}
         onChange={handleChange}
         options={telescopeNameList}

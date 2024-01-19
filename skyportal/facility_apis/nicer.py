@@ -124,7 +124,6 @@ class NICERAPI(FollowUpAPI):
 
     @staticmethod
     def submit(request, session, **kwargs):
-
         """Submit a follow-up request to NICER
 
         Parameters

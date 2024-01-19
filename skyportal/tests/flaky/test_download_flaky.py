@@ -209,7 +209,6 @@ def test_gcn_summary_observations(
     super_admin_token,
     public_group,
 ):
-
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -646,7 +645,6 @@ def test_gcn_summary_sources(
     ztf_camera,
     upload_data_token,
 ):
-
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -845,7 +843,6 @@ def get_summary(driver, user, group, showSources, showGalaxies, showObservations
 
 
 def test_download_localization(super_admin_token):
-
     datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()

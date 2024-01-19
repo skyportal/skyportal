@@ -6,7 +6,7 @@ import SelectWithChips from "./SelectWithChips";
 const FilterSelect = ({ onFilterSelectChange, initValue, parent }) => {
   let filtersEnums = [];
   filtersEnums = filtersEnums.concat(
-    useSelector((state) => state.enum_types.enum_types.ALLOWED_BANDPASSES)
+    useSelector((state) => state.enum_types.enum_types.ALLOWED_BANDPASSES),
   );
   filtersEnums.sort();
   filtersEnums.unshift("Clear selections");

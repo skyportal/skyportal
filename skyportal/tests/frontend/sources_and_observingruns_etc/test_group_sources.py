@@ -16,7 +16,6 @@ def test_add_new_source_renders_on_group_sources_page(
     taxonomy_token_two_groups,
     classification_token_two_groups,
 ):
-
     driver.get(f"/become_user/{super_admin_user_two_groups.id}")  # become a super-user
 
     # go to the group sources page
@@ -130,7 +129,6 @@ def test_request_source(
     upload_data_token,
     upload_data_token_two_groups,
 ):
-
     driver.get(f"/become_user/{super_admin_user_two_groups.id}")  # become a super-user
 
     # go to the group sources page

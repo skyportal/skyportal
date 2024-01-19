@@ -235,15 +235,15 @@ const GcnEventPage = ({ route }) => {
       if (response.status === "success") {
         dispatch(
           showNotification(
-            "Aliases and Circulars update started. Please wait..."
-          )
+            "Aliases and Circulars update started. Please wait...",
+          ),
         );
         if (gcnEvent?.aliases?.length === 0) {
           dispatch(
             showNotification(
               "This has never been done for this event before. It may take few minutes.",
-              "warning"
-            )
+              "warning",
+            ),
           );
         }
       } else {
@@ -257,12 +257,12 @@ const GcnEventPage = ({ route }) => {
       (response) => {
         if (response.status === "success") {
           dispatch(
-            showNotification("GraceDB retrieval started. Please wait...")
+            showNotification("GraceDB retrieval started. Please wait..."),
           );
         } else {
           dispatch(showNotification("Error retrieving GraceDB", "error"));
         }
-      }
+      },
     );
   };
 
@@ -602,27 +602,27 @@ const GcnEventPage = ({ route }) => {
                                   dispatch(
                                     showNotification(
                                       `Starting ingestion attempt for localization from notice ${gcn_notice.id}. Please wait...`,
-                                      "warning"
-                                    )
+                                      "warning",
+                                    ),
                                   );
                                   dispatch(
                                     postLocalizationFromNotice({
                                       dateobs: gcn_notice.dateobs,
                                       noticeID: gcn_notice.id,
-                                    })
+                                    }),
                                   ).then((response) => {
                                     if (response.status === "success") {
                                       dispatch(
                                         showNotification(
-                                          `Localization successfully ingested from notice ${gcn_notice.id}. Please wait for the contour to be generated. Default observation plans will be created shortly.`
-                                        )
+                                          `Localization successfully ingested from notice ${gcn_notice.id}. Please wait for the contour to be generated. Default observation plans will be created shortly.`,
+                                        ),
                                       );
                                     } else {
                                       dispatch(
                                         showNotification(
                                           `Error ingesting localization from notice ${gcn_notice.id}. It might not be available yet.`,
-                                          "error"
-                                        )
+                                          "error",
+                                        ),
                                       );
                                     }
                                   });

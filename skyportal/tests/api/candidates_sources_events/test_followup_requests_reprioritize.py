@@ -6,7 +6,6 @@ from skyportal.tests import api
 def test_reprioritize_followup_request(
     public_group_sedm_allocation, public_source, upload_data_token, super_admin_token
 ):
-
     # GET to see if the gcnevent already exists
     dateobs = "2019-04-25 08:18:05"
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)

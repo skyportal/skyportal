@@ -478,7 +478,6 @@ def create_annotations_query(
     annotations_filter_before=None,
     annotations_filter_after=None,
 ):
-
     annotations_query = Annotation.select(session.user_or_token)
     if annotations_filter_origin is not None:
         annotations_query = annotations_query.where(
@@ -1107,7 +1106,6 @@ async def get_sources(
         or comments_filter_after
         or (comments_filter_author is not None)
     ):
-
         comment_query = Comment.select(session.user_or_token)
 
         if comments_filter is not None:
@@ -1162,7 +1160,6 @@ async def get_sources(
         )
 
     if localization_dateobs is not None:
-
         # This grabs just the IDs so the more expensive localization in-out
         # check is done on only this subset
         obj_ids = session.scalars(obj_query).unique().all()
@@ -1274,7 +1271,6 @@ async def get_sources(
             obj_query = obj_query.where(Obj.id.notin_(rejected_obj_ids))
 
     if spatial_catalog_name is not None:
-
         if spatial_catalog_entry_name is None:
             raise ValueError(
                 'spatial_catalog_entry_name must be defined if spatial_catalog_name is as well'
@@ -3256,7 +3252,6 @@ class SourceOffsetsHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             source = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             ).first()
@@ -3621,7 +3616,6 @@ class SourceNotificationHandler(BaseHandler):
             return self.error("Missing required parameter `sourceId`")
 
         with self.Session() as session:
-
             source = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == data["sourceId"])
             ).first()
@@ -3760,7 +3754,6 @@ class SourceObservabilityPlotHandler(BaseHandler):
         twilight = self.get_query_argument("twilight", "astronomical")
 
         with self.Session() as session:
-
             stmt = Telescope.select(self.current_user)
             telescopes = session.scalars(stmt).all()
 

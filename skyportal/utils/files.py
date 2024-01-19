@@ -19,7 +19,6 @@ def check_path_string(string, allow_slashes=False):
 
 
 def save_file_data(root_folder, path_string, filename, file_data):
-
     # the filename can have alphanumeric, underscores, + or -
     check_path_string(path_string)
 

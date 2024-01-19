@@ -49,7 +49,7 @@ const reducer = (
     allocationListApiObsplan: [],
     allocationListApiClassname: [],
   },
-  action
+  action,
 ) => {
   switch (action.type) {
     case FETCH_ALLOCATIONS_OK: {

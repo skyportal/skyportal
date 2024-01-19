@@ -38,7 +38,7 @@ const Notifications = () => {
   const notifications = useSelector((state) => state.userNotifications);
 
   const [unreadCount, setUnreadCount] = useState(
-    notifications ? notifications.filter((n) => !n.viewed).length : 0
+    notifications ? notifications.filter((n) => !n.viewed).length : 0,
   );
 
   useEffect(() => {
@@ -70,7 +70,7 @@ const Notifications = () => {
 
   const markAllUnread = () => {
     dispatch(
-      userNotificationsActions.updateAllNotifications({ viewed: false })
+      userNotificationsActions.updateAllNotifications({ viewed: false }),
     );
   };
 
@@ -79,7 +79,7 @@ const Notifications = () => {
       userNotificationsActions.updateNotification({
         notificationID,
         data: { viewed: true },
-      })
+      }),
     );
   };
 
@@ -88,7 +88,7 @@ const Notifications = () => {
       userNotificationsActions.updateNotification({
         notificationID,
         data: { viewed: false },
-      })
+      }),
     );
   };
 

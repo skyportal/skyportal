@@ -71,7 +71,7 @@ const GroupsSelect = (props) => {
                           label={`+${selected?.length - 1}`}
                         />
                       )
-                    )
+                    ),
                   )}
                 </div>
               )}
@@ -99,7 +99,7 @@ GroupsSelect.propTypes = {
     PropTypes.shape({
       id: PropTypes.number.isRequired,
       name: PropTypes.string.isRequired,
-    })
+    }),
   ).isRequired,
   setSelectedGroups: PropTypes.func.isRequired,
 };

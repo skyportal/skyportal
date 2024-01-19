@@ -11,7 +11,6 @@ from skyportal.tests import api
 
 @pytest.mark.flaky(reruns=2)
 def test_observation(super_admin_token, view_only_token):
-
     datafile = f'{os.path.dirname(__file__)}/../../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -173,7 +172,6 @@ def test_observation(super_admin_token, view_only_token):
 
 @pytest.mark.flaky(reruns=2)
 def test_observation_radec(super_admin_token, view_only_token):
-
     telescope_name = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -276,7 +274,6 @@ def test_observation_radec(super_admin_token, view_only_token):
 
 @pytest.mark.flaky(reruns=2)
 def test_observation_isot(super_admin_token, view_only_token):
-
     telescope_name = str(uuid.uuid4())
     status, data = api(
         'POST',

@@ -1340,7 +1340,6 @@ def test_correct_spectra_and_photometry_returned_by_candidate(
     public_candidate2,  # adds phot and spec that should not be returned
     view_only_token_two_groups,
 ):
-
     status, data = api(
         'GET',
         f"candidates/{public_candidate.id}?includePhotometry=t&includeSpectra=t",
@@ -1622,7 +1621,6 @@ def test_candidate_savers(
     public_filter,
     public_group,
 ):
-
     # Post three candidates for the same filter
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())

@@ -312,11 +312,9 @@ FollowupRequestUser.update = FollowupRequestUser.delete = AccessibleIfUserMatche
 
 @event.listens_for(Classification, 'after_insert')
 def add_followup(mapper, connection, target):
-
     # Add front-end user notifications
     @event.listens_for(inspect(target).session, "after_flush", once=True)
     def receive_after_flush(session, context):
-
         from skyportal.handlers.api.followup_request import post_followup_request
 
         comp_function = getattr(operator, 'eq')

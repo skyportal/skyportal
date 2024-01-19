@@ -50,7 +50,6 @@ class DefaultSurveyEfficiencyRequest(Base):
 
 
 class SurveyEfficiencyAnalysisMixin:
-
     payload = sa.Column(
         psql.JSONB,
         nullable=False,

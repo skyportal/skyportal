@@ -498,7 +498,6 @@ def test_source_notifications_unauthorized(
 def test_token_user_source_summary(
     public_group, public_source, view_only_token_two_groups, public_group2
 ):
-
     now = datetime.utcnow().isoformat()
 
     status, data = api(
@@ -1978,7 +1977,6 @@ def test_filter_sources_by_modified(upload_data_token, view_only_token, public_g
 def test_token_user_retrieving_source_with_period_exists(
     view_only_token, public_source, annotation_token
 ):
-
     status, data = api(
         'POST',
         f'sources/{public_source.id}/annotations',
@@ -2004,7 +2002,6 @@ def test_token_user_retrieving_source_with_period_exists(
 def test_token_user_retrieving_source_with_annotation_filter(
     super_admin_token, public_source, public_source_two_groups, annotation_token
 ):
-
     annotation_name_1 = str(uuid.uuid4())
     annotation_name_2 = str(uuid.uuid4())
 
@@ -2130,7 +2127,6 @@ def test_add_source_redshift_origin(upload_data_token, view_only_token, public_g
 def test_token_user_retrieving_source_with_comment_filter(
     super_admin_token, public_source, public_source_two_groups, comment_token
 ):
-
     comment_text = str(uuid.uuid4())
     comment_text_less = comment_text[:-4]
 
@@ -2185,7 +2181,6 @@ def test_token_user_retrieving_source_with_comment_filter(
 
 
 def test_patch_healpix(upload_data_token, view_only_token, public_group):
-
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",

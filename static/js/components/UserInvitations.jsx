@@ -98,7 +98,7 @@ const UserInvitations = () => {
   });
   const [tableFilterList, setTableFilterList] = useState([]);
   const { invitations, totalMatches } = useSelector(
-    (state) => state.invitations
+    (state) => state.invitations,
   );
   const [csvData, setCsvData] = useState("");
   const [addInvitationGroupsDialogOpen, setAddInvitationGroupsDialogOpen] =
@@ -169,7 +169,7 @@ const UserInvitations = () => {
       ?.filter((group) => group.id !== groupID)
       ?.map((g) => g.id);
     const result = await dispatch(
-      invitationsActions.updateInvitation(invitation.id, { groupIDs })
+      invitationsActions.updateInvitation(invitation.id, { groupIDs }),
     );
     if (result.status === "success") {
       dispatch(showNotification("Invitation successfully updated."));
@@ -182,7 +182,7 @@ const UserInvitations = () => {
       ?.filter((stream) => stream.id !== streamID)
       ?.map((s) => s.id);
     const result = await dispatch(
-      invitationsActions.updateInvitation(invitation.id, { streamIDs })
+      invitationsActions.updateInvitation(invitation.id, { streamIDs }),
     );
     if (result.status === "success") {
       dispatch(showNotification("Invitation successfully updated."));
@@ -199,7 +199,7 @@ const UserInvitations = () => {
     const result = await dispatch(
       invitationsActions.updateInvitation(clickedInvitation.id, {
         groupIDs: [...groupIDs],
-      })
+      }),
     );
     if (result.status === "success") {
       dispatch(showNotification("Invitation successfully updated."));
@@ -219,7 +219,7 @@ const UserInvitations = () => {
     const result = await dispatch(
       invitationsActions.updateInvitation(clickedInvitation.id, {
         streamIDs: [...streamIDs],
-      })
+      }),
     );
     if (result.status === "success") {
       dispatch(showNotification("Invitation successfully updated."));
@@ -234,7 +234,7 @@ const UserInvitations = () => {
     const result = await dispatch(
       invitationsActions.updateInvitation(clickedInvitation.id, {
         role: formData.invitationRole,
-      })
+      }),
     );
     if (result.status === "success") {
       dispatch(showNotification("Invitation successfully updated."));
@@ -247,7 +247,7 @@ const UserInvitations = () => {
 
   const handleDeleteInvitation = async (invitationID) => {
     const result = await dispatch(
-      invitationsActions.deleteInvitation(invitationID)
+      invitationsActions.deleteInvitation(invitationID),
     );
     if (result.status === "success") {
       dispatch(showNotification("Invitation successfully deleted."));
@@ -279,8 +279,8 @@ const UserInvitations = () => {
           groupIDs: row[2],
           groupAdmin: row[3],
           userExpirationDate: row[4],
-        })
-      )
+        }),
+      ),
     );
     const results = await Promise.all(promises);
     if (results.every((result) => result.status === "success")) {
@@ -293,14 +293,17 @@ const UserInvitations = () => {
   const handleEditUserExpirationDate = async (formData) => {
     if (!dayjs.utc(formData.date).isValid()) {
       dispatch(
-        showNotification("Invalid date. Please use MM/DD/YYYY format.", "error")
+        showNotification(
+          "Invalid date. Please use MM/DD/YYYY format.",
+          "error",
+        ),
       );
       return;
     }
     const result = await dispatch(
       invitationsActions.updateInvitation(clickedInvitation.id, {
         userExpirationDate: dayjs.utc(formData.date).toISOString(),
-      })
+      }),
     );
     if (result.status === "success") {
       dispatch(showNotification("User expiration date successfully updated."));
@@ -449,10 +452,10 @@ const UserInvitations = () => {
   const handleFilterSubmit = async (formData) => {
     setQueryInProgress(true);
     Object.keys(formData).forEach(
-      (key) => !formData[key] && delete formData[key]
+      (key) => !formData[key] && delete formData[key],
     );
     setTableFilterList(
-      Object.entries(formData).map(([key, value]) => `${key}: ${value}`)
+      Object.entries(formData).map(([key, value]) => `${key}: ${value}`),
     );
     const params = {
       pageNumber: 1,
@@ -706,7 +709,7 @@ const UserInvitations = () => {
                     (group) =>
                       !clickedInvitation?.groups
                         ?.map((g) => g.id)
-                        ?.includes(group.id)
+                        ?.includes(group.id),
                   )}
                   getOptionLabel={(group) => group.name}
                   filterSelectedOptions
@@ -767,7 +770,7 @@ const UserInvitations = () => {
                     (stream) =>
                       !clickedInvitation?.streams
                         ?.map((s) => s.id)
-                        ?.includes(stream.id)
+                        ?.includes(stream.id),
                   )}
                   getOptionLabel={(stream) => stream.name}
                   filterSelectedOptions

@@ -113,7 +113,6 @@ class PlotAssignmentAirmassHandler(AirmassHandler):
 class PlotObjTelAirmassHandler(AirmassHandler):
     @auth_or_token
     async def get(self, obj_id, telescope_id):
-
         time = self.get_query_argument('time', None)
         if time is not None:
             try:

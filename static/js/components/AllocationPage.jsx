@@ -78,7 +78,7 @@ const AllocationList = () => {
     pageNumber,
     numPerPage,
     sortData,
-    filterData
+    filterData,
   ) => {
     setRowsPerPage(numPerPage);
     const data = {
@@ -130,10 +130,10 @@ const AllocationList = () => {
 
 const AllocationPage = () => {
   const { defaultObservationPlanList } = useSelector(
-    (state) => state.default_observation_plans
+    (state) => state.default_observation_plans,
   );
   const { defaultSurveyEfficiencyList } = useSelector(
-    (state) => state.default_survey_efficiencies
+    (state) => state.default_survey_efficiencies,
   );
 
   const [rowsPerPage, setRowsPerPage] = useState(100);
@@ -163,7 +163,7 @@ const AllocationPage = () => {
     pageNumber,
     numPerPage,
     sortData,
-    filterData
+    filterData,
   ) => {
     setRowsPerPage(numPerPage);
     const data = {
@@ -193,7 +193,7 @@ const AllocationPage = () => {
     pageNumber,
     numPerPage,
     sortData,
-    filterData
+    filterData,
   ) => {
     setRowsPerPage(numPerPage);
     const data = {
@@ -206,7 +206,7 @@ const AllocationPage = () => {
       data.sortOrder = sortData.direction;
     }
     dispatch(
-      defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies(data)
+      defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies(data),
     );
   };
 
@@ -219,7 +219,7 @@ const AllocationPage = () => {
       sortOrder: sortData.direction,
     };
     dispatch(
-      defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies(data)
+      defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies(data),
     );
   };
 

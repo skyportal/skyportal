@@ -271,7 +271,6 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
 
 
 def test_post_comment_attachment(super_admin_token, public_source, lris, public_group):
-
     status, data = api(
         'POST',
         'spectrum',

@@ -104,7 +104,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
 
   const deleteAnalysisService = () => {
     dispatch(
-      analysisServicesActions.deleteAnalysisService(analysisServiceToDelete)
+      analysisServicesActions.deleteAnalysisService(analysisServiceToDelete),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("AnalysisService deleted"));
@@ -150,7 +150,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
 
 const AnalysisServicePage = () => {
   const { analysisServiceList } = useSelector(
-    (state) => state.analysis_services
+    (state) => state.analysis_services,
   );
 
   const currentUser = useSelector((state) => state.profile);

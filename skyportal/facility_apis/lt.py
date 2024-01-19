@@ -345,7 +345,6 @@ class LTAPI(FollowUpAPI):
 
     @staticmethod
     def delete(request, session, **kwargs):
-
         """Delete a follow-up request from LT queue (all instruments).
 
         Parameters
@@ -405,7 +404,6 @@ class LTAPI(FollowUpAPI):
         mode = response_rtml.get('mode')
         uid = response_rtml.get('uid')
         if mode == 'confirm':
-
             request.status = "deleted"
 
             transaction = FacilityTransaction(
@@ -439,7 +437,6 @@ class IOOAPI(LTAPI):
 
     @staticmethod
     def submit(request, session, **kwargs):
-
         """Submit a follow-up request to LT's IOO.
 
         Parameters
@@ -591,7 +588,6 @@ class IOIAPI(LTAPI):
 
     @staticmethod
     def submit(request, session, **kwargs):
-
         """Submit a follow-up request to LT's IOI.
 
         Parameters
@@ -742,7 +738,6 @@ class SPRATAPI(LTAPI):
 
     @staticmethod
     def submit(request, session, **kwargs):
-
         """Submit a follow-up request to LT's SPRAT.
 
         Parameters

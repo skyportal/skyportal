@@ -5,7 +5,6 @@ from skyportal.tests import api
 
 @pytest.mark.flaky(reruns=2)
 def test_recent_gcnevents(driver, user, super_admin_token):
-
     datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()

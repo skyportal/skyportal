@@ -38,7 +38,6 @@ class SourceViewsHandler(BaseHandler):
 
     @auth_or_token
     def get(self):
-
         with self.Session() as session:
             query_results = SourceViewsHandler.get_top_source_views_and_ids(
                 self.current_user, session
@@ -72,7 +71,6 @@ class SourceViewsHandler(BaseHandler):
 
     @tornado.web.authenticated
     def post(self, obj_id):
-
         with self.Session() as session:
             sv = SourceView(
                 obj_id=obj_id,

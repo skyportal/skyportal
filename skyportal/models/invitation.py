@@ -17,7 +17,6 @@ _, cfg = load_env()
 
 
 class Invitation(Base):
-
     read = update = delete = AccessibleIfUserMatches('invited_by')
 
     token = sa.Column(sa.String(), nullable=False, unique=True)

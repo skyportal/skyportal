@@ -962,7 +962,6 @@ def test_can_post_photometry_empty_groups_list(
 def test_token_user_post_mag_photometry_data_and_convert(
     upload_data_token, public_source, ztf_camera, public_group
 ):
-
     status, data = api(
         'POST',
         'photometry',
@@ -1013,7 +1012,6 @@ def test_token_user_post_mag_photometry_data_and_convert(
 def test_token_user_post_and_get_different_systems_mag(
     upload_data_token, public_source, ztf_camera, public_group
 ):
-
     status, data = api(
         'POST',
         'photometry',
@@ -1067,7 +1065,6 @@ def test_token_user_post_and_get_different_systems_mag(
 def test_token_user_post_and_get_different_systems_flux(
     upload_data_token, public_source, ztf_camera, public_group
 ):
-
     status, data = api(
         'POST',
         'photometry',
@@ -1128,7 +1125,6 @@ def test_token_user_post_and_get_different_systems_flux(
 def test_token_user_mixed_photometry_post(
     upload_data_token, public_source, ztf_camera, public_group
 ):
-
     status, data = api(
         'POST',
         'photometry',
@@ -1185,7 +1181,6 @@ def test_token_user_mixed_photometry_post(
 def test_token_user_mixed_mag_none_photometry_post(
     upload_data_token, public_source, ztf_camera, public_group
 ):
-
     status, data = api(
         'POST',
         'photometry',
@@ -1247,7 +1242,6 @@ def test_token_user_mixed_mag_none_photometry_post(
 def test_token_user_post_photometry_limits(
     upload_data_token, public_source, ztf_camera, public_group
 ):
-
     status, data = api(
         'POST',
         'photometry',
@@ -1316,7 +1310,6 @@ def test_token_user_post_photometry_limits(
 def test_token_user_post_invalid_filter(
     upload_data_token, public_source, ztf_camera, public_group
 ):
-
     status, data = api(
         'POST',
         'photometry',
@@ -1805,7 +1798,6 @@ def test_token_user_retrieving_source_photometry_and_convert(
 def test_token_user_retrieve_null_photometry(
     upload_data_token, public_source, ztf_camera, public_group
 ):
-
     status, data = api(
         'POST',
         'photometry',
@@ -1921,7 +1913,6 @@ def test_token_user_post_to_foreign_group_and_retrieve(
 def test_problematic_photometry_1263(
     upload_data_token, public_source, public_group, ztf_camera, public_group2
 ):
-
     payload = {
         "obj_id": public_source.id,
         "group_ids": [public_group.id, public_group2.id],
@@ -2891,7 +2882,6 @@ def test_photometry_stream_patch_access(
 def test_token_user_delete_object_photometry(
     super_admin_token, upload_data_token, view_only_token, ztf_camera, public_group
 ):
-
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",

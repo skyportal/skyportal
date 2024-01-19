@@ -3,7 +3,6 @@ from skyportal.tests import api
 
 
 def test_post_without_origin_fails(annotation_token, public_source, public_group):
-
     # this should not work, since no "origin" is given
     status, data = api(
         'POST',
@@ -35,7 +34,6 @@ def test_post_without_origin_fails(annotation_token, public_source, public_group
 
 
 def test_post_same_origin_fails(annotation_token, public_source, public_group):
-
     # first time adding an annotation to this object from Kowalski
     status, data = api(
         'POST',

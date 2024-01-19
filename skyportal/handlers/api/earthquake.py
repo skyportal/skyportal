@@ -399,7 +399,6 @@ class EarthquakeHandler(BaseHandler):
                 return self.success(data=data)
 
         with self.Session() as session:
-
             query = EarthquakeEvent.select(
                 session.user_or_token,
                 options=[

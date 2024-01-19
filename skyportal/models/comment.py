@@ -179,7 +179,6 @@ class Comment(Base, CommentMixin):
 
 
 class CommentOnSpectrum(Base, CommentMixin):
-
     __tablename__ = 'comments_on_spectra'
 
     create = AccessibleIfRelatedRowsAreAccessible(obj='read', spectrum='read')
@@ -218,7 +217,6 @@ class CommentOnSpectrum(Base, CommentMixin):
 
 
 class CommentOnGCN(Base, CommentMixin):
-
     __tablename__ = 'comments_on_gcns'
 
     create = AccessibleIfRelatedRowsAreAccessible(gcn='read')
@@ -243,7 +241,6 @@ class CommentOnGCN(Base, CommentMixin):
 
 
 class CommentOnEarthquake(Base, CommentMixin):
-
     __tablename__ = 'comments_on_earthquakes'
 
     create = AccessibleIfRelatedRowsAreAccessible(earthquake='read')
@@ -268,7 +265,6 @@ class CommentOnEarthquake(Base, CommentMixin):
 
 
 class CommentOnShift(Base, CommentMixin):
-
     __tablename__ = 'comments_on_shifts'
 
     create = AccessibleIfRelatedRowsAreAccessible(shift='read')

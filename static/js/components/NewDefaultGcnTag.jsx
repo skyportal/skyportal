@@ -64,7 +64,7 @@ const NewDefaultGcnTag = () => {
         if (response.status === "success") {
           dispatch(showNotification("Successfully created default gcn tag"));
         }
-      }
+      },
     );
   };
 
