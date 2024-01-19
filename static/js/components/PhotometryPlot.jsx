@@ -197,7 +197,7 @@ const PhotometryPlot = ({
   const [layouts, setLayouts] = useState({});
 
   const filter2color = useSelector(
-    (state) => state.config.bandpassesColors || {}
+    (state) => state.config.bandpassesColors || {},
   );
 
   const [layoutReset, setLayoutReset] = useState(false);
@@ -255,7 +255,7 @@ const PhotometryPlot = ({
       // 'ZTF Public+Partnership' because it's a substring of 'ZTF Public'.
       newPoint.streams = newPoint.streams.filter((name) => {
         const names = newPoint.streams.filter(
-          (c) => c !== name && c.includes(name)
+          (c) => c !== name && c.includes(name),
         );
         return names.length === 0;
       });
@@ -303,11 +303,11 @@ const PhotometryPlot = ({
 
       stats.mag.min = Math.min(
         stats.mag.min,
-        newPoint.mag || newPoint.limiting_mag
+        newPoint.mag || newPoint.limiting_mag,
       );
       stats.mag.max = Math.max(
         stats.mag.max,
-        newPoint.mag || newPoint.limiting_mag
+        newPoint.mag || newPoint.limiting_mag,
       );
       stats.mjd.min = Math.min(stats.mjd.min, newPoint.mjd);
       stats.mjd.max = Math.max(stats.mjd.max, newPoint.mjd);
@@ -315,11 +315,11 @@ const PhotometryPlot = ({
       stats.days_ago.max = Math.max(stats.days_ago.max, newPoint.days_ago);
       stats.flux.min = Math.min(
         stats.flux.min,
-        newPoint.flux || newPoint.fluxerr
+        newPoint.flux || newPoint.fluxerr,
       );
       stats.flux.max = Math.max(
         stats.flux.max,
-        newPoint.flux || newPoint.fluxerr
+        newPoint.flux || newPoint.fluxerr,
       );
 
       return newPoint;
@@ -378,16 +378,16 @@ const PhotometryPlot = ({
     plotType,
     periodValue,
     smoothingValue,
-    phaseValue
+    phaseValue,
   ) => {
     if (plotType === "mag" || plotType === "flux") {
       const newPlotData = Object.keys(groupedPhotometry)
         .map((key) => {
           const detections = groupedPhotometry[key].filter(
-            (point) => point.mag !== null
+            (point) => point.mag !== null,
           );
           const upperLimits = groupedPhotometry[key].filter(
-            (point) => point.mag === null
+            (point) => point.mag === null,
           );
 
           // TEMPORARY: until we have a mapper for each sncosmo filter, we force the color to be black
@@ -403,7 +403,7 @@ const PhotometryPlot = ({
             dataType: "upperLimits",
             x: upperLimits.map((point) => point.mjd),
             y: upperLimits.map((point) =>
-              plotType === "mag" ? point.limiting_mag : point.flux
+              plotType === "mag" ? point.limiting_mag : point.flux,
             ),
             text: upperLimits.map((point) => point.text),
             mode: "markers",
@@ -433,12 +433,12 @@ const PhotometryPlot = ({
             dataType: "detections",
             x: detections.map((point) => point.mjd),
             y: detections.map((point) =>
-              plotType === "mag" ? point.mag : point.flux
+              plotType === "mag" ? point.mag : point.flux,
             ),
             error_y: {
               type: "data",
               array: detections.map((point) =>
-                plotType === "mag" ? point.magerr : point.fluxerr
+                plotType === "mag" ? point.magerr : point.fluxerr,
               ),
               visible: true,
               color: colorError,
@@ -534,12 +534,12 @@ const PhotometryPlot = ({
           const colorInteriorDet = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 0.3)`;
 
           const phases = groupedPhotometry[key].map(
-            (point) => (point.mjd % periodValue) / periodValue
+            (point) => (point.mjd % periodValue) / periodValue,
           );
 
           // split the y in det and non det
           let y = groupedPhotometry[key].map(
-            (point) => point.mag || point.limiting_mag
+            (point) => point.mag || point.limiting_mag,
           );
 
           // reorder the points in y by increasing phase
@@ -747,7 +747,7 @@ const PhotometryPlot = ({
           tabToPlotType(tabIndex),
           period,
           smoothing,
-          phase
+          phase,
         );
         setPlotData(traces);
       }
@@ -767,7 +767,7 @@ const PhotometryPlot = ({
         tabToPlotType(tabIndex),
         period,
         smoothing,
-        phase
+        phase,
       );
       setPlotData(traces);
     }
@@ -785,12 +785,12 @@ const PhotometryPlot = ({
       // for each, get its value and the created_at value of the annotation
       // then set the period state variable to the value of the most recent period annotation
       const periodAnnotations = annotations.filter(
-        (annotation) => annotation.data.period !== undefined
+        (annotation) => annotation.data.period !== undefined,
       );
       if (periodAnnotations.length > 0) {
         let mostRecentPeriod = periodAnnotations[0].data.period;
         let mostRecentPeriodCreatedAt = new Date(
-          periodAnnotations[0].created_at
+          periodAnnotations[0].created_at,
         );
         periodAnnotations.forEach((annotation) => {
           if (
@@ -857,7 +857,7 @@ const PhotometryPlot = ({
     yMarkers.push(
       ["mag", "period"].includes(tabToPlotType(tabIndex))
         ? photStats.mag.range[1]
-        : photStats.flux.range[1]
+        : photStats.flux.range[1],
     );
   }
 
@@ -929,7 +929,7 @@ const PhotometryPlot = ({
               },
               hovertemplate: hovertext,
             };
-          })
+          }),
         )
     : [];
 
@@ -1295,13 +1295,13 @@ PhotometryPlot.propTypes = {
       filter: PropTypes.string.isRequired,
       instrument_name: PropTypes.string.isRequired,
       origin: PropTypes.string,
-    })
+    }),
   ).isRequired,
   annotations: PropTypes.arrayOf(
     PropTypes.shape({
       data: PropTypes.shape({}),
       created_at: PropTypes.string.isRequired,
-    })
+    }),
   ),
   spectra: PropTypes.arrayOf(
     PropTypes.shape({
@@ -1311,7 +1311,7 @@ PhotometryPlot.propTypes = {
       telescope_name: PropTypes.string.isRequired,
       pi: PropTypes.string,
       origin: PropTypes.string,
-    })
+    }),
   ),
   gcn_events: PropTypes.arrayOf(PropTypes.string),
   mode: PropTypes.string,

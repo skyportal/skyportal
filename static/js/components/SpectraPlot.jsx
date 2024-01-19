@@ -209,7 +209,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
   // the user preferences' spectroscopyButtons is an object with the name of the button as the key, and the value is an object with the color and the wavelengths
   // transform that into a list of objects with the name, color and wavelengths
   const userCustomLines = Object.keys(
-    preferences?.spectroscopyButtons || {}
+    preferences?.spectroscopyButtons || {},
   ).map((key) => ({
     name: key,
     color: preferences?.spectroscopyButtons[key].color,
@@ -274,7 +274,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
       let normfac = Math.abs(median(newSpectrum.fluxes));
       normfac = normfac !== 0.0 ? normfac : 1e-20;
       newSpectrum.fluxes_normed = newSpectrum.fluxes.map(
-        (flux) => flux / normfac
+        (flux) => flux / normfac,
       );
       newSpectrum.text = newSpectrum.wavelengths.map(
         (wavelength, index) =>
@@ -285,16 +285,16 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           <br>Observed at (UTC): ${newSpectrum.observed_at}
           <br>PI: ${newSpectrum.pi || ""}
           <br>Origin: ${newSpectrum.origin || ""}
-          `
+          `,
       );
 
       stats[spectrum.type].wavelength.min = Math.min(
         stats[spectrum.type].wavelength.min,
-        Math.min(...newSpectrum.wavelengths)
+        Math.min(...newSpectrum.wavelengths),
       );
       stats[spectrum.type].wavelength.max = Math.max(
         stats[spectrum.type].wavelength.max,
-        Math.max(...newSpectrum.wavelengths)
+        Math.max(...newSpectrum.wavelengths),
       );
 
       // it happens that some spectra have a few ridiculously large flux peaks, and that messes up the plot
@@ -307,7 +307,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
 
       if (maxFlux > 10 * medianFlux || maxFlux > 10 * meanFlux) {
         const sortedFluxes = [...newSpectrum.fluxes_normed].sort(
-          (a, b) => a - b
+          (a, b) => a - b,
         );
         // set negative fluxes to 0
         sortedFluxes.forEach((flux, index) => {
@@ -321,18 +321,18 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         const upperFence = q3 + 1.5 * iqr;
         stats[spectrum.type].flux.max = Math.max(
           stats[spectrum.type].flux.max,
-          upperFence
+          upperFence,
         );
       } else {
         stats[spectrum.type].flux.max = Math.max(
           stats[spectrum.type].flux.max,
-          maxFlux
+          maxFlux,
         );
       }
       // for the lines we show on top of the plot, we want to use the max flux of all spectra
       stats[spectrum.type].flux.maxLines = Math.max(
         stats[spectrum.type].flux.maxLines,
-        maxFlux
+        maxFlux,
       );
 
       return newSpectrum;
@@ -353,7 +353,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     spectraData,
     spectrumTypes,
     tabValue,
-    smoothingValue = 0
+    smoothingValue = 0,
   ) => {
     // for now (testing), we just grab the first spectrum
 
@@ -452,7 +452,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         overlaying: "x",
         showgrid: false,
         range: specStats_value[spectrumType].wavelength.range.map(
-          (w) => w / (1 + (redshift_value || 0))
+          (w) => w / (1 + (redshift_value || 0)),
         ),
         tickformat: ".6~f",
         ...BASE_LAYOUT,
@@ -530,14 +530,14 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           y: [...Array(100).keys()].map(
             (i) =>
               (specStats[types[tabIndex]].flux.maxLines * 1.05 || 1.05) *
-              (i / 99)
+              (i / 99),
           ),
           line: {
             color: line.color,
             width: 1,
           },
           hovertemplate: `Name: ${line.name}<br>Wavelength: ${x.toFixed(
-            3
+            3,
           )}<extra></extra>`,
           name: line.name,
           legendgroup: line.name,
@@ -555,16 +555,16 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               mode: "lines",
               x: [...Array(100).keys()].map(
                 (
-                  i // eslint-disable-line no-unused-vars
+                  i, // eslint-disable-line no-unused-vars
                 ) =>
                   (parseFloat(customWavelengthInput, 10) *
                     (1 + parseFloat(redshiftInput, 10))) /
-                  (1 + parseFloat(vExpInput, 10) / c)
+                  (1 + parseFloat(vExpInput, 10) / c),
               ),
               y: [...Array(100).keys()].map(
                 (i) =>
                   (specStats[types[tabIndex]].flux.maxLines * 1.05 || 1.05) *
-                  (i / 99)
+                  (i / 99),
               ),
               line: {
                 color: "#000000",
@@ -572,7 +572,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               },
               hovertemplate: `Name: Custom Wavelength<br>Wavelength: ${parseFloat(
                 customWavelengthInput,
-                10
+                10,
               ).toFixed(3)}<extra></extra>`,
               name: "Custom Wavelength",
               legendgroup: "Custom Wavelength",
@@ -580,7 +580,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               visible: true,
             },
           ]
-        : []
+        : [],
     );
 
   return (
@@ -690,7 +690,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               onClick={() => {
                 if (selectedLines.includes(line.name)) {
                   setSelectedLines(
-                    selectedLines.filter((l) => l !== line.name)
+                    selectedLines.filter((l) => l !== line.name),
                   );
                 } else {
                   setSelectedLines([...selectedLines, line.name]);
@@ -963,7 +963,7 @@ SpectraPlot.propTypes = {
       instrument_name: PropTypes.string,
       wavelengths: PropTypes.arrayOf(PropTypes.number),
       fluxes: PropTypes.arrayOf(PropTypes.number),
-    })
+    }),
   ).isRequired,
   redshift: PropTypes.number,
   mode: PropTypes.string,

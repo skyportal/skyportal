@@ -227,10 +227,10 @@ InstrumentLogsPlot.propTypes = {
             type: PropTypes.string,
             message: PropTypes.string,
             mjd: PropTypes.number,
-          })
+          }),
         ),
       }),
-    })
+    }),
   ).isRequired,
 };
 

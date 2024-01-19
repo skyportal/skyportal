@@ -61,7 +61,7 @@ PhotometryDownload.propTypes = {
       filter: PropTypes.string.isRequired,
       instrument_name: PropTypes.string.isRequired,
       origin: PropTypes.string,
-    })
+    }),
   ).isRequired,
 };
 
