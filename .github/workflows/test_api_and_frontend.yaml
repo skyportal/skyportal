@@ -94,6 +94,12 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update -y
+
+          ### firefox installation
+          sudo snap remove firefox
+          sudo add-apt-repository ppa:mozillateam/ppa
+          printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001' | sudo tee /etc/apt/preferences.d/mozilla-firefox
+
           sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
           pip install pip==23.1.2
@@ -144,7 +150,7 @@ jobs:
 
       - name: Install Geckodriver / Selenium
         run: |
-          GECKO_VER=0.30.0
+          GECKO_VER=0.34.0
           CACHED_DOWNLOAD_DIR=~/.local/downloads
           FILENAME=geckodriver-v${GECKO_VER}-linux64.tar.gz
 
