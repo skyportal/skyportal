@@ -36,10 +36,10 @@ const useStyles = makeStyles((theme) => ({
 const GroupSources = ({ route }) => {
   const dispatch = useDispatch();
   const savedSourcesState = useSelector(
-    (state) => state.sources.savedGroupSources
+    (state) => state.sources.savedGroupSources,
   );
   const pendingSourcesState = useSelector(
-    (state) => state.sources.pendingGroupSources
+    (state) => state.sources.pendingGroupSources,
   );
   const groups = useSelector((state) => state.groups.userAccessible);
   const classes = useStyles();
@@ -59,14 +59,14 @@ const GroupSources = ({ route }) => {
           group_ids: [route.id],
           pageNumber: 1,
           numPerPage: 10,
-        })
+        }),
       );
       await dispatch(
         sourcesActions.fetchPendingGroupSources({
           group_ids: [route.id],
           pageNumber: 1,
           numPerPage: 10,
-        })
+        }),
       );
     };
     fetchData();
@@ -92,7 +92,7 @@ const GroupSources = ({ route }) => {
         numPerPage: savedSourcesRowsPerPage,
         sortBy: sortData.name,
         sortOrder: sortData.direction,
-      })
+      }),
     );
   };
 
@@ -100,7 +100,7 @@ const GroupSources = ({ route }) => {
     pageNumber,
     numPerPage,
     sortData,
-    filterData
+    filterData,
   ) => {
     setSavedSourcesRowsPerPage(numPerPage);
     const data = {
@@ -127,7 +127,7 @@ const GroupSources = ({ route }) => {
         numPerPage: pendingSourcesRowsPerPage,
         sortBy: sortData.name,
         sortOrder: sortData.direction,
-      })
+      }),
     );
     setSorting(sortData);
     setFiltering(filterData);
@@ -137,7 +137,7 @@ const GroupSources = ({ route }) => {
     pageNumber,
     numPerPage,
     sortData,
-    filterData
+    filterData,
   ) => {
     setPendingSourcesRowsPerPage(numPerPage);
     const data = {
@@ -163,7 +163,7 @@ const GroupSources = ({ route }) => {
         let i = 1;
         i <=
         Math.ceil(
-          savedSourcesState.totalMatches / savedSourcesState.numPerPage
+          savedSourcesState.totalMatches / savedSourcesState.numPerPage,
         );
         i += 1
       ) {
@@ -179,7 +179,7 @@ const GroupSources = ({ route }) => {
         }
         /* eslint-disable no-await-in-loop */
         const result = await dispatch(
-          sourcesActions.fetchSavedGroupSources(data)
+          sourcesActions.fetchSavedGroupSources(data),
         );
         if (result && result.data && result?.status === "success") {
           sourceAll.push(...result.data.sources);
@@ -193,15 +193,15 @@ const GroupSources = ({ route }) => {
             dispatch(
               showNotification(
                 "Failed to fetch some sources. Download cancelled.",
-                "error"
-              )
+                "error",
+              ),
             );
           } else {
             dispatch(
               showNotification(
                 "Failed to fetch some sources, please try again. Sources fetched so far will be downloaded.",
-                "error"
-              )
+                "error",
+              ),
             );
           }
           break;

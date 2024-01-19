@@ -78,7 +78,6 @@ def get_effective_wavelength(bandpass_name, radius=None):
 
 
 def get_color(bandpass, format="hex"):
-
     wavelength = get_effective_wavelength(bandpass)
 
     if 0 < wavelength <= 1500:  # EUV
@@ -188,7 +187,6 @@ def serialize(
     owner=False,
     stream=False,
 ):
-
     return_value = {
         'obj_id': phot.obj_id,
         'ra': phot.ra,
@@ -337,7 +335,6 @@ def serialize(
 
 
 def standardize_photometry_data(data):
-
     if not isinstance(data, dict):
         raise ValidationError(
             'Top level JSON must be an instance of `dict`, got ' f'{type(data)}.'
@@ -358,7 +355,7 @@ def standardize_photometry_data(data):
     if "altdata" in data:
         if isinstance(data["altdata"], dict):
             for key in data["altdata"].keys():
-                if type(data["altdata"][key]) == list:
+                if isinstance(data["altdata"][key], list):
                     if not len(data["altdata"][key]) == max_num_elements:
                         if len(data["altdata"][key]) == 1:
                             data["altdata"][key] = (
@@ -1628,7 +1625,6 @@ class ObjPhotometryHandler(BaseHandler):
             include_stream_info = False
 
         with self.Session() as session:
-
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             ).first()
@@ -1672,7 +1668,6 @@ class ObjPhotometryHandler(BaseHandler):
                     )
 
             if individual_or_series in ["series", "both"]:
-
                 series = (
                     session.scalars(
                         PhotometricSeries.select(session.user_or_token).where(

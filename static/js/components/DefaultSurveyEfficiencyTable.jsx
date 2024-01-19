@@ -97,8 +97,8 @@ const DefaultSurveyEfficiencyTable = ({
   const deleteDefaultSurveyEfficiency = () => {
     dispatch(
       defaultSurveyEfficienciesActions.deleteDefaultSurveyEfficiency(
-        defaultSurveyEfficiencyToDelete
-      )
+        defaultSurveyEfficiencyToDelete,
+      ),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Default survey efficiency deleted"));
@@ -250,7 +250,7 @@ const DefaultSurveyEfficiencyTable = ({
         paginateCallback(
           tableState.page + 1,
           tableState.rowsPerPage,
-          tableState.sortOrder
+          tableState.sortOrder,
         );
         break;
       case "sort":

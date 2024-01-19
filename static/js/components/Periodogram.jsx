@@ -114,7 +114,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
         y_data_uf[ind] == null
       )
         ? ind
-        : undefined
+        : undefined,
     )
     ?.filter((x) => x);
   /* eslint-enable react/destructuring-assignment  */
@@ -164,7 +164,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
   const delta_t = Math.min(
     tbase / (nt - 1),
     quantileSeq(diffs, 0.75, false),
-    0.05 * ofac
+    0.05 * ofac,
   );
 
   let fbeg = parseFloat(kwargs.fbeg || (df * ofac) / 2);
@@ -380,7 +380,7 @@ const Periodogram = () => {
     if (photometry && establishedfilters && !run) {
       const data = photometry.filter(
         (x) =>
-          x.filter === params.filter && x.instrument_name === params.instrument
+          x.filter === params.filter && x.instrument_name === params.instrument,
       );
       if (data.length > 0) {
         const times = data.map((x) => x.mjd);
@@ -394,10 +394,10 @@ const Periodogram = () => {
         // filtered times
         const ftimes = times.filter((x) => x >= mjdmin && x <= mjdmax);
         const fmag = mag.filter(
-          (x, i) => times[i] >= mjdmin && times[i] <= mjdmax
+          (x, i) => times[i] >= mjdmin && times[i] <= mjdmax,
         );
         const fmagerr = magerr.filter(
-          (x, i) => times[i] >= mjdmin && times[i] <= mjdmax
+          (x, i) => times[i] >= mjdmin && times[i] <= mjdmax,
         );
 
         const gls = GLS(ftimes, fmag, {
@@ -425,7 +425,7 @@ const Periodogram = () => {
           x.filter === params.filter &&
           x.instrument_name === params.instrument &&
           x.mjd >= mjdmin &&
-          x.mjd <= mjdmax
+          x.mjd <= mjdmax,
       );
       const times = data.map((x) => x.mjd);
       const mag = data.map((x) => x.mag);
@@ -436,7 +436,9 @@ const Periodogram = () => {
         plotphased(times, mag, bestp * periodmultiplier, title);
       } else {
         dispatch(
-          showNotification("No data for this combination of instrument/filter.")
+          showNotification(
+            "No data for this combination of instrument/filter.",
+          ),
         );
       }
     }
@@ -473,14 +475,14 @@ const Periodogram = () => {
   function copyPeriod() {
     try {
       navigator.clipboard.writeText(
-        `${(periodmultiplier * bestp).toFixed(15)}`
+        `${(periodmultiplier * bestp).toFixed(15)}`,
       );
       dispatch(
         showNotification(
           `Copied period (${(periodmultiplier * bestp).toFixed(
-            8
-          )} d) to clipboard.`
-        )
+            8,
+          )} d) to clipboard.`,
+        ),
       );
     } catch (err) {
       dispatch(showNotification("Could not copy period to clipboard."));

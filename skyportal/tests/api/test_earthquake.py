@@ -6,7 +6,6 @@ from skyportal.tests import api
 
 
 def test_earthquake_predictions_and_measurements(super_admin_token, view_only_token):
-
     name = str(uuid.uuid4())
     post_data = {
         'name': name,
@@ -99,7 +98,6 @@ def test_earthquake_predictions_and_measurements(super_admin_token, view_only_to
 
 
 def test_earthquake_quakeml(super_admin_token, view_only_token):
-
     datafile = f'{os.path.dirname(__file__)}/../data/quakeml.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -149,7 +147,6 @@ def test_earthquake_quakeml(super_admin_token, view_only_token):
 
 
 def test_earthquake_dictionary(super_admin_token, view_only_token):
-
     data = {
         'event_id': 'quakeml:nc.anss.org-Event-NC-73446401',
         'latitude': 39.3648333,

@@ -133,19 +133,19 @@ const FilterCandidateList = ({
   const classes = useStyles();
 
   const availableAnnotationsInfo = useSelector(
-    (state) => state.candidates.annotationsInfo
+    (state) => state.candidates.annotationsInfo,
   );
   const dispatch = useDispatch();
 
   const { scanningProfiles, useAMPM } = useSelector(
-    (state) => state.profile.preferences
+    (state) => state.profile.preferences,
   );
 
   const defaultScanningProfile = scanningProfiles?.find(
-    (profile) => profile.default
+    (profile) => profile.default,
   );
   const [selectedScanningProfile, setSelectedScanningProfile] = useState(
-    defaultScanningProfile
+    defaultScanningProfile,
   );
 
   useEffect(() => {
@@ -161,7 +161,7 @@ const FilterCandidateList = ({
     // the selectedScanningProfile if it exists already or the default
     // otherwise (indicating the first render of the page)
     setSelectedScanningProfile(
-      selectedScanningProfile || defaultScanningProfile
+      selectedScanningProfile || defaultScanningProfile,
     );
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -173,7 +173,7 @@ const FilterCandidateList = ({
     defaultEndDate = new Date();
     defaultStartDate.setHours(
       defaultStartDate.getHours() -
-        parseInt(selectedScanningProfile.timeRange, 10)
+        parseInt(selectedScanningProfile.timeRange, 10),
     );
   } else {
     defaultStartDate.setDate(defaultStartDate.getDate() - 1);
@@ -185,17 +185,17 @@ const FilterCandidateList = ({
   let classifications = [];
   latestTaxonomyList?.forEach((taxonomy) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
-      (option) => option.class
+      (option) => option.class,
     );
     classifications = classifications.concat(currentClasses);
   });
   classifications = Array.from(new Set(classifications)).sort();
 
   const [selectedClassifications, setSelectedClassifications] = useState(
-    selectedScanningProfile?.classifications || []
+    selectedScanningProfile?.classifications || [],
   );
   const [selectedAnnotationOrigin, setSelectedAnnotationOrigin] = useState(
-    selectedScanningProfile?.sortingOrigin
+    selectedScanningProfile?.sortingOrigin,
   );
 
   const gcnEvents = useSelector((state) => state.gcnEvents);
@@ -296,7 +296,7 @@ const FilterCandidateList = ({
       candidatesActions.setFilterFormData({
         // savedStatus: "all",
         startDate: defaultStartDate.toISOString(),
-      })
+      }),
     );
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
@@ -334,7 +334,7 @@ const FilterCandidateList = ({
     setQueryInProgress(true);
     const groupIDs = userAccessibleGroups.map((g) => g.id);
     const selectedGroupIDs = groupIDs?.filter(
-      (ID, idx) => formData.groupIDs[idx]
+      (ID, idx) => formData.groupIDs[idx],
     );
     const data = {
       groupIDs: selectedGroupIDs,
@@ -367,7 +367,7 @@ const FilterCandidateList = ({
       data.localizationName = gcnEventsLookUp[
         formData.gcneventid
       ]?.localizations?.filter(
-        (l) => l.id === formData.localizationid
+        (l) => l.id === formData.localizationid,
       )[0]?.localization_name;
       if (formData.localizationCumprob) {
         data.localizationCumprob = formData.localizationCumprob;
@@ -392,7 +392,7 @@ const FilterCandidateList = ({
     } else if (selectedScanningProfile?.sortingOrigin === undefined) {
       // Clear annotation sort params, if a default sort is not defined
       await dispatch(
-        candidatesActions.setCandidatesAnnotationSortOptions(null)
+        candidatesActions.setCandidatesAnnotationSortOptions(null),
       );
       setSortOrder(null);
     } else {
@@ -406,7 +406,7 @@ const FilterCandidateList = ({
       data.annotationFilterList = annotationFilterList;
     }
     setFilterGroups(
-      userAccessibleGroups?.filter((g) => selectedGroupIDs.includes(g.id))
+      userAccessibleGroups?.filter((g) => selectedGroupIDs.includes(g.id)),
     );
     const fetchParams = { ...data };
 
@@ -417,7 +417,7 @@ const FilterCandidateList = ({
           key: data.sortByAnnotationKey,
           origin: data.sortByAnnotationOrigin,
           order: data.sortByAnnotationOrder,
-        })
+        }),
       );
     }
 
@@ -429,7 +429,7 @@ const FilterCandidateList = ({
         pageNumber: 1,
         numPerPage,
         ...fetchParams,
-      })
+      }),
     );
     setQueryInProgress(false);
   };
@@ -727,7 +727,7 @@ const FilterCandidateList = ({
                               dispatch(
                                 gcnEventsActions.fetchGcnEvents({
                                   partialdateobs: value,
-                                })
+                                }),
                               );
                             }
                           }}
@@ -895,15 +895,15 @@ const FilterCandidateList = ({
                             onChange(event.target.checked);
                             // Let parent component know program selection has changed
                             const groupIDs = userAccessibleGroups.map(
-                              (g) => g.id
+                              (g) => g.id,
                             );
                             const selectedGroupIDs = groupIDs?.filter(
-                              (ID, i) => getValues().groupIDs[i]
+                              (ID, i) => getValues().groupIDs[i],
                             );
                             setFilterGroups(
                               userAccessibleGroups.filter((g) =>
-                                selectedGroupIDs.includes(g.id)
-                              )
+                                selectedGroupIDs.includes(g.id),
+                              ),
                             );
                           }}
                           checked={value}
@@ -964,7 +964,7 @@ FilterCandidateList.propTypes = {
       nickname: PropTypes.string,
       private: PropTypes.bool.isRequired,
       description: PropTypes.string,
-    })
+    }),
   ).isRequired,
   setQueryInProgress: PropTypes.func.isRequired,
   setFilterGroups: PropTypes.func.isRequired,

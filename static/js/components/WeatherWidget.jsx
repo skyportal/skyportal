@@ -269,7 +269,7 @@ WeatherView.propTypes = {
           PropTypes.shape({
             icon: PropTypes.string,
             description: PropTypes.string,
-          })
+          }),
         ),
       }),
     }),

@@ -134,7 +134,7 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
 
   let localizationTags = [];
   localizationTags = gcnTags.concat(
-    useSelector((state) => state.localizationTags)
+    useSelector((state) => state.localizationTags),
   );
   localizationTags.sort();
 
@@ -148,13 +148,13 @@ const GcnEventsFilterForm = ({ handleFilterSubmit }) => {
 
   let gcnProperties = [];
   gcnProperties = gcnProperties.concat(
-    useSelector((state) => state.gcnProperties)
+    useSelector((state) => state.gcnProperties),
   );
   gcnProperties.sort();
 
   let localizationProperties = [];
   localizationProperties = localizationProperties.concat(
-    useSelector((state) => state.localizationProperties)
+    useSelector((state) => state.localizationProperties),
   );
   localizationProperties.sort();
 

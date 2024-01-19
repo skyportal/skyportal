@@ -109,7 +109,6 @@ def add_user_and_setup_groups(
     oauth_uid=None,
     expiration_date=None,
 ):
-
     try:
         # the roles come from the association_proxy
         # in baselayer/app/models.py line 1851

@@ -77,7 +77,7 @@ const MMADetectorPageDesktop = () => {
   const currentUser = useSelector((state) => state.profile);
   const { mmadetectorList } = useSelector((state) => state.mmadetectors);
   const currentMMADetectorMenu = useSelector(
-    (state) => state.mmadetector.currentMMADetectorMenu
+    (state) => state.mmadetector.currentMMADetectorMenu,
   );
 
   function setSelectedMenu(currentSelectedMMADetectorMenu) {

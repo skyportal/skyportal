@@ -12,7 +12,7 @@ export const fetchObservationPlanNames = (filterParams = {}) =>
   API.GET(
     "/api/observation_plan/plan_names",
     FETCH_OBSERVATION_PLAN_NAMES,
-    filterParams
+    filterParams,
   );
 
 // Websocket message handler

@@ -20,18 +20,18 @@ const useStyles = makeStyles(() => ({
 const FollowupRequestPreferences = () => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiClassname } = useSelector(
-    (state) => state.allocations
+    (state) => state.allocations,
   );
   const allGroups = useSelector((state) => state.groups.all);
   const { instrumentList, instrumentFormParams } = useSelector(
-    (state) => state.instruments
+    (state) => state.instruments,
   );
   const defaultAllocationId = useSelector(
-    (state) => state.profile.preferences.followupDefault
+    (state) => state.profile.preferences.followupDefault,
   );
   // set the default allocation to be -1 if nothing is in the user preferences
   const [selectedAllocationId, setSelectedAllocationId] = useState(
-    defaultAllocationId || -1
+    defaultAllocationId || -1,
   );
 
   const classes = useStyles();
@@ -133,7 +133,7 @@ const FollowupRequestPreferences = () => {
                     </div>
                   )}
                 </MenuItem>
-              )
+              ),
           )}
         </Select>
       ) : (

@@ -36,7 +36,7 @@ const UpdatePhotometry = ({ phot }) => {
   useEffect(() => {
     setInvalid(
       // eslint-disable-next-line no-restricted-globals
-      !phot.mjd || isNaN(phot.mjd)
+      !phot.mjd || isNaN(phot.mjd),
     );
     setState({
       mjd: phot.mjd,
@@ -79,7 +79,7 @@ const UpdatePhotometry = ({ phot }) => {
     const result = await dispatch(
       photActions.updatePhotometry(phot.id, {
         ...newState,
-      })
+      }),
     );
     setIsSubmitting(false);
     if (result.status === "success") {

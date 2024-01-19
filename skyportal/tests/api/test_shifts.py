@@ -7,7 +7,6 @@ import numpy as np
 
 
 def test_shift(public_group, super_admin_token, view_only_token, super_admin_user):
-
     name = str(uuid.uuid4())
     start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
     end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")

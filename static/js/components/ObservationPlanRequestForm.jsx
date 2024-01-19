@@ -169,7 +169,7 @@ FieldSelect.propTypes = {
             features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
           }),
         ]),
-      })
+      }),
     ),
   }),
   selectedFields: PropTypes.arrayOf(PropTypes.number).isRequired,
@@ -197,7 +197,7 @@ const ObservationPlanGlobe = ({
     "observations",
   ];
   const displayOptionsDefault = Object.fromEntries(
-    displayOptions.map((x) => [x, false])
+    displayOptions.map((x) => [x, false]),
   );
   displayOptionsDefault.localization = true;
   displayOptionsDefault.instrument = true;
@@ -223,7 +223,7 @@ ObservationPlanGlobe.propTypes = {
     localizations: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number,
-      })
+      }),
     ),
   }).isRequired,
   loc: PropTypes.shape({
@@ -255,7 +255,7 @@ ObservationPlanGlobe.propTypes = {
             features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
           }),
         ]),
-      })
+      }),
     ),
   }),
   selectedFields: PropTypes.arrayOf(PropTypes.number).isRequired,
@@ -289,7 +289,7 @@ MyObjectFieldTemplate.propTypes = {
     PropTypes.shape({
       name: PropTypes.string,
       content: PropTypes.node,
-    })
+    }),
   ).isRequired,
 };
 
@@ -300,7 +300,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiObsplan } = useSelector(
-    (state) => state.allocations
+    (state) => state.allocations,
   );
   const observationPlanNames = useSelector((state) => state.observationPlans);
   const { useAMPM } = useSelector((state) => state.profile.preferences);
@@ -318,7 +318,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   const [multiPlansChecked, setMultiPlansChecked] = useState(false);
 
   const defaultAirmassTime = new Date(
-    dayjs(gcnEvent?.dateobs).format("YYYY-MM-DDTHH:mm:ssZ")
+    dayjs(gcnEvent?.dateobs).format("YYYY-MM-DDTHH:mm:ssZ"),
   );
   const [airmassTime, setAirmassTime] = useState(defaultAirmassTime);
   const [airmassValue, setAirmassValue] = useState(2.5);
@@ -336,7 +336,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   ] = useState(false);
 
   const { instrumentList, instrumentObsplanFormParams } = useSelector(
-    (state) => state.instruments
+    (state) => state.instruments,
   );
 
   const groupLookUp = {};
@@ -364,7 +364,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   });
 
   const [selectedProjection, setSelectedProjection] = useState(
-    projectionOptions[0]
+    projectionOptions[0],
   );
 
   const [selectedFormData, setSelectedFormData] = useState({});
@@ -376,8 +376,8 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
         instrumentActions.fetchInstrumentSkymap(
           instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id,
           obsplanLoc,
-          airmassTime.toJSON()
-        )
+          airmassTime.toJSON(),
+        ),
       ).then((response) => {
         setSkymapInstrument(response.data);
         setFetchingLocalization(false);
@@ -392,7 +392,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
       instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id &&
       gcnEvent?.localizations?.length > 0 &&
       (gcnEvent?.localizations || []).find(
-        (loc) => loc.id === obsplanLoc?.id
+        (loc) => loc.id === obsplanLoc?.id,
       ) &&
       fetchingLocalization === false
     ) {
@@ -413,10 +413,10 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
         localizationActions.fetchLocalization(
           gcnEvent?.dateobs,
           gcnEvent?.localizations.find(
-            (loc) => loc.id === selectedLocalizationId
+            (loc) => loc.id === selectedLocalizationId,
           )?.localization_name,
-          "obsplan"
-        )
+          "obsplan",
+        ),
       );
     }
   }, [selectedLocalizationId]);
@@ -438,7 +438,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
             if (response.status !== "success") {
               showNotification(
                 "Error fetching allocations, please try refreshing the page",
-                "error"
+                "error",
               );
               return;
             }
@@ -448,7 +448,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
             setSelectedGroupIds([data[0]?.group_id]);
             setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
             setFetchingAllocationListApiObsplan(false);
-          }
+          },
         );
       } else if (
         allocationListApiObsplan?.length > 0 &&
@@ -456,7 +456,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
       ) {
         const sortedAllocationListApiObsplan = [...allocationListApiObsplan];
         sortedAllocationListApiObsplan.sort(
-          (a, b) => a.instrument_id - b.instrument_id
+          (a, b) => a.instrument_id - b.instrument_id,
         );
         setSelectedAllocationId(sortedAllocationListApiObsplan[0]?.id);
         setSelectedGroupIds([sortedAllocationListApiObsplan[0]?.group_id]);
@@ -489,7 +489,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
 
   // filter out the allocations that dont have "observaton_plan" in the types
   const filteredAllocationListApiObsplan = allocationListApiObsplan.filter(
-    (allocation) => allocation.types.includes("observation_plan")
+    (allocation) => allocation.types.includes("observation_plan"),
   );
 
   // need to check both of these conditions as selectedAllocationId is
@@ -579,7 +579,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
         !formDataFilters.every((filter) => instrumentsFilters.includes(filter))
       ) {
         errors.filters.addError(
-          `Filters must be a subset of the instrument filters: ${instrumentsFilters}`
+          `Filters must be a subset of the instrument filters: ${instrumentsFilters}`,
         );
       }
     }
@@ -605,13 +605,13 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   const setAirmass = () => {
     setAirmassTime(temporaryAirmassTime);
     dispatch(
-      showNotification("Updating airmass tiles... patience please.", "info")
+      showNotification("Updating airmass tiles... patience please.", "info"),
     );
   };
 
   const exportData = (data) => {
     const jsonString = `data:text/json;chatset=utf-8,${encodeURIComponent(
-      JSON.stringify(data.fields)
+      JSON.stringify(data.fields),
     )}`;
     const link = document.createElement("a");
     link.href = jsonString;
@@ -875,8 +875,8 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                 setPlanQueues(
                   planQueues.filter(
                     (queue) =>
-                      queue.payload.queue_name !== plan.payload.queue_name
-                  )
+                      queue.payload.queue_name !== plan.payload.queue_name,
+                  ),
                 );
               }}
             />

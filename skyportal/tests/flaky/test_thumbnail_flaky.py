@@ -8,7 +8,6 @@ from skyportal.models import DBSession, Obj, Thumbnail
 def test_token_user_delete_thumbnail_cascade_source(
     upload_data_token, super_admin_token, public_group, ztf_camera
 ):
-
     obj_id = str(uuid.uuid4())
     status, data = api(
         'POST',

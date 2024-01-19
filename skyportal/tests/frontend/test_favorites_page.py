@@ -7,7 +7,6 @@ from skyportal.model_util import create_token
 
 @pytest.mark.flaky(reruns=3)
 def test_add_remove_favorites(driver, user, public_source):
-
     driver.get(f"/become_user/{user.id}")
 
     # go to source page, wait until it finishes loading
@@ -44,7 +43,6 @@ def test_add_remove_favorites(driver, user, public_source):
 
 
 def test_add_favorites_from_api(driver, super_admin_user, public_group):
-
     token_id = create_token(
         ACLs=["Upload data"], user_id=super_admin_user.id, name=str(uuid.uuid4())
     )
@@ -112,7 +110,6 @@ def test_add_favorites_from_api(driver, super_admin_user, public_group):
 
 
 def test_remove_favorites_from_api(driver, super_admin_user, public_group):
-
     token_id = create_token(
         ACLs=["Upload data"], user_id=super_admin_user.id, name=str(uuid.uuid4())
     )

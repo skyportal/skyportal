@@ -54,7 +54,7 @@ const NewDefaultObservationPlan = () => {
 
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiObsplan } = useSelector(
-    (state) => state.allocations
+    (state) => state.allocations,
   );
 
   const allGroups = useSelector((state) => state.groups.all);
@@ -66,7 +66,7 @@ const NewDefaultObservationPlan = () => {
   ] = useState(false);
 
   const { instrumentList, instrumentObsplanFormParams } = useSelector(
-    (state) => state.instruments
+    (state) => state.instruments,
   );
 
   useEffect(() => {
@@ -76,7 +76,7 @@ const NewDefaultObservationPlan = () => {
       // update
 
       const result = await dispatch(
-        allocationActions.fetchAllocationsApiObsplan()
+        allocationActions.fetchAllocationsApiObsplan(),
       );
 
       const { data } = result;
@@ -171,11 +171,11 @@ const NewDefaultObservationPlan = () => {
     };
 
     dispatch(
-      defaultObservationPlansActions.submitDefaultObservationPlan(json)
+      defaultObservationPlansActions.submitDefaultObservationPlan(json),
     ).then((response) => {
       if (response.status === "success") {
         dispatch(
-          showNotification("Successfully created default observation plan")
+          showNotification("Successfully created default observation plan"),
         );
       }
     });

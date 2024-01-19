@@ -42,7 +42,7 @@ const UpdateSourceRedshift = ({ source }) => {
   useEffect(() => {
     setInvalid(
       // eslint-disable-next-line no-restricted-globals
-      !String(source.redshift) || isNaN(String(source.redshift))
+      !String(source.redshift) || isNaN(String(source.redshift)),
     );
     setState({
       redshift: source.redshift ? String(source.redshift) : "",
@@ -76,7 +76,7 @@ const UpdateSourceRedshift = ({ source }) => {
     const result = await dispatch(
       sourceActions.updateSource(source.id, {
         ...newState,
-      })
+      }),
     );
     setIsSubmitting(false);
     if (result.status === "success") {

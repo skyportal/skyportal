@@ -38,13 +38,13 @@ export function fetchInstrumentSkymap(id, localization, airmassTime = null) {
   if (airmassTime) {
     return API.GET(
       `/api/instrument/${id}?includeGeoJSONSummary=True&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}&airmassTime=${airmassTime}`,
-      FETCH_INSTRUMENT_SKYMAP
+      FETCH_INSTRUMENT_SKYMAP,
     );
   }
 
   return API.GET(
     `/api/instrument/${id}?includeGeoJSONSummary=True&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}`,
-    FETCH_INSTRUMENT_SKYMAP
+    FETCH_INSTRUMENT_SKYMAP,
   );
 }
 

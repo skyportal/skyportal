@@ -99,7 +99,7 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
             for (route, handler_cls) in handlers
             if '/internal/' not in route
         ]
-    for (endpoint, handler) in handlers:
+    for endpoint, handler in handlers:
         for http_method in HTTP_METHODS:
             method = getattr(handler, http_method)
             if method.__doc__ is None:

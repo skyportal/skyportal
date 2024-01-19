@@ -60,7 +60,7 @@ const useStyles = makeStyles((theme) => ({
 const SummarySearch = () => {
   const classes = useStyles();
   const summary_sources_classes = useSelector(
-    (state) => state.config.summary_sourcesClasses
+    (state) => state.config.summary_sourcesClasses,
   );
   const dispatch = useDispatch();
   const [queryResult, setQueryResult] = useState(null);
@@ -73,7 +73,7 @@ const SummarySearch = () => {
   let classifications = [];
   latestTaxonomyList?.forEach((taxonomy) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
-      (option) => option.class
+      (option) => option.class,
     );
     classifications = classifications.concat(currentClasses);
   });
@@ -94,7 +94,7 @@ const SummarySearch = () => {
 
   const emojiSupport = (textComment) =>
     textComment.value.replace(/:\w+:/gi, (name) =>
-      emoji.getUnicode(name) ? emoji.getUnicode(name) : name
+      emoji.getUnicode(name) ? emoji.getUnicode(name) : name,
     );
 
   const formSchema = {

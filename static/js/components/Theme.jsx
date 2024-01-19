@@ -71,7 +71,7 @@ const Theme = ({ disableTransitions, children }) => {
             props: { variant: "contained", color: "grey" },
             style: {
               color: greyTheme.palette.getContrastText(
-                greyTheme.palette.grey[300]
+                greyTheme.palette.grey[300],
               ),
             },
           },

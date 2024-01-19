@@ -107,7 +107,6 @@ def update_redshift_history_if_relevant(request_data, obj, user):
 
 
 def update_healpix_if_relevant(request_data, obj):
-
     # first check if the ra and dec is being updated
     ra = request_data.get('ra', None)
     dec = request_data.get('dec', None)
@@ -1532,7 +1531,6 @@ class CandidateHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
-
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == data["id"])
             ).first()

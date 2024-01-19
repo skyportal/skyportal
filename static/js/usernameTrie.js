@@ -29,7 +29,7 @@ const UsernameTrie = () => {
       }
       Object.keys(currNode)
         .filter(
-          (key) => key !== "matchTerminatesHere" && key !== "matchingUsersMap"
+          (key) => key !== "matchTerminatesHere" && key !== "matchingUsersMap",
         )
         .forEach((char) => {
           traverseAndSaveMatches(currNode[char]);

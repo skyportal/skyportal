@@ -62,7 +62,7 @@ const ShiftPage = ({ route }) => {
         dispatch(
           getShiftsSummary({
             shiftID: parseInt(route.id, 10),
-          })
+          }),
         );
         setShow(false);
       } else {
@@ -77,8 +77,8 @@ const ShiftPage = ({ route }) => {
         dispatch(
           showNotification(
             "The shift currently selected has been deleted",
-            "warning"
-          )
+            "warning",
+          ),
         );
         dispatch({ type: "skyportal/FETCH_SHIFT_OK", data: {} });
       }

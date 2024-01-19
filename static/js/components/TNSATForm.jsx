@@ -44,7 +44,7 @@ const TNSATForm = ({ obj_id }) => {
   const streams = useSelector((state) => state.streams);
 
   const tnsAllowedInstruments = useSelector(
-    (state) => state.config.tnsAllowedInstruments
+    (state) => state.config.tnsAllowedInstruments,
   );
 
   const { tnsrobotList } = useSelector((state) => state.tnsrobots);
@@ -63,7 +63,7 @@ const TNSATForm = ({ obj_id }) => {
   });
 
   const allowedInstruments = instrumentList.filter((instrument) =>
-    (tnsAllowedInstruments || []).includes(instrument.name?.toLowerCase())
+    (tnsAllowedInstruments || []).includes(instrument.name?.toLowerCase()),
   );
 
   useEffect(() => {
@@ -159,7 +159,7 @@ const TNSATForm = ({ obj_id }) => {
           enum: [instrument.id],
           title: `${
             telescopeList.find(
-              (telescope) => telescope.id === instrument.telescope_id
+              (telescope) => telescope.id === instrument.telescope_id,
             )?.name
           } / ${instrument.name}`,
         })),
@@ -188,20 +188,20 @@ const TNSATForm = ({ obj_id }) => {
       `${currentUser.first_name} ${currentUser.last_name} on behalf of...`
     ) {
       errors.reporters.addError(
-        "Please edit the reporters field before submitting"
+        "Please edit the reporters field before submitting",
       );
     }
     if (formData.reporters.includes("on behalf of")) {
       const secondHalf = formData.reporters.split("on behalf of")[1];
       if (!secondHalf.match(/[a-z]/i)) {
         errors.reporters.addError(
-          "Please specify the group you are reporting on behalf of"
+          "Please specify the group you are reporting on behalf of",
         );
       }
     }
     if (formData.reporters === "" || formData.reporters === undefined) {
       errors.reporters.addError(
-        "Please specify the group you are reporting on behalf of"
+        "Please specify the group you are reporting on behalf of",
       );
     }
 
@@ -211,7 +211,7 @@ const TNSATForm = ({ obj_id }) => {
         formData.archivalComment === undefined
       ) {
         errors.archival.addError(
-          "Archival comment must be defined if archive is true"
+          "Archival comment must be defined if archive is true",
         );
       }
     }

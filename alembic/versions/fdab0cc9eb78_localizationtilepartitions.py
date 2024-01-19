@@ -450,7 +450,6 @@ def upgrade():
 
 
 def downgrade():
-
     # then we want to ingest the data of all the partitions into the default table
     op.execute(
         'INSERT INTO localizationtiles_def(localization_id, probdensity, healpix, created_at, modified, dateobs) SELECT localization_id, probdensity, healpix, created_at, modified, dateobs FROM localizationtiles_2023_04'

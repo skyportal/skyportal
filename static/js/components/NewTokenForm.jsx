@@ -41,7 +41,7 @@ const NewTokenForm = ({ availableAcls }) => {
 
   const onSubmit = async (data) => {
     const selectedACLs = availableAcls?.filter(
-      (include, idx) => data.acls[idx]
+      (include, idx) => data.acls[idx],
     );
     data.acls = selectedACLs;
 

@@ -101,7 +101,7 @@ const InstrumentTable = ({
           dispatch(showNotification("Instrument deleted"));
           closeDialog();
         }
-      }
+      },
     );
   };
 
@@ -256,7 +256,7 @@ const InstrumentTable = ({
         paginateCallback(
           tableState.page + 1,
           tableState.rowsPerPage,
-          tableState.sortOrder
+          tableState.sortOrder,
         );
         break;
       case "sort":

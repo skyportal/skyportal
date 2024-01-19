@@ -150,7 +150,7 @@ export function submitImageAnalysis(id, formData) {
   return API.POST(
     `/api/internal/sources/${id}/image_analysis`,
     SUBMIT_IMAGE_ANALYSIS,
-    formData
+    formData,
   );
 }
 
@@ -158,7 +158,7 @@ export function copySourcePhotometry(id, formData = {}) {
   return API.POST(
     `/api/sources/${id}/copy_photometry`,
     COPY_SOURCE_PHOTOMETRY,
-    formData
+    formData,
   );
 }
 
@@ -170,7 +170,7 @@ export function addClassificationVote(classification_id, data = {}) {
   return API.POST(
     `/api/classification/votes/${classification_id}`,
     ADD_CLASSIFICATION_VOTE,
-    data
+    data,
   );
 }
 
@@ -182,7 +182,7 @@ export function startAnalysis(id, analysis_service_id, formData = {}) {
   return API.POST(
     `/api/obj/${id}/analysis/${analysis_service_id}`,
     START_ANALYSIS_FOR_OBJ,
-    formData
+    formData,
   );
 }
 
@@ -190,7 +190,7 @@ export function deleteAnalysis(analysis_id, formData = {}) {
   return API.DELETE(
     `/api/obj/analysis/${analysis_id}`,
     DELETE_ANALYSIS,
-    formData
+    formData,
   );
 }
 
@@ -198,52 +198,52 @@ export function fetchAnalyses(analysis_resource_type = "obj", params = {}) {
   return API.GET(
     `/api/${analysis_resource_type}/analysis`,
     FETCH_ANALYSES_FOR_OBJ,
-    params
+    params,
   );
 }
 
 export function fetchAnalysis(
   analysis_id,
   analysis_resource_type = "obj",
-  params = {}
+  params = {},
 ) {
   return API.GET(
     `/api/${analysis_resource_type}/analysis/${analysis_id}`,
     FETCH_ANALYSIS_FOR_OBJ,
-    params
+    params,
   );
 }
 
 export function fetchAnalysisResults(
   analysis_id,
   analysis_resource_type = "obj",
-  params = {}
+  params = {},
 ) {
   return API.GET(
     `/api/${analysis_resource_type}/analysis/${analysis_id}/results`,
     FETCH_ANALYSIS_RESULTS_FOR_OBJ,
-    params
+    params,
   );
 }
 
 export function deleteClassification(classification_id) {
   return API.DELETE(
     `/api/classification/${classification_id}`,
-    DELETE_CLASSIFICATION
+    DELETE_CLASSIFICATION,
   );
 }
 
 export function deleteClassificationVote(classification_id) {
   return API.DELETE(
     `/api/classification/votes/${classification_id}`,
-    DELETE_CLASSIFICATION_VOTE
+    DELETE_CLASSIFICATION_VOTE,
   );
 }
 
 export function deleteClassifications(source_id) {
   return API.DELETE(
     `/api/sources/${source_id}/classifications`,
-    DELETE_CLASSIFICATIONS
+    DELETE_CLASSIFICATIONS,
   );
 }
 
@@ -266,16 +266,16 @@ export function addComment(formData) {
             API.POST(
               `/api/spectra/${formData.spectrum_id}/comments`,
               ADD_COMMENT,
-              formData
-            )
+              formData,
+            ),
           );
         } else {
           dispatch(
             API.POST(
               `/api/sources/${formData.obj_id}/comments`,
               ADD_COMMENT,
-              formData
-            )
+              formData,
+            ),
           );
         }
       });
@@ -285,13 +285,13 @@ export function addComment(formData) {
     return API.POST(
       `/api/spectra/${formData.spectrum_id}/comments`,
       ADD_COMMENT,
-      formData
+      formData,
     );
   }
   return API.POST(
     `/api/sources/${formData.obj_id}/comments`,
     ADD_COMMENT,
-    formData
+    formData,
   );
 }
 
@@ -299,28 +299,28 @@ export function addAnnotation(sourceID, formData) {
   return API.POST(
     `/api/sources/${sourceID}/annotations`,
     ADD_ANNOTATION,
-    formData
+    formData,
   );
 }
 
 export function deleteAnnotation(sourceID, annotationID) {
   return API.DELETE(
     `/api/sources/${sourceID}/annotations/${annotationID}`,
-    DELETE_ANNOTATION
+    DELETE_ANNOTATION,
   );
 }
 
 export function deleteComment(sourceID, commentID) {
   return API.DELETE(
     `/api/sources/${sourceID}/comments/${commentID}`,
-    DELETE_COMMENT
+    DELETE_COMMENT,
   );
 }
 
 export function deleteCommentOnSpectrum(spectrumID, commentID) {
   return API.DELETE(
     `/api/spectra/${spectrumID}/comments/${commentID}`,
-    DELETE_COMMENT_ON_SPECTRUM
+    DELETE_COMMENT_ON_SPECTRUM,
   );
 }
 
@@ -343,16 +343,16 @@ export function editComment(commentID, formData) {
             API.PUT(
               `/api/spectra/${formData.spectrum_id}/comments/${commentID}`,
               EDIT_COMMENT,
-              formData
-            )
+              formData,
+            ),
           );
         } else {
           dispatch(
             API.PUT(
               `/api/sources/${formData.obj_id}/comments/${commentID}`,
               EDIT_COMMENT,
-              formData
-            )
+              formData,
+            ),
           );
         }
       });
@@ -362,41 +362,41 @@ export function editComment(commentID, formData) {
     return API.PUT(
       `/api/spectra/${formData.spectrum_id}/comments/${commentID}`,
       EDIT_COMMENT,
-      formData
+      formData,
     );
   }
   return API.PUT(
     `/api/sources/${formData.obj_id}/comments/${commentID}`,
     EDIT_COMMENT,
-    formData
+    formData,
   );
 }
 
 export function getCommentAttachment(sourceID, commentID) {
   return API.GET(
     `/api/sources/${sourceID}/comments/${commentID}/attachment`,
-    GET_COMMENT_ATTACHMENT
+    GET_COMMENT_ATTACHMENT,
   );
 }
 
 export function getCommentAttachmentPreview(sourceID, commentID) {
   return API.GET(
     `/api/sources/${sourceID}/comments/${commentID}`,
-    GET_COMMENT_ATTACHMENT_PREVIEW
+    GET_COMMENT_ATTACHMENT_PREVIEW,
   );
 }
 
 export function getCommentOnSpectrumAttachment(spectrumID, commentID) {
   return API.GET(
     `/api/spectra/${spectrumID}/comments/${commentID}/attachment`,
-    GET_COMMENT_ON_SPECTRUM_ATTACHMENT
+    GET_COMMENT_ON_SPECTRUM_ATTACHMENT,
   );
 }
 
 export function getCommentOnSpectrumAttachmentPreview(spectrumID, commentID) {
   return API.GET(
     `/api/spectra/${spectrumID}/comments/${commentID}`,
-    GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW
+    GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW,
   );
 }
 
@@ -421,7 +421,7 @@ export function checkSource(id, params, actionType = CHECK_SOURCE) {
   }
   return API.GET(
     `/api/source_exists/${id}?ra=${params.ra}&dec=${params.dec}&radius=0.0003`,
-    actionType
+    actionType,
   );
 }
 
@@ -465,7 +465,7 @@ export const submitFollowupRequest = (params) => {
   return API.POST(
     "/api/followup_request",
     SUBMIT_FOLLOWUP_REQUEST,
-    paramsToSubmit
+    paramsToSubmit,
   );
 };
 
@@ -474,7 +474,7 @@ export const editFollowupRequest = (params, requestID) => {
   return API.PUT(
     `/api/followup_request/${requestID}`,
     EDIT_FOLLOWUP_REQUEST,
-    paramsToSubmit
+    paramsToSubmit,
   );
 };
 
@@ -540,7 +540,7 @@ const reducer = (
     associatedGCNs: null,
     analyses: null,
   },
-  action
+  action,
 ) => {
   switch (action.type) {
     case FETCH_LOADED_SOURCE_OK: {

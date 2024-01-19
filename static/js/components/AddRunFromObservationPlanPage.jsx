@@ -30,7 +30,7 @@ const AddRunFromObservationPlanPage = ({ observationplanRequest }) => {
     setIsCreatingObservingRun(id);
     const params = { groupIds };
     await dispatch(
-      Actions.createObservationPlanRequestObservingRun(id, params)
+      Actions.createObservationPlanRequestObservingRun(id, params),
     );
     setIsCreatingObservingRun(null);
     closeDialog();
@@ -71,7 +71,7 @@ const AddRunFromObservationPlanPage = ({ observationplanRequest }) => {
                   onClick={() => {
                     handleCreateObservingRun(
                       observationplanRequest.id,
-                      selectedGroupIds
+                      selectedGroupIds,
                     );
                   }}
                   size="small"

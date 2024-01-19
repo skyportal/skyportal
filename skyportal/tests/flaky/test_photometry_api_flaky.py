@@ -33,7 +33,6 @@ def test_token_user_big_post(
 def test_post_external_photometry(
     upload_data_token, super_admin_token, super_admin_user, public_group
 ):
-
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",

@@ -26,7 +26,7 @@ export function updateBasicUserInfo(formData, user_id) {
   return API.PATCH(
     `/api/internal/profile${user_id ? `/${user_id}` : ""}`,
     UPDATE_BASIC_USER_INFO,
-    formData
+    formData,
   );
 }
 

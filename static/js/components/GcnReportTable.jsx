@@ -206,7 +206,7 @@ GcnReportTable.propTypes = {
       created_at: PropTypes.string,
       sent_by: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
       group: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
-    })
+    }),
   ),
   setSelectedGcnReportId: PropTypes.func.isRequired,
   deleteGcnReport: PropTypes.func.isRequired,

@@ -69,14 +69,14 @@ const StartBotSummary = ({ obj_id }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { analysisServiceList } = useSelector(
-    (state) => state.analysis_services
+    (state) => state.analysis_services,
   );
 
   const uniqueNames = [
     ...new Set(analysisServiceList.map((item) => item.name)),
   ];
   const uniqueAnalysisServiceList = uniqueNames.map((name) =>
-    analysisServiceList.find((item) => item.name === name)
+    analysisServiceList.find((item) => item.name === name),
   );
   const allGroups = useSelector((state) => state.groups.all);
   const prefs = useSelector((state) => state.profile.preferences);
@@ -104,7 +104,7 @@ const StartBotSummary = ({ obj_id }) => {
       let data = [];
       if (!analysisServiceList || analysisServiceList.length === 0) {
         const result = await dispatch(
-          analysisServicesActions.fetchAnalysisServices()
+          analysisServicesActions.fetchAnalysisServices(),
         );
         data = result?.data || [];
       } else {
@@ -142,7 +142,7 @@ const StartBotSummary = ({ obj_id }) => {
       params.group_ids = selectedGroupIds;
     }
     await dispatch(
-      sourceActions.startAnalysis(obj_id, selectedAnalysisServiceId, params)
+      sourceActions.startAnalysis(obj_id, selectedAnalysisServiceId, params),
     );
     setIsSubmitting(false);
     setDialogOpen(false);
@@ -219,7 +219,7 @@ const StartBotSummary = ({ obj_id }) => {
                     >
                       {analysisService.name}
                     </MenuItem>
-                  )
+                  ),
               )}
             </Select>
           </div>

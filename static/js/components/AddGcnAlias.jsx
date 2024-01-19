@@ -37,7 +37,7 @@ const AddGcnAlias = ({ gcnEvent }) => {
   useEffect(() => {
     setInvalid(
       // eslint-disable-next-line no-restricted-globals
-      gcnEvent?.aliases?.includes(alias)
+      gcnEvent?.aliases?.includes(alias),
     );
   }, [gcnEvent, setInvalid, alias]);
 
@@ -48,7 +48,7 @@ const AddGcnAlias = ({ gcnEvent }) => {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     const result = await dispatch(
-      gcnEventActions.postGcnAlias(gcnEvent.dateobs, { alias })
+      gcnEventActions.postGcnAlias(gcnEvent.dateobs, { alias }),
     );
     setIsSubmitting(false);
     if (result.status === "success") {

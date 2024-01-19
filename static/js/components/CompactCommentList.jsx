@@ -45,7 +45,7 @@ const CompactCommentList = ({
         (parseFloat(spectrum.observed_at.substring(11, 13)) / 24) * 10;
       return `**Spectrum ${spectrum.observed_at.substring(
         2,
-        10
+        10,
       )}.${dayFraction.toFixed(0)}** ${text}`;
     }
 
@@ -54,7 +54,7 @@ const CompactCommentList = ({
 
   const emojiSupport = (textComment) =>
     textComment.value.replace(/:\w+:/gi, (name) =>
-      emoji.getUnicode(name) ? emoji.getUnicode(name) : name
+      emoji.getUnicode(name) ? emoji.getUnicode(name) : name,
     );
 
   const commentMessageStyle =

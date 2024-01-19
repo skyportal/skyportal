@@ -172,7 +172,7 @@ const AnalysisList = ({ obj_id }) => {
         chip_color = "error";
       }
       const last_active_str = `${dayjs().to(
-        dayjs.utc(`${analysis.last_activity}Z`)
+        dayjs.utc(`${analysis.last_activity}Z`),
       )}`;
       const duration_str = `${analysis.duration?.toFixed(2)} sec`;
       const tooltip_str = `${last_active_str} (${duration_str})`;
@@ -201,7 +201,7 @@ const AnalysisList = ({ obj_id }) => {
     const renderLastActivity = (dataIndex) => {
       const analysis = analysesList[dataIndex];
       const last_active_str = `${dayjs().to(
-        dayjs.utc(`${analysis?.last_activity}Z`)
+        dayjs.utc(`${analysis?.last_activity}Z`),
       )}`;
       const duration_str = `${analysis?.duration?.toFixed(2)} sec`;
       const info_str = `${last_active_str} (duration ${duration_str})`;

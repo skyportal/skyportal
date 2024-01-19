@@ -25,7 +25,7 @@ const ClassificationSelect = (props) => {
   let classifications = [];
   latestTaxonomyList?.forEach((taxonomy) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
-      (option) => option.class
+      (option) => option.class,
     );
     classifications = classifications.concat(currentClasses);
   });

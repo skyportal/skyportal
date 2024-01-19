@@ -53,7 +53,7 @@ const reducer = (
     instrumentObsplanFormParams: {},
     gcnEventInstruments: [],
   },
-  action
+  action,
 ) => {
   switch (action.type) {
     case FETCH_INSTRUMENTS_OK: {

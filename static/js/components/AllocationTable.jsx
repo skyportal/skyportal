@@ -105,7 +105,7 @@ const AllocationTable = ({
           dispatch(showNotification("Allocation deleted"));
           closeDialog();
         }
-      }
+      },
     );
   };
 
@@ -175,7 +175,7 @@ const AllocationTable = ({
     if (allocation.default_share_group_ids?.length > 0) {
       allocation.default_share_group_ids.forEach((share_group_id) => {
         share_groups.push(
-          groups?.filter((g) => g.id === share_group_id)[0].name
+          groups?.filter((g) => g.id === share_group_id)[0].name,
         );
       });
     }
@@ -271,7 +271,7 @@ const AllocationTable = ({
         paginateCallback(
           tableState.page + 1,
           tableState.rowsPerPage,
-          tableState.sortOrder
+          tableState.sortOrder,
         );
         break;
       case "sort":

@@ -21,7 +21,7 @@ export const submitObservingRun = (run) =>
 export function deleteObservingRun(observingRunID) {
   return API.DELETE(
     `/api/observing_run/${observingRunID}`,
-    DELETE_OBSERVING_RUN
+    DELETE_OBSERVING_RUN,
   );
 }
 

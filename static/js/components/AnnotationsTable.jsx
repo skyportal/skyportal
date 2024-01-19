@@ -45,7 +45,7 @@ const getMuiTheme = (theme) =>
       MUIDataTableBodyCell: {
         root: {
           padding: `${theme.spacing(0.5)} 0 ${theme.spacing(
-            0.5
+            0.5,
           )} ${theme.spacing(0.5)}`,
         },
       },
@@ -107,7 +107,7 @@ const AnnotationsTable = ({
       await dispatch(sourceActions.deleteAnnotation(id, annotation_id));
     } else if (type === "spectrum") {
       await dispatch(
-        spectraActions.deleteAnnotation(spectrum_id, annotation_id)
+        spectraActions.deleteAnnotation(spectrum_id, annotation_id),
       );
     }
     setIsRemoving(null);
@@ -166,7 +166,7 @@ const AnnotationsTable = ({
                   annotation.obj_id,
                   annotation.spectrum_id,
                   annotation.id,
-                  annotation.type
+                  annotation.type,
                 );
               }}
               size="small"
@@ -299,7 +299,7 @@ AnnotationsTable.propTypes = {
         username: PropTypes.string.isRequired,
       }).isRequired,
       created_at: PropTypes.string.isRequired,
-    })
+    }),
   ).isRequired,
   spectrumAnnotations: PropTypes.arrayOf(
     PropTypes.shape({
@@ -310,7 +310,7 @@ AnnotationsTable.propTypes = {
       }).isRequired,
       created_at: PropTypes.string.isRequired,
       spectrum_observed_at: PropTypes.string.isRequired,
-    })
+    }),
   ),
   canExpand: PropTypes.bool,
 };

@@ -16,7 +16,7 @@ const NewAPIObservation = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiObsplan } = useSelector(
-    (state) => state.allocations
+    (state) => state.allocations,
   );
   const allGroups = useSelector((state) => state.groups.all);
 
@@ -88,12 +88,12 @@ const NewAPIObservation = () => {
   function validate(formData, errors) {
     if (nowDate < formData.end_date) {
       errors.end_date.addError(
-        "End date must be before current time, please fix."
+        "End date must be before current time, please fix.",
       );
     }
     if (formData.start_date > formData.end_date) {
       errors.start_date.addError(
-        "Start date must be before end date, please fix."
+        "Start date must be before end date, please fix.",
       );
     }
     return errors;

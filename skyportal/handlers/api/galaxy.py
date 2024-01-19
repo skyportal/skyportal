@@ -54,7 +54,6 @@ def get_galaxies(
     num_per_page=MAX_GALAXIES,
     return_probability=False,
 ):
-
     if catalog_names_only:
         stmt = Galaxy.select(
             session.user_or_token, columns=[Galaxy.catalog_name]
@@ -109,7 +108,6 @@ def get_galaxies(
             )
 
     if localization_dateobs is not None:
-
         if localization_name is not None:
             localization = session.scalars(
                 Localization.select(session.user_or_token).where(
@@ -250,7 +248,6 @@ def get_galaxies(
 
     galaxies = session.scalars(query).all()
     if return_probability:
-
         PROB, DISTMU, DISTSIGMA, DISTNORM = localization.flat
         ras = np.array([galaxy.ra for galaxy in galaxies])
         decs = np.array([galaxy.dec for galaxy in galaxies])
@@ -597,7 +594,6 @@ class GalaxyCatalogHandler(BaseHandler):
         """
 
         with self.Session():
-
             IOLoop.current().run_in_executor(
                 None, lambda: delete_galaxies(catalog_name)
             )
@@ -606,7 +602,6 @@ class GalaxyCatalogHandler(BaseHandler):
 
 
 def delete_galaxies(catalog_name):
-
     if Session.registry.has():
         session = Session()
     else:
@@ -624,7 +619,6 @@ def delete_galaxies(catalog_name):
 
 
 def add_galaxies(catalog_name, catalog_data):
-
     if Session.registry.has():
         session = Session()
     else:
@@ -795,7 +789,6 @@ class GalaxyASCIIFileHandler(BaseHandler):
 
 
 def add_glade(file_path=None, file_url=None):
-
     column_names = [
         'GLADE_no',
         'PGC_no',
@@ -869,7 +862,6 @@ def add_glade(file_path=None, file_url=None):
     full_blueshift_length = 0
     start_loop_timer = time.perf_counter()
     for ii, df in enumerate(tbls):
-
         try:
             start_timer = time.perf_counter()
             df = df.to_pandas()
@@ -1069,7 +1061,6 @@ def get_galaxies_completeness(
     M_max=12,
     M_x12=10.676,
 ):
-
     # standard constants
     h = 0.7
     phiStar_M1 = 10 ** (-3.31) * h**3

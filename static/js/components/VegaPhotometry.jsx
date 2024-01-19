@@ -22,7 +22,7 @@ const findPeriodInAnnotations = (annotations = []) => {
   const periodAnnotation = sortedAnnotations.find((annotation) => {
     // look if there is a key like period, Period, or PERIOD
     const periodKey = Object.keys(annotation.data || {}).find(
-      (key) => key.toLowerCase() === "period"
+      (key) => key.toLowerCase() === "period",
     );
     if (periodKey && typeof annotation.data[periodKey] === "number") {
       periodAnnotationKey = periodKey;
@@ -82,7 +82,7 @@ const VegaPhotometryMemo = React.memo(
       }
     }
     return true;
-  }
+  },
 );
 
 VegaPhotometryMemo.displayName = "VegaPhotometryMemo";
@@ -131,7 +131,7 @@ const VegaPhotometry = (props) => {
         }
         if (filters?.length > 0 && wavelengths.length === 0) {
           const result = await dispatch(
-            photometryActions.fetchFilterWavelengths({ filters })
+            photometryActions.fetchFilterWavelengths({ filters }),
           );
           if (result.status === "success") {
             setWavelengths(wavelengthsToHex(result.data.wavelengths));
@@ -173,7 +173,7 @@ VegaPhotometry.propTypes = {
     PropTypes.shape({
       modified: PropTypes.string.isRequired,
       data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
-    })
+    }),
   ),
   folded: PropTypes.bool,
 };

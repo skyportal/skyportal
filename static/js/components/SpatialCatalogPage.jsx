@@ -83,7 +83,7 @@ const SpatialCatalogSourcesPage = ({
   const [spatialCatalogEntryName, setSpatialCatalogEntryName] = useState(null);
 
   const spatialCatalogSources = useSelector(
-    (state) => state?.sources?.spatialCatalogSources
+    (state) => state?.sources?.spatialCatalogSources,
   );
 
   const spatialCatalogsLookUp = {};
@@ -95,7 +95,7 @@ const SpatialCatalogSourcesPage = ({
   useEffect(() => {
     if (selectedSpatialCatalogId) {
       setSpatialCatalogName(
-        spatialCatalogsLookUp[selectedSpatialCatalogId]?.catalog_name
+        spatialCatalogsLookUp[selectedSpatialCatalogId]?.catalog_name,
       );
     }
   }, [selectedSpatialCatalogId]);
@@ -104,8 +104,8 @@ const SpatialCatalogSourcesPage = ({
     if (selectedSpatialCatalogEntryId) {
       setSpatialCatalogEntryName(
         spatialCatalog?.entries?.filter(
-          (l) => l.id === selectedSpatialCatalogEntryId
-        )[0]?.entry_name
+          (l) => l.id === selectedSpatialCatalogEntryId,
+        )[0]?.entry_name,
       );
     }
   }, [selectedSpatialCatalogEntryId]);
@@ -121,8 +121,8 @@ const SpatialCatalogSourcesPage = ({
           numPerPage: sourcesRowsPerPage,
           sortBy: sortData.name,
           sortOrder: sortData.direction,
-        }
-      )
+        },
+      ),
     );
   };
 
@@ -130,7 +130,7 @@ const SpatialCatalogSourcesPage = ({
     pageNumber,
     numPerPage,
     sortData,
-    filterData
+    filterData,
   ) => {
     setSourcesRowsPerPage(numPerPage);
     const data = {
@@ -146,8 +146,8 @@ const SpatialCatalogSourcesPage = ({
       sourcesActions.fetchSpatialCatalogSources(
         spatialCatalogName,
         spatialCatalogEntryName,
-        data
-      )
+        data,
+      ),
     );
   };
 
@@ -188,7 +188,7 @@ SpatialCatalogSourcesPage.propTypes = {
     PropTypes.shape({
       catalog_name: PropTypes.string,
       catalog_count: PropTypes.number,
-    })
+    }),
   ).isRequired,
   spatialCatalog: PropTypes.shape({
     entries: PropTypes.arrayOf(
@@ -196,7 +196,7 @@ SpatialCatalogSourcesPage.propTypes = {
         id: PropTypes.number,
         entry_name: PropTypes.string,
         data: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
-      })
+      }),
     ),
   }),
 };
@@ -227,12 +227,12 @@ const SpatialCatalogList = ({ catalogs, deletePermission }) => {
       (result) => {
         if (result.status === "success") {
           dispatch(
-            showNotification("Spatial catalog deleting... please be patient.")
+            showNotification("Spatial catalog deleting... please be patient."),
           );
           dispatch(spatialCatalogsActions.fetchSpatialCatalogs());
           closeDialog();
         }
-      }
+      },
     );
   };
 
@@ -280,7 +280,7 @@ SpatialCatalogList.propTypes = {
     PropTypes.shape({
       catalog_name: PropTypes.string,
       catalog_count: PropTypes.number,
-    })
+    }),
   ),
   deletePermission: PropTypes.bool.isRequired,
 };
@@ -313,7 +313,7 @@ const SpatialCatalogPage = () => {
   useEffect(() => {
     if (selectedSpatialCatalogId) {
       dispatch(
-        spatialCatalogsActions.fetchSpatialCatalog(selectedSpatialCatalogId)
+        spatialCatalogsActions.fetchSpatialCatalog(selectedSpatialCatalogId),
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

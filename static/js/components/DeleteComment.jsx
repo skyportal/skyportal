@@ -26,7 +26,7 @@ const DeleteComment = ({
 
   const deleteCommentOnSpectrum = (commentSpectrumID, commentID) => {
     dispatch(
-      sourceActions.deleteCommentOnSpectrum(commentSpectrumID, commentID)
+      sourceActions.deleteCommentOnSpectrum(commentSpectrumID, commentID),
     );
   };
 

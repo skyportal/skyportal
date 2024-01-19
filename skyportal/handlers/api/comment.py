@@ -1011,7 +1011,6 @@ class CommentHandler(BaseHandler):
             return self.error("Must provide a valid (scalar integer) comment ID.")
 
         with self.Session() as session:
-
             if associated_resource_type.lower() == "sources":
                 c = session.scalars(
                     Comment.select(self.current_user, mode="delete").where(
@@ -1204,7 +1203,6 @@ class CommentAttachmentHandler(BaseHandler):
         preview = self.get_query_argument('preview', False)
 
         with self.Session() as session:
-
             if associated_resource_type.lower() == "sources":
                 comment = session.scalars(
                     Comment.select(self.current_user).where(Comment.id == comment_id)

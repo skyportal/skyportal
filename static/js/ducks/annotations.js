@@ -9,7 +9,7 @@ export const fetchAnnotationsInfo = (filterParams = {}) =>
   API.GET(
     "/api/internal/annotations_info",
     FETCH_ANNOTATIONS_INFO,
-    filterParams
+    filterParams,
   );
 
 const initialState = {};

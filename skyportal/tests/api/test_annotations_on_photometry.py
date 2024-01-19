@@ -4,7 +4,6 @@ from skyportal.tests import api, assert_api, assert_api_fail
 def test_add_and_retrieve_annotation_group_id(
     annotation_token, upload_data_token, public_source, public_group, ztf_camera
 ):
-
     status, data = api(
         'POST',
         'photometry',
@@ -104,7 +103,6 @@ def test_add_and_retrieve_annotation_group_access(
     annotation_token,
     ztf_camera,
 ):
-
     status, data = api(
         'POST',
         'photometry',
@@ -256,7 +254,6 @@ def test_add_and_retrieve_annotation_group_access(
 def test_cannot_add_annotation_without_permission(
     view_only_token, upload_data_token, public_source, ztf_camera
 ):
-
     status, data = api(
         'POST',
         'photometry',

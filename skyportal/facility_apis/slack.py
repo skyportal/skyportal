@@ -190,7 +190,6 @@ class SLACKAPI(FollowUpAPI):
             )
 
     def custom_json_schema(instrument, user):
-
         form_json_schema = {
             "type": "object",
             "properties": {

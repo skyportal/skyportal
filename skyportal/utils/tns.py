@@ -251,7 +251,6 @@ def post_tns(
     stream_ids=[],
     timeout=2,
 ):
-
     request_body = {
         'obj_ids': obj_ids,
         'tnsrobot_id': tnsrobot_id,
@@ -282,7 +281,6 @@ def get_tns(
     start_date=None,
     group_ids=None,
 ):
-
     if obj_id is None and start_date is None:
         raise ValueError('obj_id or start_date must be specified')
 
@@ -306,11 +304,10 @@ def get_tns(
 
 
 def read_tns_photometry(photometry, session):
-
     tns_instrument_id = photometry["instrument"]["id"]
     inst_name = None
     for key, value in TNS_INSTRUMENT_IDS.items():
-        if type(value) == list:
+        if isinstance(value, list):
             if tns_instrument_id in value:
                 inst_name = key
         else:
@@ -364,7 +361,6 @@ def read_tns_photometry(photometry, session):
 
 
 def read_tns_spectrum(spectrum, session):
-
     try:
         tab = Table.read(spectrum["asciifile"], format="ascii")
         tab.rename_column(tab.columns[0].name, 'wavelengths')
@@ -381,7 +377,7 @@ def read_tns_spectrum(spectrum, session):
     tns_instrument_id = spectrum["instrument"]["id"]
     inst_name = None
     for key, value in TNS_INSTRUMENT_IDS.items():
-        if type(value) == list:
+        if isinstance(value, list):
             if tns_instrument_id in value:
                 inst_name = key
         else:

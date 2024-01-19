@@ -54,7 +54,6 @@ class SourceExistsHandler(BaseHandler):
         radius = self.get_query_argument('radius', None)
 
         with self.Session() as session:
-
             if obj_id is not None:
                 s = session.scalars(
                     Obj.select(session.user_or_token).where(Obj.id == obj_id)

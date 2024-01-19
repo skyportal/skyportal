@@ -71,7 +71,7 @@ const InstrumentSummary = ({ route }) => {
       Action.fetchInstrumentLogs(route.id, {
         startDate: defaultStartDate,
         endDate: defaultEndDate,
-      })
+      }),
     ).then((response) => {
       if (response.status !== "success") {
         dispatch(showNotification("Error fetching instrument logs", "error"));
@@ -97,7 +97,7 @@ const InstrumentSummary = ({ route }) => {
           dispatch(showNotification("Error fetching instrument logs", "error"));
         }
         setLoading(false);
-      }
+      },
     );
   };
 
@@ -131,7 +131,7 @@ const InstrumentSummary = ({ route }) => {
             dispatch(showNotification("Instrument status updated"));
           } else {
             dispatch(
-              showNotification("Error updating instrument status", "error")
+              showNotification("Error updating instrument status", "error"),
             );
           }
         });

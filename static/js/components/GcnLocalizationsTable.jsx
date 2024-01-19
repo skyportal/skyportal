@@ -96,7 +96,7 @@ const GcnLocalizationsTable = ({ localizations }) => {
         if (loc.properties[0].data) {
           // append the keys of the properties object to the propertyNames array
           propertyNames = propertyNames.concat(
-            Object.keys(loc.properties[0].data)
+            Object.keys(loc.properties[0].data),
           );
         }
       }
@@ -289,11 +289,11 @@ GcnLocalizationsTable.propTypes = {
         PropTypes.shape({
           id: PropTypes.number,
           data: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
-        })
+        }),
       ),
       tags: PropTypes.arrayOf(PropTypes.string),
       center: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
-    })
+    }),
   ).isRequired,
 };
 

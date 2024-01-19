@@ -23,7 +23,7 @@ const QuickSaveSourcePreferences = () => {
   const classes = useStyles();
 
   const userAccessibleGroups = useSelector(
-    (state) => state.groups.userAccessible
+    (state) => state.groups.userAccessible,
   );
   const profile = useSelector((state) => state.profile);
 

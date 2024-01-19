@@ -141,7 +141,7 @@ const Group = () => {
 
   const isAdmin = (aUser) => {
     const currentGroupUser = group?.users?.filter(
-      (group_user) => group_user.id === aUser.id
+      (group_user) => group_user.id === aUser.id,
     )[0];
     return (
       (currentGroupUser && currentGroupUser.admin) ||

@@ -32,8 +32,8 @@ const gcirc = (ra1, dec1, ra2, dec2) => {
             Math.cos(dec1) *
               Math.cos(dec2) *
               Math.sin(delRA2) *
-              Math.sin(delRA2)
-        )
+              Math.sin(delRA2),
+        ),
       )) /
     Math.PI
   );
@@ -70,7 +70,7 @@ const getCirclePoints = (delRaGroup, delDecGroup) => {
 
 const getMessages = (delRaGroup, delDecGroup) => {
   const offset = Math.sqrt(
-    d3.median(delRaGroup) ** 2 + d3.median(delDecGroup) ** 2
+    d3.median(delRaGroup) ** 2 + d3.median(delDecGroup) ** 2,
   );
   const C = Math.max(d3.deviation(delRaGroup), d3.deviation(delDecGroup));
   const maxDelRA = Math.max.apply(null, delRaGroup.map(Math.abs));
@@ -284,7 +284,7 @@ const spec = (inputData, textColor, titleFontSize, labelFontSize) => ({
 const processData = (photometry) => {
   // Only take points with a non-null RA and Dec
   const filteredPhotometry = photometry?.filter(
-    (point) => point.ra && point.dec
+    (point) => point.ra && point.dec,
   );
 
   if (filteredPhotometry.length === 0) {
@@ -314,7 +314,7 @@ const processData = (photometry) => {
   const delRaGroup = [];
   const delDecGroup = [];
   const photometryAsArray = Object.values(filteredPhotometry).map(
-    computeDeltas(delRaGroup, delDecGroup)
+    computeDeltas(delRaGroup, delDecGroup),
   );
 
   // Sigma circle
@@ -366,11 +366,11 @@ const CentroidPlot = ({ sourceId, size }) => {
                   plotData,
                   theme.palette.text.primary,
                   theme.plotFontSizes.titleFontSize,
-                  theme.plotFontSizes.labelFontSize
+                  theme.plotFontSizes.labelFontSize,
                 ),
                 {
                   actions: false,
-                }
+                },
               );
             }
           }}

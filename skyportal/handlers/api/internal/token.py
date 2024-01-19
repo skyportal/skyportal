@@ -122,7 +122,6 @@ class TokenHandler(BaseHandler):
         user_id = self.get_query_argument("userID", None)
 
         with self.Session() as session:
-
             if token_id is not None:
                 t = session.scalars(
                     Token.select(session.user_or_token).where(Token.id == token_id)

@@ -86,7 +86,7 @@ const GcnEventAllocationTriggers = ({
 
   const currentUser = useSelector((state) => state.profile);
   const { allocationListApiObsplan } = useSelector(
-    (state) => state.allocations
+    (state) => state.allocations,
   );
   const { allocationList } = useSelector((state) => state.allocations);
 
@@ -138,7 +138,7 @@ const GcnEventAllocationTriggers = ({
   Object.keys(allocationLookUp).forEach((allocation_id) => {
     const t =
       triggers.find(
-        (trigger) => trigger.allocation_id === parseInt(allocation_id, 10)
+        (trigger) => trigger.allocation_id === parseInt(allocation_id, 10),
       ) || null;
     if (instruments_triggered[allocationLookUp[allocation_id]] === undefined) {
       instruments_triggered[allocationLookUp[allocation_id]] = {
@@ -187,7 +187,7 @@ const GcnEventAllocationTriggers = ({
         triggeredText,
         trigger_id: t?.id || null,
         allocation: allocationListApiObsplan.find(
-          (allocation) => allocation.id === parseInt(allocation_id, 10)
+          (allocation) => allocation.id === parseInt(allocation_id, 10),
         ),
       });
     }
@@ -241,14 +241,14 @@ const GcnEventAllocationTriggers = ({
             onClick={() => {
               if (permission) {
                 setSelectedInstrument(
-                  filtered_instruments_triggered[instrument]
+                  filtered_instruments_triggered[instrument],
                 );
               } else {
                 dispatch(
                   showNotification(
                     "You do not have permission to edit this GCN event allocation triggers",
-                    "error"
-                  )
+                    "error",
+                  ),
                 );
               }
             }}
@@ -299,21 +299,21 @@ const GcnEventAllocationTriggers = ({
                             dateobs: gcnEvent.dateobs,
                             allocationID: allocationTrigger?.allocation?.id,
                             triggered: true,
-                          })
+                          }),
                         ).then((response) => {
                           if (response.status === "success") {
                             dispatch(
                               showNotification(
-                                "Trigger state updated successfully"
-                              )
+                                "Trigger state updated successfully",
+                              ),
                             );
                             setSelectedInstrument(null);
                           } else {
                             dispatch(
                               showNotification(
                                 "Error updating trigger state",
-                                "error"
-                              )
+                                "error",
+                              ),
                             );
                           }
                         });
@@ -338,21 +338,21 @@ const GcnEventAllocationTriggers = ({
                             dateobs: gcnEvent.dateobs,
                             allocationID: allocationTrigger?.allocation?.id,
                             triggered: false,
-                          })
+                          }),
                         ).then((response) => {
                           if (response.status === "success") {
                             dispatch(
                               showNotification(
-                                "Trigger state updated successfully"
-                              )
+                                "Trigger state updated successfully",
+                              ),
                             );
                             setSelectedInstrument(null);
                           } else {
                             dispatch(
                               showNotification(
                                 "Error updating trigger state",
-                                "error"
-                              )
+                                "error",
+                              ),
                             );
                           }
                         });
@@ -376,21 +376,21 @@ const GcnEventAllocationTriggers = ({
                           gcnEventActions.deleteGcnTrigger({
                             dateobs: gcnEvent.dateobs,
                             allocationID: allocationTrigger?.allocation?.id,
-                          })
+                          }),
                         ).then((response) => {
                           if (response.status === "success") {
                             dispatch(
                               showNotification(
-                                "Trigger state updated successfully"
-                              )
+                                "Trigger state updated successfully",
+                              ),
                             );
                             setSelectedInstrument(null);
                           } else {
                             dispatch(
                               showNotification(
                                 "Error updating trigger state",
-                                "error"
-                              )
+                                "error",
+                              ),
                             );
                           }
                         });
@@ -404,7 +404,7 @@ const GcnEventAllocationTriggers = ({
                     />
                   </td>
                 </tr>
-              )
+              ),
             )}
           </table>
         </DialogContent>
@@ -422,7 +422,7 @@ GcnEventAllocationTriggers.propTypes = {
         allocation_id: PropTypes.number,
         dateobs: PropTypes.string,
         triggered: PropTypes.bool,
-      })
+      }),
     ),
   }).isRequired,
   showTriggered: PropTypes.bool,

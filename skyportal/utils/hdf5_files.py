@@ -39,7 +39,6 @@ def dump_dataframe_to_bytestream(df, metadata=None, keyname='phot_series', encod
     with pd.HDFStore(
         filename, mode='w', driver="H5FD_CORE", driver_core_backing_store=0
     ) as store:
-
         store.put(
             keyname,
             df,

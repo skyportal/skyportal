@@ -320,11 +320,11 @@ class Photometry(conesearch_alchemy.Point, Base):
         return sa.case(
             (
                 sa.and_(
-                    cls.ref_flux != None,  # noqa: E711
+                    cls.ref_flux is not None,
                     cls.ref_flux != 'NaN',
                     cls.ref_flux > 0,
                     cls.ref_fluxerr > 0,
-                    cls.flux != None,
+                    cls.flux is not None,
                     cls.flux != 'NaN',
                     cls.flux > 0,
                     cls.fluxerr > 0,

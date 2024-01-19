@@ -17,7 +17,6 @@ from skyportal.models import Photometry
 
 
 def test_calculate_best_position_no_photometry():
-
     ra, dec = _calculate_best_position_for_offset_stars(
         [], fallback=(10.0, -20.0), how="snr2", max_offset=0.5, sigma_clip=4.0
     )
@@ -253,7 +252,6 @@ except (HTTPError, Timeout, ConnectionError) as e:
 
 @pytest.mark.skipif(not run_desi_test, reason="DESI server down")
 def test_get_desi_finding_chart():
-
     rez = get_finding_chart(
         123.0, 33.3, "testSource", image_source='desi', output_format='pdf'
     )

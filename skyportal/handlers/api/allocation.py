@@ -201,7 +201,6 @@ class AllocationHandler(BaseHandler):
 
         data = self.get_json()
         with self.Session() as session:
-
             allocation_admin_ids = data.pop('allocation_admin_ids', None)
             if allocation_admin_ids is not None:
                 allocation_admins = session.scalars(
@@ -400,7 +399,6 @@ class AllocationReportHandler(BaseHandler):
             return self.error('output_format must be png or pdf')
 
         with self.Session() as session:
-
             # get owned allocations
             stmt = Allocation.select(session.user_or_token)
             stmt = stmt.where(Allocation.instrument_id == instrument_id)

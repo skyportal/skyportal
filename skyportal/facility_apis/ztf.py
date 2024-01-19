@@ -371,7 +371,6 @@ class ZTFAPI(FollowUpAPI):
 
     @staticmethod
     def delete(request, session, **kwargs):
-
         """Delete a follow-up request from ZTF queue.
 
         Parameters
@@ -459,7 +458,6 @@ class ZTFAPI(FollowUpAPI):
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
-
         """Submit a follow-up request to ZTF.
 
         Parameters
@@ -516,7 +514,6 @@ class ZTFAPI(FollowUpAPI):
             request.status = 'submitted'
 
             if request.payload["request_type"] == "forced_photometry":
-
                 params = urllib.parse.urlencode(
                     {
                         "email": altdata["ipac_email"],
@@ -664,7 +661,6 @@ class ZTFMMAAPI(MMAAPI):
     # subclasses *must* implement the method below
     @staticmethod
     def send(request, session):
-
         """Submit an EventObservationPlan to ZTF.
 
         Parameters
@@ -714,7 +710,6 @@ class ZTFMMAAPI(MMAAPI):
 
     @staticmethod
     def remove(request):
-
         """Delete an EventObservationPlan from ZTF queue.
 
         Parameters
@@ -771,7 +766,6 @@ class ZTFMMAAPI(MMAAPI):
 
     @staticmethod
     def queued(allocation, start_date=None, end_date=None, queues_only=False):
-
         """Retrieve queued observations by ZTF.
 
         Parameters
@@ -817,7 +811,6 @@ class ZTFMMAAPI(MMAAPI):
 
     @staticmethod
     def remove_queue(allocation, queue_name, username):
-
         """Remove a queue from ZTF.
 
         Parameters
@@ -848,7 +841,6 @@ class ZTFMMAAPI(MMAAPI):
 
     @staticmethod
     def retrieve(allocation, start_date, end_date):
-
         """Retrieve executed observations by ZTF.
 
         Parameters
@@ -887,7 +879,6 @@ class ZTFMMAAPI(MMAAPI):
 
     @staticmethod
     def send_skymap(allocation, payload):
-
         """Submit skymap queue to ZTF.
 
         Parameters

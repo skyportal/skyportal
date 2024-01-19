@@ -44,7 +44,7 @@ const UpdateSourceSummary = ({ source }) => {
   useEffect(() => {
     setInvalid(
       // eslint-disable-next-line no-restricted-globals
-      false
+      false,
     );
     setState({
       summary:
@@ -75,7 +75,7 @@ const UpdateSourceSummary = ({ source }) => {
     const result = await dispatch(
       sourceActions.updateSource(source.id, {
         ...newState,
-      })
+      }),
     );
     setIsSubmitting(false);
     if (result.status === "success") {

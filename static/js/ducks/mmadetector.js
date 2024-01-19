@@ -47,7 +47,7 @@ const reducer_mmadetector = (
     currentMMADetectors: null,
     currentMMADetectorMenu: "MMADetector List",
   },
-  action
+  action,
 ) => {
   switch (action.type) {
     case FETCH_MMADETECTOR_OK: {

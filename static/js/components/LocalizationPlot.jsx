@@ -108,9 +108,9 @@ LocalizationPlot.propTypes = {
               PropTypes.shape({
                 id: PropTypes.number,
                 name: PropTypes.string,
-              })
+              }),
             ),
-          })
+          }),
         ),
         recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
         altdata: PropTypes.shape({
@@ -126,9 +126,9 @@ LocalizationPlot.propTypes = {
           PropTypes.shape({
             id: PropTypes.number,
             name: PropTypes.string,
-          })
+          }),
         ),
-      })
+      }),
     ),
   }),
   galaxies: PropTypes.shape({
@@ -152,7 +152,7 @@ LocalizationPlot.propTypes = {
         b2a: PropTypes.number,
         pa: PropTypes.number,
         btc: PropTypes.number,
-      })
+      }),
     ),
   }),
   instrument: PropTypes.shape({
@@ -164,7 +164,7 @@ LocalizationPlot.propTypes = {
         ra: PropTypes.number,
         dec: PropTypes.number,
         id: PropTypes.number,
-      })
+      }),
     ),
   }),
   observations: PropTypes.shape({
@@ -175,7 +175,7 @@ LocalizationPlot.propTypes = {
           type: PropTypes.string,
           features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
         }),
-      ])
+      ]),
     ),
     observations: PropTypes.arrayOf(
       PropTypes.shape({
@@ -187,7 +187,7 @@ LocalizationPlot.propTypes = {
         limmag: PropTypes.number,
         seeing: PropTypes.number,
         processed_fraction: PropTypes.number,
-      })
+      }),
     ),
   }),
   airmass_threshold: PropTypes.number,
@@ -293,7 +293,7 @@ const GeoJSONGlobePlot = ({
 
       const gdistance = d3.geoDistance(
         d.geometry.coordinates,
-        projection.invert(center)
+        projection.invert(center),
       );
 
       // In front of globe?
@@ -363,7 +363,7 @@ const GeoJSONGlobePlot = ({
         .attr("cy", (d) => projection(d.geometry.coordinates)[1])
         .attr("r", 4)
         .style("visibility", (d) =>
-          visibleOnSphere(d) ? "visible" : "hidden"
+          visibleOnSphere(d) ? "visible" : "hidden",
         );
 
       svg
@@ -389,7 +389,7 @@ const GeoJSONGlobePlot = ({
           .attr("stroke", "black")
           .attr("stroke-width", 0.4)
           .style("visibility", (d) =>
-            visibleOnSphere(d) ? "visible" : "hidden"
+            visibleOnSphere(d) ? "visible" : "hidden",
           )
           .append("title")
           .text(
@@ -398,7 +398,7 @@ const GeoJSONGlobePlot = ({
             Dec: ${data.sun?.properties.dec}° \n
             Distance: ${data.sun?.properties.dist} km \n
             Radius: ${data.sun?.properties.radius}° \n
-            `
+            `,
           );
       }
 
@@ -428,7 +428,7 @@ const GeoJSONGlobePlot = ({
           .attr("stroke", "black")
           .attr("stroke-width", 0.4)
           .style("visibility", (d) =>
-            visibleOnSphere(d) ? "visible" : "hidden"
+            visibleOnSphere(d) ? "visible" : "hidden",
           )
           .append("title")
           .text(
@@ -437,7 +437,7 @@ const GeoJSONGlobePlot = ({
             Dec: ${data.moon?.properties.dec}° \n
             Distance: ${data.moon?.properties.dist} km \n
             Radius: ${data.moon?.properties.radius}° \n
-            `
+            `,
           );
       }
 
@@ -475,7 +475,7 @@ const GeoJSONGlobePlot = ({
           .append("text")
           .attr("transform", translate)
           .style("visibility", (d) =>
-            visibleOnSphere(d) ? "visible" : "hidden"
+            visibleOnSphere(d) ? "visible" : "hidden",
           )
           .style("text-anchor", "middle")
           .style("font-size", "0.75rem")
@@ -509,7 +509,7 @@ const GeoJSONGlobePlot = ({
         });
 
         const has_ref = data.instrument.fields.some(
-          (f) => (f.reference_filters || []).length > 0
+          (f) => (f.reference_filters || []).length > 0,
         );
 
         data.instrument.fields.forEach((f) => {
@@ -530,8 +530,8 @@ const GeoJSONGlobePlot = ({
               selected
                 ? filterColor
                 : airmass && airmass < airmass_threshold
-                ? "white"
-                : "gray"
+                  ? "white"
+                  : "gray",
             ) // we make the field semi-transparent if it doesn't have references
             .style("opacity", has_ref && references.length === 0 ? 0.4 : 0.95)
             .attr("d", geoGenerator)
@@ -540,7 +540,7 @@ const GeoJSONGlobePlot = ({
                 setSelectedFields([...selectedFields, Number(field_id)]);
               } else {
                 setSelectedFields(
-                  selectedFields.filter((id) => id !== Number(field_id))
+                  selectedFields.filter((id) => id !== Number(field_id)),
                 );
               }
               refresh();
@@ -553,7 +553,7 @@ const GeoJSONGlobePlot = ({
               } \nfilters: ${data.instrument.filters.join(", ")}${
                 airmass ? ` \nairmass: ${airmass}` : ""
               }${has_ref ? ` \nreferences: ${references.join(", ")}` : ""}
-              `
+              `,
             );
         });
       }
@@ -591,7 +591,7 @@ const GeoJSONGlobePlot = ({
           .append("text")
           .attr("transform", translate)
           .style("visibility", (d) =>
-            visibleOnSphere(d) ? "visible" : "hidden"
+            visibleOnSphere(d) ? "visible" : "hidden",
           )
           .style("text-anchor", "middle")
           .style("font-size", "0.75rem")
@@ -622,7 +622,7 @@ const GeoJSONGlobePlot = ({
           .append("text")
           .attr("transform", translate)
           .style("visibility", (d) =>
-            visibleOnSphere(d) ? "visible" : "hidden"
+            visibleOnSphere(d) ? "visible" : "hidden",
           )
           .style("text-anchor", "middle")
           .style("font-size", "0.75rem")
@@ -644,7 +644,7 @@ const GeoJSONGlobePlot = ({
           .append("title")
           .text(
             (d) =>
-              `coordinates: ${d.geometry.coordinates[0]}, ${d.geometry.coordinates[1]}`
+              `coordinates: ${d.geometry.coordinates[0]}, ${d.geometry.coordinates[1]}`,
           );
       }
     }
@@ -705,7 +705,7 @@ GeoJSONGlobePlot.propTypes = {
             features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
           }),
         ]),
-      })
+      }),
     ),
   }),
   observations: PropTypes.arrayOf(
@@ -715,7 +715,7 @@ GeoJSONGlobePlot.propTypes = {
         type: PropTypes.string,
         features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
       }),
-    ])
+    ]),
   ),
   options: PropTypes.shape({
     skymap: PropTypes.bool,

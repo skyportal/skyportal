@@ -57,7 +57,6 @@ def combine_healpix_tuples(input_tiles):
 
     # set upper bound to make sure this algorithm isn't crazy expensive
     for i in range(100000):
-
         input_tiles.sort()
         # check each tuple against all other tuples:
         for j1, t1 in enumerate(input_tiles):
@@ -202,7 +201,6 @@ def generate_observation_plan_statistics(
 
         # get the localization tiles as python objects
         if stats_method == 'python':
-
             t0 = time.time()
             localization_tiles = session.scalars(
                 sa.select(LocalizationTile)
@@ -295,7 +293,6 @@ def generate_observation_plan_statistics(
         # It is still too slow at scale, but hopefully we can figure
         # out why and replace the code above with this block at some point.
         elif stats_method == 'db':
-
             t0 = time.time()
             union = (
                 sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
@@ -942,7 +939,6 @@ class MMAAPI(FollowUpAPI):
     # subclasses *must* implement the method below
     @staticmethod
     def submit_multiple(requests, asynchronous=True):
-
         """Generate multiple observation plans.
 
         Parameters
@@ -962,7 +958,6 @@ class MMAAPI(FollowUpAPI):
                 plan_name=request.payload["queue_name"]
             ).first()
             if plan is None:
-
                 # check payload
                 required_parameters = {
                     'start_date',
@@ -1072,7 +1067,6 @@ class MMAAPI(FollowUpAPI):
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request_id, asynchronous=True):
-
         """Generate an observation plan.
 
         Parameters
@@ -1100,7 +1094,6 @@ class MMAAPI(FollowUpAPI):
             ).first()
 
             if plan is None:
-
                 # check payload
                 required_parameters = {
                     'start_date',
@@ -1248,7 +1241,6 @@ class MMAAPI(FollowUpAPI):
         DBSession().commit()
 
     def custom_json_schema(instrument, user):
-
         from ..models import DBSession, Galaxy, InstrumentField
 
         galaxies = [g for g, in DBSession().query(Galaxy.catalog_name).distinct().all()]
@@ -1518,7 +1510,6 @@ class MMAAPI(FollowUpAPI):
 
     @staticmethod
     def send(request, session):
-
         """Submit an EventObservationPlan.
 
         Parameters

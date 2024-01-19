@@ -121,7 +121,7 @@ const TopSaversSearch = ({ savers, setOptions }) => {
           (saver.author.last_name &&
             saver.author.last_name
               .toLowerCase()
-              .includes(newValue.toLowerCase()))
+              .includes(newValue.toLowerCase())),
       );
       setOptions(newOptions);
     }
@@ -160,7 +160,7 @@ TopSaversSearch.propTypes = {
         gravatar_url: PropTypes.string,
       }).isRequired,
       saves: PropTypes.number.isRequired,
-    })
+    }),
   ),
   setOptions: PropTypes.func.isRequired,
 };
@@ -258,7 +258,7 @@ TopSaversList.propTypes = {
         gravatar_url: PropTypes.string,
       }).isRequired,
       saves: PropTypes.number.isRequired,
-    })
+    }),
   ),
   styles: PropTypes.shape(Object).isRequired,
 };
@@ -284,21 +284,21 @@ const TopSavers = ({ classes }) => {
 
   const [currentTimespan, setCurrentTimespan] = useState(
     timespans.find(
-      (timespan) => timespan.sinceDaysAgo === topSaversPrefs.sinceDaysAgo
-    )
+      (timespan) => timespan.sinceDaysAgo === topSaversPrefs.sinceDaysAgo,
+    ),
   );
   const theme = useTheme();
   const dispatch = useDispatch();
 
   const switchTimespan = (event) => {
     const newTimespan = timespans.find(
-      (timespan) => timespan.label === event.target.innerText
+      (timespan) => timespan.label === event.target.innerText,
     );
     setCurrentTimespan(newTimespan);
     topSaversPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
 
     dispatch(
-      profileActions.updateUserPreferences({ topSavers: topSaversPrefs })
+      profileActions.updateUserPreferences({ topSavers: topSaversPrefs }),
     );
   };
 

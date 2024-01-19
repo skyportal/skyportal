@@ -104,15 +104,15 @@ const config = {
       baselayer: path.resolve(__dirname, "baselayer/static/js"),
       reactgridlayoutcss: path.resolve(
         __dirname,
-        "node_modules/react-grid-layout/css"
+        "node_modules/react-grid-layout/css",
       ),
       reactresizablecss: path.resolve(
         __dirname,
-        "node_modules/react-resizable/css"
+        "node_modules/react-resizable/css",
       ),
       bokehjs: path.resolve(
         __dirname,
-        "node_modules/@bokeh/bokehjs/build/js/lib"
+        "node_modules/@bokeh/bokehjs/build/js/lib",
       ),
     },
     extensions: [".js", ".jsx", ".json"],

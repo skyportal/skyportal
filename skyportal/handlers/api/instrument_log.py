@@ -93,9 +93,9 @@ class InstrumentLogHandler(BaseHandler):
         if logs is None:
             return self.error('log is required')
 
-        if type(logs) == str:
+        if isinstance(logs, str):
             logs = read_logs(logs)
-        elif not type(logs) == dict:
+        elif not isinstance(logs, dict):
             return self.error('log must be either dictionary or parsable string')
 
         with self.Session() as session:

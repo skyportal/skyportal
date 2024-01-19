@@ -176,7 +176,7 @@ const AboutPlugins = () => {
                         </a>
                       )}
                     </li>
-                  )
+                  ),
                 )}
               </ul>
             </Box>

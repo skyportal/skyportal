@@ -22,7 +22,7 @@ const NewSpatialCatalog = () => {
     const result = await dispatch(uploadSpatialCatalogs(payload));
     if (result.status === "success") {
       dispatch(
-        showNotification("Saving spatial catalog... please be patient.")
+        showNotification("Saving spatial catalog... please be patient."),
       );
       dispatch(fetchSpatialCatalogs());
     }

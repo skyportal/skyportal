@@ -99,8 +99,8 @@ const DefaultObservationPlanTable = ({
   const deleteDefaultObservationPlan = () => {
     dispatch(
       defaultObservationPlansActions.deleteDefaultObservationPlan(
-        defaultObservationPlanToDelete
-      )
+        defaultObservationPlanToDelete,
+      ),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Default observation plan deleted"));
@@ -317,7 +317,7 @@ const DefaultObservationPlanTable = ({
         paginateCallback(
           tableState.page + 1,
           tableState.rowsPerPage,
-          tableState.sortOrder
+          tableState.sortOrder,
         );
         break;
       case "sort":

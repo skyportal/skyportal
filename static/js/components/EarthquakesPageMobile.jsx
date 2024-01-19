@@ -119,7 +119,7 @@ EarthquakeList.propTypes = {
       event_id: PropTypes.string.isRequired,
       lat: PropTypes.number.isRequired,
       lon: PropTypes.number.isRequired,
-    })
+    }),
   ).isRequired,
 };
 

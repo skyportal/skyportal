@@ -43,7 +43,7 @@ const ModifyAllocation = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const allowedAllocationTypes = useSelector(
-    (state) => state.config.allowedAllocationTypes
+    (state) => state.config.allowedAllocationTypes,
   );
   const allGroups = useSelector((state) => state.groups.all);
   const groups = useSelector((state) => state.groups.userAccessible);
@@ -52,10 +52,10 @@ const ModifyAllocation = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [defaultStartDate, setDefaultStartDate] = useState(
-    dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ")
+    dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ"),
   );
   const [defaultEndDate, setDefaultEndDate] = useState(
-    dayjs().add(365, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ")
+    dayjs().add(365, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ"),
   );
   const dispatch = useDispatch();
   const classes = useStyles();
@@ -92,7 +92,7 @@ const ModifyAllocation = () => {
 
   useEffect(() => {
     const selectedAllocation = allocationList.find(
-      (allocation) => allocation?.id === selectedAllocationId
+      (allocation) => allocation?.id === selectedAllocationId,
     );
     if (selectedAllocation) {
       const currentGroup =
@@ -104,12 +104,12 @@ const ModifyAllocation = () => {
       setDefaultStartDate(
         dayjs(`${selectedAllocation.start_date}Z`)
           .utc()
-          .format("YYYY-MM-DDTHH:mm:ssZ")
+          .format("YYYY-MM-DDTHH:mm:ssZ"),
       );
       setDefaultEndDate(
         dayjs(`${selectedAllocation.end_date}Z`)
           .utc()
-          .format("YYYY-MM-DDTHH:mm:ssZ")
+          .format("YYYY-MM-DDTHH:mm:ssZ"),
       );
     }
   }, [selectedAllocationId, allocationList]);
@@ -117,14 +117,14 @@ const ModifyAllocation = () => {
   useEffect(() => {
     if (group?.users && selectedAllocationId) {
       const selectedAllocation = allocationList.find(
-        (allocation) => allocation?.id === selectedAllocationId
+        (allocation) => allocation?.id === selectedAllocationId,
       );
       setSelectedUsers(
         group.users.filter((user) =>
           selectedAllocation.allocation_users.some(
-            (allocationUser) => allocationUser.id === user.id
-          )
-        )
+            (allocationUser) => allocationUser.id === user.id,
+          ),
+        ),
       );
     }
   }, [group]);
@@ -193,7 +193,7 @@ const ModifyAllocation = () => {
     formData.instrument_id =
       allocationLookUp[selectedAllocationId].instrument_id;
     const result = await dispatch(
-      modifyAllocation(selectedAllocationId, formData)
+      modifyAllocation(selectedAllocationId, formData),
     );
     if (result.status === "success") {
       dispatch(showNotification("Allocation saved"));
@@ -219,12 +219,12 @@ const ModifyAllocation = () => {
   function validate(formData, validationErrors) {
     if (nowDate > formData.end_date) {
       validationErrors.end_date.addError(
-        "End date must be after current time, please fix."
+        "End date must be after current time, please fix.",
       );
     }
     if (formData.start_date > formData.end_date) {
       validationErrors.start_date.addError(
-        "Start date must be before end date, please fix."
+        "Start date must be before end date, please fix.",
       );
     }
     return validationErrors;

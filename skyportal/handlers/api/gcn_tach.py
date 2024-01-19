@@ -212,7 +212,6 @@ def get_tach_event_aliases(id, gcn_event):
 
 
 def post_aliases(dateobs, tach_id, user_id):
-
     if Session.registry.has():
         session = Session()
     else:

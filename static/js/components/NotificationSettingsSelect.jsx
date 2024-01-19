@@ -88,7 +88,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
         </IconButton>
       ) : null}
     </MuiDialogTitle>
-  )
+  ),
 );
 
 const NotificationSettingsSelect = ({ notificationResourceType }) => {

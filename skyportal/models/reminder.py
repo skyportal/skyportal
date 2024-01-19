@@ -129,7 +129,6 @@ class Reminder(Base, ReminderMixin):
 
 
 class ReminderOnSpectrum(Base, ReminderMixin):
-
     __tablename__ = 'reminders_on_spectra'
 
     create = AccessibleIfRelatedRowsAreAccessible(obj='read', spectrum='read')
@@ -168,7 +167,6 @@ class ReminderOnSpectrum(Base, ReminderMixin):
 
 
 class ReminderOnGCN(Base, ReminderMixin):
-
     __tablename__ = 'reminders_on_gcns'
 
     create = AccessibleIfRelatedRowsAreAccessible(gcn='read')
@@ -193,7 +191,6 @@ class ReminderOnGCN(Base, ReminderMixin):
 
 
 class ReminderOnEarthquake(Base, ReminderMixin):
-
     __tablename__ = 'reminders_on_earthquakes'
 
     create = AccessibleIfRelatedRowsAreAccessible(earthquake='read')
@@ -218,7 +215,6 @@ class ReminderOnEarthquake(Base, ReminderMixin):
 
 
 class ReminderOnShift(Base, ReminderMixin):
-
     __tablename__ = 'reminders_on_shifts'
 
     create = AccessibleIfRelatedRowsAreAccessible(shift='read')

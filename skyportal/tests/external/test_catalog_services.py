@@ -29,7 +29,6 @@ else:
 @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not swift_isonline, reason="SWIFT XRT server down")
 def test_swift_lsxps(super_admin_token):
-
     name = str(uuid.uuid4())
     status, data = api(
         'POST',

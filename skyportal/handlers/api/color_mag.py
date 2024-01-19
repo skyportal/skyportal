@@ -31,7 +31,6 @@ def get_color_mag(annotations, **kwargs):
     output = []
 
     for an in annotations:
-
         abs_mag = None
         color = None
         absorption = None
@@ -81,7 +80,6 @@ def get_color_mag(annotations, **kwargs):
                         absorption = an.data[k]
 
         if abs_mag is not None and color is not None:
-
             if absorption is not None and not np.isnan(absorption):
                 abs_mag = abs_mag + absorption  # apply the absorption term
 

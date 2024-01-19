@@ -25,7 +25,6 @@ _, cfg = load_env()
 
 
 class SourceNotification(Base):
-
     create = read = AccessibleIfRelatedRowsAreAccessible(source='read')
     update = delete = AccessibleIfUserMatches('sent_by')
 

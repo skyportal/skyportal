@@ -156,11 +156,11 @@ const AirmassPlot = React.memo((props) => {
               dataUrl,
               ephemeris,
               theme.plotFontSizes.titleFontSize,
-              theme.plotFontSizes.labelFontSize
+              theme.plotFontSizes.labelFontSize,
             ),
             {
               actions: false,
-            }
+            },
           );
         }
       }}

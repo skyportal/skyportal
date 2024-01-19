@@ -194,7 +194,7 @@ SourceAnnotationButtons.propTypes = {
       PropTypes.shape({
         origin: PropTypes.string.isRequired,
         data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
-      })
+      }),
     ),
     classifications: PropTypes.arrayOf(
       PropTypes.shape({
@@ -207,7 +207,7 @@ SourceAnnotationButtons.propTypes = {
         author_id: PropTypes.number,
         taxonomy_id: PropTypes.number,
         created_at: PropTypes.string,
-      })
+      }),
     ),
     followup_requests: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
     assignments: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
@@ -217,7 +217,7 @@ SourceAnnotationButtons.propTypes = {
         abs_mag: PropTypes.number,
         color: PropTypes.number,
         origin: PropTypes.string,
-      })
+      }),
     ),
     duplicates: PropTypes.arrayOf(PropTypes.string),
     alias: PropTypes.arrayOf(PropTypes.string),
