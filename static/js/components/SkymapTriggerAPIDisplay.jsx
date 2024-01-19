@@ -50,7 +50,7 @@ const SkymapTriggerAPIDisplay = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiObsplan } = useSelector(
-    (state) => state.allocations
+    (state) => state.allocations,
   );
   const allGroups = useSelector((state) => state.groups.all);
 
@@ -63,7 +63,7 @@ const SkymapTriggerAPIDisplay = () => {
       // update
 
       const result = await dispatch(
-        allocationActions.fetchAllocationsApiObsplan()
+        allocationActions.fetchAllocationsApiObsplan(),
       );
 
       const { data } = result;
@@ -81,7 +81,7 @@ const SkymapTriggerAPIDisplay = () => {
     const getTriggers = async () => {
       if (selectedAllocationId && allocationListApiObsplan?.length > 0) {
         const response = await dispatch(
-          skymapTriggerActions.requestAPISkymapTriggers(selectedAllocationId)
+          skymapTriggerActions.requestAPISkymapTriggers(selectedAllocationId),
         );
         if (response?.data?.trigger_names?.length > 0) {
           setTriggerList(response.data.trigger_names);
@@ -145,7 +145,7 @@ const SkymapTriggerAPIDisplay = () => {
     await dispatch(
       skymapTriggerActions.deleteAPISkymapTrigger(selectedAllocationId, {
         trigger_name: selectedTriggerName,
-      })
+      }),
     );
   };
 

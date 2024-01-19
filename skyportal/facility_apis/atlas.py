@@ -231,7 +231,6 @@ class ATLASAPI(FollowUpAPI):
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
-
         """Submit a forced photometry request to ATLAS.
 
         Parameters
@@ -325,7 +324,6 @@ class ATLASAPI(FollowUpAPI):
 
     @staticmethod
     def delete(request, session, **kwargs):
-
         """Delete a photometry request from ATLAS API.
 
         Parameters

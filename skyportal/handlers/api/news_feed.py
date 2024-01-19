@@ -134,7 +134,6 @@ class NewsFeedHandler(BaseHandler):
                 source_seen = set()
                 # Iterate in reverse so that we arrive at re-saved sources second
                 for s in reversed(sources):
-
                     if s.obj_id in source_seen:
                         message = 'Source saved to new group'
                     else:

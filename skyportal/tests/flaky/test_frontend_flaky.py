@@ -16,7 +16,6 @@ from datetime import date, timedelta
 
 @pytest.mark.flaky(reruns=2)
 def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver):
-
     telescope_name = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -77,7 +76,6 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
 
 @pytest.mark.flaky(reruns=2)
 def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
-
     telescope_name = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -135,7 +133,6 @@ def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
 
 @pytest.mark.flaky(reruns=5)
 def test_instrument_frontend(super_admin_token, super_admin_user, driver):
-
     telescope_name = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -222,7 +219,6 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
 def test_super_user_post_allocation(
     public_group, super_admin_token, super_admin_user, driver
 ):
-
     telescope_name = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -336,7 +332,6 @@ def test_super_user_post_allocation(
 def test_gcnevents_observations(
     driver, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
 ):
-
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -482,7 +477,6 @@ def test_followup_request_frontend(
     sedm,
     driver,
 ):
-
     request_data = {
         'allocation_id': public_group_sedm_allocation.id,
         'obj_id': public_source.id,
@@ -534,7 +528,6 @@ def test_followup_request_frontend(
 
 # @pytest.mark.flaky(reruns=2)
 def test_observationplan_request(driver, user, super_admin_token, public_group):
-
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -724,7 +717,6 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
 
 @pytest.mark.flaky(reruns=2)
 def test_gcn_request(driver, user, super_admin_token, public_group):
-
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()

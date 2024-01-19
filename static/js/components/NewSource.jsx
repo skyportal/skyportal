@@ -1,26 +1,27 @@
 import React, { useState } from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
-import DragHandleIcon from "@mui/icons-material/DragHandle";
-import PropTypes from "prop-types";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
 
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
+import Button from "./Button";
 import GroupShareSelect from "./GroupShareSelect";
 import { saveSource, checkSource } from "../ducks/source";
 import { hours_to_ra, dms_to_dec } from "../units";
 
 dayjs.extend(utc);
 
-const NewSource = ({ classes }) => {
+const NewSource = ({ classes, onClose }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.userAccessible);
@@ -60,6 +61,7 @@ const NewSource = ({ classes }) => {
         }
         const result = await dispatch(saveSource(formData));
         if (result.status === "success") {
+          onClose();
           dispatch(showNotification("Source saved"));
           navigate(`/source/${formData.id}`);
         }
@@ -116,33 +118,30 @@ const NewSource = ({ classes }) => {
   };
 
   return (
-    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
-      <div className={classes.widgetPaperDiv}>
+    <div className={classes.widgetPaperDiv}>
+      <div>
+        <Typography variant="h6" display="inline">
+          Add a Source
+        </Typography>
         <div>
-          <Typography variant="h6" display="inline">
-            Add a Source
-          </Typography>
-          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-          <div>
-            <GroupShareSelect
-              groupList={groups}
-              setGroupIDs={setSelectedGroupIds}
-              groupIDs={selectedGroupIds}
-            />
-            <Form
-              schema={sourceFormSchema}
-              formData={selectedFormData}
-              onChange={({ formData }) => setSelectedFormData(formData)}
-              validator={validator}
-              onSubmit={handleSubmit}
-              // eslint-disable-next-line react/jsx-no-bind
-              customValidate={validate}
-              liveValidate
-            />
-          </div>
+          <GroupShareSelect
+            groupList={groups}
+            setGroupIDs={setSelectedGroupIds}
+            groupIDs={selectedGroupIds}
+          />
+          <Form
+            schema={sourceFormSchema}
+            formData={selectedFormData}
+            onChange={({ formData }) => setSelectedFormData(formData)}
+            validator={validator}
+            onSubmit={handleSubmit}
+            // eslint-disable-next-line react/jsx-no-bind
+            customValidate={validate}
+            liveValidate
+          />
         </div>
       </div>
-    </Paper>
+    </div>
   );
 };
 
@@ -152,6 +151,37 @@ NewSource.propTypes = {
     widgetIcon: PropTypes.string.isRequired,
     widgetPaperFillSpace: PropTypes.string.isRequired,
   }).isRequired,
+  onClose: PropTypes.func,
+};
+
+NewSource.defaultProps = {
+  onClose: () => ({}),
+};
+
+const NewSourceButton = () => {
+  // here we want a button with the text "Add a Source"
+  // to open a dialog that shows the form above
+
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div style={{ width: "100%", padding: "0.25rem" }}>
+      <Button
+        onClick={() => setOpen(true)}
+        variant="contained"
+        style={{ width: "100%" }}
+      >
+        Add a Source
+      </Button>
+      <Dialog open={open} onClose={() => setOpen(false)}>
+        <DialogContent>
+          <NewSource classes={{}} onClose={() => setOpen(false)} />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 };
 
 export default NewSource;
+
+export { NewSourceButton };

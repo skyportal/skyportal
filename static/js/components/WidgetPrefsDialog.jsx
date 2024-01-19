@@ -128,7 +128,7 @@ const WidgetPrefsDialog = ({
                           }
                           label={subKey}
                         />
-                      )
+                      ),
                     )}
                   </div>
                 );
@@ -149,6 +149,35 @@ const WidgetPrefsDialog = ({
                           variant="outlined"
                           onChange={onChange}
                           value={value}
+                        />
+                      )}
+                      name={key}
+                      control={control}
+                      defaultValue={initialValues[key]}
+                    />
+                  </div>
+                );
+              }
+              if (typeof initialValues[key] === "boolean") {
+                return (
+                  <div key={key} className={classes.inputSectionDiv}>
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              onChange={(event) =>
+                                onChange(event.target.checked)
+                              }
+                              checked={value}
+                              data-testid={key}
+                            />
+                          }
+                          label={
+                            key === "candidatesOnly"
+                              ? "Only if source has candidate(s)"
+                              : key
+                          }
                         />
                       )}
                       name={key}
@@ -179,7 +208,7 @@ const WidgetPrefsDialog = ({
 
 WidgetPrefsDialog.propTypes = {
   initialValues: PropTypes.objectOf(
-    PropTypes.oneOfType([PropTypes.string, PropTypes.shape({})])
+    PropTypes.oneOfType([PropTypes.string, PropTypes.shape({})]),
   ).isRequired,
   stateBranchName: PropTypes.string.isRequired,
   onSubmit: PropTypes.func.isRequired,

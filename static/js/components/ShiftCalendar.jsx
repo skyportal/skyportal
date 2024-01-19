@@ -111,15 +111,15 @@ async function handleSelectSlot({ start, end }) {
         .map((group) => `   ${group.name}: ${group.id}`)
         .join("\n");
       let group_id = await window.prompt(
-        `Choose shift group ID : \n${group_ids}`
+        `Choose shift group ID : \n${group_ids}`,
       );
       if (group_id === "") {
         group_id = groups[0].id;
         dispatch(
           showNotification(
             `Shift group not selected, defaulting to: ${groups[0].name}`,
-            "warning"
-          )
+            "warning",
+          ),
         );
       }
       if (groups.find((group) => group.id === parseInt(group_id, 10))) {
@@ -138,7 +138,7 @@ async function handleSelectSlot({ start, end }) {
               end_date,
               group_id,
               required_users_number: parseInt(required_users_number, 10),
-            })
+            }),
           ).then((result) => {
             if (result.status === "success") {
               dispatch(showNotification("Shift saved"));
@@ -152,13 +152,13 @@ async function handleSelectSlot({ start, end }) {
           dispatch(
             showNotification(
               "Shift not created. Required users number needs to be a number",
-              "error"
-            )
+              "error",
+            ),
           );
         }
       } else {
         dispatch(
-          showNotification("Shift not created, Incorrect Group ID.", "error")
+          showNotification("Shift not created, Incorrect Group ID.", "error"),
         );
       }
     }
@@ -168,8 +168,8 @@ async function handleSelectSlot({ start, end }) {
     dispatch(
       showNotification(
         'Shift not created, invalid name (dont use "number/number" at end of name)',
-        "error"
-      )
+        "error",
+      ),
     );
   }
 }
@@ -180,7 +180,7 @@ function setCurrentShift({ event, setShow }) {
   dispatch(
     shiftActions.getShiftsSummary({
       shiftID: event.id,
-    })
+    }),
   );
   setShow(false);
 }
@@ -203,14 +203,14 @@ function MyCalendar({ events, currentShift, setShow }) {
 
   if (!showAllShifts) {
     events = events.filter((event) =>
-      (event.shift_users_ids || []).includes(currentUser.id)
+      (event.shift_users_ids || []).includes(currentUser.id),
     );
   }
   if (sortByGroups) {
     events = events.filter(
       (event) =>
         selectedGroups.filter((group) => group.id === event.group_id)?.length >
-        0
+        0,
     );
   }
 
@@ -246,7 +246,7 @@ function MyCalendar({ events, currentShift, setShow }) {
 
   const shiftStatus = (event) => {
     const currentUserInShift = (event.shift_users_ids || []).includes(
-      currentUser.id
+      currentUser.id,
     );
     const style = {
       background: blue,
@@ -453,9 +453,9 @@ MyCalendar.propTypes = {
           first_name: PropTypes.string,
           last_name: PropTypes.string,
           affiliations: PropTypes.arrayOf(PropTypes.string),
-        })
+        }),
       ),
-    }).isRequired
+    }).isRequired,
   ).isRequired,
 };
 export default MyCalendar;

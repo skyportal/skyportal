@@ -22,7 +22,7 @@ export const removeFromWatchList = (id, params = {}) =>
   API.DELETE(
     `/api/followup_request/watch/${id}`,
     REMOVE_FROM_WATCH_LIST,
-    params
+    params,
   );
 
 export function fetchFollowupRequests(params = {}) {
@@ -33,7 +33,7 @@ export function fetchFollowupRequests(params = {}) {
     return API.GET(
       "/api/followup_request",
       "skyportal/FETCH_FOLLOWUP_REQUESTS_NO_REDUX",
-      params
+      params,
     );
   }
   return API.GET("/api/followup_request", FETCH_FOLLOWUP_REQUESTS, params);
@@ -44,7 +44,7 @@ export const prioritizeFollowupRequests = (params = {}) =>
   API.PUT(
     "/api/followup_request/prioritization",
     PRIORITIZE_FOLLOWUP_REQUESTS,
-    params
+    params,
   );
 
 // Websocket message handler
@@ -57,7 +57,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 
 const reducer = (
   state = { followupRequestList: [], totalMatches: 0 },
-  action
+  action,
 ) => {
   switch (action.type) {
     case FETCH_FOLLOWUP_REQUESTS_OK: {

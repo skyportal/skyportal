@@ -424,7 +424,6 @@ def test_new_spectra_on_source_triggers_notification(
 
 @pytest.mark.flaky(reruns=1)
 def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
-
     driver.get(f'/become_user/{user.id}')
     driver.get("/profile")
 

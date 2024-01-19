@@ -488,7 +488,7 @@ class PhotStat(Base):
                 self.last_detected_mag = mag
                 self.last_detected_filter = filt
 
-            if origin not in ['fp', 'forced photometry', 'forcedphot']:
+            if origin not in ['fp', 'forced photometry', 'forcedphot', 'alert_fp']:
                 if (
                     self.first_detected_no_forced_phot_mjd is None
                     or mjd < self.first_detected_no_forced_phot_mjd
@@ -612,7 +612,7 @@ class PhotStat(Base):
 
             # update the number of detections
             self.num_det_global += 1
-            if origin not in ['fp', 'forced photometry', 'forcedphot']:
+            if origin not in ['fp', 'forced photometry', 'forcedphot', 'alert_fp']:
                 self.num_det_no_forced_phot_global += 1
 
             if filt in self.num_det_per_filter:
@@ -702,7 +702,8 @@ class PhotStat(Base):
             dets.append(is_detected)
 
             if (
-                not phot.get('origin') in ['fp', 'forced phot', 'forced photometry']
+                not phot.get('origin')
+                in ['fp', 'forced phot', 'forced photometry', 'alert_fp']
                 and is_detected
             ):
                 dets_no_forced_phot.append(True)

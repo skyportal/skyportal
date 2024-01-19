@@ -102,7 +102,7 @@ SpectrumPreview.propTypes = {
       wavelength: PropTypes.number.isRequired,
       flux: PropTypes.number.isRequired,
       error: PropTypes.number,
-    })
+    }),
   ).isRequired,
 };
 
@@ -111,7 +111,7 @@ const UploadSpectrumForm = ({ route }) => {
   const groups = useSelector((state) => state.groups.all);
   const { users } = useSelector((state) => state.users);
   const instrumentList = useSelector(
-    (state) => state.instruments.instrumentList
+    (state) => state.instruments.instrumentList,
   );
   const telescopes = useSelector((state) => state.telescopes.telescopeList);
   const source = useSelector((state) => state.source);
@@ -120,11 +120,11 @@ const UploadSpectrumForm = ({ route }) => {
   const [persistentFormData, setPersistentFormData] = useState({});
   const [formKey, setFormKey] = useState(null);
   const spectrumTypes = useSelector(
-    (state) => state.config.allowedSpectrumTypes
+    (state) => state.config.allowedSpectrumTypes,
   );
 
   const defaultSpectrumType = useSelector(
-    (state) => state.config.defaultSpectrumType
+    (state) => state.config.defaultSpectrumType,
   );
 
   const [searchParams] = useSearchParams();
@@ -226,7 +226,7 @@ const UploadSpectrumForm = ({ route }) => {
   }
 
   const instruments = instrumentList.filter((inst) =>
-    inst.type.includes("spec")
+    inst.type.includes("spec"),
   );
 
   const newPersistentFormData = { ...persistentFormData };

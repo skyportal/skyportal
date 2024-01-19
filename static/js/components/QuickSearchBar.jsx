@@ -77,8 +77,8 @@ const QuickSearchBar = () => {
       dispatch(
         GET(
           `/api/sources?sourceID=${val}&pageNumber=1&totalMatches=25&includeComments=false&removeNested=true`,
-          "skyportal/FETCH_AUTOCOMPLETE_SOURCES"
-        )
+          "skyportal/FETCH_AUTOCOMPLETE_SOURCES",
+        ),
       );
     (async () => {
       if (debouncedInputValue === "") {
@@ -102,7 +102,7 @@ const QuickSearchBar = () => {
 
         if (matchingSources) {
           const rez = Object.keys(matchingSources).map(
-            (key) => matchingSources[key].id
+            (key) => matchingSources[key].id,
           );
           newOptions = [...newOptions, ...rez];
         }

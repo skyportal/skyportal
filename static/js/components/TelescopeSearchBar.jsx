@@ -58,7 +58,7 @@ const TelescopeSearchBar = ({ telescopeList }) => {
   };
   if (inputValue.length > 0) {
     results = telescopeList.filter((telescope) =>
-      telescope.name.toLowerCase().match(inputValue.toLowerCase())
+      telescope.name.toLowerCase().match(inputValue.toLowerCase()),
     );
   }
 

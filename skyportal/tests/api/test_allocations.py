@@ -4,7 +4,6 @@ from skyportal.tests import api
 def test_super_user_post_allocation(
     sedm, public_group, public_group2, super_admin_token
 ):
-
     request_data = {
         'group_id': public_group.id,
         'instrument_id': sedm.id,
@@ -30,7 +29,6 @@ def test_super_user_post_allocation(
 
 
 def test_super_user_modify_allocation(sedm, public_group, super_admin_token):
-
     request_data = {
         'group_id': public_group.id,
         'instrument_id': sedm.id,
@@ -72,7 +70,6 @@ def test_super_user_modify_allocation(sedm, public_group, super_admin_token):
 def test_read_only_user_cannot_get_unowned_allocation(
     view_only_token, super_admin_token, sedm, public_group2
 ):
-
     request_data = {
         'group_id': public_group2.id,
         'instrument_id': sedm.id,
@@ -101,7 +98,6 @@ def test_read_only_user_cannot_get_unowned_allocation(
 
 
 def test_read_only_user_get_invalid_allocation_id(view_only_token):
-
     status, data = api('GET', f'allocation/{-1}', token=view_only_token)
     assert status == 400
     assert data['status'] == 'error'

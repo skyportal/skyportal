@@ -67,8 +67,8 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
           dispatch(
             candidateActions.fetchCandidate(
               candidate.id,
-              FETCH_CANDIDATE_AND_MERGE
-            )
+              FETCH_CANDIDATE_AND_MERGE,
+            ),
           );
           done = true;
         }
@@ -101,7 +101,7 @@ const reducer = (state = initialState, action) => {
     }
     case FETCH_CANDIDATE_AND_MERGE_OK: {
       const candidates = state.candidates?.map((candidate) =>
-        candidate.id !== action.data.id ? candidate : action.data
+        candidate.id !== action.data.id ? candidate : action.data,
       );
       return { ...state, candidates };
     }

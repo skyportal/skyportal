@@ -19,7 +19,6 @@ def test_filter_by_gcnevent(
     ztf_camera,
     upload_data_token,
 ):
-
     datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -167,7 +166,6 @@ def test_filter_by_gcnevent(
 def test_gcn_summary_observations(
     super_admin_user, super_admin_token, view_only_token, public_group
 ):
-
     datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()

@@ -47,7 +47,6 @@ PS1_CUTOUT_TIMEOUT = 15  # seconds
 
 
 class GaiaQuery:
-
     alt_tap = 'https://gaia.aip.de/tap'
     alt_main_db = 'gaiadr3'
 
@@ -129,7 +128,6 @@ class GaiaQuery:
                 raise HTTPError("GaiaQuery failed on backup database.")
 
     def _standardize_table(self, tab):
-
         new_tab = tab.copy()
         for col in tab.columns:
             if tab[col].name == 'source_id':
@@ -287,7 +285,7 @@ def get_ps1_url(ra, dec, imsize, *args, **kwargs):
     numpix = math.ceil(60 * imsize / 0.25)
 
     ps_query_url = (
-        f"https://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+        f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
         f"?pos={ra}+{dec}&"
         f"filter=r&filetypes=stack&size={numpix}"
     )
@@ -301,6 +299,9 @@ def get_ps1_url(ra, dec, imsize, *args, **kwargs):
             return ""
         url = match.group().replace('src="', 'http:').replace('"', '')
         url += f"&format=fits&imagename=ps1{ra}{dec:+f}.fits"
+    except requests.exceptions.SSLError as e:
+        log(f"Error getting PS1 image URL {str(e)}")
+        return ""
     except Exception as e:
         log(f"Error getting PS1 image URL {e.message}")
         return ""
@@ -1208,7 +1209,6 @@ def fits_image(
     cache_dir="./cache/finder/",
     cache_max_items=1000,
 ):
-
     """Returns an opened FITS image centered on the source
        of the requested size.
 
@@ -1252,7 +1252,8 @@ def fits_image(
         )
 
     if url in [None, ""]:
-        raise Exception(f"Could not get FITS image for source {image_source}")
+        log(f"Could not get FITS image for source {image_source}")
+        return None
 
     cache = Cache(cache_dir=cache_dir, max_items=cache_max_items)
 
@@ -1302,7 +1303,6 @@ def get_finding_chart(
     extra_display_string="",
     **offset_star_kwargs,
 ):
-
     """Create a finder chart suitable for spectroscopic observations of
        the source
 
@@ -1617,7 +1617,6 @@ def get_finding_chart(
         star_list = star_list[1:]
 
     for i, star in enumerate(star_list):
-
         c1 = SkyCoord(star["ra"] * u.deg, star["dec"] * u.deg, frame='icrs')
 
         # mark up the right side of the page with position and offset info

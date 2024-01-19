@@ -5,7 +5,6 @@ import pytest
 
 @pytest.mark.flaky(reruns=2)
 def test_upload_galaxies(driver, super_admin_user, super_admin_token):
-
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get("/galaxies/")
 

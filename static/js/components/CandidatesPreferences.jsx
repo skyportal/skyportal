@@ -44,12 +44,12 @@ const CandidatesPreferences = ({
   setSelectedScanningProfile,
 }) => {
   const availableAnnotationsInfo = useSelector(
-    (state) => state.candidates.annotationsInfo
+    (state) => state.candidates.annotationsInfo,
   );
   const classes = useStyles();
 
   const userAccessibleGroups = useSelector(
-    (state) => state.groups.userAccessible
+    (state) => state.groups.userAccessible,
   );
 
   // Get unique classification names, in alphabetical order
@@ -58,7 +58,7 @@ const CandidatesPreferences = ({
   let classifications = [];
   latestTaxonomyList.forEach((taxonomy) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
-      (option) => option.class
+      (option) => option.class,
     );
     classifications = classifications.concat(currentClasses);
   });

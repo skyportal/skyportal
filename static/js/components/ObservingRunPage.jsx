@@ -55,7 +55,7 @@ const useStyles = makeStyles((theme) => ({
 export const observingRunInfo = (
   observingRun,
   instrumentList,
-  telescopeList
+  telescopeList,
 ) => {
   const { instrument_id } = observingRun;
   const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
@@ -104,7 +104,7 @@ const DeleteObservingRunDialog = ({ run, deletePermission }) => {
           dispatch(showNotification("Observing run deleted"));
           closeDialog();
         }
-      }
+      },
     );
   };
   return (
@@ -192,7 +192,7 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
                     run,
                     instrumentList,
                     telescopeList,
-                    groups
+                    groups,
                   )}
                 </Link>
               }

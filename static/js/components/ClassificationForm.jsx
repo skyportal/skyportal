@@ -295,7 +295,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       (option) =>
         `${option.class} <> ${
           option.context.length > 0 ? option.context.join(" « ") : ""
-        }`
+        }`,
     );
     formSchema.dependencies.taxonomy.oneOf.push({
       properties: {
@@ -333,7 +333,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     }
     if (formData.probability < 0 || formData.probability > 1) {
       errors.probability.addError(
-        "Probability must be between 0 and 1, or blank"
+        "Probability must be between 0 and 1, or blank",
       );
     }
     return errors;
@@ -364,7 +364,7 @@ ClassificationForm.propTypes = {
       created_at: PropTypes.string,
       isLatest: PropTypes.bool,
       version: PropTypes.string,
-    })
+    }),
   ).isRequired,
 };
 

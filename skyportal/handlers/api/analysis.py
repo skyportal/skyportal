@@ -1075,7 +1075,6 @@ class AnalysisHandler(BaseHandler):
             return self.error(f'Error parsing JSON: {e}')
 
         with self.Session() as session:
-
             stmt = AnalysisService.select(self.current_user).where(
                 AnalysisService.id == analysis_service_id
             )
@@ -1713,7 +1712,6 @@ class AnalysisUploadOnlyHandler(BaseHandler):
             return self.error(f'Error parsing JSON: {e}')
 
         with self.Session() as session:
-
             stmt = AnalysisService.select(self.current_user).where(
                 AnalysisService.id == analysis_service_id
             )

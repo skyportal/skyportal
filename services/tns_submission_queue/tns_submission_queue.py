@@ -356,7 +356,6 @@ def tns_submission(
 
 
 def service(queue):
-
     while True:
         try:
             if len(queue) == 0:
@@ -398,7 +397,6 @@ def api(queue):
             self.write({"status": "success", "data": {"queue_length": len(queue)}})
 
         async def post(self):
-
             try:
                 data = tornado.escape.json_decode(self.request.body)
             except json.JSONDecodeError:

@@ -72,7 +72,7 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
 
   const defaultStartDate = dayjs(gcnevent?.dateobs).format(
-    "YYYY-MM-DDTHH:mm:ssZ"
+    "YYYY-MM-DDTHH:mm:ssZ",
   );
   const defaultEndDate = dayjs(gcnevent?.dateobs)
     .add(7, "day")
@@ -175,22 +175,22 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
     }
 
     formData.optionalInjectionParameters = JSON.stringify(
-      optionalInjectionParameters
+      optionalInjectionParameters,
     );
 
     if (!observationplanRequest) {
       await dispatch(
         surveyEfficiencyObservationsActions.submitSurveyEfficiencyObservations(
           selectedInstrumentId,
-          formData
-        )
+          formData,
+        ),
       );
     } else {
       await dispatch(
         surveyEfficiencyObservationPlansActions.submitSurveyEfficiencyObservationPlan(
           observationplanRequest.id,
-          formData
-        )
+          formData,
+        ),
       );
     }
 
@@ -209,7 +209,7 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
     const maxInjections = 100000;
     if (formData.numberInjections > maxInjections) {
       errors.numberInjections.addError(
-        `Number of injections must be less than ${maxInjections}`
+        `Number of injections must be less than ${maxInjections}`,
       );
     }
 
@@ -394,7 +394,7 @@ SurveyEfficiencyForm.propTypes = {
       PropTypes.shape({
         id: PropTypes.number,
         localization_name: PropTypes.string,
-      })
+      }),
     ),
     id: PropTypes.number,
   }).isRequired,

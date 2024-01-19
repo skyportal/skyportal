@@ -12,7 +12,7 @@ const LocalizationTagsSelect = (props) => {
   const { selectedLocalizationTags, setSelectedLocalizationTags } = props;
   let localizationTags = [];
   localizationTags = localizationTags.concat(
-    useSelector((state) => state.localizationTags)
+    useSelector((state) => state.localizationTags),
   );
   localizationTags.sort();
 

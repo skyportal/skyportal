@@ -70,11 +70,11 @@ const CatalogQueryForm = ({ gcnevent }) => {
 
   const { instrumentList } = useSelector((state) => state.instruments);
   const { allocationListApiClassname } = useSelector(
-    (state) => state.allocations
+    (state) => state.allocations,
   );
 
   const defaultStartDate = dayjs(gcnevent?.dateobs).format(
-    "YYYY-MM-DDTHH:mm:ssZ"
+    "YYYY-MM-DDTHH:mm:ssZ",
   );
   const defaultEndDate = dayjs(gcnevent?.dateobs)
     .add(7, "day")
@@ -295,7 +295,7 @@ CatalogQueryForm.propTypes = {
       PropTypes.shape({
         id: PropTypes.number,
         localization_name: PropTypes.string,
-      })
+      }),
     ),
     id: PropTypes.number,
   }).isRequired,

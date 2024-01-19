@@ -62,7 +62,6 @@ def test_gcn_tach(
     super_admin_user,
     super_admin_token,
 ):
-
     datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -112,7 +111,6 @@ def test_gcn_allocation_triggers(
     super_admin_token,
     view_only_user,
 ):
-
     datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()

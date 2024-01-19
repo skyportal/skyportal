@@ -3,6 +3,8 @@ function table_to_csv(source, write_header) {
   const columns = [
     "mjd",
     "filter",
+    "mag",
+    "magerr",
     "flux",
     "fluxerr",
     "zp",

@@ -55,7 +55,6 @@ def tns_bulk_retrieval(
     include_photometry=False,
     include_spectra=False,
 ):
-
     """Retrieve objects from TNS.
     start_date : str
         ISO-based start time
@@ -345,7 +344,6 @@ def tns_retrieval(
 
 
 def service(queue):
-
     while True:
         try:
             if len(queue) == 0:
@@ -398,7 +396,6 @@ def api(queue):
             self.write({"status": "success", "data": {"queue_length": len(queue)}})
 
         async def post(self):
-
             try:
                 data = tornado.escape.json_decode(self.request.body)
             except json.JSONDecodeError:

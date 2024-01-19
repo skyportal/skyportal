@@ -21,21 +21,21 @@ const DELETE_SURVEY_EFFICIENCY_OBSERVATION_PLAN =
 export const fetchSurveyEfficiencyObservationPlans = () =>
   API.GET(
     "/api/survey_efficiency/observation_plan",
-    FETCH_SURVEY_EFFICIENCY_OBSERVATION_PLANS
+    FETCH_SURVEY_EFFICIENCY_OBSERVATION_PLANS,
   );
 
 export function submitSurveyEfficiencyObservationPlan(id, data = {}) {
   return API.GET(
     `/api/observation_plan/${id}/simsurvey`,
     SUBMIT_SURVEY_EFFICIENCY_OBSERVATION_PLAN,
-    data
+    data,
   );
 }
 
 export function deleteSurveyEfficiencyObservationPlan(id) {
   return API.DELETE(
     `/api/observation_plan/${id}/simsurvey`,
-    DELETE_SURVEY_EFFICIENCY_OBSERVATION_PLAN
+    DELETE_SURVEY_EFFICIENCY_OBSERVATION_PLAN,
   );
 }
 

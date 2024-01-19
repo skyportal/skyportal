@@ -90,7 +90,7 @@ function normalizeLatitudeDiff(alpha, beta) {
 
 const TelescopeMap = ({ telescopes }) => {
   const filteredTelescopes = telescopes.filter(
-    (telescope) => telescope.fixed_location
+    (telescope) => telescope.fixed_location,
   );
   const nestedTelescopes = [];
   for (let i = 0; i < filteredTelescopes.length; i += 1) {
@@ -109,14 +109,14 @@ const TelescopeMap = ({ telescopes }) => {
           Math.abs(
             normalizeLatitudeDiff(
               filteredTelescopes[i].lat,
-              nestedTelescopes[j].lat
-            )
+              nestedTelescopes[j].lat,
+            ),
           ) < 1 &&
           Math.abs(
             normalizeLongitudeDiff(
               filteredTelescopes[i].lon,
-              nestedTelescopes[j].lon
-            )
+              nestedTelescopes[j].lon,
+            ),
           ) < 2
         ) {
           nestedTelescopes[j].telescopes.push(filteredTelescopes[i]);
@@ -140,7 +140,7 @@ const TelescopeMap = ({ telescopes }) => {
   }
 
   const nonFixedTelescopes = telescopes.filter(
-    (telescope) => !telescope.fixed_location
+    (telescope) => !telescope.fixed_location,
   );
 
   if (nonFixedTelescopes.length > 0) {
@@ -148,7 +148,7 @@ const TelescopeMap = ({ telescopes }) => {
       lat: -52,
       lon: 125,
       is_night_astronomical_at_least_one: nonFixedTelescopes.some(
-        (telescope) => telescope.is_night_astronomical
+        (telescope) => telescope.is_night_astronomical,
       ),
       fixed_location: false,
       telescopes: nonFixedTelescopes,
@@ -182,7 +182,7 @@ const TelescopeMap = ({ telescopes }) => {
                     nestedTelescope={nestedTelescope}
                     position={position}
                   />
-                )
+                ),
             )}
           </>
         )}
@@ -200,7 +200,7 @@ TelescopeMap.propTypes = {
       lat: PropTypes.number,
       lon: PropTypes.number,
       fixed_location: PropTypes.bool,
-    })
+    }),
   ).isRequired,
 };
 
@@ -219,7 +219,7 @@ TelescopeMarker.propTypes = {
         lon: PropTypes.number,
         fixed_location: PropTypes.bool,
         is_night_astronomical: PropTypes.bool.isRequired,
-      })
+      }),
     ),
   }).isRequired,
   position: PropTypes.shape({

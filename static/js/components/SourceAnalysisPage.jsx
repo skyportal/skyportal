@@ -35,7 +35,7 @@ const useStyles = makeStyles((theme) => ({
   },
   cardTitle: {
     padding: `${theme.spacing(0.75)} ${theme.spacing(1)} ${theme.spacing(
-      0.75
+      0.75,
     )} ${theme.spacing(1)}`,
   },
   title: {
@@ -90,13 +90,13 @@ const SourceAnalysisPage = ({ route }) => {
   useEffect(() => {
     const fetchAnalysis = async (objID, analysisId) => {
       const response = await dispatch(
-        sourceActions.fetchAnalysis(analysisId, "obj", { objID })
+        sourceActions.fetchAnalysis(analysisId, "obj", { objID }),
       );
       setAnalysis(response.data);
     };
     const fetchAnalysisResults = async (analysisId) => {
       const response_results = await dispatch(
-        sourceActions.fetchAnalysisResults(analysisId, "obj")
+        sourceActions.fetchAnalysisResults(analysisId, "obj"),
       );
       setAnalysisResults(response_results.data);
     };
@@ -112,7 +112,7 @@ const SourceAnalysisPage = ({ route }) => {
     chip_color = "error";
   }
   const last_active_str = `${dayjs().to(
-    dayjs.utc(`${analysis?.last_activity}Z`)
+    dayjs.utc(`${analysis?.last_activity}Z`),
   )}`;
   const duration_str = `${analysis?.duration?.toFixed(2)} sec`;
   const info_str = `Last activity ${last_active_str} (duration ${duration_str})`;
@@ -171,7 +171,7 @@ const SourceAnalysisPage = ({ route }) => {
           {analysis?.input_filters &&
             Object.keys(analysis?.input_filters || {}).every(
               (input_type) =>
-                Object.keys(analysis?.input_filters[input_type]).length > 0
+                Object.keys(analysis?.input_filters[input_type]).length > 0,
             ) && (
               <div className={classes.div}>
                 <b>Input Data Filters</b>:
@@ -180,14 +180,14 @@ const SourceAnalysisPage = ({ route }) => {
                     (key) => (
                       <Chip
                         label={`${input_type}.${key}: ${JSON.stringify(
-                          analysis?.input_filters[input_type][key]
+                          analysis?.input_filters[input_type][key],
                         )}`}
                         key={`chip_if_${key}`}
                         size="small"
                         className={classes.chip}
                       />
-                    )
-                  )
+                    ),
+                  ),
                 )}
               </div>
             )}

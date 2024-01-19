@@ -19,7 +19,7 @@ const NewTaxonomy = () => {
   const handleSubmit = async ({ formData }) => {
     formData.group_ids = selectedGroupIds;
     formData.hierarchy_file = dataUriToBuffer(
-      formData.hierarchy_file
+      formData.hierarchy_file,
     ).toString();
     const result = await dispatch(submitTaxonomy(formData));
     if (result.status === "success") {

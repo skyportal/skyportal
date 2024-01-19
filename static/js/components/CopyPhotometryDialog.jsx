@@ -51,11 +51,11 @@ const CopyPhotometryDialog = ({
     const groupIds = savedGroupIds?.filter((ID, idx) => data.groupIds[idx]);
     data.group_ids = groupIds;
     const result = await dispatch(
-      sourceActions.copySourcePhotometry(source.id, data)
+      sourceActions.copySourcePhotometry(source.id, data),
     );
     if (result.status === "success") {
       dispatch(
-        showNotification("Source photometry updated successfully", "info")
+        showNotification("Source photometry updated successfully", "info"),
       );
       reset();
     }
@@ -118,7 +118,7 @@ CopyPhotometryDialog.propTypes = {
       PropTypes.shape({
         id: PropTypes.number,
         name: PropTypes.string,
-      })
+      }),
     ),
   }).isRequired,
   duplicate: PropTypes.string.isRequired,

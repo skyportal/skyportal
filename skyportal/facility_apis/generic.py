@@ -399,7 +399,6 @@ class GENERICAPI(FollowUpAPI):
         altdata = request.allocation.altdata
 
         if altdata:
-
             payload = {
                 'obj_id': request.obj_id,
                 'allocation_id': request.allocation.id,
@@ -450,7 +449,6 @@ class GENERICAPI(FollowUpAPI):
             )
 
     def custom_json_schema(instrument, user):
-
         form_json_schema = {
             "type": "object",
             "properties": {

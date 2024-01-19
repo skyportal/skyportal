@@ -95,7 +95,6 @@ class CatalogQueryHandler(BaseHandler):
             return self.error('catalogName required in query payload')
 
         with self.Session() as session:
-
             allocation = session.scalar(
                 sa.select(Allocation).where(Allocation.id == data['allocation_id'])
             )
@@ -240,7 +239,6 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                 log("Finished querying Kowalski for sources")
 
             elif payload['catalogName'] == 'ZTF-Fink':
-
                 instrument = session.scalars(
                     Instrument.select(user).where(Instrument.name == 'ZTF')
                 ).first()

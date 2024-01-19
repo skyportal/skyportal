@@ -14,7 +14,7 @@ const QuickSaveButton = ({ sourceId, alreadySavedGroups }) => {
   const dispatch = useDispatch();
   const profile = useSelector((state) => state.profile);
   const userAccessibleGroups = useSelector(
-    (state) => state.groups.userAccessible
+    (state) => state.groups.userAccessible,
   );
   const { hydratedList } = useSelector((state) => state.hydration);
 
@@ -22,21 +22,24 @@ const QuickSaveButton = ({ sourceId, alreadySavedGroups }) => {
 
   const alreadySavedGroupsSet = new Set(alreadySavedGroups);
   const quickSaveGroupsSet = new Set(
-    profile?.preferences?.quicksave_group_ids || []
+    profile?.preferences?.quicksave_group_ids || [],
   );
 
   const quickSaveSource = () => {
     setIsSaving(true);
+    const saveGroups = [...quickSaveGroupsSet].filter(
+      (x) => !alreadySavedGroupsSet.has(x),
+    );
     const data = {
       id: sourceId,
-      group_ids: [...alreadySavedGroupsSet, ...quickSaveGroupsSet],
+      group_ids: saveGroups,
     };
     dispatch(sourceActions.saveSource(data)).then((response) => {
       if (response.status === "success") {
         dispatch(
           showNotification(
-            `Source quick saved to ${quickSaveGroupsSet.size} group(s)`
-          )
+            `Source quick saved to ${quickSaveGroupsSet.size} group(s)`,
+          ),
         );
         setIsSaving(false);
       } else {

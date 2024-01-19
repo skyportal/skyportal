@@ -362,7 +362,6 @@ def post_observation_plans(
 
     observation_plan_requests = []
     for plan in plans:
-
         try:
             data = ObservationPlanPost.load(plan)
         except ValidationError as e:
@@ -803,7 +802,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                             fields=fields,
                             observer=observation_plan.instrument.telescope.observer,
                         )
-                        for (planned_observation, rise_time, set_time) in zip(
+                        for planned_observation, rise_time, set_time in zip(
                             observation_plan.planned_observations, rise_times, set_times
                         ):
                             planned_observation_data = {
@@ -1261,7 +1260,6 @@ class ObservationPlanGCNHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
                 .where(ObservationPlanRequest.id == observation_plan_request_id)
@@ -1327,7 +1325,6 @@ def observation_animations(
     alpha_default=1,
     alpha_cutoff=0.1,
 ):
-
     """Create a movie to display observations of a given skymap
     Parameters
     ----------
@@ -1396,7 +1393,6 @@ def observation_animations(
         del old_artists[:]
 
         for i, obs in enumerate(observations):
-
             if decay != 0:
                 alpha = np.exp((i - k) / decay)
             else:
@@ -1472,7 +1468,6 @@ class ObservationPlanMovieHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
                 .where(ObservationPlanRequest.id == observation_plan_request_id)
@@ -1556,7 +1551,6 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
                 .where(ObservationPlanRequest.id == observation_plan_request_id)
@@ -1720,7 +1714,6 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
                 .where(ObservationPlanRequest.id == observation_plan_request_id)
@@ -1807,7 +1800,6 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
                 .where(ObservationPlanRequest.id == observation_plan_request_id)
@@ -1867,7 +1859,6 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
                 .where(ObservationPlanRequest.id == observation_plan_request_id)
@@ -1945,7 +1936,6 @@ class ObservationPlanFieldsHandler(BaseHandler):
             return self.error('Need to specify field IDs to remove')
 
         with self.Session() as session:
-
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
                 .where(ObservationPlanRequest.id == observation_plan_request_id)
@@ -2029,7 +2019,6 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
         twilight_dict = {'astronomical': -18, 'nautical': -12, 'civil': -6}
 
         with self.Session() as session:
-
             stmt = Telescope.select(self.current_user)
             telescopes = session.scalars(stmt).all()
 
@@ -2171,7 +2160,6 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
         twilight = self.get_query_argument("twilight", "astronomical")
 
         with self.Session() as session:
-
             stmt = Telescope.select(self.current_user)
             telescopes = session.scalars(stmt).all()
 
@@ -2276,7 +2264,6 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             stmt = Telescope.select(self.current_user).where(
                 Telescope.id == telescope_id
             )
@@ -2466,7 +2453,6 @@ def observation_simsurvey(
     model_name='kilonova',
     optional_injection_parameters={},
 ):
-
     """Perform the simsurvey analyis for a given skymap
     Parameters
     ----------
@@ -2764,7 +2750,6 @@ def observation_simsurvey_plot(
     output_format='pdf',
     figsize=(10, 8),
 ):
-
     """Perform the simsurvey analyis for a given skymap
     Parameters
     ----------
@@ -2936,7 +2921,6 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
         group_ids = self.get_query_argument('group_ids', None)
         with self.Session() as session:
-
             if not group_ids:
                 group_ids = [
                     g.id for g in self.associated_user_object.accessible_groups
@@ -3226,7 +3210,6 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
-
             if "default_plan_name" not in data:
                 return self.error('Missing default_plan_name')
             else:
@@ -3397,7 +3380,6 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             stmt = DefaultObservationPlanRequest.select(session.user_or_token).where(
                 DefaultObservationPlanRequest.id == default_observation_plan_id
             )

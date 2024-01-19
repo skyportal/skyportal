@@ -15,7 +15,6 @@ log = make_log('facility_apis/sedm')
 
 
 class SEDMListener(Listener):
-
     schema = {
         'type': 'object',
         'properties': {

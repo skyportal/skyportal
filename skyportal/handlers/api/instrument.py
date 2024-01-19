@@ -423,9 +423,7 @@ class InstrumentHandler(BaseHandler):
             options.append(undefer(Instrument.region))
 
         with self.Session() as session:
-
             if instrument_id is not None:
-
                 stmt = Instrument.select(self.current_user, options=options).where(
                     Instrument.id == int(instrument_id)
                 )
@@ -919,7 +917,6 @@ class InstrumentHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             stmt = Instrument.select(session.user_or_token, mode="delete").where(
                 Instrument.id == int(instrument_id)
             )
@@ -1054,7 +1051,6 @@ InstrumentHandler.post.__doc__ = f"""
 
 
 def load_field_data(field_data):
-
     delimiters = [",", " "]
     loaded = False
     for delimiter in delimiters:
@@ -1140,7 +1136,7 @@ def add_tiles(
             ra, dec = [], []
             needs_summary = False
             for ii, reg in enumerate(regions):
-                if type(reg) == RectangleSkyRegion:
+                if isinstance(reg, RectangleSkyRegion):
                     height = reg.height.value
                     width = reg.width.value
 
@@ -1155,13 +1151,13 @@ def add_tiles(
                     )
                     ra_tmp = geometry[:, 0]
                     dec_tmp = geometry[:, 1]
-                elif type(reg) == CircleSkyRegion:
+                elif isinstance(reg, CircleSkyRegion):
                     radius = reg.radius.value
                     N = 10
                     phi = np.linspace(0, 2 * np.pi, N)
                     ra_tmp = radius * np.cos(phi)
                     dec_tmp = radius * np.sin(phi)
-                elif type(reg) == PolygonSkyRegion:
+                elif isinstance(reg, PolygonSkyRegion):
                     ra_tmp = reg.vertices.ra
                     dec_tmp = reg.vertices.dec
                     needs_summary = True
@@ -1186,7 +1182,6 @@ def add_tiles(
             for ii, (field_id, ra, dec, coords) in enumerate(
                 zip(ids, field_data['RA'], field_data['Dec'], coords_icrs)
             ):
-
                 if field_id == -1:
                     field = InstrumentField.query.filter(
                         InstrumentField.instrument_id == instrument_id,
@@ -1402,7 +1397,6 @@ class InstrumentFieldHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             stmt = Instrument.select(session.user_or_token, mode="delete").where(
                 Instrument.id == int(instrument_id)
             )

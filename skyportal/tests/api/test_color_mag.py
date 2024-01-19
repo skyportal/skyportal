@@ -2,7 +2,6 @@ from skyportal.tests import api
 
 
 def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
-
     status, data = api(
         'POST',
         f'sources/{public_source.id}/annotations',
@@ -120,7 +119,6 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
 
 
 def test_change_color_mag_keys(annotation_token, user, public_source):
-
     status, data = api(
         'POST',
         f'sources/{public_source.id}/annotations',

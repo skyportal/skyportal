@@ -13,7 +13,6 @@ analysis_port = 6802
 def test_analysis_page(
     driver, user, public_source, analysis_service_token, analysis_token, public_group
 ):
-
     name = str(uuid.uuid4())
     optional_analysis_parameters = {"test_parameters": ["test_value_1", "test_value_2"]}
     post_data = {

@@ -93,7 +93,7 @@ SourceSaveHistory.propTypes = {
       saved_by: PropTypes.shape({
         username: PropTypes.string,
       }),
-    })
+    }),
   ).isRequired,
 };
 

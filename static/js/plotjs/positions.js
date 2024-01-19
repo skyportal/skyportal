@@ -116,12 +116,12 @@ function getMoonIllumination(d) {
   const m = moonCoords(d);
   const sdist = 149598000; // distance from Earth to Sun in km
   const phi = acos(
-    sin(s.dec) * sin(m.dec) + cos(s.dec) * cos(m.dec) * cos(s.ra - m.ra)
+    sin(s.dec) * sin(m.dec) + cos(s.dec) * cos(m.dec) * cos(s.ra - m.ra),
   );
   const inc = atan(sdist * sin(phi), m.dist - sdist * cos(phi));
   const angle = atan(
     cos(s.dec) * sin(s.ra - m.ra),
-    sin(s.dec) * cos(m.dec) - cos(s.dec) * sin(m.dec) * cos(s.ra - m.ra)
+    sin(s.dec) * cos(m.dec) - cos(s.dec) * sin(m.dec) * cos(s.ra - m.ra),
   );
 
   return {

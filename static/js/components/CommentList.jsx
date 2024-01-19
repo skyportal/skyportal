@@ -205,7 +205,7 @@ const CommentList = ({
   const userProfile = useSelector((state) => state.profile);
   const permissions = useSelector((state) => state.profile.permissions);
   const compactComments = useSelector(
-    (state) => state.profile.preferences?.compactComments
+    (state) => state.profile.preferences?.compactComments,
   );
   const { currentShift } = useSelector((state) => state.shift);
 
@@ -239,7 +239,7 @@ const CommentList = ({
         obj_id: objID,
         spectrum_id: spectrumID,
         ...formData,
-      })
+      }),
     );
   };
 
@@ -248,7 +248,7 @@ const CommentList = ({
       gcnEventActions.addCommentOnGcnEvent({
         gcnevent_id: gcnEventID,
         ...formData,
-      })
+      }),
     );
   };
 
@@ -257,7 +257,7 @@ const CommentList = ({
       earthquakeActions.addCommentOnEarthquake({
         earthquake_id: earthquakeID,
         ...formData,
-      })
+      }),
     );
   };
 
@@ -266,7 +266,7 @@ const CommentList = ({
       shiftActions.addCommentOnShift({
         shiftID,
         ...formData,
-      })
+      }),
     );
   };
 
@@ -306,7 +306,7 @@ const CommentList = ({
   } else if (associatedResourceType === "earthquake") {
     if (earthquakeID === null) {
       throw new Error(
-        "Must specify an earthquakeID for comments on earthquake"
+        "Must specify an earthquakeID for comments on earthquake",
       );
     }
     comments = earthquake.comments;
@@ -322,7 +322,7 @@ const CommentList = ({
 
   // Color styling
   const userColorTheme = useSelector(
-    (state) => state.profile.preferences.theme
+    (state) => state.profile.preferences.theme,
   );
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
@@ -392,7 +392,7 @@ const CommentList = ({
                 />
               )}
             </span>
-          )
+          ),
         )}
       </div>
       <div>

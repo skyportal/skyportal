@@ -42,7 +42,6 @@ class TelescopeHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
-
             schema = Telescope.__schema__()
             # check if the telescope has a fixed location
             if 'fixed_location' in data:
@@ -156,7 +155,6 @@ class TelescopeHandler(BaseHandler):
         longitude_max = self.get_query_argument("longitudeMax", None)
 
         with self.Session() as session:
-
             if telescope_id is not None:
                 t = session.scalars(
                     Telescope.select(session.user_or_token).where(

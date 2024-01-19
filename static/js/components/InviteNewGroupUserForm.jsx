@@ -88,8 +88,8 @@ const InviteNewGroupUserForm = ({ group_id }) => {
         dispatch(
           showNotification(
             "Invalid date. Please use MM/DD/YYYY format.",
-            "error"
-          )
+            "error",
+          ),
         );
         return;
       }
@@ -101,8 +101,8 @@ const InviteNewGroupUserForm = ({ group_id }) => {
     if (result.status === "success") {
       dispatch(
         showNotification(
-          `Invitation successfully sent to ${formState.newUserEmail}`
-        )
+          `Invitation successfully sent to ${formState.newUserEmail}`,
+        ),
       );
       setFormState({
         ...defaultState,

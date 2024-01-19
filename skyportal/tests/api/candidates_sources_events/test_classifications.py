@@ -8,7 +8,6 @@ from tdtax import taxonomy, __version__
 def test_add_bad_classification(
     taxonomy_token, classification_token, public_source, public_group
 ):
-
     status, data = api(
         'POST',
         'taxonomy',
@@ -62,7 +61,6 @@ def test_add_bad_classification(
 def test_add_and_retrieve_classification_group_id(
     taxonomy_token, classification_token, public_source, public_group
 ):
-
     status, data = api(
         'POST',
         'taxonomy',
@@ -121,7 +119,6 @@ def test_add_and_retrieve_classification_group_id(
 def test_add_and_retrieve_classification_no_group_id(
     taxonomy_token, classification_token, public_source, public_group
 ):
-
     status, data = api(
         'POST',
         'taxonomy',
@@ -295,7 +292,6 @@ def test_obj_classifications(
 def test_add_and_retrieve_multiple_classifications(
     taxonomy_token, classification_token, public_source, public_group
 ):
-
     status, data = api(
         'POST',
         'taxonomy',

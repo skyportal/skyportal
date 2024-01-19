@@ -105,7 +105,7 @@ const TaxonomyList = () => {
     pageNumber,
     numPerPage,
     sortData,
-    filterData
+    filterData,
   ) => {
     setRowsPerPage(numPerPage);
     const data = {

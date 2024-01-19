@@ -9,7 +9,7 @@ const ClassificationShortcutButtons = ({
   inDialog = false,
 }) => {
   const { classificationShortcuts } = useSelector(
-    (state) => state.profile.preferences
+    (state) => state.profile.preferences,
   );
   const handleClassificationShortcutClick = (shortcutClassifications) => {
     setSelectedClassifications([
@@ -31,7 +31,7 @@ const ClassificationShortcutButtons = ({
             >
               Select {shortcutName}
             </Button>
-          )
+          ),
         )}
     </>
   );

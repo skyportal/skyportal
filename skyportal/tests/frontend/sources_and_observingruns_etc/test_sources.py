@@ -167,7 +167,6 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
 def test_analysis_start(
     driver, user, public_source, analysis_service_token, public_group
 ):
-
     name = str(uuid.uuid4())
     optional_analysis_parameters = {}
 
@@ -879,7 +878,6 @@ def test_javascript_sexagesimal_conversion(public_source, driver, user):
 
 
 def test_source_hr_diagram(driver, user, public_source, annotation_token):
-
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
 
     status, data = api(

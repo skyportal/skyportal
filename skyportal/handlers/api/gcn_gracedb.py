@@ -26,7 +26,6 @@ else:
 
 
 def post_gracedb_data(dateobs, gracedb_id, user_id):
-
     with ThreadSession() as session:
         try:
             flow = Flow()

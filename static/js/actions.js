@@ -10,6 +10,7 @@ import * as defaultObservationPlansActions from "./ducks/default_observation_pla
 import * as defaultSurveyEfficienciesActions from "./ducks/default_survey_efficiencies";
 import * as newsFeedActions from "./ducks/newsFeed";
 import * as topSourcesActions from "./ducks/topSources";
+import * as topSaversActions from "./ducks/topSavers";
 import * as recentSourcesActions from "./ducks/recentSources";
 import * as mmadetectorActions from "./ducks/mmadetector";
 import * as observationPlansActions from "./ducks/observationPlans";
@@ -60,7 +61,7 @@ import * as hydrationActions from "./ducks/hydration";
 
 export default function hydrate(
   dashboardOnly = false,
-  ducks_to_hydrate = hydrationActions.DUCKS_TO_HYDRATE
+  ducks_to_hydrate = hydrationActions.DUCKS_TO_HYDRATE,
 ) {
   return (dispatch) => {
     if (!dashboardOnly) {
@@ -99,6 +100,7 @@ export default function hydrate(
     // dashboard data, always refreshed
     dispatch(newsFeedActions.fetchNewsFeed());
     dispatch(topSourcesActions.fetchTopSources());
+    dispatch(topSaversActions.fetchTopSavers());
     dispatch(recentSourcesActions.fetchRecentSources());
     dispatch(sourceCountsActions.fetchSourceCounts());
     dispatch(recentGcnEventsActions.fetchRecentGcnEvents());
@@ -162,7 +164,7 @@ export default function hydrate(
       if (ducks_to_hydrate.includes("allocationsApiClassname")) {
         dispatch(allocationsActions.fetchAllocationsApiClassname()).then(() => {
           dispatch(
-            hydrationActions.finishedHydrating("allocationsApiClassname")
+            hydrationActions.finishedHydrating("allocationsApiClassname"),
           );
         });
       }
@@ -170,7 +172,7 @@ export default function hydrate(
         dispatch(observationPlansActions.fetchObservationPlanNames()).then(
           () => {
             dispatch(hydrationActions.finishedHydrating("observationPlans"));
-          }
+          },
         );
       }
       if (ducks_to_hydrate.includes("analysisServices")) {
@@ -180,28 +182,28 @@ export default function hydrate(
       }
       if (ducks_to_hydrate.includes("defaultFollowupRequests")) {
         dispatch(
-          defaultFollowupRequestsActions.fetchDefaultFollowupRequests()
+          defaultFollowupRequestsActions.fetchDefaultFollowupRequests(),
         ).then(() => {
           dispatch(
-            hydrationActions.finishedHydrating("defaultFollowupRequests")
+            hydrationActions.finishedHydrating("defaultFollowupRequests"),
           );
         });
       }
       if (ducks_to_hydrate.includes("defaultObservationPlans")) {
         dispatch(
-          defaultObservationPlansActions.fetchDefaultObservationPlans()
+          defaultObservationPlansActions.fetchDefaultObservationPlans(),
         ).then(() => {
           dispatch(
-            hydrationActions.finishedHydrating("defaultObservationPlans")
+            hydrationActions.finishedHydrating("defaultObservationPlans"),
           );
         });
       }
       if (ducks_to_hydrate.includes("defaultSurveyEfficiencies")) {
         dispatch(
-          defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies()
+          defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies(),
         ).then(() => {
           dispatch(
-            hydrationActions.finishedHydrating("defaultSurveyEfficiencies")
+            hydrationActions.finishedHydrating("defaultSurveyEfficiencies"),
           );
         });
       }

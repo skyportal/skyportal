@@ -26,6 +26,7 @@ import MenuIcon from "@material-ui/icons/Menu";
 import { isMobile } from "react-device-detect";
 
 import QuickSearchBar from "./QuickSearchBar";
+import { NewSourceButton } from "./NewSource";
 import HeaderContent from "./HeaderContent";
 import * as Actions from "../ducks/sidebar";
 import hydrate from "../actions";
@@ -277,6 +278,7 @@ const SidebarAndHeader = () => {
         </List>
 
         <QuickSearchBar id="search" />
+        <NewSourceButton id="newSource" />
       </Drawer>
     </>
   );

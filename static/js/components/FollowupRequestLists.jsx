@@ -141,8 +141,8 @@ const FollowupRequestLists = ({
         dispatch(
           showNotification(
             "Successfully retrieved photometry request, please wait for it to be processed.",
-            "success"
-          )
+            "success",
+          ),
         );
         setHasRetrieved([...hasRetrieved, id]);
       }
@@ -171,7 +171,7 @@ const FollowupRequestLists = ({
       (inst) =>
         inst.id in instrumentFormParams &&
         instrumentFormParams[inst.id]?.formSchema !== null &&
-        instrumentFormParams[inst.id]?.formSchema !== undefined
+        instrumentFormParams[inst.id]?.formSchema !== undefined,
     );
 
     followupRequests = followupRequests.filter(
@@ -181,7 +181,7 @@ const FollowupRequestLists = ({
           (instrumentFormParams[request?.allocation?.instrument_id]
             ?.formSchemaForcedPhotometry === null ||
             instrumentFormParams[request?.allocation?.instrument_id]
-              ?.formSchemaForcedPhotometry === undefined))
+              ?.formSchemaForcedPhotometry === undefined)),
     );
   } else if (requestType === "forced_photometry") {
     instrumentList = instrumentList.filter(
@@ -189,7 +189,7 @@ const FollowupRequestLists = ({
       (inst) =>
         inst.id in instrumentFormParams &&
         instrumentFormParams[inst.id]?.formSchemaForcedPhotometry !== null &&
-        instrumentFormParams[inst.id]?.formSchemaForcedPhotometry !== undefined
+        instrumentFormParams[inst.id]?.formSchemaForcedPhotometry !== undefined,
     );
 
     followupRequests = followupRequests.filter(
@@ -199,7 +199,7 @@ const FollowupRequestLists = ({
           (instrumentFormParams[request?.allocation?.instrument_id]
             ?.formSchema === null ||
             instrumentFormParams[request?.allocation?.instrument_id]
-              ?.formSchema === undefined))
+              ?.formSchema === undefined)),
     );
   }
 
@@ -287,7 +287,7 @@ const FollowupRequestLists = ({
         Array.isArray(value) ? value.join(",") : value;
 
       const field = Object.keys(
-        instrumentFormParams[instrument_id].aliasLookup
+        instrumentFormParams[instrument_id].aliasLookup,
       ).includes(key)
         ? instrumentFormParams[instrument_id].aliasLookup[key]
         : key;
@@ -498,7 +498,7 @@ const FollowupRequestLists = ({
             "allocation_pi",
             "allocation_group_id",
             "allocation_group_name",
-            "allocation_types"
+            "allocation_types",
           );
 
           const formatDataFunc = (x) => {
@@ -534,7 +534,7 @@ const FollowupRequestLists = ({
               x.allocation.pi.replaceAll(",", "/"),
               x.allocation.group.id,
               x.allocation.group.name.replaceAll(",", "/"),
-              x.allocation.types.join("/")
+              x.allocation.types.join("/"),
             );
             return formattedData;
           };
@@ -687,7 +687,7 @@ FollowupRequestLists.propTypes = {
           name: PropTypes.string,
         }),
       }),
-    })
+    }),
   ).isRequired,
   instrumentList: PropTypes.arrayOf(
     PropTypes.shape({
@@ -697,7 +697,7 @@ FollowupRequestLists.propTypes = {
       name: PropTypes.string,
       type: PropTypes.string,
       telescope_id: PropTypes.number,
-    })
+    }),
   ).isRequired,
   instrumentFormParams: PropTypes.shape({
     // eslint-disable-next-line react/forbid-prop-types

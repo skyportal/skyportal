@@ -85,7 +85,7 @@ const UpdateProfileForm = () => {
       contact_phone: initialValues.phone,
     };
     const result = await dispatch(
-      ProfileActions.updateBasicUserInfo(basicinfo)
+      ProfileActions.updateBasicUserInfo(basicinfo),
     );
     if (result.status === "success") {
       dispatch(showNotification("Profile data saved"));
@@ -178,7 +178,7 @@ const UpdateProfileForm = () => {
                           const { inputValue } = params;
                           // Suggest the creation of a new value
                           const isExisting = options.some(
-                            (option) => inputValue === option
+                            (option) => inputValue === option,
                           );
                           if (inputValue !== "" && !isExisting) {
                             filtered.push(inputValue);

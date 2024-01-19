@@ -51,15 +51,15 @@ const UpdateSourceGCNCrossmatch = ({ source }) => {
         if (response.status === "success") {
           dispatch(
             showNotification(
-              "Successfully triggered GCN crossmatch. Please be patient."
-            )
+              "Successfully triggered GCN crossmatch. Please be patient.",
+            ),
           );
         } else {
           dispatch(
-            showNotification("Failed to trigger the GCN crossmatch.", "error")
+            showNotification("Failed to trigger the GCN crossmatch.", "error"),
           );
         }
-      }
+      },
     );
   };
 
@@ -124,7 +124,7 @@ UpdateSourceGCNCrossmatch.propTypes = {
     photstats: PropTypes.arrayOf(
       PropTypes.shape({
         first_detected_mjd: PropTypes.number,
-      })
+      }),
     ),
   }).isRequired,
 };

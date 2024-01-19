@@ -110,8 +110,8 @@ const EarthquakePredictionForm = ({ earthquake }) => {
       earthquakeActions.submitPrediction(
         earthquake.event_id,
         selectedMMADetectorId,
-        formData
-      )
+        formData,
+      ),
     );
     setIsSubmitting(false);
   };

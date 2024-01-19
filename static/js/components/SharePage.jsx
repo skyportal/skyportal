@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import PropTypes from "prop-types";
 
 import Dialog from "@mui/material/Dialog";
 import IconButton from "@mui/material/IconButton";
@@ -15,7 +16,7 @@ const useStyles = makeStyles({
   },
 });
 
-const SharePage = () => {
+const SharePage = ({ value }) => {
   const classes = useStyles();
 
   const [open, setOpen] = useState(false);
@@ -28,7 +29,11 @@ const SharePage = () => {
     setOpen(false);
   };
 
-  const url = window.location.href;
+  // if a value is not provided, use the current page's URL
+  if (value === undefined || value === null || value === "") {
+    value = window.location.href;
+  }
+
   return (
     <>
       <IconButton
@@ -48,10 +53,18 @@ const SharePage = () => {
           paper: classes.paper,
         }}
       >
-        <QRCode value={url} />
+        <QRCode value={value} />
       </Dialog>
     </>
   );
+};
+
+SharePage.propTypes = {
+  value: PropTypes.string,
+};
+
+SharePage.defaultProps = {
+  value: null,
 };
 
 export default SharePage;

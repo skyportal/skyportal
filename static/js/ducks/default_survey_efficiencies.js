@@ -20,7 +20,7 @@ const SUBMIT_DEFAULT_SURVEY_EFFICIENCY =
 export function deleteDefaultSurveyEfficiency(id) {
   return API.DELETE(
     `/api/default_survey_efficiency/${id}`,
-    DELETE_DEFAULT_SURVEY_EFFICIENCY
+    DELETE_DEFAULT_SURVEY_EFFICIENCY,
   );
 }
 
@@ -31,7 +31,7 @@ export const submitDefaultSurveyEfficiency = (default_survey_efficiency) =>
   API.POST(
     `/api/default_survey_efficiency`,
     SUBMIT_DEFAULT_SURVEY_EFFICIENCY,
-    default_survey_efficiency
+    default_survey_efficiency,
   );
 
 // Websocket message handler
@@ -45,7 +45,7 @@ const reducer = (
   state = {
     defaultSurveyEfficiencyList: [],
   },
-  action
+  action,
 ) => {
   switch (action.type) {
     case FETCH_DEFAULT_SURVEY_EFFICIENCIES_OK: {

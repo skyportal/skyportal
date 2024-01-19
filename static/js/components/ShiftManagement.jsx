@@ -188,7 +188,7 @@ const ShiftManagement = ({ currentShift }) => {
         } else {
           newSelected.splice(
             newSelected.findIndex((user) => user.id === element.id),
-            1
+            1,
           );
         }
       });
@@ -212,8 +212,8 @@ const ShiftManagement = ({ currentShift }) => {
             dispatch(
               showNotification(
                 "You selected more users than the required number of users for this shift. Adding only the remaining users to the shift.",
-                "warning"
-              )
+                "warning",
+              ),
             );
           }
           users_to_add.forEach((user) => {
@@ -222,13 +222,13 @@ const ShiftManagement = ({ currentShift }) => {
                 userID: user.id,
                 admin: false,
                 shiftID: currentShift.id,
-              })
+              }),
             ).then((response) => {
               if (response.status === "success") {
                 dispatch(showNotification("User added to shift"));
               } else {
                 dispatch(
-                  showNotification("Error adding user to shift", "error")
+                  showNotification("Error adding user to shift", "error"),
                 );
               }
             });
@@ -237,8 +237,8 @@ const ShiftManagement = ({ currentShift }) => {
           dispatch(
             showNotification(
               "Shift already Full, no users added to shift",
-              "warning"
-            )
+              "warning",
+            ),
           );
         }
       } else {
@@ -253,13 +253,13 @@ const ShiftManagement = ({ currentShift }) => {
             deleteShiftUser({
               userID: selected_users[user].id,
               shiftID: currentShift.id,
-            })
+            }),
           ).then((result) => {
             if (result.status === "success") {
               dispatch(
                 showNotification(
-                  `User ${selected_users[user]?.username} removed from shift`
-                )
+                  `User ${selected_users[user]?.username} removed from shift`,
+                ),
               );
             }
           });
@@ -272,7 +272,7 @@ const ShiftManagement = ({ currentShift }) => {
     function removeUsersFromSelected(selected_users) {
       if (selected_users.length > 0) {
         const newSelectedUsers = selected.filter((user) =>
-          selected_users.every((selected_user) => selected_user.id !== user.id)
+          selected_users.every((selected_user) => selected_user.id !== user.id),
         );
         dispatch({
           type: "skyportal/CURRENT_SHIFT_SELECTED_USERS",
@@ -284,7 +284,7 @@ const ShiftManagement = ({ currentShift }) => {
     function usersNotInShift(user) {
       return (
         !currentShift.shift_users.find(
-          (shiftUser) => shiftUser.user_id === user.id
+          (shiftUser) => shiftUser.user_id === user.id,
         ) && currentUser.id !== user.id
       );
     }
@@ -341,7 +341,7 @@ const ShiftManagement = ({ currentShift }) => {
     function usersInShift(user) {
       return (
         currentShift.shift_users.find(
-          (shiftUser) => shiftUser.user_id === user.id
+          (shiftUser) => shiftUser.user_id === user.id,
         ) && currentUser.id !== user.id
       );
     }
@@ -442,7 +442,7 @@ const ShiftManagement = ({ currentShift }) => {
               <MenuItem id="select_users" key={user.id} value={user}>
                 <Checkbox
                   checked={selected.some(
-                    (selected_user) => selected_user.id === user.id
+                    (selected_user) => selected_user.id === user.id,
                   )}
                 />
                 <ListItemText
@@ -477,7 +477,7 @@ const ShiftManagement = ({ currentShift }) => {
         userID: currentUser.id,
         admin: false,
         shiftID: shift.id,
-      })
+      }),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification(`joined shift: ${shift.name}`));
@@ -488,10 +488,10 @@ const ShiftManagement = ({ currentShift }) => {
   function ReplaceUserMenu({ currentUserIsAdminOfShift }) {
     const [selectedToReplace, setSelectedToReplace] = React.useState({});
     const usersToReplace = currentShift.shift_users.filter(
-      (shiftUser) => shiftUser.needs_replacement
+      (shiftUser) => shiftUser.needs_replacement,
     );
     const currentUserInShift = currentShift.shift_users.some(
-      (shiftUser) => shiftUser.user_id === currentUser.id
+      (shiftUser) => shiftUser.user_id === currentUser.id,
     );
 
     function replaceUserInShift(selected_user) {
@@ -500,7 +500,7 @@ const ShiftManagement = ({ currentShift }) => {
         deleteShiftUser({
           userID: selected_user.id,
           shiftID,
-        })
+        }),
       ).then((result) => {
         if (result.status === "success") {
           dispatch(
@@ -509,11 +509,11 @@ const ShiftManagement = ({ currentShift }) => {
               userID: currentUser.id,
               admin: false,
               needs_replacement: false,
-            })
+            }),
           ).then((next_result) => {
             if (next_result.status === "success") {
               dispatch(
-                showNotification(`replaced user: ${selected_user.username}`)
+                showNotification(`replaced user: ${selected_user.username}`),
               );
             }
           });
@@ -560,7 +560,7 @@ const ShiftManagement = ({ currentShift }) => {
       if (currentUserInShift && !currentUserIsAdminOfShift) {
         // check if the user has already asked for a replacement
         const userHasAlreadyAskedForReplacement = usersToReplace.some(
-          (shiftUser) => shiftUser.user_id === currentUser.id
+          (shiftUser) => shiftUser.user_id === currentUser.id,
         );
         if (!userHasAlreadyAskedForReplacement) {
           button = (
@@ -578,7 +578,7 @@ const ShiftManagement = ({ currentShift }) => {
                       admin: false,
                       needs_replacement: true,
                       shiftID,
-                    })
+                    }),
                   ).then((result) => {
                     if (result.status === "success") {
                       dispatch(showNotification(`asked for replacement`));
@@ -675,7 +675,7 @@ const ShiftManagement = ({ currentShift }) => {
 
   const leaveShift = (shift) => {
     dispatch(
-      deleteShiftUser({ userID: currentUser.id, shiftID: shift.id })
+      deleteShiftUser({ userID: currentUser.id, shiftID: shift.id }),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification(`left shift: ${shift.name}`));
@@ -717,7 +717,7 @@ const ShiftManagement = ({ currentShift }) => {
   if (currentShift.name != null) {
     if (
       currentShift.shift_users.filter(
-        (user) => user.user_id === currentUser.id && user.admin
+        (user) => user.user_id === currentUser.id && user.admin,
       ).length > 0
     ) {
       currentUserIsAdminOfShift = true;
@@ -755,12 +755,12 @@ const ShiftManagement = ({ currentShift }) => {
             </h3>
             <div>
               <i id="current_shift_admins">{`\n Admins : ${admins.join(
-                ", "
+                ", ",
               )}`}</i>
             </div>
             <div>
               <i id="current_shift_members">{`\n Members : ${members.join(
-                ", "
+                ", ",
               )}`}</i>
             </div>
             {currentShift.required_users_number && (
@@ -847,9 +847,9 @@ ShiftManagement.propTypes = {
             first_name: PropTypes.string,
             last_name: PropTypes.string,
             username: PropTypes.string,
-          })
+          }),
         ),
-      })
+      }),
     ),
     start_date: PropTypes.oneOfType([
       PropTypes.string,
@@ -863,7 +863,7 @@ ShiftManagement.propTypes = {
       PropTypes.shape({
         id: PropTypes.number,
         admin: PropTypes.bool,
-      })
+      }),
     ),
     required_users_number: PropTypes.number,
   }).isRequired,

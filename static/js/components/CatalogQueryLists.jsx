@@ -203,7 +203,7 @@ CatalogQueryLists.propTypes = {
       id: PropTypes.number,
       payload: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
       status: PropTypes.string,
-    })
+    }),
   ).isRequired,
 };
 

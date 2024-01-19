@@ -514,7 +514,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
                     skymap['phi'],
                 )
             elif required_polygon_keys.issubset(set(skymap.keys())):
-                if type(skymap['polygon']) == str:
+                if isinstance(skymap['polygon'], str):
                     polygon = ast.literal_eval(skymap['polygon'])
                 else:
                     polygon = skymap['polygon']
@@ -1416,7 +1416,6 @@ class GcnEventHandler(BaseHandler):
                 return self.success(data=data)
 
         with self.Session() as session:
-
             query = GcnEvent.select(
                 session.user_or_token,
                 options=[
@@ -1881,7 +1880,6 @@ def add_observation_plans(localization_id, user_id):
                     Allocation.select(user).where(Allocation.id == allocation_id)
                 ).first()
                 if allocation is not None:
-
                     end_date = allocation.instrument.telescope.next_sunrise()
                     if end_date is None:
                         end_date = str(
@@ -1926,7 +1924,6 @@ def add_tiles_properties_contour_and_obsplan(
     properties=None,
     tags=None,
 ):
-
     with ThreadSession() as session:
         try:
             add_tiles_and_properties_and_contour(
@@ -3012,7 +3009,7 @@ class GcnSummaryHandler(BaseHandler):
                 return self.error("Subject is required")
             if user_ids is not None:
                 try:
-                    if type(user_ids) == list:
+                    if isinstance(user_ids, list):
                         user_ids = [int(user_id) for user_id in user_ids]
                     else:
                         user_ids = [int(user_ids)]
@@ -3857,7 +3854,9 @@ class GcnReportHandler(BaseHandler):
 
                         old_data = report.data
                         old_data = (
-                            json.loads(old_data) if type(old_data) == str else old_data
+                            json.loads(old_data)
+                            if isinstance(old_data, str)
+                            else old_data
                         )
 
                         # if there is any duplicate source, return error
@@ -4283,7 +4282,6 @@ class GcnEventInstrumentFieldHandler(BaseHandler):
 class GcnEventTriggerHandler(BaseHandler):
     @permissions(['Manage allocations'])
     def get(self, dateobs, allocation_id=None):
-
         dateobs = dateobs.strip()
         try:
             arrow.get(dateobs)
@@ -4392,7 +4390,6 @@ class GcnEventTriggerHandler(BaseHandler):
 
     @permissions(['Manage allocations'])
     def delete(self, dateobs, allocation_id):
-
         dateobs = dateobs.strip()
         try:
             arrow.get(dateobs)
@@ -4503,7 +4500,9 @@ class ObjGcnEventHandler(BaseHandler):
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")
 
-            query = GcnEvent.select(session.user_or_token,).where(
+            query = GcnEvent.select(
+                session.user_or_token,
+            ).where(
                 GcnEvent.dateobs >= start_date,
                 GcnEvent.dateobs <= end_date,
             )
@@ -4553,7 +4552,6 @@ def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.
 
             events = []
             for event_id in event_ids:
-
                 event = session.scalars(
                     GcnEvent.select(
                         user,
@@ -4672,7 +4670,6 @@ class DefaultGcnTagHandler(BaseHandler):
         data = self.get_json()
 
         with self.Session() as session:
-
             if "default_tag_name" not in data:
                 return self.error('Missing default_tag_name')
             else:
@@ -4792,7 +4789,6 @@ class DefaultGcnTagHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             stmt = DefaultGcnTag.select(session.user_or_token).where(
                 DefaultGcnTag.id == default_gcn_tag_id
             )

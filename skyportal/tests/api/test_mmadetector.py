@@ -133,7 +133,6 @@ def test_token_user_delete_mmadetector(super_admin_token):
 
 
 def test_mmadetector_spectrum(super_admin_token):
-
     datafile = f'{os.path.dirname(__file__)}/../data/aligo_O4high_noise_spectrum.txt'
     data_out = np.loadtxt(datafile)
     frequencies = data_out[:, 0]
@@ -213,7 +212,6 @@ def test_mmadetector_spectrum(super_admin_token):
 
 
 def test_mmadetector_time_intervals(super_admin_token):
-
     datafile = f'{os.path.dirname(__file__)}/../data/H1L1_O3_time_intervals.txt'
     data_out = np.loadtxt(datafile)
     time_intervals = []

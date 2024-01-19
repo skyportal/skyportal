@@ -18,7 +18,7 @@ const SourceList = () => {
 
   const sourcesState = useSelector((state) => state.sources.latest);
   const sourceTableEmpty = useSelector(
-    (state) => state.dbInfo.source_table_empty
+    (state) => state.dbInfo.source_table_empty,
   );
 
   const [rowsPerPage, setRowsPerPage] = useState(100);
@@ -35,7 +35,7 @@ const SourceList = () => {
     pageNumber,
     numPerPage,
     sortData,
-    filterData
+    filterData,
   ) => {
     setRowsPerPage(numPerPage);
     const data = {
@@ -104,15 +104,15 @@ const SourceList = () => {
             dispatch(
               showNotification(
                 "Failed to fetch some sources. Download cancelled.",
-                "error"
-              )
+                "error",
+              ),
             );
           } else {
             dispatch(
               showNotification(
                 "Failed to fetch some sources, please try again. Sources fetched so far will be downloaded.",
-                "error"
-              )
+                "error",
+              ),
             );
           }
           break;

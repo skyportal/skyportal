@@ -157,6 +157,7 @@ async def get_source(
     include_comments=False,
     include_analyses=False,
     include_photometry=False,
+    deduplicate_photometry=False,
     include_photometry_exists=False,
     include_spectrum_exists=False,
     include_comment_exists=False,
@@ -407,8 +408,18 @@ async def get_source(
             .all()
         )
         source_info["photometry"] = [
-            serialize(phot, 'ab', 'flux') for phot in photometry
+            serialize(phot, 'ab', 'both') for phot in photometry
         ]
+        if deduplicate_photometry:
+            df_phot = pd.DataFrame.from_records(source_info["photometry"])
+            # drop duplicate mjd/filter points, keeping most recent
+            source_info["photometry"] = (
+                df_phot.sort_values(by="created_at", ascending=False)
+                .drop_duplicates(["mjd", "filter"])
+                .reset_index(drop=True)
+                .to_dict(orient='records')
+            )
+
     if include_photometry_exists:
         source_info["photometry_exists"] = check_if_obj_has_photometry(
             obj_id, user, session
@@ -465,7 +476,6 @@ def create_annotations_query(
     annotations_filter_before=None,
     annotations_filter_after=None,
 ):
-
     annotations_query = Annotation.select(session.user_or_token)
     if annotations_filter_origin is not None:
         annotations_query = annotations_query.where(
@@ -1129,7 +1139,6 @@ async def get_sources(
                 or comments_filter_after
                 or (comments_filter_author is not None)
             ):
-
                 comment_query = Comment.select(session.user_or_token)
 
                 if comments_filter is not None:
@@ -1188,7 +1197,6 @@ async def get_sources(
                 )
 
             if localization_dateobs is not None:
-
                 # This grabs just the IDs so the more expensive localization in-out
                 # check is done on only this subset
                 obj_ids = session.scalars(obj_query).unique().all()
@@ -1304,7 +1312,6 @@ async def get_sources(
                     obj_query = obj_query.where(Obj.id.notin_(rejected_obj_ids))
 
             if spatial_catalog_name is not None:
-
                 if spatial_catalog_entry_name is None:
                     raise ValueError(
                         'spatial_catalog_entry_name must be defined if spatial_catalog_name is as well'
@@ -2042,6 +2049,14 @@ class SourceHandler(BaseHandler):
                 Boolean indicating whether to include associated photometry. Defaults to
                 false.
             - in: query
+              name: deduplicatePhotometry
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to deduplicate photometry. Defaults to
+                false.
+            - in: query
               name: includeComments
               nullable: true
               schema:
@@ -2690,6 +2705,7 @@ class SourceHandler(BaseHandler):
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
         rejectedSourceIDs = self.get_query_argument('rejectedSourceIDs', None)
         include_photometry = self.get_query_argument("includePhotometry", False)
+        deduplicate_photometry = self.get_query_argument("deduplicatePhotometry", False)
         include_color_mag = self.get_query_argument("includeColorMagnitude", False)
         include_requested = self.get_query_argument("includeRequested", False)
         include_thumbnails = self.get_query_argument("includeThumbnails", False)
@@ -2892,6 +2908,7 @@ class SourceHandler(BaseHandler):
                         include_comments=include_comments,
                         include_analyses=include_analyses,
                         include_photometry=include_photometry,
+                        deduplicate_photometry=deduplicate_photometry,
                         include_photometry_exists=include_photometry_exists,
                         include_spectrum_exists=include_spectrum_exists,
                         include_comment_exists=include_comment_exists,
@@ -3291,7 +3308,6 @@ class SourceOffsetsHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             source = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             ).first()
@@ -3656,7 +3672,6 @@ class SourceNotificationHandler(BaseHandler):
             return self.error("Missing required parameter `sourceId`")
 
         with self.Session() as session:
-
             source = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == data["sourceId"])
             ).first()
@@ -3795,7 +3810,6 @@ class SourceObservabilityPlotHandler(BaseHandler):
         twilight = self.get_query_argument("twilight", "astronomical")
 
         with self.Session() as session:
-
             stmt = Telescope.select(self.current_user)
             telescopes = session.scalars(stmt).all()
 

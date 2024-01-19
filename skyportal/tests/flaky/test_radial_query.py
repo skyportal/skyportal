@@ -10,7 +10,6 @@ import conesearch_alchemy as ca
 @pytest.mark.parametrize('n', [100, 1000, 10000])
 @pytest.mark.flaky(reruns=3)
 def test_radial_query(n):
-
     # generate the points
     rng = np.random.RandomState(8675309)  # /Jenny
     ras = rng.uniform(0, 360, n)

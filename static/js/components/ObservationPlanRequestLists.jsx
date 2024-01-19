@@ -108,7 +108,7 @@ const ObservationPlanGlobe = ({ observationplanRequest }) => {
     "observations",
   ];
   const displayOptionsDefault = Object.fromEntries(
-    displayOptions.map((x) => [x, false])
+    displayOptions.map((x) => [x, false]),
   );
   displayOptionsDefault.localization = true;
   displayOptionsDefault.observations = true;
@@ -119,14 +119,14 @@ const ObservationPlanGlobe = ({ observationplanRequest }) => {
       const response = await dispatch(
         GET(
           `/api/observation_plan/${observationplanRequest.id}/geojson`,
-          "skyportal/FETCH_OBSERVATION_PLAN_GEOJSON"
-        )
+          "skyportal/FETCH_OBSERVATION_PLAN_GEOJSON",
+        ),
       );
       setObsList(response.data);
     };
     if (
       ["complete", "submitted to telescope queue"].includes(
-        observationplanRequest?.status
+        observationplanRequest?.status,
       )
     ) {
       fetchObsList();
@@ -139,8 +139,8 @@ const ObservationPlanGlobe = ({ observationplanRequest }) => {
     await dispatch(
       Actions.deleteObservationPlanFields(
         observationplanRequest.id,
-        selectedIds
-      )
+        selectedIds,
+      ),
     );
   };
 
@@ -273,9 +273,9 @@ ObservationPlanSummaryStatistics.propTypes = {
               start_observation: PropTypes.string,
               unique_filters: PropTypes.arrayOf(PropTypes.string),
             }),
-          })
+          }),
         ),
-      })
+      }),
     ),
   }).isRequired,
 };
@@ -362,7 +362,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
   };
 
   const { instrumentList, instrumentObsplanFormParams } = useSelector(
-    (state) => state.instruments
+    (state) => state.instruments,
   );
 
   useEffect(() => {
@@ -405,7 +405,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
   });
 
   observationPlanRequestList.sort(
-    (a, b) => new Date(b.created_at) - new Date(a.created_at)
+    (a, b) => new Date(b.created_at) - new Date(a.created_at),
   );
 
   const requestsGroupedByInstId = observationPlanRequestList.reduce((r, a) => {
@@ -439,7 +439,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
 
       if (instrumentObsplanFormParams[instrument_id]) {
         const field = Object.keys(
-          instrumentObsplanFormParams[instrument_id].aliasLookup
+          instrumentObsplanFormParams[instrument_id].aliasLookup,
         ).includes(key)
           ? instrumentObsplanFormParams[instrument_id].aliasLookup[key]
           : key;

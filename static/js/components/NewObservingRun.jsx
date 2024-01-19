@@ -53,7 +53,7 @@ const NewObservingRun = () => {
           enum: [instrument.id],
           title: `${
             telescopeList.find(
-              (telescope) => telescope.id === instrument.telescope_id
+              (telescope) => telescope.id === instrument.telescope_id,
             )?.name
           } / ${instrument.name}`,
         })),
@@ -63,7 +63,7 @@ const NewObservingRun = () => {
       group_id: {
         type: "integer",
         oneOf: [{ enum: [-1], title: "No group" }].concat(
-          groups.map((group) => ({ enum: [group.id], title: group.name }))
+          groups.map((group) => ({ enum: [group.id], title: group.name })),
         ),
         default: -1,
         title: "Group",

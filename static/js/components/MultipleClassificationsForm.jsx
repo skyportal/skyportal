@@ -111,7 +111,7 @@ const MultipleClassificationsForm = ({
   const sortedClassifications = getSortedClasses(currentClassifications);
 
   const scaleProbabilities = useSelector(
-    (state) => state.classifications.scaleProbabilities
+    (state) => state.classifications.scaleProbabilities,
   );
 
   const [scaleProbabilitiesChecked, setScaleProbabilitiesChecked] =
@@ -120,7 +120,7 @@ const MultipleClassificationsForm = ({
   const handleScaleProbabilitiesSwitchChange = (event) => {
     setScaleProbabilitiesChecked(event.target.checked);
     dispatch(
-      ClassificationsActions.setScaleProbabilities(event.target.checked)
+      ClassificationsActions.setScaleProbabilities(event.target.checked),
     );
   };
 
@@ -170,7 +170,7 @@ const MultipleClassificationsForm = ({
     const list = [];
     children?.forEach((subclass) => {
       list.push(
-        newFormState[selectedTaxonomy.id][subclass.class]?.probability || 0
+        newFormState[selectedTaxonomy.id][subclass.class]?.probability || 0,
       );
     });
     return list;
@@ -207,7 +207,7 @@ const MultipleClassificationsForm = ({
         const subpath = path.slice(i + 1);
         const probabilityOfSubclasses = Math.max(
           ...listChildren(getNode(ancestor, subpath), newFormState),
-          0
+          0,
         );
         const probabilityOfAncestor =
           formState[selectedTaxonomy.id][ancestor]?.probability || 0;
@@ -266,7 +266,7 @@ const MultipleClassificationsForm = ({
               renderSliders(
                 classification.subclasses,
                 depth + 1,
-                [classification.class].concat(path)
+                [classification.class].concat(path),
               )}
           </div>
         ) : (
@@ -297,10 +297,10 @@ const MultipleClassificationsForm = ({
               renderSliders(
                 classification.subclasses,
                 depth + 1,
-                [classification.class].concat(path)
+                [classification.class].concat(path),
               )}
           </Paper>
-        )
+        ),
       );
       return <StyledSlider key={`${classification.class}`} />;
     });
@@ -387,7 +387,7 @@ const MultipleClassificationsForm = ({
               key={`${selectedTaxonomy.id}-${classification}`}
               label={`${classification} (${selectedTaxonomy.name}): ${probability}`}
             />
-          )
+          ),
         )}
       </div>
       <FormControl className={classes.taxonomySelect}>
@@ -465,7 +465,7 @@ MultipleClassificationsForm.propTypes = {
       created_at: PropTypes.string,
       isLatest: PropTypes.bool,
       version: PropTypes.string,
-    })
+    }),
   ).isRequired,
   groupId: PropTypes.number,
   currentClassifications: PropTypes.arrayOf(PropTypes.shape({})).isRequired,

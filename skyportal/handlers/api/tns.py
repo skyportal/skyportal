@@ -148,7 +148,7 @@ class TNSRobotHandler(BaseHandler):
         data = self.get_json()
 
         if '_altdata' in data:
-            if type(data['_altdata']) == dict:
+            if isinstance(data['_altdata'], dict):
                 data['_altdata'] = json.dumps(data['_altdata'])
             data['_altdata'] = data['_altdata'].replace("'", '"')
 
@@ -156,7 +156,6 @@ class TNSRobotHandler(BaseHandler):
         auto_report_stream_ids = data.pop('auto_report_stream_ids', [])
 
         with self.Session() as session:
-
             try:
                 tnsrobot = TNSRobot.__schema__().load(data=data)
             except ValidationError as e:
@@ -254,7 +253,7 @@ class TNSRobotHandler(BaseHandler):
         data = self.get_json()
 
         if '_altdata' in data:
-            if type(data['_altdata']) == dict:
+            if isinstance(data['_altdata'], dict):
                 data['_altdata'] = json.dumps(data['_altdata'])
             data['_altdata'] = data['_altdata'].replace("'", '"')
 
@@ -485,9 +484,9 @@ class BulkTNSHandler(BaseHandler):
         group_ids = data.get("groupIds", None)
         if group_ids is None:
             return self.error('group_ids is required')
-        elif type(group_ids) == str:
+        elif isinstance(group_ids, str):
             group_ids = [int(x) for x in group_ids.split(",")]
-        elif not type(group_ids) == list:
+        elif not isinstance(group_ids, list):
             return self.error('group_ids type not understood')
 
         start_date = data.get('startDate', None)

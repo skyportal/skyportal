@@ -1457,7 +1457,6 @@ def add_followup_request_using_frontend_and_verify_IOO(
 def test_submit_new_followup_request_UVOTXRT(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_UVOTXRT(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
@@ -1468,7 +1467,6 @@ def test_submit_new_followup_request_UVOTXRT(
 def test_submit_new_followup_request_KAIT(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_KAIT(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
@@ -1478,7 +1476,6 @@ def test_submit_new_followup_request_KAIT(
 def test_submit_new_followup_request_SEDMv2(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_SEDMv2(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
@@ -1489,7 +1486,6 @@ def test_submit_new_followup_request_SEDMv2(
 def test_submit_new_followup_request_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_ZTF(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
@@ -1500,7 +1496,6 @@ def test_submit_new_followup_request_ZTF(
 def test_submit_new_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_SEDM(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
@@ -1521,7 +1516,6 @@ def test_submit_new_followup_request_IOO(
 def test_submit_new_followup_request_IOI(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_IOI(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
@@ -1532,7 +1526,6 @@ def test_submit_new_followup_request_IOI(
 def test_submit_new_followup_request_SPRAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_SPRAT(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
@@ -1552,7 +1545,6 @@ def test_submit_new_followup_request_SLACK(
 def test_submit_new_followup_request_Sinistro(
     driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_Sinistro(
         driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
     )
@@ -1563,7 +1555,6 @@ def test_submit_new_followup_request_Sinistro(
 def test_submit_new_followup_request_Spectral(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_Spectral(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
@@ -1574,7 +1565,6 @@ def test_submit_new_followup_request_Spectral(
 def test_submit_new_followup_request_ATLAS(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_ATLAS(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
@@ -1585,7 +1575,6 @@ def test_submit_new_followup_request_ATLAS(
 def test_submit_new_followup_request_PS1(
     driver, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_PS1(
         driver, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
     )
@@ -1596,7 +1585,6 @@ def test_submit_new_followup_request_PS1(
 def test_submit_new_followup_request_MUSCAT(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_MUSCAT(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
@@ -1607,7 +1595,6 @@ def test_submit_new_followup_request_MUSCAT(
 def test_submit_new_followup_request_Floyds(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_Floyds(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
@@ -1900,7 +1887,6 @@ def test_submit_new_followup_request_two_groups(
     public_group2,
     view_only_token_group2,
 ):
-
     idata = add_telescope_and_instrument("SEDM", super_admin_token)
     add_allocation_sedm(idata['id'], public_group.id, super_admin_token)
 

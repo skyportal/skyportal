@@ -96,7 +96,6 @@ class GROWTHINDIAMMAAPI(MMAAPI):
 
     @staticmethod
     def send(request, session):
-
         """Submit an EventObservationPlan.
 
         Parameters

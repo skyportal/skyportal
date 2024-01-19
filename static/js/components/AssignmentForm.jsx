@@ -23,7 +23,7 @@ export function observingRunTitle(
   observingRun,
   instrumentList,
   telescopeList,
-  groups
+  groups,
 ) {
   const { instrument_id } = observingRun;
   const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
@@ -87,7 +87,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   // the use of integer dates leads to some upcoming runs being
   // left out depending on the timezone
   const upcomingObservingRuns = observingRunList.filter((run) =>
-    dayjs().isBefore(dayjs(run.run_end_utc).add(2, "day"))
+    dayjs().isBefore(dayjs(run.run_end_utc).add(2, "day")),
   );
 
   if (upcomingObservingRuns.length === 0) {
@@ -150,7 +150,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
                         observingRun,
                         instrumentList,
                         telescopeList,
-                        groups
+                        groups,
                       )}
                     </MenuItem>
                   ))}
@@ -219,7 +219,7 @@ AssignmentForm.propTypes = {
       }),
       calendar_date: PropTypes.string,
       pi: PropTypes.string,
-    })
+    }),
   ).isRequired,
 };
 

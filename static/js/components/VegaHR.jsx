@@ -11,7 +11,7 @@ const spec = (
   width = 200,
   height = 200,
   titleFontSize,
-  labelFontSize
+  labelFontSize,
 ) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
   width,
@@ -223,11 +223,11 @@ const VegaHR = React.memo((props) => {
               width,
               height,
               theme.plotFontSizes.titleFontSize,
-              theme.plotFontSizes.labelFontSize
+              theme.plotFontSizes.labelFontSize,
             ),
             {
               actions: false,
-            }
+            },
           );
         }
       }}
@@ -241,7 +241,7 @@ VegaHR.propTypes = {
       abs_mag: PropTypes.number.isRequired,
       color: PropTypes.number.isRequired,
       origin: PropTypes.string.isRequired,
-    })
+    }),
   ).isRequired,
   width: PropTypes.number,
   height: PropTypes.number,

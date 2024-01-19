@@ -303,7 +303,6 @@ class SEDMV2API(FollowUpAPI):
 
     @staticmethod
     def retrieve_log(allocation, start_date, end_date):
-
         """Retrieve SEDMv2 logs.
 
         Parameters

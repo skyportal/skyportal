@@ -22,21 +22,21 @@ export const fetchSurveyEfficiencyObservations = (params = {}) =>
   API.GET(
     "/api/survey_efficiency/observations",
     FETCH_SURVEY_EFFICIENCY_OBSERVATIONS,
-    params
+    params,
   );
 
 export function submitSurveyEfficiencyObservations(id, data = {}) {
   return API.GET(
     `/api/observation/simsurvey/${id}`,
     SUBMIT_SURVEY_EFFICIENCY_OBSERVATIONS,
-    data
+    data,
   );
 }
 
 export function deleteSurveyEfficiencyObservations(id) {
   return API.DELETE(
     `/api/observation/simsurvey/${id}`,
-    DELETE_SURVEY_EFFICIENCY_OBSERVATIONS
+    DELETE_SURVEY_EFFICIENCY_OBSERVATIONS,
   );
 }
 

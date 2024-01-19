@@ -88,7 +88,7 @@ const DefaultGcnTagTable = ({ default_gcn_tags }) => {
 
   const deleteDefaultGcnTag = () => {
     dispatch(
-      defaultGcnTagsActions.deleteDefaultGcnTag(defaultGcnTagToDelete)
+      defaultGcnTagsActions.deleteDefaultGcnTag(defaultGcnTagToDelete),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("DefaultGcnTag deleted"));

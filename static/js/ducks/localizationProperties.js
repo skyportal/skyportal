@@ -12,7 +12,7 @@ export const fetchLocalizationProperties = (filterParams = {}) =>
   API.GET(
     "/api/localization/properties",
     FETCH_LOCALIZATION_PROPERTIES,
-    filterParams
+    filterParams,
   );
 
 // Websocket message handler

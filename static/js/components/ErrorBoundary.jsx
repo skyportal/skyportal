@@ -30,7 +30,7 @@ class ErrorBoundary extends React.Component {
       logError({
         error: error.toString(),
         stack: errorInfo.componentStack,
-      })
+      }),
     );
   }
 

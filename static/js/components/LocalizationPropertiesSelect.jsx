@@ -62,7 +62,7 @@ const LocalizationPropertiesSelect = (props) => {
 
   let localizationProperties = [];
   localizationProperties = localizationProperties.concat(
-    useSelector((state) => state.localizationProperties)
+    useSelector((state) => state.localizationProperties),
   );
   localizationProperties.sort();
 

@@ -102,7 +102,6 @@ class RecurringAPIHandler(BaseHandler):
                 return self.error(f'number_of_retries must be <= {MAX_RETRIES}')
 
         with self.Session() as session:
-
             schema = RecurringAPI.__schema__()
             try:
                 recurring_api = schema.load(data)

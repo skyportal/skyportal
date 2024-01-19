@@ -16,13 +16,13 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
   useEffect(() => {
     if (groupID) {
       dispatch(
-        groupAdmissionRequestsActions.fetchGroupAdmissionRequests(groupID)
+        groupAdmissionRequestsActions.fetchGroupAdmissionRequests(groupID),
       );
     }
   }, [groupID, dispatch]);
 
   const groupAdmissionRequests = useSelector(
-    (state) => state.groupAdmissionRequests
+    (state) => state.groupAdmissionRequests,
   );
   if (
     !groupAdmissionRequests ||
@@ -36,13 +36,13 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
 
   const handleAcceptRequest = async ({ requestID, userID }) => {
     const addGroupUserResult = await dispatch(
-      groupsActions.addGroupUser({ userID, admin: false, group_id: groupID })
+      groupsActions.addGroupUser({ userID, admin: false, group_id: groupID }),
     );
     const updateAdmissionRequestStatusResult = await dispatch(
       groupAdmissionRequestsActions.updateAdmissionRequestStatus({
         requestID,
         status: "accepted",
-      })
+      }),
     );
     if (
       addGroupUserResult.status === "success" &&
@@ -52,7 +52,7 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
       dispatch(groupsActions.fetchGroups(true));
       dispatch(groupActions.fetchGroup(groupID));
       dispatch(
-        groupAdmissionRequestsActions.fetchGroupAdmissionRequests(groupID)
+        groupAdmissionRequestsActions.fetchGroupAdmissionRequests(groupID),
       );
     }
   };
@@ -62,12 +62,12 @@ const GroupAdmissionRequestsManagement = ({ groupID }) => {
       groupAdmissionRequestsActions.updateAdmissionRequestStatus({
         requestID,
         status: "declined",
-      })
+      }),
     );
     if (updateAdmissionRequestStatusResult.status === "success") {
       dispatch(showNotification("Successfully declined request."));
       dispatch(
-        groupAdmissionRequestsActions.fetchGroupAdmissionRequests(groupID)
+        groupAdmissionRequestsActions.fetchGroupAdmissionRequests(groupID),
       );
     }
   };

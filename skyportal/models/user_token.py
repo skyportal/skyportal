@@ -429,7 +429,6 @@ User.update = User.delete = CustomUserAccessControl(user_update_delete_logic)
 
 @event.listens_for(User, 'after_insert')
 def create_single_user_group(mapper, connection, target):
-
     # Create single-user group
     @event.listens_for(inspect(target).session, "after_flush", once=True)
     def receive_after_flush(session, context):
@@ -457,7 +456,6 @@ def delete_single_user_group(mapper, connection, target):
 
 @event.listens_for(User, 'after_update')
 def update_single_user_group(mapper, connection, target):
-
     # Update single user group name if needed
     @event.listens_for(inspect(target).session, "after_flush_postexec", once=True)
     def receive_after_flush(session, context):

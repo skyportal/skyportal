@@ -27,7 +27,7 @@ const Groups = () => {
   const classes = useStyles();
   const { permissions } = useSelector((state) => state.profile);
   const { user: userGroups, all: allGroups } = useSelector(
-    (state) => state.groups
+    (state) => state.groups,
   );
 
   if (userGroups.length === 0 || allGroups === null) {
@@ -39,7 +39,8 @@ const Groups = () => {
   }
 
   const nonMemberGroups = allGroups?.filter(
-    (g) => !g.single_user_group && !userGroups.map((ug) => ug.id).includes(g.id)
+    (g) =>
+      !g.single_user_group && !userGroups.map((ug) => ug.id).includes(g.id),
   );
 
   return (

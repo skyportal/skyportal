@@ -107,7 +107,7 @@ const FindGcnEvents = ({
               dispatch(
                 gcnEventsActions.fetchGcnEvents({
                   partialdateobs: value,
-                })
+                }),
               );
             }
           }}
@@ -116,7 +116,7 @@ const FindGcnEvents = ({
               setSelectedGcnEventId(newValue.id);
               setSelectedEvent(newValue);
               setSelectedLocalizationId(
-                gcnEventsLookUp[newValue.id]?.localizations[0]?.id || ""
+                gcnEventsLookUp[newValue.id]?.localizations[0]?.id || "",
               );
             } else {
               setSelectedGcnEventId(null);
@@ -147,7 +147,7 @@ const FindGcnEvents = ({
               >
                 {`${localization.localization_name}`}
               </MenuItem>
-            )
+            ),
           )}
         </Select>
       </div>

@@ -122,7 +122,6 @@ class PS1API(FollowUpAPI):
 
     @staticmethod
     def get(request, session, **kwargs):
-
         """Get a forced photometry request result from PS1.
 
         Parameters
@@ -227,7 +226,6 @@ class PS1API(FollowUpAPI):
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
-
         """Submit a photometry request to PS1 DR2 API.
 
         Parameters
@@ -299,7 +297,6 @@ class PS1API(FollowUpAPI):
 
     @staticmethod
     def delete(request, session, **kwargs):
-
         """Delete a photometry request from PS1 DR2 API.
 
         Parameters

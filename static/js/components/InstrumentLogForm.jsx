@@ -54,7 +54,7 @@ const InstrumentLogForm = ({ instrument }) => {
 
   const allGroups = useSelector((state) => state.groups.all);
   const { allocationListApiClassname } = useSelector(
-    (state) => state.allocations
+    (state) => state.allocations,
   );
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,7 +73,7 @@ const InstrumentLogForm = ({ instrument }) => {
 
       const params = { instrument_id: instrument.id };
       const result = await dispatch(
-        allocationActions.fetchAllocationsApiClassname(params)
+        allocationActions.fetchAllocationsApiClassname(params),
       );
 
       const { data } = result;
@@ -119,8 +119,8 @@ const InstrumentLogForm = ({ instrument }) => {
     await dispatch(
       instrumentLogActions.fetchInstrumentLogExternal(
         selectedAllocationId,
-        formData
-      )
+        formData,
+      ),
     );
 
     setIsSubmitting(false);

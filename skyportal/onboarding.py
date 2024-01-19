@@ -31,7 +31,6 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
         )
 
         if cfg["invitations.enabled"]:
-
             if existing_user is None and invite_token is None:
                 raise Exception(
                     "Authentication Error: Missing invite token. A valid invite token is required."

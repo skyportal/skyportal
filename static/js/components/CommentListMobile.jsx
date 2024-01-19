@@ -192,7 +192,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
         </IconButton>
       ) : null}
     </MuiDialogTitle>
-  )
+  ),
 );
 
 const CommentListMobile = ({
@@ -237,7 +237,7 @@ const CommentListMobile = ({
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const userProfile = useSelector((state) => state.profile);
   const compactComments = useSelector(
-    (state) => state.profile.preferences.compactComments
+    (state) => state.profile.preferences.compactComments,
   );
 
   if (!objID) {
@@ -293,7 +293,7 @@ const CommentListMobile = ({
         (parseFloat(spectrum.observed_at.substring(11, 13)) / 24) * 10;
       return `**Spectrum ${spectrum.observed_at.substring(
         2,
-        10
+        10,
       )}.${dayFraction.toFixed(0)}** ${text}`;
     }
 
@@ -306,7 +306,7 @@ const CommentListMobile = ({
 
   const deleteCommentOnSpectrum = (commentSpectrumID, commentID) => {
     dispatch(
-      sourceActions.deleteCommentOnSpectrum(commentSpectrumID, commentID)
+      sourceActions.deleteCommentOnSpectrum(commentSpectrumID, commentID),
     );
   };
 
@@ -316,7 +316,7 @@ const CommentListMobile = ({
 
   // Color styling
   const userColorTheme = useSelector(
-    (state) => state.profile.preferences.theme
+    (state) => state.profile.preferences.theme,
   );
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
@@ -375,7 +375,7 @@ const CommentListMobile = ({
                         {renderCommentText(
                           text,
                           spectrum_id,
-                          associatedResourceType
+                          associatedResourceType,
                         )}
                       </ReactMarkdown>
                       <div className={styles.compactButtons}>
@@ -546,7 +546,7 @@ const CommentListMobile = ({
                           {renderCommentText(
                             text,
                             spectrum_id,
-                            associatedResourceType
+                            associatedResourceType,
                           )}
                         </ReactMarkdown>
                       </div>
@@ -577,7 +577,7 @@ const CommentListMobile = ({
                   </>
                 )}
               </span>
-            )
+            ),
           )}
       </div>
       <div className={styles.dialogButton}>

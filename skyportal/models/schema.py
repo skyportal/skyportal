@@ -1093,7 +1093,6 @@ class ObservationHandlerPost(_Schema):
 
 
 class ObservationExternalAPIHandlerPost(_Schema):
-
     start_date = fields.Field(
         required=True, metadata={'description': "start date of the request."}
     )
@@ -1109,7 +1108,6 @@ class ObservationExternalAPIHandlerPost(_Schema):
 
 
 class SkymapQueueAPIHandlerPost(_Schema):
-
     allocation_id = fields.Integer(
         required=True,
         metadata={'description': "Followup request allocation ID."},
@@ -1172,7 +1170,6 @@ class GcnEventHandlerGet(_Schema):
 
 
 class GcnEventTagPost(_Schema):
-
     dateobs = fields.Field(metadata={'description': 'UTC event timestamp'})
     text = fields.Field(metadata={'description': 'GCN Event tag'})
 
@@ -1191,7 +1188,6 @@ class GcnEventViewsHandlerGet(_Schema):
 
 
 class FollowupRequestPost(_Schema):
-
     obj_id = fields.String(
         required=True,
         metadata={'description': "ID of the target Obj."},
@@ -1262,7 +1258,6 @@ class FollowupRequestPost(_Schema):
 
 
 class ObservationPlanPost(_Schema):
-
     gcnevent_id = fields.Integer(
         required=True,
         metadata={'description': "ID of the GcnEvent."},
@@ -1301,7 +1296,6 @@ class ObservationPlanPost(_Schema):
 
 
 class ObservationPlanManualHandlerPost(_Schema):
-
     gcnevent_id = fields.Integer(
         required=True,
         metadata={'description': "ID of the GcnEvent."},
@@ -1339,7 +1333,6 @@ class ObservationPlanManualHandlerPost(_Schema):
 
 
 class CatalogQueryPost(_Schema):
-
     payload = fields.Field(
         required=False,
         metadata={'description': "Content of the catalog query request."},
@@ -1368,7 +1361,6 @@ class CatalogQueryPost(_Schema):
 
 
 class DefaultGcnTagPost(_Schema):
-
     filters = fields.Field(
         required=True,
         metadata={
@@ -1383,7 +1375,6 @@ class DefaultGcnTagPost(_Schema):
 
 
 class DefaultObservationPlanPost(_Schema):
-
     payload = fields.Field(
         required=False,
         metadata={'description': "Content of the default observation plan request."},
@@ -1406,7 +1397,6 @@ class DefaultObservationPlanPost(_Schema):
 
 
 class DefaultFollowupRequestPost(_Schema):
-
     payload = fields.Field(
         required=False,
         metadata={'description': "Content of the default follow-up request."},
@@ -1429,7 +1419,6 @@ class DefaultFollowupRequestPost(_Schema):
 
 
 class DefaultSurveyEfficiencyPost(_Schema):
-
     payload = fields.Field(
         required=False,
         metadata={'description': "Content of the default survey efficiency analysis."},
@@ -1502,7 +1491,6 @@ class PhotometryRangeQuery(_Schema):
 
 
 class SpectrumAsciiFileParseJSON(_Schema):
-
     wave_column = fields.Integer(
         load_default=0,
         metadata={
@@ -1754,7 +1742,6 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
 
 
 class SpectrumPost(_Schema):
-
     wavelengths = fields.List(
         fields.Float,
         required=True,
@@ -1873,7 +1860,6 @@ class SpectrumPost(_Schema):
 
 
 class SpectrumHead(_Schema):
-
     obj_id = fields.String(
         required=True,
         metadata={'description': "ID of this Spectrum's Obj."},
@@ -1973,7 +1959,6 @@ class SpectrumHead(_Schema):
 
 
 class MMADetectorSpectrumPost(_Schema):
-
     frequencies = fields.List(
         fields.Float,
         required=True,
@@ -2011,7 +1996,6 @@ class MMADetectorSpectrumPost(_Schema):
 
 
 class GroupIDList(_Schema):
-
     group_ids = fields.List(fields.Integer, required=True)
 
 
@@ -2047,7 +2031,7 @@ def register_components(spec):
         sys.modules[__name__], lambda m: isinstance(m, _Schema)
     )
 
-    for (name, schema) in schemas:
+    for name, schema in schemas:
         spec.components.schema(name, schema=schema)
 
         single = 'Single' + name

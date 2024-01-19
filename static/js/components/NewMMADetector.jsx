@@ -29,7 +29,7 @@ const NewMMADetector = () => {
     mmadetectorList?.forEach((mmadetector) => {
       if (formData.name === mmadetector.name) {
         errors.name.addError(
-          "MMADetector name matches another, please change."
+          "MMADetector name matches another, please change.",
         );
       }
     });

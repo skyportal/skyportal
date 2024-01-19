@@ -104,7 +104,6 @@ def allscalar(d):
 def serialize(
     phot, outsys, format, created_at=True, groups=True, annotations=True, owner=False
 ):
-
     return_value = {
         'obj_id': phot.obj_id,
         'ra': phot.ra,
@@ -251,7 +250,6 @@ def serialize(
 
 
 def standardize_photometry_data(data):
-
     if not isinstance(data, dict):
         raise ValidationError(
             'Top level JSON must be an instance of `dict`, got ' f'{type(data)}.'
@@ -272,7 +270,7 @@ def standardize_photometry_data(data):
     if "altdata" in data:
         if isinstance(data["altdata"], dict):
             for key in data["altdata"].keys():
-                if type(data["altdata"][key]) == list:
+                if isinstance(data["altdata"][key], list):
                     if not len(data["altdata"][key]) == max_num_elements:
                         if len(data["altdata"][key]) == 1:
                             data["altdata"][key] = (
@@ -1518,6 +1516,7 @@ class ObjPhotometryHandler(BaseHandler):
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
         include_owner_info = self.get_query_argument('includeOwnerInfo', False)
+        deduplicate_photometry = self.get_query_argument('deduplicatePhotometry', False)
 
         if str(include_owner_info).lower() in ['true', 't', '1']:
             include_owner_info = True
@@ -1525,7 +1524,6 @@ class ObjPhotometryHandler(BaseHandler):
             include_owner_info = False
 
         with self.Session() as session:
-
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             ).first()
@@ -1552,9 +1550,17 @@ class ObjPhotometryHandler(BaseHandler):
                     serialize(phot, outsys, format, owner=include_owner_info)
                     for phot in photometry
                 ]
+                if deduplicate_photometry and len(phot_data) > 0:
+                    df_phot = pd.DataFrame.from_records(phot_data)
+                    # drop duplicate mjd/filter points, keeping most recent
+                    phot_data = (
+                        df_phot.sort_values(by="created_at", ascending=False)
+                        .drop_duplicates(["mjd", "filter"])
+                        .reset_index(drop=True)
+                        .to_dict(orient='records')
+                    )
 
             if individual_or_series in ["series", "both"]:
-
                 series = (
                     session.scalars(
                         PhotometricSeries.select(session.user_or_token).where(

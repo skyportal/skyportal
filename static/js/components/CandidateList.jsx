@@ -142,7 +142,7 @@ const getMuiTheme = (theme) =>
       MUIDataTableBodyCell: {
         root: {
           padding: `${theme.spacing(1)} ${theme.spacing(0.5)} ${theme.spacing(
-            1
+            1,
           )} ${theme.spacing(1)}`,
         },
         stackedHeader: {
@@ -227,7 +227,7 @@ const getMostRecentClassification = (classifications) => {
   // Display the most recent non-zero probability class
   const filteredClasses = classifications?.filter((i) => i.probability > 0);
   const sortedClasses = filteredClasses?.sort((a, b) =>
-    a.modified < b.modified ? 1 : -1
+    a.modified < b.modified ? 1 : -1,
   );
   const recentClassification =
     sortedClasses?.length > 0 ? `${sortedClasses[0].classification}` : null;
@@ -260,7 +260,7 @@ const CustomSortToolbar = ({
   const classes = useStyles();
   const dispatch = useDispatch();
   const { selectedAnnotationSortOptions } = useSelector(
-    (state) => state.candidates
+    (state) => state.candidates,
   );
 
   const handleSort = async () => {
@@ -288,7 +288,7 @@ const CustomSortToolbar = ({
       candidatesActions.setCandidatesAnnotationSortOptions({
         ...selectedAnnotationSortOptions,
         order: newSortOrder,
-      })
+      }),
     );
     await dispatch(candidatesActions.fetchCandidates(data));
     setQueryInProgress(false);
@@ -436,10 +436,10 @@ const CandidateInfo = ({
   const classes = useStyles();
 
   const allGroups = (useSelector((state) => state.groups.all) || []).filter(
-    (g) => !g.single_user_group
+    (g) => !g.single_user_group,
   );
   const userAccessibleGroups = useSelector(
-    (state) => state.groups.userAccessible
+    (state) => state.groups.userAccessible,
   );
 
   let candidateObj = null;
@@ -452,7 +452,7 @@ const CandidateInfo = ({
 
   const candidateHasAnnotationWithSelectedKey = (obj) => {
     const annotation = obj.annotations.find(
-      (a) => a.origin === selectedAnnotationSortOptions.origin
+      (a) => a.origin === selectedAnnotationSortOptions.origin,
     );
     if (annotation === undefined) {
       return false;
@@ -462,10 +462,10 @@ const CandidateInfo = ({
 
   const getCandidateSelectedAnnotationValue = (obj) => {
     const annotation = obj.annotations.find(
-      (a) => a.origin === selectedAnnotationSortOptions.origin
+      (a) => a.origin === selectedAnnotationSortOptions.origin,
     );
     return getAnnotationValueString(
-      annotation.data[selectedAnnotationSortOptions.key]
+      annotation.data[selectedAnnotationSortOptions.key],
     );
   };
 
@@ -473,15 +473,15 @@ const CandidateInfo = ({
     candidateObj.classifications && candidateObj.classifications.length > 0
       ? getMostRecentClassification(
           candidateObj.classifications.filter(
-            (c) => c?.ml === false || c?.ml === null
-          )
+            (c) => c?.ml === false || c?.ml === null,
+          ),
         )
       : null;
 
   const recentMLClassification =
     candidateObj.classifications && candidateObj.classifications.length > 0
       ? getMostRecentClassification(
-          candidateObj.classifications.filter((c) => c?.ml === true)
+          candidateObj.classifications.filter((c) => c?.ml === true),
         )
       : null;
 
@@ -517,7 +517,7 @@ const CandidateInfo = ({
                   source={{
                     id: candidateObj.id,
                     currentGroupIds: candidateObj.saved_groups?.map(
-                      (g) => g.id
+                      (g) => g.id,
                     ),
                   }}
                   groups={allGroups}
@@ -560,8 +560,10 @@ const CandidateInfo = ({
               (candidateObj.is_source &&
                 filterGroups?.filter(
                   (g) =>
-                    !candidateObj.saved_groups?.map((x) => x.id)?.includes(g.id)
-                ).length)
+                    !candidateObj.saved_groups
+                      ?.map((x) => x.id)
+                      ?.includes(g.id),
+                ).length),
           ) && (
             // eslint-disable-next-line react/jsx-indent
             <div className={classes.saveCandidateButton}>
@@ -574,7 +576,7 @@ const CandidateInfo = ({
                         (g) =>
                           !candidateObj.saved_groups
                             ?.map((x) => x.id)
-                            ?.includes(g.id)
+                            ?.includes(g.id),
                       )
                     : userAccessibleGroups
                 }
@@ -585,7 +587,7 @@ const CandidateInfo = ({
                         (g) =>
                           !candidateObj.saved_groups
                             ?.map((x) => x.id)
-                            ?.includes(g.id)
+                            ?.includes(g.id),
                       )
                     : filterGroups
                 }
@@ -731,27 +733,27 @@ const CandidateList = () => {
   } = useSelector((state) => state.candidates);
 
   const [sortOrder, setSortOrder] = useState(
-    selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null
+    selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null,
   );
 
   const { scanningProfiles } = useSelector(
-    (state) => state.profile.preferences
+    (state) => state.profile.preferences,
   );
 
   const defaultScanningProfile = scanningProfiles?.find(
-    (profile) => profile.default
+    (profile) => profile.default,
   );
 
   const userAccessibleGroups = useSelector(
-    (state) => state.groups.userAccessible
+    (state) => state.groups.userAccessible,
   );
 
   const availableAnnotationsInfo = useSelector(
-    (state) => state.candidates.annotationsInfo
+    (state) => state.candidates.annotationsInfo,
   );
 
   const filterFormData = useSelector(
-    (state) => state.candidates.filterFormData
+    (state) => state.candidates.filterFormData,
   );
 
   const dispatch = useDispatch();
@@ -770,7 +772,7 @@ const CandidateList = () => {
           origin: defaultScanningProfile.sortingOrigin,
           key: defaultScanningProfile.sortingKey,
           order: defaultScanningProfile.sortingOrder,
-        })
+        }),
       );
       setSortOrder(defaultScanningProfile.sortingOrder);
     }
@@ -873,7 +875,7 @@ const CandidateList = () => {
   const handleFilterAdd = ({ formData }) => {
     if (filterGroups.length === 0) {
       dispatch(
-        showNotification("At least one program should be selected.", "warning")
+        showNotification("At least one program should be selected.", "warning"),
       );
       return;
     }
@@ -1076,7 +1078,7 @@ const CandidateList = () => {
       handleFilterSubmit(
         newFilterListQueryStrings.length === 0
           ? null
-          : newFilterListQueryStrings.join()
+          : newFilterListQueryStrings.join(),
       );
     }
   };

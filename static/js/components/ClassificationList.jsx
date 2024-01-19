@@ -80,17 +80,17 @@ const ClassificationList = () => {
   const userProfile = useSelector((state) => state.profile);
   const groupUsers = useSelector((state) => state.group?.group_users);
   const classifications_classes = useSelector(
-    (state) => state.config.classificationsClasses
+    (state) => state.config.classificationsClasses,
   );
   const currentGroupUser = groupUsers?.filter(
-    (groupUser) => groupUser.user_id === userProfile.id
+    (groupUser) => groupUser.user_id === userProfile.id,
   )[0];
   // const acls = useSelector((state) => state.profile.acls);
   let { classifications } = obj;
   const [hideML, setHideML] = useState(false);
 
   const { hideMLClassifications } = useSelector(
-    (state) => state.profile.preferences
+    (state) => state.profile.preferences,
   );
 
   useEffect(() => {
@@ -104,13 +104,13 @@ const ClassificationList = () => {
     ) {
       window.localStorage.setItem(
         "CURRENT_GROUP_ADMIN",
-        JSON.stringify(currentGroupUser.admin)
+        JSON.stringify(currentGroupUser.admin),
       );
     }
   }, [currentGroupUser]);
 
   const isGroupAdmin = JSON.parse(
-    window.localStorage.getItem("CURRENT_GROUP_ADMIN")
+    window.localStorage.getItem("CURRENT_GROUP_ADMIN"),
   );
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -131,7 +131,7 @@ const ClassificationList = () => {
           dispatch(showNotification("Classification deleted"));
           closeDialog();
         }
-      }
+      },
     );
   };
 
@@ -139,13 +139,13 @@ const ClassificationList = () => {
 
   // newest classifications on top reverse sort the classifications by created_at
   let sorted_classifications = classifications.sort((a, b) =>
-    a.created_at > b.created_at ? -1 : 1
+    a.created_at > b.created_at ? -1 : 1,
   );
 
   if (hideML) {
     // remove ML based classifications
     sorted_classifications = sorted_classifications.filter(
-      (classification) => classification?.ml === false
+      (classification) => classification?.ml === false,
     );
   }
 
@@ -297,7 +297,7 @@ const ClassificationList = () => {
           <Divider />
         </>
       );
-    }
+    },
   );
 
   const Row = ({ index }) => items[index];

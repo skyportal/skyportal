@@ -488,7 +488,6 @@ def test_hr_diagram(
     upload_data_token,
     annotation_token,
 ):
-
     # Post an object with Gaia data
     source_id = str(uuid.uuid4())
     status, data = api(

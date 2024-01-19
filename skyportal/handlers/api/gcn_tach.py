@@ -210,7 +210,6 @@ def get_tach_event_aliases(id, gcn_event):
 
 
 def post_aliases(dateobs, tach_id, user_id):
-
     with ThreadSession() as session:
         try:
             flow = Flow()

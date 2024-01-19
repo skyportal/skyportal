@@ -256,7 +256,6 @@ class Telescope(Base):
         return t
 
     def ephemeris(self, time):
-
         if self.observer is None:
             return {}
 

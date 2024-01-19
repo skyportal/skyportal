@@ -145,7 +145,7 @@ const CandidatesPreferencesForm = ({
     dispatch(
       candidatesActions.setFilterFormData({
         savedStatus: "all",
-      })
+      }),
     );
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
@@ -186,7 +186,7 @@ const CandidatesPreferencesForm = ({
   const onSubmit = async (formData) => {
     const groupIDs = userAccessibleGroups?.map((g) => g.id);
     const selectedGroupIDs = groupIDs?.filter(
-      (ID, idx) => formData.groupIDs[idx]
+      (ID, idx) => formData.groupIDs[idx],
     );
     const data = {
       groupIDs: selectedGroupIDs,
@@ -233,7 +233,7 @@ const CandidatesPreferencesForm = ({
     } else if (addOrEdit === "Edit") {
       // Update profile
       const profileIndex = currentProfiles.findIndex(
-        (profile) => profile.name === editingProfile?.name
+        (profile) => profile.name === editingProfile?.name,
       );
       if (profileIndex !== -1) {
         currentProfiles[profileIndex] = data;
@@ -487,7 +487,7 @@ const CandidatesPreferencesForm = ({
                         >
                           {Object.keys(option)[0]}
                         </MenuItem>
-                      )
+                      ),
                     )
                   ) : (
                     <div />

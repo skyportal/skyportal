@@ -369,7 +369,6 @@ class LocalizationTile(
         """Create a partition for the LocalizationTile table."""
 
         class Partition(Base, LocalizationTileMixin):
-
             created_at = sa.Column(
                 sa.DateTime,
                 nullable=False,
