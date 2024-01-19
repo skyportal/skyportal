@@ -52,7 +52,6 @@ def test_delete_user_cascades_to_groupuser(
 
 
 def test_add_basic_user_info(manage_groups_token, super_admin_token):
-
     username = str(uuid.uuid4())
     status, data = api(
         "POST",

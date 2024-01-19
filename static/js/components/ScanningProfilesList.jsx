@@ -108,7 +108,7 @@ const ScanningProfilesList = ({
   const classes = useStyles();
   const theme = useTheme();
   const profiles = useSelector(
-    (state) => state.profile.preferences.scanningProfiles
+    (state) => state.profile.preferences.scanningProfiles,
   );
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -221,7 +221,7 @@ const ScanningProfilesList = ({
       <div>
         {profile.groupIDs.map((groupID) => {
           const groupName = userAccessibleGroups?.find(
-            (group) => group.id === groupID
+            (group) => group.id === groupID,
           )?.name;
           return (
             <Chip
@@ -242,7 +242,7 @@ const ScanningProfilesList = ({
   const renderSavedStatus = (dataIndex) => {
     const profile = profiles[dataIndex];
     const option = savedStatusSelectOptions.find(
-      (selectOption) => selectOption.value === profile?.savedStatus
+      (selectOption) => selectOption.value === profile?.savedStatus,
     );
     return option?.label || "";
   };

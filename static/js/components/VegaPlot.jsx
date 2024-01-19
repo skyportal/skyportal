@@ -225,11 +225,11 @@ const VegaPlot = React.memo((props) => {
               colorScale,
               theme.plotFontSizes.titleFontSize,
               theme.plotFontSizes.labelFontSize,
-              values
+              values,
             ),
             {
               actions: false,
-            }
+            },
           );
         }
       }}

@@ -15,7 +15,6 @@ def test_sources_include_detection_stats(
     upload_data_token_two_groups,
     view_only_token,
 ):
-
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",

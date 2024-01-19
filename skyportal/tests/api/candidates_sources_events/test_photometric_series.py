@@ -67,7 +67,6 @@ def test_hdf5_file_vs_memory_hash():
 def test_post_retrieve_delete_series(
     phot_series_maker, upload_data_token, public_source, ztf_camera
 ):
-
     filename = None
 
     try:  # cleanup file at the end
@@ -587,7 +586,6 @@ def test_post_dataframe_file_with_metadata(
 def test_read_file_after_posting(
     phot_series_maker, upload_data_token, public_source, ztf_camera
 ):
-
     filename = None
 
     try:  # cleanup file at the end
@@ -668,7 +666,6 @@ def test_read_file_after_posting(
 def test_cannot_repost_series(
     phot_series_maker, upload_data_token, public_source, ztf_camera
 ):
-
     filename = None
 
     try:  # cleanup file at the end
@@ -818,7 +815,6 @@ def test_unique_constraint(phot_series_maker, user, public_source, ztf_camera):
 
 
 def test_autodelete_series(photometric_series):
-
     filename = photometric_series.filename
     assert os.path.isfile(filename)
     assert photometric_series.autodelete
@@ -844,7 +840,6 @@ def test_no_autodelete_series(photometric_series):
 def test_patch_series_data(
     phot_series_maker, upload_data_token, public_source, ztf_camera
 ):
-
     filename = None
     ps_id = None
 
@@ -926,7 +921,6 @@ def test_patch_series_data(
 def test_patch_series_metadata(
     phot_series_maker, upload_data_token, public_source, ztf_camera
 ):
-
     filename = None
     ps_id = None
 
@@ -1003,7 +997,6 @@ def test_patch_series_metadata(
 def test_patch_series_data_file_and_metadata(
     phot_series_maker, upload_data_token, public_source, ztf_camera
 ):
-
     filename = None
     ps_id = None
 
@@ -1134,7 +1127,6 @@ def test_patch_series_data_file_and_metadata(
 def test_get_individual_series_by_id(
     upload_data_token, photometric_series, photometric_series2, photometric_series3
 ):
-
     filenames = []
     ps_ids = []
     raw_datasets = []
@@ -1184,7 +1176,6 @@ def test_get_individual_series_by_id(
 def test_get_series_cone_search(
     upload_data_token, photometric_series, photometric_series2, photometric_series3
 ):
-
     ps_ids = []
     ras = []
     decs = []
@@ -1223,7 +1214,6 @@ def test_get_series_cone_search(
 def test_get_series_by_filename(
     upload_data_token, photometric_series, photometric_series2, photometric_series3
 ):
-
     filenames = []
     ps_ids = []
 
@@ -1249,7 +1239,6 @@ def test_get_series_by_filename(
 def test_get_series_by_object(
     upload_data_token, photometric_series, photometric_series2, photometric_series3
 ):
-
     ps_ids = []
     object_ids = []
 
@@ -1308,7 +1297,6 @@ def test_get_series_by_instrument_id(
     ztf_camera,
     sedm,
 ):
-
     status, data = api(
         'GET',
         'photometric_series',
@@ -1338,7 +1326,6 @@ def test_get_series_by_instrument_id(
 def test_get_series_by_name_and_obj_id(
     upload_data_token, photometric_series, photometric_series2, photometric_series3
 ):
-
     ps_ids = []
     series_names = []
     series_obj_ids = []
@@ -1379,7 +1366,6 @@ def test_get_series_by_name_and_obj_id(
 def test_get_series_by_filter_origin_channel(
     upload_data_token, photometric_series, photometric_series2, photometric_series3
 ):
-
     ps_ids = []
     filters = []
     origins = []
@@ -1456,7 +1442,6 @@ def test_get_series_start_mid_end_times(
         split_mjd = values[1]
 
         for op in ['Before', 'After']:
-
             if op == 'Before':
                 split_time = Time(split_mjd + 0.01, format='mjd').iso
             if op == 'After':
@@ -2087,7 +2072,6 @@ def test_get_series_sorting(
 def test_get_series_paged(
     upload_data_token, photometric_series, photometric_series2, photometric_series3
 ):
-
     ids = [photometric_series.id, photometric_series2.id, photometric_series3.id]
 
     # get all three series

@@ -16,7 +16,6 @@ from .group import accessible_by_groups_members
 
 
 class AnnotationMixin:
-
     data = sa.Column(
         JSONB, default=None, nullable=False, doc="Searchable data in JSON format"
     )
@@ -111,7 +110,6 @@ class Annotation(Base, AnnotationMixin):
 
 
 class AnnotationOnSpectrum(Base, AnnotationMixin):
-
     __tablename__ = 'annotations_on_spectra'
 
     create = AccessibleIfRelatedRowsAreAccessible(obj='read', spectrum='read')
@@ -139,7 +137,6 @@ class AnnotationOnSpectrum(Base, AnnotationMixin):
 
 
 class AnnotationOnPhotometry(Base, AnnotationMixin):
-
     __tablename__ = 'annotations_on_photometry'
 
     create = AccessibleIfRelatedRowsAreAccessible(obj='read', photometry='read')

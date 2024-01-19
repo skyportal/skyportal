@@ -19,7 +19,6 @@ def manage_sources_confirmed_in_gcn_access_logic(cls, user_or_token):
 
 
 class SourcesConfirmedInGCN(Base):
-
     read = public
     create = update = delete = CustomUserAccessControl(
         manage_sources_confirmed_in_gcn_access_logic

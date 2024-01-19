@@ -46,7 +46,7 @@ export function requestAPIQueuedObservations(id, data = {}) {
   return API.GET(
     `/api/observation/external_api/${id}`,
     REQUEST_API_QUEUED_OBSERVATIONS,
-    data
+    data,
   );
 }
 
@@ -54,7 +54,7 @@ export function requestAPIQueues(id, data = { queuesOnly: true }) {
   return API.GET(
     `/api/observation/external_api/${id}`,
     REQUEST_API_QUEUES,
-    data
+    data,
   );
 }
 
@@ -62,7 +62,7 @@ export function deleteAPIQueue(id, data = {}) {
   return API.DELETE(
     `/api/observation/external_api/${id}`,
     DELETE_API_QUEUE,
-    data
+    data,
   );
 }
 
@@ -99,7 +99,7 @@ export function fetchGcnEventQueuedObservations(dateobs, filterParams = {}) {
   return API.GET(
     "/api/observation",
     FETCH_GCNEVENT_QUEUED_OBSERVATIONS,
-    filterParams
+    filterParams,
   );
 }
 

@@ -20,7 +20,6 @@ _, cfg = load_env()
 
 
 def has_admin_access_for_group(user, group_id, session):
-
     groupuser = session.scalar(
         GroupUser.select(user).where(
             GroupUser.group_id == group_id, GroupUser.user_id == user.id
@@ -137,7 +136,6 @@ class GroupHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             if group_id is not None:
                 group = session.scalars(
                     Group.select(session.user_or_token).where(Group.id == group_id)
@@ -885,7 +883,6 @@ class GroupStreamHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             groupstreams = session.scalars(
                 GroupStream.select(session.user_or_token, mode="delete")
                 .where(GroupStream.group_id == group_id)

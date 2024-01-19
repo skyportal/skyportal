@@ -14,7 +14,6 @@ import pytest
 
 
 def test_gcn_GW(super_admin_token, view_only_token):
-
     datafile = f'{os.path.dirname(__file__)}/../../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -108,7 +107,6 @@ def test_gcn_GW(super_admin_token, view_only_token):
 
 
 def test_gcn_Fermi(super_admin_token, view_only_token):
-
     datafile = (
         f'{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
     )
@@ -162,7 +160,6 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
 
 
 def test_gcn_from_moc(super_admin_token):
-
     name = str(uuid.uuid4())
     post_data = {
         'name': name,
@@ -237,7 +234,6 @@ def test_gcn_summary_sources(
     ztf_camera,
     upload_data_token,
 ):
-
     datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -419,7 +415,6 @@ def test_gcn_summary_galaxies(
     view_only_token,
     public_group,
 ):
-
     catalog_name = 'test_galaxy_catalog'
 
     # in case the catalog already exists, delete it.
@@ -592,7 +587,6 @@ def test_gcn_summary_galaxies(
 def test_gcn_instrument_field(
     super_admin_token,
 ):
-
     datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -718,7 +712,6 @@ def test_confirm_reject_source_in_gcn(
     ztf_camera,
     upload_data_token,
 ):
-
     datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -945,7 +938,6 @@ def test_confirm_reject_source_in_gcn(
 
 
 def test_gcn_from_polygon(super_admin_token):
-
     localization_name = str(uuid.uuid4())
     dateobs = '2022-09-03T14:44:12'
     polygon = [(30.0, 60.0), (40.0, 60.0), (40.0, 70.0), (30.0, 70.0)]
@@ -967,7 +959,6 @@ def test_gcn_from_polygon(super_admin_token):
 
 
 def test_gcn_Swift(super_admin_token):
-
     datafile = f'{os.path.dirname(__file__)}/../../data/SWIFT_1125809-092.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -1020,7 +1011,6 @@ def test_gcn_tach(
     super_admin_token,
     view_only_token,
 ):
-
     datafile = (
         f'{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
     )
@@ -1082,7 +1072,6 @@ def test_gcn_allocation_triggers(
     super_admin_token,
     view_only_token,
 ):
-
     datafile = (
         f'{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
     )

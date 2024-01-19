@@ -21,7 +21,7 @@ const UnwatchButton = (requestID, textMode, serverSide = false) => {
       params.refreshRequests = true;
     }
     await dispatch(
-      followupRequestActions.removeFromWatchList(requestID, params)
+      followupRequestActions.removeFromWatchList(requestID, params),
     );
     setIsSubmitting(false);
   };
@@ -128,7 +128,7 @@ WatcherButton.propTypes = {
       PropTypes.shape({
         id: PropTypes.number,
         username: PropTypes.string,
-      })
+      }),
     ),
   }).isRequired,
   textMode: PropTypes.bool.isRequired,

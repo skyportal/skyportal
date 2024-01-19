@@ -47,7 +47,6 @@ PS1_CUTOUT_TIMEOUT = 15  # seconds
 
 
 class GaiaQuery:
-
     alt_tap = 'https://gaia.aip.de/tap'
     alt_main_db = 'gaiadr3'
 
@@ -129,7 +128,6 @@ class GaiaQuery:
                 raise HTTPError("GaiaQuery failed on backup database.")
 
     def _standardize_table(self, tab):
-
         new_tab = tab.copy()
         for col in tab.columns:
             if tab[col].name == 'source_id':
@@ -1211,7 +1209,6 @@ def fits_image(
     cache_dir="./cache/finder/",
     cache_max_items=1000,
 ):
-
     """Returns an opened FITS image centered on the source
        of the requested size.
 
@@ -1306,7 +1303,6 @@ def get_finding_chart(
     extra_display_string="",
     **offset_star_kwargs,
 ):
-
     """Create a finder chart suitable for spectroscopic observations of
        the source
 
@@ -1621,7 +1617,6 @@ def get_finding_chart(
         star_list = star_list[1:]
 
     for i, star in enumerate(star_list):
-
         c1 = SkyCoord(star["ra"] * u.deg, star["dec"] * u.deg, frame='icrs')
 
         # mark up the right side of the page with position and offset info

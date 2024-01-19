@@ -52,14 +52,14 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
 
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { instrumentList, instrumentFormParams } = useSelector(
-    (state) => state.instruments
+    (state) => state.instruments,
   );
   const { allocationListApiClassname } = useSelector(
-    (state) => state.allocations
+    (state) => state.allocations,
   );
   const { users: allUsers } = useSelector((state) => state.users);
   const { followupRequestList } = useSelector(
-    (state) => state.followup_requests
+    (state) => state.followup_requests,
   );
 
   const defaultStartDate = dayjs()
@@ -170,13 +170,13 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   // filter out allocations that are not of type triggered
   const filteredAllocationListApiClassname =
     sortedAllocationListApiClassname.filter((allocation) =>
-      allocation.types.includes("triggered")
+      allocation.types.includes("triggered"),
     );
   // and only keep the instrument that have such allocations
   const filteredInstrumentList = sortedInstrumentList.filter((instrument) =>
     filteredAllocationListApiClassname.some(
-      (allocation) => allocation.instrument_id === instrument.id
-    )
+      (allocation) => allocation.instrument_id === instrument.id,
+    ),
   );
 
   const handleSelectedFormatChange = (e) => {
@@ -224,7 +224,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   function validateFilter(formData, errors) {
     if (formData.startDate > formData.endDate) {
       errors.startDate.addError(
-        "Start date must be before end date, please fix."
+        "Start date must be before end date, please fix.",
       );
     }
     return errors;
@@ -296,7 +296,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
                   enum: [instrument.id],
                   title: `${
                     telescopeList.find(
-                      (telescope) => telescope.id === instrument.telescope_id
+                      (telescope) => telescope.id === instrument.telescope_id,
                     )?.name
                   } / ${instrument.name}`,
                 })),
@@ -379,7 +379,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
   const scheduleUrl = createScheduleUrl(
     selectedInstrumentId,
     selectedFormat,
-    fetchParams
+    fetchParams,
   );
   const reportUrl = createAllocationReportUrl(selectedInstrumentId);
   return (

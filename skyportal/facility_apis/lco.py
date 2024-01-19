@@ -555,7 +555,6 @@ class LCOAPI(FollowUpAPI):
 
     @staticmethod
     def delete(request, session, **kwargs):
-
         """Delete a follow-up request from LCO queue (all instruments).
 
         Parameters
@@ -619,7 +618,6 @@ class LCOAPI(FollowUpAPI):
 
     @staticmethod
     def get(request, session, **kwargs):
-
         """Get a follow-up request from LCO queue (all instruments).
 
         Parameters
@@ -711,7 +709,6 @@ class SINISTROAPI(LCOAPI):
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
-
         """Submit a follow-up request to LCO's SINISTRO.
 
         Parameters
@@ -847,7 +844,6 @@ class SPECTRALAPI(LCOAPI):
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
-
         """Submit a follow-up request to LCO's SPECTRAL.
 
         Parameters
@@ -984,7 +980,6 @@ class MUSCATAPI(LCOAPI):
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
-
         """Submit a follow-up request to LCO's MUSCAT.
 
         Parameters
@@ -1113,7 +1108,6 @@ class FLOYDSAPI(LCOAPI):
     # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
-
         """Submit a follow-up request to LCO's FLOYDS.
 
         Parameters

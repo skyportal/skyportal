@@ -50,7 +50,7 @@ const TNSRobots = ({ group_id }) => {
   const { tnsrobotList } = useSelector((state) => state.tnsrobots);
   const { instrumentList } = useSelector((state) => state.instruments);
   const tnsAllowedInstruments = useSelector(
-    (state) => state.config.tnsAllowedInstruments
+    (state) => state.config.tnsAllowedInstruments,
   );
   const streams = useSelector((state) => state.streams);
 
@@ -66,7 +66,7 @@ const TNSRobots = ({ group_id }) => {
   });
 
   const allowedInstruments = instrumentList.filter((instrument) =>
-    (tnsAllowedInstruments || []).includes(instrument.name?.toLowerCase())
+    (tnsAllowedInstruments || []).includes(instrument.name?.toLowerCase()),
   );
 
   useEffect(() => {
@@ -79,7 +79,7 @@ const TNSRobots = ({ group_id }) => {
         await dispatch(
           tnsrobotsActions.fetchTNSRobots({
             groupID: group_id,
-          })
+          }),
         );
       }
     };
@@ -109,11 +109,11 @@ const TNSRobots = ({ group_id }) => {
       auto_reporters: tnsrobotListLookup[id]?.auto_reporters || "",
       auto_report_instrument_ids:
         tnsrobotListLookup[id]?.auto_report_instruments.map(
-          (instrument) => instrument.id
+          (instrument) => instrument.id,
         ) || [],
       auto_report_stream_ids:
         tnsrobotListLookup[id]?.auto_report_streams.map(
-          (stream) => stream.id
+          (stream) => stream.id,
         ) || [],
     });
     setEditDialogOpen(true);
@@ -151,8 +151,8 @@ const TNSRobots = ({ group_id }) => {
       dispatch(
         showNotification(
           "Error adding TNS Robot: API Key is required when creating a new robot.",
-          "error"
-        )
+          "error",
+        ),
       );
       return;
     }
@@ -190,7 +190,7 @@ const TNSRobots = ({ group_id }) => {
         } else {
           dispatch(showNotification("Error deleting TNS Robot.", "error"));
         }
-      }
+      },
     );
   };
 
@@ -236,7 +236,7 @@ const TNSRobots = ({ group_id }) => {
         } else {
           dispatch(showNotification("Error editing TNS Robot.", "error"));
         }
-      }
+      },
     );
   };
 
@@ -291,7 +291,7 @@ const TNSRobots = ({ group_id }) => {
         title: "Auto report",
         default:
           tnsrobotListLookup[tnsrobotToManage]?.auto_report_group_ids?.includes(
-            group_id
+            group_id,
           ) || false,
       },
     },

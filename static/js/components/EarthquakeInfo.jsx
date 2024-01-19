@@ -152,7 +152,7 @@ const Earthquake = () => {
       handlePageChange(
         tableState.page + 1,
         tableState.rowsPerPage,
-        tableState.sortOrder
+        tableState.sortOrder,
       );
     }
     if (action === "sort") {
@@ -173,7 +173,7 @@ const Earthquake = () => {
               <p key={attr}>
                 {attr}: {gcnNotice[attr]}
               </p>
-            )
+            ),
           )}
         </li>
       ))}

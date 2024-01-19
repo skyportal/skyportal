@@ -20,7 +20,7 @@ const SUBMIT_DEFAULT_FOLLOWUP_REQUEST =
 export function deleteDefaultFollowupRequest(id) {
   return API.DELETE(
     `/api/default_followup_request/${id}`,
-    DELETE_DEFAULT_FOLLOWUP_REQUEST
+    DELETE_DEFAULT_FOLLOWUP_REQUEST,
   );
 }
 
@@ -31,7 +31,7 @@ export const submitDefaultFollowupRequest = (default_plan) =>
   API.POST(
     `/api/default_followup_request`,
     SUBMIT_DEFAULT_FOLLOWUP_REQUEST,
-    default_plan
+    default_plan,
   );
 
 // Websocket message handler
@@ -45,7 +45,7 @@ const reducer = (
   state = {
     defaultFollowupRequestList: [],
   },
-  action
+  action,
 ) => {
   switch (action.type) {
     case FETCH_DEFAULT_FOLLOWUP_REQUESTS_OK: {

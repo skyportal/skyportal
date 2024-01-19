@@ -12,7 +12,7 @@ import * as groupAdmissionRequestsActions from "../ducks/groupAdmissionRequests"
 const NonMemberGroupList = ({ groups }) => {
   const dispatch = useDispatch();
   const { id: currentUserID, groupAdmissionRequests } = useSelector(
-    (state) => state.profile
+    (state) => state.profile,
   );
   if (currentUserID === null) {
     return (
@@ -32,8 +32,8 @@ const NonMemberGroupList = ({ groups }) => {
     const result = await dispatch(
       groupAdmissionRequestsActions.requestGroupAdmission(
         currentUserID,
-        groupID
-      )
+        groupID,
+      ),
     );
     if (result.status === "success") {
       dispatch(showNotification("Successfully requested admission to group."));
@@ -42,7 +42,7 @@ const NonMemberGroupList = ({ groups }) => {
 
   const handleDeleteAdmissionRequest = (admissionRequestID) => {
     dispatch(
-      groupAdmissionRequestsActions.deleteAdmissionRequest(admissionRequestID)
+      groupAdmissionRequestsActions.deleteAdmissionRequest(admissionRequestID),
     );
   };
 
@@ -53,7 +53,7 @@ const NonMemberGroupList = ({ groups }) => {
     }
     if (pendingRequestGroupIDs.includes(group.id)) {
       const admissionRequestID = groupAdmissionRequests?.filter(
-        (request) => request.group_id === group.id
+        (request) => request.group_id === group.id,
       )[0]?.id;
       return (
         <>
@@ -137,7 +137,7 @@ NonMemberGroupList.propTypes = {
       name: PropTypes.string,
       nickname: PropTypes.string,
       id: PropTypes.number,
-    })
+    }),
   ).isRequired,
 };
 

@@ -44,7 +44,7 @@ const Responsive = ({
         return React.createElement(
           renderElement,
           { ...props, ...otherProps },
-          children
+          children,
         );
       }}
     </MediaQuery>

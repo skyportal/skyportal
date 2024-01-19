@@ -23,7 +23,7 @@ const NewRecurringAPI = () => {
     .utc()
     .format("YYYY-MM-DDTHH:mm:ssZ");
   const allowedRecurringAPIMethods = useSelector(
-    (state) => state.config.allowedRecurringAPIMethods
+    (state) => state.config.allowedRecurringAPIMethods,
   );
 
   const handleSubmit = async ({ formData }) => {

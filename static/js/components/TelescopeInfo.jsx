@@ -96,7 +96,7 @@ const TelescopeInfo = ({ search, searchedTelescopeList }) => {
   const dispatch = useDispatch();
 
   const currentTelescopes = useSelector(
-    (state) => state.telescope.currentTelescopes
+    (state) => state.telescope.currentTelescopes,
   );
 
   const telescopeList = useSelector((state) => state.telescopes.telescopeList);
@@ -125,7 +125,7 @@ const TelescopeInfo = ({ search, searchedTelescopeList }) => {
           dispatch(showNotification("Telescope deleted"));
           closeDialog();
         }
-      }
+      },
     );
   };
   const displaytelescope = (telescope) => (
@@ -160,14 +160,14 @@ const TelescopeInfo = ({ search, searchedTelescopeList }) => {
               {telescope.morning &&
                 `Next Sunrise (Astronomical): ${telescope.morning.slice(
                   0,
-                  -4
+                  -4,
                 )} UTC`}
             </i>
             <i>
               {telescope.evening &&
                 `Next Sunset (Astronomical): ${telescope.evening.slice(
                   0,
-                  -4
+                  -4,
                 )} UTC`}
             </i>
           </div>

@@ -247,7 +247,6 @@ class MMADetectorSpectrum(Base):
             ['freq_column', 'amplitude_column'],
             ['frequencies', 'amplitudes'],
         ):
-
             # index format / type validation:
             if dbcol in ['frequencies', 'amplitudes']:
                 if not isinstance(index, int):

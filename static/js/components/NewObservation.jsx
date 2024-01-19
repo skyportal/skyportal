@@ -40,7 +40,7 @@ const NewObservation = () => {
           enum: [instrument.id],
           title: `${
             telescopeList.find(
-              (telescope) => telescope.id === instrument.telescope_id
+              (telescope) => telescope.id === instrument.telescope_id,
             )?.name
           } / ${instrument.name}`,
         })),

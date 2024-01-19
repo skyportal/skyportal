@@ -26,7 +26,7 @@ const PhotometryButtonsForm = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const { photometryButtons } = useSelector(
-    (state) => state.profile.preferences
+    (state) => state.profile.preferences,
   );
   const {
     handleSubmit,
@@ -41,12 +41,12 @@ const PhotometryButtonsForm = () => {
 
   const onFilterSelectChange = (event) => {
     setSelectedFilters(
-      event.target.value.includes("Clear selections") ? [] : event.target.value
+      event.target.value.includes("Clear selections") ? [] : event.target.value,
     );
   };
   const onOriginSelectChange = (event) => {
     setSelectedOrigins(
-      event.target.value.includes("Clear selections") ? [] : event.target.value
+      event.target.value.includes("Clear selections") ? [] : event.target.value,
     );
   };
 

@@ -355,7 +355,7 @@ const RenderShowClassification = ({ source }) => {
   const currentUser = useSelector((state) => state.profile);
   const groupUsers = useSelector((state) => state.group?.group_users);
   const currentGroupUser = groupUsers?.filter(
-    (groupUser) => groupUser.user_id === currentUser.id
+    (groupUser) => groupUser.user_id === currentUser.id,
   )[0];
 
   useEffect(() => {
@@ -365,13 +365,13 @@ const RenderShowClassification = ({ source }) => {
     ) {
       window.localStorage.setItem(
         "CURRENT_GROUP_ADMIN",
-        JSON.stringify(currentGroupUser.admin)
+        JSON.stringify(currentGroupUser.admin),
       );
     }
   }, [currentGroupUser]);
 
   const isGroupAdmin = JSON.parse(
-    window.localStorage.getItem("CURRENT_GROUP_ADMIN")
+    window.localStorage.getItem("CURRENT_GROUP_ADMIN"),
   );
 
   const { taxonomyList } = useSelector((state) => state.taxonomies);
@@ -390,7 +390,7 @@ const RenderShowClassification = ({ source }) => {
 
   const deleteClassifications = () => {
     dispatch(
-      sourceActions.deleteClassifications(classificationSourceToDelete)
+      sourceActions.deleteClassifications(classificationSourceToDelete),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Classification deleted"));
@@ -407,7 +407,7 @@ const RenderShowClassification = ({ source }) => {
           if (result.status !== "success") {
             success = false;
           }
-        }
+        },
       );
     });
     if (success) {
@@ -530,7 +530,7 @@ RenderShowClassification.propTypes = {
           username: PropTypes.string.isRequired,
         }),
         created_at: PropTypes.string.isRequired,
-      })
+      }),
     ).isRequired,
     classifications: PropTypes.arrayOf(
       PropTypes.shape({
@@ -541,9 +541,9 @@ RenderShowClassification.propTypes = {
           PropTypes.shape({
             id: PropTypes.number,
             name: PropTypes.string,
-          })
+          }),
         ),
-      })
+      }),
     ),
     altdata: PropTypes.shape({
       tns: PropTypes.shape({
@@ -558,7 +558,7 @@ RenderShowClassification.propTypes = {
       PropTypes.shape({
         id: PropTypes.number,
         name: PropTypes.string,
-      })
+      }),
     ),
     photstats: PropTypes.arrayOf(
       PropTypes.shape({
@@ -566,7 +566,7 @@ RenderShowClassification.propTypes = {
         peak_mjd_global: PropTypes.number,
         last_detected_mag: PropTypes.number,
         last_detected_mjd: PropTypes.number,
-      })
+      }),
     ),
   }).isRequired,
 };
@@ -649,7 +649,7 @@ RenderShowLabelling.propTypes = {
           username: PropTypes.string.isRequired,
         }).isRequired,
         created_at: PropTypes.string.isRequired,
-      })
+      }),
     ).isRequired,
     classifications: PropTypes.arrayOf(
       PropTypes.shape({
@@ -660,9 +660,9 @@ RenderShowLabelling.propTypes = {
           PropTypes.shape({
             id: PropTypes.number,
             name: PropTypes.string,
-          })
+          }),
         ),
-      })
+      }),
     ),
     altdata: PropTypes.shape({
       tns: PropTypes.shape({
@@ -677,7 +677,7 @@ RenderShowLabelling.propTypes = {
       PropTypes.shape({
         id: PropTypes.number,
         name: PropTypes.string,
-      })
+      }),
     ),
     photstats: PropTypes.arrayOf(
       PropTypes.shape({
@@ -685,13 +685,13 @@ RenderShowLabelling.propTypes = {
         peak_mjd_global: PropTypes.number,
         last_detected_mag: PropTypes.number,
         last_detected_mjd: PropTypes.number,
-      })
+      }),
     ),
     labellers: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number,
         username: PropTypes.string,
-      })
+      }),
     ),
   }).isRequired,
 };
@@ -726,7 +726,7 @@ const SourceTable = ({
 
   if (favoritesRemoveButton) {
     defaultDisplayedColumns = defaultDisplayedColumns?.filter(
-      (c) => c !== "Favorites"
+      (c) => c !== "Favorites",
     );
   }
   if (includeGcnStatus) {
@@ -738,7 +738,7 @@ const SourceTable = ({
   }
 
   const [displayedColumns, setDisplayedColumns] = useState(
-    defaultDisplayedColumns
+    defaultDisplayedColumns,
   );
   const [openedRows, setOpenedRows] = useState([]);
 
@@ -764,7 +764,7 @@ const SourceTable = ({
           sourcesingcnActions.fetchSourcesInGcn(gcnEvent.dateobs, {
             localizationName: sourceInGcnFilter?.localizationName,
             sourcesIdList: sources.map((s) => s.id),
-          })
+          }),
         );
       }
     }
@@ -779,7 +779,7 @@ const SourceTable = ({
           tableState.page + 1,
           tableState.rowsPerPage,
           tableState.sortOrder,
-          filterFormData
+          filterFormData,
         );
         break;
       case "viewColumnsChange":
@@ -787,7 +787,7 @@ const SourceTable = ({
         setDisplayedColumns(
           tableState.columns
             ?.filter((column) => column.display === "true")
-            ?.map((column) => column.label)
+            ?.map((column) => column.label),
         );
         break;
       case "sort":
@@ -803,7 +803,7 @@ const SourceTable = ({
 
   const handleSaveSource = async (sourceID) => {
     const result = await dispatch(
-      sourceActions.acceptSaveRequest({ sourceID, groupID })
+      sourceActions.acceptSaveRequest({ sourceID, groupID }),
     );
     if (result.status === "success") {
       dispatch(
@@ -811,21 +811,21 @@ const SourceTable = ({
           group_ids: [groupID],
           pageNumber: 1,
           numPerPage: 10,
-        })
+        }),
       );
       dispatch(
         sourcesActions.fetchSavedGroupSources({
           group_ids: [groupID],
           pageNumber: 1,
           numPerPage: 10,
-        })
+        }),
       );
     }
   };
 
   const handleIgnoreSource = async (sourceID) => {
     const result = await dispatch(
-      sourceActions.declineSaveRequest({ sourceID, groupID })
+      sourceActions.declineSaveRequest({ sourceID, groupID }),
     );
     if (result.status === "success") {
       dispatch(
@@ -833,7 +833,7 @@ const SourceTable = ({
           group_ids: [groupID],
           pageNumber: 1,
           numPerPage: 10,
-        })
+        }),
       );
     }
   };
@@ -969,11 +969,11 @@ const SourceTable = ({
                                   >
                                     <ListItemText
                                       secondary={`${key}: ${getAnnotationValueString(
-                                        value
+                                        value,
                                       )}`}
                                     />
                                   </ListItem>
-                                )
+                                ),
                               )}
                             </List>
                           </Collapse>
@@ -1452,7 +1452,7 @@ const SourceTable = ({
           return `position: ${value.ra} (RA), ${value.dec} (Dec), ${value.radius} (Radius)`;
         }
         return `${key}: ${value}`;
-      })
+      }),
     );
 
     // Expand cone search params
@@ -1718,7 +1718,7 @@ const SourceTable = ({
         filter: false,
         sort: false,
         display: displayedColumns.includes(
-          groupID ? "Saved To Group By" : "Last Saved By"
+          groupID ? "Saved To Group By" : "Last Saved By",
         ),
         customBodyRenderLite: renderSavedBy,
       },
@@ -1875,7 +1875,7 @@ const SourceTable = ({
         const annotationOriginsKeyValuePairCount = [];
         source?.annotations.forEach((x) => {
           annotationOriginsKeyValuePairCount.push(
-            Object.entries(x.data).length
+            Object.entries(x.data).length,
           );
         });
         return annotationOriginsKeyValuePairCount.join(";");
@@ -2023,7 +2023,7 @@ const SourceTable = ({
               data.map((x) => ({
                 ...x,
                 data: formatDataFunc(x),
-              }))
+              })),
             );
           const blob = new Blob([result], {
             type: "text/csv;charset=utf-8;",
@@ -2140,7 +2140,7 @@ SourceTable.propTypes = {
             username: PropTypes.string.isRequired,
           }),
           created_at: PropTypes.string.isRequired,
-        })
+        }),
       ).isRequired,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({
@@ -2151,9 +2151,9 @@ SourceTable.propTypes = {
             PropTypes.shape({
               id: PropTypes.number,
               name: PropTypes.string,
-            })
+            }),
           ),
-        })
+        }),
       ),
       altdata: PropTypes.shape({
         tns: PropTypes.shape({
@@ -2168,7 +2168,7 @@ SourceTable.propTypes = {
         PropTypes.shape({
           id: PropTypes.number,
           name: PropTypes.string,
-        })
+        }),
       ),
       photstats: PropTypes.arrayOf(
         PropTypes.shape({
@@ -2176,9 +2176,9 @@ SourceTable.propTypes = {
           peak_mjd_global: PropTypes.number,
           last_detected_mag: PropTypes.number,
           last_detected_mjd: PropTypes.number,
-        })
+        }),
       ),
-    })
+    }),
   ).isRequired,
   sourceStatus: PropTypes.string,
   groupID: PropTypes.number,

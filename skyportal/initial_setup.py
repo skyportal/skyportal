@@ -60,7 +60,6 @@ results = parser.parse_args()
 
 
 if __name__ == "__main__":
-
     """Create the initial structure of the DB, prepping for Skyportal"""
 
     env, cfg = load_env()

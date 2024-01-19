@@ -65,7 +65,6 @@ env, cfg = load_env()
 
 
 def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
-
     with DBSession() as session:
         user = session.scalars(sa.select(User).where(User.username == username)).first()
 

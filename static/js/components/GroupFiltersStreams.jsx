@@ -89,7 +89,7 @@ const GroupFiltersStreams = ({
         name: data.filter_name,
         group_id: group.id,
         stream_id: data.filter_stream_id,
-      })
+      }),
     );
     if (result.status === "success") {
       dispatch(showNotification("Added filter to group"));
@@ -104,7 +104,7 @@ const GroupFiltersStreams = ({
       streamsActions.addGroupStream({
         group_id: group.id,
         stream_id: data.stream_id,
-      })
+      }),
     );
     if (result.status === "success") {
       dispatch(showNotification("Added stream to group"));
@@ -165,13 +165,13 @@ const GroupFiltersStreams = ({
                                   const result = await dispatch(
                                     filterActions.deleteGroupFilter({
                                       filter_id: filter.id,
-                                    })
+                                    }),
                                   );
                                   if (result.status === "success") {
                                     dispatch(
                                       showNotification(
-                                        "Deleted filter from group"
-                                      )
+                                        "Deleted filter from group",
+                                      ),
                                     );
                                   }
                                   dispatch(groupActions.fetchGroup(group.id));
@@ -185,7 +185,7 @@ const GroupFiltersStreams = ({
                         </ListItem>
                       ) : (
                         ""
-                      )
+                      ),
                     )}
                   </List>
                 </div>
@@ -254,7 +254,7 @@ const GroupFiltersStreams = ({
                           <MenuItem value={stream.id} key={stream.id}>
                             {stream.name}
                           </MenuItem>
-                        )
+                        ),
                     )}
                   </Select>
                 )}
@@ -382,7 +382,7 @@ GroupFiltersStreams.propTypes = {
         id: PropTypes.number,
         first_name: PropTypes.string,
         last_name: PropTypes.string,
-      })
+      }),
     ),
     streams: PropTypes.arrayOf(PropTypes.shape()).isRequired,
     filters: PropTypes.arrayOf(PropTypes.shape()).isRequired,

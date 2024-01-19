@@ -106,7 +106,6 @@ def notification_resource_type(target):
 
 
 def user_preferences(target, notification_setting, resource_type):
-
     if not isinstance(notification_setting, str):
         return
     if not isinstance(resource_type, str):
@@ -233,7 +232,6 @@ def send_email_notification(target):
     app_url = get_app_base_url()
 
     try:
-
         if resource_type == "sources":
             subject, body = source_email_notification(
                 target=target, data=target["content"]
@@ -482,7 +480,6 @@ def api(queue):
             self.write({"status": "success", "data": {"queue_length": len(queue)}})
 
         async def post(self):
-
             try:
                 data = tornado.escape.json_decode(self.request.body)
             except json.JSONDecodeError:

@@ -37,7 +37,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
 
   const canSave = (usr) => {
     const matchingGroupUser = group?.users?.filter(
-      (groupUser) => groupUser.id === usr.id
+      (groupUser) => groupUser.id === usr.id,
     )[0];
     return Boolean(matchingGroupUser?.can_save);
   };
@@ -47,13 +47,13 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
       groupsActions.updateGroupUser(loadedId, {
         userID: usr.id,
         admin: !isAdmin(usr),
-      })
+      }),
     );
     if (result.status === "success") {
       dispatch(
         showNotification(
-          "User admin status for this group successfully updated."
-        )
+          "User admin status for this group successfully updated.",
+        ),
       );
       dispatch(groupActions.fetchGroup(loadedId));
     }
@@ -64,13 +64,13 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
       groupsActions.updateGroupUser(loadedId, {
         userID: usr.id,
         canSave: !canSave(usr),
-      })
+      }),
     );
     if (result.status === "success") {
       dispatch(
         showNotification(
-          "User's save access status for this group successfully updated."
-        )
+          "User's save access status for this group successfully updated.",
+        ),
       );
       dispatch(groupActions.fetchGroup(loadedId));
     }
@@ -82,7 +82,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
       groupsActions.deleteGroupUser({
         userID: user.id,
         group_id: group.id,
-      })
+      }),
     );
   };
 
@@ -193,7 +193,7 @@ ManageUserButtons.propTypes = {
   group: PropTypes.shape({
     id: PropTypes.number,
     users: PropTypes.arrayOf(
-      PropTypes.shape({ admin: PropTypes.bool.isRequired })
+      PropTypes.shape({ admin: PropTypes.bool.isRequired }),
     ),
   }).isRequired,
   currentUser: PropTypes.shape({

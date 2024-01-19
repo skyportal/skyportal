@@ -365,7 +365,6 @@ def get_observations(
             )
         )
     else:
-
         obs_query = (
             Observation.select(
                 session.user_or_token,
@@ -538,7 +537,6 @@ def get_observations(
         obs_subquery = obs_query.subquery()
 
         if return_statistics:
-
             if stats_method == 'python':
                 t0 = time.time()
                 localization_tiles = session.scalars(
@@ -1375,7 +1373,6 @@ class ObservationExternalAPIHandler(BaseHandler):
         data['allocation_id'] = int(data['allocation_id'])
 
         with self.Session() as session:
-
             allocation = session.scalars(
                 Allocation.select(session.user_or_token).where(
                     Allocation.id == data['allocation_id']
@@ -1683,7 +1680,6 @@ class ObservationTreasureMapHandler(BaseHandler):
         end_date = arrow.get(end_date.strip()).datetime
 
         with self.Session() as session:
-
             instrument = session.scalars(
                 Instrument.select(
                     session.user_or_token, options=[joinedload(Instrument.telescope)]
@@ -1945,7 +1941,6 @@ def retrieve_observations_and_simsurvey(
     survey_efficiency_analysis_id,
     survey_efficiency_analysis_type,
 ):
-
     """Query for observations and run survey analysis
 
     Parameters
@@ -2236,7 +2231,6 @@ class ObservationSimSurveyHandler(BaseHandler):
         group_ids = self.get_query_argument('group_ids', None)
 
         with self.Session() as session:
-
             if not group_ids:
                 group_ids = [
                     g.id for g in self.associated_user_object.accessible_groups

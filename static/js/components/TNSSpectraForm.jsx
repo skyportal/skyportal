@@ -150,7 +150,7 @@ const TNSSpectraForm = ({ spectrum_id }) => {
   };
   const classificationNames = [];
   Object.keys(classificationOptions).forEach((key) =>
-    classificationNames.push(key)
+    classificationNames.push(key),
   );
   const classificationNamesSorted = [...classificationNames].sort();
 
@@ -160,7 +160,7 @@ const TNSSpectraForm = ({ spectrum_id }) => {
     formData.classificationID = classificationOptions[formData.classification];
     formData.tnsrobotID = selectedTNSRobotId;
     const result = await dispatch(
-      spectraActions.addSpectrumTNS(spectrum_id, formData)
+      spectraActions.addSpectrumTNS(spectrum_id, formData),
     );
     setSubmissionRequestInProcess(false);
     if (result.status === "success") {

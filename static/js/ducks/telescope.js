@@ -41,7 +41,7 @@ const reducer = (
     currentTelescopes: null,
     currentTelescopeMenu: "Telescope List",
   },
-  action
+  action,
 ) => {
   switch (action.type) {
     case FETCH_TELESCOPE_OK: {

@@ -32,10 +32,10 @@ const FollowupRequestPrioritizationForm = () => {
 
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { instrumentList, instrumentFormParams } = useSelector(
-    (state) => state.instruments
+    (state) => state.instruments,
   );
   const { followupRequestList } = useSelector(
-    (state) => state.followup_requests
+    (state) => state.followup_requests,
   );
 
   const [isSubmittingPrioritization, setIsSubmittingPrioritization] =
@@ -135,12 +135,12 @@ const FollowupRequestPrioritizationForm = () => {
   function validatePrioritization(formData, errors) {
     if (formData.observationStartDate > formData.observationEndDate) {
       errors.observationStartDate.addError(
-        "Start date must be before end date, please fix."
+        "Start date must be before end date, please fix.",
       );
     }
     if (!requestsGroupedByInstId[formData.instrumentId]) {
       errors.instrumentId.addError(
-        "This instrument does not have any requests, please fix."
+        "This instrument does not have any requests, please fix.",
       );
     }
     return errors;
@@ -262,7 +262,7 @@ const FollowupRequestPrioritizationForm = () => {
               >
                 {`${localization.localization_name}`}
               </MenuItem>
-            )
+            ),
           )}
         </Select>
       </div>

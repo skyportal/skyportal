@@ -93,14 +93,14 @@ const MMADetectorMap = ({ mmadetectors }) => {
           Math.abs(
             normalizeLatitudeDiff(
               mmadetectors[i].lat,
-              nestedMMADetectors[j].lat
-            )
+              nestedMMADetectors[j].lat,
+            ),
           ) < 1 &&
           Math.abs(
             normalizeLongitudeDiff(
               mmadetectors[i].lon,
-              nestedMMADetectors[j].lon
-            )
+              nestedMMADetectors[j].lon,
+            ),
           ) < 2
         ) {
           nestedMMADetectors[j].mmadetectors.push(mmadetectors[i]);
@@ -144,7 +144,7 @@ const MMADetectorMap = ({ mmadetectors }) => {
                     nestedMMADetector={nestedMMADetector}
                     position={position}
                   />
-                )
+                ),
             )}
           </>
         )}
@@ -161,7 +161,7 @@ MMADetectorMap.propTypes = {
       nickname: PropTypes.string,
       lat: PropTypes.number,
       lon: PropTypes.number,
-    })
+    }),
   ).isRequired,
 };
 
@@ -176,7 +176,7 @@ MMADetectorMarker.propTypes = {
         nickname: PropTypes.string.isRequired,
         lat: PropTypes.number.isRequired,
         lon: PropTypes.number.isRequired,
-      })
+      }),
     ),
   }).isRequired,
   position: PropTypes.shape({

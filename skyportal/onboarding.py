@@ -29,7 +29,6 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
         existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
 
         if cfg["invitations.enabled"]:
-
             if existing_user is None and invite_token is None:
                 raise Exception(
                     "Authentication Error: Missing invite token. A valid invite token is required."

@@ -403,7 +403,7 @@ const ExecutedObservationsTable = ({
                   x.seeing,
                   x.limmag,
                 ],
-              }))
+              })),
             );
           const blob = new Blob([result], {
             type: "text/csv;charset=utf-8;",

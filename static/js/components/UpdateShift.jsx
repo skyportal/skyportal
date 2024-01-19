@@ -73,8 +73,8 @@ const UpdateShift = ({ shift }) => {
       dispatch(
         showNotification(
           "Please enter a positive number for required users.",
-          "error"
-        )
+          "error",
+        ),
       );
       setIsSubmitting(false);
       return;
@@ -86,8 +86,8 @@ const UpdateShift = ({ shift }) => {
       dispatch(
         showNotification(
           "Cannot reduce required users number below current number of users signed up for shift. Please remove users first or don't specify a required user number",
-          "error"
-        )
+          "error",
+        ),
       );
       setIsSubmitting(false);
       return;
@@ -97,7 +97,7 @@ const UpdateShift = ({ shift }) => {
     const result = await dispatch(
       shiftActions.updateShift(shift.id, {
         ...newState,
-      })
+      }),
     );
     setIsSubmitting(false);
     if (result.status === "success") {
@@ -190,7 +190,7 @@ UpdateShift.propTypes = {
     shift_users: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.string,
-      })
+      }),
     ),
   }).isRequired,
 };

@@ -66,7 +66,7 @@ const GcnPropertiesSelect = (props) => {
 
   let gcnProperties = [];
   gcnProperties = gcnProperties.concat(
-    useSelector((state) => state.gcnProperties)
+    useSelector((state) => state.gcnProperties),
   );
   gcnProperties.sort();
 

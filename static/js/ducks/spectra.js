@@ -27,7 +27,7 @@ export function fetchSourceSpectra(id, normalization = null) {
   if (normalization) {
     return API.GET(
       `/api/sources/${id}/spectra?normalization=${normalization}`,
-      FETCH_SOURCE_SPECTRA
+      FETCH_SOURCE_SPECTRA,
     );
   }
   return API.GET(`/api/sources/${id}/spectra`, FETCH_SOURCE_SPECTRA);
@@ -37,7 +37,7 @@ export function parseASCIISpectrum(data) {
   return API.POST(
     `/api/spectrum/parse/ascii`,
     PARSE_SOURCE_SPECTRUM_ASCII,
-    data
+    data,
   );
 }
 
@@ -45,7 +45,7 @@ export function addSyntheticPhotometry(id, formData = {}) {
   return API.POST(
     `/api/spectra/synthphot/${id}`,
     ADD_SYNTHETIC_PHOTOMETRY,
-    formData
+    formData,
   );
 }
 
@@ -64,7 +64,7 @@ export function uploadASCIISpectrum(data) {
 export function deleteAnnotation(id, annotationID) {
   return API.DELETE(
     `/api/spectra/${id}/annotations/${annotationID}`,
-    DELETE_ANNOTATION_SPECTRUM
+    DELETE_ANNOTATION_SPECTRUM,
   );
 }
 

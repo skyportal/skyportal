@@ -70,7 +70,7 @@ const UploadPhotometryForm = () => {
 
   // only show instruments that have an imaging mode
   const sortedInstrumentList = [...instrumentList].filter((instrument) =>
-    instrument.type.includes("imag")
+    instrument.type.includes("imag"),
   );
   sortedInstrumentList.sort((i1, i2) => {
     if (i1.name > i2.name) {
@@ -107,7 +107,7 @@ const UploadPhotometryForm = () => {
     }
     const [header, ...dataRows] = PapaParse.parse(
       formState.csvData.trim(),
-      parseOptions
+      parseOptions,
     ).data;
     const headerLength = header.length;
     if (!(headerLength >= 2)) {
@@ -156,7 +156,7 @@ const UploadPhotometryForm = () => {
   const handleClickPreview = async (data) => {
     const [header, ...dataRows] = PapaParse.parse(
       data.csvData.trim(),
-      parseOptions
+      parseOptions,
     ).data;
     setCsvData({
       columns: header,
@@ -174,7 +174,7 @@ const UploadPhotometryForm = () => {
       },
       {
         dirty: false,
-      }
+      },
     );
     setCsvData({});
   };
@@ -191,7 +191,7 @@ const UploadPhotometryForm = () => {
     csvData.columns.forEach((col, idx) => {
       if (col.startsWith("altdata.")) {
         data.altdata[col.split("altdata.")[1]] = csvData.data.map(
-          (row) => row[idx]
+          (row) => row[idx],
         );
       } else {
         data[col] = csvData.data.map((row) => row[idx]);
@@ -367,7 +367,7 @@ const UploadPhotometryForm = () => {
                                 >
                                   <Tooltip
                                     title={`Filters: ${instrument.filters.join(
-                                      ", "
+                                      ", ",
                                     )}`}
                                   >
                                     <span>

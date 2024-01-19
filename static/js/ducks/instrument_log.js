@@ -7,5 +7,5 @@ export const fetchInstrumentLogExternal = (id, params = {}) =>
   API.GET(
     `/api/instrument/${id}/external_api`,
     FETCH_INSTRUMENT_LOG_EXTERNAL,
-    params
+    params,
   );

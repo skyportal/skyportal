@@ -4,7 +4,6 @@ from skyportal.model_util import create_token
 
 
 def test_add_objects_to_list(user, public_candidate, public_candidate2):
-
     token_id = create_token(
         ACLs=["Upload data"], user_id=user.id, name=str(uuid.uuid4())
     )
@@ -94,7 +93,6 @@ def test_double_posting(user, public_candidate):
 
 
 def test_add_remove_objects(user, public_candidate, public_candidate2):
-
     token_id = create_token(
         ACLs=["Upload data"], user_id=user.id, name=str(uuid.uuid4())
     )
@@ -142,7 +140,6 @@ def test_add_remove_objects(user, public_candidate, public_candidate2):
 
 
 def test_add_objects_to_different_lists(user, public_candidate, public_candidate2):
-
     token_id = create_token(
         ACLs=["Upload data"], user_id=user.id, name=str(uuid.uuid4())
     )

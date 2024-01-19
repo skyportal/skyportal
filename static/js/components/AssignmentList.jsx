@@ -135,7 +135,7 @@ const AssignmentList = ({ assignments }) => {
     observingRunDict[b.run_id]?.calendar_date
       ? dayjs(observingRunDict[a.run_id].calendar_date).unix() -
         dayjs(observingRunDict[b.run_id].calendar_date).unix()
-      : 0
+      : 0,
   );
 
   const renderRunId = (value) => <a href={`/run/${value}`}>{value}</a>;
@@ -283,7 +283,7 @@ AssignmentList.propTypes = {
       priority: PropTypes.string,
       status: PropTypes.string,
       comment: PropTypes.string,
-    })
+    }),
   ).isRequired,
 };
 

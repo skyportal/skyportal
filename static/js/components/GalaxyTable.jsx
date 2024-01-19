@@ -383,7 +383,7 @@ GalaxyTable.propTypes = {
       b2a: PropTypes.number,
       pa: PropTypes.number,
       btc: PropTypes.number,
-    })
+    }),
   ),
   handleTableChange: PropTypes.func.isRequired,
   pageNumber: PropTypes.number,

@@ -7,7 +7,6 @@ import time
 def test_post_and_verify_recurring_api(
     view_only_token, public_group, super_admin_token
 ):
-
     next_call = datetime.utcnow() + timedelta(seconds=1)
     obj_id = str(uuid.uuid4())
 

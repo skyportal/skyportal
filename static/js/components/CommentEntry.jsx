@@ -123,7 +123,7 @@ const CommentEntry = ({ addComment, editComment }) => {
     if (currentWord.startsWith("@")) {
       const matches = usernameTrie.findAllStartingWith(
         currentWord.slice(1),
-        10
+        10,
       );
       setUsernamePrefixMatches(matches);
       if (Object.keys(matches).length > 0) {
@@ -133,7 +133,7 @@ const CommentEntry = ({ addComment, editComment }) => {
     } else if (currentWord.startsWith("#")) {
       const matches = instrumentTrie.findAllStartingWith(
         currentWord.slice(1),
-        10
+        10,
       );
       setInstrumentPrefixMatches(matches);
       if (Object.keys(matches).length > 0) {
@@ -167,7 +167,7 @@ const CommentEntry = ({ addComment, editComment }) => {
 
     const newTextValue = `${textValue.slice(
       0,
-      textInputCursorIndex - currentWord.length
+      textInputCursorIndex - currentWord.length,
     )}@${username} ${textValue.slice(textInputCursorIndex)}`;
 
     setTextValue(newTextValue);
@@ -186,7 +186,7 @@ const CommentEntry = ({ addComment, editComment }) => {
 
     const newTextValue = `${textValue.slice(
       0,
-      textInputCursorIndex - currentWord.length
+      textInputCursorIndex - currentWord.length,
     )}#${instrument} ${textValue.slice(textInputCursorIndex)}`;
 
     setTextValue(newTextValue);
@@ -301,7 +301,7 @@ const CommentEntry = ({ addComment, editComment }) => {
                 {`${username} ${firstName || ""} ${lastName || ""}`.trim()}
               </Button>
             </li>
-          )
+          ),
         )}
       </div>
       <div
@@ -340,7 +340,7 @@ const CommentEntry = ({ addComment, editComment }) => {
                 {`${instrument} / ${telescope}`.trim()}
               </Button>
             </li>
-          )
+          ),
         )}
       </div>
       <div className={styles.inputDiv}>

@@ -19,14 +19,14 @@ export const submitSourceInGcn = (dateobs, data) =>
 export const deleteSourceInGcn = (dateobs, source_id) =>
   API.DELETE(
     `/api/sources_in_gcn/${dateobs}/${source_id}`,
-    DELETE_SOURCE_IN_GCN
+    DELETE_SOURCE_IN_GCN,
   );
 
 export const patchSourceInGcn = (dateobs, source_id, data) =>
   API.PATCH(
     `/api/sources_in_gcn/${dateobs}/${source_id}`,
     PATCH_SOURCE_IN_GCN,
-    data
+    data,
   );
 
 const reducer = (state = { sourcesingcn: [] }, action) => {

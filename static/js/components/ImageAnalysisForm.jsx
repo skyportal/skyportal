@@ -43,7 +43,7 @@ const ImageAnalysisForm = ({ obj_id }) => {
     data.obstime = data.obstime.replace("+00:00", "").replace(".000Z", "");
 
     const result = await dispatch(
-      sourceActions.submitImageAnalysis(obj_id, data)
+      sourceActions.submitImageAnalysis(obj_id, data),
     );
     if (result.status === "success") {
       dispatch(showNotification("Image analysis submitted"));

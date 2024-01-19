@@ -71,7 +71,7 @@ const GcnTags = ({ gcnEvent, show_title = false }) => {
           dispatch(showNotification("GCN Event Tag deleted"));
           closeDialog();
         }
-      }
+      },
     );
   };
 
@@ -167,7 +167,7 @@ const GcnTags = ({ gcnEvent, show_title = false }) => {
                   fermiid
                     ? `http://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/${gcnEvent?.dateobs.slice(
                         0,
-                        4
+                        4,
                       )}/${fermiid}/quicklook/`
                     : null
                 }
@@ -218,7 +218,7 @@ GcnTags.propTypes = {
       PropTypes.shape({
         id: PropTypes.number,
         localization_name: PropTypes.string,
-      })
+      }),
     ),
   }).isRequired,
   show_title: PropTypes.bool,

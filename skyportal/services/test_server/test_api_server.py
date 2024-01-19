@@ -72,7 +72,7 @@ def treasuremap_request_matcher(r1, r2):
             "delete": r"/api/v1/cancel_all/$",
             "submit": r"/api/v1/pointings/$",
         }
-        for (submit_type, pattern) in patterns.items():
+        for submit_type, pattern in patterns.items():
             if re.search(pattern, uri) is not None:
                 return submit_type
 
@@ -139,7 +139,7 @@ def lco_request_matcher(r1, r2):
             "update": r"/api/requestgroups/[0-9]+/$",
             "submit": r"/api/requestgroups/$",
         }
-        for (submit_type, pattern) in patterns.items():
+        for submit_type, pattern in patterns.items():
             if re.search(pattern, uri) is not None:
                 return submit_type
 
@@ -362,7 +362,6 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 self.write("Could not find test route redirect")
 
     def put(self):
-
         is_soap_action = "Soapaction" in self.request.headers
         if "/api/requestgroups/" in self.request.uri:
             cache = get_cache_file_static()
@@ -448,7 +447,6 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 self.write("Could not find test route redirect")
 
     def get(self):
-
         is_wsdl = self.get_query_argument('wsdl', None)
         is_ps1 = re.match("/api/v0.1/panstarrs", self.request.uri)
         cached_urls = [
@@ -529,7 +527,6 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 self.write("Could not find test route redirect")
 
     def post(self):
-
         cached_urls = [
             ".*/api/requestgroups/.*",
             ".*/toop/submit_json.php$",

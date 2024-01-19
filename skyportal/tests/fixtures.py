@@ -328,7 +328,7 @@ class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
     private = False
 
     @factory.post_generation
-    def streams(obj, create, extracted, **kwargs):
+    def streams(obj, create, extracted, **kwargs):  # noqa F811
         if not create:
             return
         if extracted:

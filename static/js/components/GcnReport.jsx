@@ -132,7 +132,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
         </IconButton>
       ) : null}
     </MuiDialogTitle>
-  )
+  ),
 );
 
 const GcnReport = ({ dateobs }) => {
@@ -256,14 +256,14 @@ const GcnReport = ({ dateobs }) => {
     event.target.value.forEach((instrument) => {
       if (
         !new_selected_instruments.some(
-          (selected_instrument) => selected_instrument?.id === instrument?.id
+          (selected_instrument) => selected_instrument?.id === instrument?.id,
         )
       ) {
         new_selected_instruments.push(instrument);
       } else {
         // remove the user from the list
         new_selected_instruments = new_selected_instruments.filter(
-          (selected_instrument) => selected_instrument?.id !== instrument?.id
+          (selected_instrument) => selected_instrument?.id !== instrument?.id,
         );
       }
     });
@@ -285,8 +285,8 @@ const GcnReport = ({ dateobs }) => {
       dispatch(
         showNotification(
           "Please select at least one type to publish: sources, observations, or survey efficiencies",
-          "error"
-        )
+          "error",
+        ),
       );
       valid = false;
     }
@@ -309,7 +309,7 @@ const GcnReport = ({ dateobs }) => {
         showSurveyEfficiencies,
         photometryInWindow,
         instrumentIds: (selectedInstruments || []).map(
-          (instrument) => instrument?.id
+          (instrument) => instrument?.id,
         ),
       };
       if (params?.instrumentIds?.length === 0) {

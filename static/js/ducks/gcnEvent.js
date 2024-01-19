@@ -126,8 +126,8 @@ export function addCommentOnGcnEvent(formData) {
           API.POST(
             `/api/gcn_event/${formData.gcnevent_id}/comments`,
             ADD_COMMENT_ON_GCNEVENT,
-            formData
-          )
+            formData,
+          ),
         );
       });
     };
@@ -135,7 +135,7 @@ export function addCommentOnGcnEvent(formData) {
   return API.POST(
     `/api/gcn_event/${formData.gcnevent_id}/comments`,
     ADD_COMMENT_ON_GCNEVENT,
-    formData
+    formData,
   );
 }
 
@@ -157,8 +157,8 @@ export function editCommentOnGcnEvent(commentID, gcnEventID, formData) {
           API.PUT(
             `/api/gcn_event/${gcnEventID}/comments/${commentID}`,
             EDIT_COMMENT_ON_GCNEVENT,
-            formData
-          )
+            formData,
+          ),
         );
       });
     };
@@ -166,21 +166,21 @@ export function editCommentOnGcnEvent(commentID, gcnEventID, formData) {
   return API.PUT(
     `/api/gcn_event/${gcnEventID}/comments/${commentID}`,
     EDIT_COMMENT_ON_GCNEVENT,
-    formData
+    formData,
   );
 }
 
 export function deleteCommentOnGcnEvent(gcnEventID, commentID) {
   return API.DELETE(
     `/api/gcn_event/${gcnEventID}/comments/${commentID}`,
-    DELETE_COMMENT_ON_GCNEVENT
+    DELETE_COMMENT_ON_GCNEVENT,
   );
 }
 
 export function fetchObservationPlanRequests(gcnEventID) {
   return API.GET(
     `/api/gcn_event/${gcnEventID}/observation_plan_requests`,
-    FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS
+    FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS,
   );
 }
 
@@ -189,7 +189,7 @@ export const submitObservationPlanRequest = (params) => {
   return API.POST(
     "/api/observation_plan",
     SUBMIT_OBSERVATION_PLAN_REQUEST,
-    paramsToSubmit
+    paramsToSubmit,
   );
 };
 
@@ -198,7 +198,7 @@ export const editObservationPlanRequest = (params, requestID) => {
   return API.PUT(
     `/api/observation_plan/${requestID}`,
     EDIT_OBSERVATION_PLAN_REQUEST,
-    paramsToSubmit
+    paramsToSubmit,
   );
 };
 
@@ -208,7 +208,7 @@ export const sendObservationPlanRequest = (id) =>
 export const removeObservationPlanRequest = (id) =>
   API.DELETE(
     `/api/observation_plan/${id}/queue`,
-    REMOVE_OBSERVATION_PLAN_REQUEST
+    REMOVE_OBSERVATION_PLAN_REQUEST,
   );
 
 export const deleteObservationPlanRequest = (id) =>
@@ -217,47 +217,47 @@ export const deleteObservationPlanRequest = (id) =>
 export const submitObservationPlanRequestTreasureMap = (id) =>
   API.POST(
     `/api/observation_plan/${id}/treasuremap`,
-    SUBMIT_OBSERVATION_PLAN_REQUEST_TREASUREMAP
+    SUBMIT_OBSERVATION_PLAN_REQUEST_TREASUREMAP,
   );
 
 export const deleteObservationPlanRequestTreasureMap = (id) =>
   API.DELETE(
     `/api/observation_plan/${id}/treasuremap`,
-    DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP
+    DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP,
   );
 
 export const createObservationPlanRequestObservingRun = (id, params = {}) =>
   API.POST(
     `/api/observation_plan/${id}/observing_run`,
     CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN,
-    params
+    params,
   );
 
 export const deleteObservationPlanFields = (id, fieldIds) =>
   API.DELETE(
     `/api/observation_plan/${id}/fields`,
     DELETE_OBSERVATION_PLAN_FIELDS,
-    { fieldIds }
+    { fieldIds },
   );
 
 export function fetchObservationPlan(id) {
   return API.GET(
     `/api/observation_plan/${id}?includePlannedObservations=true`,
-    FETCH_OBSERVATION_PLAN_REQUEST
+    FETCH_OBSERVATION_PLAN_REQUEST,
   );
 }
 
 export function getCommentOnGcnEventAttachment(gcnEventID, commentID) {
   return API.GET(
     `/api/gcn_event/${gcnEventID}/comments/${commentID}/attachment`,
-    GET_COMMENT_ON_GCNEVENT_ATTACHMENT
+    GET_COMMENT_ON_GCNEVENT_ATTACHMENT,
   );
 }
 
 export function getCommentOnGcnEventAttachmentPreview(gcnEventID, commentID) {
   return API.GET(
     `/api/gcn_event/${gcnEventID}/comments/${commentID}`,
-    GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW
+    GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW,
   );
 }
 
@@ -269,21 +269,21 @@ export function postGcnEventSummary({ dateobs, params }) {
   return API.POST(
     `/api/gcn_event/${dateobs}/summary`,
     POST_GCNEVENT_SUMMARY,
-    params
+    params,
   );
 }
 
 export function fetchGcnEventSummary({ dateobs, summaryID }) {
   return API.GET(
     `/api/gcn_event/${dateobs}/summary/${summaryID}`,
-    FETCH_GCNEVENT_SUMMARY
+    FETCH_GCNEVENT_SUMMARY,
   );
 }
 
 export function deleteGcnEventSummary({ dateobs, summaryID }) {
   return API.DELETE(
     `/api/gcn_event/${dateobs}/summary/${summaryID}`,
-    DELETE_GCNEVENT_SUMMARY
+    DELETE_GCNEVENT_SUMMARY,
   );
 }
 
@@ -291,7 +291,7 @@ export function patchGcnEventSummary(dateobs, summaryID, formData) {
   return API.PATCH(
     `/api/gcn_event/${dateobs}/summary/${summaryID}`,
     PATCH_GCNEVENT_SUMMARY,
-    formData
+    formData,
   );
 }
 
@@ -299,14 +299,14 @@ export function postGcnEventReport({ dateobs, params }) {
   return API.POST(
     `/api/gcn_event/${dateobs}/report`,
     POST_GCNEVENT_REPORT,
-    params
+    params,
   );
 }
 
 export function fetchGcnEventReport({ dateobs, reportID }) {
   return API.GET(
     `/api/gcn_event/${dateobs}/report/${reportID}`,
-    FETCH_GCNEVENT_REPORT
+    FETCH_GCNEVENT_REPORT,
   );
 }
 
@@ -317,7 +317,7 @@ export function fetchGcnEventReports(dateobs) {
 export function deleteGcnEventReport({ dateobs, reportID }) {
   return API.DELETE(
     `/api/gcn_event/${dateobs}/report/${reportID}`,
-    DELETE_GCNEVENT_REPORT
+    DELETE_GCNEVENT_REPORT,
   );
 }
 
@@ -325,7 +325,7 @@ export function patchGcnEventReport({ dateobs, reportID, formData }) {
   return API.PATCH(
     `/api/gcn_event/${dateobs}/report/${reportID}`,
     PATCH_GCNEVENT_REPORT,
-    formData
+    formData,
   );
 }
 
@@ -337,7 +337,7 @@ export function deleteGcnAlias(dateobs, params = {}) {
   return API.DELETE(
     `/api/gcn_event/${dateobs}/alias`,
     DELETE_GCN_ALIAS,
-    params
+    params,
   );
 }
 
@@ -357,7 +357,7 @@ export function putGcnTrigger({ dateobs, allocationID, triggered }) {
   return API.PUT(
     `/api/gcn_event/${dateobs}/triggered/${allocationID}`,
     PUT_GCN_TRIGGERED,
-    { triggered }
+    { triggered },
   );
 }
 
@@ -365,7 +365,7 @@ export function fetchGcnTrigger({ dateobs, allocationID = null }) {
   if (allocationID) {
     return API.GET(
       `/api/gcn_event/${dateobs}/triggered/${allocationID}`,
-      FETCH_GCN_TRIGGERED
+      FETCH_GCN_TRIGGERED,
     );
   }
   return API.GET(`/api/gcn_event/${dateobs}/triggered`, FETCH_GCN_TRIGGERED);
@@ -374,21 +374,21 @@ export function fetchGcnTrigger({ dateobs, allocationID = null }) {
 export function deleteGcnTrigger({ dateobs, allocationID }) {
   return API.DELETE(
     `/api/gcn_event/${dateobs}/triggered/${allocationID}`,
-    DELETE_GCN_TRIGGERED
+    DELETE_GCN_TRIGGERED,
   );
 }
 
 export function fetchGcnEventSurveyEfficiency({ gcnID }) {
   return API.GET(
     `/api/gcn_event/${gcnID}/survey_efficiency`,
-    FETCH_GCNEVENT_SURVEY_EFFICIENCY
+    FETCH_GCNEVENT_SURVEY_EFFICIENCY,
   );
 }
 
 export function fetchGcnEventCatalogQueries({ gcnID }) {
   return API.GET(
     `/api/gcn_event/${gcnID}/catalog_query`,
-    FETCH_GCNEVENT_CATALOG_QUERIES
+    FETCH_GCNEVENT_CATALOG_QUERIES,
   );
 }
 
@@ -435,7 +435,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
         fetchGcnEventReport({
           dateobs: loaded_gcnevent_key,
           reportID: loaded_report_key,
-        })
+        }),
       );
     }
   }

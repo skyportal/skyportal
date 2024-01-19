@@ -30,7 +30,6 @@ def add_comment_and_wait_for_display(driver, comment_text):
 
 
 def test_comments(driver, user, public_source):
-
     driver.get(f"/become_user/{user.id}")
 
     comment_text = str(uuid.uuid4())

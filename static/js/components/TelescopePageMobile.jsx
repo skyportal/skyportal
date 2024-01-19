@@ -94,7 +94,7 @@ TelescopeList.propTypes = {
       lon: PropTypes.number,
       elevation: PropTypes.number,
       is_night_astronomical: PropTypes.bool.isRequired,
-    })
+    }),
   ).isRequired,
 };
 

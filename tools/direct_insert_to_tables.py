@@ -42,7 +42,6 @@ engine = init_db(**cfg["database"])
 
 
 def insert_data(filename, tablename, delete_id=True, new_data_dir="./", verbose=False):
-
     r"""
     Direcly insert data to the database. Only do this
     as a last resort if you cannot add data via the API.

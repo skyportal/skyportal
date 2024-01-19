@@ -144,7 +144,7 @@ const InstrumentSummary = ({ route }) => {
             dispatch(showNotification("Instrument status updated"));
           } else {
             dispatch(
-              showNotification("Error updating instrument status", "error")
+              showNotification("Error updating instrument status", "error"),
             );
           }
         });

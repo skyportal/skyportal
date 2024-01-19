@@ -15,7 +15,6 @@ _, cfg = load_env()
 
 
 class WebhookMixin:
-
     invalid_after = sa.Column(
         sa.DateTime,
         nullable=False,

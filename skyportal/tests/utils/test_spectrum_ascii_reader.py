@@ -9,7 +9,6 @@ from skyportal.models import Spectrum
 
 
 def test_spectrum_read_directly_from_file(public_source, lris):
-
     for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii.head'):
         observed_at = str(datetime.datetime.now())
         obj_id = str(public_source.id)

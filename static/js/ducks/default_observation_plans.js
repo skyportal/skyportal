@@ -20,7 +20,7 @@ const SUBMIT_DEFAULT_OBSERVATION_PLAN =
 export function deleteDefaultObservationPlan(id) {
   return API.DELETE(
     `/api/default_observation_plan/${id}`,
-    DELETE_DEFAULT_OBSERVATION_PLAN
+    DELETE_DEFAULT_OBSERVATION_PLAN,
   );
 }
 
@@ -31,7 +31,7 @@ export const submitDefaultObservationPlan = (default_plan) =>
   API.POST(
     `/api/default_observation_plan`,
     SUBMIT_DEFAULT_OBSERVATION_PLAN,
-    default_plan
+    default_plan,
   );
 
 // Websocket message handler
@@ -45,7 +45,7 @@ const reducer = (
   state = {
     defaultObservationPlanList: [],
   },
-  action
+  action,
 ) => {
   switch (action.type) {
     case FETCH_DEFAULT_OBSERVATION_PLANS_OK: {

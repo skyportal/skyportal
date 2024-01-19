@@ -93,7 +93,7 @@ const RecurringAPIList = ({ recurringAPIs, deletePermission }) => {
 
   const deleteRecurringAPI = () => {
     dispatch(
-      recurringAPIsActions.deleteRecurringAPI(recurringAPIToDelete)
+      recurringAPIsActions.deleteRecurringAPI(recurringAPIToDelete),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("RecurringAPI deleted"));

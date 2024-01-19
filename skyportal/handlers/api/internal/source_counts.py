@@ -22,7 +22,6 @@ class SourceCountHandler(BaseHandler):
         ).isoformat()
 
         with self.Session() as session:
-
             stmt = Source.select(session.user_or_token).where(
                 Source.created_at >= cutoff_day
             )

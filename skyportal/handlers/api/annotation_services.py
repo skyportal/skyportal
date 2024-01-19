@@ -281,7 +281,6 @@ class IRSAQueryWISEHandler(BaseHandler):
 
         data = self.get_json()
         with self.Session() as session:
-
             obj = session.scalars(
                 Obj.select(self.current_user).where(Obj.id == obj_id)
             ).first()

@@ -77,8 +77,8 @@ const VegaHR = React.lazy(() => import("./VegaHR"));
 
 const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
-const CentroidPlot = React.lazy(() =>
-  import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
+const CentroidPlot = React.lazy(
+  () => import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot"),
 );
 
 const green = "#359d73";
@@ -288,7 +288,7 @@ const SourceMobile = WidthProvider(
     const id = open ? "simple-popover" : undefined;
 
     const { instrumentList, instrumentFormParams } = useSelector(
-      (state) => state.instruments
+      (state) => state.instruments,
     );
     const [dialogOpen, setDialogOpen] = useState(false);
     const openDialog = () => {
@@ -309,7 +309,7 @@ const SourceMobile = WidthProvider(
     const { observingRunList } = useSelector((state) => state.observingRuns);
     const { taxonomyList } = useSelector((state) => state.taxonomies);
     const groups = (useSelector((state) => state.groups.all) || []).filter(
-      (g) => !g.single_user_group
+      (g) => !g.single_user_group,
     );
 
     const spectra = useSelector((state) => state.spectra)[source.id];
@@ -1057,7 +1057,7 @@ const SourceMobile = WidthProvider(
         </div>
       </div>
     );
-  })
+  }),
 );
 
 SourceMobile.propTypes = {
@@ -1082,7 +1082,7 @@ SourceMobile.propTypes = {
       PropTypes.shape({
         origin: PropTypes.string.isRequired,
         data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
-      })
+      }),
     ),
     classifications: PropTypes.arrayOf(
       PropTypes.shape({
@@ -1095,7 +1095,7 @@ SourceMobile.propTypes = {
         author_id: PropTypes.number,
         taxonomy_id: PropTypes.number,
         created_at: PropTypes.string,
-      })
+      }),
     ),
     followup_requests: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
     assignments: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
@@ -1106,7 +1106,7 @@ SourceMobile.propTypes = {
         abs_mag: PropTypes.number,
         color: PropTypes.number,
         origin: PropTypes.string,
-      })
+      }),
     ),
     alias: PropTypes.arrayOf(PropTypes.string),
     gcn_crossmatch: PropTypes.arrayOf(PropTypes.string),

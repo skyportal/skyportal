@@ -117,7 +117,7 @@ const TelescopePage = () => {
   const currentUser = useSelector((state) => state.profile);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const currentTelescopeMenu = useSelector(
-    (state) => state.telescope.currentTelescopeMenu
+    (state) => state.telescope.currentTelescopeMenu,
   );
 
   function setSelectedMenu(currentSelectedTelescopeMenu) {

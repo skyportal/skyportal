@@ -58,14 +58,14 @@ const NewShift = () => {
 
     if (localTime === "local") {
       formData.start_date = dayjs(
-        formData.start_date_local.concat("", timezoneString)
+        formData.start_date_local.concat("", timezoneString),
       )
         .utc()
         .format("YYYY-MM-DDTHH:mm:ss")
         .replace("+00:00", "")
         .replace(".000Z", "");
       formData.end_date = dayjs(
-        formData.end_date_local.concat("", timezoneString)
+        formData.end_date_local.concat("", timezoneString),
       )
         .utc()
         .format("YYYY-MM-DDTHH:mm:ss")
@@ -161,29 +161,29 @@ const NewShift = () => {
   function validate(formData, errors) {
     if (isDailyShift(formData.name)) {
       errors.name.addError(
-        'Shift name cannot contain "number/number" at the end of the name, please fix.'
+        'Shift name cannot contain "number/number" at the end of the name, please fix.',
       );
     }
     if (formData.localTime === "local") {
       if (nowDate > formData.end_date_local) {
         errors.end_date_local.addError(
-          "End date must be after current date, please fix."
+          "End date must be after current date, please fix.",
         );
       }
       if (formData.start_date_local > formData.end_date_local) {
         errors.start_date_local.addError(
-          "Start date must be before end date, please fix."
+          "Start date must be before end date, please fix.",
         );
       }
     } else if (formData.localTime === "UTC") {
       if (nowDateUTC > formData.end_date_utc) {
         errors.end_date_utc.addError(
-          "End date must be after current date, please fix."
+          "End date must be after current date, please fix.",
         );
       }
       if (formData.start_date_utc > formData.end_date_utc) {
         errors.start_date_utc.addError(
-          "Start date must be before end date, please fix."
+          "Start date must be before end date, please fix.",
         );
       }
     }

@@ -40,7 +40,7 @@ const NewDefaultSurveyEfficiency = () => {
   const [selectedObservationPlanId, setSelectedObservationPlanId] =
     useState(null);
   const { defaultObservationPlanList } = useSelector(
-    (state) => state.default_observation_plans
+    (state) => state.default_observation_plans,
   );
 
   const observationPlanLookUp = {};
@@ -70,7 +70,7 @@ const NewDefaultSurveyEfficiency = () => {
     }
 
     formData.optionalInjectionParameters = JSON.stringify(
-      optionalInjectionParameters
+      optionalInjectionParameters,
     );
 
     const json = {
@@ -78,7 +78,7 @@ const NewDefaultSurveyEfficiency = () => {
       payload: formData,
     };
     await dispatch(
-      defaultSurveyEfficienciesActions.submitDefaultSurveyEfficiency(json)
+      defaultSurveyEfficienciesActions.submitDefaultSurveyEfficiency(json),
     );
   };
 
@@ -175,7 +175,7 @@ const NewDefaultSurveyEfficiency = () => {
     const maxInjections = 100000;
     if (formData.numberInjections > maxInjections) {
       errors.numberInjections.addError(
-        `Number of injections must be less than ${maxInjections}`
+        `Number of injections must be less than ${maxInjections}`,
       );
     }
 

@@ -9,7 +9,6 @@ from skyportal.models import DBSession, Obj, Thumbnail
 
 
 def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_camera):
-
     obj_id = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -221,7 +220,6 @@ def test_cannot_post_thumbnail_invalid_file_type(
 def test_delete_thumbnail_deletes_file_on_disk(
     upload_data_token, super_admin_token, public_group
 ):
-
     obj_id = str(uuid.uuid4())
     status, data = api(
         'POST',

@@ -457,7 +457,7 @@ const RunSummary = ({ route }) => {
             observingRun,
             instrumentList,
             telescopeList,
-            groups
+            groups,
           )}
         </b>
       </Typography>

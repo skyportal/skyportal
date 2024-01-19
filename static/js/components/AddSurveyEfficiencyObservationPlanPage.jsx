@@ -39,8 +39,8 @@ const AddSurveyEfficiencyObservationPlanPage = ({
       dispatch(
         GET(
           `/api/observation_plan/${observationplanRequest.id}/survey_efficiency`,
-          "skyportal/FETCH_OBSERVATION_PLAN_SURVEY_EFFICIENCY"
-        )
+          "skyportal/FETCH_OBSERVATION_PLAN_SURVEY_EFFICIENCY",
+        ),
       ).then((response) => {
         setSurveyEfficiencyAnalysisList(response.data);
         setFetchingSurveyEfficiencyAnalysisList(false);
@@ -96,7 +96,7 @@ AddSurveyEfficiencyObservationPlanPage.propTypes = {
       PropTypes.shape({
         id: PropTypes.number,
         localization_name: PropTypes.string,
-      })
+      }),
     ),
     id: PropTypes.number,
   }).isRequired,

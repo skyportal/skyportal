@@ -40,7 +40,7 @@ const UpdateSourceCoordinates = ({ source }) => {
   useEffect(() => {
     setInvalid(
       // eslint-disable-next-line no-restricted-globals
-      !source.ra || isNaN(source.ra) || !source.dec || isNaN(source.dec)
+      !source.ra || isNaN(source.ra) || !source.dec || isNaN(source.dec),
     );
     setState({
       ra: source.ra,
@@ -65,7 +65,7 @@ const UpdateSourceCoordinates = ({ source }) => {
     const result = await dispatch(
       sourceActions.updateSource(source.id, {
         ...newState,
-      })
+      }),
     );
     setIsSubmitting(false);
     if (result.status === "success") {

@@ -28,7 +28,6 @@ else:
 
 
 def post_gracedb_data(dateobs, gracedb_id, user_id):
-
     if Session.registry.has():
         session = Session()
     else:

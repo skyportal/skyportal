@@ -25,17 +25,17 @@ const typeEnum = {
 export const fetchLocalization = (
   dateobs,
   localization_name,
-  type = "analysis"
+  type = "analysis",
 ) =>
   API.GET(
     `/api/localization/${dateobs}/name/${localization_name}`,
-    typeEnum[type]
+    typeEnum[type],
   );
 
 export function postLocalizationFromNotice({ dateobs, noticeID }) {
   return API.POST(
     `/api/localization/${dateobs}/notice/${noticeID}`,
-    POST_LOCALIZATION_FROM_NOTICE
+    POST_LOCALIZATION_FROM_NOTICE,
   );
 }
 

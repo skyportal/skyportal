@@ -33,7 +33,7 @@ const reducer = (
   state = {
     defaultGcnTagList: [],
   },
-  action
+  action,
 ) => {
   switch (action.type) {
     case FETCH_DEFAULT_GCN_TAGS_OK: {

@@ -140,7 +140,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
         </IconButton>
       ) : null}
     </MuiDialogTitle>
-  )
+  ),
 );
 
 const GcnSummary = ({ dateobs }) => {
@@ -173,7 +173,7 @@ const GcnSummary = ({ dateobs }) => {
   const [selectedAcknowledgement, setSelectedAcknowledgement] = useState(null);
 
   const gcnSummaryAcknowledgements = useSelector(
-    (state) => state.config.gcnSummaryAcknowledgements
+    (state) => state.config.gcnSummaryAcknowledgements,
   );
 
   const acknowledgmentOptions = selectedAcknowledgement
@@ -227,7 +227,7 @@ const GcnSummary = ({ dateobs }) => {
             setText("");
             dispatch(showNotification("Error fetching summary", "error"));
           }
-        }
+        },
       );
     };
     if (gcnEvent?.summaries?.length > 0) {
@@ -284,14 +284,14 @@ const GcnSummary = ({ dateobs }) => {
     event.target.value.forEach((user) => {
       if (
         !new_selected_users.some(
-          (selected_user) => selected_user.id === user.id
+          (selected_user) => selected_user.id === user.id,
         )
       ) {
         new_selected_users.push(user);
       } else {
         // remove the user from the list
         new_selected_users = new_selected_users.filter(
-          (selected_user) => selected_user.id !== user.id
+          (selected_user) => selected_user.id !== user.id,
         );
       }
     });
@@ -307,14 +307,14 @@ const GcnSummary = ({ dateobs }) => {
     event.target.value.forEach((instrument) => {
       if (
         !new_selected_instruments.some(
-          (selected_instrument) => selected_instrument.id === instrument.id
+          (selected_instrument) => selected_instrument.id === instrument.id,
         )
       ) {
         new_selected_instruments.push(instrument);
       } else {
         // remove the user from the list
         new_selected_instruments = new_selected_instruments.filter(
-          (selected_instrument) => selected_instrument.id !== instrument.id
+          (selected_instrument) => selected_instrument.id !== instrument.id,
         );
       }
     });
@@ -333,8 +333,8 @@ const GcnSummary = ({ dateobs }) => {
         dispatch(
           showNotification(
             "Please enter a subject when noText is not checked",
-            "error"
-          )
+            "error",
+          ),
         );
         valid = false;
       }
@@ -355,8 +355,8 @@ const GcnSummary = ({ dateobs }) => {
       dispatch(
         showNotification(
           "Please select at least one type to show: sources, galaxies or observations",
-          "error"
-        )
+          "error",
+        ),
       );
       valid = false;
     }
@@ -427,7 +427,7 @@ const GcnSummary = ({ dateobs }) => {
         } else {
           dispatch(showNotification("Error saving summary", "error"));
         }
-      }
+      },
     );
     setLoading(false);
   };
