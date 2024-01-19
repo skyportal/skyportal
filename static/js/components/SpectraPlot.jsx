@@ -370,14 +370,15 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           spectrum.observed_at.split("T")[0]
         }`;
         const trace = {
+          mode: "lines",
+          type: "scatter",
+          dataType: "Spectrum",
           x: spectrum.wavelengths,
           y:
             smoothingValue === 0
               ? spectrum.fluxes_normed
               : smoothing_func([...spectrum.fluxes_normed], smoothingValue),
           text: spectrum.text,
-          type: "scatter",
-          mode: "lines",
           name,
           legendgroup: `${spectrum.instrument_name}/${spectrum.observed_at}`,
           line: {
@@ -414,6 +415,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         mode: "markers",
         type: "scatter",
         name: "secondaryAxisX",
+        dataType: "secondaryAxisX",
         legendgroup: "secondaryAxisX",
         marker: {
           line: {
@@ -496,20 +498,6 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     smoothingInput,
   ]);
 
-  const ShowOrHideAllSpectra = (showOrHide) => {
-    if (plotData !== null) {
-      const newPlotData = [...plotData];
-      for (let i = 0; i < newPlotData.length; i += 1) {
-        if (showOrHide === "show") {
-          newPlotData[i].visible = true;
-        } else {
-          newPlotData[i].visible = "legendonly";
-        }
-      }
-      setPlotData(newPlotData);
-    }
-  };
-
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
   };
@@ -526,6 +514,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         return {
           type: "scatter",
           mode: "lines",
+          dataType: "spectraLine",
           x: [...Array(100).keys()].map((i) => shiftedX), // eslint-disable-line no-unused-vars
           y: [...Array(100).keys()].map(
             (i) =>
@@ -553,6 +542,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
             {
               type: "scatter",
               mode: "lines",
+              dataType: "spectraLine",
               x: [...Array(100).keys()].map(
                 (
                   i, // eslint-disable-line no-unused-vars
@@ -651,6 +641,38 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           useResizeHandler
           style={{ width: "100%", height: "100%" }}
           onDoubleClick={() => setLayoutReset(true)}
+          onLegendDoubleClick={(e) => {
+            // e contains a curveNumber and a data object (plotting data)
+            // we customize the legend double click behavior
+            const visibleTraces = e.data.filter(
+              (trace) =>
+                trace.dataType === "Spectrum" && trace.visible === true,
+            ).length;
+            const visibleTraceIndex = e.data.findIndex(
+              (trace) =>
+                trace.dataType === "Spectrum" && trace.visible === true,
+            );
+            e.data.forEach((trace, index) => {
+              if (
+                ["secondaryAxisX", "spectraLine"].includes(trace.name) ||
+                index === e.curveNumber
+              ) {
+                // if its a marker or secondary axis, always visible
+                trace.visible = true;
+              } else if (
+                (visibleTraces === 1 && e.curveNumber === visibleTraceIndex) ||
+                visibleTraces === 0
+              ) {
+                // if we already isolated a single trace and we double click on it, or if there are no traces visible, show all
+                trace.visible = true;
+              } else {
+                // otherwise, hide all
+                trace.visible = "legendonly";
+              }
+            });
+            setPlotData(e.data);
+            return false;
+          }}
         />
       </div>
       <div
@@ -920,37 +942,6 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
             />
           </div>
         </div>
-      </div>
-      <div
-        style={{
-          minHeight: "2rem",
-          display: "flex",
-          flexDirection: "row",
-          justifyContent: "flex-start",
-          alignItems: "center",
-          gap: "0.5rem",
-          width: "100%",
-          margin: "0.5rem",
-          marginTop: "1rem",
-          marginBottom: "1rem",
-        }}
-      >
-        <Button
-          onClick={() => ShowOrHideAllSpectra("show")}
-          variant="contained"
-          color="primary"
-          size="small"
-        >
-          Show All
-        </Button>
-        <Button
-          onClick={() => ShowOrHideAllSpectra("hide")}
-          variant="contained"
-          color="primary"
-          size="small"
-        >
-          Hide All
-        </Button>
       </div>
     </div>
   );

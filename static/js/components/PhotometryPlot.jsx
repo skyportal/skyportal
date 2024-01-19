@@ -11,12 +11,9 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import SaveAsIcon from "@mui/icons-material/SaveAs";
 import IconButton from "@mui/material/IconButton";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import Switch from "@mui/material/Switch";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
 
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -202,8 +199,7 @@ const PhotometryPlot = ({
 
   const [layoutReset, setLayoutReset] = useState(false);
 
-  const [showHideAction, setShowHideAction] = useState("show");
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [showNonDetections, setShowNonDetections] = useState(true);
 
   const preparePhotometry = (photometryData) => {
     const stats = {
@@ -817,36 +813,30 @@ const PhotometryPlot = ({
     }
   }, [markerSize]);
 
-  const handleClick = (event, action) => {
-    setShowHideAction(action);
-    setAnchorEl(event.currentTarget);
-  };
-
-  const ShowOrHideAllPhotometry = (showOrHide, type) => {
+  useEffect(() => {
     if (plotData !== null) {
       const newPlotData = plotData.map((trace) => {
         const newTrace = { ...trace };
-        if (showOrHide === "hide") {
-          if (
-            (newTrace.dataType === type || type === "all") &&
-            newTrace.visible !== false
-          ) {
-            newTrace.visible = "legendonly";
-          }
-        } else if (showOrHide === "show") {
-          if (
-            (newTrace.dataType === type || type === "all") &&
-            newTrace.visible !== true
-          ) {
-            newTrace.visible = true;
-          }
+        if (
+          showNonDetections &&
+          newTrace.dataType === "upperLimits" &&
+          newTrace.visible !== true
+        ) {
+          newTrace.visible = true;
+          newTrace.showlegend = true;
+        } else if (
+          !showNonDetections &&
+          newTrace.dataType === "upperLimits" &&
+          newTrace.visible !== false
+        ) {
+          newTrace.visible = false;
+          newTrace.showlegend = false;
         }
         return newTrace;
       });
       setPlotData(newPlotData);
-      setAnchorEl(null);
     }
-  };
+  }, [showNonDetections]);
 
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
@@ -998,6 +988,51 @@ const PhotometryPlot = ({
           }}
           useResizeHandler
           onDoubleClick={() => setLayoutReset(true)}
+          onLegendDoubleClick={(e) => {
+            // e contains a curveNumber and a data object (plotting data)
+            // we customize the legend double click behavior
+            const visibleTraces = e.data.filter(
+              (trace) =>
+                ["detections", "upperLimits"].includes(trace.dataType) &&
+                trace.visible === true,
+            ).length;
+            const visibleTraceIndex = e.data.findIndex(
+              (trace) =>
+                ["detections", "upperLimits"].includes(trace.dataType) &&
+                trace.visible === true,
+            );
+            e.data.forEach((trace, index) => {
+              if (
+                [
+                  "secondaryAxisX",
+                  "secondaryAxisY",
+                  "Spectrum",
+                  "GCN Event",
+                ].includes(trace.name) ||
+                index === e.curveNumber
+              ) {
+                // if its a marker or secondary axis, always visible
+                trace.visible = true;
+              } else if (
+                !showNonDetections &&
+                trace.dataType === "upperLimits"
+              ) {
+                // if we don't want to show non detections, hide them
+                trace.visible = false;
+              } else if (
+                (visibleTraces === 1 && e.curveNumber === visibleTraceIndex) ||
+                visibleTraces === 0
+              ) {
+                // if we already isolated a single trace and we double click on it, or if there are no traces visible, show all
+                trace.visible = true;
+              } else {
+                // otherwise, hide all
+                trace.visible = "legendonly";
+              }
+            });
+            setPlotData(e.data);
+            return false;
+          }}
           style={{ width: "100%", height: "100%" }}
         />
       </div>
@@ -1023,7 +1058,7 @@ const PhotometryPlot = ({
             gridColumn: "span 1",
           }}
         >
-          <Typography id="photometry-show-hide">Photometry</Typography>
+          <Typography id="photometry-show-hide">Non-Detections</Typography>
           <div
             style={{
               minHeight: "2rem",
@@ -1036,51 +1071,11 @@ const PhotometryPlot = ({
               marginTop: "0.25rem",
             }}
           >
-            <Button
-              onClick={(e) => handleClick(e, "show")}
-              variant="contained"
-              color="primary"
-              size="small"
-              endIcon={<KeyboardArrowDownIcon />}
-            >
-              Show
-            </Button>
-            <Button
-              onClick={(e) => handleClick(e, "hide")}
-              variant="contained"
-              color="primary"
-              size="small"
-              endIcon={<KeyboardArrowDownIcon />}
-            >
-              Hide
-            </Button>
-            <Menu
-              id="photometry-show-hide"
-              anchorEl={anchorEl}
-              keepMounted
-              open={Boolean(anchorEl)}
-              onClose={() => setAnchorEl(null)}
-            >
-              <MenuItem
-                onClick={() => ShowOrHideAllPhotometry(showHideAction, "all")}
-              >
-                All
-              </MenuItem>
-              <MenuItem
-                onClick={() =>
-                  ShowOrHideAllPhotometry(showHideAction, "detections")
-                }
-              >
-                Detections
-              </MenuItem>
-              <MenuItem
-                onClick={() =>
-                  ShowOrHideAllPhotometry(showHideAction, "upperLimits")
-                }
-              >
-                Non-Detections
-              </MenuItem>
-            </Menu>
+            <Switch
+              checked={showNonDetections}
+              onChange={() => setShowNonDetections(!showNonDetections)}
+              inputProps={{ "aria-label": "controlled" }}
+            />
           </div>
         </div>
         <div
