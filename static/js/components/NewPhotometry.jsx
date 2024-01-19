@@ -31,7 +31,7 @@ const NewPhotometryForm = ({ obj_id }) => {
   const groups = useSelector((state) => state.groups.userAccessible);
   // only show instruments that have an imaging mode
   const sortedInstrumentList = [...instrumentList].filter((instrument) =>
-    instrument.type.includes("imag")
+    instrument.type.includes("imag"),
   );
   sortedInstrumentList.sort((i1, i2) => {
     if (i1.name > i2.name) {
@@ -151,7 +151,7 @@ const NewPhotometryForm = ({ obj_id }) => {
     if (formData.dateobs && !validateDate(formData.dateobs)) {
       if (Number.isNaN(parseFloat(formData.dateobs))) {
         errors.dateobs.addError(
-          "Date must be in the format YYYY-MM-DDThh:mm:ss or MJD"
+          "Date must be in the format YYYY-MM-DDThh:mm:ss or MJD",
         );
       }
     }
@@ -163,19 +163,19 @@ const NewPhotometryForm = ({ obj_id }) => {
     }
     if (formData.exposure_time && !formData.nb_exposure) {
       errors.nb_exposure.addError(
-        "Please enter a number of exposures when entering an exposure time"
+        "Please enter a number of exposures when entering an exposure time",
       );
     }
     if (formData.nb_exposure && !formData.exposure_time) {
       errors.exposure_time.addError(
-        "Please enter an exposure time when entering a number of exposures"
+        "Please enter an exposure time when entering a number of exposures",
       );
     }
     if (
       sortedInstrumentList.some(
         (instrument) =>
           instrument.id === selectedInstrumentId &&
-          instrument.filters.length === 0
+          instrument.filters.length === 0,
       )
     ) {
       errors.filter.addError("This instrument has no filters");
@@ -203,7 +203,7 @@ const NewPhotometryForm = ({ obj_id }) => {
       (Number.isNaN(formData.ra) || Number.isNaN(formData.dec))
     ) {
       errors.ra.addError(
-        "Please enter a valid RA and Dec when coordinates is checked"
+        "Please enter a valid RA and Dec when coordinates is checked",
       );
     }
     return errors;

@@ -10,7 +10,7 @@ export function requestAPISkymapTriggers(id, data = { triggersOnly: true }) {
   return API.GET(
     `/api/skymap_trigger/${id}`,
     REQUEST_API_SKYMAP_TRIGGERS,
-    data
+    data,
   );
 }
 
@@ -22,6 +22,6 @@ export function deleteAPISkymapTrigger(id, data = {}) {
   return API.DELETE(
     `/api/skymap_trigger/${id}`,
     DELETE_API_SKYMAP_TRIGGER,
-    data
+    data,
   );
 }

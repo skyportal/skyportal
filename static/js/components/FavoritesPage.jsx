@@ -44,7 +44,7 @@ const FavoritesPage = () => {
         numPerPage: sourcesRowsPerPage,
         sortBy: sortData.name,
         sortOrder: sortData.direction,
-      })
+      }),
     );
   };
 
@@ -52,7 +52,7 @@ const FavoritesPage = () => {
     pageNumber,
     numPerPage,
     sortData,
-    filterData
+    filterData,
   ) => {
     setSourcesRowsPerPage(numPerPage);
     const data = {

@@ -17,7 +17,6 @@ depends_on = None
 
 
 def upgrade():
-
     # Data migration: takes a few steps...
     # Declare ORM table views. Note that the view contains old and new columns!
     candidates = sa.Table(

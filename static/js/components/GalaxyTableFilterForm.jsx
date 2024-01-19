@@ -154,7 +154,7 @@ const GalaxyTableFilterForm = ({ handleFilterSubmit }) => {
         formData.localizationName = gcnEventsLookUp[
           formData.gcneventid
         ]?.localizations?.filter(
-          (l) => l.id === formData.localizationid
+          (l) => l.id === formData.localizationid,
         )[0]?.localization_name;
         formData.localizationid = "";
       }
@@ -396,7 +396,7 @@ const GalaxyTableFilterForm = ({ handleFilterSubmit }) => {
                       >
                         {`${localization.localization_name}`}
                       </MenuItem>
-                    )
+                    ),
                   )}
                 </Select>
               )}

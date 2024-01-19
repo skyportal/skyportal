@@ -587,7 +587,6 @@ class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
 
 
 class DefaultAnalysis(Base):
-
     # this is a table that stores a default analysis for a given analysis service
     # this default analysis will be triggered based on a set of criteria
     # the criteria will be defined here as well, in a JSONB column called source_filter
@@ -741,7 +740,6 @@ def create_default_analysis(mapper, connection, target):
                     )
 
                     with DBSession() as db_session:
-
                         try:
                             default_analysis = db_session.scalars(
                                 DefaultAnalysis.select(

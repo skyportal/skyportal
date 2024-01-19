@@ -114,7 +114,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
         </IconButton>
       ) : null}
     </MuiDialogTitle>
-  )
+  ),
 );
 
 const GalaxyList = ({ catalogs, setCatalogs }) => {
@@ -222,7 +222,7 @@ GalaxyList.propTypes = {
     PropTypes.shape({
       catalog_name: PropTypes.string,
       catalog_count: PropTypes.number,
-    })
+    }),
   ),
   setCatalogs: PropTypes.func.isRequired,
 };

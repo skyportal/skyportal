@@ -10,7 +10,6 @@ from skyportal.tests import api
 
 
 def test_observation_plan_tiling(super_admin_token, public_group):
-
     datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -209,7 +208,6 @@ def test_observation_plan_tiling(super_admin_token, public_group):
             ]
             assert len(data) == len(requests_data)
             for i, d in enumerate(data):
-
                 assert any(
                     [
                         d['payload'] == request_data["payload"]

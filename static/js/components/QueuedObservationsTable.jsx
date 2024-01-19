@@ -285,7 +285,7 @@ const QueuedObservationsTable = ({
                   x.validity_window_start,
                   x.validity_window_end,
                 ],
-              }))
+              })),
             );
           const blob = new Blob([result], {
             type: "text/csv;charset=utf-8;",

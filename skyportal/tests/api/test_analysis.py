@@ -204,7 +204,6 @@ def test_missing_required_analysis_service_parameter(
 
 
 def test_duplicate_analysis_service(analysis_service_token, public_group):
-
     name = str(uuid.uuid4())
     post_data = {
         'name': name,
@@ -243,7 +242,6 @@ def test_duplicate_analysis_service(analysis_service_token, public_group):
 
 
 def test_bad_url(analysis_service_token, public_group):
-
     name = str(uuid.uuid4())
     post_data = {
         'name': name,
@@ -267,7 +265,6 @@ def test_bad_url(analysis_service_token, public_group):
 
 
 def test_bad_authentication_type(analysis_service_token, public_group):
-
     name = str(uuid.uuid4())
     post_data = {
         'name': name,
@@ -293,7 +290,6 @@ def test_bad_authentication_type(analysis_service_token, public_group):
 
 
 def test_authentication_credentials(analysis_service_token, public_group):
-
     name = str(uuid.uuid4())
 
     authinfo = {'header_token': {"Authorization": "Bearer MY_TOKEN"}}
@@ -363,7 +359,6 @@ def test_add_and_retrieve_analysis_service_group_access(
     public_group,
     analysis_service_token,
 ):
-
     name = str(uuid.uuid4())
     post_data = {
         'name': name,
@@ -1149,7 +1144,6 @@ def test_default_analysis(
     taxonomy_token,
     classification_token,
 ):
-
     taxonomy_name = "test taxonomy" + str(uuid.uuid4())
     status, data = api(
         "POST",

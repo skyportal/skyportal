@@ -29,10 +29,10 @@ const CustomizeOpenAIParameters = () => {
   const classes = useStyles();
 
   const site_openai_summary_parameters = useSelector(
-    (state) => state.config.openai_summary_parameters
+    (state) => state.config.openai_summary_parameters,
   );
   const user_openai_summary_parameters = useSelector(
-    (state) => state.profile.preferences.summary.OpenAI
+    (state) => state.profile.preferences.summary.OpenAI,
   );
 
   const default_openai_summary_parameters = {
@@ -174,19 +174,19 @@ const CustomizeOpenAIParameters = () => {
     }
     if (formData.frequency_penalty < -2.0 || formData.frequency_penalty > 2.0) {
       errors.frequency_penalty.addError(
-        "frequency_penalty must be between -2 and 2"
+        "frequency_penalty must be between -2 and 2",
       );
     }
     if (
       !(formData.model.includes("gpt") || formData.model.includes("davinci"))
     ) {
       errors.model.addError(
-        "must be an Open AI gpt model. See https://platform.openai.com/docs/models/overview for more information."
+        "must be an Open AI gpt model. See https://platform.openai.com/docs/models/overview for more information.",
       );
     }
     if (formData.presence_penalty < -2.0 || formData.presence_penalty > 2.0) {
       errors.presence_penalty.addError(
-        "presence_penalty must be between -2 and 2"
+        "presence_penalty must be between -2 and 2",
       );
     }
 

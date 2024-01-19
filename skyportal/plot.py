@@ -363,7 +363,6 @@ def get_effective_wavelength(bandpass_name):
 
 
 def get_color(wavelength):
-
     if 0 < wavelength <= 1500:  # EUV
         bandcolor = 'indigo'
     elif 1500 < wavelength <= 2100:  # uvw2
@@ -2531,7 +2530,6 @@ def make_spectrum_layout(
     label_dict = {}
     legend_dict = {}
     for i, (key, df) in enumerate(split):
-
         renderers = []
         s = next(spec for spec in spectra if spec.id == key)
         if s.label is not None and len(s.label) > 0:
@@ -2739,7 +2737,6 @@ def make_spectrum_layout(
             SPEC_LINES[name] = (info['wavelengths'], line_color)
 
     for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
-
         if name in ('Tellurics-1', 'Tellurics-2'):
             el_data = pd.DataFrame(
                 {

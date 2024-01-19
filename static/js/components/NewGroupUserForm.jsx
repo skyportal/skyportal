@@ -48,7 +48,7 @@ const NewGroupUserForm = ({ group_id }) => {
         groupsActions.addGroupUser({
           group_id,
           ...formState,
-        })
+        }),
       );
       if (result.status === "success") {
         setFormState(defaultState);

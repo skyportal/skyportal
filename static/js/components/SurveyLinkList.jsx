@@ -127,11 +127,11 @@ const SurveyLinkList = ({ ra, dec, id }) => {
         name="Aladin"
         url={`http://aladin.unistra.fr/AladinLite/?target=${ra_to_hours(
           ra,
-          "%20"
+          "%20",
         )}${dec > 0 ? "%2B" : ""}${dec_to_dms(
           dec,
           "%20",
-          false
+          false,
         )}&fov=0.08&survey=P%2FPanSTARRS%2FDR1%2Fcolor-z-zg-g`}
       />
       <SurveyLink
@@ -164,7 +164,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
         name="Extinction"
         url={`https://ned.ipac.caltech.edu/extinction_calculator?in_csys=Equatorial&in_equinox=J2000.0&obs_epoch=2000.0&ra=${ra_to_hours(
           ra,
-          null
+          null,
         )}&dec=${dec_to_dms(dec, null)}`}
       />
       <SurveyLinkForm
@@ -187,7 +187,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       <SurveyLink
         name="HEASARC"
         url={`https://heasarc.gsfc.nasa.gov/cgi-bin/vo/datascope/jds.pl?position=${encodeURIComponent(
-          ra_to_hours(ra, " ")
+          ra_to_hours(ra, " "),
         )}%2C${encodeURIComponent(dec_to_dms(dec, " "))}&size=0.25`}
       />
       {isDetected && (
@@ -198,7 +198,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
             year: timeStamp.format("YYYY"),
             month: timeStamp.format("MM"),
             day: `${timeStamp.format("DD")}.${Math.floor(
-              (parseInt(timeStamp.format("H"), 10) / 24) * 10
+              (parseInt(timeStamp.format("H"), 10) / 24) * 10,
             )}`,
             which: "pos",
             ra: ra_to_hours(ra, " "),

@@ -42,7 +42,7 @@ const SyntheticPhotometryForm = ({ spectrum_id }) => {
     setSubmissionRequestInProcess(true);
     // Get the classification without the context
     const result = await dispatch(
-      spectraActions.addSyntheticPhotometry(spectrum_id, formData)
+      spectraActions.addSyntheticPhotometry(spectrum_id, formData),
     );
     setSubmissionRequestInProcess(false);
     if (result.status === "success") {

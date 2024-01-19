@@ -23,7 +23,7 @@ const useStyles = makeStyles((theme) => ({
   }),
   cardTitle: {
     padding: `${theme.spacing(0.75)} ${theme.spacing(1)} ${theme.spacing(
-      0.75
+      0.75,
     )} ${theme.spacing(1)}`,
   },
   title: {
@@ -58,7 +58,7 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale, header }) => {
   // unix timestamp epoch (1970-01-01).
 
   const invertThumbnails = useSelector(
-    (state) => state.profile.preferences.invertThumbnails
+    (state) => state.profile.preferences.invertThumbnails,
   );
 
   const classes = useStyles({ size, invertThumbnails });
@@ -178,11 +178,11 @@ const ThumbnailList = ({
   const thumbnail_order = ["new", "ref", "sub", "sdss", "ls", "ps1"];
   // Sort thumbnails by order of appearance in `thumbnail_order`
   latestThumbnails?.sort((a, b) =>
-    thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
+    thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1,
   );
 
   const thumbnail_display = Object.fromEntries(
-    thumbnail_order.map((x) => [x, x])
+    thumbnail_order.map((x) => [x, x]),
   );
   thumbnail_display.ls = "Legacy Survey DR9";
   thumbnail_display.ps1 = "PanSTARRS DR2";

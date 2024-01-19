@@ -41,7 +41,7 @@ dayjs.extend(utc);
 const ObservabilityPage = ({ route }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const preferences = useSelector(
-    (state) => state.profile.preferences.observabilityTelescopes
+    (state) => state.profile.preferences.observabilityTelescopes,
   );
   const [ephemerides, setEphemerides] = useState({});
   const classes = useStyles();
@@ -54,7 +54,7 @@ const ObservabilityPage = ({ route }) => {
       (telescope) =>
         preferences &&
         preferences.length > 0 &&
-        preferences.indexOf(telescope.id) !== -1
+        preferences.indexOf(telescope.id) !== -1,
     )
     .filter((telescope) => telescope.fixed_location === true);
 
@@ -64,8 +64,8 @@ const ObservabilityPage = ({ route }) => {
         ephemerisActions.fetchEphemerides(
           [...selected_telescopes]
             .splice((page - 1) * 16, page * 16)
-            .map((telescope) => telescope.id)
-        )
+            .map((telescope) => telescope.id),
+        ),
       );
       if (result.status === "success") {
         setEphemerides(result.data);
@@ -107,8 +107,8 @@ const ObservabilityPage = ({ route }) => {
                 (telescope) =>
                   Object.prototype.hasOwnProperty.call(
                     ephemerides,
-                    telescope.id
-                  )
+                    telescope.id,
+                  ),
               )
               ?.map((telescope) => (
                 <Grid item key={telescope.id}>

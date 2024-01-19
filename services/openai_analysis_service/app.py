@@ -39,7 +39,6 @@ if (
     and summarize_embedding_config.get("index_name")
     and summarize_embedding_config.get("index_size")
 ):
-
     log("initializing pinecone...")
     pinecone.init(
         api_key=summarize_embedding_config.get("api_key"),

@@ -24,7 +24,7 @@ export const updateNotification = ({ notificationID, data }) =>
   API.PATCH(
     `/api/internal/notifications/${notificationID}`,
     UPDATE_NOTIFICATION,
-    data
+    data,
   );
 
 export const updateAllNotifications = (data) =>
@@ -36,7 +36,7 @@ export const deleteAllNotifications = () =>
 export const deleteNotification = (notificationID) =>
   API.DELETE(
     `/api/internal/notifications/${notificationID}`,
-    DELETE_NOTIFICATION
+    DELETE_NOTIFICATION,
   );
 
 // Websocket message handler

@@ -195,8 +195,8 @@ const NotificationGcnEvent = () => {
         dispatch(
           showNotification(
             "Cannot automatically migrate GCN notice preferences",
-            "error"
-          )
+            "error",
+          ),
         );
       }
     });
@@ -230,7 +230,7 @@ const NotificationGcnEvent = () => {
         dispatch(showNotification("GCN notice preference deleted"));
       } else {
         dispatch(
-          showNotification("Can not delete gcn notice preference", "error")
+          showNotification("Can not delete gcn notice preference", "error"),
         );
       }
     });

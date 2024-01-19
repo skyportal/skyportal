@@ -78,7 +78,7 @@ const EarthquakePage = () => {
   const currentUser = useSelector((state) => state.profile);
   const earthquakes = useSelector((state) => state.earthquakes);
   const currentEarthquakeMenu = useSelector(
-    (state) => state.earthquake.currentEarthquakeMenu
+    (state) => state.earthquake.currentEarthquakeMenu,
   );
 
   if (!earthquakes) {

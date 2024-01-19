@@ -126,7 +126,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
         </IconButton>
       ) : null}
     </MuiDialogTitle>
-  )
+  ),
 );
 
 const defaultNumPerPage = 10;
@@ -247,7 +247,7 @@ const GcnEvents = () => {
       handlePageChange(
         tableState.page + 1,
         tableState.rowsPerPage,
-        tableState.sortOrder
+        tableState.sortOrder,
       );
     }
     if (action === "sort") {

@@ -13,7 +13,7 @@ const spec = (
   height,
   legendOrient,
   titleFontSize,
-  labelFontSize
+  labelFontSize,
 ) => {
   const specJSON = {
     $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
@@ -117,11 +117,11 @@ const VegaSpectrumMemo = React.memo(
                 height,
                 legendOrient,
                 theme.plotFontSizes.titleFontSize,
-                theme.plotFontSizes.labelFontSize
+                theme.plotFontSizes.labelFontSize,
               ),
               {
                 actions: false,
-              }
+              },
             );
           }
         }}
@@ -142,7 +142,7 @@ const VegaSpectrumMemo = React.memo(
       }
     }
     return true;
-  }
+  },
 );
 
 VegaSpectrumMemo.displayName = "VegaSpectrumMemo";
@@ -175,7 +175,7 @@ const VegaSpectrum = (props) => {
       if (!spectra && !loading) {
         setLoading(true);
         await dispatch(
-          spectraActions.fetchSourceSpectra(sourceId, normalization)
+          spectraActions.fetchSourceSpectra(sourceId, normalization),
         );
         setLoading(false);
       }

@@ -12,7 +12,6 @@ from skyportal.tests import api
 
 @pytest.mark.flaky(reruns=2)
 def test_default_observation_plan_tiling(user, super_admin_token, public_group):
-
     name = str(uuid.uuid4())
     status, data = api(
         'POST',

@@ -52,11 +52,11 @@ const FollowupRequestForm = ({
   const dispatch = useDispatch();
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiClassname } = useSelector(
-    (state) => state.allocations
+    (state) => state.allocations,
   );
   const allGroups = useSelector((state) => state.groups.all);
   const defaultAllocationId = useSelector(
-    (state) => state.profile.preferences.followupDefault
+    (state) => state.profile.preferences.followupDefault,
   );
   const [selectedAllocationId, setSelectedAllocationId] =
     useState(defaultAllocationId);
@@ -77,7 +77,7 @@ const FollowupRequestForm = ({
         allocationListApiClassname.length === 0
       ) {
         const result = await dispatch(
-          allocationActions.fetchAllocationsApiClassname()
+          allocationActions.fetchAllocationsApiClassname(),
         );
         data = result?.data || [];
       } else {
@@ -99,7 +99,7 @@ const FollowupRequestForm = ({
           ?.length > 0
       ) {
         setSelectedGroupIds(
-          tempAllocationLookUp[selectedAllocationId]?.default_share_group_ids
+          tempAllocationLookUp[selectedAllocationId]?.default_share_group_ids,
         );
       } else {
         setSelectedGroupIds([
@@ -136,7 +136,7 @@ const FollowupRequestForm = ({
               null &&
             instrumentFormParams[allocation.instrument_id].formSchema !==
               undefined &&
-            allocation.types.includes("triggered")
+            allocation.types.includes("triggered"),
         );
         setFilteredAllocationList(filtered);
       } else if (requestType === "forced_photometry") {
@@ -147,7 +147,7 @@ const FollowupRequestForm = ({
               .formSchemaForcedPhotometry !== null &&
             instrumentFormParams[allocation.instrument_id]
               .formSchemaForcedPhotometry !== undefined &&
-            allocation.types.includes("forced_photometry")
+            allocation.types.includes("forced_photometry"),
         );
         setFilteredAllocationList(filtered);
       }
@@ -168,7 +168,7 @@ const FollowupRequestForm = ({
       filteredAllocationList?.length > 0 &&
       (!selectedAllocationId ||
         !filteredAllocationList.some(
-          (allocation) => allocation.id === selectedAllocationId
+          (allocation) => allocation.id === selectedAllocationId,
         ))
     ) {
       setSelectedAllocationId(filteredAllocationList[0]?.id);
@@ -195,7 +195,7 @@ const FollowupRequestForm = ({
     telescopeList.length === 0 ||
     instrumentList.length === 0 ||
     !filteredAllocationList.some(
-      (allocation) => allocation.id === selectedAllocationId
+      (allocation) => allocation.id === selectedAllocationId,
     )
   ) {
     return (
@@ -229,7 +229,7 @@ const FollowupRequestForm = ({
     setSelectedAllocationId(e.target.value);
     if (allocationLookUp[e.target.value]?.default_share_group_ids?.length > 0) {
       setSelectedGroupIds(
-        allocationLookUp[e.target.value]?.default_share_group_ids
+        allocationLookUp[e.target.value]?.default_share_group_ids,
       );
     } else {
       setSelectedGroupIds([allocationLookUp[e.target.value]?.group_id]);
@@ -384,7 +384,7 @@ FollowupRequestForm.propTypes = {
     PropTypes.shape({
       id: PropTypes.number,
       name: PropTypes.string,
-    })
+    }),
   ).isRequired,
   instrumentFormParams: PropTypes.shape({
     formSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types

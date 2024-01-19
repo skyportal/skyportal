@@ -62,11 +62,11 @@ const SimpleMenu = ({ request }) => {
   const updateRequestStatus = async (status) => {
     handleClose();
     const result = await dispatch(
-      SourceAction.editFollowupRequest({ status }, request.id)
+      SourceAction.editFollowupRequest({ status }, request.id),
     );
     if (result.status === "success") {
       dispatch(
-        showNotification("Follow-up request status successfully updated")
+        showNotification("Follow-up request status successfully updated"),
       );
     }
   };

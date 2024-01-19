@@ -12,7 +12,6 @@ cfg = load_config()
 def test_periodogram(
     driver, user, public_source, public_group, ztf_camera, upload_data_token
 ):
-
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",

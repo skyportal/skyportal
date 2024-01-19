@@ -98,7 +98,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
         </IconButton>
       ) : null}
     </MuiDialogTitle>
-  )
+  ),
 );
 
 export const shortenFilename = (filename) => {
@@ -111,7 +111,7 @@ export const shortenFilename = (filename) => {
     // plus an additional 5 characters into the basename (whichever is earlier)
     const firstEnd = Math.min(12, filename.length - extensionLength - 6);
     return `${filename.slice(0, firstEnd)}...${filename.slice(
-      -extensionLength - 5
+      -extensionLength - 5,
     )}`;
   }
 
@@ -190,25 +190,28 @@ const CommentAttachmentPreview = ({
       dispatch(sourceActions.getCommentAttachmentPreview(objectID, commentId));
     } else if (associatedResourceType === "spectra") {
       dispatch(
-        sourceActions.getCommentOnSpectrumAttachmentPreview(objectID, commentId)
+        sourceActions.getCommentOnSpectrumAttachmentPreview(
+          objectID,
+          commentId,
+        ),
       );
     } else if (associatedResourceType === "gcn_event") {
       dispatch(
         gcnEventActions.getCommentOnGcnEventAttachmentPreview(
           gcnEventID,
-          commentId
-        )
+          commentId,
+        ),
       );
     } else if (associatedResourceType === "earthquake") {
       dispatch(
         earthquakeActions.getCommentOnEarthquakeAttachmentPreview(
           earthquakeID,
-          commentId
-        )
+          commentId,
+        ),
       );
     } else if (associatedResourceType === "shift") {
       dispatch(
-        shiftActions.getCommentOnShiftAttachmentPreview(shiftID, commentId)
+        shiftActions.getCommentOnShiftAttachmentPreview(shiftID, commentId),
       );
     }
   }

@@ -81,7 +81,7 @@ const JsonDashboard = ({ title, content, statusTypes, showTitle }) => {
           ) {
             const categoryStyle = getCategoryStyle(
               content[category],
-              statusTypes
+              statusTypes,
             );
             return (
               <div

@@ -325,7 +325,6 @@ def get_skymap(root, notice_type, url_timeout=10):
 
 
 def get_properties(root):
-
     property_names = [
         # Gravitational waves
         "HasNS",
@@ -426,7 +425,6 @@ def from_cone(ra, dec, error, n_sigma=4):
 
 
 def from_polygon(localization_name, polygon):
-
     xyz = [hp.ang2vec(r, d, lonlat=True) for r, d in polygon]
     ipix = None
     nside = 1024  # order 10
@@ -465,7 +463,6 @@ def from_polygon(localization_name, polygon):
 
 
 def from_ellipse(localization_name, ra, dec, amaj, amin, phi):
-
     max_depth = 10
     NSIDE = int(2**max_depth)
     hpx = HEALPix(NSIDE, 'nested', frame=ICRS())
@@ -541,7 +538,6 @@ def from_bytes(arr):
 
 
 def get_occulted(url, nside=64):
-
     m = Table.read(url, format='fits')
     ra = m.meta.get('GEO_RA', None)
     dec = m.meta.get('GEO_DEC', None)
@@ -562,7 +558,6 @@ def get_occulted(url, nside=64):
 
 
 def properties_tags_from_meta(meta):
-
     property_names = [
         # Gravitational waves
         "log_bci",
@@ -629,7 +624,6 @@ def from_url(url):
 
 
 def get_contour(localization):
-
     # Calculate credible levels.
     prob = localization.flat_2d
     cls = 100 * ligo.skymap.postprocess.find_greedy_credible_levels(prob)
@@ -664,7 +658,6 @@ def get_contour(localization):
 
 
 def get_skymap_properties(localization):
-
     sky_map = localization.table
 
     properties_dict = {}

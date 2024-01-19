@@ -237,7 +237,7 @@ const ObservationPage = () => {
       handleExecutedPageChange(
         tableState.page + 1,
         tableState.rowsPerPage,
-        tableState.sortOrder
+        tableState.sortOrder,
       );
     }
     if (action === "sort") {
@@ -265,7 +265,7 @@ const ObservationPage = () => {
   const handleExecutedTableFilter = async (
     pageNumber,
     numPerPage,
-    filterData
+    filterData,
   ) => {
     const params = {
       ...fetchExecutedParams,
@@ -285,7 +285,7 @@ const ObservationPage = () => {
   const handleQueuedTableFilter = async (
     pageNumber,
     numPerPage,
-    filterData
+    filterData,
   ) => {
     const params = {
       ...fetchQueuedParams,
@@ -323,7 +323,7 @@ const ObservationPage = () => {
         i <=
         Math.ceil(
           observations.observations.totalMatches /
-            fetchExecutedParams.numPerPage
+            fetchExecutedParams.numPerPage,
         );
         i += 1
       ) {
@@ -333,7 +333,7 @@ const ObservationPage = () => {
         };
         /* eslint-disable no-await-in-loop */
         const result = await dispatch(
-          observationsActions.fetchObservations(data)
+          observationsActions.fetchObservations(data),
         );
         if (result && result.data && result?.status === "success") {
           observationsAll.push(...result.data.observations);
@@ -347,15 +347,15 @@ const ObservationPage = () => {
             dispatch(
               showNotification(
                 "Failed to fetch some observations. Download cancelled.",
-                "error"
-              )
+                "error",
+              ),
             );
           } else {
             dispatch(
               showNotification(
                 "Failed to fetch some observations, please try again. Observations fetched so far will be downloaded.",
-                "error"
-              )
+                "error",
+              ),
             );
           }
           break;
@@ -377,14 +377,14 @@ const ObservationPage = () => {
       dispatch(showNotification("No observations to download", "warning"));
     } else {
       setDownloadProgressTotal(
-        queued_observations.queued_observations.totalMatches
+        queued_observations.queued_observations.totalMatches,
       );
       for (
         let i = 1;
         i <=
         Math.ceil(
           queued_observations.queued_observations.totalMatches /
-            fetchQueuedParams.numPerPage
+            fetchQueuedParams.numPerPage,
         );
         i += 1
       ) {
@@ -394,13 +394,13 @@ const ObservationPage = () => {
         };
         /* eslint-disable no-await-in-loop */
         const result = await dispatch(
-          queuedObservationsActions.fetchQueuedObservations(data)
+          queuedObservationsActions.fetchQueuedObservations(data),
         );
         if (result && result.data && result?.status === "success") {
           observationsAll.push(...result.data.observations);
           setDownloadProgressCurrent(observationsAll.length);
           setDownloadProgressTotal(
-            queued_observations.queued_observations.totalMatches
+            queued_observations.queued_observations.totalMatches,
           );
         } else if (result && result?.status !== "success") {
           // break the loop and set progress to 0 and show error message
@@ -412,15 +412,15 @@ const ObservationPage = () => {
             dispatch(
               showNotification(
                 "Failed to fetch some observations. Download cancelled.",
-                "error"
-              )
+                "error",
+              ),
             );
           } else {
             dispatch(
               showNotification(
                 "Failed to fetch some observations, please try again. Observations fetched so far will be downloaded.",
-                "error"
-              )
+                "error",
+              ),
             );
           }
           break;
@@ -636,7 +636,7 @@ ExecutedObservationList.propTypes = {
         limmag: PropTypes.number,
         seeing: PropTypes.number,
         processed_fraction: PropTypes.number,
-      })
+      }),
     ),
     totalMatches: PropTypes.number,
   }),
@@ -653,7 +653,7 @@ QueuedObservationList.propTypes = {
         queue_name: PropTypes.number,
         validity_window_start: PropTypes.instanceOf(Date),
         validity_window_end: PropTypes.instanceOf(Date),
-      })
+      }),
     ),
     totalMatches: PropTypes.number,
   }),

@@ -25,7 +25,7 @@ const useStyles = makeStyles((theme) => ({
 // Return true if all characters in a string are Korean characters
 export const isAllKoreanCharacters = (str) =>
   str.match(
-    /^([\uac00-\ud7af]|[\u1100-\u11ff]|[\u3130-\u318f]|[\ua960-\ua97f]|[\ud7b0-\ud7ff])+$/g
+    /^([\uac00-\ud7af]|[\u1100-\u11ff]|[\u3130-\u318f]|[\ua960-\ua97f]|[\ud7b0-\ud7ff])+$/g,
   );
 
 const getInitials = (firstName, lastName) => {

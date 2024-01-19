@@ -60,7 +60,7 @@ export function requestAPIObservations(data) {
   return API.POST(
     `/api/observation/external_api`,
     REQUEST_API_OBSERVATIONS,
-    data
+    data,
   );
 }
 
@@ -68,7 +68,7 @@ export function requestAPIQueuedObservations(id, data = {}) {
   return API.GET(
     `/api/observation/external_api/${id}`,
     REQUEST_API_QUEUED_OBSERVATIONS,
-    data
+    data,
   );
 }
 
@@ -104,14 +104,14 @@ export const submitObservationsTreasureMap = (id, data) =>
   API.POST(
     `/api/observation/treasuremap/${id}`,
     SUBMIT_OBSERVATIONS_TREASUREMAP,
-    data
+    data,
   );
 
 export const deleteObservationsTreasureMap = (id, data) =>
   API.DELETE(
     `/api/observation/treasuremap/${id}`,
     DELETE_OBSERVATIONS_TREASUREMAP,
-    data
+    data,
   );
 
 // Websocket message handler

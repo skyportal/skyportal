@@ -100,7 +100,7 @@ const EarthquakePredictionLists = ({ earthquake }) => {
       r[a.detector_id] = [...(r[a.detector_id] || []), a];
       return r;
     },
-    {}
+    {},
   );
 
   Object.values(analysesGroupedByMMADetectorId).forEach((value) => {
@@ -173,7 +173,7 @@ EarthquakePredictionLists.propTypes = {
         id: PropTypes.number,
         payload: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
         status: PropTypes.string,
-      })
+      }),
     ),
   }).isRequired,
 };

@@ -37,7 +37,7 @@ const AddGcnTag = ({ gcnEvent }) => {
   useEffect(() => {
     setInvalid(
       // eslint-disable-next-line no-restricted-globals
-      gcnEvent?.tags?.includes(tag)
+      gcnEvent?.tags?.includes(tag),
     );
   }, [gcnEvent, setInvalid, tag]);
 
@@ -48,7 +48,7 @@ const AddGcnTag = ({ gcnEvent }) => {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     const result = await dispatch(
-      gcnTagsActions.postGcnTag({ dateobs: gcnEvent.dateobs, text: tag })
+      gcnTagsActions.postGcnTag({ dateobs: gcnEvent.dateobs, text: tag }),
     );
     setIsSubmitting(false);
     if (result.status === "success") {
@@ -118,7 +118,7 @@ AddGcnTag.propTypes = {
       PropTypes.shape({
         id: PropTypes.number,
         localization_name: PropTypes.string,
-      })
+      }),
     ),
   }).isRequired,
 };

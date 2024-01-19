@@ -47,7 +47,6 @@ def test_token_user_delete_owned_assignment(
 def test_regular_user_can_delete_super_admin_assignment(
     red_transients_run, public_source, upload_data_token, super_admin_token
 ):
-
     request_data = {
         'run_id': red_transients_run.id,
         'obj_id': public_source.id,
@@ -73,7 +72,6 @@ def test_regular_user_can_modify_super_admin_assignment(
     user,
     super_admin_user,
 ):
-
     request_data = {
         'run_id': red_transients_run.id,
         'obj_id': public_source.id,
@@ -113,7 +111,6 @@ def test_group1_user_can_see_group2_assignment(
     super_admin_token,
     view_only_token,
 ):
-
     request_data = {
         'run_id': red_transients_run.id,
         'obj_id': public_source_group2.id,

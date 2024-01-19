@@ -145,10 +145,10 @@ const TopSourcesList = ({ sources, styles }) => {
           if (source.classifications.length > 0) {
             // Display the most recent non-zero probability class, and that isn't a ml classifier
             const filteredClasses = source.classifications?.filter(
-              (i) => i.probability > 0 && i.ml === false
+              (i) => i.probability > 0 && i.ml === false,
             );
             const sortedClasses = filteredClasses.sort((a, b) =>
-              a.modified < b.modified ? 1 : -1
+              a.modified < b.modified ? 1 : -1,
             );
 
             if (sortedClasses.length > 0) {
@@ -264,7 +264,7 @@ TopSourcesList.propTypes = {
           public_url: PropTypes.string,
           is_grayscale: PropTypes.bool,
           type: PropTypes.string,
-        })
+        }),
       ),
       classifications: PropTypes.arrayOf(
         PropTypes.shape({
@@ -277,9 +277,9 @@ TopSourcesList.propTypes = {
           author_id: PropTypes.number,
           taxonomy_id: PropTypes.number,
           created_at: PropTypes.string,
-        })
+        }),
       ),
-    })
+    }),
   ),
   styles: PropTypes.shape(Object).isRequired,
 };
@@ -292,7 +292,7 @@ const TopSources = ({ classes }) => {
   const styles = useStyles();
 
   const invertThumbnails = useSelector(
-    (state) => state.profile.preferences.invertThumbnails
+    (state) => state.profile.preferences.invertThumbnails,
   );
   const sourceListStyles = useSourceListStyles({ invertThumbnails });
 
@@ -307,21 +307,21 @@ const TopSources = ({ classes }) => {
 
   const [currentTimespan, setCurrentTimespan] = useState(
     timespans.find(
-      (timespan) => timespan.sinceDaysAgo === topSourcesPrefs.sinceDaysAgo
-    )
+      (timespan) => timespan.sinceDaysAgo === topSourcesPrefs.sinceDaysAgo,
+    ),
   );
   const theme = useTheme();
   const dispatch = useDispatch();
 
   const switchTimespan = (event) => {
     const newTimespan = timespans.find(
-      (timespan) => timespan.label === event.target.innerText
+      (timespan) => timespan.label === event.target.innerText,
     );
     setCurrentTimespan(newTimespan);
     topSourcesPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
 
     dispatch(
-      profileActions.updateUserPreferences({ topSources: topSourcesPrefs })
+      profileActions.updateUserPreferences({ topSources: topSourcesPrefs }),
     );
   };
 

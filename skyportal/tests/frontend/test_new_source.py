@@ -8,7 +8,6 @@ from selenium.common.exceptions import TimeoutException
 
 @pytest.mark.flaky(reruns=2)
 def test_new_source(driver, user, super_admin_token, view_only_token, public_group):
-
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
 

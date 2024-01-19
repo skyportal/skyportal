@@ -49,7 +49,7 @@ export function deleteShiftUser({ userID, shiftID }) {
   return API.DELETE(
     `/api/shifts/${shiftID}/users/${userID}`,
     DELETE_SHIFT_USER,
-    { userID, shiftID }
+    { userID, shiftID },
   );
 }
 

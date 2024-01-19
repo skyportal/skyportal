@@ -41,7 +41,6 @@ class SkymapTriggerAPIHandler(BaseHandler):
         integrated_probability = data.get("integrated_probability", 0.95)
 
         with self.Session() as session:
-
             allocation = session.scalars(
                 Allocation.select(session.user_or_token).where(
                     Allocation.id == data['allocation_id']

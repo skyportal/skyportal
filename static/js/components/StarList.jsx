@@ -80,8 +80,8 @@ const StarList = ({ sourceId }) => {
       const response = await dispatch(
         GET(
           `/api/sources/${sourceId}/offsets?facility=${facility}`,
-          "skyportal/FETCH_STARLIST"
-        )
+          "skyportal/FETCH_STARLIST",
+        ),
       );
       setStarList(response.data.starlist_info);
     };
@@ -111,16 +111,16 @@ export const ObservingRunStarList = () => {
         dispatch(
           GET(
             `/api/sources/${assignment.obj_id}/offsets?facility=${facility}`,
-            "skyportal/FETCH_STARLIST"
-          )
-        )
+            "skyportal/FETCH_STARLIST",
+          ),
+        ),
       );
       const standard_promise = [
         dispatch(
           GET(
             `/api/internal/standards?facility=${facility}`,
-            "skyportal/FETCH_STANDARDS"
-          )
+            "skyportal/FETCH_STANDARDS",
+          ),
         ),
       ];
       const starlistInfo = [];
@@ -129,7 +129,7 @@ export const ObservingRunStarList = () => {
       values.push(standard_value[0]);
 
       values.forEach((response) =>
-        starlistInfo.push(...response.value.data.starlist_info)
+        starlistInfo.push(...response.value.data.starlist_info),
       );
 
       setStarList(starlistInfo);
@@ -155,7 +155,7 @@ StarListBody.propTypes = {
   starList: PropTypes.arrayOf(
     PropTypes.shape({
       str: PropTypes.string,
-    })
+    }),
   ).isRequired,
   setStarList: PropTypes.func.isRequired,
   setFacility: PropTypes.func.isRequired,

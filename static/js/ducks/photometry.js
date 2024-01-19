@@ -27,7 +27,7 @@ export function fetchFilterWavelengths(filterParams = {}) {
   return API.GET(
     `/api/internal/wavelengths`,
     FETCH_FILTER_WAVELENGTHS,
-    filterParams
+    filterParams,
   );
 }
 

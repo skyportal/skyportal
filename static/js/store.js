@@ -40,7 +40,7 @@ function configureStore() {
   const store = createStore(
     nullReducer,
     {},
-    composeWithDevTools(applyMiddleware(...middlewares))
+    composeWithDevTools(applyMiddleware(...middlewares)),
   );
 
   initStateWithPrevTab(store);

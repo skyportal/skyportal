@@ -40,7 +40,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
   useEffect(() => {
     reset({
       group_ids: userGroups.map((userGroup) =>
-        filterGroups.map((g) => g.id).includes(userGroup.id)
+        filterGroups.map((g) => g.id).includes(userGroup.id),
       ),
     });
   }, [reset, userGroups, filterGroups, candidate]);
@@ -60,7 +60,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
             }
             return name;
           })
-          .join(", ")
+          .join(", "),
       );
     } else {
       setFilteredGroupNames("selected groups");
@@ -101,8 +101,8 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
     if (result.status === "success") {
       dispatch(
         showNotification(
-          `Candidate successfully saved to groups: ${selectedGroupNames.join()}.`
-        )
+          `Candidate successfully saved to groups: ${selectedGroupNames.join()}.`,
+        ),
       );
       reset();
       setDialogOpen(false);
@@ -135,8 +135,8 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
       if (result.status === "success") {
         dispatch(
           showNotification(
-            `Candidate successfully saved to groups: ${selectedGroupNames.join()}.`
-          )
+            `Candidate successfully saved to groups: ${selectedGroupNames.join()}.`,
+          ),
         );
       }
       setIsSubmitting(false);
@@ -285,14 +285,14 @@ SaveCandidateButton.propTypes = {
       id: PropTypes.number,
       name: PropTypes.string,
       nickname: PropTypes.string,
-    })
+    }),
   ).isRequired,
   filterGroups: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number,
       name: PropTypes.string,
       nickname: PropTypes.string,
-    })
+    }),
   ).isRequired,
 };
 

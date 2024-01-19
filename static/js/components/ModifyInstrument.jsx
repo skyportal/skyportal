@@ -112,7 +112,7 @@ const ModifyInstrument = () => {
       formData.field_fov_attributes = formData.field_fov_attributes.split(",");
     }
     const result = await dispatch(
-      modifyInstrument(selectedInstrumentId, formData)
+      modifyInstrument(selectedInstrumentId, formData),
     );
     if (result.status === "success") {
       dispatch(showNotification("Instrument saved"));
@@ -212,20 +212,20 @@ const ModifyInstrument = () => {
     }
     if (errors && formData.field_region && formData.field_fov_type) {
       errors.field_region.addError(
-        "Must only choose either field_region or field_fov_type."
+        "Must only choose either field_region or field_fov_type.",
       );
     }
     if (errors && formData.field_fov_type && formData.field_fov_attributes) {
       if (formData.field_fov_type[0] === "circle") {
         if (formData.field_fov_attributes.split(",").length !== 1) {
           errors.field_fov_attributes.addError(
-            "For the circle option, field_fov_attributes should be a single number (radius in degrees)."
+            "For the circle option, field_fov_attributes should be a single number (radius in degrees).",
           );
         }
       } else if (formData.field_fov_type[0] === "rectangle") {
         if (formData.field_fov_attributes.split(",").length !== 2) {
           errors.field_fov_attributes.addError(
-            "For the rectangle option, field_fov_attributes should be two numbers (width and height in degrees)."
+            "For the rectangle option, field_fov_attributes should be two numbers (width and height in degrees).",
           );
         }
       }
@@ -336,11 +336,11 @@ const ModifyInstrument = () => {
           <ListItemText
             primary={instrumentTitle(
               instLookUp[selectedInstrumentId],
-              telescopeList
+              telescopeList,
             )}
             secondary={instrumentInfo(
               instLookUp[selectedInstrumentId],
-              telescopeList
+              telescopeList,
             )}
             classes={textClasses}
           />

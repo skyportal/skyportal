@@ -10,7 +10,6 @@ from baselayer.app.models import Base
 
 
 class FacilityTransaction(Base):
-
     created_at = sa.Column(
         sa.DateTime,
         nullable=False,
@@ -64,7 +63,6 @@ class FacilityTransaction(Base):
 
 
 class FacilityTransactionRequest(Base):
-
     created_at = sa.Column(
         sa.DateTime,
         nullable=False,

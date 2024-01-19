@@ -2,7 +2,6 @@ from skyportal.tests import api
 
 
 def test_bad_queries(view_only_token):
-
     # no query
     query_data = {}
     status, data = api('POST', 'summary_query', data=query_data, token=view_only_token)

@@ -42,7 +42,7 @@ const QueueAPIDisplay = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiObsplan } = useSelector(
-    (state) => state.allocations
+    (state) => state.allocations,
   );
   const allGroups = useSelector((state) => state.groups.all);
 
@@ -55,7 +55,7 @@ const QueueAPIDisplay = () => {
       // update
 
       const result = await dispatch(
-        allocationActions.fetchAllocationsApiObsplan()
+        allocationActions.fetchAllocationsApiObsplan(),
       );
 
       const { data } = result;
@@ -73,7 +73,7 @@ const QueueAPIDisplay = () => {
     const getQueues = async () => {
       if (selectedAllocationId && allocationListApiObsplan?.length > 0) {
         const response = await dispatch(
-          queuedObservationActions.requestAPIQueues(selectedAllocationId)
+          queuedObservationActions.requestAPIQueues(selectedAllocationId),
         );
         if (response?.data?.queue_names?.length > 0) {
           setQueueList(response.data.queue_names);
@@ -128,7 +128,7 @@ const QueueAPIDisplay = () => {
     await dispatch(
       queuedObservationActions.deleteAPIQueue(selectedAllocationId, {
         queueName: selectedQueueName,
-      })
+      }),
     );
   };
 

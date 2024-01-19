@@ -233,7 +233,6 @@ def test_delete_comment(comment_token, public_source):
 def test_problematic_put_comment_attachment_1275(
     super_admin_token, public_source, public_group
 ):
-
     status, data = api(
         'POST',
         f'sources/{public_source.id}/comments',
@@ -298,7 +297,6 @@ def test_problematic_put_comment_attachment_1275(
 def test_problematic_post_comment_attachment_1275(
     super_admin_token, public_source, public_group
 ):
-
     status, data = api(
         'POST',
         f'sources/{public_source.id}/comments',

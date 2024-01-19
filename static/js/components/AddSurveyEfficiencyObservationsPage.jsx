@@ -36,7 +36,7 @@ const AddSurveyEfficiencyObservationsPage = () => {
       dispatch(fetchGcnEventSurveyEfficiency({ gcnID: gcnEvent?.id })).then(
         () => {
           setFetchingSurveyEfficiency(false);
-        }
+        },
       );
     }
   }, [dispatch, gcnEvent]);

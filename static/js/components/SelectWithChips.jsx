@@ -67,7 +67,7 @@ const SelectWithChips = (props) => {
             setOpts(
               event.target.value.includes("Clear selections")
                 ? []
-                : event.target.value
+                : event.target.value,
             );
           }}
           renderValue={(selected) => (
@@ -82,7 +82,7 @@ const SelectWithChips = (props) => {
                       label={`+${selected?.length - max_chips_nb}`}
                     />
                   )
-                )
+                ),
               )}
             </div>
           )}
@@ -155,7 +155,7 @@ const SelectLabelWithChips = (props) => {
             setOpts(
               event.target.value.includes("Clear selections")
                 ? []
-                : event.target.value
+                : event.target.value,
             );
           }}
           renderValue={(selected) => (
@@ -170,7 +170,7 @@ const SelectLabelWithChips = (props) => {
                       label={`+${selected?.length - max_chips_nb}`}
                     />
                   )
-                )
+                ),
               )}
             </div>
           )}
@@ -198,14 +198,14 @@ SelectLabelWithChips.propTypes = {
     PropTypes.shape({
       id: PropTypes.string.isRequired,
       label: PropTypes.string.isRequired,
-    })
+    }),
   ),
   onChange: PropTypes.func.isRequired,
   options: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number.isRequired,
       label: PropTypes.string.isRequired,
-    })
+    }),
   ).isRequired,
 };
 
@@ -272,7 +272,7 @@ SelectSingleLabelWithChips.propTypes = {
     PropTypes.shape({
       id: PropTypes.number.isRequired,
       label: PropTypes.string.isRequired,
-    })
+    }),
   ).isRequired,
 };
 

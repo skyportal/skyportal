@@ -32,7 +32,7 @@ const AddCatalogQueryPage = () => {
       dispatch(fetchGcnEventCatalogQueries({ gcnID: gcnEvent?.id })).then(
         () => {
           setFetchingCatalogQueries(false);
-        }
+        },
       );
     }
   }, [dispatch, gcnEvent]);

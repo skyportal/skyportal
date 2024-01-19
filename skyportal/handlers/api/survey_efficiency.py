@@ -328,7 +328,6 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
         """
 
         with self.Session() as session:
-
             stmt = DefaultSurveyEfficiencyRequest.select(session.user_or_token).where(
                 DefaultSurveyEfficiencyRequest.id == default_survey_efficiency_id
             )

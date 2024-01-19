@@ -163,7 +163,7 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
         filter: true,
         // Display only if there's at least one user with a first/last name
         display: !!group?.users?.filter(
-          (user) => user.first_name || user.last_name
+          (user) => user.first_name || user.last_name,
         )?.length,
       },
     },
@@ -271,7 +271,7 @@ GroupUsers.propTypes = {
         id: PropTypes.number,
         first_name: PropTypes.string,
         last_name: PropTypes.string,
-      })
+      }),
     ),
   }).isRequired,
   classes: PropTypes.shape().isRequired,

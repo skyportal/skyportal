@@ -125,7 +125,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
         </IconButton>
       ) : null}
     </MuiDialogTitle>
-  )
+  ),
 );
 
 const NewReminder = ({ resourceId, resourceType, handleClose }) => {
@@ -147,7 +147,7 @@ const NewReminder = ({ resourceId, resourceType, handleClose }) => {
         } else {
           dispatch(showNotification("Error creating reminder", "error"));
         }
-      }
+      },
     );
   };
 
@@ -160,12 +160,12 @@ const NewReminder = ({ resourceId, resourceType, handleClose }) => {
     }
     if (formData.number_of_reminders <= 0) {
       errors.number_of_reminders.addError(
-        "Number of reminders must be greater than 0"
+        "Number of reminders must be greater than 0",
       );
     }
     if (formData.reminder_delay <= 0) {
       errors.reminder_delay.addError(
-        "Reminder delay must be greater than 0 day"
+        "Reminder delay must be greater than 0 day",
       );
     }
     return errors;
@@ -233,7 +233,7 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
   const currentUser = useSelector((state) => state.profile);
 
   reminders = reminders.filter(
-    (reminder) => reminder.user_id === currentUser.id
+    (reminder) => reminder.user_id === currentUser.id,
   );
 
   const handleClose = () => {
@@ -263,7 +263,7 @@ const RemindersTable = ({ reminders, resourceId, resourceType }) => {
   const deleteReminder = (dataIndex) => {
     const reminder = reminders[dataIndex];
     dispatch(
-      Actions.deleteReminder(resourceId, resourceType, reminder.id)
+      Actions.deleteReminder(resourceId, resourceType, reminder.id),
     ).then((response) => {
       if (response.status === "success") {
         dispatch(showNotification("Reminder deleted"));
@@ -411,7 +411,7 @@ RemindersTable.propTypes = {
       reminder_delay: PropTypes.number,
       next_reminder: PropTypes.string,
       text: PropTypes.string,
-    })
+    }),
   ),
   resourceId: PropTypes.string,
   resourceType: PropTypes.string,

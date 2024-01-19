@@ -45,7 +45,7 @@ const NewDefaultFollowupRequest = () => {
 
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiClassname } = useSelector(
-    (state) => state.allocations
+    (state) => state.allocations,
   );
 
   const allGroups = useSelector((state) => state.groups.all);
@@ -53,7 +53,7 @@ const NewDefaultFollowupRequest = () => {
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
 
   const { instrumentList, instrumentFormParams } = useSelector(
-    (state) => state.instruments
+    (state) => state.instruments,
   );
 
   useEffect(() => {
@@ -89,7 +89,7 @@ const NewDefaultFollowupRequest = () => {
       allocation.instrument_id in instrumentFormParams &&
       instrumentFormParams[allocation.instrument_id].formSchema !== null &&
       instrumentFormParams[allocation.instrument_id].formSchema !== undefined &&
-      allocation.types.includes("triggered")
+      allocation.types.includes("triggered"),
   );
 
   useEffect(() => {
@@ -164,7 +164,7 @@ const NewDefaultFollowupRequest = () => {
       source_filter,
     };
     await dispatch(
-      defaultFollowupRequestsActions.submitDefaultFollowupRequest(json)
+      defaultFollowupRequestsActions.submitDefaultFollowupRequest(json),
     );
   };
 

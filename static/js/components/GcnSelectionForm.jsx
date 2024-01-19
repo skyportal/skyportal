@@ -180,7 +180,7 @@ const GcnEventSourcesPage = ({
     pageNumber,
     numPerPage,
     sortData,
-    filterData
+    filterData,
   ) => {
     setSourcesRowsPerPage(numPerPage);
     const data = {
@@ -228,15 +228,15 @@ const GcnEventSourcesPage = ({
             dispatch(
               showNotification(
                 "Failed to fetch some sources. Download cancelled.",
-                "error"
-              )
+                "error",
+              ),
             );
           } else {
             dispatch(
               showNotification(
                 "Failed to fetch some sources, please try again. Sources fetched so far will be downloaded.",
-                "error"
-              )
+                "error",
+              ),
             );
           }
           break;
@@ -254,7 +254,7 @@ const GcnEventSourcesPage = ({
       sourcesingcnActions.fetchSourcesInGcn(dateobs, {
         localizationName,
         sourcesIdList: sourceAll.map((source) => source.id),
-      })
+      }),
     );
     if (response?.status === "success") {
       sourceAll.forEach((source) => {
@@ -359,9 +359,9 @@ GcnEventSourcesPage.propTypes = {
               PropTypes.shape({
                 id: PropTypes.number,
                 name: PropTypes.string,
-              })
+              }),
             ),
-          })
+          }),
         ),
         recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
         altdata: PropTypes.shape({
@@ -377,9 +377,9 @@ GcnEventSourcesPage.propTypes = {
           PropTypes.shape({
             id: PropTypes.number,
             name: PropTypes.string,
-          })
+          }),
         ),
-      })
+      }),
     ),
   }),
   localizationName: PropTypes.string.isRequired,
@@ -434,7 +434,7 @@ MyObjectFieldTemplate.propTypes = {
     PropTypes.shape({
       name: PropTypes.string,
       content: PropTypes.node,
-    })
+    }),
   ).isRequired,
 };
 
@@ -461,10 +461,10 @@ const GcnSelectionForm = ({ dateobs }) => {
         return [x, true];
       }
       return [x, false];
-    })
+    }),
   );
   const displayOptionsAvailable = Object.fromEntries(
-    displayOptions.map((x) => [x, true])
+    displayOptions.map((x) => [x, true]),
   );
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
@@ -477,13 +477,13 @@ const GcnSelectionForm = ({ dateobs }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingTreasureMap, setIsSubmittingTreasureMap] = useState(null);
   const [checkedDisplayState, setCheckedDisplayState] = useState(
-    displayOptionsDefault
+    displayOptionsDefault,
   );
   const [skymapInstrument, setSkymapInstrument] = useState(null);
 
   const [tabIndex, setTabIndex] = useState(1);
   const [selectedProjection, setSelectedProjection] = useState(
-    projectionOptions[0]
+    projectionOptions[0],
   );
 
   const [sourceFilteringState, setSourceFilteringState] = useState({
@@ -526,13 +526,13 @@ const GcnSelectionForm = ({ dateobs }) => {
   });
 
   const gcnEventSources = useSelector(
-    (state) => state?.sources?.gcnEventSources
+    (state) => state?.sources?.gcnEventSources,
   );
   const gcnEventGalaxies = useSelector(
-    (state) => state?.galaxies?.gcnEventGalaxies
+    (state) => state?.galaxies?.gcnEventGalaxies,
   );
   const gcnEventObservations = useSelector(
-    (state) => state?.observations?.gcnEventObservations
+    (state) => state?.observations?.gcnEventObservations,
   );
 
   useEffect(() => {
@@ -564,7 +564,7 @@ const GcnSelectionForm = ({ dateobs }) => {
       instrumentList.length > 0 &&
       gcnEvent?.localizations?.length > 0 &&
       (gcnEvent?.localizations?.find(
-        (loc) => loc.id === selectedLocalizationId
+        (loc) => loc.id === selectedLocalizationId,
       ) ||
         selectedLocalizationId === null) &&
       fetchingLocalization === false
@@ -587,7 +587,7 @@ const GcnSelectionForm = ({ dateobs }) => {
 
   const handleOnChange = (position) => {
     const checkedDisplayStateCopy = JSON.parse(
-      JSON.stringify(checkedDisplayState)
+      JSON.stringify(checkedDisplayState),
     );
     checkedDisplayStateCopy[displayOptions[position]] =
       !checkedDisplayStateCopy[displayOptions[position]];
@@ -599,8 +599,8 @@ const GcnSelectionForm = ({ dateobs }) => {
       dispatch(
         showNotification(
           "Please fetch observations before submitting to treasure map",
-          "error"
-        )
+          "error",
+        ),
       );
       return;
     }
@@ -661,8 +661,8 @@ const GcnSelectionForm = ({ dateobs }) => {
       dispatch(
         instrumentActions.fetchInstrumentSkymap(
           instLookUp[selectedInstrumentId]?.id,
-          locLookUp[selectedLocalizationId]
-        )
+          locLookUp[selectedLocalizationId],
+        ),
       ).then((response) => setSkymapInstrument(response.data));
     };
     if (
@@ -685,10 +685,10 @@ const GcnSelectionForm = ({ dateobs }) => {
         localizationActions.fetchLocalization(
           gcnEvent?.dateobs,
           gcnEvent?.localizations.find(
-            (loc) => loc.id === selectedLocalizationId
+            (loc) => loc.id === selectedLocalizationId,
           )?.localization_name,
-          "analysis"
-        )
+          "analysis",
+        ),
       ).then(() => setFetchingLocalization(false));
     }
   }, [dispatch, selectedLocalizationId]);
@@ -720,7 +720,7 @@ const GcnSelectionForm = ({ dateobs }) => {
 
     if (formData.queryList.includes("sources")) {
       await dispatch(
-        sourcesActions.fetchGcnEventSources(gcnEvent?.dateobs, formData)
+        sourcesActions.fetchGcnEventSources(gcnEvent?.dateobs, formData),
       );
       setSourceFilteringState(formData);
     }
@@ -735,8 +735,8 @@ const GcnSelectionForm = ({ dateobs }) => {
         dispatch(
           showNotification(
             "Please select an instrument and telescope before fetching observations",
-            "error"
-          )
+            "error",
+          ),
         );
         setIsSubmitting(false);
         return;
@@ -749,13 +749,13 @@ const GcnSelectionForm = ({ dateobs }) => {
           telescopeName:
             telLookUp[instLookUp[selectedInstrumentId]?.telescope_id]?.name,
           numberObservations: formData?.numberDetections || 1,
-        })
+        }),
       );
       setHasFetchedObservations(true);
     }
     if (formData.queryList.includes("galaxies")) {
       await dispatch(
-        galaxiesActions.fetchGcnEventGalaxies(gcnEvent?.dateobs, formData)
+        galaxiesActions.fetchGcnEventGalaxies(gcnEvent?.dateobs, formData),
       );
     }
     setFormDataState(formData);
@@ -765,7 +765,7 @@ const GcnSelectionForm = ({ dateobs }) => {
   function validate(formData, errors) {
     if (formData.start_date > formData.end_date) {
       errors.start_date.addError(
-        "Start date must be before end date, please fix."
+        "Start date must be before end date, please fix.",
       );
     }
     if (
@@ -773,7 +773,7 @@ const GcnSelectionForm = ({ dateobs }) => {
       formData.localizationCumprob > 1.01
     ) {
       errors.cumulative.addError(
-        "Value of cumulative should be between 0 and 1"
+        "Value of cumulative should be between 0 and 1",
       );
     }
     return errors;
@@ -1150,7 +1150,7 @@ const GcnSelectionForm = ({ dateobs }) => {
                         onClick={() => {
                           handleSubmitTreasureMap(
                             selectedInstrumentId,
-                            formDataState
+                            formDataState,
                           );
                         }}
                         type="submit"

@@ -153,7 +153,7 @@ GcnProperties.propTypes = {
     PropTypes.shape({
       id: PropTypes.number,
       data: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
-    })
+    }),
   ).isRequired,
 };
 

@@ -2,7 +2,6 @@ from skyportal.tests import api
 
 
 def test_post_and_delete_tns_robot(public_group, super_admin_token):
-
     request_data = {
         'group_id': public_group.id,
         'bot_name': 'test_bot',

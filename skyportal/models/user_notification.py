@@ -21,7 +21,6 @@ from .group import GroupAdmissionRequest
 
 
 class UserNotification(Base):
-
     read = update = delete = AccessibleIfUserMatches('user')
 
     user_id = sa.Column(
@@ -69,11 +68,9 @@ class UserNotification(Base):
 @event.listens_for(EventObservationPlan, 'after_insert')
 @event.listens_for(FollowupRequest, 'after_update')
 def add_user_notifications(mapper, connection, target):
-
     # Add front-end user notifications
     @event.listens_for(inspect(target).session, "after_commit", once=True)
     def receive_after_commit(session):
-
         if target is None:
             return
 

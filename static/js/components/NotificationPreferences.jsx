@@ -72,12 +72,12 @@ const NotificationPreferences = () => {
   const profile = useSelector((state) => state.profile.preferences);
   const groups = useSelector((state) => state.groups.userAccessible);
   const { allocationListApiClassname } = useSelector(
-    (state) => state.allocations
+    (state) => state.allocations,
   );
   const dispatch = useDispatch();
   const { handleSubmit } = useForm();
   const [selectedClassifications, setSelectedClassifications] = useState(
-    profile?.notifications?.sources?.classifications || []
+    profile?.notifications?.sources?.classifications || [],
   );
   const [selectedGroups, setSelectedGroups] = useState([]);
   const [selectedAllocations, setSelectedAllocations] = useState([]);
@@ -100,7 +100,7 @@ const NotificationPreferences = () => {
     (allocation) => ({
       id: allocation?.id,
       label: `${allocation.instrument?.name} [${allocation?.pi}]`,
-    })
+    }),
   );
 
   // then sort the allocations by label
@@ -119,14 +119,14 @@ const NotificationPreferences = () => {
     event.target.value.forEach((group) => {
       if (
         !new_selected_groups.some(
-          (selected_group) => selected_group?.id === group?.id
+          (selected_group) => selected_group?.id === group?.id,
         )
       ) {
         new_selected_groups.push(group);
       } else {
         // remove the user from the list
         new_selected_groups = new_selected_groups.filter(
-          (selected_group) => selected_group?.id !== group?.id
+          (selected_group) => selected_group?.id !== group?.id,
         );
       }
     });
@@ -138,13 +138,13 @@ const NotificationPreferences = () => {
     event.target.value.forEach((allocation) => {
       if (
         !new_selected_allocations.some(
-          (selected_allocation) => selected_allocation?.id === allocation?.id
+          (selected_allocation) => selected_allocation?.id === allocation?.id,
         )
       ) {
         new_selected_allocations.push(allocation);
       } else {
         new_selected_allocations = new_selected_allocations.filter(
-          (selected_allocation) => selected_allocation?.id !== allocation?.id
+          (selected_allocation) => selected_allocation?.id !== allocation?.id,
         );
       }
     });
@@ -154,11 +154,11 @@ const NotificationPreferences = () => {
   useEffect(() => {
     if (selectedGroups.length === 0 && groups?.length > 0) {
       setSelectedClassifications(
-        profile?.notifications?.sources?.classifications || []
+        profile?.notifications?.sources?.classifications || [],
       );
       let existingGroups =
         profile?.notifications?.sources?.groups?.map((groupId) =>
-          groups.find((g) => g.id === groupId)
+          groups.find((g) => g.id === groupId),
         ) || [];
       existingGroups = existingGroups.filter((group) => group);
       existingGroups = existingGroups.map((group) => ({
@@ -177,10 +177,10 @@ const NotificationPreferences = () => {
     ) {
       let existingAllocations =
         profile?.notifications?.sources?.allocations?.map((allocationId) =>
-          allocationListApiClassname.find((a) => a.id === allocationId)
+          allocationListApiClassname.find((a) => a.id === allocationId),
         ) || [];
       existingAllocations = existingAllocations.filter(
-        (allocation) => allocation
+        (allocation) => allocation,
       );
       existingAllocations = existingAllocations.map((allocation) => ({
         id: allocation?.id,

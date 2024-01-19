@@ -52,7 +52,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
         </IconButton>
       ) : null}
     </MuiDialogTitle>
-  )
+  ),
 );
 
 const useStyles = makeStyles(() => ({
@@ -157,7 +157,7 @@ DialogContentDiv.propTypes = {
         author_id: PropTypes.number,
         taxonomy_id: PropTypes.number,
         created_at: PropTypes.string,
-      })
+      }),
     ),
   }).isRequired,
   isCached: PropTypes.bool.isRequired,

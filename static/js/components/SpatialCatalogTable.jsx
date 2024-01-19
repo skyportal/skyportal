@@ -115,8 +115,8 @@ const RetrieveSpatialCatalogSources = ({
       sourcesActions.fetchSpatialCatalogSources(
         catalog.catalog_name,
         entry.entry_name,
-        data
-      )
+        data,
+      ),
     );
 
     setQueryInProgress(false);
@@ -171,7 +171,7 @@ RetrieveSpatialCatalogSources.propTypes = {
         id: PropTypes.number,
         entry_name: PropTypes.string,
         data: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
-      })
+      }),
     ),
   }),
   entry: PropTypes.shape({
@@ -291,7 +291,7 @@ SpatialCatalogTable.propTypes = {
         id: PropTypes.number,
         entry_name: PropTypes.string,
         data: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
-      })
+      }),
     ),
   }),
   setSelectedSpatialCatalogEntryId: PropTypes.func.isRequired,

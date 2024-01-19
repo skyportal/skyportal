@@ -100,7 +100,7 @@ const EarthquakeMeasurementLists = ({ earthquake }) => {
       r[a.detector_id] = [...(r[a.detector_id] || []), a];
       return r;
     },
-    {}
+    {},
   );
 
   Object.values(analysesGroupedByMMADetectorId).forEach((value) => {
@@ -167,7 +167,7 @@ EarthquakeMeasurementLists.propTypes = {
         id: PropTypes.number,
         rfamp: PropTypes.number,
         lockloss: PropTypes.number,
-      })
+      }),
     ),
   }).isRequired,
 };

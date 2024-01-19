@@ -558,7 +558,6 @@ def test_candidate_rejection_filtering(
     upload_data_token,
     public_filter,
 ):
-
     candidate_id = str(uuid.uuid4())
 
     status, data = api(
@@ -608,7 +607,6 @@ def test_candidate_rejection_filtering(
 def test_add_scanning_profile(
     driver, user, public_group, public_source, annotation_token
 ):
-
     # Post an annotation to the test source, to test setting annotation sorting
     status, _ = api(
         'POST',
@@ -688,7 +686,6 @@ def test_add_scanning_profile(
 
 
 def test_delete_scanning_profile(driver, user, public_group):
-
     driver.get(f"/become_user/{user.id}")
     driver.get("/candidates")
     driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')

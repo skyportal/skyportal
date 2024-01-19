@@ -285,7 +285,6 @@ class Spectrum(Base):
             ['wave_column', 'flux_column', 'fluxerr_column'],
             ['wavelengths', 'fluxes', 'errors'],
         ):
-
             # index format / type validation:
             if dbcol in ['wavelengths', 'fluxes']:
                 if not isinstance(index, int):
@@ -308,7 +307,6 @@ class Spectrum(Base):
 
         # parse the header
         if 'comments' in table.meta:
-
             # this section matches lines like:
             # XTENSION: IMAGE
             # BITPIX: -32

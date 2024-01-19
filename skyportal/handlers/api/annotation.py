@@ -463,7 +463,6 @@ class AnnotationHandler(BaseHandler):
         associated_resource = self.get_associated_resource(associated_resource_type)
 
         with self.Session() as session:
-
             schema = associated_resource['class'].__schema__()
             a = session.scalars(
                 associated_resource['class']

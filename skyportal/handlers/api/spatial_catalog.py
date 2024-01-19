@@ -31,7 +31,6 @@ MAX_SPATIAL_CATALOG_ENTRIES = 1000
 
 
 def add_catalog(catalog_id, catalog_data):
-
     log(f"Generating catalog with ID {catalog_id}")
     start = time.time()
 
@@ -70,7 +69,6 @@ def add_catalog(catalog_id, catalog_data):
                 catalog_data['amin'],
                 catalog_data['phi'],
             ):
-
                 name = name.strip().replace(" ", "-")
                 if np.isclose(amaj, amin):
                     skymap = from_cone(ra, dec, amaj, n_sigma=1)
@@ -121,7 +119,6 @@ def add_catalog(catalog_id, catalog_data):
 
 
 def delete_catalog(catalog_id):
-
     log(f"Deleting catalog with ID {catalog_id}")
 
     if Session.registry.has():
@@ -255,7 +252,6 @@ class SpatialCatalogHandler(BaseHandler):
         catalog_name = self.get_query_argument("catalog_name", None)
 
         with self.Session() as session:
-
             if catalog_id is not None:
                 try:
                     catalog_id = int(catalog_id)

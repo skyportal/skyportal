@@ -43,19 +43,19 @@ const EditSourceGroups = ({ source, groups, icon }) => {
   } = useForm();
 
   const unsavedGroups = groups?.filter(
-    (g) => !source.currentGroupIds.includes(g.id)
+    (g) => !source.currentGroupIds.includes(g.id),
   );
   const savedGroups = groups?.filter((g) =>
-    source.currentGroupIds.includes(g.id)
+    source.currentGroupIds.includes(g.id),
   );
 
   useEffect(() => {
     reset({
       inviteGroupIds: Array(
-        groups?.filter((g) => !source.currentGroupIds.includes(g.id)).length
+        groups?.filter((g) => !source.currentGroupIds.includes(g.id)).length,
       ).fill(false),
       unsaveGroupIds: Array(
-        groups?.filter((g) => source.currentGroupIds.includes(g.id)).length
+        groups?.filter((g) => source.currentGroupIds.includes(g.id)).length,
       ).fill(false),
     });
   }, [reset, groups, source]);
@@ -84,12 +84,12 @@ const EditSourceGroups = ({ source, groups, icon }) => {
     data.objId = source.id;
     const unsavedGroupIds = unsavedGroups?.map((g) => g.id);
     const inviteGroupIds = unsavedGroupIds?.filter(
-      (ID, idx) => data.inviteGroupIds[idx]
+      (ID, idx) => data.inviteGroupIds[idx],
     );
     data.inviteGroupIds = inviteGroupIds;
     const savedGroupIds = savedGroups?.map((g) => g.id);
     const unsaveGroupIds = savedGroupIds?.filter(
-      (ID, idx) => data.unsaveGroupIds[idx]
+      (ID, idx) => data.unsaveGroupIds[idx],
     );
     data.unsaveGroupIds = unsaveGroupIds;
     const result = await dispatch(sourceActions.updateSourceGroups(data));
@@ -238,7 +238,7 @@ EditSourceGroups.propTypes = {
     PropTypes.shape({
       id: PropTypes.number,
       name: PropTypes.string,
-    })
+    }),
   ).isRequired,
   icon: PropTypes.bool,
 };

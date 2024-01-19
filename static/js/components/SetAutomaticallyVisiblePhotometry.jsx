@@ -20,7 +20,7 @@ const SetAutomaticallyVisiblePhotometry = () => {
   const onFilterSelectChange = (event) => {
     const prefs = {
       automaticallyVisibleFilters: event.target.value.includes(
-        "Clear selections"
+        "Clear selections",
       )
         ? []
         : event.target.value,
@@ -30,7 +30,7 @@ const SetAutomaticallyVisiblePhotometry = () => {
   const onOriginSelectChange = (event) => {
     const prefs = {
       automaticallyVisibleOrigins: event.target.value.includes(
-        "Clear selections"
+        "Clear selections",
       )
         ? []
         : event.target.value,

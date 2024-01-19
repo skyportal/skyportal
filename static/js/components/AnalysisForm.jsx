@@ -55,13 +55,13 @@ const AnalysisForm = ({ obj_id }) => {
 
   const photometry = useSelector((state) => state.photometry[obj_id]);
   const { analysisServiceList } = useSelector(
-    (state) => state.analysis_services
+    (state) => state.analysis_services,
   );
   const uniqueNames = [
     ...new Set(analysisServiceList.map((item) => item.name)),
   ];
   const uniqueAnalysisServiceList = uniqueNames.map((name) =>
-    analysisServiceList.find((item) => item.name === name)
+    analysisServiceList.find((item) => item.name === name),
   );
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
@@ -86,7 +86,7 @@ const AnalysisForm = ({ obj_id }) => {
       let data = [];
       if (!analysisServiceList || analysisServiceList.length === 0) {
         const result = await dispatch(
-          analysisServicesActions.fetchAnalysisServices()
+          analysisServicesActions.fetchAnalysisServices(),
         );
         data = result?.data || [];
       } else {
@@ -155,7 +155,7 @@ const AnalysisForm = ({ obj_id }) => {
       params.group_ids = selectedGroupIds;
     }
     await dispatch(
-      sourceActions.startAnalysis(obj_id, selectedAnalysisServiceId, params)
+      sourceActions.startAnalysis(obj_id, selectedAnalysisServiceId, params),
     );
     setIsSubmitting(false);
   };
@@ -172,7 +172,7 @@ const AnalysisForm = ({ obj_id }) => {
   ) {
     const keys = Object.keys(
       analysisServiceLookUp[selectedAnalysisServiceId]
-        .optional_analysis_parameters
+        .optional_analysis_parameters,
     );
     keys.forEach((key) => {
       const params =
@@ -257,7 +257,7 @@ const AnalysisForm = ({ obj_id }) => {
         (instrument_id) => ({
           const: parseInt(instrument_id, 10),
           title: instrumentLookUp[instrument_id],
-        })
+        }),
       );
 
       OptionalParameters.input_filters_photometry_filters = {
@@ -306,7 +306,7 @@ const AnalysisForm = ({ obj_id }) => {
       },
     },
     required: ["show_parameters", "show_plots", "show_corner"].concat(
-      RequiredParameters
+      RequiredParameters,
     ),
   };
 
@@ -335,7 +335,7 @@ const AnalysisForm = ({ obj_id }) => {
                 >
                   {analysisService.name}
                 </MenuItem>
-              )
+              ),
           )}
         </Select>
       </div>

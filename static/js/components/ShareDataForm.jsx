@@ -90,7 +90,7 @@ const createPhotRow = (
   limiting_mag,
   instrument,
   filter,
-  groups
+  groups,
 ) => ({
   id,
   mjd: Number(mjd).toFixed(3),
@@ -114,7 +114,7 @@ const createSpecRow = (
   type,
   label,
   external_reducer,
-  external_observer
+  external_observer,
 ) => ({
   id,
   instrument,
@@ -219,7 +219,7 @@ SpectrumRow.propTypes = {
       id: PropTypes.number.isRequired,
       origin: PropTypes.string.isRequired,
       spectrum_id: PropTypes.number.isRequired,
-    })
+    }),
   ).isRequired,
 };
 
@@ -259,10 +259,10 @@ const ShareDataForm = ({ route }) => {
 
   const onSubmit = async (groupsFormData) => {
     const selectedPhotIDs = selectedPhotRows?.map(
-      (idx) => photometry[route.id][idx].id
+      (idx) => photometry[route.id][idx].id,
     );
     const selectedSpecIDs = selectedSpecRows?.map(
-      (idx) => spectra[route.id][idx].id
+      (idx) => spectra[route.id][idx].id,
     );
     setIsSubmitting(true);
     const data = {
@@ -298,8 +298,8 @@ const ShareDataForm = ({ route }) => {
           phot.limiting_mag,
           phot.instrument_name,
           phot.filter,
-          phot.groups.map((group) => group.name).join(", ")
-        )
+          phot.groups.map((group) => group.name).join(", "),
+        ),
       )
     : [];
 
@@ -318,8 +318,8 @@ const ShareDataForm = ({ route }) => {
           spec.type,
           spec.label,
           spec.external_reducer,
-          spec.external_observer
-        )
+          spec.external_observer,
+        ),
       )
     : [];
 
@@ -628,7 +628,7 @@ const ShareDataForm = ({ route }) => {
                 onRowSelectionChange: (
                   rowsSelectedData,
                   allRows,
-                  rowsSelected
+                  rowsSelected,
                 ) => {
                   setSelectedPhotRows(rowsSelected);
                 },
@@ -652,7 +652,7 @@ const ShareDataForm = ({ route }) => {
                 onRowSelectionChange: (
                   rowsSelectedData,
                   allRows,
-                  rowsSelected
+                  rowsSelected,
                 ) => {
                   setSelectedSpecRows(rowsSelected);
                 },

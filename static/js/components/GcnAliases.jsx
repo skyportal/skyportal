@@ -64,7 +64,9 @@ const GcnAliases = ({ gcnEvent, show_title = false }) => {
 
   const deleteAlias = () => {
     dispatch(
-      gcnEventActions.deleteGcnAlias(gcnEvent.dateobs, { alias: aliasToDelete })
+      gcnEventActions.deleteGcnAlias(gcnEvent.dateobs, {
+        alias: aliasToDelete,
+      }),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("GCN Event Alias deleted"));
@@ -115,7 +117,7 @@ const GcnAliases = ({ gcnEvent, show_title = false }) => {
                   `https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/?event=${
                     alias.split("#")[1] || alias
                   }`,
-                  "_blank"
+                  "_blank",
                 );
               }}
             />
