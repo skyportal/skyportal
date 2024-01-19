@@ -5,6 +5,20 @@ from selenium.webdriver.common.action_chains import ActionChains
 from skyportal.tests import api
 
 
+def wait_error_notification_to_disappear(driver):
+    # based on the order in which the tests are running, we might have the user prefs look for weather info
+    # of a telescope that has been deleted. So, we wait for that message to appear and then to disappear if it does.
+    try:
+        if driver.wait_for_xpath(
+            '//div[contains(.,"Could not load telescope with ID 1")]'
+        ):
+            driver.wait_for_xpath_to_disappear(
+                '//div[contains(.,"Could not load telescope with ID 1")]'
+            )
+    except Exception:
+        pass
+
+
 @pytest.mark.flaky(reruns=2)
 def test_news_feed(driver, user, public_group, upload_data_token, comment_token):
     obj_id_base = str(uuid.uuid4())
@@ -37,6 +51,10 @@ def test_news_feed(driver, user, public_group, upload_data_token, comment_token)
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
     driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+    driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]')
+
+    wait_error_notification_to_disappear(driver)
+
     # Default is to not show bot comments; enable for now
     driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
     driver.click_xpath('//*[@data-testid="categories.includeCommentsFromBots"]')
@@ -84,6 +102,12 @@ def test_news_feed_prefs_widget(
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
+
+    driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+    driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]')
+
+    wait_error_notification_to_disappear(driver)
+
     # Default is to not show bot comments; enable for now
     driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
     driver.click_xpath('//*[@data-testid="categories.includeCommentsFromBots"]')
