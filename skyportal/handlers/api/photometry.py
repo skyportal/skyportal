@@ -14,7 +14,7 @@ import sncosmo
 from sncosmo.photdata import PhotometricData
 import arrow
 from matplotlib import cm
-from matplotlib.colors import rgb2hex
+from matplotlib.colors import rgb2hex, LinearSegmentedColormap
 
 import sqlalchemy as sa
 from sqlalchemy.sql import column, Values
@@ -57,6 +57,9 @@ log = make_log('api/photometry')
 MAX_NUMBER_ROWS = 10000
 
 cmap_ir = cm.get_cmap('autumn')
+cmap_deep_ir = LinearSegmentedColormap.from_list(
+    "deep_ir", [(0.8, 0.2, 0), (0.6, 0.1, 0)]
+)
 
 
 def hex2rgb(hex):
@@ -148,9 +151,11 @@ def get_color(bandpass, format="hex"):
         bandcolor = '#000000'
     elif 13000 < wavelength <= 17000:  # 2MASS H
         bandcolor = '#9370D8'
-    elif 17000 < wavelength < 1e5:  # mm to Radio
-        bandcolor = rgb2hex(cmap_ir(5 - np.log10(wavelength))[:3])
-    else:  # TODO: handle the JWST miri and miri-tophat bands that span between > 1e5 and 3 * < 1e5
+    elif 17000 < wavelength <= 1e5:  # mm to Radio
+        bandcolor = rgb2hex(cmap_ir((5 - np.log10(wavelength)) / 0.77)[:3])
+    elif 1e5 < wavelength <= 3e5:  # JWST miri and miri-tophat
+        bandcolor = rgb2hex(cmap_deep_ir((5.48 - np.log10(wavelength)) / 0.48)[:3])
+    else:
         log(
             f'{bandpass} with effective wavelength {wavelength} is out of range for color maps, using black'
         )
