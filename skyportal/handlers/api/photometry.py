@@ -47,7 +47,7 @@ from ...models.schema import (
     PhotMagFlexible,
     PhotometryRangeQuery,
 )
-from ...enum_types import ALLOWED_MAGSYSTEMS, ALLOWED_BANDPASSES, sncosmo as snc
+from ...enum_types import ALLOWED_MAGSYSTEMS, ALLOWED_BANDPASSES
 
 _, cfg = load_env()
 
@@ -60,15 +60,42 @@ cmap_ir = cm.get_cmap('autumn')
 
 
 def hex2rgb(hex):
+    """Convert hex color string to rgb tuple.
+
+    Parameters
+    ----------
+    hex : str
+        Hex color string.
+
+    Returns
+    -------
+    tuple
+        RGB tuple.
+    """
+
     return tuple(int(hex[i : i + 2], 16) for i in (0, 2, 4))
 
 
 def get_effective_wavelength(bandpass_name, radius=None):
+    """Get the effective wavelength of an sncosmo bandpass.
+
+    Parameters
+    ----------
+    bandpass_name : str
+        Name of the bandpass.
+    radius : float, optional
+        Radius to get the bandpass for. If None, the default bandpass is used.
+
+    Returns
+    -------
+    float
+        Effective wavelength of the bandpass.
+    """
     try:
         args = {}
         if radius is not None:
             args['radius'] = radius
-        bandpass = snc.get_bandpass(bandpass_name, **args)
+        bandpass = sncosmo.get_bandpass(bandpass_name, **args)
     except ValueError as e:
         raise ValueError(
             f"Could not get bandpass for {bandpass_name} due to sncosmo error: {e}"
@@ -78,6 +105,21 @@ def get_effective_wavelength(bandpass_name, radius=None):
 
 
 def get_color(bandpass, format="hex"):
+    """Get a color for a bandpass, in hex or rgb format.
+
+    Parameters
+    ----------
+    bandpass : str
+        Name of the sncosmo bandpass.
+    format : str, optional
+        Format of the output color. Must be one of "hex" or "rgb".
+
+    Returns
+    -------
+    str or tuple
+        Color of the bandpass in the requested format
+    """
+
     wavelength = get_effective_wavelength(bandpass)
 
     if 0 < wavelength <= 1500:  # EUV
@@ -107,13 +149,7 @@ def get_color(bandpass, format="hex"):
     elif 13000 < wavelength <= 17000:  # 2MASS H
         bandcolor = '#9370D8'
     elif 17000 < wavelength < 1e5:  # mm to Radio
-        wavelength = np.log10(wavelength)
-        cmap = cmap_ir
-        cmap_limits = (4, 5)
-        rgb = cmap((cmap_limits[1] - wavelength) / (cmap_limits[1] - cmap_limits[0]))[
-            :3
-        ]
-        bandcolor = rgb2hex(rgb)
+        bandcolor = rgb2hex(cmap_ir(5 - np.log10(wavelength))[:3])
     else:  # TODO: handle the JWST miri and miri-tophat bands that span between > 1e5 and 3 * < 1e5
         log(
             f'{bandpass} with effective wavelength {wavelength} is out of range for color maps, using black'

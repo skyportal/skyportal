@@ -26,55 +26,9 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import { addAnnotation } from "../ducks/source";
+import { BASE_LAYOUT, PHOT_ZP, smoothing_func, mjdnow, rgba } from "../utils";
 
 const Plot = createPlotlyComponent(Plotly);
-
-const PHOT_ZP = 23.9;
-const BASE_LAYOUT = {
-  automargin: true,
-  ticks: "outside",
-  nticks: 8,
-  ticklen: 12,
-  minor: {
-    ticks: "outside",
-    ticklen: 6,
-    tickcolor: "black",
-  },
-  showline: true,
-  titlefont: { size: 18 },
-  tickfont: { size: 14 },
-};
-
-const smoothing_func = (values, window_size) => {
-  if (values === undefined || values === null) {
-    return null;
-  }
-  const output = new Array(values.length).fill(0);
-  const under = parseInt((window_size + 1) / 2, 10) - 1;
-  const over = parseInt(window_size / 2, 10);
-
-  for (let i = 0; i < values.length; i += 1) {
-    const idx_low = i - under >= 0 ? i - under : 0;
-    const idx_high = i + over < values.length ? i + over : values.length - 1;
-    let N = 0;
-    for (let j = idx_low; j <= idx_high; j += 1) {
-      if (Number.isNaN(values[j]) === false) {
-        N += 1;
-        output[i] += values[j];
-      }
-    }
-    output[i] /= N;
-  }
-  return output;
-};
-
-function ModifiedJulianDateFromUnixTime(t) {
-  return t / 86400000 + 40587;
-}
-
-function ModifiedJulianDateNow() {
-  return ModifiedJulianDateFromUnixTime(new Date().getTime());
-}
 
 const PeriodAnnotationDialog = ({ obj_id, period }) => {
   const dispatch = useDispatch();
@@ -225,7 +179,7 @@ const PhotometryPlot = ({
       },
     };
 
-    const now = ModifiedJulianDateNow();
+    const now = mjdnow();
 
     const newPhotometryData = photometryData.map((point) => {
       const newPoint = { ...point };
@@ -255,9 +209,8 @@ const PhotometryPlot = ({
         );
         return names.length === 0;
       });
-      newPoint.text = `MJD: ${newPoint.mjd.toFixed(6)}
-        `;
-      if (newPoint.mag !== null) {
+      newPoint.text = `MJD: ${newPoint.mjd.toFixed(6)}`;
+      if (newPoint.mag) {
         newPoint.text += `
         <br>Mag: ${newPoint.mag ? newPoint.mag.toFixed(3) : "NaN"}
         <br>Magerr: ${newPoint.magerr ? newPoint.magerr.toFixed(3) : "NaN"}
@@ -269,28 +222,24 @@ const PhotometryPlot = ({
         }
         <br>Flux: ${newPoint.flux ? newPoint.flux.toFixed(3) : "NaN"}
       `;
-      if (newPoint.mag !== null) {
+      if (newPoint.mag) {
         newPoint.text += `<br>Fluxerr: ${newPoint.fluxerr.toFixed(3) || "NaN"}`;
       }
       newPoint.text += `
         <br>Filter: ${newPoint.filter}
         <br>Instrument: ${newPoint.instrument_name}
       `;
-      if (
-        newPoint.origin !== "None" &&
-        newPoint.origin !== "" &&
-        newPoint.origin !== null
-      ) {
+      if ([null, undefined, "", "None"].includes(newPoint.origin) === false) {
         newPoint.text += `<br>Origin: ${newPoint.origin}`;
       }
       if (
-        newPoint.altdata?.exposure !== null &&
-        newPoint.altdata?.exposure !== undefined &&
-        newPoint.altdata?.exposure !== ""
+        [null, undefined, "", "None", "undefined"].includes(
+          newPoint.altdata?.exposure,
+        ) === false
       ) {
         newPoint.text += `<br>Exposure: ${newPoint.altdata?.exposure || ""}`;
       }
-      if (newPoint.snr !== null) {
+      if (newPoint.snr) {
         newPoint.text += `<br>SNR: ${newPoint.snr.toFixed(3)}`;
       }
       if (newPoint.streams.length > 0) {
@@ -390,10 +339,10 @@ const PhotometryPlot = ({
           const colorRGB = filter2color[groupedPhotometry[key][0].filter] || [
             0, 0, 0,
           ];
-          const colorBorder = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 1)`;
-          const colorInteriorNonDet = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 0.1)`;
-          const colorInteriorDet = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 0.3)`;
-          const colorError = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 0.5)`;
+          const colorBorder = rgba(colorRGB, 1);
+          const colorInteriorNonDet = rgba(colorRGB, 0.1);
+          const colorInteriorDet = rgba(colorRGB, 0.3);
+          const colorError = rgba(colorRGB, 0.5);
 
           const upperLimitsTrace = {
             dataType: "upperLimits",
@@ -523,11 +472,12 @@ const PhotometryPlot = ({
         .map((key) => {
           // using the period state variable, calculate the phase of each point
           // and then plot the phase vs mag
-
-          const colorRGB = filter2color[groupedPhotometry[key][0].filter];
-          const colorBorder = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 1)`;
-          const colorInteriorNonDet = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 0.1)`;
-          const colorInteriorDet = `rgba(${colorRGB[0]},${colorRGB[1]},${colorRGB[2]}, 0.3)`;
+          const colorRGB = filter2color[groupedPhotometry[key][0].filter] || [
+            0, 0, 0,
+          ];
+          const colorBorder = rgba(colorRGB, 1);
+          const colorInteriorNonDet = rgba(colorRGB, 0.1);
+          const colorInteriorDet = rgba(colorRGB, 0.3);
 
           const phases = groupedPhotometry[key].map(
             (point) => (point.mjd % periodValue) / periodValue,
@@ -989,7 +939,8 @@ const PhotometryPlot = ({
           useResizeHandler
           onDoubleClick={() => setLayoutReset(true)}
           onLegendDoubleClick={(e) => {
-            // e contains a curveNumber and a data object (plotting data)
+            // e contains a curveNumber (index of the trace clicked in the legend)
+            /// and a data object (plotting data)
             // we customize the legend double click behavior
             const visibleTraces = e.data.filter(
               (trace) =>
@@ -1011,7 +962,7 @@ const PhotometryPlot = ({
                 ].includes(trace.name) ||
                 index === e.curveNumber
               ) {
-                // if its a marker or secondary axis, always visible
+                // if its a marker, secondary axis, or the trace that was double clicked, it's always visible
                 trace.visible = true;
               } else if (
                 !showNonDetections &&
@@ -1327,10 +1278,3 @@ PhotometryPlot.defaultProps = {
 };
 
 export default PhotometryPlot;
-
-export {
-  BASE_LAYOUT,
-  ModifiedJulianDateNow,
-  ModifiedJulianDateFromUnixTime,
-  smoothing_func,
-};

@@ -4,29 +4,9 @@ import PropTypes from "prop-types";
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
-import { ModifiedJulianDateNow, BASE_LAYOUT } from "./PhotometryPlot";
+import { BASE_LAYOUT, LOGTYPE_TO_COLOR, mjdnow } from "../utils";
 
 const Plot = createPlotlyComponent(Plotly);
-
-// we want a color map, that maps the logtype to a color
-// we can use the int to map to a color
-const LOGTYPE_TO_COLOR = {
-  Message_robo: "blue",
-  Power_robo: "red",
-  Weather_robo: "green",
-  Data_robo: "orange",
-  VIC_robo: "purple",
-  TCS_robo: "brown",
-  SPEC_robo: "pink",
-  Queue_robo: "gray",
-  FITS_robo: "cyan",
-  Filter_robo: "magenta",
-  Control: "yellow",
-  Motion_robo: "black",
-  BestFocus: "darkblue",
-  reset_server: "darkred",
-  Other: "darkgreen",
-};
 
 const checkLogtype = (logtype) => {
   let type = Object.keys(LOGTYPE_TO_COLOR).map((key) => {
@@ -35,7 +15,6 @@ const checkLogtype = (logtype) => {
     }
     return undefined;
   });
-  // check if there is anything that is not undefined
   if (type.some((element) => element !== undefined)) {
     [type] = type.filter((element) => element !== undefined);
   } else {
@@ -65,7 +44,7 @@ const InstrumentLogsPlot = ({ instrument_logs }) => {
       const minMJD = Math.min(...instrumentLogs.map((entry) => entry.mjd));
       const maxMJD = Math.max(...instrumentLogs.map((entry) => entry.mjd));
 
-      const now = ModifiedJulianDateNow();
+      const now = mjdnow();
       // days ago is now - mjd, so its a reversed axis
       const daysAgoMin = now - maxMJD;
       const daysAgoMax = now - minMJD;
@@ -146,6 +125,7 @@ const InstrumentLogsPlot = ({ instrument_logs }) => {
       yaxis: {
         title: "Log Type",
         ...BASE_LAYOUT,
+        nticks: 20,
       },
       xaxis2: {
         title: "Days Ago",

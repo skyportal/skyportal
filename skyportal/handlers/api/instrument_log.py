@@ -137,8 +137,10 @@ class InstrumentLogHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                stmt = InstrumentLog.select(session.user_or_token).where(
-                    InstrumentLog.instrument_id == instrument_id
+                stmt = (
+                    InstrumentLog.select(session.user_or_token)
+                    .options(undefer(InstrumentLog.log))
+                    .where(InstrumentLog.instrument_id == instrument_id)
                 )
                 if start_date is not None:
                     stmt = stmt.where(InstrumentLog.end_date >= start_date)
@@ -146,9 +148,7 @@ class InstrumentLogHandler(BaseHandler):
                 if end_date is not None:
                     stmt = stmt.where(InstrumentLog.start_date <= end_date)
 
-                instrument_logs = session.scalars(
-                    stmt.options(undefer(InstrumentLog.log))
-                ).all()
+                instrument_logs = session.scalars(stmt).all()
 
                 return self.success(data=instrument_logs)
             except Exception as e:

@@ -84,6 +84,10 @@ export const useSourceStyles = makeStyles((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
   },
+  accordion: {
+    paddingTop: 0,
+    marginTop: 0,
+  },
   accordionHeading: {
     fontSize: "1.25rem",
     fontWeight: theme.typography.fontWeightRegular,
@@ -711,7 +715,7 @@ const SourceMobile = WidthProvider(
                   Photometry
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails style={{ paddingTop: 0, marginTop: 0 }}>
+              <AccordionDetails className={classes.accordion}>
                 <Grid container id="photometry-container">
                   <div className={classes.plotContainer}>
                     {!source.photometry_exists &&
@@ -816,7 +820,7 @@ const SourceMobile = WidthProvider(
                   Spectroscopy
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails style={{ paddingTop: 0, marginTop: 0 }}>
+              <AccordionDetails className={classes.accordion}>
                 <Grid container>
                   <div className={classes.plotContainer}>
                     {!source.spectrum_exists &&

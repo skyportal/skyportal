@@ -636,9 +636,6 @@ def test_source_notification(driver, user, public_group, public_source):
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
 
-    # let the page load
-    time.sleep(1)
-
     # Choose a group and click something outside/not covered by the multi-select
     # popup to close it, and retry a few times in case the page loads slowly
     n_retries = 0

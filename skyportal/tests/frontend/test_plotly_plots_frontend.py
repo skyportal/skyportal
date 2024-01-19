@@ -7,11 +7,6 @@ from baselayer.app.config import load_config
 cfg = load_config()
 
 
-def expand_shadow_element(driver, element):
-    shadow_root = driver.execute_script('return arguments[0].shadowRoot', element)
-    return shadow_root
-
-
 @pytest.mark.flaky(reruns=3)
 def test_export_bold_light_curve_as_csv_button(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")

@@ -34,23 +34,6 @@ const config = {
           compact: false,
         },
       },
-      // For Bokeh's "export * from y" syntax
-      {
-        test: /\.js?$/,
-        include: /node_modules\/@bokeh/,
-        use: [
-          {
-            loader: "babel-loader",
-            options: {
-              plugins: [
-                "@babel/plugin-proposal-export-namespace-from",
-                "@babel/plugin-proposal-optional-chaining",
-                "@babel/plugin-proposal-nullish-coalescing-operator",
-              ],
-            },
-          },
-        ],
-      },
       // Enable CSS Modules for Skyportal
       {
         test: /\.css$/,
@@ -109,10 +92,6 @@ const config = {
       reactresizablecss: path.resolve(
         __dirname,
         "node_modules/react-resizable/css",
-      ),
-      bokehjs: path.resolve(
-        __dirname,
-        "node_modules/@bokeh/bokehjs/build/js/lib",
       ),
     },
     extensions: [".js", ".jsx", ".json"],
