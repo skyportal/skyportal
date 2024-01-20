@@ -7,10 +7,10 @@ export {
   median,
   mean,
   smoothing_func,
-  hsl,
   rgba,
   unix2mjd,
   mjdnow,
+  colorScaleRainbow,
 } from "./calculations";
 
 export {

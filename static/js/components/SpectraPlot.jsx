@@ -21,7 +21,7 @@ import {
   median,
   mean,
   smoothing_func,
-  hsl,
+  colorScaleRainbow,
 } from "../utils";
 
 const Plot = createPlotlyComponent(Plotly);
@@ -49,7 +49,7 @@ const useStyles = makeStyles(() => ({
     rowGap: "0.5rem",
     columnGap: "2rem",
     width: "100%",
-    paddingTop: "0.5rem",
+    paddingTop: "1rem",
   },
   gridItem: {
     display: "flex",
@@ -253,9 +253,10 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
       });
 
       const traces = spectraFiltered.map((spectrum, index) => {
-        const name = `${spectrum.instrument_name}/${
-          spectrum.observed_at.split("T")[0]
-        }`;
+        const date = spectrum.observed_at.split("T")[0].split("-");
+        const name = `${spectrum.instrument_name} (${date[1]}/${date[2].slice(
+          -2,
+        )}/${date[0].slice(-2)})`;
         const trace = {
           mode: "lines",
           type: "scatter",
@@ -270,8 +271,8 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           legendgroup: `${spectrum.instrument_name}/${spectrum.observed_at}`,
           line: {
             shape: "hvh",
-            width: 0.8,
-            color: hsl(0, spectraFiltered.length - 1, index),
+            width: 0.85,
+            color: colorScaleRainbow(index, spectraFiltered.length - 1),
           },
           hoverlabel: {
             bgcolor: "white",
@@ -284,9 +285,6 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
 
         return trace;
       });
-
-      // reverse the order to have most recent spectra on top
-      traces.reverse();
 
       const secondaryAxisX = {
         x: [
@@ -498,7 +496,6 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               yanchor: "top",
               y: mode === "desktop" ? 1 : -0.3,
               x: mode === "desktop" ? 1.02 : 0,
-              traceorder: "reversed",
             },
             showlegend: true,
             autosize: true,

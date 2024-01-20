@@ -26,7 +26,7 @@ const ADD_SPECTRUM_TNS = "skyportal/ADD_SPECTRUM_TNS";
 export function fetchSourceSpectra(id, normalization = null) {
   if (normalization) {
     return API.GET(
-      `/api/sources/${id}/spectra?normalization=${normalization}`,
+      `/api/sources/${id}/spectra?normalization=${normalization}&sortBy=observed_at&order=asc`,
       FETCH_SOURCE_SPECTRA,
     );
   }

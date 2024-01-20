@@ -1238,6 +1238,22 @@ class ObjSpectraHandler(BaseHandler):
               If omitted, returns the original spectrum.
               Options for normalization are:
               - median: normalize the flux to have median==1
+          - in: query
+            name: sortBy
+            required: false
+            schema:
+                type: string
+            description: |
+                The column to order the spectra by. Defaults to observed_at.
+                Options are: observed_at, created_at
+          - in: query
+            name: sortOrder
+            required: false
+            schema:
+                type: string
+            description: |
+                The order to sort the spectra by. Defaults to asc.
+                Options are: asc, desc
 
         responses:
           200:
@@ -1264,6 +1280,17 @@ class ObjSpectraHandler(BaseHandler):
                 schema: Error
         """
 
+        sortBy = self.get_query_argument('sortBy', 'observed_at')
+        sortOrder = self.get_query_argument('sortOrder', 'asc')
+
+        if sortBy not in ['observed_at', 'created_at']:
+            return self.error(
+                'Invalid sortBy, must be one of: observed_at, created_at.'
+            )
+
+        if sortOrder not in ['asc', 'desc']:
+            return self.error('Invalid sortOrder, must be one of: asc, desc.')
+
         with self.Session() as session:
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
@@ -1271,15 +1298,24 @@ class ObjSpectraHandler(BaseHandler):
             if obj is None:
                 return self.error('Invalid object ID.')
 
-            spectra = (
-                session.scalars(
-                    Spectrum.select(session.user_or_token).where(
-                        Spectrum.obj_id == obj_id
-                    )
-                )
-                .unique()
-                .all()
+            stmt = Spectrum.select(session.user_or_token).where(
+                Spectrum.obj_id == obj_id
             )
+
+            if sortBy == 'observed_at':
+                stmt = stmt.order_by(
+                    Spectrum.observed_at.asc()
+                    if sortOrder == 'asc'
+                    else Spectrum.observed_at.desc()
+                )
+            elif sortBy == 'created_at':
+                stmt = stmt.order_by(
+                    Spectrum.created_at.asc()
+                    if sortOrder == 'asc'
+                    else Spectrum.created_at.desc()
+                )
+
+            spectra = session.scalars(stmt).unique().all()
 
             return_values = []
             for spec in spectra:

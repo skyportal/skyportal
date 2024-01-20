@@ -36,13 +36,9 @@ const smoothing_func = (values, window_size) => {
   return output;
 };
 
-const hsl = (min, max, val) => {
-  const minHue = 240;
-  const maxHue = 0;
-  const curPercent = (val - min) / (max - min);
-  const colString = `hsl(${curPercent * (maxHue - minHue) + minHue},80%,50%)`;
-  return colString;
-};
+function colorScaleRainbow(index, rangeMax) {
+  return `hsl(${Math.round(240 - (index / rangeMax) * 240)}, 90%, 50%)`;
+}
 
 const rgba = (rgb, alpha) => `rgba(${rgb[0]},${rgb[1]},${rgb[2]}, ${alpha})`;
 
@@ -54,4 +50,12 @@ function mjdnow() {
   return unix2mjd(new Date().getTime());
 }
 
-export { median, mean, smoothing_func, hsl, rgba, unix2mjd, mjdnow };
+export {
+  median,
+  mean,
+  smoothing_func,
+  rgba,
+  unix2mjd,
+  mjdnow,
+  colorScaleRainbow,
+};
