@@ -25,6 +25,8 @@ const ADD_SOURCE_TNS = "skyportal/ADD_SOURCE_TNS";
 
 const ADD_COMMENT = "skyportal/ADD_COMMENT";
 
+const ADD_ANNOTATION = "skyportal/ADD_ANNOTATION";
+
 const DELETE_ANNOTATION = "skyportal/DELETE_ANNOTATION";
 
 const EDIT_COMMENT = "skyportal/EDIT_COMMENT";
@@ -142,7 +144,7 @@ export function addTNS(id, formData) {
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
 export const uploadPhotometry = (data) =>
-  API.POST("/api/photometry", UPLOAD_PHOTOMETRY, data);
+  API.POST("/api/photometry?refresh=true", UPLOAD_PHOTOMETRY, data);
 
 export function submitImageAnalysis(id, formData) {
   return API.POST(
@@ -293,6 +295,14 @@ export function addComment(formData) {
   );
 }
 
+export function addAnnotation(sourceID, formData) {
+  return API.POST(
+    `/api/sources/${sourceID}/annotations`,
+    ADD_ANNOTATION,
+    formData,
+  );
+}
+
 export function deleteAnnotation(sourceID, annotationID) {
   return API.DELETE(
     `/api/sources/${sourceID}/annotations/${annotationID}`,
@@ -399,6 +409,7 @@ export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
     includeSpectrumExists: true,
     includeLabellers: true,
     includeDetectionStats: true,
+    includeGCNCrossmatches: true,
   };
   const queryString = new URLSearchParams(urlParams).toString();
   return API.GET(`/api/sources/${id}?${queryString}`, actionType);

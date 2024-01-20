@@ -49,6 +49,7 @@ from ...models import (
     Comment,
     FollowupRequest,
     Galaxy,
+    GcnEvent,
     Group,
     GroupUser,
     Instrument,
@@ -169,6 +170,7 @@ async def get_source(
     include_requested=False,
     requested_only=False,
     include_color_mag=False,
+    include_gcn_crossmatches=False,
 ):
     """Query source from database.
     obj_id: int
@@ -403,7 +405,12 @@ async def get_source(
         photometry = (
             session.scalars(
                 Photometry.select(
-                    user, options=[joinedload(Photometry.annotations)]
+                    user,
+                    options=[
+                        joinedload(Photometry.instrument).load_only(Instrument.name),
+                        joinedload(Photometry.groups),
+                        joinedload(Photometry.annotations),
+                    ],
                 ).where(Photometry.obj_id == obj_id)
             )
             .unique()
@@ -412,7 +419,7 @@ async def get_source(
         source_info["photometry"] = [
             serialize(phot, 'ab', 'both') for phot in photometry
         ]
-        if deduplicate_photometry:
+        if deduplicate_photometry and len(source_info["photometry"]) > 0:
             df_phot = pd.DataFrame.from_records(source_info["photometry"])
             # drop duplicate mjd/filter points, keeping most recent
             source_info["photometry"] = (
@@ -441,6 +448,43 @@ async def get_source(
             ).first()
             is not None
         )
+
+    if include_gcn_crossmatches:
+        if (
+            not isinstance(source_info.get("gcn_crossmatch"), list)
+            or len(source_info.get("gcn_crossmatch")) == 0
+        ):
+            source_info["gcn_crossmatch"] = []
+        confirmed_in_gcn = session.scalars(
+            SourcesConfirmedInGCN.select(user).where(
+                SourcesConfirmedInGCN.obj_id == obj_id,
+                SourcesConfirmedInGCN.confirmed.is_not(False),
+            )
+        ).all()
+        if len(confirmed_in_gcn) > 0:
+            source_info["gcn_crossmatch"].extend(
+                [gcn.dateobs for gcn in confirmed_in_gcn]
+            )
+            source_info["gcn_crossmatch"] = list(set(source_info["gcn_crossmatch"]))
+
+        source_info["gcn_crossmatch"] = (
+            session.scalars(
+                GcnEvent.select(user).where(
+                    GcnEvent.dateobs.in_(source_info["gcn_crossmatch"])
+                )
+            )
+            .unique()
+            .all()
+        )
+
+        # convert all to dicts
+        source_info["gcn_crossmatch"] = [
+            {
+                **gcn.to_dict(),
+                "dateobs_mjd": Time(gcn.dateobs).mjd,
+            }
+            for gcn in source_info["gcn_crossmatch"]
+        ]
     source_query = Source.select(user).where(Source.obj_id == source_info["id"])
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
@@ -2670,6 +2714,9 @@ class SourceHandler(BaseHandler):
         include_period_exists = self.get_query_argument("includePeriodExists", False)
         include_labellers = self.get_query_argument("includeLabellers", False)
         include_hosts = self.get_query_argument("includeHosts", False)
+        include_gcn_crossmatches = self.get_query_argument(
+            "includeGCNCrossmatches", False
+        )
         exclude_forced_photometry = self.get_query_argument(
             "excludeForcedPhotometry", False
         )
@@ -2862,6 +2909,7 @@ class SourceHandler(BaseHandler):
                         include_requested=include_requested,
                         requested_only=requested_only,
                         include_color_mag=include_color_mag,
+                        include_gcn_crossmatches=include_gcn_crossmatches,
                     )
                 except Exception as e:
                     return self.error(f'Cannot retrieve source: {str(e)}')
@@ -3947,11 +3995,6 @@ class SourceCopyPhotometryHandler(BaseHandler):
                 **df.to_dict(orient='list'),
             }
 
-            add_external_photometry(data_out, self.associated_user_object)
-
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": s.internal_key},
-            )
+            add_external_photometry(data_out, self.associated_user_object, refresh=True)
 
             return self.success()

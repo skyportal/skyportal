@@ -233,8 +233,6 @@ const NewPhotometryForm = ({ obj_id }) => {
     }
     const payload = {
       mjd,
-      // 'ra': obj.ra,
-      // 'dec': obj.dec,
       obj_id,
       magsys,
       instrument_id: selectedInstrumentId,

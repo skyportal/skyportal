@@ -3,7 +3,7 @@ import copy
 import yaml
 
 from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import Pinecone
+from langchain_community.vectorstores import Pinecone
 from typing import List, Optional
 import pinecone
 

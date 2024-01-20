@@ -526,7 +526,7 @@ misc:
   # on an object's observability page
   hours_below_airmass_threshold: 2.9
 
-  bokeh_color_palette: Turbo256
+  color_palette: turbo
 
 weather:
   # time in seconds to wait before fetching weather for a given telescope

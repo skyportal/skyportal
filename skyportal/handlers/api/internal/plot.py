@@ -1,12 +1,11 @@
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from ...base import BaseHandler
-from .... import plot
+from ..photometry import get_effective_wavelength
 from ....models import ClassicalAssignment, Obj, Telescope
 
 import numpy as np
 from astropy import time as ap_time
-import arrow
 import astropy.units as u
 import pandas as pd
 import datetime
@@ -21,59 +20,6 @@ device_types = [
 ]
 
 _, cfg = load_env()
-
-
-class PlotPhotometryHandler(BaseHandler):
-    @auth_or_token
-    async def get(self, obj_id):
-        width = self.get_query_argument("width", 600)
-        device = self.get_query_argument("device", None)
-        # Just return browser by default if not one of accepted types
-        if device not in device_types:
-            device = "browser"
-        with self.Session() as session:
-            try:
-                json = await plot.photometry_plot(
-                    obj_id=obj_id,
-                    user_id=self.associated_user_object.id,
-                    session=session,
-                    width=int(width),
-                    device=device,
-                )
-            except Exception as e:
-                return self.error(f'Exception in photometry plot: {e}')
-
-            self.success(data={'bokehJSON': json, 'url': self.request.uri})
-
-
-class PlotSpectroscopyHandler(BaseHandler):
-    @auth_or_token
-    async def get(self, obj_id):
-        width = self.get_query_argument("width", 600)
-        device = self.get_query_argument("device", None)
-        smoothing = self.get_query_argument("smoothing", False)
-        smooth_number = self.get_query_argument("smoothNumber", 10)
-        # Just return browser by default if not one of accepted types
-        if device not in device_types:
-            device = "browser"
-        spec_id = self.get_query_argument("spectrumID", None)
-
-        with self.Session() as session:
-            try:
-                json = await plot.spectroscopy_plot(
-                    obj_id=obj_id,
-                    user_id=self.associated_user_object.id,
-                    session=session,
-                    spec_id=spec_id,
-                    width=int(width),
-                    device=device,
-                    smoothing=smoothing,
-                    smooth_number=smooth_number,
-                )
-            except Exception as e:
-                return self.error(f'Exception in spectroscopy plot: {e}')
-
-            self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
 
 class AirmassHandler(BaseHandler):
@@ -202,47 +148,8 @@ class FilterWavelengthHandler(BaseHandler):
             wavelengths = []
             for filter in filters:
                 try:
-                    wavelengths.append(plot.get_effective_wavelength(filter))
+                    wavelengths.append(get_effective_wavelength(filter))
                 except ValueError:
                     return self.error("Invalid filters")
             return self.success(data={'wavelengths': wavelengths})
         return self.error("Need to pass in a set of filters")
-
-
-class PlotInstrumentLogHandler(BaseHandler):
-    @auth_or_token
-    async def get(self, instrument_id):
-        width = self.get_query_argument("width", 600)
-        device = self.get_query_argument("device", None)
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        # Just return browser by default if not one of accepted types
-        if device not in device_types:
-            device = "browser"
-
-        if start_date is not None:
-            try:
-                start_date = arrow.get(start_date).datetime
-            except Exception as e:
-                return self.error(f'Invalid start_date: {str(e)}')
-
-        if end_date is not None:
-            try:
-                end_date = arrow.get(end_date).datetime
-            except Exception as e:
-                return self.error(f'Invalid end_date: {str(e)}')
-
-        with self.Session() as session:
-            try:
-                json = await plot.instrument_log_plot(
-                    instrument_id=instrument_id,
-                    session=session,
-                    width=int(width),
-                    device=device,
-                    start_date=start_date,
-                    end_date=end_date,
-                )
-            except Exception as e:
-                return self.error(f'Exception in photometry plot: {e}')
-
-            self.success(data={'bokehJSON': json, 'url': self.request.uri})

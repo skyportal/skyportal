@@ -13,6 +13,8 @@ import pandas as pd
 import sncosmo
 from sncosmo.photdata import PhotometricData
 import arrow
+from matplotlib import cm
+from matplotlib.colors import rgb2hex, LinearSegmentedColormap
 
 import sqlalchemy as sa
 from sqlalchemy.sql import column, Values
@@ -22,6 +24,7 @@ from sqlalchemy import and_
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -45,7 +48,7 @@ from ...models.schema import (
     PhotMagFlexible,
     PhotometryRangeQuery,
 )
-from ...enum_types import ALLOWED_MAGSYSTEMS
+from ...enum_types import ALLOWED_MAGSYSTEMS, ALLOWED_BANDPASSES
 
 _, cfg = load_env()
 
@@ -53,6 +56,123 @@ _, cfg = load_env()
 log = make_log('api/photometry')
 
 MAX_NUMBER_ROWS = 10000
+
+cmap_ir = cm.get_cmap('autumn')
+cmap_deep_ir = LinearSegmentedColormap.from_list(
+    "deep_ir", [(0.8, 0.2, 0), (0.6, 0.1, 0)]
+)
+
+
+def hex2rgb(hex):
+    """Convert hex color string to rgb tuple.
+
+    Parameters
+    ----------
+    hex : str
+        Hex color string.
+
+    Returns
+    -------
+    tuple
+        RGB tuple.
+    """
+
+    return tuple(int(hex[i : i + 2], 16) for i in (0, 2, 4))
+
+
+def get_effective_wavelength(bandpass_name, radius=None):
+    """Get the effective wavelength of an sncosmo bandpass.
+
+    Parameters
+    ----------
+    bandpass_name : str
+        Name of the bandpass.
+    radius : float, optional
+        Radius to get the bandpass for. If None, the default bandpass is used.
+
+    Returns
+    -------
+    float
+        Effective wavelength of the bandpass.
+    """
+    try:
+        args = {}
+        if radius is not None:
+            args['radius'] = radius
+        bandpass = sncosmo.get_bandpass(bandpass_name, **args)
+    except ValueError as e:
+        raise ValueError(
+            f"Could not get bandpass for {bandpass_name} due to sncosmo error: {e}"
+        )
+
+    return float(bandpass.wave_eff)
+
+
+def get_color(bandpass, format="hex"):
+    """Get a color for a bandpass, in hex or rgb format.
+
+    Parameters
+    ----------
+    bandpass : str
+        Name of the sncosmo bandpass.
+    format : str, optional
+        Format of the output color. Must be one of "hex" or "rgb".
+
+    Returns
+    -------
+    str or tuple
+        Color of the bandpass in the requested format
+    """
+
+    wavelength = get_effective_wavelength(bandpass)
+
+    if 0 < wavelength <= 1500:  # EUV
+        bandcolor = '#4B0082'
+    elif 1500 < wavelength <= 2100:  # uvw2
+        bandcolor = '#6A5ACD'
+    elif 2100 < wavelength <= 2400:  # uvm2
+        bandcolor = '#9400D3'
+    elif 2400 < wavelength <= 3000:  # uvw1
+        bandcolor = '#FF00FF'
+    elif 3000 < wavelength <= 4000:  # U, sdss u
+        bandcolor = '#0000FF'
+    elif 4000 < wavelength <= 5000:  # B, sdss g
+        bandcolor = '#008000'
+    elif 5000 < wavelength <= 6000:  # V
+        bandcolor = '#9ACD32'
+    elif 6000 < wavelength <= 7000:  # sdss r
+        bandcolor = '#FF0000'
+    elif 7000 < wavelength <= 8000:  # sdss i
+        bandcolor = '#FFA500'
+    elif 8000 < wavelength <= 9000:  # sdss z
+        bandcolor = '#A52A2A'
+    elif 9000 < wavelength <= 10000:  # PS1 y
+        bandcolor = '#B8860B'
+    elif 10000 < wavelength <= 13000:  # 2MASS J
+        bandcolor = '#000000'
+    elif 13000 < wavelength <= 17000:  # 2MASS H
+        bandcolor = '#9370D8'
+    elif 17000 < wavelength <= 1e5:  # mm to Radio
+        bandcolor = rgb2hex(cmap_ir((5 - np.log10(wavelength)) / 0.77)[:3])
+    elif 1e5 < wavelength <= 3e5:  # JWST miri and miri-tophat
+        bandcolor = rgb2hex(cmap_deep_ir((5.48 - np.log10(wavelength)) / 0.48)[:3])
+    else:
+        log(
+            f'{bandpass} with effective wavelength {wavelength} is out of range for color maps, using black'
+        )
+        bandcolor = '#000000'
+
+    if format == "rgb":
+        return hex2rgb(bandcolor[1:])
+    elif format not in ["hex", "rgb"]:
+        raise ValueError(f"Invalid color format: {format}")
+
+    return bandcolor
+
+
+BANDPASSES_COLORS = {
+    bandpass: get_color(bandpass, "rgb") for bandpass in ALLOWED_BANDPASSES
+}
 
 
 def save_data_using_copy(rows, table, columns):
@@ -100,7 +220,14 @@ def allscalar(d):
 
 
 def serialize(
-    phot, outsys, format, created_at=True, groups=True, annotations=True, owner=False
+    phot,
+    outsys,
+    format,
+    created_at=True,
+    groups=True,
+    annotations=True,
+    owner=False,
+    stream=False,
 ):
     return_value = {
         'obj_id': phot.obj_id,
@@ -129,6 +256,8 @@ def serialize(
         )
     if owner:
         return_value['owner'] = phot.owner.to_dict()
+    if stream:
+        return_value['streams'] = [stream.to_dict() for stream in phot.streams]
 
     if (
         phot.ref_flux is not None
@@ -576,7 +705,14 @@ def get_values_table_and_condition(df):
 
 
 def insert_new_photometry_data(
-    df, instrument_cache, group_ids, stream_ids, user, session, validate=True
+    df,
+    instrument_cache,
+    group_ids,
+    stream_ids,
+    user,
+    session,
+    validate=True,
+    refresh=False,
 ):
     # check for existing photometry and error if any is found
     if validate:
@@ -759,6 +895,27 @@ def insert_new_photometry_data(
 
     session.add(phot_stat)
     session.commit()  # add the updated phot_stats
+
+    if refresh:
+        flow = Flow()
+        # grab the list of unique obj_ids
+        obj_ids = df['obj_id'].unique()
+        for obj_id in obj_ids:
+            internal_key = session.scalar(
+                sa.select(Obj.internal_key).where(Obj.id == obj_id)
+            )
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': internal_key},
+            )
+
+            flow.push(
+                '*',
+                'skyportal/FETCH_SOURCE_PHOTOMETRY',
+                payload={'obj_id': obj_id},
+            )
+
     return ids, upload_id
 
 
@@ -828,7 +985,9 @@ def get_stream_ids(data, user, parent_session=None):
     return stream_ids
 
 
-def add_external_photometry(json, user, parent_session=None, duplicates="update"):
+def add_external_photometry(
+    json, user, parent_session=None, duplicates="update", refresh=False
+):
     """
     Posts external photometry to the database (as from
     another API)
@@ -973,6 +1132,7 @@ def add_external_photometry(json, user, parent_session=None, duplicates="update"
                 user,
                 session,
                 validate=True if duplicates in ["error"] else False,
+                refresh=refresh,
             )
 
             if duplicates in ["ignore", "update"]:
@@ -1055,6 +1215,8 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
+        refresh = self.get_query_argument('refresh', default=False)
+
         try:
             df, instrument_cache = standardize_photometry_data(self.get_json())
         except (ValidationError, RuntimeError) as e:
@@ -1092,6 +1254,7 @@ class PhotometryHandler(BaseHandler):
                     stream_ids,
                     self.associated_user_object,
                     session,
+                    refresh=refresh,
                 )
             except Exception:
                 session.rollback()
@@ -1151,6 +1314,8 @@ class PhotometryHandler(BaseHandler):
             stream_ids = get_stream_ids(self.get_json(), self.associated_user_object)
         except ValidationError as e:
             return self.error(e.args[0])
+
+        refresh = self.get_query_argument('refresh', default=False)
 
         try:
             df, instrument_cache = standardize_photometry_data(self.get_json())
@@ -1259,6 +1424,7 @@ class PhotometryHandler(BaseHandler):
                         self.associated_user_object,
                         session,
                         validate=False,
+                        refresh=refresh,
                     )
 
                     for (df_index, _), id in zip(new_photometry.iterrows(), ids):
@@ -1346,6 +1512,8 @@ class PhotometryHandler(BaseHandler):
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
         stream_ids = data.pop("stream_ids", None)
+
+        refresh = self.get_query_argument('refresh', default=False)
 
         with self.Session() as session:
             photometry = session.scalars(
@@ -1453,6 +1621,23 @@ class PhotometryHandler(BaseHandler):
 
             session.commit()
 
+            if refresh:
+                flow = Flow()
+                internal_key = session.scalar(
+                    sa.select(Obj.internal_key).where(Obj.id == photometry.obj_id)
+                )
+                flow.push(
+                    '*',
+                    'skyportal/REFRESH_SOURCE',
+                    payload={'obj_key': internal_key},
+                )
+
+                flow.push(
+                    '*',
+                    'skyportal/FETCH_SOURCE_PHOTOMETRY',
+                    payload={'obj_id': photometry.obj_id},
+                )
+
             return self.success()
 
     @permissions(['Upload data'])
@@ -1524,12 +1709,18 @@ class ObjPhotometryHandler(BaseHandler):
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
         include_owner_info = self.get_query_argument('includeOwnerInfo', False)
+        include_stream_info = self.get_query_argument('includeStreamInfo', False)
         deduplicate_photometry = self.get_query_argument('deduplicatePhotometry', False)
 
         if str(include_owner_info).lower() in ['true', 't', '1']:
             include_owner_info = True
         else:
             include_owner_info = False
+
+        if str(include_stream_info).lower() in ['true', 't', '1']:
+            include_stream_info = True
+        else:
+            include_stream_info = False
 
         with self.Session() as session:
             obj = session.scalars(
@@ -1544,9 +1735,22 @@ class ObjPhotometryHandler(BaseHandler):
             phot_data = []
             series_data = []
             if individual_or_series in ["individual", "both"]:
+                options = [
+                    joinedload(Photometry.instrument).load_only(Instrument.name),
+                    joinedload(Photometry.groups),
+                    joinedload(Photometry.annotations),
+                ]
+                if include_owner_info:
+                    options.append(joinedload(Photometry.owner))
+                if include_stream_info:
+                    options.append(joinedload(Photometry.streams))
+
                 photometry = (
                     session.scalars(
-                        Photometry.select(session.user_or_token)
+                        Photometry.select(
+                            session.user_or_token,
+                            options=options,
+                        )
                         .where(Photometry.obj_id == obj_id)
                         .distinct()
                     )
@@ -1555,7 +1759,13 @@ class ObjPhotometryHandler(BaseHandler):
                 )
 
                 phot_data = [
-                    serialize(phot, outsys, format, owner=include_owner_info)
+                    serialize(
+                        phot,
+                        outsys,
+                        format,
+                        owner=include_owner_info,
+                        stream=include_stream_info,
+                    )
                     for phot in photometry
                 ]
                 if deduplicate_photometry and len(phot_data) > 0:

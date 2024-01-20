@@ -38,6 +38,8 @@ import * as sourceActions from "../ducks/source";
 import { useSourceStyles } from "./SourceDesktop";
 import { deleteSpectrum } from "../ducks/spectra";
 
+import SpectraPlot from "./SpectraPlot";
+
 function get_filename(spectrum) {
   return `${spectrum.obj_id}_${spectrum.instrument_name}_${spectrum.observed_at}.csv`;
 }
@@ -79,8 +81,6 @@ UserContactLink.propTypes = {
     contact_email: PropTypes.string,
   }).isRequired,
 };
-
-const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
 const createPhotRow = (
   id,
@@ -151,6 +151,7 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
   const styles = useSourceStyles();
   const colSpan = rowData.length + 1;
   const spectrumID = parseInt(rowData[0], 10);
+  const spectra = useSelector((state) => state.spectra)[route.id] || [];
 
   return (
     <TableRow>
@@ -170,10 +171,8 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
                 </div>
               }
             >
-              <Plot
-                className={styles.plot}
-                // eslint-disable-next-line react/prop-types
-                url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`}
+              <SpectraPlot
+                spectra={spectra.filter((spec) => spec.id === spectrumID)}
               />
             </Suspense>
           </Grid>

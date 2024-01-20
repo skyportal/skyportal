@@ -4,6 +4,7 @@ from datetime import datetime
 import arrow
 import astropy.units as u
 from astropy.time import Time, TimeDelta
+from sqlalchemy.orm import undefer
 
 from baselayer.app.access import auth_or_token, permissions
 
@@ -116,6 +117,44 @@ class InstrumentLogHandler(BaseHandler):
             session.commit()
 
             return self.success(data={'id': instrument_log.id})
+
+    @auth_or_token
+    def get(self, instrument_id):
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
+
+        if start_date is not None:
+            try:
+                start_date = arrow.get(start_date.strip()).datetime
+            except Exception as e:
+                return self.error(f'Invalid start_date: {str(e)}')
+
+        if end_date is not None:
+            try:
+                end_date = arrow.get(end_date.strip()).datetime
+            except Exception as e:
+                return self.error(f'Invalid end_date: {str(e)}')
+
+        with self.Session() as session:
+            try:
+                stmt = (
+                    InstrumentLog.select(session.user_or_token)
+                    .options(undefer(InstrumentLog.log))
+                    .where(InstrumentLog.instrument_id == instrument_id)
+                )
+                if start_date is not None:
+                    stmt = stmt.where(InstrumentLog.end_date >= start_date)
+
+                if end_date is not None:
+                    stmt = stmt.where(InstrumentLog.start_date <= end_date)
+
+                instrument_logs = session.scalars(stmt).all()
+
+                return self.success(data=instrument_logs)
+            except Exception as e:
+                return self.error(
+                    f'Error occured while retrieving instrument logs: {str(e)}'
+                )
 
 
 class InstrumentLogExternalAPIHandler(BaseHandler):

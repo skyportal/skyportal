@@ -16,9 +16,6 @@ updates:
       - dependency-name: mui-datatables
         versions:
           - 3.7.6
-      - dependency-name: "@bokeh/bokehjs"
-        versions:
-          - 2.3.0
       - dependency-name: redoc
         versions:
           - 2.0.0-rc.41

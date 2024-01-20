@@ -70,7 +70,7 @@ all of its data can be queried and modified by scripts without using
 the browser frontend.
 
 Importantly, the application is able to provide graphical renditions
-of datasets, using the [Bokeh](https://bokeh.pydata.org) library.  In
+of datasets, using the [Plotly](https://plotly.com/graphing-libraries/) library.  In
 the default version of SkyPortal, this functionality is used to
 render, e.g., spectra, with the ability to toggle color bands and
 element spectra, or to adjust redshift.

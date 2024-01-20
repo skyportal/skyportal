@@ -63,6 +63,9 @@ const Theme = ({ disableTransitions, children }) => {
         },
       },
       MuiButton: {
+        defaultProps: {
+          disableElevation: true,
+        },
         variants: [
           {
             props: { variant: "contained", color: "grey" },

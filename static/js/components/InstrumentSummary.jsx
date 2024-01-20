@@ -8,7 +8,7 @@ import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
-import React, { Suspense, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
@@ -25,8 +25,7 @@ import JsonDashboard from "react-json-dashboard";
 import withRouter from "./withRouter";
 import * as Action from "../ducks/instrument";
 import InstrumentLogForm from "./InstrumentLogForm";
-
-const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
+import InstrumentLogsPlot from "./InstrumentLogsPlot";
 
 dayjs.extend(utc);
 
@@ -50,42 +49,12 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const InstrumentPlot = ({ instrumentId, startDate, endDate }) => {
-  const plotWidth = 1600;
-  const plot = (
-    <Suspense
-      fallback={
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      }
-    >
-      <Plot
-        url={`/api/internal/plot/instrument_log/${instrumentId}?width=${plotWidth}&height=500&startDate=${startDate}&endDate=${endDate}`}
-      />
-    </Suspense>
-  );
-  return plot;
-};
-
-InstrumentPlot.propTypes = {
-  instrumentId: PropTypes.number.isRequired,
-  startDate: PropTypes.string,
-  endDate: PropTypes.string,
-};
-
-InstrumentPlot.defaultProps = {
-  startDate: null,
-  endDate: null,
-};
-
 const InstrumentSummary = ({ route }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const instrument = useSelector((state) => state.instrument);
 
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const defaultStartDate = dayjs
     .utc()
@@ -96,8 +65,19 @@ const InstrumentSummary = ({ route }) => {
   // Load the instrument if needed
   useEffect(() => {
     dispatch(Action.fetchInstrument(route.id));
-    setStartDate(defaultStartDate);
-    setEndDate(defaultEndDate);
+
+    setLoading(true);
+    dispatch(
+      Action.fetchInstrumentLogs(route.id, {
+        startDate: defaultStartDate,
+        endDate: defaultEndDate,
+      }),
+    ).then((response) => {
+      if (response.status !== "success") {
+        dispatch(showNotification("Error fetching instrument logs", "error"));
+      }
+      setLoading(false);
+    });
   }, [route.id, dispatch]);
 
   if (!("id" in instrument && instrument.id === parseInt(route.id, 10))) {
@@ -110,8 +90,15 @@ const InstrumentSummary = ({ route }) => {
   }
 
   const handleSubmit = async ({ formData }) => {
-    setStartDate(formData.startDate.replace("+00:00", "").replace(".000Z", ""));
-    setEndDate(formData.endDate.replace("+00:00", "").replace(".000Z", ""));
+    setLoading(true);
+    dispatch(Action.fetchInstrumentLogs(route.id, formData)).then(
+      (response) => {
+        if (response.status !== "success") {
+          dispatch(showNotification("Error fetching instrument logs", "error"));
+        }
+        setLoading(false);
+      },
+    );
   };
 
   const InstrumentSummaryFormSchema = {
@@ -171,15 +158,22 @@ const InstrumentSummary = ({ route }) => {
               </AccordionSummary>
               <AccordionDetails>
                 <div className={styles.columnItem}>
-                  {!instrument.log_exists ? (
+                  {loading && <CircularProgress color="secondary" />}
+                  {!loading && !instrument.log_exists && (
                     <div> No logs exist </div>
-                  ) : (
-                    <InstrumentPlot
-                      instrumentId={instrument.id}
-                      startDate={startDate}
-                      endDate={endDate}
-                    />
                   )}
+                  {!loading &&
+                    instrument.log_exists &&
+                    instrument?.logs?.length === 0 && (
+                      <div> No logs exist in the specified time range </div>
+                    )}
+                  {!loading &&
+                    instrument.log_exists &&
+                    instrument?.logs?.length > 0 && (
+                      <InstrumentLogsPlot
+                        instrument_logs={instrument?.logs || []}
+                      />
+                    )}
                 </div>
                 <div>
                   <Form

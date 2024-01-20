@@ -20,12 +20,7 @@ import AddIcon from "@mui/icons-material/Add";
 import IconButton from "@mui/material/IconButton";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
-import {
-  isBrowser,
-  isMobileOnly,
-  isTablet,
-  withOrientationChange,
-} from "react-device-detect";
+import { isBrowser, withOrientationChange } from "react-device-detect";
 import { WidthProvider } from "react-grid-layout";
 import { log10, abs, ceil } from "mathjs";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -64,6 +59,7 @@ import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import AnnotationsTable from "./AnnotationsTable";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
+import PhotometryDownload from "./PhotometryDownload";
 import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
@@ -73,9 +69,10 @@ import SourcePlugins from "./SourcePlugins";
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
 
-const VegaHR = React.lazy(() => import("./VegaHR"));
+import PhotometryPlot from "./PhotometryPlot";
+import SpectraPlot from "./SpectraPlot";
 
-const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
+const VegaHR = React.lazy(() => import("./VegaHR"));
 
 const CentroidPlot = React.lazy(
   () => import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot"),
@@ -86,6 +83,10 @@ const green = "#359d73";
 export const useSourceStyles = makeStyles((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
+  },
+  accordion: {
+    paddingTop: 0,
+    marginTop: 0,
   },
   accordionHeading: {
     fontSize: "1.25rem",
@@ -132,18 +133,17 @@ export const useSourceStyles = makeStyles((theme) => ({
     width: "350px",
     overflow: "auto",
   },
-  photometryContainer: {
-    display: "flex",
-    flexDirection: "column",
-    paddingBottom: "0.5rem",
-    overflowX: "scroll",
+  plotContainer: {
+    padding: 0,
+    minWidth: "100%",
+    height: "100%",
+    paddingBottom: "0.75rem",
   },
   plotButtons: {
     display: "flex",
     flexFlow: "row wrap",
-    "& button": {
-      margin: "0.5rem",
-    },
+    alignItems: "center",
+    gap: "0.5rem",
   },
   comments: {
     marginLeft: "1rem",
@@ -265,11 +265,10 @@ export const useSourceStyles = makeStyles((theme) => ({
 }));
 
 const SourceMobile = WidthProvider(
-  withOrientationChange(({ source, isLandscape }) => {
+  withOrientationChange(({ source }) => {
     const matches = useMediaQuery("(min-width: 475px)");
     const centroidPlotSize = matches ? "21.875rem" : "17rem";
     const hrDiagramSize = matches ? 300 : 200;
-    const plotWidth = matches ? 800 : 300;
 
     const classes = useSourceStyles();
     const dispatch = useDispatch();
@@ -305,6 +304,8 @@ const SourceMobile = WidthProvider(
       dispatch(sourceActions.removeHost(source.id));
     };
 
+    const photometry = useSelector((state) => state.photometry[source.id]);
+
     const { observingRunList } = useSelector((state) => state.observingRuns);
     const { taxonomyList } = useSelector((state) => state.taxonomies);
     const groups = (useSelector((state) => state.groups.all) || []).filter(
@@ -328,13 +329,6 @@ const SourceMobile = WidthProvider(
     const z_round = source.redshift_error
       ? ceil(abs(log10(source.redshift_error)))
       : 4;
-
-    let device = "browser";
-    if (isMobileOnly) {
-      device = isLandscape ? "mobile_landscape" : "mobile_portrait";
-    } else if (isTablet) {
-      device = isLandscape ? "tablet_landscape" : "tablet_portrait";
-    }
 
     return (
       <div className={classes.source}>
@@ -718,12 +712,18 @@ const SourceMobile = WidthProvider(
                   Photometry
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails>
-                <Grid container>
-                  <div className={classes.photometryContainer}>
-                    {!source.photometry_exists ? (
-                      <div> No photometry exists </div>
-                    ) : (
+              <AccordionDetails className={classes.accordion}>
+                <Grid container id="photometry-container">
+                  <div className={classes.plotContainer}>
+                    {!source.photometry_exists &&
+                      (!photometry || photometry?.length === 0) && (
+                        <div> No photometry exists </div>
+                      )}
+                    {source.photometry_exists &&
+                      (!photometry || photometry?.length === 0) && (
+                        <CircularProgress color="secondary" />
+                      )}
+                    {source?.photometry_exists && photometry?.length > 0 && (
                       <Suspense
                         fallback={
                           <div>
@@ -731,29 +731,39 @@ const SourceMobile = WidthProvider(
                           </div>
                         }
                       >
-                        <Plot
-                          url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&device=${device}`}
+                        <PhotometryPlot
+                          obj_id={source.id}
+                          dm={source.dm}
+                          photometry={photometry}
+                          annotations={source?.annotations || []}
+                          spectra={spectra || []}
+                          gcn_events={source.gcn_crossmatch || []}
+                          mode="mobile"
                         />
                       </Suspense>
                     )}
                   </div>
                   <div className={classes.plotButtons}>
-                    {isBrowser && (
-                      <Link to={`/upload_photometry/${source.id}`} role="link">
-                        <Button secondary>Upload additional photometry</Button>
-                      </Link>
-                    )}
-                    <Link to={`/share_data/${source.id}`} role="link">
-                      <Button secondary>Share data</Button>
-                    </Link>
                     <Button
                       secondary
                       onClick={() => {
                         setShowPhotometry(true);
                       }}
                     >
-                      Show Photometry Table
+                      Photometry Table
                     </Button>
+                    <Link to={`/share_data/${source.id}`} role="link">
+                      <Button secondary>Share data</Button>
+                    </Link>
+                    {isBrowser && (
+                      <Link to={`/upload_photometry/${source.id}`} role="link">
+                        <Button secondary>Upload photometry</Button>
+                      </Link>
+                    )}
+                    <PhotometryDownload
+                      obj_id={source.id}
+                      photometry={photometry}
+                    />
                     <IconButton
                       aria-label="help"
                       size="small"
@@ -807,12 +817,18 @@ const SourceMobile = WidthProvider(
                   Spectroscopy
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails>
+              <AccordionDetails className={classes.accordion}>
                 <Grid container>
-                  <div className={classes.photometryContainer}>
-                    {!source.spectrum_exists ? (
-                      <div> No spectra exist </div>
-                    ) : (
+                  <div className={classes.plotContainer}>
+                    {!source.spectrum_exists &&
+                      (!spectra || spectra?.length === 0) && (
+                        <div> No spectrum exists </div>
+                      )}
+                    {source.spectrum_exists &&
+                      (!spectra || spectra?.length === 0) && (
+                        <CircularProgress color="secondary" />
+                      )}
+                    {source?.spectrum_exists && spectra?.length > 0 && (
                       <Suspense
                         fallback={
                           <div>
@@ -820,23 +836,23 @@ const SourceMobile = WidthProvider(
                           </div>
                         }
                       >
-                        <Plot
-                          url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}`}
+                        <SpectraPlot
+                          spectra={spectra}
+                          redshift={source.redshift || 0}
+                          mode="mobile"
                         />
                       </Suspense>
                     )}
                   </div>
                   <div className={classes.plotButtons}>
-                    {isBrowser && (
-                      <Link to={`/upload_spectrum/${source.id}`} role="link">
-                        <Button secondary>
-                          Upload additional spectroscopy
-                        </Button>
-                      </Link>
-                    )}
                     <Link to={`/share_data/${source.id}`} role="link">
                       <Button secondary>Share data</Button>
                     </Link>
+                    {isBrowser && (
+                      <Link to={`/upload_spectrum/${source.id}`} role="link">
+                        <Button secondary>Upload spectroscopy</Button>
+                      </Link>
+                    )}
                   </div>
                 </Grid>
               </AccordionDetails>
