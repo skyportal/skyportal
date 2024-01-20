@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, Suspense } from "react";
+import React, { useEffect, Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
@@ -15,6 +15,7 @@ import GetAppIcon from "@mui/icons-material/GetApp";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
+import { useMediaQuery } from "@mui/material";
 
 // eslint-disable-next-line
 import GeoPropTypes from "geojson-prop-types";
@@ -97,28 +98,13 @@ DownloadXMLButton.propTypes = {
   }).isRequired,
 };
 
-const sidebarWidth = 170;
-
 const EarthquakePage = ({ route }) => {
-  const ref = useRef(null);
   const theme = useTheme();
-  const initialWidth =
-    window.innerWidth - sidebarWidth - 2 * parseInt(theme.spacing(2), 10);
-  const [width, setWidth] = useState(initialWidth);
+  const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
 
   const earthquake = useSelector((state) => state.earthquake);
   const dispatch = useDispatch();
   const styles = useStyles();
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (ref.current !== null) {
-        setWidth(ref.current.offsetWidth);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-  }, [ref]);
 
   useEffect(() => {
     const fetchEarthquake = async (event_id) => {
@@ -135,15 +121,10 @@ const EarthquakePage = ({ route }) => {
     return <Spinner />;
   }
 
-  let xs = 7;
-  if (width < 600) {
-    xs = 14;
-  }
-
   return (
-    <div ref={ref}>
+    <div>
       <Grid container spacing={2} className={styles.source}>
-        <Grid item xs={xs}>
+        <Grid item xs={isMobile ? 14 : 7}>
           <div className={styles.columnItem}>
             <Accordion defaultExpanded>
               <AccordionSummary
@@ -207,7 +188,7 @@ const EarthquakePage = ({ route }) => {
           </div>
         </Grid>
 
-        {width > 600 && (
+        {!isMobile && (
           <Grid item xs={5}>
             <div className={styles.columnItem}>
               <Accordion

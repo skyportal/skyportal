@@ -1,39 +1,24 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
 import { useTheme } from "@mui/material/styles";
-import Paper from "@mui/material/Paper";
+import { useMediaQuery } from "@mui/material";
+import withRouter from "./withRouter";
 
-import * as Action from "../ducks/source";
 import SourceDesktop from "./SourceDesktop";
 import SourceMobile from "./SourceMobile";
 import Spinner from "./Spinner";
 
-import withRouter from "./withRouter";
-
-const sidebarWidth = 170;
+import * as Action from "../ducks/source";
 
 const Source = ({ route }) => {
-  const ref = useRef(null);
   const theme = useTheme();
-  const initialWidth =
-    window.innerWidth - sidebarWidth - 2 * parseInt(theme.spacing(2), 10);
-  const [width, setWidth] = useState(initialWidth);
+  const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
   const dispatch = useDispatch();
   const source = useSelector((state) => state.source);
   const cachedSourceId = source ? source.id : null;
   const isCached = route.id === cachedSourceId;
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (ref.current !== null) {
-        setWidth(ref.current.offsetWidth);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-  }, [ref]);
 
   useEffect(() => {
     const fetchSource = async () => {
@@ -64,13 +49,13 @@ const Source = ({ route }) => {
   document.title = source.id;
 
   return (
-    <Paper ref={ref} elevation={1}>
-      {width <= 1200 ? (
+    <div>
+      {isMobile ? (
         <SourceMobile source={source} />
       ) : (
         <SourceDesktop source={source} />
       )}
-    </Paper>
+    </div>
   );
 };
 

@@ -189,7 +189,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     alignItems: "center",
   },
   source: {
-    padding: theme.spacing(2),
     display: "flex",
     flexDirection: "row",
   },
@@ -239,6 +238,12 @@ export const useSourceStyles = makeStyles((theme) => ({
     paddingTop: "0.5em",
     paddingBottom: "0.5em",
     alignItems: "center",
+  },
+  panelButton: {
+    marginBottom: "1rem",
+    marginLeft: "auto",
+    display: "block",
+    height: "2.1875rem",
   },
 }));
 
@@ -348,7 +353,9 @@ const SourceDesktop = ({ source }) => {
             <Button
               secondary
               onClick={() => setRightPaneVisible(true)}
-              data-testid="show-right-pane-button"
+              data-testid="show-right-panel-button"
+              size="small"
+              className={classes.panelButton}
             >
               Show right panel
             </Button>
@@ -897,10 +904,11 @@ const SourceDesktop = ({ source }) => {
           <Button
             secondary
             onClick={() => setRightPaneVisible(false)}
-            data-testid="hide-right-pane-button"
-            style={{ marginBottom: "1rem" }}
+            data-testid="hide-right-panel-button"
+            className={classes.panelButton}
+            size="small"
           >
-            Hide right pane
+            Hide right panel
           </Button>
         )}
         <Collapse in={rightPaneVisible}>
