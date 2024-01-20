@@ -1,7 +1,10 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
-import SelectWithChips from "./SelectWithChips";
+
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
 
 const SpectroscopyColorSelect = ({
   onColorSelectChange,
@@ -11,13 +14,24 @@ const SpectroscopyColorSelect = ({
   const colorPalette = useSelector((state) => state.config.colorPalette);
 
   return (
-    <SelectWithChips
-      label="Color"
-      id={`colorSelect${parent}`}
-      onChange={onColorSelectChange}
-      options={colorPalette}
-      initValue={initValue}
-    />
+    <div style={{ width: "100%" }}>
+      <InputLabel>Color</InputLabel>
+      <Select
+        fullWidth
+        value={initValue}
+        onChange={onColorSelectChange}
+        inputProps={{
+          name: `${parent}-color-select`,
+          id: `${parent}-color-select`,
+        }}
+      >
+        {(colorPalette || []).map((color) => (
+          <MenuItem key={color} value={color}>
+            <div style={{ width: "1rem", height: "1rem", background: color }} />
+          </MenuItem>
+        ))}
+      </Select>
+    </div>
   );
 };
 

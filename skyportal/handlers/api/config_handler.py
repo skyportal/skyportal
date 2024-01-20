@@ -1,5 +1,8 @@
 import copy
 
+from matplotlib.cm import get_cmap
+from matplotlib.colors import rgb2hex
+
 from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
@@ -10,7 +13,6 @@ from ...enum_types import (
     GCN_NOTICE_TYPES,
     GCN_ACKNOWLEDGEMENTS,
     ALLOWED_ALLOCATION_TYPES,
-    COLOR_PALETTE,
 )
 
 from .recurring_api import ALLOWED_RECURRING_API_METHODS
@@ -24,6 +26,11 @@ from skyportal.models import cosmo
 _, cfg = load_env()
 
 TNS_INSTRUMENTS = list(TNS_INSTRUMENT_IDS.keys())
+
+cmap = get_cmap(cfg.get("misc.color_palette", "turbo"))
+
+# we convert it to a list of hex colors
+cmap = [rgb2hex(cmap(i)) for i in range(cmap.N)]
 
 
 class ConfigHandler(BaseHandler):
@@ -98,7 +105,7 @@ class ConfigHandler(BaseHandler):
                 "summary_sourcesClasses": cfg["colors.summary_sources"],
                 "tnsAllowedInstruments": TNS_INSTRUMENTS,
                 "gcnTagsClasses": cfg["colors.gcnTags"],
-                "colorPalette": COLOR_PALETTE,
+                "colorPalette": cmap,
                 "bandpassesColors": BANDPASSES_COLORS,
             }
         )
