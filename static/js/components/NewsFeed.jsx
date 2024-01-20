@@ -198,6 +198,12 @@ const NewsFeed = ({ classes }) => {
   if (!Object.keys(newsFeedPrefs).includes("categories")) {
     newsFeedPrefs.categories = defaultPrefs.categories;
   }
+  // if a category is missing from the user's preferences, add it with the default value
+  Object.keys(defaultPrefs.categories).forEach((cat) => {
+    if (!Object.keys(newsFeedPrefs.categories).includes(cat)) {
+      newsFeedPrefs.categories[cat] = defaultPrefs.categories[cat];
+    }
+  });
 
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>

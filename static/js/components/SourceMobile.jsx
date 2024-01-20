@@ -92,7 +92,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     fontWeight: theme.typography.fontWeightRegular,
   },
   source: {
-    padding: "1rem",
     display: "flex",
     flexDirection: "row",
   },

@@ -1,4 +1,6 @@
 import uuid
+import time
+
 import pytest
 from selenium.webdriver.common.action_chains import ActionChains
 
@@ -37,8 +39,24 @@ def test_news_feed(driver, user, public_group, upload_data_token, comment_token)
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
     driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+    driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]')
+
     # Default is to not show bot comments; enable for now
-    driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
+    n_retries = 0
+    while n_retries < 3:
+        try:
+            driver.click_xpath('//*[@id="newsFeedSettingsIcon"]', timeout=2)
+            driver.wait_for_xpath(
+                '//*[@data-testid="categories.includeCommentsFromBots"]', timeout=2
+            )
+            break
+        except Exception:
+            n_retries += 1
+            time.sleep(1)
+            continue
+
+    assert n_retries < 3
+
     driver.click_xpath('//*[@data-testid="categories.includeCommentsFromBots"]')
     driver.click_xpath('//button[contains(., "Save")]')
     for i in range(2):
@@ -84,8 +102,26 @@ def test_news_feed_prefs_widget(
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
+
+    driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+    driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]')
+
     # Default is to not show bot comments; enable for now
-    driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
+    n_retries = 0
+    while n_retries < 3:
+        try:
+            driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
+            driver.wait_for_xpath(
+                '//*[@data-testid="categories.includeCommentsFromBots"]'
+            )
+            break
+        except Exception:
+            n_retries += 1
+            time.sleep(1)
+            continue
+
+    assert n_retries < 3
+
     driver.click_xpath('//*[@data-testid="categories.includeCommentsFromBots"]')
     driver.click_xpath('//button[contains(., "Save")]')
     driver.wait_for_xpath('//span[text()="a few seconds ago"]')

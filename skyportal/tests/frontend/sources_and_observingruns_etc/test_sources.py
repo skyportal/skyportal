@@ -855,9 +855,9 @@ def test_show_photometry_table(public_source, driver, user):
 def test_hide_right_pane(public_source, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.click_xpath('//*[@data-testid="hide-right-pane-button"]')
+    driver.click_xpath('//*[@data-testid="hide-right-panel-button"]')
     driver.wait_for_xpath_to_disappear('//*[@class="MuiCollapse-entered"]')
-    driver.click_xpath('//*[@data-testid="show-right-pane-button"]')
+    driver.click_xpath('//*[@data-testid="show-right-panel-button"]')
     driver.wait_for_xpath_to_disappear('//*[@class="MuiCollapse-hidden"]')
 
 
