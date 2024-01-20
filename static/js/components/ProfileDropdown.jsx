@@ -63,7 +63,7 @@ const ProfileDropdown = () => {
   const id = open ? "simple-popover" : undefined;
 
   return (
-    <div>
+    <>
       <IconButton
         color="primary"
         aria-label="profile"
@@ -71,9 +71,10 @@ const ProfileDropdown = () => {
         onClick={handleClick}
         data-testid="avatar"
         size="large"
+        style={{ padding: 0, margin: 0 }}
       >
         <UserAvatar
-          size={50}
+          size={45}
           firstName={profile.first_name}
           lastName={profile.last_name}
           username={profile.username}
@@ -163,7 +164,7 @@ const ProfileDropdown = () => {
           </a>
         </Box>
       </Popover>
-    </div>
+    </>
   );
 };
 

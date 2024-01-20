@@ -16,10 +16,7 @@ export function setSidebar(open) {
   };
 }
 
-const isMobile = window.matchMedia("(max-width: 768px)").matches;
-const defaultOpen = !isMobile;
-
-const reducer = (state = { open: defaultOpen }, action) => {
+const reducer = (state = { open: false }, action) => {
   switch (action.type) {
     case TOGGLE_SIDEBAR: {
       return {

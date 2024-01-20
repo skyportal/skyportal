@@ -19,4 +19,4 @@ def test_quick_search(
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
     driver.wait_for_xpath('//*[@id="quick-search-bar"]').send_keys("invalid_source_id")
-    driver.wait_for_xpath('//*[text()="No matching sources."]')
+    driver.wait_for_xpath('//*[text()="No matching Sources."]')

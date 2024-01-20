@@ -864,7 +864,7 @@ const UserManagement = () => {
   return (
     <Paper className={classes.container}>
       <Typography variant="h5">Manage users</Typography>
-      <Paper variant="outlined" className={classes.section}>
+      <Paper className={classes.section}>
         <StyledEngineProvider injectFirst>
           <ThemeProvider theme={dataTableStyles(theme)}>
             <MUIDataTable columns={columns} data={users} options={options} />

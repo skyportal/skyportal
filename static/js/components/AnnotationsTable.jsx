@@ -13,8 +13,11 @@ import { makeStyles } from "@mui/styles";
 import MUIDataTable from "mui-datatables";
 import IconButton from "@mui/material/IconButton";
 import ExpandIcon from "@mui/icons-material/Expand";
+import CloseIcon from "@mui/icons-material/Close";
 import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import Typography from "@mui/material/Typography";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -34,6 +37,9 @@ const useStyles = makeStyles(() => ({
     width: "100%",
     margin: "auto",
     height: "100%",
+  },
+  dialogContent: {
+    padding: 0,
   },
 }));
 
@@ -274,9 +280,24 @@ const AnnotationsTable = ({
             open={openAnnotations}
             onClose={handleClose}
             style={{ position: "fixed", height: "100vh" }}
-            maxWidth={canExpand ? "md" : "lg"}
+            fullScreen
           >
-            <DialogContent dividers>
+            <DialogTitle>
+              <Typography variant="h6">Annotations</Typography>
+              <IconButton
+                aria-label="close"
+                onClick={handleClose}
+                sx={{
+                  position: "absolute",
+                  right: 8,
+                  top: 8,
+                  color: (colorTheme) => colorTheme.palette.grey[500],
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent dividers className={classes.dialogContent}>
               <AnnotationsTable
                 annotations={annotations}
                 spectrumAnnotations={spectrumAnnotations}

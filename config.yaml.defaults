@@ -226,6 +226,7 @@ app:
           url: /about
 
     - name: Other
+      icon: MoreHoriz
       subitems:
         - name: Telescopes
           icon: MyLocation
@@ -272,6 +273,7 @@ app:
           url: /taxonomies
 
     - name: Admin
+      icon: AdminPanelSettings
       permissions: ["Manage users", "System admin"]
       subitems:
         - name: DB Stats

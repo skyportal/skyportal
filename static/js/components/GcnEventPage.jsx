@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import React, { Suspense, useEffect, useRef, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import Cancel from "@mui/icons-material/Cancel";
@@ -185,7 +185,6 @@ DownloadXMLButton.propTypes = {
 };
 
 const GcnEventPage = ({ route }) => {
-  const ref = useRef(null);
   const theme = useTheme();
   const styles = useStyles(theme);
 
@@ -223,8 +222,7 @@ const GcnEventPage = ({ route }) => {
     }
   }, [route, dispatch]);
 
-  const isBig = useMediaQuery(theme.breakpoints.up("sm"));
-  const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   if (!gcnEvent) {
     return <Spinner />;
@@ -267,8 +265,8 @@ const GcnEventPage = ({ route }) => {
   };
 
   return (
-    <div ref={ref}>
-      <Grid container spacing={2} className={styles.source}>
+    <div>
+      <Grid container spacing={2}>
         <Grid item xs={12}>
           <div className={styles.columnItem}>
             <Grid container spacing={2}>
@@ -300,8 +298,8 @@ const GcnEventPage = ({ route }) => {
                     onClick={() => setLeftPanelVisible(!leftPanelVisible)}
                     data-testid="left-panel-button"
                     style={{
-                      fontSize: isSmall ? "0.7rem" : "0.85rem",
-                      marginRight: isSmall ? "1rem" : "0rem",
+                      fontSize: isMobile ? "0.7rem" : "0.85rem",
+                      marginRight: isMobile ? "1rem" : "0rem",
                     }}
                   >
                     Interactions
@@ -311,8 +309,8 @@ const GcnEventPage = ({ route }) => {
                     onClick={() => setRightPanelVisible(!rightPanelVisible)}
                     data-testid="right-panel-button"
                     style={{
-                      fontSize: isSmall ? "0.7rem" : "0.85rem",
-                      marginRight: isSmall ? "1rem" : "0rem",
+                      fontSize: isMobile ? "0.7rem" : "0.85rem",
+                      marginRight: isMobile ? "1rem" : "0rem",
                     }}
                   >
                     Properties
@@ -325,7 +323,7 @@ const GcnEventPage = ({ route }) => {
               showPassed
               showUnset
               // we want to show the title if the breakpoint is over md
-              showTitle={isBig}
+              showTitle={!isMobile}
             />
             <GcnAliases gcnEvent={gcnEvent} show_title />
           </div>
