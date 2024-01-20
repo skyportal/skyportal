@@ -16,48 +16,44 @@ const ALLOWED_TYPES = ["Sources", "GCN Events"];
 const useStyles = makeStyles((theme) => ({
   root: {
     "& .MuiOutlinedInput-root": {
+      backgroundColor: theme.palette.primary.light,
+      borderColor: theme.palette.primary.light,
+      borderRadius: "0 1rem 1rem 0",
       "& fieldset": {
-        borderColor: theme.palette.info.main,
-        borderRadius: "0 1rem 1rem 0",
+        borderColor: theme.palette.primary.light,
       },
       "&:hover fieldset": {
-        borderColor: theme.palette.info.main,
-        borderRadius: "0 1rem 1rem 0",
+        borderColor: theme.palette.primary.light,
       },
       "&.Mui-focused fieldset": {
-        borderColor: theme.palette.info.main,
-        borderRadius: "0 1rem 1rem 0",
+        borderColor: theme.palette.primary.light,
       },
     },
     margin: 0,
     padding: 0,
   },
   typeSelect: {
-    color: theme.palette.info.main,
-    margin: 0,
-    padding: 0,
+    fontWeight: "bold",
+    color: "white",
+    backgroundColor: theme.palette.primary.light,
+    borderColor: theme.palette.primary.light,
+    borderRadius: "1rem 0 0 1rem",
     "& .MuiSelect-icon": {
-      color: theme.palette.info.main,
+      color: "white",
     },
     "& fieldset": {
-      borderColor: theme.palette.info.main,
-      borderRadius: "1rem 0 0 1rem",
+      borderColor: theme.palette.primary.light,
     },
+    margin: 0,
+    padding: 0,
   },
   textField: {
-    color: theme.palette.info.main,
+    fontWeight: "bold",
+    color: "white",
   },
-  icon: {
-    color: theme.palette.info.main,
-  },
-  paper: {
-    backgroundColor: "#fff",
-  },
-  // These rules help keep the progress wheel centered. Taken from the first example: https://material-ui.com/components/progress/
   progress: {
     display: "flex",
-    // The below color rule is not for the progress container, but for CircularProgress. This component only accepts 'primary', 'secondary', or 'inherit'.
-    color: theme.palette.info.main,
+    color: "white",
     "& > * + *": {
       marginLeft: theme.spacing(2),
     },
