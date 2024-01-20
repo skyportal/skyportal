@@ -10,6 +10,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
+import { makeStyles } from "@mui/styles";
 
 import Button from "./Button";
 
@@ -25,7 +26,64 @@ import {
 
 const Plot = createPlotlyComponent(Plotly);
 
+const useStyles = makeStyles(() => ({
+  gridContainerLines: {
+    display: "grid",
+    gridAutoFlow: "row",
+    gridTemplateColumns: "repeat(auto-fit, minmax(5rem, auto))",
+    gap: "0.5rem",
+    width: "100%",
+    paddingTop: "0.5rem",
+  },
+  gridItemLines: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    width: "fit-content",
+  },
+  gridContainer: {
+    display: "grid",
+    gridAutoFlow: "row",
+    gridTemplateColumns: "repeat(auto-fit, minmax(16rem, 1fr))",
+    rowGap: "0.5rem",
+    columnGap: "2rem",
+    width: "100%",
+    paddingTop: "0.5rem",
+  },
+  gridItem: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-start",
+    alignItems: "left",
+    gap: 0,
+    width: "100%",
+  },
+  sliderContainer: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: "1rem",
+    width: "100%",
+    paddingLeft: "0.5rem",
+    "& > .MuiTextField-root": {
+      width: "8.5rem",
+      marginTop: 0,
+      marginBottom: 0,
+    },
+  },
+  lineColor: {
+    width: "0.8rem",
+    height: "1.4rem",
+    borderRadius: "0.25rem 0 0 0.25rem",
+    marginRight: "-0.25rem",
+    zIndex: 1,
+  },
+}));
+
 const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
+  const classes = useStyles();
   const [data, setData] = useState(null);
   const [plotData, setPlotData] = useState(null);
 
@@ -504,37 +562,18 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           }}
         />
       </div>
-      <div
-        style={{
-          display: "grid",
-          gridAutoFlow: "row",
-          gridTemplateColumns: "repeat(auto-fit, minmax(5rem, auto))",
-          gap: "0.5rem",
-          width: "100%",
-          padding: "0.5rem",
-        }}
-      >
+      <div className={classes.gridContainerLines}>
         {/* we want to display a grid with buttons to toggle each of the lines */}
         {/* the buttons should have a rectangle of the color of the lines, and then the button itself with the name of the line */}
         {LINES.concat(userCustomLines).map((line) => (
           <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "flex-start",
-              alignItems: "center",
-              width: "fit-content",
-              gridColumn: line.name.length > 8 ? "span 2" : "span 1",
-            }}
+            className={classes.gridItemLines}
+            style={{ gridColumn: line.name.length > 8 ? "span 2" : "span 1" }}
             key={line.name}
           >
             <div
-              style={{
-                width: "0.6rem",
-                height: "1.4rem",
-                backgroundColor: line.color,
-                marginRight: "0.5rem",
-              }}
+              className={classes.lineColor}
+              style={{ backgroundColor: line.color }}
             />
             <Button
               key={line.wavelength}
@@ -566,42 +605,10 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           </div>
         ))}
       </div>
-      <div
-        style={{
-          display: "grid",
-          gridAutoFlow: "row",
-          // we want to display a grid with divs that contain a slider and an input
-          // each of the columns should be 12rem wide, and we want to have as many columns as possible
-          gridTemplateColumns: "repeat(auto-fit, minmax(16rem, 1fr))",
-          rowGap: "0.5rem",
-          columnGap: "2rem",
-          width: "100%",
-          padding: "0.5rem",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "flex-start",
-            alignItems: "left",
-            gap: 0,
-            width: "100%",
-            margin: "0.5rem",
-            marginBottom: 0,
-          }}
-        >
+      <div className={classes.gridContainer}>
+        <div className={classes.gridItem}>
           <Typography id="input-slider">Velocity Expansion (km/s)</Typography>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "flex-start",
-              alignItems: "center",
-              gap: "1rem",
-              width: "100%",
-            }}
-          >
+          <div className={classes.sliderContainer}>
             <Slider
               value={vExpInput}
               onChange={(e, newValue) => setVExpInput(newValue)}
@@ -622,34 +629,13 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
                 max: 30000,
                 "aria-labelledby": "input-slider",
               }}
-              style={{ width: "8.5rem" }}
               size="small"
             />
           </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "flex-start",
-            alignItems: "left",
-            gap: 0,
-            width: "100%",
-            margin: "0.5rem",
-            marginBottom: 0,
-          }}
-        >
+        <div className={classes.gridItem}>
           <Typography id="input-slider">Redshift</Typography>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "flex-start",
-              alignItems: "center",
-              gap: "1rem",
-              width: "100%",
-            }}
-          >
+          <div className={classes.sliderContainer}>
             <Slider
               value={redshiftInput}
               onChange={(e, newValue) => setRedshiftInput(newValue)}
@@ -670,34 +656,13 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
                 max: 3.0,
                 "aria-labelledby": "input-slider",
               }}
-              style={{ width: "8.5rem" }}
               size="small"
             />
           </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "flex-start",
-            alignItems: "left",
-            gap: 0,
-            width: "100%",
-            margin: "0.5rem",
-            marginBottom: 0,
-          }}
-        >
+        <div className={classes.gridItem}>
           <Typography id="input-slider">Smoothing</Typography>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "flex-start",
-              alignItems: "center",
-              gap: "1rem",
-              width: "100%",
-            }}
-          >
+          <div className={classes.sliderContainer}>
             <Slider
               value={smoothingInput}
               onChange={(e, newValue) => setSmoothingInput(newValue)}
@@ -718,34 +683,13 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
                 max: 100,
                 "aria-labelledby": "input-slider",
               }}
-              style={{ width: "8.5rem" }}
               size="small"
             />
           </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "flex-start",
-            alignItems: "left",
-            gap: 0,
-            width: "100%",
-            margin: "0.5rem",
-            marginBottom: 0,
-          }}
-        >
+        <div className={classes.gridItem}>
           <Typography id="input-slider">Custom Wavelength</Typography>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "flex-start",
-              alignItems: "center",
-              gap: "1rem",
-              width: "100%",
-            }}
-          >
+          <div className={classes.sliderContainer}>
             <Slider
               value={customWavelengthInput}
               onChange={(e, newValue) => setCustomWavelengthInput(newValue)}
@@ -766,7 +710,6 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
                 max: 50000,
                 "aria-labelledby": "input-slider",
               }}
-              style={{ width: "8.5rem" }}
               size="small"
             />
           </div>

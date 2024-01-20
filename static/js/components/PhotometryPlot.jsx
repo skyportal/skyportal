@@ -14,6 +14,7 @@ import IconButton from "@mui/material/IconButton";
 import Switch from "@mui/material/Switch";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
+import makeStyles from "@mui/styles/makeStyles";
 
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -29,6 +30,55 @@ import { addAnnotation } from "../ducks/source";
 import { BASE_LAYOUT, PHOT_ZP, smoothing_func, mjdnow, rgba } from "../utils";
 
 const Plot = createPlotlyComponent(Plotly);
+
+const useStyles = makeStyles(() => ({
+  gridContainer: {
+    display: "grid",
+    gridAutoFlow: "row",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    rowGap: "0.5rem",
+    columnGap: "2rem",
+    width: "100%",
+    paddingTop: "0.5rem",
+  },
+  gridItem: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-start",
+    alignItems: "left",
+    gap: 0,
+    width: "100%",
+  },
+  sliderContainer: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: "1rem",
+    width: "100%",
+    paddingLeft: "0.5rem",
+    "& > .MuiTextField-root": {
+      width: "7rem",
+      marginTop: 0,
+      marginBottom: 0,
+    },
+  },
+  switchContainer: {
+    minHeight: "2rem",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: "0.5rem",
+    width: "100%",
+  },
+  doubleSwitch: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: "0.5rem",
+  },
+}));
 
 const PeriodAnnotationDialog = ({ obj_id, period }) => {
   const dispatch = useDispatch();
@@ -90,11 +140,7 @@ const PeriodAnnotationDialog = ({ obj_id, period }) => {
   return (
     <>
       <Tooltip title="Save period as annotation">
-        <IconButton
-          onClick={() => setDialogOpen(true)}
-          size="small"
-          style={{ marginLeft: "0.5rem" }}
-        >
+        <IconButton onClick={() => setDialogOpen(true)} size="small">
           <SaveAsIcon />
         </IconButton>
       </Tooltip>
@@ -134,6 +180,7 @@ const PhotometryPlot = ({
   mode,
   plotStyle,
 }) => {
+  const classes = useStyles();
   const [data, setData] = useState(null);
   const [plotData, setPlotData] = useState(null);
 
@@ -987,41 +1034,10 @@ const PhotometryPlot = ({
           style={{ width: "100%", height: "100%" }}
         />
       </div>
-      <div
-        style={{
-          display: "grid",
-          gridAutoFlow: "row",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          rowGap: "0.5rem",
-          columnGap: "2rem",
-          width: "100%",
-          padding: "0.5rem",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "flex-start",
-            alignItems: "left",
-            gap: 0,
-            width: "100%",
-            gridColumn: "span 1",
-          }}
-        >
+      <div className={classes.gridContainer}>
+        <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
           <Typography id="photometry-show-hide">Non-Detections</Typography>
-          <div
-            style={{
-              minHeight: "2rem",
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "flex-start",
-              alignItems: "center",
-              gap: "0.5rem",
-              width: "100%",
-              marginTop: "0.25rem",
-            }}
-          >
+          <div className={classes.switchContainer}>
             <Switch
               checked={showNonDetections}
               onChange={() => setShowNonDetections(!showNonDetections)}
@@ -1029,28 +1045,9 @@ const PhotometryPlot = ({
             />
           </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "flex-start",
-            alignItems: "left",
-            gap: 0,
-            width: "100%",
-            gridColumn: "span 2",
-          }}
-        >
+        <div className={classes.gridItem} style={{ gridColumn: "span 2" }}>
           <Typography id="input-slider">Marker Size</Typography>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "flex-start",
-              alignItems: "center",
-              gap: "1rem",
-              width: "100%",
-            }}
-          >
+          <div className={classes.sliderContainer}>
             <Slider
               value={markerSize}
               onChange={(e, newValue) => setMarkerSize(newValue)}
@@ -1072,35 +1069,15 @@ const PhotometryPlot = ({
                   max: 20,
                   "aria-labelledby": "input-slider",
                 }}
-                style={{ width: "7rem", marginTop: 0, marginBottom: 0 }}
                 size="small"
               />
             )}
           </div>
         </div>
         {tabIndex === 2 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "flex-start",
-              alignItems: "left",
-              gap: 0,
-              width: "100%",
-              gridColumn: "span 3",
-            }}
-          >
+          <div className={classes.gridItem} style={{ gridColumn: "span 3" }}>
             <Typography id="input-slider">Period (days)</Typography>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                justifyContent: "flex-start",
-                alignItems: "center",
-                gap: "1rem",
-                width: "100%",
-              }}
-            >
+            <div className={classes.sliderContainer}>
               <Slider
                 value={period}
                 onChange={(e, newValue) => setPeriod(newValue)}
@@ -1121,14 +1098,13 @@ const PhotometryPlot = ({
                   max: 365,
                   "aria-labelledby": "input-slider",
                 }}
-                style={{ width: "10rem", marginTop: 0, marginBottom: 0 }}
+                style={{ width: "12rem" }}
                 size="small"
               />
               <Button
                 onClick={() => setPeriod(period * 2)}
                 variant="contained"
                 color="primary"
-                size="small"
               >
                 x2
               </Button>
@@ -1136,7 +1112,6 @@ const PhotometryPlot = ({
                 onClick={() => setPeriod(period / 2)}
                 variant="contained"
                 color="primary"
-                size="small"
               >
                 /2
               </Button>
@@ -1145,28 +1120,9 @@ const PhotometryPlot = ({
           </div>
         )}
         {tabIndex === 2 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "flex-start",
-              alignItems: "left",
-              gap: 0,
-              width: "100%",
-              gridColumn: "span 2",
-            }}
-          >
+          <div className={classes.gridItem} style={{ gridColumn: "span 2" }}>
             <Typography id="input-slider">Smoothing</Typography>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                justifyContent: "flex-start",
-                alignItems: "center",
-                gap: "1rem",
-                width: "100%",
-              }}
-            >
+            <div className={classes.sliderContainer}>
               <Slider
                 value={smoothing}
                 onChange={(e, newValue) => setSmoothing(newValue)}
@@ -1188,32 +1144,15 @@ const PhotometryPlot = ({
                   type: "number",
                   "aria-labelledby": "input-slider",
                 }}
-                style={{ width: "7rem", marginTop: 0, marginBottom: 0 }}
                 size="small"
               />
             </div>
           </div>
         )}
         {tabIndex === 2 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "flex-start",
-              alignItems: "left",
-              gap: 0,
-              width: "100%",
-            }}
-          >
+          <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
             <Typography id="input-slider">Phase</Typography>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
+            <div className={classes.doubleSwitch}>
               <Typography>1</Typography>
               <Switch
                 checked={phase === 2}

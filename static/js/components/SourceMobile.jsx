@@ -134,18 +134,16 @@ export const useSourceStyles = makeStyles((theme) => ({
     overflow: "auto",
   },
   plotContainer: {
-    padding: "0.5rem",
-    paddingTop: 0,
+    padding: 0,
     minWidth: "100%",
     height: "100%",
-    marginBottom: "1rem",
+    paddingBottom: "0.75rem",
   },
   plotButtons: {
     display: "flex",
     flexFlow: "row wrap",
-    "& button": {
-      margin: "0.5rem",
-    },
+    alignItems: "center",
+    gap: "0.5rem",
   },
   comments: {
     marginLeft: "1rem",
@@ -746,22 +744,22 @@ const SourceMobile = WidthProvider(
                     )}
                   </div>
                   <div className={classes.plotButtons}>
-                    {isBrowser && (
-                      <Link to={`/upload_photometry/${source.id}`} role="link">
-                        <Button secondary>Upload additional photometry</Button>
-                      </Link>
-                    )}
-                    <Link to={`/share_data/${source.id}`} role="link">
-                      <Button secondary>Share data</Button>
-                    </Link>
                     <Button
                       secondary
                       onClick={() => {
                         setShowPhotometry(true);
                       }}
                     >
-                      Show Photometry Table
+                      Photometry Table
                     </Button>
+                    <Link to={`/share_data/${source.id}`} role="link">
+                      <Button secondary>Share data</Button>
+                    </Link>
+                    {isBrowser && (
+                      <Link to={`/upload_photometry/${source.id}`} role="link">
+                        <Button secondary>Upload photometry</Button>
+                      </Link>
+                    )}
                     <PhotometryDownload
                       obj_id={source.id}
                       photometry={photometry}
@@ -847,16 +845,14 @@ const SourceMobile = WidthProvider(
                     )}
                   </div>
                   <div className={classes.plotButtons}>
-                    {isBrowser && (
-                      <Link to={`/upload_spectrum/${source.id}`} role="link">
-                        <Button secondary>
-                          Upload additional spectroscopy
-                        </Button>
-                      </Link>
-                    )}
                     <Link to={`/share_data/${source.id}`} role="link">
                       <Button secondary>Share data</Button>
                     </Link>
+                    {isBrowser && (
+                      <Link to={`/upload_spectrum/${source.id}`} role="link">
+                        <Button secondary>Upload spectroscopy</Button>
+                      </Link>
+                    )}
                   </div>
                 </Grid>
               </AccordionDetails>

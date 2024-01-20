@@ -144,7 +144,7 @@ export function addTNS(id, formData) {
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
 export const uploadPhotometry = (data) =>
-  API.POST("/api/photometry", UPLOAD_PHOTOMETRY, data);
+  API.POST("/api/photometry?refresh=true", UPLOAD_PHOTOMETRY, data);
 
 export function submitImageAnalysis(id, formData) {
   return API.POST(

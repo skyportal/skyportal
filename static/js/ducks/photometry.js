@@ -41,17 +41,32 @@ export function deletePhotometry(id) {
 }
 
 export function submitPhotometry(photometry) {
-  return API.POST("/api/photometry", SUBMIT_PHOTOMETRY, photometry);
+  return API.POST(
+    "/api/photometry?refresh=true",
+    SUBMIT_PHOTOMETRY,
+    photometry,
+  );
 }
 
 export function updatePhotometry(id, photometry) {
-  return API.PATCH(`/api/photometry/${id}`, UPDATE_PHOTOMETRY, photometry);
+  return API.PATCH(
+    `/api/photometry?refresh=true/${id}`,
+    UPDATE_PHOTOMETRY,
+    photometry,
+  );
 }
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType, payload, dispatch, getState) => {
   if (actionType === FETCH_SOURCE_PHOTOMETRY) {
-    dispatch(fetchSourcePhotometry(payload.obj_id));
+    // check if the source photometry is already in the store
+    // or if the source that is loaded is the one that is being
+    // specified in the payload's obj_id
+    const { source } = getState();
+    const { obj_id } = payload;
+    if (source?.id && source.id === obj_id) {
+      dispatch(fetchSourcePhotometry(payload.obj_id));
+    }
   }
 });
 

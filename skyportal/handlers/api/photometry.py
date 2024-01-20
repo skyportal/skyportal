@@ -24,6 +24,7 @@ from sqlalchemy import and_
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -704,7 +705,14 @@ def get_values_table_and_condition(df):
 
 
 def insert_new_photometry_data(
-    df, instrument_cache, group_ids, stream_ids, user, session, validate=True
+    df,
+    instrument_cache,
+    group_ids,
+    stream_ids,
+    user,
+    session,
+    validate=True,
+    refresh=False,
 ):
     # check for existing photometry and error if any is found
     if validate:
@@ -887,6 +895,27 @@ def insert_new_photometry_data(
 
     session.add(phot_stat)
     session.commit()  # add the updated phot_stats
+
+    if refresh:
+        flow = Flow()
+        # grab the list of unique obj_ids
+        obj_ids = df['obj_id'].unique()
+        for obj_id in obj_ids:
+            internal_key = session.scalar(
+                sa.select(Obj.internal_key).where(Obj.id == obj_id)
+            )
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': internal_key},
+            )
+
+            flow.push(
+                '*',
+                'skyportal/FETCH_SOURCE_PHOTOMETRY',
+                payload={'obj_id': obj_id},
+            )
+
     return ids, upload_id
 
 
@@ -956,7 +985,9 @@ def get_stream_ids(data, user, parent_session=None):
     return stream_ids
 
 
-def add_external_photometry(json, user, parent_session=None, duplicates="update"):
+def add_external_photometry(
+    json, user, parent_session=None, duplicates="update", refresh=False
+):
     """
     Posts external photometry to the database (as from
     another API)
@@ -1101,6 +1132,7 @@ def add_external_photometry(json, user, parent_session=None, duplicates="update"
                 user,
                 session,
                 validate=True if duplicates in ["error"] else False,
+                refresh=refresh,
             )
 
             if duplicates in ["ignore", "update"]:
@@ -1183,6 +1215,8 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
+        refresh = self.get_query_argument('refresh', default=False)
+
         try:
             df, instrument_cache = standardize_photometry_data(self.get_json())
         except (ValidationError, RuntimeError) as e:
@@ -1220,6 +1254,7 @@ class PhotometryHandler(BaseHandler):
                     stream_ids,
                     self.associated_user_object,
                     session,
+                    refresh=refresh,
                 )
             except Exception:
                 session.rollback()
@@ -1279,6 +1314,8 @@ class PhotometryHandler(BaseHandler):
             stream_ids = get_stream_ids(self.get_json(), self.associated_user_object)
         except ValidationError as e:
             return self.error(e.args[0])
+
+        refresh = self.get_query_argument('refresh', default=False)
 
         try:
             df, instrument_cache = standardize_photometry_data(self.get_json())
@@ -1387,6 +1424,7 @@ class PhotometryHandler(BaseHandler):
                         self.associated_user_object,
                         session,
                         validate=False,
+                        refresh=refresh,
                     )
 
                     for (df_index, _), id in zip(new_photometry.iterrows(), ids):
@@ -1474,6 +1512,8 @@ class PhotometryHandler(BaseHandler):
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
         stream_ids = data.pop("stream_ids", None)
+
+        refresh = self.get_query_argument('refresh', default=False)
 
         with self.Session() as session:
             photometry = session.scalars(
@@ -1580,6 +1620,23 @@ class PhotometryHandler(BaseHandler):
                 session.expunge(phot)
 
             session.commit()
+
+            if refresh:
+                flow = Flow()
+                internal_key = session.scalar(
+                    sa.select(Obj.internal_key).where(Obj.id == photometry.obj_id)
+                )
+                flow.push(
+                    '*',
+                    'skyportal/REFRESH_SOURCE',
+                    payload={'obj_key': internal_key},
+                )
+
+                flow.push(
+                    '*',
+                    'skyportal/FETCH_SOURCE_PHOTOMETRY',
+                    payload={'obj_id': photometry.obj_id},
+                )
 
             return self.success()
 

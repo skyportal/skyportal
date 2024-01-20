@@ -64,6 +64,7 @@ import QuickSaveButton from "./QuickSaveSource";
 
 import SourcePlugins from "./SourcePlugins";
 
+import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
 import PhotometryPlot from "./PhotometryPlot";
@@ -88,21 +89,29 @@ export const useSourceStyles = makeStyles((theme) => ({
     paddingTop: 0,
     marginTop: 0,
   },
+  accordionSummary: {
+    "&>div": {
+      display: "flex",
+      justifyContent: "flex-start",
+      gap: "0.5rem",
+      alignItems: "center",
+    },
+  },
   accordionHeading: {
     fontSize: "1.25rem",
     fontWeight: theme.typography.fontWeightRegular,
   },
   plotContainer: {
-    padding: "0.5rem",
-    paddingTop: 0,
+    padding: 0,
     minWidth: "100%",
     height: "100%",
-    marginBottom: "1rem",
+    paddingBottom: "0.75rem",
   },
   buttonContainer: {
-    "& button": {
-      margin: "0.5rem",
-    },
+    display: "flex",
+    flexFlow: "wrap",
+    alignItems: "center",
+    gap: "0.5rem",
   },
   columnItem: {
     marginBottom: theme.spacing(2),
@@ -306,6 +315,7 @@ const SourceDesktop = ({ source }) => {
   const associatedGCNs = useSelector((state) => state.source.associatedGCNs);
 
   useEffect(() => {
+    dispatch(photometryActions.fetchSourcePhotometry(source.id));
     dispatch(spectraActions.fetchSourceSpectra(source.id));
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
   }, [source.id, dispatch]);
@@ -704,6 +714,7 @@ const SourceDesktop = ({ source }) => {
               expandIcon={<ExpandMoreIcon />}
               aria-controls="photometry-content"
               id="photometry-header"
+              className={classes.accordionSummary}
             >
               <Typography className={classes.accordionHeading}>
                 Photometry
@@ -721,7 +732,7 @@ const SourceDesktop = ({ source }) => {
                     (!photometry || photometry?.length === 0) && (
                       <CircularProgress color="secondary" />
                     )}
-                  {source?.photometry_exists && photometry?.length > 0 && (
+                  {photometry?.length > 0 && (
                     <Suspense
                       fallback={
                         <div>
@@ -744,12 +755,6 @@ const SourceDesktop = ({ source }) => {
                   )}
                 </div>
                 <div className={classes.buttonContainer}>
-                  <Link to={`/upload_photometry/${source.id}`} role="link">
-                    <Button secondary>Upload additional photometry</Button>
-                  </Link>
-                  <Link to={`/share_data/${source.id}`} role="link">
-                    <Button secondary>Share data</Button>
-                  </Link>
                   <Button
                     secondary
                     onClick={() => {
@@ -757,8 +762,14 @@ const SourceDesktop = ({ source }) => {
                     }}
                     data-testid="show-photometry-table-button"
                   >
-                    Show Photometry Table
+                    Photometry Table
                   </Button>
+                  <Link to={`/share_data/${source.id}`} role="link">
+                    <Button secondary>Share data</Button>
+                  </Link>
+                  <Link to={`/upload_photometry/${source.id}`} role="link">
+                    <Button secondary>Upload photometry</Button>
+                  </Link>
                   <PhotometryDownload
                     obj_id={source.id}
                     photometry={photometry}
@@ -823,11 +834,11 @@ const SourceDesktop = ({ source }) => {
                   )}
                 </div>
                 <div className={classes.buttonContainer}>
-                  <Link to={`/upload_spectrum/${source.id}`} role="link">
-                    <Button secondary>Upload additional spectroscopy</Button>
-                  </Link>
                   <Link to={`/share_data/${source.id}`} role="link">
                     <Button secondary>Share data</Button>
+                  </Link>
+                  <Link to={`/upload_spectrum/${source.id}`} role="link">
+                    <Button secondary>Upload spectroscopy</Button>
                   </Link>
                 </div>
               </Grid>
