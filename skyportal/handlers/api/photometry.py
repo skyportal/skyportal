@@ -1735,9 +1735,22 @@ class ObjPhotometryHandler(BaseHandler):
             phot_data = []
             series_data = []
             if individual_or_series in ["individual", "both"]:
+                options = [
+                    joinedload(Photometry.instrument).load_only(Instrument.name),
+                    joinedload(Photometry.groups),
+                    joinedload(Photometry.annotations),
+                ]
+                if include_owner_info:
+                    options.append(joinedload(Photometry.owner))
+                if include_stream_info:
+                    options.append(joinedload(Photometry.streams))
+
                 photometry = (
                     session.scalars(
-                        Photometry.select(session.user_or_token)
+                        Photometry.select(
+                            session.user_or_token,
+                            options=options,
+                        )
                         .where(Photometry.obj_id == obj_id)
                         .distinct()
                     )

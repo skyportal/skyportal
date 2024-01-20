@@ -405,7 +405,12 @@ async def get_source(
         photometry = (
             session.scalars(
                 Photometry.select(
-                    user, options=[joinedload(Photometry.annotations)]
+                    user,
+                    options=[
+                        joinedload(Photometry.instrument).load_only(Instrument.name),
+                        joinedload(Photometry.groups),
+                        joinedload(Photometry.annotations),
+                    ],
                 ).where(Photometry.obj_id == obj_id)
             )
             .unique()
@@ -414,7 +419,7 @@ async def get_source(
         source_info["photometry"] = [
             serialize(phot, 'ab', 'both') for phot in photometry
         ]
-        if deduplicate_photometry:
+        if deduplicate_photometry and len(source_info["photometry"]) > 0:
             df_phot = pd.DataFrame.from_records(source_info["photometry"])
             # drop duplicate mjd/filter points, keeping most recent
             source_info["photometry"] = (
