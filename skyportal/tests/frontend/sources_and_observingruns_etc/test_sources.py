@@ -789,7 +789,7 @@ def test_show_photometry_table(public_source, driver, user):
     )
 
 
-def test_hide_right_pane(public_source, driver, user):
+def test_hide_right_panel(public_source, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.click_xpath('//*[@data-testid="hide-right-panel-button"]')

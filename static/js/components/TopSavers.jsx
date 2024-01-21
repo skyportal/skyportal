@@ -274,7 +274,9 @@ const TopSavers = ({ classes }) => {
   if (!Object.keys(topSaversPrefs).includes("maxNumSavers")) {
     topSaversPrefs.maxNumSavers = defaultPrefs.maxNumSavers;
   }
-
+  if (!Object.keys(topSaversPrefs).includes("sinceDaysAgo")) {
+    topSaversPrefs.sinceDaysAgo = defaultPrefs.sinceDaysAgo;
+  }
   if (!Object.keys(topSaversPrefs).includes("candidatesOnly")) {
     topSaversPrefs.candidatesOnly = defaultPrefs.candidatesOnly;
   }
@@ -311,42 +313,46 @@ const TopSavers = ({ classes }) => {
           >
             {topSaversPrefs.candidatesOnly ? "Top Scanners" : "Top Savers"}
           </Typography>
-          <div className={styles.timespanSelect}>
-            <Button
-              variant="contained"
-              aria-controls={open ? "basic-menu" : undefined}
-              aria-haspopup="true"
-              aria-expanded={open ? "true" : undefined}
-              onClick={(e) => setAnchorEl(e.currentTarget)}
-              size="small"
-              endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            >
-              {currentTimespan.label}
-            </Button>
-            <Menu
-              transitionDuration={50}
-              id="finding-chart-menu"
-              anchorEl={anchorEl}
-              open={open}
-              onClose={() => setAnchorEl(null)}
-              MenuListProps={{
-                "aria-labelledby": "basic-button",
-              }}
-            >
-              {timespans.map((timespan) => (
-                <MenuItem
-                  className={styles.timespanMenuItem}
-                  key={timespan.label}
-                  onClick={() => {
-                    switchTimespan(timespan);
-                    setAnchorEl(null);
-                  }}
-                >
-                  {timespan.label}
-                </MenuItem>
-              ))}
-            </Menu>
-          </div>
+          {currentTimespan && (
+            <div className={styles.timespanSelect}>
+              <Button
+                variant="contained"
+                aria-controls={open ? "basic-menu" : undefined}
+                aria-haspopup="true"
+                aria-expanded={open ? "true" : undefined}
+                onClick={(e) => setAnchorEl(e.currentTarget)}
+                size="small"
+                endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                data-testid="topSavers_timespanButton"
+              >
+                {currentTimespan.label}
+              </Button>
+              <Menu
+                transitionDuration={50}
+                id="finding-chart-menu"
+                anchorEl={anchorEl}
+                open={open}
+                onClose={() => setAnchorEl(null)}
+                MenuListProps={{
+                  "aria-labelledby": "basic-button",
+                }}
+              >
+                {timespans.map((timespan) => (
+                  <MenuItem
+                    className={styles.timespanMenuItem}
+                    key={timespan.label}
+                    data-testid={`topSavers_${timespan.sinceDaysAgo}days`}
+                    onClick={() => {
+                      switchTimespan(timespan);
+                      setAnchorEl(null);
+                    }}
+                  >
+                    {timespan.label}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </div>
+          )}
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <div className={classes.widgetIcon}>
             <WidgetPrefsDialog

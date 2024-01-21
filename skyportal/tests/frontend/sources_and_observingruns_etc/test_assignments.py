@@ -51,7 +51,6 @@ def test_submit_and_delete_new_assignment(
     submit_button = driver.wait_for_xpath('//*[@name="assignmentSubmitButton"]')
     driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@id='observing-run-assignments-header']")
     driver.wait_for_xpath('//button[@aria-label="delete-assignment"]')
     driver.wait_for_xpath(f'//*[text()="{comment_text}"]')
     driver.click_xpath('//button[@aria-label="delete-assignment"]')

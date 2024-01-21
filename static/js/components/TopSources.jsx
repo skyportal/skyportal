@@ -299,6 +299,9 @@ const TopSources = ({ classes }) => {
   if (!Object.keys(topSourcesPrefs).includes("maxNumSources")) {
     topSourcesPrefs.maxNumSources = defaultPrefs.maxNumSources;
   }
+  if (!Object.keys(topSourcesPrefs).includes("sinceDaysAgo")) {
+    topSourcesPrefs.sinceDaysAgo = defaultPrefs.sinceDaysAgo;
+  }
 
   const [currentTimespan, setCurrentTimespan] = useState(
     timespans.find(
@@ -332,42 +335,46 @@ const TopSources = ({ classes }) => {
           >
             Top Sources
           </Typography>
-          <div className={styles.timespanSelect}>
-            <Button
-              variant="contained"
-              aria-controls={open ? "basic-menu" : undefined}
-              aria-haspopup="true"
-              aria-expanded={open ? "true" : undefined}
-              onClick={(e) => setAnchorEl(e.currentTarget)}
-              size="small"
-              endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            >
-              {currentTimespan.label}
-            </Button>
-            <Menu
-              transitionDuration={50}
-              id="finding-chart-menu"
-              anchorEl={anchorEl}
-              open={open}
-              onClose={() => setAnchorEl(null)}
-              MenuListProps={{
-                "aria-labelledby": "basic-button",
-              }}
-            >
-              {timespans.map((timespan) => (
-                <MenuItem
-                  className={styles.timespanMenuItem}
-                  key={timespan.label}
-                  onClick={() => {
-                    switchTimespan(timespan);
-                    setAnchorEl(null);
-                  }}
-                >
-                  {timespan.label}
-                </MenuItem>
-              ))}
-            </Menu>
-          </div>
+          {currentTimespan && (
+            <div className={styles.timespanSelect}>
+              <Button
+                variant="contained"
+                aria-controls={open ? "basic-menu" : undefined}
+                aria-haspopup="true"
+                aria-expanded={open ? "true" : undefined}
+                onClick={(e) => setAnchorEl(e.currentTarget)}
+                size="small"
+                endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                data-testid="topSources_timespanButton"
+              >
+                {currentTimespan.label}
+              </Button>
+              <Menu
+                transitionDuration={50}
+                id="finding-chart-menu"
+                anchorEl={anchorEl}
+                open={open}
+                onClose={() => setAnchorEl(null)}
+                MenuListProps={{
+                  "aria-labelledby": "basic-button",
+                }}
+              >
+                {timespans.map((timespan) => (
+                  <MenuItem
+                    className={styles.timespanMenuItem}
+                    key={timespan.label}
+                    data-testid={`topSources_${timespan.sinceDaysAgo}days`}
+                    onClick={() => {
+                      switchTimespan(timespan);
+                      setAnchorEl(null);
+                    }}
+                  >
+                    {timespan.label}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </div>
+          )}
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <div className={classes.widgetIcon}>
             <WidgetPrefsDialog

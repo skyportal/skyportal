@@ -483,7 +483,9 @@ const SourceContent = ({ source }) => {
                   <Button
                     secondary
                     onClick={() => setRightPanelVisible(!rightPanelVisible)}
-                    data-testid="show-right-panel-button"
+                    data-testid={`${
+                      rightPanelVisible ? "hide" : "show"
+                    }-right-panel-button`}
                     size="small"
                   >
                     {rightPanelVisible ? "Hide" : "Show"} Right Panel
