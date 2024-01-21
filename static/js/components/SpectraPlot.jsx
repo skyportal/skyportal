@@ -459,7 +459,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     );
 
   return (
-    <div style={{ width: "100%", height: "100%" }}>
+    <div style={{ width: "100%", height: "100%" }} id="spectroscopy-plot">
       {types?.length > 0 && (
         <Tabs
           value={tabIndex}

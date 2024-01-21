@@ -1203,7 +1203,7 @@ const SourceContent = ({ source }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails className={classes.accordionPlot}>
-              <Grid container>
+              <Grid container id="spectroscopy-container">
                 <div className={classes.plotContainer}>
                   {!source.spectrum_exists &&
                     (!spectra || spectra?.length === 0) && (

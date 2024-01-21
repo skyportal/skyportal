@@ -8,6 +8,7 @@ import requests
 from regions import Regions
 
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import TimeoutException
 from baselayer.app.env import load_config
 from skyportal.tests import api
 
@@ -367,20 +368,18 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     submit_button_xpath = (
@@ -443,20 +442,18 @@ def add_followup_request_using_frontend_and_verify_KAIT(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     submit_button_xpath = (
@@ -510,20 +507,18 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     submit_button_xpath = (
@@ -593,20 +588,18 @@ def add_followup_request_using_frontend_and_verify_ZTF(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     submit_button_xpath = (
@@ -666,20 +659,18 @@ def add_followup_request_using_frontend_and_verify_Floyds(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     submit_button_xpath = (
@@ -735,20 +726,18 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     submit_button_xpath = (
@@ -801,20 +790,18 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     # the MUI accordion is not expanded, we need to scroll to it and click
@@ -864,20 +851,18 @@ def add_followup_request_using_frontend_and_verify_PS1(
 
     driver.get(f"/source/{public_ZTFe028h94k.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     # the MUI accordion is not expanded, we need to scroll to it and click
@@ -927,12 +912,17 @@ def add_followup_request_using_frontend_and_verify_Spectral(
     driver.get(f"/source/{public_source.id}")
 
     # wait for plots to load, if any
-    driver.wait_for_xpath(
-        '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]'
-    )
+    try:
+        driver.wait_for_xpath(
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
+        )
+        driver.wait_for_xpath(
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
+        )
+    except TimeoutException:
+        pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
@@ -995,20 +985,18 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     submit_button_xpath = (
@@ -1074,20 +1062,18 @@ def add_followup_request_using_frontend_and_verify_SEDM(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     submit_button_xpath = (
@@ -1157,20 +1143,18 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     submit_button_xpath = (
@@ -1232,20 +1216,18 @@ def add_followup_request_using_frontend_and_verify_IOI(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     submit_button_xpath = (
@@ -1310,20 +1292,18 @@ def add_followup_request_using_frontend_and_verify_SLACK(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     submit_button_xpath = (
@@ -1379,20 +1359,18 @@ def add_followup_request_using_frontend_and_verify_IOO(
 
     driver.get(f"/source/{public_source.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     submit_button_xpath = (
@@ -1894,20 +1872,18 @@ def test_submit_new_followup_request_two_groups(
 
     driver.get(f"/source/{public_source_two_groups.id}")
 
-    # wait for the plots to load, if any
+    # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
-        pass
-    try:
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
-    except Exception:
+    except TimeoutException:
+        assert False
         pass
 
     submit_button_xpath = (
