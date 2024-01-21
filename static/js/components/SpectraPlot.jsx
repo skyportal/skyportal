@@ -33,7 +33,7 @@ const useStyles = makeStyles(() => ({
     gridTemplateColumns: "repeat(auto-fit, minmax(5rem, auto))",
     gap: "0.5rem",
     width: "100%",
-    paddingTop: "0.5rem",
+    padding: "0.5rem 1rem 0 1rem",
   },
   gridItemLines: {
     display: "flex",
@@ -49,7 +49,7 @@ const useStyles = makeStyles(() => ({
     rowGap: "0.5rem",
     columnGap: "2rem",
     width: "100%",
-    paddingTop: "1rem",
+    padding: "1rem 1rem 0 1rem",
   },
   gridItem: {
     display: "flex",

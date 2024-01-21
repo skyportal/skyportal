@@ -6,27 +6,20 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import makeStyles from "@mui/styles/makeStyles";
+import Paper from "@mui/material/Paper";
 
 import { GET } from "../API";
 
 const useStyles = makeStyles(() => ({
-  starListDiv: {
-    padding: "1rem",
-    margin: "1rem",
-    lineHeight: "0.8rem",
-    position: "relative",
-    minHeight: "7rem",
-    minWidth: "15rem",
-    maxWidth: "100%",
-  },
   starList: {
     fontSize: "0.75rem",
   },
   codeText: {
     overflow: "scroll",
   },
-  dropDown: {
-    margin: "1.5rem",
+  paper: {
+    marginTop: "0.5rem",
+    padding: "0 0.5rem 0 0.5rem",
   },
 }));
 
@@ -38,34 +31,37 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
   };
 
   return (
-    <div className={classes.starListDiv}>
-      <div className={classes.dropDown}>
+    <div style={{ width: "100%" }}>
+      <div>
         <InputLabel id="StarListSelect">Facility</InputLabel>
         <Select
           labelId="StarListSelect"
           value={facility}
           onChange={handleChange}
           name="StarListSelectElement"
+          size="small"
         >
           <MenuItem value="Keck">Keck</MenuItem>
           <MenuItem value="P200">P200</MenuItem>
           <MenuItem value="Shane">Shane</MenuItem>
         </Select>
       </div>
-      <code className={classes.starList}>
-        <div className={classes.codeText}>
-          <pre>
-            {starList &&
-              starList.map((item, idx) => (
-                // eslint-disable-next-line react/no-array-index-key
-                <React.Fragment key={idx}>
-                  {item.str}
-                  <br />
-                </React.Fragment>
-              ))}
-          </pre>
-        </div>
-      </code>
+      <Paper variant="outlined" className={classes.paper}>
+        <code className={classes.starList}>
+          <div className={classes.codeText}>
+            <pre>
+              {starList &&
+                starList.map((item, idx) => (
+                  // eslint-disable-next-line react/no-array-index-key
+                  <React.Fragment key={idx}>
+                    {item.str}
+                    <br />
+                  </React.Fragment>
+                ))}
+            </pre>
+          </div>
+        </code>
+      </Paper>
     </div>
   );
 };

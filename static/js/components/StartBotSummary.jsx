@@ -34,7 +34,7 @@ const useStyles = makeStyles(() => ({
     margin: "1rem",
   },
   editIcon: {
-    height: "0.75rem",
+    height: "1rem",
     cursor: "pointer",
   },
   chips: {

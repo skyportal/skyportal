@@ -6,11 +6,12 @@ import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
-import ButtonGroup from "@mui/material/ButtonGroup";
-import Tooltip from "@mui/material/Tooltip";
-import { useTheme } from "@mui/material/styles";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 
 import makeStyles from "@mui/styles/makeStyles";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import Button from "./Button";
 
 import { ra_to_hours, dec_to_dms } from "../units";
@@ -22,22 +23,22 @@ import SourceQuickView from "./SourceQuickView";
 const useStyles = makeStyles((theme) => ({
   header: {},
   timespanSelect: {
-    display: "flex",
-    width: "100%",
-    justifyContent: "center",
-    marginBottom: "0.5rem",
-    "& .MuiButton-label": {
-      color: theme.palette.text.secondary,
-    },
-    "& .MuiButtonGroup-root": {
-      flexWrap: "wrap",
+    display: "inline",
+    "& > button": {
+      height: "1.5rem",
+      fontSize: "0.75rem",
+      marginTop: "-0.2rem",
     },
   },
+  timespanMenuItem: {
+    fontWeight: "bold",
+    fontSize: "0.75rem",
+    height: "1.5rem",
+    padding: "0.25rem 0.5rem",
+  },
   sourceListContainer: {
-    height: "calc(100% - 5rem)",
+    height: "calc(100% - 2.5rem)",
     overflowY: "auto",
-    marginTop: "0.625rem",
-    paddingTop: "0.625rem",
   },
   sourceInfo: {
     display: "flex",
@@ -94,13 +95,6 @@ const useStyles = makeStyles((theme) => ({
     display: "none",
   },
 }));
-
-const getStyles = (timespan, currentTimespan, theme) => ({
-  fontWeight:
-    timespan?.label === currentTimespan?.label
-      ? theme.typography.fontWeightBold
-      : theme.typography.fontWeightMedium,
-});
 
 const timespans = [
   { label: "DAY", sinceDaysAgo: "1", tooltip: "Past 24 hours" },
@@ -290,6 +284,7 @@ TopSourcesList.defaultProps = {
 
 const TopSources = ({ classes }) => {
   const styles = useStyles();
+  const dispatch = useDispatch();
 
   const invertThumbnails = useSelector(
     (state) => state.profile.preferences.invertThumbnails,
@@ -310,12 +305,13 @@ const TopSources = ({ classes }) => {
       (timespan) => timespan.sinceDaysAgo === topSourcesPrefs.sinceDaysAgo,
     ),
   );
-  const theme = useTheme();
-  const dispatch = useDispatch();
 
-  const switchTimespan = (event) => {
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const open = Boolean(anchorEl);
+
+  const switchTimespan = (selectedTimespan) => {
     const newTimespan = timespans.find(
-      (timespan) => timespan.label === event.target.innerText,
+      (timespan) => timespan.label === selectedTimespan.label,
     );
     setCurrentTimespan(newTimespan);
     topSourcesPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
@@ -329,9 +325,49 @@ const TopSources = ({ classes }) => {
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <div className={styles.header}>
-          <Typography variant="h6" display="inline">
+          <Typography
+            variant="h6"
+            display="inline"
+            style={{ marginRight: "0.5rem" }}
+          >
             Top Sources
           </Typography>
+          <div className={styles.timespanSelect}>
+            <Button
+              variant="contained"
+              aria-controls={open ? "basic-menu" : undefined}
+              aria-haspopup="true"
+              aria-expanded={open ? "true" : undefined}
+              onClick={(e) => setAnchorEl(e.currentTarget)}
+              size="small"
+              endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            >
+              {currentTimespan.label}
+            </Button>
+            <Menu
+              transitionDuration={50}
+              id="finding-chart-menu"
+              anchorEl={anchorEl}
+              open={open}
+              onClose={() => setAnchorEl(null)}
+              MenuListProps={{
+                "aria-labelledby": "basic-button",
+              }}
+            >
+              {timespans.map((timespan) => (
+                <MenuItem
+                  className={styles.timespanMenuItem}
+                  key={timespan.label}
+                  onClick={() => {
+                    switchTimespan(timespan);
+                    setAnchorEl(null);
+                  }}
+                >
+                  {timespan.label}
+                </MenuItem>
+              ))}
+            </Menu>
+          </div>
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <div className={classes.widgetIcon}>
             <WidgetPrefsDialog
@@ -342,27 +378,6 @@ const TopSources = ({ classes }) => {
               onSubmit={profileActions.updateUserPreferences}
             />
           </div>
-        </div>
-        <div className={styles.timespanSelect}>
-          <ButtonGroup
-            size="small"
-            variant="text"
-            aria-label="topSourcesTimespanSelect"
-          >
-            {timespans.map((timespan) => (
-              <Tooltip key={timespan.label} title={timespan.tooltip}>
-                <div>
-                  <Button
-                    onClick={switchTimespan}
-                    style={getStyles(timespan, currentTimespan, theme)}
-                    data-testid={`topSources_${timespan.sinceDaysAgo}days`}
-                  >
-                    {timespan.label}
-                  </Button>
-                </div>
-              </Tooltip>
-            ))}
-          </ButtonGroup>
         </div>
         <TopSourcesList sources={sourceViews} styles={sourceListStyles} />
       </div>

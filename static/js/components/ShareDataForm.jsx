@@ -35,7 +35,7 @@ import withRouter from "./withRouter";
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
-import { useSourceStyles } from "./SourceDesktop";
+import { useSourceStyles } from "./Source";
 import { deleteSpectrum } from "../ducks/spectra";
 
 import SpectraPlot from "./SpectraPlot";

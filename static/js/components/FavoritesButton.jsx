@@ -72,6 +72,7 @@ const ButtonExclude = (sourceID, textMode) => {
         data-testid={`favorites-exclude_${sourceID}`}
         disabled={isSubmitting}
         size="large"
+        style={{ margin: 0, padding: 0 }}
       >
         <StarBorderIcon />
       </IconButton>

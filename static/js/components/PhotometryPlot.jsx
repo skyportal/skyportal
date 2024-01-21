@@ -39,7 +39,7 @@ const useStyles = makeStyles(() => ({
     rowGap: "0.5rem",
     columnGap: "2rem",
     width: "100%",
-    paddingTop: "0.5rem",
+    padding: "0.5rem 1rem 0 1rem",
   },
   gridItem: {
     display: "flex",
@@ -1036,7 +1036,9 @@ const PhotometryPlot = ({
       </div>
       <div className={classes.gridContainer}>
         <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
-          <Typography id="photometry-show-hide">Non-Detections</Typography>
+          <Typography id="photometry-show-hide" noWrap>
+            Non-Detections
+          </Typography>
           <div className={classes.switchContainer}>
             <Switch
               checked={showNonDetections}
@@ -1046,7 +1048,9 @@ const PhotometryPlot = ({
           </div>
         </div>
         <div className={classes.gridItem} style={{ gridColumn: "span 2" }}>
-          <Typography id="input-slider">Marker Size</Typography>
+          <Typography id="input-slider" noWrap>
+            Marker Size
+          </Typography>
           <div className={classes.sliderContainer}>
             <Slider
               value={markerSize}

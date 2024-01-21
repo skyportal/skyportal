@@ -20,6 +20,7 @@ from .source import MAX_NUM_DAYS_USING_LOCALIZATION
 from skyportal.utils.tns import TNS_INSTRUMENT_IDS
 
 from .photometry import BANDPASSES_COLORS
+from .summary_query import USE_PINECONE
 
 from skyportal.models import cosmo
 
@@ -107,5 +108,6 @@ class ConfigHandler(BaseHandler):
                 "gcnTagsClasses": cfg["colors.gcnTags"],
                 "colorPalette": cmap,
                 "bandpassesColors": BANDPASSES_COLORS,
+                "usePinecone": USE_PINECONE,
             }
         )
