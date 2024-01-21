@@ -291,7 +291,7 @@ const SourceContent = ({ source }) => {
               Auto-annotations
             </Typography>
           </AccordionSummary>
-          <AccordionDetails style={{ padding: 0 }}>
+          <AccordionDetails style={{ padding: 0, minHeight: "52vh" }}>
             <AnnotationsTable
               annotations={source.annotations}
               spectrumAnnotations={spectrumAnnotations}
