@@ -91,19 +91,39 @@ const CentroidPlot = React.lazy(
 );
 
 export const useSourceStyles = makeStyles((theme) => ({
-  panelButton: {
-    backgroundColor: theme.palette.primary.main,
-    color: theme.palette.primary.contrastText,
-    "&:hover": {
-      color: theme.palette.primary.main,
-    },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    columnGap: "0.25rem",
+    marginBottom: "0.25rem",
   },
-  chip: {
-    margin: 0,
-  },
-  accordionPlot: {
+  name: {
+    lineHeight: "1em",
+    fontSize: "200%",
+    fontWeight: "900",
+    color:
+      theme.palette.mode === "dark"
+        ? theme.palette.secondary.main
+        : theme.palette.primary.main,
+    display: "inline-block",
     padding: 0,
     margin: 0,
+  },
+  noSpace: { padding: 0, margin: 0 },
+  dropdownText: { textDecoration: "none", color: "black" },
+  noWrapMargin: {
+    marginRight: "0.5rem",
+    textWrap: "nowrap",
+  },
+  flexRow: {
+    display: "flex",
+    flexDirection: "row",
+    width: "100%",
+  },
+  flexColumn: {
+    display: "flex",
+    flexDirection: "column",
     width: "100%",
   },
   accordionSummary: {
@@ -118,11 +138,10 @@ export const useSourceStyles = makeStyles((theme) => ({
     fontSize: "1.25rem",
     fontWeight: theme.typography.fontWeightRegular,
   },
-  plotContainer: {
+  accordionPlot: {
     padding: 0,
-    minWidth: "100%",
-    height: "100%",
-    paddingBottom: "0.75rem",
+    margin: 0,
+    width: "100%",
   },
   buttonContainer: {
     display: "flex",
@@ -131,48 +150,37 @@ export const useSourceStyles = makeStyles((theme) => ({
     gap: "0.5rem",
     padding: "0.5rem 1rem 1rem 1rem",
   },
-  name: {
-    lineHeight: "1em",
-    fontSize: "200%",
-    fontWeight: "900",
-    color:
-      theme.palette.mode === "dark"
-        ? theme.palette.secondary.main
-        : theme.palette.primary.main,
-    display: "inline-block",
+  plotContainer: {
     padding: 0,
-    margin: 0,
+    minWidth: "100%",
+    height: "100%",
+    paddingBottom: "0.75rem",
   },
   smallPlot: {
     width: "350px",
     overflow: "auto",
   },
+  panelButton: {
+    backgroundColor: theme.palette.primary.main,
+    color: theme.palette.primary.contrastText,
+    "&:hover": {
+      color: theme.palette.primary.main,
+    },
+  },
+  thumbnailGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    gap: "1rem",
+  },
   comments: {
     width: "100%",
   },
-  classifications: {
-    display: "flex",
-    flexDirection: "column",
-    width: "100%",
-  },
   hr_diagram: {},
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    columnGap: "0.25rem",
-    marginBottom: "0.25rem",
-  },
   container: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     gap: "0.25rem",
-  },
-  followupContainer: {
-    display: "flex",
-    overflow: "hidden",
-    flexDirection: "column",
   },
   sourceInfo: {
     display: "flex",
@@ -269,7 +277,11 @@ const SourceContent = ({ source }) => {
   const rightPanelContent = () => (
     <>
       <Grid item xs={12} order={{ xs: 5, lg: 1 }}>
-        <Accordion defaultExpanded={!isMobile} disableGutters>
+        <Accordion
+          defaultExpanded={!isMobile}
+          disableGutters
+          className={classes.flexColumn}
+        >
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="annotations-content"
@@ -293,7 +305,7 @@ const SourceContent = ({ source }) => {
       <Grid item xs={12} order={{ xs: 3, lg: 2 }}>
         <Accordion
           defaultExpanded
-          className={classes.comments}
+          className={classes.flexColumn}
           data-testid="comments-accordion"
         >
           <AccordionSummary
@@ -316,7 +328,7 @@ const SourceContent = ({ source }) => {
         <Accordion
           defaultExpanded
           disableGutters
-          className={classes.classifications}
+          className={classes.flexColumn}
         >
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
@@ -340,7 +352,11 @@ const SourceContent = ({ source }) => {
         </Accordion>
       </Grid>
       <Grid item xs={12} order={{ xs: 13, lg: 4 }}>
-        <Accordion defaultExpanded disableGutters>
+        <Accordion
+          defaultExpanded
+          disableGutters
+          className={classes.flexColumn}
+        >
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="analysis-content"
@@ -398,7 +414,11 @@ const SourceContent = ({ source }) => {
         ) : null}
       </Grid>
       <Grid item xs={12} order={{ xs: 8, lg: 6 }}>
-        <Accordion defaultExpanded disableGutters>
+        <Accordion
+          defaultExpanded
+          disableGutters
+          className={classes.flexColumn}
+        >
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="centroidplot-content"
@@ -426,7 +446,11 @@ const SourceContent = ({ source }) => {
         </Accordion>
       </Grid>
       <Grid item xs={12} order={{ xs: 15, lg: 7 }}>
-        <Accordion defaultExpanded disableGutters>
+        <Accordion
+          defaultExpanded
+          disableGutters
+          className={classes.flexColumn}
+        >
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="notifications-content"
@@ -526,10 +550,10 @@ const SourceContent = ({ source }) => {
               </div>
             </div>
             <div
+              className={classes.flexRow}
               style={{
                 flexBasis: "100%",
-                display: "flex",
-                flexFlow: "row wrap",
+                flexFlow: "wrap",
                 alignItems: "baseline",
               }}
             >
@@ -565,11 +589,10 @@ const SourceContent = ({ source }) => {
               </div>
             </div>
             <div
+              className={classes.flexRow}
               style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "baseline",
                 justifyContent: "flex-start",
+                alignItems: "baseline",
                 flexFlow: "wrap",
                 columnGap: "1rem",
               }}
@@ -631,20 +654,20 @@ const SourceContent = ({ source }) => {
             {source.host && (
               <div className={classes.infoLine}>
                 <div className={classes.sourceInfo}>
-                  <b style={{ marginRight: "0.5rem", textWrap: "nowrap" }}>
+                  <b className={classes.noWrapMargin}>
                     {`Host galaxy: ${source.host.name}`}
                   </b>
-                  <b style={{ marginRight: "0.5rem", textWrap: "nowrap" }}>
+                  <b className={classes.noWrapMargin}>
                     {`Offset: ${source.host_offset.toFixed(3)} [arcsec]`}
                   </b>
-                  <b style={{ marginRight: "0.5rem", textWrap: "nowrap" }}>
+                  <b className={classes.noWrapMargin}>
                     {`Distance: ${source.host_distance.toFixed(1)} [kpc]`}
                   </b>
                   <IconButton
                     size="small"
                     name="removeHostGalaxyButton"
                     onClick={() => removeHost()}
-                    style={{ padding: 0, margin: 0 }}
+                    className={classes.noSpace}
                   >
                     <RemoveIcon style={{ fontSize: "1rem" }} />
                   </IconButton>
@@ -662,11 +685,10 @@ const SourceContent = ({ source }) => {
                     <font color="#457b9d">Possible host galaxies:</font>
                   </b>
                   <div
+                    className={classes.flexRow}
                     style={{
-                      display: "flex",
-                      flexDirection: "row",
-                      flexFlow: "wrap",
                       alignItems: "center",
+                      flexFlow: "wrap",
                       columnGap: "0.25rem",
                     }}
                   >
@@ -676,7 +698,7 @@ const SourceContent = ({ source }) => {
                           <div key={galaxyName}>
                             <Button
                               size="small"
-                              style={{ padding: 0, margin: 0 }}
+                              className={classes.noSpace}
                               onClick={() => setHost(galaxyName)}
                             >
                               {galaxyName}
@@ -693,11 +715,10 @@ const SourceContent = ({ source }) => {
                   <font color="#457b9d">Possible duplicate of:</font>
                 </b>
                 <div
+                  className={classes.flexRow}
                   style={{
-                    display: "flex",
-                    flexDirection: "row",
-                    flexFlow: "wrap",
                     alignItems: "center",
+                    flexFlow: "wrap",
                     columnGap: "0.25rem",
                   }}
                 >
@@ -707,9 +728,9 @@ const SourceContent = ({ source }) => {
                         to={`/source/${dupID}`}
                         role="link"
                         key={dupID}
-                        style={{ padding: 0, margin: 0 }}
+                        className={classes.noSpace}
                       >
-                        <Button size="small" style={{ padding: 0, margin: 0 }}>
+                        <Button size="small" className={classes.noSpace}>
                           {dupID}
                         </Button>
                       </Link>
@@ -717,7 +738,7 @@ const SourceContent = ({ source }) => {
                         size="small"
                         name={`copySourceButton${dupID}`}
                         onClick={() => setCopyPhotometryDialogOpen(true)}
-                        style={{ padding: 0, margin: 0 }}
+                        className={classes.noSpace}
                       >
                         <AddIcon style={{ fontSize: "1rem" }} />
                       </IconButton>
@@ -764,7 +785,7 @@ const SourceContent = ({ source }) => {
                     <a
                       href={`/api/sources/${source.id}/finder`}
                       download="finder-chart-pdf"
-                      style={{ textDecoration: "none", color: "black" }}
+                      className={classes.dropdownText}
                     >
                       PDF
                     </a>
@@ -773,7 +794,7 @@ const SourceContent = ({ source }) => {
                     <Link
                       to={`/source/${source.id}/finder`}
                       role="link"
-                      style={{ textDecoration: "none", color: "black" }}
+                      className={classes.dropdownText}
                       target="_blank"
                     >
                       Interactive
@@ -816,7 +837,7 @@ const SourceContent = ({ source }) => {
                       href={`/api/sources/${source.id}/observability`}
                       download={`observabilityChartRequest-${source.id}`}
                       data-testid={`observabilityChartRequest_${source.id}`}
-                      style={{ textDecoration: "none", color: "black" }}
+                      className={classes.dropdownText}
                     >
                       PDF
                     </a>
@@ -825,7 +846,7 @@ const SourceContent = ({ source }) => {
                     <Link
                       to={`/observability/${source.id}`}
                       role="link"
-                      style={{ textDecoration: "none", color: "black" }}
+                      className={classes.dropdownText}
                       target="_blank"
                     >
                       Interactive
@@ -863,9 +884,8 @@ const SourceContent = ({ source }) => {
               </div>
             </div>
             <Paper
+              className={classes.flexColumn}
               style={{
-                display: "flex",
-                flexDirection: "column",
                 marginTop: "0.5rem",
                 padding: noSummary
                   ? "0.5rem 0 0.5rem 0.5rem"
@@ -876,19 +896,18 @@ const SourceContent = ({ source }) => {
             >
               <ShowSummaries summaries={source.summary_history} />
               <div
+                className={classes.flexRow}
                 style={{
-                  display: "flex",
-                  flexDirection: "row",
                   justifyContent: noSummary ? "space-between" : "flex-end",
                   alignItems: "center",
                   maxHeight: "1rem",
+                  width: "100%",
                 }}
               >
                 {noSummary ? (
                   <p
+                    className={classes.noSpace}
                     style={{
-                      margin: 0,
-                      padding: 0,
                       fontSize: "0.75rem",
                       color: "grey",
                       marginRight: "0.25rem",
@@ -899,11 +918,8 @@ const SourceContent = ({ source }) => {
                   </p>
                 ) : null}
                 <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
+                  className={classes.flexRow}
+                  style={{ alignItems: "center", width: "auto" }}
                 >
                   <UpdateSourceSummary source={source} />
                   {source.comments?.length > 0 ||
@@ -920,23 +936,22 @@ const SourceContent = ({ source }) => {
               </div>
             </Paper>
             <div
+              className={classes.flexRow}
               style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
                 justifyContent: "flex-start",
+                alignItems: "center",
                 flexFlow: "wrap",
                 gap: "0.5rem",
                 paddingTop: "0.25rem",
               }}
             >
               <div
+                className={classes.flexRow}
                 style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  flexFlow: "wrap",
                   alignItems: "center",
+                  flexFlow: "wrap",
                   gap: "0.25rem",
+                  width: "auto",
                 }}
               >
                 {source.groups?.map((group) => (
@@ -951,18 +966,15 @@ const SourceContent = ({ source }) => {
                           : group.name.substring(0, 15)
                       }
                       size="small"
-                      className={classes.chip}
+                      className={classes.noSpace}
                       data-testid={`groupChip_${group.id}`}
                     />
                   </Tooltip>
                 ))}
               </div>
               <div
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                }}
+                className={classes.flexRow}
+                style={{ alignItems: "center", width: "auto" }}
               >
                 <EditSourceGroups
                   source={{
@@ -989,18 +1001,16 @@ const SourceContent = ({ source }) => {
         <Grid item xs={12} order={{ xs: 2, lg: 2 }}>
           <Paper>
             <div
+              className={classes.flexRow}
               style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
                 justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
               <Typography
                 variant="h6"
                 style={{
-                  paddingLeft: "0.5rem",
-                  paddingTop: "0.5rem",
+                  padding: "0.5rem 0 0 0.5rem",
                   fontWeight: "normal",
                 }}
               >
@@ -1017,11 +1027,10 @@ const SourceContent = ({ source }) => {
             </div>
             <div style={{ paddingLeft: "0.5rem", paddingRight: "0.5rem" }}>
               <div
+                className={classes.flexRow}
                 style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
                   justifyContent: "flex-start",
+                  alignItems: "center",
                   gap: "0.5rem",
                   overflowX: "auto",
                   maxWidth: "100%",
@@ -1044,13 +1053,7 @@ const SourceContent = ({ source }) => {
             >
               <DialogTitle>Thumbnails</DialogTitle>
               <DialogContent>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr",
-                    gap: "1rem",
-                  }}
-                >
+                <div className={classes.thumbnailGrid}>
                   <ThumbnailList
                     ra={source.ra}
                     dec={source.dec}
@@ -1068,8 +1071,7 @@ const SourceContent = ({ source }) => {
             <Typography
               variant="h6"
               style={{
-                paddingLeft: "0.5rem",
-                paddingTop: "0.5rem",
+                padding: "0.5rem 0 0 0.5rem",
                 fontWeight: "normal",
               }}
             >
@@ -1081,7 +1083,11 @@ const SourceContent = ({ source }) => {
           </Paper>
         </Grid>
         <Grid item xs={12} order={{ xs: 6, lg: 4 }}>
-          <Accordion defaultExpanded disableGutters>
+          <Accordion
+            defaultExpanded
+            disableGutters
+            className={classes.flexColumn}
+          >
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               aria-controls="photometry-content"
@@ -1090,8 +1096,8 @@ const SourceContent = ({ source }) => {
               style={{ justifyContent: "space-between" }}
             >
               <div
+                className={classes.flexRow}
                 style={{
-                  display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
                   gap: "0.5rem",
@@ -1182,7 +1188,11 @@ const SourceContent = ({ source }) => {
           </Accordion>
         </Grid>
         <Grid item xs={12} order={{ xs: 7, lg: 5 }}>
-          <Accordion defaultExpanded disableGutters>
+          <Accordion
+            defaultExpanded
+            disableGutters
+            className={classes.flexColumn}
+          >
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               aria-controls="spectroscopy-content"
@@ -1235,7 +1245,11 @@ const SourceContent = ({ source }) => {
           </Accordion>
         </Grid>
         <Grid item xs={12} order={{ xs: 9, lg: 6 }}>
-          <Accordion defaultExpanded disableGutters>
+          <Accordion
+            defaultExpanded
+            disableGutters
+            className={classes.flexColumn}
+          >
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               aria-controls="followup-content"
@@ -1246,7 +1260,10 @@ const SourceContent = ({ source }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <div className={classes.followupContainer}>
+              <div
+                className={classes.flexColumn}
+                style={{ overflow: "hidden" }}
+              >
                 <FollowupRequestForm
                   obj_id={source.id}
                   action="createNew"
@@ -1275,7 +1292,10 @@ const SourceContent = ({ source }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <div className={classes.followupContainer}>
+              <div
+                className={classes.flexColumn}
+                style={{ overflow: "hidden" }}
+              >
                 <FollowupRequestForm
                   obj_id={source.id}
                   action="createNew"
@@ -1295,7 +1315,11 @@ const SourceContent = ({ source }) => {
           </Accordion>
         </Grid>
         <Grid item xs={12} order={{ xs: 11, lg: 8 }}>
-          <Accordion defaultExpanded disableGutters>
+          <Accordion
+            defaultExpanded
+            disableGutters
+            className={classes.flexColumn}
+          >
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               aria-controls="followup-content"
@@ -1306,7 +1330,10 @@ const SourceContent = ({ source }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <div className={classes.followupContainer}>
+              <div
+                className={classes.flexColumn}
+                style={{ overflow: "hidden" }}
+              >
                 <AssignmentForm
                   obj_id={source.id}
                   observingRunList={observingRunList}
