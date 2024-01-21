@@ -37,7 +37,8 @@ const ButtonInclude = (sourceID, textMode) => {
         onClick={handleSubmit}
         data-testid={`favorites-include_${sourceID}`}
         disabled={isSubmitting}
-        size="large"
+        size="small"
+        style={{ margin: 0, padding: 0 }}
       >
         <StarIcon />
       </IconButton>
@@ -71,7 +72,7 @@ const ButtonExclude = (sourceID, textMode) => {
         onClick={handleSubmit}
         data-testid={`favorites-exclude_${sourceID}`}
         disabled={isSubmitting}
-        size="large"
+        size="small"
         style={{ margin: 0, padding: 0 }}
       >
         <StarBorderIcon />

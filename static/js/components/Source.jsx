@@ -26,7 +26,8 @@ import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
 import { useMediaQuery } from "@mui/material";
-import Button from "./Button";
+import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
+import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import withRouter from "./withRouter";
 
@@ -70,6 +71,7 @@ import TNSATForm from "./TNSATForm";
 import Reminders from "./Reminders";
 import QuickSaveButton from "./QuickSaveSource";
 import Spinner from "./Spinner";
+import Button from "./Button";
 
 import SourcePlugins from "./SourcePlugins";
 
@@ -89,6 +91,13 @@ const CentroidPlot = React.lazy(
 );
 
 export const useSourceStyles = makeStyles((theme) => ({
+  panelButton: {
+    backgroundColor: theme.palette.primary.main,
+    color: theme.palette.primary.contrastText,
+    "&:hover": {
+      color: theme.palette.primary.main,
+    },
+  },
   chip: {
     margin: 0,
   },
@@ -123,6 +132,7 @@ export const useSourceStyles = makeStyles((theme) => ({
     padding: "0.5rem 1rem 1rem 1rem",
   },
   name: {
+    lineHeight: "1em",
     fontSize: "200%",
     fontWeight: "900",
     color:
@@ -130,6 +140,8 @@ export const useSourceStyles = makeStyles((theme) => ({
         ? theme.palette.secondary.main
         : theme.palette.primary.main,
     display: "inline-block",
+    padding: 0,
+    margin: 0,
   },
   smallPlot: {
     width: "350px",
@@ -148,7 +160,8 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: "0.5rem",
+    columnGap: "0.25rem",
+    marginBottom: "0.25rem",
   },
   container: {
     display: "flex",
@@ -446,50 +459,30 @@ const SourceContent = ({ source }) => {
       >
         <Grid item xs={12} order={{ xs: 1, lg: 1 }}>
           <Paper style={{ padding: "0.5rem" }}>
-            <div className={classes.header} style={{ maxHeight: "2rem" }}>
-              <div className={classes.container}>
-                <div>
-                  <FavoritesButton sourceID={source.id} />
-                </div>
-                <div className={classes.name}>{source.id}</div>
-                <div className={classes.rowInfo}>
-                  {source.tns_name && (
-                    <div key="tns_name">
-                      <a
-                        key={source.tns_name}
-                        href={`https://www.wis-tns.org/object/${
-                          source.tns_name.trim().includes(" ")
-                            ? source.tns_name.split(" ")[1]
-                            : source.tns_name
-                        }`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {`(${source.tns_name})`}
-                      </a>
-                    </div>
-                  )}
-                  {source.tns_info && (
-                    <DisplayTNSInfo
-                      tns_info={source.tns_info}
-                      display_header={false}
-                    />
-                  )}
-                  <UpdateSourceTNS source={source} />
-                </div>
+            <div className={classes.container}>
+              <div className={classes.header}>
+                <FavoritesButton sourceID={source.id} />
+                <h6 className={classes.name}>{source.id}</h6>
               </div>
               {!isSmall && (
                 <div className={classes.container}>
-                  <Button
-                    secondary
-                    onClick={() => setRightPanelVisible(!rightPanelVisible)}
-                    data-testid={`${
-                      rightPanelVisible ? "hide" : "show"
-                    }-right-panel-button`}
-                    size="small"
-                  >
-                    {rightPanelVisible ? "Hide" : "Show"} Right Panel
-                  </Button>
+                  <Tooltip title="Show/hide right panel">
+                    <IconButton
+                      onClick={() => setRightPanelVisible(!rightPanelVisible)}
+                      data-testid={`${
+                        rightPanelVisible ? "hide" : "show"
+                      }-right-panel-button`}
+                      size="small"
+                      variant="contained"
+                      className={classes.panelButton}
+                    >
+                      {rightPanelVisible ? (
+                        <KeyboardArrowLeftIcon />
+                      ) : (
+                        <KeyboardArrowRightIcon />
+                      )}
+                    </IconButton>
+                  </Tooltip>
                 </div>
               )}
             </div>
@@ -582,6 +575,30 @@ const SourceContent = ({ source }) => {
               }}
             >
               <div className={classes.rowInfo}>
+                <b>TNS Name: &nbsp;</b>
+                {source.tns_name && (
+                  <a
+                    key={source.tns_name}
+                    href={`https://www.wis-tns.org/object/${
+                      source.tns_name.trim().includes(" ")
+                        ? source.tns_name.split(" ")[1]
+                        : source.tns_name
+                    }`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {`${source.tns_name}`}
+                  </a>
+                )}
+                {source.tns_info && (
+                  <DisplayTNSInfo
+                    tns_info={source.tns_info}
+                    display_header={false}
+                  />
+                )}
+                <UpdateSourceTNS source={source} />
+              </div>
+              <div className={classes.rowInfo}>
                 <b>MPC Name: &nbsp;</b>
                 <div key="mpc_name"> {source.mpc_name} </div>
                 <UpdateSourceMPC source={source} />
@@ -650,7 +667,7 @@ const SourceContent = ({ source }) => {
                       flexDirection: "row",
                       flexFlow: "wrap",
                       alignItems: "center",
-                      gap: "0.25rem",
+                      columnGap: "0.25rem",
                     }}
                   >
                     {source.galaxies.map(
@@ -681,7 +698,7 @@ const SourceContent = ({ source }) => {
                     flexDirection: "row",
                     flexFlow: "wrap",
                     alignItems: "center",
-                    gap: "0.25rem",
+                    columnGap: "0.25rem",
                   }}
                 >
                   {source.duplicates.map((dupID) => (

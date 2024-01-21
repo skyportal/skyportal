@@ -146,7 +146,7 @@ const SidebarAndHeader = () => {
   const [temporaryOpen, setTemporaryOpen] = React.useState(false);
 
   let timer = 0;
-  const TIMEOUT = 250;
+  const TIMEOUT = 500;
 
   function mouseEnter() {
     if (!temporaryOpen && !open && !isSmall) {
@@ -187,6 +187,7 @@ const SidebarAndHeader = () => {
   const drawerType = (temporaryOpen || isSmall) ? "temporary" : "permanent";
 
   const hydrateIfDashboardClicked = (url) => {
+    clearTimeout(timer);
     if (url === "/") {
       dispatch(hydrate(true));
     }
