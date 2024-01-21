@@ -3,7 +3,7 @@ import pytest
 # Adding a comment here to make flake8 and black play nicely together (spacing below)
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_quick_search(
     driver,
     super_admin_user,
