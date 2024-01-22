@@ -1,16 +1,20 @@
 import pytest
+from selenium.common.exceptions import TimeoutException
 
 
 def remove_notification(driver):
     notification_xpath = '//*[contains(@data-testid, "notification-")]'
-    while True:
+    n_retries = 0  # we enforce a max, just to not have a runaway loop
+    while n_retries < 5:
         try:
-            driver.wait_for_xpath(notification_xpath, timeout=3)
-            driver.click_xpath(notification_xpath)
+            driver.click_xpath(notification_xpath, timeout=3)
             driver.wait_for_xpath_to_disappear(notification_xpath, timeout=3)
-        except Exception:
-            driver.wait_for_xpath_to_disappear(notification_xpath, timeout=3)
-            break
+        except TimeoutException:
+            try:
+                driver.wait_for_xpath_to_disappear(notification_xpath, timeout=3)
+                break
+            except TimeoutException:
+                pass
 
 
 @pytest.mark.flaky(reruns=3)
