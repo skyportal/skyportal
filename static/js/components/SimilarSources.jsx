@@ -46,31 +46,48 @@ const SimilarSources = ({ source, min_score = 0.9, k = 3 }) => {
   return (
     <>
       {simSourceList?.length < 1 ? null : (
-        <div>
+        <div
+          style={{
+            display: "flex",
+            flexFlow: "row wrap",
+            alignItems: "center",
+          }}
+        >
           <Tooltip
             title={`Highest AI summary similarity scores s>${min_score}`}
           >
-            <b>Similar Sources: &nbsp;</b>
+            <b style={{ textWrap: "nowrap", marginRight: "0.5rem" }}>
+              Similar Sources:
+            </b>
           </Tooltip>
-          {simSourceList.map((item) => {
-            let theTitle = `s=${item.score?.toFixed(3)}`;
-            if (item.metadata?.redshift) {
-              theTitle += ` z=${item.metadata?.redshift?.toFixed(3)}`;
-            }
-            if (item.metadata?.class) {
-              theTitle += ` ${item.metadata?.class}`;
-            }
-            return (
-              <span key={item.id}>
-                <Tooltip title={theTitle}>
-                  <Link to={`/source/${item.id}`} role="link" key={item.id}>
-                    {item.id}
-                  </Link>
-                </Tooltip>
-                &nbsp;&nbsp;
-              </span>
-            );
-          })}
+          <div
+            style={{
+              display: "flex",
+              flexFlow: "row wrap",
+              alignItems: "center",
+              columnGap: "0.25rem",
+            }}
+          >
+            {simSourceList.map((item) => {
+              let theTitle = `s=${item.score?.toFixed(3)}`;
+              if (item.metadata?.redshift) {
+                theTitle += ` z=${item.metadata?.redshift?.toFixed(3)}`;
+              }
+              if (item.metadata?.class) {
+                theTitle += ` ${item.metadata?.class}`;
+              }
+              return (
+                <div key={item.id}>
+                  <Tooltip title={theTitle}>
+                    <Link to={`/source/${item.id}`} role="link" key={item.id}>
+                      {item.id}
+                    </Link>
+                  </Tooltip>
+                  &nbsp;&nbsp;
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </>

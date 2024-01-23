@@ -7,6 +7,9 @@ import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import makeStyles from "@mui/styles/makeStyles";
 import Paper from "@mui/material/Paper";
+import IconButton from "@mui/material/IconButton";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import Tooltip from "@mui/material/Tooltip";
 
 import { GET } from "../API";
 
@@ -31,20 +34,46 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
   };
 
   return (
-    <div style={{ width: "100%" }}>
-      <div>
-        <InputLabel id="StarListSelect">Facility</InputLabel>
-        <Select
-          labelId="StarListSelect"
-          value={facility}
-          onChange={handleChange}
-          name="StarListSelectElement"
-          size="small"
-        >
-          <MenuItem value="Keck">Keck</MenuItem>
-          <MenuItem value="P200">P200</MenuItem>
-          <MenuItem value="Shane">Shane</MenuItem>
-        </Select>
+    <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <InputLabel id="StarListSelect">Facility</InputLabel>
+          <Select
+            labelId="StarListSelect"
+            value={facility}
+            onChange={handleChange}
+            name="StarListSelectElement"
+            size="small"
+          >
+            <MenuItem value="Keck">Keck</MenuItem>
+            <MenuItem value="P200">P200</MenuItem>
+            <MenuItem value="Shane">Shane</MenuItem>
+          </Select>
+        </div>
+        {starList &&
+          starList?.length > 0 &&
+          starList[0].str !== "Loading starlist..." && (
+            <Tooltip title="Copy to clipboard">
+              <span>
+                <IconButton
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      starList.map((item) => item.str).join("\n"),
+                    );
+                  }}
+                >
+                  <ContentCopyIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
       </div>
       <Paper variant="outlined" className={classes.paper}>
         <code className={classes.starList}>

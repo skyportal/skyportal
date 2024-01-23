@@ -681,12 +681,13 @@ const SourceContent = ({ source }) => {
                 (source?.galaxies || []).includes(source.host?.name)
               ) && (
                 <div className={classes.sourceInfo}>
-                  <b style={{ marginRight: "0.5rem" }}>
+                  <b className={classes.noWrapMargin}>
                     <font color="#457b9d">Possible host galaxies:</font>
                   </b>
                   <div
                     className={classes.flexRow}
                     style={{
+                      width: "auto",
                       alignItems: "center",
                       flexFlow: "wrap",
                       columnGap: "0.25rem",
@@ -711,12 +712,13 @@ const SourceContent = ({ source }) => {
               )}
             {source.duplicates && (
               <div className={classes.sourceInfo}>
-                <b style={{ marginRight: "0.5rem" }}>
+                <b className={classes.noWrapMargin}>
                   <font color="#457b9d">Possible duplicate of:</font>
                 </b>
                 <div
                   className={classes.flexRow}
                   style={{
+                    width: "auto",
                     alignItems: "center",
                     flexFlow: "wrap",
                     columnGap: "0.25rem",
@@ -754,9 +756,7 @@ const SourceContent = ({ source }) => {
               </div>
             )}
             {source.summary_history?.length > 0 ? (
-              <div className={classes.sourceInfo}>
-                <SimilarSources source={source} min_score={0.9} k={3} />
-              </div>
+              <SimilarSources source={source} min_score={0.9} k={3} />
             ) : null}
             <SourcePlugins source={source} />
             <div className={classes.infoLine} style={{ marginTop: "0.25rem" }}>
@@ -911,7 +911,6 @@ const SourceContent = ({ source }) => {
                       fontSize: "0.75rem",
                       color: "grey",
                       marginRight: "0.25rem",
-                      marginTop: noSummary ? 0 : "-0.25rem",
                     }}
                   >
                     No summary yet.
@@ -919,7 +918,11 @@ const SourceContent = ({ source }) => {
                 ) : null}
                 <div
                   className={classes.flexRow}
-                  style={{ alignItems: "center", width: "auto" }}
+                  style={{
+                    alignItems: "center",
+                    width: "auto",
+                    marginTop: noSummary ? "0.25rem" : "-0.25rem",
+                  }}
                 >
                   <UpdateSourceSummary source={source} />
                   {source.comments?.length > 0 ||

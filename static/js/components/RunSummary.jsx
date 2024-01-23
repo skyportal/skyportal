@@ -18,6 +18,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import Paper from "@mui/material/Paper";
 
 import makeStyles from "@mui/styles/makeStyles";
 
@@ -467,7 +468,7 @@ const RunSummary = ({ route }) => {
         data={data}
         options={options}
       />
-      <Grid container className={styles.center}>
+      <Grid container spacing={1} style={{ marginTop: "0.5rem" }}>
         <Grid
           item
           xs={12}
@@ -477,10 +478,12 @@ const RunSummary = ({ route }) => {
           xl={8}
           className={styles.displayInlineBlock}
         >
-          <Typography gutterBottom align="center">
-            Starlist and Offsets
-          </Typography>
-          <ObservingRunStarList observingRunId={observingRun.id} />
+          <Paper style={{ padding: "0.5rem" }}>
+            <Typography gutterBottom align="center">
+              Starlist and Offsets
+            </Typography>
+            <ObservingRunStarList observingRunId={observingRun.id} />
+          </Paper>
         </Grid>
         <Grid
           item

@@ -20,6 +20,7 @@ import TableCell from "@mui/material/TableCell";
 import Papa from "papaparse";
 import ReactJson from "react-json-view";
 import CircularProgress from "@mui/material/CircularProgress";
+import Paper from "@mui/material/Paper";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
@@ -158,12 +159,11 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
       <TableCell colSpan={colSpan}>
         <Grid
           container
-          direction="row"
           justifyContent="center"
-          alignItems="center"
-          spacing={3}
+          alignItems="flex-start"
+          spacing={2}
         >
-          <Grid item className={styles.photometryContainer} sm={6}>
+          <Grid item className={styles.photometryContainer} sm={12}>
             <Suspense
               fallback={
                 <div>
@@ -181,26 +181,34 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
             data-testid={`individual-spectrum-id_${rowData[0]}`}
             sm={6}
           >
-            <Typography variant="h6">Comments</Typography>
-            <Suspense fallback={<CircularProgress />}>
-              <CommentList
-                associatedResourceType="spectra"
-                objID={route.id}
-                spectrumID={spectrumID}
-              />
-            </Suspense>
+            <Paper style={{ padding: "0.5rem" }}>
+              <Typography variant="h6">Comments</Typography>
+              <Suspense fallback={<CircularProgress />}>
+                <CommentList
+                  associatedResourceType="spectra"
+                  objID={route.id}
+                  spectrumID={spectrumID}
+                />
+              </Suspense>
+            </Paper>
           </Grid>
           <Grid item sm={6}>
-            <Typography variant="h6">Annotations</Typography>
-            <AnnotationsTable annotations={annotations} />
+            <Paper style={{ padding: "0.5rem" }}>
+              <Typography variant="h6">Annotations</Typography>
+              <AnnotationsTable annotations={annotations} />
+            </Paper>
           </Grid>
           <Grid item sm={6}>
-            <Typography variant="h6">TNS</Typography>
-            <TNSSpectraForm obj_id={route.id} spectrum_id={rowData[0]} />
+            <Paper style={{ padding: "0.5rem" }}>
+              <Typography variant="h6">TNS</Typography>
+              <TNSSpectraForm obj_id={route.id} spectrum_id={rowData[0]} />
+            </Paper>
           </Grid>
           <Grid item sm={6}>
-            <Typography variant="h6">Synthetic Photometry</Typography>
-            <SyntheticPhotometryForm spectrum_id={rowData[0]} />
+            <Paper style={{ padding: "0.5rem" }}>
+              <Typography variant="h6">Synthetic Photometry</Typography>
+              <SyntheticPhotometryForm spectrum_id={rowData[0]} />
+            </Paper>
           </Grid>
         </Grid>
       </TableCell>
