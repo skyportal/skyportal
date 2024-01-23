@@ -116,6 +116,31 @@ const AboutPlugins = () => {
       <div>
         If you found SkyPortal useful, please consider citing our work:
         <BibLink
+          bibtex={`@article{Coughlin_2023,
+  doi = {10.3847/1538-4365/acdee1},
+  url = {https://dx.doi.org/10.3847/1538-4365/acdee1},
+  year = {2023},
+  month = {jul},
+  publisher = {The American Astronomical Society},
+  volume = {267},
+  number = {2},
+  pages = {31},
+  author = {Michael W. Coughlin and Joshua S. Bloom and Guy Nir and Sarah Antier and Theophile Jegou du Laz and Stéfan van der Walt and Arien Crellin-Quick and Thomas Culino and Dmitry A. Duev and Daniel A. Goldstein and Brian F. Healy and Viraj Karambelkar and Jada Lilleboe and Kyung Min Shin and Leo P. Singer and Tomás Ahumada and Shreya Anand and Eric C. Bellm and Richard Dekany and Matthew J. Graham and Mansi M. Kasliwal and Ivona Kostadinova and R. Weizmann Kiendrebeogo and Shrinivas R. Kulkarni and Sydney Jenkins and Natalie LeBaron and Ashish A. Mahabal and James D. Neill and B. Parazin and Julien Peloton and Daniel A. Perley and Reed Riddle and Ben Rusholme and Jakob van Santen and Jesper Sollerman and Robert Stein and D. Turpin and Avery Wold and Carla Amat and Adrien Bonnefon and Adrien Bonnefoy and Manon Flament and Frank Kerkow and Sulekha Kishore and Shloke Jani and Stephen K. Mahanty and Céline Liu and Laura Llinares and Jolyane Makarison and Alix Olliéric and Inès Perez and Lydie Pont and Vyom Sharma},
+  title = {A Data Science Platform to Enable Time-domain Astronomy},
+  journal = {The Astrophysical Journal Supplement Series},
+  abstract = {SkyPortal is an open-source software package designed to discover interesting transients efficiently, manage follow-up, perform characterization, and visualize the results. By enabling fast access to archival and catalog data, crossmatching heterogeneous data streams, and the triggering and monitoring of on-demand observations for further characterization, a SkyPortal-based platform has been operating at scale for &gt;2 yr for the Zwicky Transient Facility Phase II community, with hundreds of users, containing tens of millions of time-domain sources, interacting with dozens of telescopes, and enabling community reporting. While SkyPortal emphasizes rich user experiences across common front-end workflows, recognizing that scientific inquiry is increasingly performed programmatically, SkyPortal also surfaces an extensive and well-documented application programming interface system. From back-end and front-end software to data science analysis tools and visualization frameworks, the SkyPortal design emphasizes the reuse and leveraging of best-in-class approaches, with a strong extensibility ethos. For instance, SkyPortal now leverages ChatGPT large language models to generate and surface source-level human-readable summaries automatically. With the imminent restart of the next generation of gravitational-wave detectors, SkyPortal now also includes dedicated multimessenger features addressing the requirements of rapid multimessenger follow-up: multitelescope management, team/group organizing interfaces, and crossmatching of multimessenger data streams with time-domain optical surveys, with interfaces sufficiently intuitive for newcomers to the field. This paper focuses on the detailed implementations, capabilities, and early science results that establish SkyPortal as a community software package ready to take on the data science challenges and opportunities presented by this next chapter in the multimessenger era.}
+}`}
+        >
+          Coughlin, Michael W., et al.,{" "}
+          <em>A Data Science Platform to Enable Time-domain Astronomy.</em>{" "}
+          Publications of the Astrophysical Journal Supplement Series, 267, 2,
+          Jul 2023.{" "}
+          <a href="https://doi.org/10.3847/1538-4365/acdee1">
+            https://doi.org/10.3847/1538-4365/acdee1
+          </a>
+          .
+        </BibLink>
+        <BibLink
           bibtex={`@article{skyportal2019,
   author = {St\\'efan J. van der Walt and Arien Crellin-Quick and Joshua S. Bloom},
   title = {{SkyPortal}: An Astronomical Data Platform},

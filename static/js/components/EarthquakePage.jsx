@@ -15,7 +15,7 @@ import GetAppIcon from "@mui/icons-material/GetApp";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
-import { useMediaQuery } from "@mui/material";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 // eslint-disable-next-line
 import GeoPropTypes from "geojson-prop-types";
