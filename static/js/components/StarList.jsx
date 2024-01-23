@@ -6,27 +6,23 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import makeStyles from "@mui/styles/makeStyles";
+import Paper from "@mui/material/Paper";
+import IconButton from "@mui/material/IconButton";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import Tooltip from "@mui/material/Tooltip";
 
 import { GET } from "../API";
 
 const useStyles = makeStyles(() => ({
-  starListDiv: {
-    padding: "1rem",
-    margin: "1rem",
-    lineHeight: "0.8rem",
-    position: "relative",
-    minHeight: "7rem",
-    minWidth: "15rem",
-    maxWidth: "100%",
-  },
   starList: {
     fontSize: "0.75rem",
   },
   codeText: {
     overflow: "scroll",
   },
-  dropDown: {
-    margin: "1.5rem",
+  paper: {
+    marginTop: "0.5rem",
+    padding: "0 0.5rem 0 0.5rem",
   },
 }));
 
@@ -38,34 +34,63 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
   };
 
   return (
-    <div className={classes.starListDiv}>
-      <div className={classes.dropDown}>
-        <InputLabel id="StarListSelect">Facility</InputLabel>
-        <Select
-          labelId="StarListSelect"
-          value={facility}
-          onChange={handleChange}
-          name="StarListSelectElement"
-        >
-          <MenuItem value="Keck">Keck</MenuItem>
-          <MenuItem value="P200">P200</MenuItem>
-          <MenuItem value="Shane">Shane</MenuItem>
-        </Select>
-      </div>
-      <code className={classes.starList}>
-        <div className={classes.codeText}>
-          <pre>
-            {starList &&
-              starList.map((item, idx) => (
-                // eslint-disable-next-line react/no-array-index-key
-                <React.Fragment key={idx}>
-                  {item.str}
-                  <br />
-                </React.Fragment>
-              ))}
-          </pre>
+    <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <InputLabel id="StarListSelect">Facility</InputLabel>
+          <Select
+            labelId="StarListSelect"
+            value={facility}
+            onChange={handleChange}
+            name="StarListSelectElement"
+            size="small"
+          >
+            <MenuItem value="Keck">Keck</MenuItem>
+            <MenuItem value="P200">P200</MenuItem>
+            <MenuItem value="Shane">Shane</MenuItem>
+          </Select>
         </div>
-      </code>
+        {starList &&
+          starList?.length > 0 &&
+          starList[0].str !== "Loading starlist..." && (
+            <Tooltip title="Copy to clipboard">
+              <span>
+                <IconButton
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      starList.map((item) => item.str).join("\n"),
+                    );
+                  }}
+                >
+                  <ContentCopyIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
+      </div>
+      <Paper variant="outlined" className={classes.paper}>
+        <code className={classes.starList}>
+          <div className={classes.codeText}>
+            <pre>
+              {starList &&
+                starList.map((item, idx) => (
+                  // eslint-disable-next-line react/no-array-index-key
+                  <React.Fragment key={idx}>
+                    {item.str}
+                    <br />
+                  </React.Fragment>
+                ))}
+            </pre>
+          </div>
+        </code>
+      </Paper>
     </div>
   );
 };

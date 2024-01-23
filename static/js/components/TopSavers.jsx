@@ -5,9 +5,6 @@ import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
-import ButtonGroup from "@mui/material/ButtonGroup";
-import Tooltip from "@mui/material/Tooltip";
-import { useTheme } from "@mui/material/styles";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Divider from "@mui/material/Divider";
@@ -15,6 +12,10 @@ import TextField from "@mui/material/TextField";
 import SearchIcon from "@mui/icons-material/Search";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import InputAdornment from "@mui/material/InputAdornment";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 
 import makeStyles from "@mui/styles/makeStyles";
 import Button from "./Button";
@@ -23,22 +24,24 @@ import UserAvatar from "./UserAvatar";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   header: {},
   timespanSelect: {
-    display: "flex",
-    width: "100%",
-    justifyContent: "center",
-    marginBottom: "0.5rem",
-    "& .MuiButton-label": {
-      color: theme.palette.text.secondary,
-    },
-    "& .MuiButtonGroup-root": {
-      flexWrap: "wrap",
+    display: "inline",
+    "& > button": {
+      height: "1.5rem",
+      fontSize: "0.75rem",
+      marginTop: "-0.2rem",
     },
   },
+  timespanMenuItem: {
+    fontWeight: "bold",
+    fontSize: "0.75rem",
+    height: "1.5rem",
+    padding: "0.25rem 0.5rem",
+  },
   saverListContainer: {
-    height: "calc(100% - 5rem)",
+    height: "calc(100% - 2.5rem)",
     overflowY: "auto",
     marginTop: 0,
     paddingTop: 0,
@@ -57,13 +60,6 @@ const useStyles = makeStyles((theme) => ({
     gap: "0.5rem",
   },
 }));
-
-const getStyles = (timespan, currentTimespan, theme) => ({
-  fontWeight:
-    timespan?.label === currentTimespan?.label
-      ? theme.typography.fontWeightBold
-      : theme.typography.fontWeightMedium,
-});
 
 const timespans = [
   { label: "DAY", sinceDaysAgo: "1", tooltip: "Past 24 hours" },
@@ -268,6 +264,7 @@ TopSaversList.defaultProps = {
 };
 
 const TopSavers = ({ classes }) => {
+  const dispatch = useDispatch();
   const styles = useStyles();
   const { savers } = useSelector((state) => state.topSavers);
 
@@ -277,7 +274,9 @@ const TopSavers = ({ classes }) => {
   if (!Object.keys(topSaversPrefs).includes("maxNumSavers")) {
     topSaversPrefs.maxNumSavers = defaultPrefs.maxNumSavers;
   }
-
+  if (!Object.keys(topSaversPrefs).includes("sinceDaysAgo")) {
+    topSaversPrefs.sinceDaysAgo = defaultPrefs.sinceDaysAgo;
+  }
   if (!Object.keys(topSaversPrefs).includes("candidatesOnly")) {
     topSaversPrefs.candidatesOnly = defaultPrefs.candidatesOnly;
   }
@@ -287,12 +286,13 @@ const TopSavers = ({ classes }) => {
       (timespan) => timespan.sinceDaysAgo === topSaversPrefs.sinceDaysAgo,
     ),
   );
-  const theme = useTheme();
-  const dispatch = useDispatch();
 
-  const switchTimespan = (event) => {
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const open = Boolean(anchorEl);
+
+  const switchTimespan = (selectedTimespan) => {
     const newTimespan = timespans.find(
-      (timespan) => timespan.label === event.target.innerText,
+      (timespan) => timespan.label === selectedTimespan.label,
     );
     setCurrentTimespan(newTimespan);
     topSaversPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
@@ -306,9 +306,53 @@ const TopSavers = ({ classes }) => {
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <div className={styles.header}>
-          <Typography variant="h6" display="inline">
+          <Typography
+            variant="h6"
+            display="inline"
+            style={{ marginRight: "0.5rem" }}
+          >
             {topSaversPrefs.candidatesOnly ? "Top Scanners" : "Top Savers"}
           </Typography>
+          {currentTimespan && (
+            <div className={styles.timespanSelect}>
+              <Button
+                variant="contained"
+                aria-controls={open ? "basic-menu" : undefined}
+                aria-haspopup="true"
+                aria-expanded={open ? "true" : undefined}
+                onClick={(e) => setAnchorEl(e.currentTarget)}
+                size="small"
+                endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                data-testid="topSavers_timespanButton"
+              >
+                {currentTimespan.label}
+              </Button>
+              <Menu
+                transitionDuration={50}
+                id="finding-chart-menu"
+                anchorEl={anchorEl}
+                open={open}
+                onClose={() => setAnchorEl(null)}
+                MenuListProps={{
+                  "aria-labelledby": "basic-button",
+                }}
+              >
+                {timespans.map((timespan) => (
+                  <MenuItem
+                    className={styles.timespanMenuItem}
+                    key={timespan.label}
+                    data-testid={`topSavers_${timespan.sinceDaysAgo}days`}
+                    onClick={() => {
+                      switchTimespan(timespan);
+                      setAnchorEl(null);
+                    }}
+                  >
+                    {timespan.label}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </div>
+          )}
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <div className={classes.widgetIcon}>
             <WidgetPrefsDialog
@@ -321,27 +365,6 @@ const TopSavers = ({ classes }) => {
               onSubmit={profileActions.updateUserPreferences}
             />
           </div>
-        </div>
-        <div className={styles.timespanSelect}>
-          <ButtonGroup
-            size="small"
-            variant="text"
-            aria-label="topSaversTimespanSelect"
-          >
-            {timespans.map((timespan) => (
-              <Tooltip key={timespan.label} title={timespan.tooltip}>
-                <div>
-                  <Button
-                    onClick={switchTimespan}
-                    style={getStyles(timespan, currentTimespan, theme)}
-                    data-testid={`topSavers_${timespan.sinceDaysAgo}days`}
-                  >
-                    {timespan.label}
-                  </Button>
-                </div>
-              </Tooltip>
-            ))}
-          </ButtonGroup>
         </div>
         <TopSaversList savers={savers} styles={styles} />
       </div>

@@ -42,7 +42,7 @@ def test_mention_generates_notification_then_mark_read_and_delete(
 
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
 
     comment_text = f"@{user.username}"
     add_comment_and_wait_for_display(driver, comment_text)

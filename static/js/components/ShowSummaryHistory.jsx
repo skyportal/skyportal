@@ -22,7 +22,7 @@ const useStyles = makeStyles(() => ({
     margin: "1rem",
   },
   historyIcon: {
-    height: "0.75rem",
+    height: "1rem",
     cursor: "pointer",
   },
   infoButton: {
@@ -53,14 +53,16 @@ const ShowSummaryHistory = ({ obj_id, summaries = [] }) => {
   return (
     <>
       <Tooltip title="Show history of object summaries">
-        <HistoryIcon
-          data-testid="summaryHistoryIconButton"
-          fontSize="small"
-          className={classes.historyIcon}
-          onClick={() => {
-            setDialogOpen(true);
-          }}
-        />
+        <span>
+          <HistoryIcon
+            data-testid="summaryHistoryIconButton"
+            fontSize="small"
+            className={classes.historyIcon}
+            onClick={() => {
+              setDialogOpen(true);
+            }}
+          />
+        </span>
       </Tooltip>
       <Dialog
         open={dialogOpen}

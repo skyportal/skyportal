@@ -17,8 +17,7 @@ import Collapse from '@mui/material/Collapse';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import Divider from "@mui/material/Divider";
-import Tooltip from "@mui/material/Tooltip";
-import { useMediaQuery } from "@mui/material";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 {% for group in app.sidebar -%}
   {% if not group.name.startswith('main') and group.icon %}
@@ -144,6 +143,29 @@ const SidebarAndHeader = () => {
     {% endif %}
   {%- endfor %}
 
+  const [temporaryOpen, setTemporaryOpen] = React.useState(false);
+
+  let timer = 0;
+  const TIMEOUT = 500;
+
+  function mouseEnter() {
+    if (!temporaryOpen && !open && !isSmall) {
+      timer = setTimeout(() => {
+        setTemporaryOpen(true);
+      }, TIMEOUT);
+    }
+  }
+
+  function mouseLeave() {
+    setTemporaryOpen(false);
+    clearTimeout(timer);
+    {% for group in app.sidebar -%}
+      {% if not group.name.startswith('main') %}
+        set{{ group.name }}Open(false);
+      {% endif %}
+    {%- endfor %}
+  }
+
   const handleToggleSidebarOpen = () => {
     if (open) {
       {% for group in app.sidebar -%}
@@ -158,12 +180,14 @@ const SidebarAndHeader = () => {
   useEffect(() => {
     if (isSmall && open) {
       dispatch(Actions.setSidebar(false));
+      setTemporaryOpen(false);
     }
   }, [isSmall, dispatch]);
 
-  const drawerType = isSmall ? "temporary" : "permanent";
+  const drawerType = (temporaryOpen || isSmall) ? "temporary" : "permanent";
 
   const hydrateIfDashboardClicked = (url) => {
+    clearTimeout(timer);
     if (url === "/") {
       dispatch(hydrate(true));
     }
@@ -183,32 +207,30 @@ const SidebarAndHeader = () => {
     {% else %}
     <Link to="{{ item.url }}" onClick={() => hydrateIfDashboardClicked("{{ item.url }}")} className={classes.link}>
     {%- endif %}
-      <Tooltip title="{{ item.name }}" placement="right" enterDelay={250}>
-        <ListItem name="sidebar{{ item.name }}Button" disablePadding sx={{ "{{ display: 'block' }}" }}>
-          <ListItemButton
-              sx={{"{{
-                minHeight: 48,
-                justifyContent: open ? 'initial' : 'center',
-                px: 2.5,
-              }}"}}
+      <ListItem name="sidebar{{ item.name }}Button" disablePadding sx={{ "{{ display: 'block' }}" }}>
+        <ListItemButton
+            sx={{"{{
+              minHeight: 48,
+              justifyContent: (open || temporaryOpen) ? 'initial' : 'center',
+              px: 2.5,
+            }}"}}
+          >
+            <ListItemIcon
+              sx={{ "{{
+                minWidth: 0,
+                mr: (open || temporaryOpen) ? 2 : 'auto',
+                justifyContent: 'center',
+              }}" }}
             >
-              <ListItemIcon
-                sx={{ "{{
-                  minWidth: 0,
-                  mr: open ? 2 : 'auto',
-                  justifyContent: 'center',
-                }}" }}
-              >
-                <{{ item.icon }}Icon className={classes.icon} />
-              </ListItemIcon>
-              <SidebarLinkText
-                route="{{ item.url }}"
-                title="{{ item.name }}"
-                open={open}
-              />
-          </ListItemButton>
-        </ListItem>
-      </Tooltip>
+              <{{ item.icon }}Icon className={classes.icon} />
+            </ListItemIcon>
+            <SidebarLinkText
+              route="{{ item.url }}"
+              title="{{ item.name }}"
+              open={open || temporaryOpen}
+            />
+        </ListItemButton>
+      </ListItem>
     {% if item.url.startswith('http') -%}
     </a>
     {% else %}
@@ -229,12 +251,11 @@ const SidebarAndHeader = () => {
       false) && (
     {% endif %}
     <>
-    <Tooltip title="{{ group.name }}" placement="right" enterDelay={250}>
       <ListItem name="sidebar{{ group.name }}Button" disablePadding sx={{ "{{ display: 'block' }}"}} className={classes.link}>
         <ListItemButton
             sx={{"{{
               minHeight: 48,
-              justifyContent: open ? 'initial' : 'center',
+              justifyContent: (open || temporaryOpen) ? 'initial' : 'center',
               px: 2.5,
             }}"}}
             onClick={() => set{{ group.name }}Open(!{{ group.name }}Open)}
@@ -242,28 +263,27 @@ const SidebarAndHeader = () => {
             <ListItemIcon
               sx={{ "{{
                 minWidth: 0,
-                mr: open ? 2 : 'auto',
+                mr: (open || temporaryOpen) ? 2 : 'auto',
                 justifyContent: 'center',
               }}" }}
             >
-              {(!open && {{ group.name }}Open) ? <ExpandLess /> : <{{ group.icon }}Icon className={classes.icon} />}
+              {(!(open || temporaryOpen) && {{ group.name }}Open) ? <ExpandLess /> : <{{ group.icon }}Icon className={classes.icon} />}
             </ListItemIcon>
             <SidebarLinkText
               title="{{ group.name }}"
-              open={open}
+              open={open || temporaryOpen}
             />
-              {(open && {{ group.name }}Open) ? <ExpandLess /> : null}
-              {(!{{ group.name }}Open && open) ? <ExpandMore /> : null}
+              {((open || temporaryOpen) && {{ group.name }}Open) ? <ExpandLess /> : null}
+              {(!{{ group.name }}Open && (open || temporaryOpen)) ? <ExpandMore /> : null}
         </ListItemButton>
       </ListItem>
-    </Tooltip>
-    <Collapse in={ {{group.name }}Open} timeout="auto" unmountOnExit>
-      <Divider />
-      <List component="div" disablePadding>
-        {{ add_items_to_menu(group) }}
-      </List>
-      <Divider />
-    </Collapse>
+      <Collapse in={ {{group.name }}Open} timeout="auto" unmountOnExit>
+        <Divider />
+        <List component="div" disablePadding>
+          {{ add_items_to_menu(group) }}
+        </List>
+        <Divider />
+      </Collapse>
     </>
     {% if group.permissions %}
     )}
@@ -292,9 +312,10 @@ const SidebarAndHeader = () => {
         className={classes.drawer}
         variant={drawerType}
         anchor="left"
-        open={open}
+        open={open || temporaryOpen}
         onClose={isSmall ? handleToggleSidebarOpen : undefined}
         classes={{ "{{ paper: classes.drawerPaper }}" }}
+        PaperProps={{ "{{ onMouseEnter: mouseEnter, onMouseLeave: mouseLeave }}" }}
       >
         {!isSmall && <div className={classes.drawerHeader} />}
         <List>

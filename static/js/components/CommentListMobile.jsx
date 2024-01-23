@@ -35,15 +35,11 @@ dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
   container: {
-    height: "90%",
-  },
-  commentsList: {
-    marginTop: "1rem",
-    padding: "0.25rem",
+    height: "100%",
   },
   dialogButton: {
     textAlign: "center",
-    margin: "1.5rem",
+    margin: "0.5rem",
   },
   comment: {
     fontSize: "90%",
@@ -326,7 +322,7 @@ const CommentListMobile = ({
 
   return (
     <div className={styles.container}>
-      <div className={styles.commentsList}>
+      <div>
         {comments
           ?.slice(0, 3)
           ?.map(

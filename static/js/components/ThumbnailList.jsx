@@ -189,7 +189,7 @@ const ThumbnailList = ({
 
   if (useGrid) {
     return (
-      <Grid container direction="row" spacing={3}>
+      <Grid container direction="row" spacing={1}>
         {latestThumbnails?.map((t) => (
           <Grid item key={t.id}>
             <Thumbnail

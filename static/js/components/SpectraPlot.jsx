@@ -33,7 +33,7 @@ const useStyles = makeStyles(() => ({
     gridTemplateColumns: "repeat(auto-fit, minmax(5rem, auto))",
     gap: "0.5rem",
     width: "100%",
-    paddingTop: "0.5rem",
+    padding: "0.5rem 1rem 0 1rem",
   },
   gridItemLines: {
     display: "flex",
@@ -49,7 +49,7 @@ const useStyles = makeStyles(() => ({
     rowGap: "0.5rem",
     columnGap: "2rem",
     width: "100%",
-    paddingTop: "1rem",
+    padding: "1rem 1rem 0 1rem",
   },
   gridItem: {
     display: "flex",
@@ -459,7 +459,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     );
 
   return (
-    <div style={{ width: "100%", height: "100%" }}>
+    <div style={{ width: "100%", height: "100%" }} id="spectroscopy-plot">
       {types?.length > 0 && (
         <Tabs
           value={tabIndex}

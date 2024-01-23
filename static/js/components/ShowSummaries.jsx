@@ -3,7 +3,6 @@ import ReactMarkdown from "react-markdown";
 
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
-import Paper from "@mui/material/Paper";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -29,6 +28,12 @@ export const useStyles = makeStyles((theme) => ({
     width: "100%",
     padding: "0 5px",
   },
+  compactText: {
+    "& p": {
+      padding: 0,
+      margin: 0,
+    },
+  },
 }));
 
 const ShowSummaries = ({ summaries = [] }) => {
@@ -46,17 +51,18 @@ const ShowSummaries = ({ summaries = [] }) => {
     );
 
   return (
-    <Paper elevation={1}>
-      <div className={styles.compactContainer}>
-        <Tooltip title="Latest Summary" placement="right-start">
-          <div className={styles.compactWrap}>
-            <ReactMarkdown components={{ text: emojiSupport }}>
-              {renderCommentText()}
-            </ReactMarkdown>
-          </div>
-        </Tooltip>
-      </div>
-    </Paper>
+    <div className={styles.compactContainer}>
+      <Tooltip title="Latest Summary" placement="right-start">
+        <div className={styles.compactWrap}>
+          <ReactMarkdown
+            components={{ text: emojiSupport }}
+            className={styles.compactText}
+          >
+            {renderCommentText()}
+          </ReactMarkdown>
+        </div>
+      </Tooltip>
+    </div>
   );
 };
 

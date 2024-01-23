@@ -38,9 +38,7 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "column",
     overflowY: "scroll",
-    paddingTop: "0.3125rem",
     paddingLeft: "0.3125rem",
-    marginTop: "0.625rem",
     backgroundColor: theme.palette.background.default,
   },
   entry: {
@@ -222,7 +220,14 @@ const NewsFeed = ({ classes }) => {
             />
           </div>
         </div>
-        <div className={styles.newsFeed} style={{ height: "85%" }}>
+        <div
+          className={styles.newsFeed}
+          style={{
+            height: "calc(100% - 2.5rem)",
+            overflowY: "auto",
+            paddingTop: "0.1rem",
+          }}
+        >
           {items?.map((item) => (
             <NewsFeedItem
               key={`${item.author}-${item.source_id}-${item.time}`}
