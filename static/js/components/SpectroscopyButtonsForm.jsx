@@ -51,8 +51,6 @@ const SpectroscopyButtonsForm = () => {
   } = useForm();
   const [selectedColor, setSelectedColor] = useState([]);
 
-  console.log(spectroscopyButtons);
-
   const onColorSelectChange = (event) => {
     setSelectedColor(
       event.target.value.includes("Clear selections") ? [] : event.target.value,

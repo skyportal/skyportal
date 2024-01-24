@@ -17,7 +17,6 @@ import { log10, abs, ceil } from "mathjs";
 import CircularProgress from "@mui/material/CircularProgress";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
-import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -167,7 +166,7 @@ export const useSourceStyles = makeStyles((theme) => ({
       color: theme.palette.primary.main,
     },
   },
-  thumbnailGrid: {
+  thumbnailGridDialog: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr 1fr",
     gap: "1rem",
@@ -208,6 +207,74 @@ export const useSourceStyles = makeStyles((theme) => ({
   },
 }));
 
+const SourcePageThumbnails = ({
+  ra,
+  dec,
+  thumbnails,
+  rightPanelVisible,
+  downSm,
+  downLg,
+}) => {
+  if (!rightPanelVisible && !downLg) {
+    return (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
+          gap: "0.5rem",
+          gridAutoFlow: "row",
+        }}
+      >
+        <ThumbnailList
+          ra={ra}
+          dec={dec}
+          thumbnails={thumbnails}
+          size="100%"
+          minSize="10rem"
+          maxSize="20rem"
+          useGrid={false}
+          noMargin
+        />
+      </div>
+    );
+  }
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr 1fr",
+        gap: "0.5rem",
+        gridAutoFlow: "row",
+        alignItems: "center",
+        maxWidth: "fit-content",
+      }}
+    >
+      <ThumbnailList
+        ra={ra}
+        dec={dec}
+        thumbnails={thumbnails}
+        size="100%"
+        minSize="6rem"
+        maxSize="13rem"
+        titleSize={
+          !downSm || (rightPanelVisible && !downLg) ? "0.8rem" : "0.55em"
+        }
+        useGrid={false}
+        noMargin
+      />
+    </div>
+  );
+};
+
+SourcePageThumbnails.propTypes = {
+  ra: PropTypes.number.isRequired,
+  dec: PropTypes.number.isRequired,
+  thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired, // eslint-disable-line react/forbid-prop-types
+  rightPanelVisible: PropTypes.bool.isRequired,
+  downSm: PropTypes.bool.isRequired,
+  downLg: PropTypes.bool.isRequired,
+};
+
 const SourceContent = ({ source }) => {
   const dispatch = useDispatch();
   const classes = useSourceStyles();
@@ -231,15 +298,22 @@ const SourceContent = ({ source }) => {
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
     useState(false);
   const [tnsDialogOpen, setTNSDialogOpen] = useState(false);
-  const [thumbnailDialogOpen, setThumbnailDialogOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const open = Boolean(anchorEl);
+
+  const [anchorElFindingChart, setAnchorElFindingChart] = React.useState(null);
+  const [anchorElObservability, setAnchorElObservability] =
+    React.useState(null);
+  const openFindingChart = Boolean(anchorElFindingChart);
+  const openObservability = Boolean(anchorElObservability);
+
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
 
-  const isMobile = useMediaQuery((theme) => theme.breakpoints.down("md"));
-  const isSmall = useMediaQuery((theme) => theme.breakpoints.down("lg"));
+  const downSm = useMediaQuery((theme) => theme.breakpoints.down("sm"));
+  const downMd = useMediaQuery((theme) => theme.breakpoints.down("md"));
+  const downLg = useMediaQuery((theme) => theme.breakpoints.down("lg"));
+
+  const [hovering, setHovering] = useState(null);
 
   const spectrumAnnotations = [];
   if (spectra) {
@@ -258,7 +332,26 @@ const SourceContent = ({ source }) => {
   const noSummary =
     source.summary_history?.length < 1 ||
     !source.summary_history ||
-    source.summary_history[0].summary === null;
+    source.summary_history.filter(
+      (summary) => summary.summary !== null && summary.summary.trim() !== "",
+    )?.length < 1;
+
+  const noHumanSummary =
+    source.summary_history?.length < 1 ||
+    !source.summary_history ||
+    source.summary_history[0].summary === null ||
+    source.summary_history[0].summary === "" ||
+    source.summary_history.filter(
+      (summary) =>
+        summary.summary !== null &&
+        summary.summary.trim() !== "" &&
+        summary.is_bot === false,
+    )?.length < 1;
+
+  const radec_hhmmss = `${ra_to_hours(source.ra, ":")} ${dec_to_dms(
+    source.dec,
+    ":",
+  )}`;
 
   useEffect(() => {
     dispatch(photometryActions.fetchSourcePhotometry(source.id));
@@ -274,11 +367,24 @@ const SourceContent = ({ source }) => {
     dispatch(sourceActions.removeHost(source.id));
   };
 
+  const handleHover = (type) => {
+    if (hovering !== type) {
+      setHovering(type);
+    }
+  };
+
+  const handleStopHover = (type) => {
+    // here we only trigger if we stopped hovering the currently hovered item
+    if (hovering === type) {
+      setHovering(null);
+    }
+  };
+
   const rightPanelContent = () => (
     <>
       <Grid item xs={12} order={{ xs: 5, lg: 1 }}>
         <Accordion
-          defaultExpanded={!isMobile}
+          defaultExpanded={!downMd}
           disableGutters
           className={classes.flexColumn}
         >
@@ -319,7 +425,7 @@ const SourceContent = ({ source }) => {
           </AccordionSummary>
           <AccordionDetails>
             <Suspense fallback={<CircularProgress />}>
-              {isMobile ? <CommentListMobile /> : <CommentList />}
+              {downMd ? <CommentListMobile /> : <CommentList />}
             </Suspense>
           </AccordionDetails>
         </Accordion>
@@ -478,8 +584,8 @@ const SourceContent = ({ source }) => {
         item
         spacing={1.5}
         xs={12}
-        lg={rightPanelVisible && !isSmall ? 7 : 12}
-        style={{ display: isSmall ? "flex" : "block" }}
+        lg={rightPanelVisible && !downLg ? 7 : 12}
+        style={{ display: downLg ? "flex" : "block" }}
       >
         <Grid item xs={12} order={{ xs: 1, lg: 1 }}>
           <Paper style={{ padding: "0.5rem" }}>
@@ -488,25 +594,23 @@ const SourceContent = ({ source }) => {
                 <FavoritesButton sourceID={source.id} />
                 <h6 className={classes.name}>{source.id}</h6>
               </div>
-              {!isSmall && (
+              {!downLg && (
                 <div className={classes.container}>
-                  <Tooltip title="Show/hide right panel">
-                    <IconButton
-                      onClick={() => setRightPanelVisible(!rightPanelVisible)}
-                      data-testid={`${
-                        rightPanelVisible ? "hide" : "show"
-                      }-right-panel-button`}
-                      size="small"
-                      variant="contained"
-                      className={classes.panelButton}
-                    >
-                      {rightPanelVisible ? (
-                        <KeyboardArrowLeftIcon />
-                      ) : (
-                        <KeyboardArrowRightIcon />
-                      )}
-                    </IconButton>
-                  </Tooltip>
+                  <IconButton
+                    onClick={() => setRightPanelVisible(!rightPanelVisible)}
+                    data-testid={`${
+                      rightPanelVisible ? "hide" : "show"
+                    }-right-panel-button`}
+                    size="small"
+                    variant="contained"
+                    className={classes.panelButton}
+                  >
+                    {rightPanelVisible ? (
+                      <KeyboardArrowRightIcon />
+                    ) : (
+                      <KeyboardArrowLeftIcon />
+                    )}
+                  </IconButton>
                 </div>
               )}
             </div>
@@ -525,11 +629,10 @@ const SourceContent = ({ source }) => {
                 <span
                   style={{
                     fontWeight: "bold",
-                    fontSize: isMobile ? "1rem" : "110%",
+                    fontSize: downMd ? "1rem" : "110%",
                   }}
                 >
-                  {ra_to_hours(source.ra, ":")} &nbsp;
-                  {dec_to_dms(source.dec, ":")}
+                  {radec_hhmmss}
                 </span>
               </div>
               <div className={classes.sourceInfo}>
@@ -597,7 +700,11 @@ const SourceContent = ({ source }) => {
                 columnGap: "1rem",
               }}
             >
-              <div className={classes.rowInfo}>
+              <div
+                className={classes.rowInfo}
+                onMouseEnter={() => handleHover("tns")}
+                onMouseLeave={() => handleStopHover("tns")}
+              >
                 <b>TNS Name: &nbsp;</b>
                 {source.tns_name && (
                   <a
@@ -619,14 +726,22 @@ const SourceContent = ({ source }) => {
                     display_header={false}
                   />
                 )}
-                <UpdateSourceTNS source={source} />
+                {hovering === "tns" && <UpdateSourceTNS source={source} />}
               </div>
-              <div className={classes.rowInfo}>
+              <div
+                className={classes.rowInfo}
+                onMouseEnter={() => handleHover("mpc")}
+                onMouseLeave={() => handleStopHover("mpc")}
+              >
                 <b>MPC Name: &nbsp;</b>
                 <div key="mpc_name"> {source.mpc_name} </div>
-                <UpdateSourceMPC source={source} />
+                {hovering === "mpc" && <UpdateSourceMPC source={source} />}
               </div>
-              <div className={classes.rowInfo}>
+              <div
+                className={classes.rowInfo}
+                onMouseEnter={() => handleHover("gcn")}
+                onMouseLeave={() => handleStopHover("gcn")}
+              >
                 <b>GCN Crossmatches: &nbsp;</b>
                 {source.gcn_crossmatch?.length > 0 && (
                   <SourceGCNCrossmatchList
@@ -642,7 +757,9 @@ const SourceContent = ({ source }) => {
                     }
                   />
                 )}
-                <UpdateSourceGCNCrossmatch source={source} />
+                {hovering === "gcn" && (
+                  <UpdateSourceGCNCrossmatch source={source} />
+                )}
               </div>
               {source.alias ? (
                 <div className={classes.rowInfo}>
@@ -755,17 +872,18 @@ const SourceContent = ({ source }) => {
                 </div>
               </div>
             )}
-            {source.summary_history?.length > 0 ? (
+            {source.summary_history?.length > 0 &&
+            currentUser?.preferences?.showSimilarSources === true ? (
               <SimilarSources source={source} min_score={0.9} k={3} />
             ) : null}
-            <SourcePlugins source={source} />
             <div className={classes.infoLine} style={{ marginTop: "0.25rem" }}>
+              <SourcePlugins source={source} />
               <div className={classes.infoButton}>
                 <Button
-                  aria-controls={open ? "basic-menu" : undefined}
+                  aria-controls={openFindingChart ? "basic-menu" : undefined}
                   aria-haspopup="true"
-                  aria-expanded={open ? "true" : undefined}
-                  onClick={(e) => setAnchorEl(e.currentTarget)}
+                  aria-expanded={openFindingChart ? "true" : undefined}
+                  onClick={(e) => setAnchorElFindingChart(e.currentTarget)}
                   secondary
                   size="small"
                 >
@@ -774,14 +892,14 @@ const SourceContent = ({ source }) => {
                 <Menu
                   transitionDuration={50}
                   id="finding-chart-menu"
-                  anchorEl={anchorEl}
-                  open={open}
-                  onClose={() => setAnchorEl(null)}
+                  anchorEl={anchorElFindingChart}
+                  open={openFindingChart}
+                  onClose={() => setAnchorElFindingChart(null)}
                   MenuListProps={{
                     "aria-labelledby": "basic-button",
                   }}
                 >
-                  <MenuItem onClick={() => setAnchorEl(null)}>
+                  <MenuItem onClick={() => setAnchorElFindingChart(null)}>
                     <a
                       href={`/api/sources/${source.id}/finder`}
                       download="finder-chart-pdf"
@@ -790,7 +908,7 @@ const SourceContent = ({ source }) => {
                       PDF
                     </a>
                   </MenuItem>
-                  <MenuItem onClick={() => setAnchorEl(null)}>
+                  <MenuItem onClick={() => setAnchorElFindingChart(null)}>
                     <Link
                       to={`/source/${source.id}/finder`}
                       role="link"
@@ -813,10 +931,10 @@ const SourceContent = ({ source }) => {
               </div>
               <div className={classes.infoButton}>
                 <Button
-                  aria-controls={open ? "basic-menu" : undefined}
+                  aria-controls={openObservability ? "basic-menu" : undefined}
                   aria-haspopup="true"
-                  aria-expanded={open ? "true" : undefined}
-                  onClick={(e) => setAnchorEl(e.currentTarget)}
+                  aria-expanded={openObservability ? "true" : undefined}
+                  onClick={(e) => setAnchorElObservability(e.currentTarget)}
                   secondary
                   size="small"
                 >
@@ -825,14 +943,14 @@ const SourceContent = ({ source }) => {
                 <Menu
                   transitionDuration={50}
                   id="observability-chart-menu"
-                  anchorEl={anchorEl}
-                  open={open}
-                  onClose={() => setAnchorEl(null)}
+                  anchorEl={anchorElObservability}
+                  open={openObservability}
+                  onClose={() => setAnchorElObservability(null)}
                   MenuListProps={{
                     "aria-labelledby": "basic-button",
                   }}
                 >
-                  <MenuItem onClick={() => setAnchorEl(null)}>
+                  <MenuItem onClick={() => setAnchorElObservability(null)}>
                     <a
                       href={`/api/sources/${source.id}/observability`}
                       download={`observabilityChartRequest-${source.id}`}
@@ -842,7 +960,7 @@ const SourceContent = ({ source }) => {
                       PDF
                     </a>
                   </MenuItem>
-                  <MenuItem onClick={() => setAnchorEl(null)}>
+                  <MenuItem onClick={() => setAnchorElObservability(null)}>
                     <Link
                       to={`/observability/${source.id}`}
                       role="link"
@@ -882,62 +1000,80 @@ const SourceContent = ({ source }) => {
                   </DialogContent>
                 </Dialog>
               </div>
+              {currentUser?.preferences?.hideSourceSummary === true ? (
+                <div className={classes.infoButton}>
+                  <ShowSummaryHistory
+                    summaries={source.summary_history || []}
+                    obj_id={source.id}
+                    button
+                  />
+                </div>
+              ) : null}
             </div>
-            <Paper
-              className={classes.flexColumn}
-              style={{
-                marginTop: "0.5rem",
-                padding: noSummary
-                  ? "0.5rem 0 0.5rem 0.5rem"
-                  : "0.5rem 0.5rem 0.5rem 0",
-              }}
-              variant={noSummary ? "elevation" : "outlined"}
-              elevation={noSummary ? 1 : 0}
-            >
-              <ShowSummaries summaries={source.summary_history} />
-              <div
-                className={classes.flexRow}
-                style={{
-                  justifyContent: noSummary ? "space-between" : "flex-end",
-                  alignItems: "center",
-                  maxHeight: "1rem",
-                  width: "100%",
-                }}
-              >
-                {noSummary ? (
-                  <p
-                    className={classes.noSpace}
+            {/* checking if the id exists is a way to know if the user profile is loaded or not */}
+            {currentUser?.id &&
+              currentUser?.preferences?.hideSourceSummary !== true && (
+                <Paper
+                  className={classes.flexColumn}
+                  style={{
+                    marginTop: "0.5rem",
+                    padding: noSummary
+                      ? "0.5rem 0 0.5rem 0.5rem"
+                      : "0.25rem 0.25rem 0 0.25rem",
+                  }}
+                  variant="outlined"
+                  elevation={noSummary ? 1 : 0}
+                >
+                  <ShowSummaries
+                    summaries={source.summary_history || []}
+                    showAISummaries={
+                      currentUser?.preferences?.showAISourceSummary || false
+                    }
+                  />
+                  <div
+                    className={classes.flexRow}
                     style={{
-                      fontSize: "0.75rem",
-                      color: "grey",
-                      marginRight: "0.25rem",
+                      justifyContent: noSummary ? "space-between" : "flex-end",
+                      alignItems: "center",
+                      maxHeight: "1rem",
+                      width: "100%",
                     }}
                   >
-                    No summary yet.
-                  </p>
-                ) : null}
-                <div
-                  className={classes.flexRow}
-                  style={{
-                    alignItems: "center",
-                    width: "auto",
-                    marginTop: noSummary ? "0.25rem" : "-0.25rem",
-                  }}
-                >
-                  <UpdateSourceSummary source={source} />
-                  {source.comments?.length > 0 ||
-                  source.classifications?.length > 0 ? (
-                    <StartBotSummary obj_id={source.id} />
-                  ) : null}
-                  {source.summary_history?.length > 0 ? (
-                    <ShowSummaryHistory
-                      summaries={source.summary_history}
-                      obj_id={source.id}
-                    />
-                  ) : null}
-                </div>
-              </div>
-            </Paper>
+                    {noSummary ? (
+                      <p
+                        className={classes.noSpace}
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "grey",
+                          marginRight: "0.25rem",
+                        }}
+                      >
+                        {`No${noHumanSummary ? " (human) " : " "}summary yet.`}
+                      </p>
+                    ) : null}
+                    <div
+                      className={classes.flexRow}
+                      style={{
+                        alignItems: "center",
+                        width: "auto",
+                        marginTop: noSummary ? "0.25rem" : 0,
+                      }}
+                    >
+                      <UpdateSourceSummary source={source} />
+                      {source.comments?.length > 0 ||
+                      source.classifications?.length > 0 ? (
+                        <StartBotSummary obj_id={source.id} />
+                      ) : null}
+                      {source.summary_history?.length > 0 ? (
+                        <ShowSummaryHistory
+                          summaries={source.summary_history}
+                          obj_id={source.id}
+                        />
+                      ) : null}
+                    </div>
+                  </div>
+                </Paper>
+              )}
             <div
               className={classes.flexRow}
               style={{
@@ -999,74 +1135,16 @@ const SourceContent = ({ source }) => {
                 <StarList sourceId={source.id} />
               </div>
             )}
-          </Paper>
-        </Grid>
-        <Grid item xs={12} order={{ xs: 2, lg: 2 }}>
-          <Paper>
-            <div
-              className={classes.flexRow}
-              style={{
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <Typography
-                variant="h6"
-                style={{
-                  padding: "0.5rem 0 0 0.5rem",
-                  fontWeight: "normal",
-                }}
-              >
-                Thumbnails
-              </Typography>
-              <IconButton
-                onClick={() => {
-                  setThumbnailDialogOpen(true);
-                }}
-                size="small"
-              >
-                <OpenInFullIcon style={{ fontSize: "1.2rem" }} />
-              </IconButton>
+            <div style={{ paddingTop: "0.25rem" }}>
+              <SourcePageThumbnails
+                ra={source.ra}
+                dec={source.dec}
+                thumbnails={source.thumbnails}
+                rightPanelVisible={rightPanelVisible}
+                downSm={downSm}
+                downLg={downLg}
+              />
             </div>
-            <div style={{ paddingLeft: "0.5rem", paddingRight: "0.5rem" }}>
-              <div
-                className={classes.flexRow}
-                style={{
-                  justifyContent: "flex-start",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  overflowX: "auto",
-                  maxWidth: "100%",
-                }}
-              >
-                <ThumbnailList
-                  ra={source.ra}
-                  dec={source.dec}
-                  thumbnails={source.thumbnails}
-                  size="12rem"
-                  useGrid={false}
-                />
-              </div>
-            </div>
-            <Dialog
-              open={thumbnailDialogOpen}
-              onClose={() => setThumbnailDialogOpen(false)}
-              style={{ position: "fixed" }}
-              maxWidth="lg"
-            >
-              <DialogTitle>Thumbnails</DialogTitle>
-              <DialogContent>
-                <div className={classes.thumbnailGrid}>
-                  <ThumbnailList
-                    ra={source.ra}
-                    dec={source.dec}
-                    thumbnails={source.thumbnails}
-                    size="100%"
-                    useGrid={false}
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
           </Paper>
         </Grid>
         <Grid item xs={12} order={{ xs: 4, lg: 3 }}>
@@ -1146,7 +1224,7 @@ const SourceContent = ({ source }) => {
                         plotStyle={{
                           height: rightPanelVisible ? "65vh" : "75vh",
                         }}
-                        mode={isMobile ? "mobile" : "desktop"}
+                        mode={downMd ? "mobile" : "desktop"}
                       />
                     </Suspense>
                   )}
@@ -1230,7 +1308,7 @@ const SourceContent = ({ source }) => {
                         plotStyle={{
                           height: rightPanelVisible ? "55vh" : "70vh",
                         }}
-                        mode={isMobile ? "mobile" : "desktop"}
+                        mode={downMd ? "mobile" : "desktop"}
                       />
                     </Suspense>
                   )}
@@ -1346,17 +1424,17 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        {isSmall ? rightPanelContent() : null}
+        {downLg ? rightPanelContent() : null}
       </Grid>
       <Grid
         container
         item
         spacing={1.5}
         xs={12}
-        lg={!rightPanelVisible || isSmall ? 12 : 5}
-        style={{ display: isSmall ? "flex" : "block" }}
+        lg={!rightPanelVisible || downLg ? 12 : 5}
+        style={{ display: downLg ? "flex" : "block" }}
       >
-        {rightPanelVisible && !isSmall ? rightPanelContent() : null}
+        {rightPanelVisible && !downLg ? rightPanelContent() : null}
       </Grid>
       <PhotometryTable
         obj_id={source.id}
