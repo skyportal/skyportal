@@ -27,15 +27,10 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const UpdateSourceSummary = ({ source }) => {
+const UpdateSourceSummary = ({ source, showAISummaries = true }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const [state, setState] = useState({
-    summary:
-      source?.summary_history && source?.summary_history.length > 0
-        ? source?.summary_history[0].summary // eslint-disable-line react/prop-types
-        : "",
-  });
+  const [state, setState] = useState({});
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,13 +41,17 @@ const UpdateSourceSummary = ({ source }) => {
       // eslint-disable-next-line no-restricted-globals
       false,
     );
+    let summaries = source?.summary_history || [];
+    summaries = [...summaries].filter(
+      (summary) => summary?.summary && summary?.summary !== null,
+    );
+    if (showAISummaries === false) {
+      summaries = [...summaries].filter((summary) => summary?.is_bot === false);
+    }
     setState({
-      summary:
-        source?.summary_history && source?.summary_history.length > 0
-          ? source?.summary_history[0].summary // eslint-disable-line react/prop-types
-          : "",
+      summary: summaries?.length > 0 ? summaries[0].summary : "",
     });
-  }, [source, setInvalid]);
+  }, [source, showAISummaries, setInvalid]);
 
   const handleChange = (e) => {
     const newState = {};
@@ -171,6 +170,11 @@ UpdateSourceSummary.propTypes = {
     summary: PropTypes.string,
     summary_history: PropTypes.arrayOf(PropTypes.shape({})),
   }).isRequired,
+  showAISummaries: PropTypes.bool,
+};
+
+UpdateSourceSummary.defaultProps = {
+  showAISummaries: true,
 };
 
 export default UpdateSourceSummary;

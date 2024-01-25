@@ -48,7 +48,7 @@ const useStyles = makeStyles((theme) => ({
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
     }),
-    height: "4em",
+    height: "fit-content",
     background: theme.palette.primary.dark,
     padding: 0,
     margin: 0,
@@ -72,12 +72,17 @@ const useStyles = makeStyles((theme) => ({
     fontSize: "1.2em",
     padding: 0,
   },
+  drawerPaperTemporary: {
+    zIndex: 140,
+    width: 'fit-content',
+    background: theme.palette.primary.light,
+    fontSize: "1.2em",
+    padding: 0,
+  },
   toolbar: {
     display: "flex",
-    height: "4em",
     alignItems: "center",
     justifyContent: "space-between",
-    //padding: "0.5rem",
     paddingLeft: "1.5rem",
     paddingRight: 0,
     [theme.breakpoints.up("md")]: {
@@ -146,7 +151,7 @@ const SidebarAndHeader = () => {
   const [temporaryOpen, setTemporaryOpen] = React.useState(false);
 
   let timer = 0;
-  const TIMEOUT = 500;
+  const TIMEOUT = 700;
 
   function mouseEnter() {
     if (!temporaryOpen && !open && !isSmall) {
@@ -314,7 +319,7 @@ const SidebarAndHeader = () => {
         anchor="left"
         open={open || temporaryOpen}
         onClose={isSmall ? handleToggleSidebarOpen : undefined}
-        classes={{ "{{ paper: classes.drawerPaper }}" }}
+        classes={{ "{{ paper: drawerType === 'temporary' ? classes.drawerPaperTemporary : classes.drawerPaper }}" }}
         PaperProps={{ "{{ onMouseEnter: mouseEnter, onMouseLeave: mouseLeave }}" }}
       >
         {!isSmall && <div className={classes.drawerHeader} />}

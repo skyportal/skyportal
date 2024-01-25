@@ -30,7 +30,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const ShowSummaryHistory = ({ obj_id, summaries = [] }) => {
+const ShowSummaryHistory = ({ obj_id, summaries = [], button = false }) => {
   const classes = useStyles();
   const { users: allUsers } = useSelector((state) => state.users);
   const userIdToUsername = {};
@@ -52,18 +52,32 @@ const ShowSummaryHistory = ({ obj_id, summaries = [] }) => {
 
   return (
     <>
-      <Tooltip title="Show history of object summaries">
-        <span>
-          <HistoryIcon
-            data-testid="summaryHistoryIconButton"
-            fontSize="small"
-            className={classes.historyIcon}
+      {button ? (
+        <Tooltip title="Show history of object summaries">
+          <Button
+            secondary
+            size="small"
             onClick={() => {
               setDialogOpen(true);
             }}
-          />
-        </span>
-      </Tooltip>
+          >
+            Summaries
+          </Button>
+        </Tooltip>
+      ) : (
+        <Tooltip title="Show history of object summaries">
+          <span>
+            <HistoryIcon
+              data-testid="summaryHistoryIconButton"
+              fontSize="small"
+              className={classes.historyIcon}
+              onClick={() => {
+                setDialogOpen(true);
+              }}
+            />
+          </span>
+        </Tooltip>
+      )}
       <Dialog
         open={dialogOpen}
         fullWidth
@@ -124,10 +138,12 @@ const ShowSummaryHistory = ({ obj_id, summaries = [] }) => {
 ShowSummaryHistory.propTypes = {
   obj_id: PropTypes.string,
   summaries: PropTypes.arrayOf(PropTypes.shape({})),
+  button: PropTypes.bool,
 };
 ShowSummaryHistory.defaultProps = {
   obj_id: null,
   summaries: null,
+  button: false,
 };
 
 export default ShowSummaryHistory;

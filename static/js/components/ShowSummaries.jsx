@@ -36,11 +36,22 @@ export const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const ShowSummaries = ({ summaries = [] }) => {
+const ShowSummaries = ({ summaries = [], showAISummaries = true }) => {
   const styles = useStyles();
   const renderCommentText = () => {
-    if (summaries?.length > 0) {
-      return summaries[0].summary;
+    let filteredSummaries = [...(summaries || [])].filter(
+      (summary) =>
+        summary?.summary &&
+        summary?.summary !== null &&
+        summary?.summary.trim() !== "",
+    );
+    if (showAISummaries === false) {
+      filteredSummaries = filteredSummaries.filter(
+        (summary) => summary?.is_bot === false,
+      );
+    }
+    if (filteredSummaries?.length > 0) {
+      return filteredSummaries[0].summary;
     }
     return null;
   };
@@ -68,10 +79,12 @@ const ShowSummaries = ({ summaries = [] }) => {
 
 ShowSummaries.propTypes = {
   summaries: PropTypes.arrayOf(PropTypes.string),
+  showAISummaries: PropTypes.bool,
 };
 
 ShowSummaries.defaultProps = {
   summaries: [],
+  showAISummaries: true,
 };
 
 export default ShowSummaries;
