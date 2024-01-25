@@ -39,7 +39,7 @@ export const useStyles = makeStyles((theme) => ({
 const ShowSummaries = ({ summaries = [], showAISummaries = true }) => {
   const styles = useStyles();
   const renderCommentText = () => {
-    let filteredSummaries = [...summaries].filter(
+    let filteredSummaries = [...(summaries || [])].filter(
       (summary) =>
         summary?.summary &&
         summary?.summary !== null &&
