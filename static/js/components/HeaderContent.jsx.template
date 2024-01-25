@@ -48,6 +48,8 @@ const useStyles = makeStyles((theme) => ({
   logoContainer: {
     height: "100%",
     borderRight: "1px solid white",
+    paddingLeft: "0.4rem",
+    paddingRight: "0.4rem",
     "&:last-of-type": {
       borderRight: "none",
       paddingRight: "0",

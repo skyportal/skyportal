@@ -380,11 +380,11 @@ const SourceContent = ({ source }) => {
     }
   };
 
-  const rightPanelContent = () => (
+  const rightPanelContent = (downLarge, isRightPanelVisible) => (
     <>
-      <Grid item xs={12} order={{ xs: 5, lg: 1 }}>
+      <Grid item xs={12} lg={6} order={{ md: 4, lg: 3 }}>
         <Accordion
-          defaultExpanded={!downMd}
+          defaultExpanded={!downLarge}
           disableGutters
           className={classes.flexColumn}
         >
@@ -397,7 +397,12 @@ const SourceContent = ({ source }) => {
               Auto-annotations
             </Typography>
           </AccordionSummary>
-          <AccordionDetails style={{ padding: 0, minHeight: "52vh" }}>
+          <AccordionDetails
+            style={{
+              padding: 0,
+              minHeight: !(downLarge || isRightPanelVisible) ? "60vh" : "52vh",
+            }}
+          >
             <AnnotationsTable
               annotations={source.annotations}
               spectrumAnnotations={spectrumAnnotations}
@@ -408,7 +413,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} order={{ xs: 3, lg: 2 }}>
+      <Grid item xs={12} lg={6} order={{ md: 2, lg: 4 }}>
         <Accordion
           defaultExpanded
           className={classes.flexColumn}
@@ -423,14 +428,28 @@ const SourceContent = ({ source }) => {
               Comments
             </Typography>
           </AccordionSummary>
-          <AccordionDetails>
+          <AccordionDetails
+            style={{
+              minHeight: !(downLarge || isRightPanelVisible)
+                ? "63.5vh"
+                : "55.5vh",
+            }}
+          >
             <Suspense fallback={<CircularProgress />}>
-              {downMd ? <CommentListMobile /> : <CommentList />}
+              {downLarge ? (
+                <CommentListMobile />
+              ) : (
+                <CommentList
+                  maxHeightList={
+                    !(downLarge || isRightPanelVisible) ? "28.5vh" : "350px"
+                  }
+                />
+              )}
             </Suspense>
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} order={{ xs: 12, lg: 3 }}>
+      <Grid item xs={12} lg={12} order={{ md: 9, lg: 7 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -457,69 +476,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} order={{ xs: 13, lg: 4 }}>
-        <Accordion
-          defaultExpanded
-          disableGutters
-          className={classes.flexColumn}
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="analysis-content"
-            id="analysis-header"
-          >
-            <Typography className={classes.accordionHeading}>
-              External Analysis
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <AnalysisList obj_id={source.id} />
-          </AccordionDetails>
-          <AccordionDetails>
-            <AnalysisForm obj_id={source.id} />
-          </AccordionDetails>
-        </Accordion>
-      </Grid>
-      <Grid item xs={12} order={{ xs: 14, lg: 5 }}>
-        {source.color_magnitude.length ? (
-          <Accordion
-            defaultExpanded
-            disableGutters
-            className={classes.classifications}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="hr-diagram-content"
-              id="hr-diagram-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                HR Diagram
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <div
-                className={classes.hr_diagram}
-                data-testid={`hr_diagram_${source.id}`}
-              >
-                <Suspense
-                  fallback={
-                    <div>
-                      <CircularProgress color="secondary" />
-                    </div>
-                  }
-                >
-                  <VegaHR
-                    data={source.color_magnitude}
-                    width={300}
-                    height={300}
-                  />
-                </Suspense>
-              </div>
-            </AccordionDetails>
-          </Accordion>
-        ) : null}
-      </Grid>
-      <Grid item xs={12} order={{ xs: 8, lg: 6 }}>
+      <Grid item xs={12} lg={6} order={{ md: 7, lg: 11 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -551,7 +508,71 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} order={{ xs: 15, lg: 7 }}>
+      <Grid item xs={12} lg={6} order={{ md: 8, lg: 12 }}>
+        <Accordion
+          defaultExpanded
+          disableGutters
+          className={classes.classifications}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="hr-diagram-content"
+            id="hr-diagram-header"
+          >
+            <Typography className={classes.accordionHeading}>
+              HR Diagram
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div
+              className={classes.hr_diagram}
+              data-testid={`hr_diagram_${source.id}`}
+            >
+              {source.color_magnitude?.length > 0 ? (
+                <Suspense
+                  fallback={
+                    <div>
+                      <CircularProgress color="secondary" />
+                    </div>
+                  }
+                >
+                  <VegaHR
+                    data={source.color_magnitude}
+                    width={300}
+                    height={300}
+                  />
+                </Suspense>
+              ) : (
+                <div>No color magnitude for this source</div>
+              )}
+            </div>
+          </AccordionDetails>
+        </Accordion>
+      </Grid>
+      <Grid item xs={12} lg={12} order={{ md: 13, lg: 13 }}>
+        <Accordion
+          defaultExpanded
+          disableGutters
+          className={classes.flexColumn}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="analysis-content"
+            id="analysis-header"
+          >
+            <Typography className={classes.accordionHeading}>
+              External Analysis
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <AnalysisList obj_id={source.id} />
+          </AccordionDetails>
+          <AccordionDetails>
+            <AnalysisForm obj_id={source.id} />
+          </AccordionDetails>
+        </Accordion>
+      </Grid>
+      <Grid item xs={12} lg={12} order={{ md: 14, lg: 14 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -585,9 +606,11 @@ const SourceContent = ({ source }) => {
         spacing={1.5}
         xs={12}
         lg={rightPanelVisible && !downLg ? 7 : 12}
-        style={{ display: downLg ? "flex" : "block" }}
+        style={{
+          display: downLg || (!downLg && !rightPanelVisible) ? "flex" : "block",
+        }}
       >
-        <Grid item xs={12} order={{ xs: 1, lg: 1 }}>
+        <Grid item xs={12} order={{ md: 1, lg: 1 }}>
           <Paper style={{ padding: "0.5rem" }}>
             <div className={classes.container}>
               <div className={classes.header}>
@@ -1059,7 +1082,12 @@ const SourceContent = ({ source }) => {
                         marginTop: noSummary ? "0.25rem" : 0,
                       }}
                     >
-                      <UpdateSourceSummary source={source} />
+                      <UpdateSourceSummary
+                        source={source}
+                        showAISummaries={
+                          currentUser?.preferences?.showAISourceSummary || false
+                        }
+                      />
                       {source.comments?.length > 0 ||
                       source.classifications?.length > 0 ? (
                         <StartBotSummary obj_id={source.id} />
@@ -1147,7 +1175,7 @@ const SourceContent = ({ source }) => {
             </div>
           </Paper>
         </Grid>
-        <Grid item xs={12} order={{ xs: 4, lg: 3 }}>
+        <Grid item xs={12} order={{ md: 3, lg: 2 }}>
           <Paper>
             <Typography
               variant="h6"
@@ -1163,7 +1191,7 @@ const SourceContent = ({ source }) => {
             </div>
           </Paper>
         </Grid>
-        <Grid item xs={12} order={{ xs: 6, lg: 4 }}>
+        <Grid item xs={12} order={{ md: 5, lg: 5 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1268,7 +1296,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ xs: 7, lg: 5 }}>
+        <Grid item xs={12} order={{ md: 6, lg: 6 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1325,7 +1353,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ xs: 9, lg: 6 }}>
+        <Grid item xs={12} order={{ md: 10, lg: 8 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1361,7 +1389,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ xs: 10, lg: 7 }}>
+        <Grid item xs={12} order={{ md: 11, lg: 9 }}>
           <Accordion>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
@@ -1395,7 +1423,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ xs: 11, lg: 8 }}>
+        <Grid item xs={12} order={{ md: 12, lg: 10 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1424,25 +1452,24 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        {downLg ? rightPanelContent() : null}
+        {downLg || !rightPanelVisible
+          ? rightPanelContent(downLg, rightPanelVisible)
+          : null}
       </Grid>
-      <Grid
-        container
-        item
-        spacing={1.5}
-        xs={12}
-        lg={!rightPanelVisible || downLg ? 12 : 5}
-        style={{ display: downLg ? "flex" : "block" }}
-      >
-        {rightPanelVisible && !downLg ? rightPanelContent() : null}
+      <Grid item xs={rightPanelVisible && !downLg ? 5 : 12}>
+        <Grid container spacing={1.5} columns={{ xs: 6 }}>
+          {rightPanelVisible && !downLg
+            ? rightPanelContent(downLg, rightPanelVisible)
+            : null}
+        </Grid>
+        <PhotometryTable
+          obj_id={source.id}
+          open={showPhotometry}
+          onClose={() => {
+            setShowPhotometry(false);
+          }}
+        />
       </Grid>
-      <PhotometryTable
-        obj_id={source.id}
-        open={showPhotometry}
-        onClose={() => {
-          setShowPhotometry(false);
-        }}
-      />
     </Grid>
   );
 };
