@@ -957,6 +957,7 @@ const PhotometryPlot = ({
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
+              // on mobile with a lot of legend entries, we need to move the legend down to avoid overlap
               y: mode === "desktop" ? 1 : plotData?.length > 10 ? -0.4 : -0.3, // eslint-disable-line no-nested-ternary
               x: mode === "desktop" ? (dm ? 1.15 : 1) : 0, // eslint-disable-line no-nested-ternary
               font: { size: 14 },

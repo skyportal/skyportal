@@ -212,10 +212,10 @@ const SourcePageThumbnails = ({
   dec,
   thumbnails,
   rightPanelVisible,
-  downSm,
-  downLg,
+  downSmall,
+  downLarge,
 }) => {
-  if (!rightPanelVisible && !downLg) {
+  if (!rightPanelVisible && !downLarge) {
     return (
       <div
         style={{
@@ -257,7 +257,7 @@ const SourcePageThumbnails = ({
         minSize="6rem"
         maxSize="13rem"
         titleSize={
-          !downSm || (rightPanelVisible && !downLg) ? "0.8rem" : "0.55em"
+          !downSmall || (rightPanelVisible && !downLarge) ? "0.8rem" : "0.55em"
         }
         useGrid={false}
         noMargin
@@ -271,8 +271,8 @@ SourcePageThumbnails.propTypes = {
   dec: PropTypes.number.isRequired,
   thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired, // eslint-disable-line react/forbid-prop-types
   rightPanelVisible: PropTypes.bool.isRequired,
-  downSm: PropTypes.bool.isRequired,
-  downLg: PropTypes.bool.isRequired,
+  downSmall: PropTypes.bool.isRequired,
+  downLarge: PropTypes.bool.isRequired,
 };
 
 const SourceContent = ({ source }) => {
@@ -299,6 +299,8 @@ const SourceContent = ({ source }) => {
     useState(false);
   const [tnsDialogOpen, setTNSDialogOpen] = useState(false);
 
+  // Needed for buttons that open popover menus, indicates where the popover should be anchored
+  // (where it will appear on the screen)
   const [anchorElFindingChart, setAnchorElFindingChart] = React.useState(null);
   const [anchorElObservability, setAnchorElObservability] =
     React.useState(null);
@@ -1169,8 +1171,8 @@ const SourceContent = ({ source }) => {
                 dec={source.dec}
                 thumbnails={source.thumbnails}
                 rightPanelVisible={rightPanelVisible}
-                downSm={downSm}
-                downLg={downLg}
+                downSmall={downSm}
+                downLarge={downLg}
               />
             </div>
           </Paper>
@@ -1228,7 +1230,10 @@ const SourceContent = ({ source }) => {
                 <div className={classes.plotContainer}>
                   {!source.photometry_exists &&
                     (!photometry || photometry?.length === 0) && (
-                      <div> No photometry exists </div>
+                      <div style={{ marginLeft: "1rem" }}>
+                        {" "}
+                        No photometry exists{" "}
+                      </div>
                     )}
                   {source.photometry_exists &&
                     (!photometry || photometry?.length === 0) && (
@@ -1316,7 +1321,10 @@ const SourceContent = ({ source }) => {
                 <div className={classes.plotContainer}>
                   {!source.spectrum_exists &&
                     (!spectra || spectra?.length === 0) && (
-                      <div> No spectrum exists </div>
+                      <div style={{ marginLeft: "1rem" }}>
+                        {" "}
+                        No spectrum exists{" "}
+                      </div>
                     )}
                   {source.spectrum_exists &&
                     (!spectra || spectra?.length === 0) && (

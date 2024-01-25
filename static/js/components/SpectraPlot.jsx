@@ -527,6 +527,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
+              // on mobile with a lot of legend entries, we need to move the legend down to avoid overlapping with the plot
               y: mode === "desktop" ? 1 : plotData?.length > 10 ? -0.4 : -0.3, // eslint-disable-line no-nested-ternary
               x: mode === "desktop" ? 1.02 : 0,
               font: { size: 14 },

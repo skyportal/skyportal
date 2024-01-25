@@ -48,7 +48,7 @@ const useStyles = makeStyles((theme) => ({
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
     }),
-    height: "4em",
+    height: "fit-content",
     background: theme.palette.primary.dark,
     padding: 0,
     margin: 0,
@@ -81,10 +81,8 @@ const useStyles = makeStyles((theme) => ({
   },
   toolbar: {
     display: "flex",
-    height: "4em",
     alignItems: "center",
     justifyContent: "space-between",
-    //padding: "0.5rem",
     paddingLeft: "1.5rem",
     paddingRight: 0,
     [theme.breakpoints.up("md")]: {
