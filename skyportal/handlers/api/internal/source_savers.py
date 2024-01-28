@@ -19,8 +19,10 @@ class SourceSaverHandler(BaseHandler):
         top_savers_prefs = {**default_prefs, **top_savers_prefs, **user_options}
 
         max_num_savers = int(top_savers_prefs['maxNumSavers'])
-        since_days_ago = int(top_savers_prefs['sinceDaysAgo'])
-        cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
+        since_days_ago = float(top_savers_prefs['sinceDaysAgo'])
+        cutoff_day = datetime.datetime.utcnow() - datetime.timedelta(
+            days=since_days_ago
+        )
 
         stmt = Source.select(
             session.user_or_token,

@@ -169,7 +169,7 @@ const TopSaversList = ({ savers, styles }) => {
   const [options, setOptions] = useState(savers || []);
 
   useEffect(() => {
-    if (options?.length === 0 && savers?.length > 0) {
+    if (savers?.length > 0) {
       setOptions(savers);
     }
   }, [savers]);
