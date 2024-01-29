@@ -241,9 +241,8 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     spectrumTypes,
     tabValue,
     smoothingValue = 0,
+    existingPlotData,
   ) => {
-    // for now (testing), we just grab the first spectrum
-
     if (spectraData !== null && specStats !== null) {
       const spectraFiltered = spectraData.filter((spectrum) => {
         if (spectrum.type === spectrumTypes[tabValue]) {
@@ -252,11 +251,25 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         return false;
       });
 
+      const existingTracesVisibilities = {};
+      if (existingPlotData) {
+        existingPlotData.forEach((trace) => {
+          if (trace.dataType === "Spectrum") {
+            existingTracesVisibilities[trace.spectrumId] = trace.visible;
+          }
+        });
+      }
+
       let traces = spectraFiltered.map((spectrum, index) => {
         const date = spectrum.observed_at.split("T")[0].split("-");
         const name = `${spectrum.instrument_name} (${date[1]}/${date[2].slice(
           -2,
         )}/${date[0].slice(-2)})`;
+
+        const existingTraceVisibility = existingPlotData
+          ? existingTracesVisibilities[spectrum.id]
+          : true;
+
         const trace = {
           mode: "lines",
           type: "scatter",
@@ -269,7 +282,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               : smoothing_func([...spectrum.fluxes_normed], smoothingValue),
           text: spectrum.text,
           name,
-          legendgroup: `${spectrum.instrument_name}/${spectrum.observed_at}`,
+          legendgroup: `${spectrum.id}`,
           line: {
             shape: "hvh",
             width: 0.85,
@@ -280,7 +293,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
             font: { size: 14 },
             align: "left",
           },
-          visible: true,
+          visible: existingTraceVisibility,
           hovertemplate: "%{text}<extra></extra>",
         };
 
@@ -295,6 +308,11 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               const name = `${spectrum.instrument_name} (${
                 date[1]
               }/${date[2].slice(-2)}/${date[0].slice(-2)})`;
+
+              const existingTraceVisibility = existingPlotData
+                ? existingTracesVisibilities[spectrum.id]
+                : true;
+
               const trace = {
                 mode: "lines",
                 type: "scatter",
@@ -303,14 +321,14 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
                 x: spectrum.wavelengths,
                 y: spectrum.fluxes_normed,
                 name,
-                legendgroup: `${spectrum.instrument_name}/${spectrum.observed_at}`,
+                legendgroup: `${spectrum.id}`,
                 line: {
                   shape: "hvh",
                   width: 0.85,
                   color: `rgba(100, 100, 100, 0.2)`,
                 },
                 hoverinfo: "skip",
-                visible: true,
+                visible: existingTraceVisibility,
                 showlegend: false,
               };
               return trace;
@@ -388,33 +406,60 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     const [newSpectra, newSpecStats] = prepareSpectra(spectra, spectrumTypes);
     setSpecStats(newSpecStats);
     setData(newSpectra);
-    const traces = createTraces(newSpectra, spectrumTypes, 0, smoothingInput);
-    setPlotData(traces);
   }, [spectra]);
 
   useEffect(() => {
     if (data !== null && types?.length > 0 && specStats !== null) {
       if (!layoutReset) {
-        const traces = createTraces(data, types, tabIndex, smoothingInput);
+        const traces = createTraces(
+          data,
+          types,
+          tabIndex,
+          smoothingInput,
+          plotData,
+        );
         setPlotData(traces);
       }
-
-      const newLayouts = createLayouts(types[tabIndex], specStats, redshift);
-      setLayouts(newLayouts);
-      if (layoutReset) {
-        setLayoutReset(false);
+      if (plotData === null) {
+        const newLayouts = createLayouts(types[tabIndex], specStats, redshift);
+        setLayouts(newLayouts);
       }
     }
-  }, [
-    data,
-    types,
-    tabIndex,
-    specStats,
-    layoutReset,
-    tabIndex,
-    redshift,
-    smoothingInput,
-  ]);
+  }, [data, types, specStats, layoutReset, redshift, smoothingInput]);
+
+  useEffect(() => {
+    if (
+      data !== null &&
+      types?.length > 0 &&
+      specStats !== null &&
+      plotData !== null
+    ) {
+      const traces = createTraces(
+        data,
+        types,
+        tabIndex,
+        smoothingInput,
+        plotData,
+      );
+      setPlotData(traces);
+      const newLayouts = createLayouts(types[tabIndex], specStats, redshift);
+      setLayouts(newLayouts);
+    }
+  }, [tabIndex]);
+
+  useEffect(() => {
+    if (
+      data !== null &&
+      types?.length > 0 &&
+      specStats !== null &&
+      plotData !== null &&
+      layoutReset
+    ) {
+      const newLayouts = createLayouts(types[tabIndex], specStats, redshift);
+      setLayouts(newLayouts);
+      setLayoutReset(false);
+    }
+  }, [layoutReset]);
 
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
@@ -531,6 +576,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               y: mode === "desktop" ? 1 : plotData?.length > 10 ? -0.4 : -0.3, // eslint-disable-line no-nested-ternary
               x: mode === "desktop" ? 1.02 : 0,
               font: { size: 14 },
+              tracegroupgap: 0,
             },
             showlegend: true,
             autosize: true,
@@ -647,6 +693,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               secondary
               size="small"
               style={{
+                textTransform: "none",
                 whiteSpace: "nowrap",
                 maxHeight: "1.4rem",
                 backgroundColor: selectedLines.includes(line.name)
