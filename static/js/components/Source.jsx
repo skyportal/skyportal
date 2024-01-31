@@ -386,7 +386,7 @@ const SourceContent = ({ source }) => {
     <>
       <Grid item xs={12} lg={6} order={{ md: 4, lg: 3 }}>
         <Accordion
-          defaultExpanded={!downLarge}
+          defaultExpanded
           disableGutters
           className={classes.flexColumn}
         >
@@ -551,7 +551,13 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={12} order={{ md: 13, lg: 13 }}>
+      <Grid
+        item
+        xs={12}
+        lg={6}
+        order={{ md: 13, lg: 13 }}
+        style={{ overflow: "auto", paddingBottom: "1px", paddingRight: "1px" }}
+      >
         <Accordion
           defaultExpanded
           disableGutters
@@ -574,7 +580,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={12} order={{ md: 14, lg: 14 }}>
+      <Grid item xs={12} lg={6} order={{ md: 14, lg: 14 }}>
         <Accordion
           defaultExpanded
           disableGutters

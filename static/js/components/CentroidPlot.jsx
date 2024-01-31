@@ -1,12 +1,11 @@
-import React, { useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React from "react";
+import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import embed from "vega-embed";
 import * as d3 from "d3";
 import convertLength from "convert-css-length";
-import * as photometryActions from "../ducks/photometry";
 
 const useStyles = makeStyles(() => ({
   centroidPlotDiv: (props) => ({
@@ -341,14 +340,7 @@ const CentroidPlot = ({ sourceId, size }) => {
   const newHeight = parseFloat(convert(size, "px")) + rootFont * 2;
   const classes = useStyles({ width: size, height: `${newHeight}px` });
 
-  const dispatch = useDispatch();
   const photometry = useSelector((state) => state.photometry[sourceId]);
-
-  useEffect(() => {
-    if (!photometry) {
-      dispatch(photometryActions.fetchSourcePhotometry(sourceId));
-    }
-  }, [sourceId, photometry, dispatch]);
 
   const plotData = photometry ? processData(photometry) : null;
 
