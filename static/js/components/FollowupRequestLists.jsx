@@ -24,18 +24,15 @@ import * as Actions from "../ducks/source";
 import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
 
 const useStyles = makeStyles(() => ({
-  followupRequestTable: {
-    borderSpacing: "0.7em",
-  },
   actionButtons: {
     display: "flex",
     flexFlow: "row wrap",
   },
   accordion: {
-    width: "99%",
+    width: "100%",
   },
   container: {
-    margin: "1rem 0",
+    margin: "0 1px 1px 1px",
   },
 }));
 
@@ -653,6 +650,7 @@ const FollowupRequestLists = ({
             </AccordionSummary>
             <AccordionDetails
               data-testid={`${instLookUp[instrument_id].name}_followupRequestsTable`}
+              style={{ padding: 0, margin: 0 }}
             >
               <StyledEngineProvider injectFirst>
                 <ThemeProvider theme={getMuiTheme(theme)}>
