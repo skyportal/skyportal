@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
+
 import EditIcon from "@mui/icons-material/Edit";
+import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -78,14 +80,6 @@ const UpdateSourceTNS = ({ source }) => {
   // render to update it, so it can be null even if tnsrobotList is not
   // empty.
 
-  if ((tnsrobotList.length === 0 || !selectedTNSRobotId) && source.tns_name) {
-    return <></>;
-  }
-
-  if (tnsrobotList.length === 0 || !selectedTNSRobotId) {
-    return <h4 className={classes.text}>No TNS robots available...</h4>;
-  }
-
   const handleSubmit = async ({ formData }) => {
     formData.tnsrobotID = selectedTNSRobotId;
     dispatch(sourceActions.addTNS(source.id, formData)).then((response) => {
@@ -130,14 +124,16 @@ const UpdateSourceTNS = ({ source }) => {
 
   return (
     <>
-      <EditIcon
+      <IconButton
         data-testid="updateTNSIconButton"
-        fontSize="small"
-        className={classes.editIcon}
         onClick={() => {
           setDialogOpen(true);
         }}
-      />
+        disabled={tnsrobotList.length === 0 || !selectedTNSRobotId}
+        size="small"
+      >
+        <EditIcon size="small" className={classes.editIcon} />
+      </IconButton>
       <Dialog
         open={dialogOpen}
         onClose={() => {

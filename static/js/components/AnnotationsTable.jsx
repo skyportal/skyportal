@@ -12,8 +12,9 @@ import {
 import { makeStyles } from "@mui/styles";
 import MUIDataTable from "mui-datatables";
 import IconButton from "@mui/material/IconButton";
-import ExpandIcon from "@mui/icons-material/Expand";
+import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import CloseIcon from "@mui/icons-material/Close";
+import DeleteIcon from "@mui/icons-material/Delete";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -24,7 +25,6 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
-import Button from "./Button";
 
 import * as sourceActions from "../ducks/source";
 import * as spectraActions from "../ducks/spectra";
@@ -47,12 +47,33 @@ const useStyles = makeStyles(() => ({
 const getMuiTheme = (theme) =>
   createTheme({
     palette: theme.palette,
-    overrides: {
+    components: {
       MUIDataTableBodyCell: {
-        root: {
-          padding: `${theme.spacing(0.5)} 0 ${theme.spacing(
-            0.5,
-          )} ${theme.spacing(0.5)}`,
+        styleOverrides: {
+          root: {
+            padding: `${theme.spacing(0.5)} 0 ${theme.spacing(
+              0.5,
+            )} ${theme.spacing(0.5)}`,
+          },
+        },
+      },
+      MUIDataTableHeadCell: {
+        styleOverrides: {
+          root: {
+            padding: `${theme.spacing(1)} 0 ${theme.spacing(1)} ${theme.spacing(
+              1,
+            )}`,
+          },
+        },
+      },
+      MUIDataTableToolbar: {
+        styleOverrides: {
+          root: {
+            maxHeight: "2rem",
+            padding: 0,
+            margin: 0,
+            paddingRight: "0.75rem",
+          },
         },
       },
       MuiIconButton: {
@@ -158,15 +179,15 @@ const AnnotationsTable = ({
     const annotation = tableData[row.rowIndex];
 
     return (
-      <div className={classes.actionButtons}>
+      <div>
         {isRemoving === annotation.id ? (
           <div>
             <CircularProgress />
           </div>
         ) : (
           <div>
-            <Button
-              secondary
+            <IconButton
+              variant="contained"
               onClick={() => {
                 handleDelete(
                   annotation.obj_id,
@@ -179,8 +200,8 @@ const AnnotationsTable = ({
               type="submit"
               data-testid={`deleteAllocation_${annotation.id}`}
             >
-              Delete
-            </Button>
+              <DeleteIcon />
+            </IconButton>
           </div>
         )}
       </div>
@@ -216,9 +237,11 @@ const AnnotationsTable = ({
     },
     {
       name: "delete",
-      label: "Delete",
+      label: " ",
       options: {
         customBodyRender: renderDelete,
+        sort: false,
+        setCellProps: () => ({ style: { maxWidth: "4rem" } }),
       },
     },
   ];
@@ -238,7 +261,7 @@ const AnnotationsTable = ({
     download: true,
     selectableRows: "none",
     enableNestedDataAccess: ".",
-    elevation: 2,
+    elevation: 0,
     rowsPerPage: 10,
     rowsPerPageOptions: [10, 15, 50],
     jumpToPage: false,
@@ -253,7 +276,7 @@ const AnnotationsTable = ({
               setOpenAnnotations(true);
             }}
           >
-            <ExpandIcon />
+            <OpenInFullIcon />
           </IconButton>
         );
       }

@@ -127,7 +127,7 @@ def test_download_sources(
 def test_upload_download_comment_attachment(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     comment_text = str(uuid.uuid4())
     enter_comment_text(driver, comment_text)
     # attachment_file = driver.find_element_by_css_selector('input[type=file]')

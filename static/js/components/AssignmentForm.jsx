@@ -139,6 +139,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
                   labelId="assignmentSelect"
                   onChange={onChange}
                   value={value}
+                  size="small"
                 >
                   {upcomingObservingRuns?.map((observingRun) => (
                     <MenuItem
@@ -172,6 +173,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
                   labelId="prioritySelect"
                   onChange={onChange}
                   value={value}
+                  size="small"
                 >
                   {["1", "2", "3", "4", "5"].map((prio) => (
                     <MenuItem value={prio} key={prio}>

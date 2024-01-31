@@ -14,12 +14,12 @@ def test_submit_and_delete_new_assignment(
     # wait for plots to load, if any
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
     except TimeoutException:
         pass
@@ -51,7 +51,6 @@ def test_submit_and_delete_new_assignment(
     submit_button = driver.wait_for_xpath('//*[@name="assignmentSubmitButton"]')
     driver.scroll_to_element_and_click(submit_button)
 
-    driver.click_xpath("//div[@id='observing-run-assignments-header']")
     driver.wait_for_xpath('//button[@aria-label="delete-assignment"]')
     driver.wait_for_xpath(f'//*[text()="{comment_text}"]')
     driver.click_xpath('//button[@aria-label="delete-assignment"]')

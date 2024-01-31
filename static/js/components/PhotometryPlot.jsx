@@ -39,7 +39,7 @@ const useStyles = makeStyles(() => ({
     rowGap: "0.5rem",
     columnGap: "2rem",
     width: "100%",
-    paddingTop: "0.5rem",
+    padding: "0.5rem 1rem 0 1rem",
   },
   gridItem: {
     display: "flex",
@@ -336,11 +336,13 @@ const PhotometryPlot = ({
         point.origin !== "" &&
         point.origin !== null
       ) {
-        key += `/${point.origin}`;
-      }
-      // limit the key to 30 characters
-      if (key.length > 30) {
-        key = `${key.substring(0, 27)}...`;
+        // the origin is less relevant, so we crop it to not have more than 23 characters + 3 x ...
+        const remaining = 23 - key.length;
+        if (remaining < point.origin.length) {
+          key += `/${point.origin.substring(0, Math.max(remaining - 3, 3))}...`;
+        } else {
+          key += `/${point.origin}`;
+        }
       }
       if (!acc[key]) {
         acc[key] = [];
@@ -400,7 +402,7 @@ const PhotometryPlot = ({
             text: upperLimits.map((point) => point.text),
             mode: "markers",
             type: "scatter",
-            name: key,
+            name: `${key} (UL)`,
             legendgroup: `${key}upperLimits`,
             marker: {
               line: {
@@ -612,8 +614,8 @@ const PhotometryPlot = ({
             text: upperLimitsText,
             mode: "markers",
             type: "scatter",
-            name: key,
-            legendgroup: key,
+            name: `${key} (UL)`,
+            legendgroup: `${key}upperLimits`,
             marker: {
               line: {
                 width: 1,
@@ -921,7 +923,7 @@ const PhotometryPlot = ({
     : [];
 
   return (
-    <div style={{ width: "100%", height: "100%" }}>
+    <div style={{ width: "100%", height: "100%" }} id="photometry-plot">
       <Tabs
         value={tabIndex}
         onChange={handleChangeTab}
@@ -931,7 +933,7 @@ const PhotometryPlot = ({
         sx={{
           display: {
             maxWidth: "95vw",
-            width: "100&",
+            width: "100%",
             "& > button": { lineHeight: "1.5rem" },
           },
         }}
@@ -944,7 +946,7 @@ const PhotometryPlot = ({
       <div
         style={{
           width: "100%",
-          height: plotStyle?.height || "65vh",
+          height: plotStyle?.height || "70vh",
           overflowX: "scroll",
         }}
       >
@@ -955,14 +957,40 @@ const PhotometryPlot = ({
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
-              y: mode === "desktop" ? 1 : -0.25,
-              x: mode === "desktop" ? 1.15 : 0,
+              // on mobile with a lot of legend entries, we need to move the legend down to avoid overlap
+              y: mode === "desktop" ? 1 : plotData?.length > 10 ? -0.4 : -0.3, // eslint-disable-line no-nested-ternary
+              x: mode === "desktop" ? (dm ? 1.15 : 1) : 0, // eslint-disable-line no-nested-ternary
+              font: { size: 14 },
+              tracegroupgap: 0,
             },
             showlegend: true,
             autosize: true,
-            automargin: true,
+            margin: {
+              l: 70,
+              r: 30,
+              b: 75,
+              t: 80,
+              pad: 0,
+            },
+            shapes: [
+              {
+                // we use a shape to draw a box around the plot to add borders to it
+                type: "rect",
+                xref: "paper",
+                yref: "paper",
+                x0: 0,
+                y0: 0,
+                x1: 1,
+                y1: 1,
+                line: {
+                  color: "black",
+                  width: 1,
+                },
+              },
+            ],
           }}
           config={{
+            responsive: true,
             displaylogo: false,
             // the native autoScale2d and resetScale2d buttons are not working
             // as they are not resetting to the specified ranges
@@ -1036,7 +1064,9 @@ const PhotometryPlot = ({
       </div>
       <div className={classes.gridContainer}>
         <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
-          <Typography id="photometry-show-hide">Non-Detections</Typography>
+          <Typography id="photometry-show-hide" noWrap>
+            Non-Detections
+          </Typography>
           <div className={classes.switchContainer}>
             <Switch
               checked={showNonDetections}
@@ -1046,7 +1076,9 @@ const PhotometryPlot = ({
           </div>
         </div>
         <div className={classes.gridItem} style={{ gridColumn: "span 2" }}>
-          <Typography id="input-slider">Marker Size</Typography>
+          <Typography id="input-slider" noWrap>
+            Marker Size
+          </Typography>
           <div className={classes.sliderContainer}>
             <Slider
               value={markerSize}
