@@ -209,6 +209,9 @@ class WINTERAPI(FollowUpAPI):
 
         r.raise_for_status()
 
+        if r.status_code == 200:
+            request.status = 'submitted'
+
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
             response=http.serialize_requests_response(r),
