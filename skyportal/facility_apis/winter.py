@@ -14,14 +14,12 @@ from ..utils import http
 env, cfg = load_env()
 
 
+log = make_log('facility_apis/winter')
+
 WINTER_URL = f"{cfg['app.winter.protocol']}://{cfg['app.winter.host']}"
 if cfg['app.winter.port'] is not None and int(cfg['app.winter.port']) not in [80, 443]:
     WINTER_URL += f":{cfg['app.winter.port']}"
 
-log = make_log('facility_apis/winter')
-
-WINTER_USERNAME = cfg.get('app.winter.username', None)
-WINTER_PASSWORD = cfg.get('app.winter.password', None)
 WINTER_SUBMIT_TRIGGER = cfg.get('app.winter.submit_trigger', False)
 
 FILTER_DEFAULTS = {
@@ -69,7 +67,7 @@ class WINTERRequest:
         t_exp = int(request.payload["exposure_time"]) * int(request.payload["n_dither"])
         # n_exp = int(request.payload.get("exposure_counts", 1))
         n_dither = int(request.payload["n_dither"])
-        dither_distance = float(request.payload.get("dither_distance", 600))
+        dither_distance = float(request.payload.get("dither_distance", 30))
         start_time_mjd = Time(request.payload["start_date"], format='iso').mjd
         end_time_mjd = Time(request.payload["end_date"], format='iso').mjd
         max_airmass = float(request.payload.get("max_airmass", 2.0))
@@ -175,9 +173,6 @@ class WINTERAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        if WINTER_USERNAME in [None, ''] or WINTER_PASSWORD in [None, '']:
-            raise ValueError("WINTER username and password not set in config.")
-
         from ..models import FacilityTransaction
 
         req = WINTERRequest()
@@ -187,7 +182,9 @@ class WINTERAPI(FollowUpAPI):
             raise ValueError('Missing allocation information.')
 
         missing = [
-            key for key in ['program_name', 'program_api_key'] if key not in altdata
+            key
+            for key in ['program_name', 'program_api_key', 'username', 'password']
+            if key not in altdata
         ]
         if missing:
             raise ValueError(f'Missing allocation information: {", ".join(missing)}')
@@ -203,7 +200,7 @@ class WINTERAPI(FollowUpAPI):
                 'submit_trigger': WINTER_SUBMIT_TRIGGER,
             },
             json=[payload],
-            auth=HTTPBasicAuth(WINTER_USERNAME, WINTER_PASSWORD),
+            auth=HTTPBasicAuth(altdata['username'], altdata['password']),
         )
 
         r.raise_for_status()
@@ -254,7 +251,6 @@ class WINTERAPI(FollowUpAPI):
             #     "title": "Number of Exposures",
             #     "default": 1,
             #     "minimum": 1,
-            #     "maximum": 100,
             # },
             "advanced": {
                 "type": "boolean",
@@ -273,21 +269,19 @@ class WINTERAPI(FollowUpAPI):
                                 "title": "Priority",
                                 "default": 50,
                                 "minimum": 0,
-                                "maximum": 1000,
                             },
                             "dither_distance": {
                                 "type": "number",
                                 "title": "Dither Distance (arcsec)",
-                                "default": 600,
+                                "default": 30,
                                 "minimum": 0,
-                                "maximum": 1000,
                             },
                             "maximum_airmass": {
                                 "type": "number",
                                 "title": "Maximum Airmass",
                                 "default": 2.0,
                                 "minimum": 1.0,
-                                "maximum": 10.0,
+                                "maximum": 5.0,
                             },
                         }
                     },
@@ -307,14 +301,12 @@ class WINTERAPI(FollowUpAPI):
                                 "type": "integer",
                                 "title": "Exposure Time (s)",
                                 "minimum": 1,
-                                "maximum": 300,
                                 "default": FILTER_DEFAULTS["Y"]["exposure_time"],
                             },
                             "n_dither_y": {
                                 "type": "integer",
                                 "title": "Number of Dithers",
                                 "minimum": 1,
-                                "maximum": 100,
                                 "default": FILTER_DEFAULTS["Y"]["n_dither"],
                             },
                         },
@@ -327,14 +319,12 @@ class WINTERAPI(FollowUpAPI):
                                 "type": "integer",
                                 "title": "Exposure Time (s)",
                                 "minimum": 1,
-                                "maximum": 300,
                                 "default": FILTER_DEFAULTS["J"]["exposure_time"],
                             },
                             "n_dither_j": {
                                 "type": "integer",
                                 "title": "Number of Dithers",
                                 "minimum": 1,
-                                "maximum": 100,
                                 "default": FILTER_DEFAULTS["J"]["n_dither"],
                             },
                         },
@@ -347,14 +337,12 @@ class WINTERAPI(FollowUpAPI):
                                 "type": "integer",
                                 "title": "Exposure Time (s)",
                                 "minimum": 1,
-                                "maximum": 300,
                                 "default": FILTER_DEFAULTS["Hs"]["exposure_time"],
                             },
                             "n_dither_hs": {
                                 "type": "integer",
                                 "title": "Number of Dithers",
                                 "minimum": 1,
-                                "maximum": 100,
                                 "default": FILTER_DEFAULTS["Hs"]["n_dither"],
                             },
                         },
@@ -367,14 +355,12 @@ class WINTERAPI(FollowUpAPI):
                                 "type": "integer",
                                 "title": "Exposure Time (s)",
                                 "minimum": 1,
-                                "maximum": 300,
                                 "default": FILTER_DEFAULTS["dark"]["exposure_time"],
                             },
                             "n_dither_dark": {
                                 "type": "integer",
                                 "title": "Number of Dithers",
                                 "minimum": 1,
-                                "maximum": 100,
                                 "default": FILTER_DEFAULTS["dark"]["n_dither"],
                             },
                         },
