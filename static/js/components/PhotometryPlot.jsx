@@ -210,7 +210,7 @@ const PhotometryPlot = ({
   const [appliedDefaultVisibleFilters, setAppliedDefaultVisibleFilters] =
     useState(false);
 
-  const preparePhotometry = (photometryData) => {
+  const preparePhotometry = (photometryData, distance_modulus) => {
     const stats = {
       mag: {
         min: 100,
@@ -270,6 +270,11 @@ const PhotometryPlot = ({
         <br>Mag: ${newPoint.mag ? newPoint.mag.toFixed(3) : "NaN"}
         <br>Magerr: ${newPoint.magerr ? newPoint.magerr.toFixed(3) : "NaN"}
         `;
+        if (distance_modulus) {
+          newPoint.text += `<br>m - DM: ${(
+            newPoint.mag - distance_modulus
+          ).toFixed(3)}`;
+        }
       }
       newPoint.text += `
         <br>Limiting Mag: ${
@@ -719,6 +724,7 @@ const PhotometryPlot = ({
         side: "top",
         range: [...photStats_value.mjd.range],
         tickformat: ".6~f",
+        zeroline: false,
         ...BASE_LAYOUT,
       };
       newLayouts.xaxis2 = {
@@ -727,6 +733,7 @@ const PhotometryPlot = ({
         overlaying: "x",
         side: "bottom",
         showgrid: false,
+        zeroline: false,
         tickformat: ".6~f",
         ...BASE_LAYOUT,
       };
@@ -744,6 +751,7 @@ const PhotometryPlot = ({
       newLayouts.yaxis = {
         title: "AB Mag",
         range: [...photStats_value.mag.range],
+        zeroline: false,
         ...BASE_LAYOUT,
       };
       if (dm && photStats_value) {
@@ -756,6 +764,7 @@ const PhotometryPlot = ({
           overlaying: "y",
           side: "right",
           showgrid: false,
+          zeroline: false,
           ...BASE_LAYOUT,
         };
       }
@@ -785,7 +794,10 @@ const PhotometryPlot = ({
 
   useEffect(() => {
     if (photometry && filter2color && defaultVisibleFilters) {
-      const [newPhotometry, newPhotStats] = preparePhotometry([...photometry]);
+      const [newPhotometry, newPhotStats] = preparePhotometry(
+        [...photometry],
+        dm,
+      );
       const groupedPhotometry = groupPhotometry(newPhotometry);
       setPhotStats(newPhotStats);
       setData(groupedPhotometry);

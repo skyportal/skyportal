@@ -260,7 +260,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         });
       }
 
-      let traces = spectraFiltered.map((spectrum, index) => {
+      const traces = spectraFiltered.map((spectrum, index) => {
         const date = spectrum.observed_at.split("T")[0].split("-");
         const name = `${spectrum.instrument_name} (${date[1]}/${date[2].slice(
           -2,
@@ -335,7 +335,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
             })
           : [];
 
-      traces = [...tracesOriginal, ...traces];
+      const allTraces = [...traces, ...tracesOriginal];
 
       const secondaryAxisX = {
         x: [
@@ -364,7 +364,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         xaxis: "x2",
         hoverinfo: "skip",
       };
-      return traces.concat([secondaryAxisX]);
+      return [...allTraces, secondaryAxisX];
     }
     return [];
   };
@@ -376,6 +376,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         side: "bottom",
         range: [...specStats_value[spectrumType].wavelength.range],
         tickformat: ".6~f",
+        zeroline: false,
         ...BASE_LAYOUT,
       },
       yaxis: {
@@ -393,6 +394,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           (w) => w / (1 + (redshift_value || 0)),
         ),
         tickformat: ".6~f",
+        zeroline: false,
         ...BASE_LAYOUT,
       },
     };
