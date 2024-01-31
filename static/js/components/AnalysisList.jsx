@@ -405,7 +405,6 @@ const AnalysisList = ({ obj_id }) => {
           <AccordionDetails data-testid="analysisTable">
             <StyledEngineProvider injectFirst>
               <ThemeProvider theme={getMuiTheme(theme)}>
-                <div>TODO</div>
                 <MUIDataTable
                   data={analysesList || []}
                   options={options}
