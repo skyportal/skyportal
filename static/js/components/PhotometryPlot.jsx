@@ -1132,12 +1132,12 @@ const PhotometryPlot = ({
             const visibleTraces = e.data.filter(
               (trace) =>
                 ["detections", "upperLimits"].includes(trace.dataType) &&
-                trace.visible === true,
+                (trace.visible === true || trace.visible === undefined),
             ).length;
             const visibleTraceIndex = e.data.findIndex(
               (trace) =>
                 ["detections", "upperLimits"].includes(trace.dataType) &&
-                trace.visible === true,
+                (trace.visible === true || trace.visible === undefined),
             );
             e.data.forEach((trace, index) => {
               if (
