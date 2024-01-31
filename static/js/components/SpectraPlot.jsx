@@ -474,8 +474,10 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
       );
       return line.x.map((x) => {
         const shiftedX =
-          (x * (1 + parseFloat(redshiftInput, 10))) /
-          (1 + parseFloat(vExpInput, 10) / C);
+          line?.fixed === true
+            ? x
+            : (x * (1 + parseFloat(redshiftInput, 10))) /
+              (1 + parseFloat(vExpInput, 10) / C);
         return {
           type: "scatter",
           mode: "lines",
