@@ -82,8 +82,6 @@ app:
     protocol: http
     host: winter.caltech.edu
     port: 82
-    username:
-    password:
     submit_trigger: False # if False, the API POST call will only validate the payload
 
   gracedb_endpoint: https://gracedb.ligo.org/api/
