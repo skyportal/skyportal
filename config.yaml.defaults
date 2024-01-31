@@ -78,6 +78,14 @@ app:
     api_key:
     look_back_days: 1
 
+  winter:
+    protocol: http
+    host: winter.caltech.edu
+    port: 82
+    username:
+    password:
+    submit_trigger: False # if False, the API POST call will only validate the payload
+
   gracedb_endpoint: https://gracedb.ligo.org/api/
   # See https://computing.docs.ligo.org/guide/auth/x509/ for example
   gracedb_credential:
@@ -722,7 +730,7 @@ analysis_services:
       frequency_penalty: 0.0
       model: gpt-3.5-turbo
       presence_penalty: 1.0
-      prompt: Using markdown (including URL links), in one succinct (less than 250 words) paragraph written in the 3rd person summarize the following comments about this astronomical source.  If classifications and/or the redshift are given, then note those in the summary. This summary should be most useful to expert astrophysicists who already know the definitions and meaning of all classifications.
+      prompt: Using markdown (including URL links), in one succinct (less than 250 words) paragraph written in the 3rd person summarize the following comments about this astronomical source.  If classifications and/or the redshift are given, then note those in the summary. This will be read by expert astrophysicists, so no need to explain known concepts and definitions.
     embeddings_store:
       summary:
         location: pinecone

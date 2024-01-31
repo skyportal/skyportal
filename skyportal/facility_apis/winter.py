@@ -1,18 +1,7 @@
-import astropy
-from astropy.io import ascii
-import json
 import requests
-from requests import Request, Session
 from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
 from astropy.time import Time
-import functools
-from marshmallow.exceptions import ValidationError
-import numpy as np
-from sqlalchemy.orm import sessionmaker, scoped_session
-from tornado.ioloop import IOLoop
-import pandas as pd
-import sqlalchemy as sa
 import urllib
 
 from . import FollowUpAPI
@@ -30,6 +19,29 @@ if cfg['app.winter.port'] is not None and int(cfg['app.winter.port']) not in [80
     WINTER_URL += f":{cfg['app.winter.port']}"
 
 log = make_log('facility_apis/winter')
+
+WINTER_USERNAME = cfg.get('app.winter.username', None)
+WINTER_PASSWORD = cfg.get('app.winter.password', None)
+WINTER_SUBMIT_TRIGGER = cfg.get('app.winter.submit_trigger', False)
+
+FILTER_DEFAULTS = {
+    "Y": {
+        "n_dither": 8,
+        "exposure_time": 960 / 8,  # 8 dithers for 960s total = 120s
+    },
+    "J": {
+        "n_dither": 8,
+        "exposure_time": 960 / 8,  # 8 dithers for 960s total = 120s
+    },
+    "Hs": {
+        "n_dither": 15,
+        "exposure_time": 900 / 15,  # 15 dithers for 900s total = 60s
+    },
+    "dark": {
+        "n_dither": 5,
+        "exposure_time": 600 / 5,  # 5 dithers for 600s total = 120s
+    },
+}
 
 
 class WINTERRequest:
@@ -53,35 +65,59 @@ class WINTERRequest:
 
         # here an example of what a WINTER payload should look like
         filters = [request.payload["filter"]]
-        target_priority = int(request.payload["priority"])
-        t_exp = int(request.payload["exposure_time"])
-        n_exp = int(request.payload["exposure_counts"])
+        target_priority = int(request.payload.get("priority", 50))
+        t_exp = int(request.payload["exposure_time"]) * int(request.payload["n_dither"])
+        # n_exp = int(request.payload.get("exposure_counts", 1))
         n_dither = int(request.payload["n_dither"])
-        dither_distance = float(request.payload["dither_distance"])
+        dither_distance = float(request.payload.get("dither_distance", 600))
         start_time_mjd = Time(request.payload["start_date"], format='iso').mjd
         end_time_mjd = Time(request.payload["end_date"], format='iso').mjd
-        max_airmass = float(request.payload["max_airmass"])
+        max_airmass = float(request.payload.get("max_airmass", 2.0))
 
         target = {
-                "ra_deg": request.obj.ra,
-                "dec_deg": request.obj.dec,
-                "use_field_grid": False,
-                "filters": filters,
-                "target_priority": target_priority,
-                "t_exp": t_exp,
-                "n_exp": n_exp,
-                "n_dither": n_dither,
-                "dither_distance": dither_distance,
-                "start_time_mjd": start_time_mjd,
-                "end_time_mjd": end_time_mjd,
-                "max_airmass": max_airmass,
-            }
+            "ra_deg": request.obj.ra,
+            "dec_deg": request.obj.dec,
+            "use_field_grid": False,
+            "filters": filters,
+            "target_priority": target_priority,
+            "t_exp": t_exp,  # Total exposure time = exposure time (per dither) * n_dither
+            "n_exp": 1,  # We force it to 1 for now
+            "n_dither": n_dither,
+            "dither_distance": dither_distance,
+            "start_time_mjd": start_time_mjd,
+            "end_time_mjd": end_time_mjd,
+            "max_airmass": max_airmass,
+        }
 
         return target
+
 
 class WINTERAPI(FollowUpAPI):
 
     """An interface to WINTER operations."""
+
+    @staticmethod
+    def prepare_payload(payload):
+        filter = payload['filter']
+        if filter is None:
+            raise ValueError("Filter not set in payload.")
+        if filter not in FILTER_DEFAULTS:
+            raise ValueError(
+                f"Filter {filter} not allowed, must be one of {list(FILTER_DEFAULTS.keys())}"
+            )
+        payload['n_dither'] = payload.pop(
+            f"n_dither_{str(payload['filter']).lower()}",
+            FILTER_DEFAULTS[filter]['n_dither'],
+        )
+        payload['exposure_time'] = payload.pop(
+            f"exposure_time_{str(payload['filter']).lower()}",
+            FILTER_DEFAULTS[filter]['exposure_time'],
+        )
+
+        if "advanced" in payload:
+            del payload["advanced"]
+
+        return payload
 
     @staticmethod
     def delete(request, session, **kwargs):
@@ -97,8 +133,6 @@ class WINTERAPI(FollowUpAPI):
 
         from ..models import (
             FollowupRequest,
-            FacilityTransaction,
-            FacilityTransactionRequest,
         )
 
         last_modified_by_id = request.last_modified_by_id
@@ -112,7 +146,7 @@ class WINTERAPI(FollowUpAPI):
             ).delete()
             session.commit()
         else:
-            raise NotImplementedError("WINTER API submit not implemented yet.")
+            raise NotImplementedError("WINTER API does not support deleting requests.")
 
         if kwargs.get('refresh_source', False):
             flow = Flow()
@@ -141,7 +175,10 @@ class WINTERAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, FacilityTransactionRequest
+        if WINTER_USERNAME in [None, ''] or WINTER_PASSWORD in [None, '']:
+            raise ValueError("WINTER username and password not set in config.")
+
+        from ..models import FacilityTransaction
 
         req = WINTERRequest()
 
@@ -149,14 +186,27 @@ class WINTERAPI(FollowUpAPI):
         if not altdata:
             raise ValueError('Missing allocation information.')
 
-        payload = req._build_payload(request, session)
-        url = urllib.parse.urljoin(WINTER_URL, 'too/winter')
-        # from the system config, grab the api_key
-        # from the allocation altdata, get the program_api_key and program_name
-        # and set submit_trigger to True ALWAYS
+        missing = [
+            key for key in ['program_name', 'program_api_key'] if key not in altdata
+        ]
+        if missing:
+            raise ValueError(f'Missing allocation information: {", ".join(missing)}')
 
-        # the WINTER API is using fast api, so check what the auth looks like
-        raise NotImplementedError("WINTER API submit not implemented yet.")
+        payload = req._build_payload(request)
+        url = urllib.parse.urljoin(WINTER_URL, 'too/winter')
+
+        r = requests.post(
+            url,
+            params={
+                'program_name': altdata['program_name'],
+                'program_api_key': altdata['program_api_key'],
+                'submit_trigger': WINTER_SUBMIT_TRIGGER,
+            },
+            json=[payload],
+            auth=HTTPBasicAuth(WINTER_USERNAME, WINTER_PASSWORD),
+        )
+
+        r.raise_for_status()
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -197,43 +247,15 @@ class WINTERAPI(FollowUpAPI):
             "filter": {
                 "type": "string",
                 "title": "Filter",
-                "default": "Y",
                 "enum": ["Y", "J", "Hs", "dark"],
             },
-            "priority": {
-                "type": "integer",
-                "title": "Priority",
-                "default": 50,
-                "minimum": 0,
-                "maximum": 1000,
-            },
-            "exposure_time": {
-                "type": "integer",
-                "title": "Exposure Time (s)",
-                "default": 30,
-                "minimum": 1,
-                "maximum": 300,
-            },
-            "exposure_counts": {
-                "type": "integer",
-                "title": "Number of Exposures",
-                "default": 1,
-                "minimum": 1,
-                "maximum": 100,
-            },
-            "n_dither": {
-                "type": "integer",
-                "title": "Number of Dithers",
-                "minimum": 1,
-                "maximum": 100,
-            },
-            "dither_distance": {
-                "type": "number",
-                "title": "Dither Distance (arcsec)",
-                "default": 600,
-                "minimum": 0,
-                "maximum": 1000,
-            },
+            # "exposure_counts": {
+            #     "type": "integer",
+            #     "title": "Number of Exposures",
+            #     "default": 1,
+            #     "minimum": 1,
+            #     "maximum": 100,
+            # },
             "advanced": {
                 "type": "boolean",
                 "title": "Show Advanced Options",
@@ -246,6 +268,20 @@ class WINTERAPI(FollowUpAPI):
                     {
                         "properties": {
                             "advanced": {"enum": [True]},
+                            "priority": {
+                                "type": "integer",
+                                "title": "Priority",
+                                "default": 50,
+                                "minimum": 0,
+                                "maximum": 1000,
+                            },
+                            "dither_distance": {
+                                "type": "number",
+                                "title": "Dither Distance (arcsec)",
+                                "default": 600,
+                                "minimum": 0,
+                                "maximum": 1000,
+                            },
                             "maximum_airmass": {
                                 "type": "number",
                                 "title": "Maximum Airmass",
@@ -254,52 +290,116 @@ class WINTERAPI(FollowUpAPI):
                                 "maximum": 10.0,
                             },
                         }
-                    }
+                    },
+                    {
+                        "properties": {
+                            "advanced": {"enum": [False]},
+                        }
+                    },
                 ]
             },
-            # we want to change the default n_dither value depending on the filter chosen
-            # for Y: 8, J: TOFIGURE OUT USE 4 FOR NOW, Hs: 15, dark: 5
             "filter": {
                 "oneOf": [
                     {
                         "properties": {
                             "filter": {"enum": ["Y"]},
-                            "n_dither": {"default": 1},
-                        }
+                            "exposure_time_y": {
+                                "type": "integer",
+                                "title": "Exposure Time (s)",
+                                "minimum": 1,
+                                "maximum": 300,
+                                "default": FILTER_DEFAULTS["Y"]["exposure_time"],
+                            },
+                            "n_dither_y": {
+                                "type": "integer",
+                                "title": "Number of Dithers",
+                                "minimum": 1,
+                                "maximum": 100,
+                                "default": FILTER_DEFAULTS["Y"]["n_dither"],
+                            },
+                        },
+                        "required": ["exposure_time_y", "n_dither_y"],
                     },
                     {
                         "properties": {
                             "filter": {"enum": ["J"]},
-                            "n_dither": {"default": 4},
-                        }
+                            "exposure_time_j": {
+                                "type": "integer",
+                                "title": "Exposure Time (s)",
+                                "minimum": 1,
+                                "maximum": 300,
+                                "default": FILTER_DEFAULTS["J"]["exposure_time"],
+                            },
+                            "n_dither_j": {
+                                "type": "integer",
+                                "title": "Number of Dithers",
+                                "minimum": 1,
+                                "maximum": 100,
+                                "default": FILTER_DEFAULTS["J"]["n_dither"],
+                            },
+                        },
+                        "required": ["exposure_time_j", "n_dither_j"],
                     },
                     {
                         "properties": {
                             "filter": {"enum": ["Hs"]},
-                            "n_dither": {"default": 15},
-                        }
+                            "exposure_time_hs": {
+                                "type": "integer",
+                                "title": "Exposure Time (s)",
+                                "minimum": 1,
+                                "maximum": 300,
+                                "default": FILTER_DEFAULTS["Hs"]["exposure_time"],
+                            },
+                            "n_dither_hs": {
+                                "type": "integer",
+                                "title": "Number of Dithers",
+                                "minimum": 1,
+                                "maximum": 100,
+                                "default": FILTER_DEFAULTS["Hs"]["n_dither"],
+                            },
+                        },
+                        "required": ["exposure_time_hs", "n_dither_hs"],
                     },
                     {
                         "properties": {
                             "filter": {"enum": ["dark"]},
-                            "n_dither": {"default": 5},
-                        }
+                            "exposure_time_dark": {
+                                "type": "integer",
+                                "title": "Exposure Time (s)",
+                                "minimum": 1,
+                                "maximum": 300,
+                                "default": FILTER_DEFAULTS["dark"]["exposure_time"],
+                            },
+                            "n_dither_dark": {
+                                "type": "integer",
+                                "title": "Number of Dithers",
+                                "minimum": 1,
+                                "maximum": 100,
+                                "default": FILTER_DEFAULTS["dark"]["n_dither"],
+                            },
+                        },
+                        "required": ["exposure_time_dark", "n_dither_dark"],
                     },
                 ]
             },
-
         },
         "required": [
             "start_date",
             "end_date",
             "filter",
-            "priority",
-            "exposure_time",
-            "exposure_counts",
-            "n_dither",
-            "dither_distance",
+            # "exposure_counts",
         ],
     }
 
-    ui_json_schema = {}
-
+    ui_json_schema = {
+        'ui:order': [
+            'start_date',
+            'end_date',
+            'filter',
+            '*',  # wildcard for all the filter dependent fields
+            'advanced',
+            'priority',
+            'dither_distance',
+            'maximum_airmass',
+        ],
+    }

@@ -92,6 +92,7 @@ const displayedColumns = [
   "end date",
   "mode",
   "request",
+  "filter",
   "filters",
   "field_ids",
   "priority",
