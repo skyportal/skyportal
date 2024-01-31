@@ -70,7 +70,7 @@ class WINTERRequest:
         dither_distance = float(request.payload.get("dither_distance", 30))
         start_time_mjd = Time(request.payload["start_date"], format='iso').mjd
         end_time_mjd = Time(request.payload["end_date"], format='iso').mjd
-        max_airmass = float(request.payload.get("max_airmass", 2.0))
+        max_airmass = float(request.payload.get("maximum_airmass", 2.0))
 
         target = {
             "ra_deg": request.obj.ra,
@@ -111,6 +111,10 @@ class WINTERAPI(FollowUpAPI):
             f"exposure_time_{str(payload['filter']).lower()}",
             FILTER_DEFAULTS[filter]['exposure_time'],
         )
+
+        payload['priority'] = payload.get('priority', 50)
+        payload['dither_distance'] = payload.get('dither_distance', 30)
+        payload['maximum_airmass'] = payload.get('maximum_airmass', 2.0)
 
         if "advanced" in payload:
             del payload["advanced"]
