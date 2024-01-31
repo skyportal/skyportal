@@ -1,7 +1,7 @@
 import React from "react";
 
 import { useTheme } from "@mui/material/styles";
-import { useMediaQuery } from "@mui/material";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import TelescopePageDesktop from "./TelescopePageDesktop";
 import TelescopePageMobile from "./TelescopePageMobile";
 

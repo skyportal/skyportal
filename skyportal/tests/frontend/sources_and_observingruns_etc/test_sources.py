@@ -50,7 +50,7 @@ def add_comment_and_wait_for_display(driver, comment_text):
 def test_public_source_page(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
 
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
@@ -59,7 +59,7 @@ def test_public_source_page(driver, user, public_source, public_group):
 def test_comment_username_autosuggestion(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     comment_text = f"hey @{user.username[:5]}"
     enter_comment_text(driver, comment_text)
     matchButtonXpath = (
@@ -78,7 +78,7 @@ def test_comment_username_autosuggestion(driver, user, public_source):
 def test_comment_user_last_name_autosuggestion(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     comment_text = f"hey @{user.last_name[:5]}"
     enter_comment_text(driver, comment_text)
     matchButtonXpath = (
@@ -97,7 +97,7 @@ def test_comment_user_last_name_autosuggestion(driver, user, public_source):
 def test_comment_user_first_name_autosuggestion(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     comment_text = f"hey @{user.first_name[:5]}"
     enter_comment_text(driver, comment_text)
     matchButtonXpath = (
@@ -120,7 +120,7 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
 
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
 
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
@@ -157,7 +157,7 @@ def test_analysis_start(
 
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     driver.wait_for_xpath('//*[text()="External Analysis"]')
 
     driver.click_xpath('//div[@data-testid="analysisServiceSelect"]')
@@ -207,7 +207,7 @@ def test_analysis_with_file_input_start(
 
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     driver.wait_for_xpath('//*[text()="External Analysis"]')
 
     driver.click_xpath('//div[@data-testid="analysisServiceSelect"]')
@@ -284,17 +284,17 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
 
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
 
     # wait for plots to load
     try:
         driver.wait_for_xpath(
-            '//div[@id="photometry-container"]/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
         driver.wait_for_xpath(
-            '//div[@id="spectroscopy-content"]/div/div/div/div/div[@class=" bk-root"]',
-            timeout=10,
+            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
+            timeout=5,
         )
     except TimeoutException:
         pass
@@ -388,7 +388,7 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
 def test_comments(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     comment_text = str(uuid.uuid4())
     add_comment_and_wait_for_display(driver, comment_text)
 
@@ -401,7 +401,7 @@ def test_comment_groups_validation(
     sitewide_group_id = data["data"]["id"]
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     comment_text = str(uuid.uuid4())
     enter_comment_text(driver, comment_text)
     driver.click_xpath(
@@ -449,7 +449,7 @@ def test_comment_groups_validation(
 def test_view_only_user_cannot_comment(driver, view_only_user, public_source):
     driver.get(f"/become_user/{view_only_user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     driver.wait_for_xpath_to_disappear('//textarea[@name="text"]')
 
 
@@ -457,7 +457,7 @@ def test_view_only_user_cannot_comment(driver, view_only_user, public_source):
 def test_delete_comment(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     comment_text = str(uuid.uuid4())
     add_comment_and_wait_for_display(driver, comment_text)
     comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
@@ -497,7 +497,7 @@ def test_regular_user_cannot_delete_unowned_comment(
 ):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     comment_text = str(uuid.uuid4())
     add_comment_and_wait_for_display(driver, comment_text)
     driver.get(f"/become_user/{user.id}")
@@ -519,7 +519,7 @@ def test_super_user_can_delete_unowned_comment(
 ):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     comment_text = str(uuid.uuid4())
     add_comment_and_wait_for_display(driver, comment_text)
 
@@ -634,7 +634,7 @@ def test_dropdown_facility_change(driver, user, public_source):
 def test_source_notification(driver, user, public_group, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
 
     # Choose a group and click something outside/not covered by the multi-select
     # popup to close it, and retry a few times in case the page loads slowly
@@ -669,7 +669,7 @@ def test_unsave_from_group(
     public_source = public_source_two_groups
     driver.get(f"/become_user/{user_two_groups.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     driver.click_xpath(f'//*[@data-testid="editGroups_{public_source.id}"]')
     driver.click_xpath(
         f'//*[@data-testid="unsaveGroupCheckbox_{public_group2.id}"]',
@@ -690,7 +690,7 @@ def test_request_group_to_save_then_save(
 ):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     driver.click_xpath(f'//*[@data-testid="editGroups_{public_source.id}"]')
     driver.click_xpath(
         f'//*[@data-testid="inviteGroupCheckbox_{public_group2.id}"]',
@@ -716,7 +716,7 @@ def test_request_group_to_save_then_save(
 def test_update_redshift_and_history(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     driver.click_xpath("//*[@data-testid='updateRedshiftIconButton']")
     input_field = driver.wait_for_xpath(
         "//div[@data-testid='updateRedshiftTextfield']//input"
@@ -746,7 +746,7 @@ def test_update_redshift_and_history(driver, user, public_source):
 def test_update_redshift_and_history_without_error(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
     driver.click_xpath("//*[@data-testid='updateRedshiftIconButton']")
     input_field = driver.wait_for_xpath(
         "//div[@data-testid='updateRedshiftTextfield']//input"
@@ -789,7 +789,7 @@ def test_show_photometry_table(public_source, driver, user):
     )
 
 
-def test_hide_right_pane(public_source, driver, user):
+def test_hide_right_panel(public_source, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.click_xpath('//*[@data-testid="hide-right-panel-button"]')
@@ -835,7 +835,7 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
     assert status == 200
 
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
 
     try:
         # Look for Suspense fallback to show

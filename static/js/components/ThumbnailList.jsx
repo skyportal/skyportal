@@ -15,9 +15,12 @@ import Typography from "@mui/material/Typography";
 dayjs.extend(calendar);
 
 const useStyles = makeStyles((theme) => ({
-  root: ({ size }) => ({
+  root: ({ size, minSize, maxSize, noMargin }) => ({
     width: size,
-    margin: "0.5rem auto",
+    minWidth: minSize,
+    maxWidth: maxSize,
+    margin: noMargin ? 0 : "0.5rem auto",
+    height: "100%",
     maxHeight: "31rem",
     flexGrow: 1,
   }),
@@ -26,9 +29,10 @@ const useStyles = makeStyles((theme) => ({
       0.75,
     )} ${theme.spacing(1)}`,
   },
-  title: {
-    fontSize: "0.875rem",
-  },
+  title: ({ titleSize }) => ({
+    fontSize: titleSize,
+    textWrap: "nowrap",
+  }),
   pos: {
     marginBottom: 0,
   },
@@ -53,7 +57,19 @@ const useStyles = makeStyles((theme) => ({
   }),
 }));
 
-const Thumbnail = ({ ra, dec, name, url, size, grayscale, header }) => {
+const Thumbnail = ({
+  ra,
+  dec,
+  name,
+  url,
+  size,
+  minSize,
+  maxSize,
+  titleSize,
+  grayscale,
+  header,
+  noMargin,
+}) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
 
@@ -61,7 +77,14 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale, header }) => {
     (state) => state.profile.preferences.invertThumbnails,
   );
 
-  const classes = useStyles({ size, invertThumbnails });
+  const classes = useStyles({
+    size,
+    minSize,
+    maxSize,
+    titleSize,
+    invertThumbnails,
+    noMargin,
+  });
 
   let alt = null;
   let link = null;
@@ -143,8 +166,16 @@ Thumbnail.propTypes = {
   name: PropTypes.string.isRequired,
   url: PropTypes.string.isRequired,
   size: PropTypes.string.isRequired,
+  minSize: PropTypes.string.isRequired,
+  maxSize: PropTypes.string.isRequired,
+  titleSize: PropTypes.string.isRequired,
   grayscale: PropTypes.bool.isRequired,
   header: PropTypes.string.isRequired,
+  noMargin: PropTypes.bool,
+};
+
+Thumbnail.defaultProps = {
+  noMargin: false,
 };
 
 const sortThumbnailsByDate = (a, b) => {
@@ -165,6 +196,10 @@ const ThumbnailList = ({
   thumbnails,
   useGrid = true,
   size = "13rem",
+  minSize = null,
+  maxSize = null,
+  noMargin = false,
+  titleSize = "0.875rem",
   displayTypes = ["new", "ref", "sub", "sdss", "ls", "ps1"],
 }) => {
   thumbnails
@@ -189,7 +224,7 @@ const ThumbnailList = ({
 
   if (useGrid) {
     return (
-      <Grid container direction="row" spacing={3}>
+      <Grid container direction="row" spacing={1}>
         {latestThumbnails?.map((t) => (
           <Grid item key={t.id}>
             <Thumbnail
@@ -199,8 +234,11 @@ const ThumbnailList = ({
               name={t.type}
               url={t.public_url}
               size={size}
+              minSize={minSize === null ? size : minSize}
+              maxSize={maxSize === null ? size : maxSize}
               grayscale={t.is_grayscale}
               header={thumbnail_display[t.type]}
+              titleSize={titleSize}
             />
           </Grid>
         ))}
@@ -214,28 +252,58 @@ const ThumbnailList = ({
                 name="PanSTARRS DR2: Loading..."
                 url="#"
                 size={size}
+                minSize={minSize === null ? size : minSize}
+                maxSize={maxSize === null ? size : maxSize}
                 grayscale={false}
                 header="PanSTARRS DR2"
+                titleSize={titleSize}
               />
             </Grid>
           )}
       </Grid>
     );
   }
-  return latestThumbnails?.map((t) => (
-    <Grid item key={t.id}>
-      <Thumbnail
-        key={`thumb_${t.type}`}
-        ra={ra}
-        dec={dec}
-        name={t.type}
-        url={t.public_url}
-        size={size}
-        grayscale={t.is_grayscale}
-        header={thumbnail_display[t.type]}
-      />
-    </Grid>
-  ));
+  return (
+    <>
+      {latestThumbnails?.map((t) => (
+        <Grid item key={t.id}>
+          <Thumbnail
+            key={`thumb_${t.type}`}
+            ra={ra}
+            dec={dec}
+            name={t.type}
+            url={t.public_url}
+            size={size}
+            minSize={minSize === null ? size : minSize}
+            maxSize={maxSize === null ? size : maxSize}
+            noMargin={noMargin}
+            grayscale={t.is_grayscale}
+            header={thumbnail_display[t.type]}
+            titleSize={titleSize}
+          />
+        </Grid>
+      ))}
+      {displayTypes?.includes("ps1") &&
+        !latestThumbnails?.map((t) => t.type)?.includes("ps1") && (
+          <Grid item key="thumb_placeholder">
+            <Thumbnail
+              key="thumbPlaceHolder"
+              ra={ra}
+              dec={dec}
+              name="PanSTARRS DR2: Loading..."
+              url="#"
+              size={size}
+              minSize={minSize === null ? size : minSize}
+              maxSize={maxSize === null ? size : maxSize}
+              noMargin={noMargin}
+              grayscale={false}
+              header="PanSTARRS DR2"
+              titleSize={titleSize}
+            />
+          </Grid>
+        )}
+    </>
+  );
 };
 
 ThumbnailList.propTypes = {
@@ -243,14 +311,22 @@ ThumbnailList.propTypes = {
   dec: PropTypes.number.isRequired,
   thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired, // eslint-disable-line react/forbid-prop-types
   size: PropTypes.string,
+  minSize: PropTypes.string,
+  maxSize: PropTypes.string,
+  titleSize: PropTypes.string,
   displayTypes: PropTypes.arrayOf(PropTypes.string),
   useGrid: PropTypes.bool,
+  noMargin: PropTypes.bool,
 };
 
 ThumbnailList.defaultProps = {
   size: "13rem",
+  minSize: null,
+  maxSize: null,
+  titleSize: "0.875rem",
   displayTypes: ["new", "ref", "sub", "sdss", "ls", "ps1"],
   useGrid: true,
+  noMargin: false,
 };
 
 export default ThumbnailList;

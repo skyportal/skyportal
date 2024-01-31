@@ -76,10 +76,6 @@ const About = () => {
       src: "/static/images/developers/kasliwal.jpg",
     },
     {
-      name: "Jada Lilleboe",
-      src: "/static/images/developers/lilleboe.jpg",
-    },
-    {
       name: "Don Neill",
       src: "/static/images/developers/neill.jpg",
     },
@@ -113,6 +109,10 @@ const About = () => {
     {
       name: "Daniel Goldstein",
       src: "/static/images/developers/goldstein.jpg",
+    },
+    {
+      name: "Jada Lilleboe",
+      src: "/static/images/developers/lilleboe.jpg",
     },
     {
       name: "Kyung Min Shin",

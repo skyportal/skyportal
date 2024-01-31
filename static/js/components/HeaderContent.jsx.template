@@ -9,7 +9,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import Tooltip from "@mui/material/Tooltip";
-import { useMediaQuery } from "@mui/material";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 import ProfileDropdown from "./ProfileDropdown";
 import Logo from "./Logo";
@@ -28,7 +28,7 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
   },
   title: {
-    marginLeft: "0.5rem",
+    margin: "0 0 0 0.5rem",
     color: "white",
     fontSize: "160%",
     fontWeight: "bold",
@@ -48,6 +48,8 @@ const useStyles = makeStyles((theme) => ({
   logoContainer: {
     height: "100%",
     borderRight: "1px solid white",
+    paddingLeft: "0.4rem",
+    paddingRight: "0.4rem",
     "&:last-of-type": {
       borderRight: "none",
       paddingRight: "0",

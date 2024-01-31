@@ -33,7 +33,7 @@ const useStyles = makeStyles(() => ({
     gridTemplateColumns: "repeat(auto-fit, minmax(5rem, auto))",
     gap: "0.5rem",
     width: "100%",
-    paddingTop: "0.5rem",
+    padding: "0.5rem 1rem 0 1rem",
   },
   gridItemLines: {
     display: "flex",
@@ -49,7 +49,7 @@ const useStyles = makeStyles(() => ({
     rowGap: "0.5rem",
     columnGap: "2rem",
     width: "100%",
-    paddingTop: "1rem",
+    padding: "1rem 1rem 0 1rem",
   },
   gridItem: {
     display: "flex",
@@ -252,7 +252,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         return false;
       });
 
-      const traces = spectraFiltered.map((spectrum, index) => {
+      let traces = spectraFiltered.map((spectrum, index) => {
         const date = spectrum.observed_at.split("T")[0].split("-");
         const name = `${spectrum.instrument_name} (${date[1]}/${date[2].slice(
           -2,
@@ -261,6 +261,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           mode: "lines",
           type: "scatter",
           dataType: "Spectrum",
+          spectrumId: spectrum.id,
           x: spectrum.wavelengths,
           y:
             smoothingValue === 0
@@ -285,6 +286,38 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
 
         return trace;
       });
+
+      // when smoothing, keep showing the original trace but in the background, in grey with 20% opacity
+      const tracesOriginal =
+        smoothingValue > 0
+          ? spectraFiltered.map((spectrum) => {
+              const date = spectrum.observed_at.split("T")[0].split("-");
+              const name = `${spectrum.instrument_name} (${
+                date[1]
+              }/${date[2].slice(-2)}/${date[0].slice(-2)})`;
+              const trace = {
+                mode: "lines",
+                type: "scatter",
+                dataType: "SpectrumNoSmooth",
+                spectrumId: spectrum.id,
+                x: spectrum.wavelengths,
+                y: spectrum.fluxes_normed,
+                name,
+                legendgroup: `${spectrum.instrument_name}/${spectrum.observed_at}`,
+                line: {
+                  shape: "hvh",
+                  width: 0.85,
+                  color: `rgba(100, 100, 100, 0.2)`,
+                },
+                hoverinfo: "skip",
+                visible: true,
+                showlegend: false,
+              };
+              return trace;
+            })
+          : [];
+
+      traces = [...tracesOriginal, ...traces];
 
       const secondaryAxisX = {
         x: [
@@ -459,7 +492,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     );
 
   return (
-    <div style={{ width: "100%", height: "100%" }}>
+    <div style={{ width: "100%", height: "100%" }} id="spectroscopy-plot">
       {types?.length > 0 && (
         <Tabs
           value={tabIndex}
@@ -470,7 +503,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           sx={{
             display: {
               maxWidth: "95vw",
-              width: "100&",
+              width: "100%",
               "& > button": { lineHeight: "1.5rem" },
             },
           }}
@@ -494,12 +527,36 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
-              y: mode === "desktop" ? 1 : -0.3,
+              // on mobile with a lot of legend entries, we need to move the legend down to avoid overlapping with the plot
+              y: mode === "desktop" ? 1 : plotData?.length > 10 ? -0.4 : -0.3, // eslint-disable-line no-nested-ternary
               x: mode === "desktop" ? 1.02 : 0,
+              font: { size: 14 },
             },
             showlegend: true,
             autosize: true,
-            automargin: true,
+            margin: {
+              l: 70,
+              r: 20,
+              b: 75,
+              t: 80,
+              pad: 0,
+            },
+            shapes: [
+              {
+                // we use a shape to draw a box around the plot to add borders to it
+                type: "rect",
+                xref: "paper",
+                yref: "paper",
+                x0: 0,
+                y0: 0,
+                x1: 1,
+                y1: 1,
+                line: {
+                  color: "black",
+                  width: 1,
+                },
+              },
+            ],
           }}
           config={{
             displaylogo: false,
@@ -545,12 +602,15 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
                 trace.visible = true;
               } else if (
                 (visibleTraces === 1 && e.curveNumber === visibleTraceIndex) ||
-                visibleTraces === 0
+                visibleTraces === 0 ||
+                (trace.dataType === "SpectrumNoSmooth" &&
+                  trace.spectrumId === e.data[e.curveNumber].spectrumId)
               ) {
                 // if we already isolated a single trace and we double click on it, or if there are no traces visible, show all
+                // OR, if its the unsmoothed version of the trace we double clicked on, keep it visible
                 trace.visible = true;
               } else {
-                // otherwise, hide all
+                // otherwise, hide all except if SpectrumNoSmooth trace
                 trace.visible = "legendonly";
               }
             });

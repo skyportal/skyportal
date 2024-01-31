@@ -17,6 +17,10 @@ const UIPreferences = () => {
   const useRefMag = preferences?.useRefMag || false;
   const showBotComments = preferences?.showBotComments || false;
   const hideMLClassifications = preferences?.hideMLClassifications || false;
+  const showSimilarSources = preferences?.showSimilarSources || false;
+  const hideSourceSummary = preferences?.hideSourceSummary || false;
+  const showAISourceSummary = preferences?.showAISourceSummary || false;
+
   const dispatch = useDispatch();
 
   const themeToggled = (event) => {
@@ -65,6 +69,27 @@ const UIPreferences = () => {
   const hideMLClassificationsToggled = (event) => {
     const prefs = {
       hideMLClassifications: event.target.checked,
+    };
+    dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
+  const showSimilarSourcesToggled = (event) => {
+    const prefs = {
+      showSimilarSources: event.target.checked,
+    };
+    dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
+  const hideSourceSummaryToggled = (event) => {
+    const prefs = {
+      hideSourceSummary: event.target.checked,
+    };
+    dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
+  const showAISourceSummaryToggled = (event) => {
+    const prefs = {
+      showAISourceSummary: event.target.checked,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
@@ -125,12 +150,29 @@ const UIPreferences = () => {
     />
   );
 
-  /* To get hold of the current theme:
+  const showSimilarSourcesSwitch = (
+    <Switch
+      value="Show Similar Sources (based on AI summaries) by default"
+      checked={showSimilarSources}
+      onChange={showSimilarSourcesToggled}
+    />
+  );
 
-  const themeCtx = useTheme();
-  console.log(themeCtx.palette.mode);
+  const hideSourceSummarySwitch = (
+    <Switch
+      value="Hide Source Summaries (by default)"
+      checked={hideSourceSummary}
+      onChange={hideSourceSummaryToggled}
+    />
+  );
 
-  */
+  const showAISourceSummarySwitch = (
+    <Switch
+      value="Show AI Source Summaries (by default)"
+      checked={showAISourceSummary}
+      onChange={showAISourceSummaryToggled}
+    />
+  );
 
   return (
     <div>
@@ -158,6 +200,20 @@ const UIPreferences = () => {
           control={hideMLClassificationsSwitch}
           label="Hide ML-based Classifications"
         />
+        <FormControlLabel
+          control={showSimilarSourcesSwitch}
+          label="Show Similar Sources"
+        />
+        <FormControlLabel
+          control={hideSourceSummarySwitch}
+          label="Hide Source Summaries on Source page"
+        />
+        {hideSourceSummary !== true && (
+          <FormControlLabel
+            control={showAISourceSummarySwitch}
+            label="Show AI Source Summaries on Source page"
+          />
+        )}
       </FormGroup>
     </div>
   );

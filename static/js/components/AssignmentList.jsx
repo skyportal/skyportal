@@ -7,39 +7,14 @@ import {
   StyledEngineProvider,
   useTheme,
 } from "@mui/material/styles";
-import makeStyles from "@mui/styles/makeStyles";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import Typography from "@mui/material/Typography";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CircularProgress from "@mui/material/CircularProgress";
 import MUIDataTable from "mui-datatables";
 import dayjs from "dayjs";
 
 import * as Actions from "../ducks/source";
 import * as UserActions from "../ducks/users";
-
-const useStyles = makeStyles(() => ({
-  container: {
-    margin: "1rem 0",
-  },
-  accordion: {
-    width: "99%",
-  },
-  assignmentTable: {
-    borderSpacing: "0.7em",
-  },
-  verticalCenter: {
-    margin: 0,
-    position: "absolute",
-    top: "50%",
-    msTransform: "translateY(-50%)",
-    transform: "translateY(-50%)",
-  },
-}));
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
@@ -86,7 +61,6 @@ const getMuiTheme = (theme) =>
   });
 
 const AssignmentList = ({ assignments }) => {
-  const styles = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
 
@@ -243,27 +217,16 @@ const AssignmentList = ({ assignments }) => {
   };
 
   return (
-    <div className={styles.container}>
-      <Accordion className={styles.accordion}>
-        <AccordionSummary
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls="observing-run-assignments"
-          id="observing-run-assignments-header"
-        >
-          <Typography variant="subtitle1">Assignments</Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                data={assignments}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-        </AccordionDetails>
-      </Accordion>
+    <div>
+      <StyledEngineProvider injectFirst>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable
+            data={assignments}
+            options={options}
+            columns={columns}
+          />
+        </ThemeProvider>
+      </StyledEngineProvider>
     </div>
   );
 };

@@ -224,6 +224,14 @@ const useStyles = makeStyles((theme) => ({
   widgetPaperFillSpace: {
     height: "100%",
   },
+  groupChips: {
+    display: "flex",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: "0.25rem",
+    maxWidth: "100%",
+  },
 }));
 
 const getMuiTheme = (theme) =>
@@ -1056,6 +1064,7 @@ const SourceTable = ({
           }`}
           target="_blank"
           rel="noopener noreferrer"
+          style={{ whiteSpace: "nowrap" }}
         >
           {`${source.tns_name} `}
         </a>
@@ -1208,14 +1217,13 @@ const SourceTable = ({
   const renderGroups = (dataIndex) => {
     const source = sources[dataIndex];
     return (
-      <div key={`${source.id}_groups`}>
+      <div key={`${source.id}_groups`} className={classes.groupChips}>
         {getGroups(source).map((group) => (
           <div key={group.name}>
             <Chip
               label={group.name.substring(0, 15)}
               key={group.id}
               size="small"
-              className={classes.chip}
               onClick={() => navigate(`/group/${group.id}`)}
             />
             <br />
@@ -1644,6 +1652,7 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
+        setCellProps: () => ({ style: { maxWidth: "30vw" } }),
       },
     },
     {
@@ -1677,6 +1686,7 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes(" "),
         customBodyRenderLite: renderPhotStats,
+        setCellProps: () => ({ style: { maxWidth: "5rem" } }),
       },
     },
     {
@@ -1752,10 +1762,11 @@ const SourceTable = ({
     },
     {
       name: "favorites",
-      label: "Favorites",
+      label: " ",
       options: {
         display: displayedColumns.includes("Favorites"),
         customBodyRenderLite: renderFavoritesStar,
+        setCellProps: () => ({ style: { maxWidth: "5rem" } }),
       },
     },
     {

@@ -45,10 +45,8 @@ export const useSourceListStyles = makeStyles((theme) => ({
     WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
   }),
   sourceListContainer: {
-    height: "calc(100% - 3rem)",
+    height: "calc(100% - 2.5rem)",
     overflowY: "auto",
-    marginTop: "0.625rem",
-    paddingTop: "0.625rem",
   },
   sourceList: {
     display: "block",
@@ -475,9 +473,6 @@ const RecentSources = ({ classes }) => {
               onSubmit={profileActions.updateUserPreferences}
             />
           </div>
-          <Paper elevation={0}>
-            <RecentSourcesSearchbar styles={styles} />
-          </Paper>
         </div>
         <RecentSourcesList sources={recentSources} styles={styles} />
       </div>

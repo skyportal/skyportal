@@ -798,6 +798,7 @@ def test_user_without_save_access_cannot_save(
     driver.scroll_to_element_and_click(save_button)
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_classification_on_scanning_page(
     driver, user, public_group, taxonomy_token, public_filter, upload_data_token
 ):

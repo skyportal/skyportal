@@ -5,6 +5,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import makeStyles from "@mui/styles/makeStyles";
+import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import Button from "./Button";
 
@@ -30,15 +31,20 @@ const SourceGCNCrossmatchList = ({ gcn_crossmatches }) => {
             role="link"
             key={gcn_crossmatches[0].dateobs}
           >
-            <Button size="small">{gcn_crossmatches[0].dateobs}</Button>
+            <Button size="small" style={{ margin: 0, padding: 0 }}>
+              {gcn_crossmatches[0].dateobs}
+            </Button>
           </Link>
-          <AddIcon
+          <IconButton
+            size="small"
             data-testid="addGcnEventAliasIconButton"
-            fontSize="small"
             onClick={() => {
               setDialogOpen(true);
             }}
-          />
+            style={{ padding: 0, margin: 0 }}
+          >
+            <AddIcon fontSize="small" style={{ fontSize: "1rem" }} />
+          </IconButton>
         </div>
         <Dialog
           open={dialogOpen}
@@ -76,7 +82,9 @@ const SourceGCNCrossmatchList = ({ gcn_crossmatches }) => {
         role="link"
         key={gcn_crossmatches[0].dateobs}
       >
-        <Button size="small">{gcn_crossmatches[0].dateobs}</Button>
+        <Button size="small" style={{ margin: 0, padding: 0 }}>
+          {gcn_crossmatches[0].dateobs}
+        </Button>
       </Link>
     );
   }
