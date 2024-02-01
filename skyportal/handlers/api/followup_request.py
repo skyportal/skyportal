@@ -14,6 +14,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import conesearch_alchemy as ca
 import sqlalchemy as sa
 from astroplan import FixedTarget, Observer, ObservingBlock
 from astroplan.constraints import (
@@ -428,6 +429,23 @@ def post_followup_request(
             if len(existing_spectra) > 0:
                 raise ValueError(
                     'Source has already been observed spectroscopically, not submitting request (as per constraint).'
+                )
+        if constraints.get("not_if_tns_classified", False):
+            # don't trigger if there is any source within 0.5 arcsec of the target
+            # that has a tns_name that contains "SN"
+            obj = session.scalars(
+                Obj.select(session.user_or_token).where(Obj.id == data['obj_id'])
+            ).first()
+            if obj is None:
+                raise ValueError(f'Could not find source with ID {data["obj_id"]}.')
+            stmt = Obj.select(session.user_or_token).where(
+                Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), 0.5 / 3600),
+                Obj.tns_name.contains("SN"),
+            )
+            count = session.execute(sa.select(func.count()).select_from(stmt)).scalar()
+            if count > 0:
+                raise ValueError(
+                    'Source within 0.5 arcsec has already been classified in TNS, not submitting request (as per constraint).'
                 )
 
     stmt = Allocation.select(session.user_or_token).where(
@@ -941,6 +959,11 @@ class FollowupRequestHandler(BaseHandler):
             constraints['not_if_classified'] = data.pop('not_if_classified')
         if 'not_if_spectra_exist' in data:
             constraints['not_if_spectra_exist'] = data.pop('not_if_spectra_exist')
+        if 'not_if_tns_classified' in data:
+            constraints['not_if_tns_classified'] = data.pop('not_if_tns_classified')
+        if len(list(constraints.keys())) > 0:
+            constraints = None
+
         with self.Session() as session:
             try:
                 data["requester_id"] = self.associated_user_object.id
