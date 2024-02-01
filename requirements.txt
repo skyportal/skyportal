@@ -83,7 +83,7 @@ watchdog==3.0.0
 PyAstronomy==0.19.0
 shapely==2.0.2
 stdpipe==0.2.1
-openai[embeddings]==0.27.8
+openai[embeddings]==1.10.0
 tiktoken==0.5.2
 pinecone-client==2.2.4
 simplejson==3.19.2
