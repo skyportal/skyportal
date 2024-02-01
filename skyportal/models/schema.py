@@ -1246,6 +1246,15 @@ class FollowupRequestPost(_Schema):
         },
     )
 
+    not_if_tns_classified = fields.Boolean(
+        required=False,
+        metadata={
+            'description': (
+                'If true, the followup request will not be executed if any object within 0.5 arcsec is already classified as SN in TNS.'
+            )
+        },
+    )
+
     ignore_source_group_ids = fields.List(
         fields.Integer,
         required=False,
