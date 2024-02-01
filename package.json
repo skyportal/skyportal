@@ -120,7 +120,7 @@
     "@babel/plugin-transform-async-to-generator": "7.23.3",
     "@babel/polyfill": "7.12.1",
     "@babel/preset-env": "7.23.9",
-    "@babel/preset-react": "7.22.5",
+    "@babel/preset-react": "7.23.3",
     "@types/eslint": "8.40.2",
     "@types/node": "20.10.6",
     "babel-loader": "8.2.2",
