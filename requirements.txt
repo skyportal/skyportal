@@ -27,7 +27,7 @@ pytest==7.1.0
 git+https://github.com/sncosmo/sncosmo.git@master#egg=sncosmo
 tdtax==0.1.4
 healpix-alchemy==1.0.2
-mocpy==0.13.0
+mocpy==0.13.1
 obspy==1.4.0
 conesearch-alchemy==1.0.0
 regions==0.7
@@ -38,9 +38,9 @@ tables>=3.7.0
 timezonefinder==6.2.0
 astroplan==0.9.1
 py3-validate-email==1.0.5.post1
-alembic==1.12.1
+alembic==1.13.1
 marshmallow-jsonschema==0.13.0
-paramiko==3.3.1
+paramiko==3.4.0
 scp==0.14.5
 requests_toolbelt==1.0.0
 sendgrid==6.10.0
@@ -80,10 +80,10 @@ confluent_kafka==2.2.0 # dependency of gcn-kafka: pinning to understand memory e
 iminuit==2.24.0
 watchdog==3.0.0
 PyAstronomy==0.20.0
-shapely==2.0.1
+shapely==2.0.2
 stdpipe>=0.1
 openai==1.10.0
-tiktoken==0.4.0
+tiktoken==0.5.2
 pinecone-client==2.2.4
 simplejson==3.19.2
 langchain==0.1.0
