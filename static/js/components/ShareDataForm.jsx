@@ -348,6 +348,15 @@ const ShareDataForm = ({ route }) => {
     return <div />;
   };
 
+  const renderPIs = (dataIndex) => {
+    const externalPI = specRows[dataIndex]?.external_pi;
+    const users = specRows[dataIndex]?.pis;
+    if (externalPI) {
+      return <div>{externalPI}</div>;
+    }
+    return renderMultipleUsers(users);
+  };
+
   const renderReducers = (dataIndex) => {
     const externalReducer = specRows[dataIndex]?.external_reducer;
     const users = specRows[dataIndex]?.reducers;
@@ -516,6 +525,14 @@ const ShareDataForm = ({ route }) => {
       label: "Uploaded by",
       options: {
         customBodyRenderLite: makeRenderSingleUser("owner"),
+        filter: false,
+      },
+    },
+    {
+      name: "pis",
+      label: "PI(s)",
+      options: {
+        customBodyRenderLite: renderPIs,
         filter: false,
       },
     },

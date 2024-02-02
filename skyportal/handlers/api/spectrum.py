@@ -28,6 +28,7 @@ from ...models import (
     Instrument,
     Obj,
     Spectrum,
+    SpectrumPI,
     SpectrumReducer,
     SpectrumObserver,
     User,
@@ -120,6 +121,22 @@ def post_spectrum(data, user_id, session):
     if instrument is None:
         raise ValueError(f'Cannot find instrument with ID: {data["instrument_id"]}')
 
+    pis = []
+    external_pi = data.pop("external_pi", None)
+    for pi_id in data.pop('pi', []):
+        stmt = User.select(user).where(User.id == pi_id)
+        pi = session.scalars(stmt).first()
+        if pi is None:
+            raise ValueError(f'Invalid pi ID: {pi_id}.')
+        pi_association = SpectrumPI(external_pi=external_pi)
+        pi_association.user = pi
+        pis.append(pi_association)
+
+    if len(pis) == 0 and external_pi is not None:
+        raise ValueError(
+            "At least one valid user must be provided as a PI point of contact via the 'pi' parameter."
+        )
+
     reducers = []
     external_reducer = data.pop("external_reducer", None)
     for reducer_id in data.pop('reduced_by', []):
@@ -181,6 +198,9 @@ def post_spectrum(data, user_id, session):
     for observer in observers:
         observer.spectrum = spec
         session.add(observer)
+    for pi in pis:
+        pi.spectrum = spec
+        session.add(pi)
 
     session.commit()
 
@@ -473,9 +493,18 @@ class SpectrumHandler(BaseHandler):
                 spec_dict["groups"] = spectrum.groups
                 spec_dict["reducers"] = spectrum.reducers
                 spec_dict["observers"] = spectrum.observers
+                spec_dict["pis"] = spectrum.pis
                 spec_dict["owner"] = spectrum.owner
                 spec_dict["comments"] = comments
                 spec_dict["annotations"] = annotations
+
+                external_pi = session.scalars(
+                    SpectrumPI.select(session.user_or_token).where(
+                        SpectrumPI.spectr_id == spectrum_id
+                    )
+                ).first()
+                if external_pi is not None:
+                    spec_dict["external_pi"] = external_pi.external_pi
 
                 external_reducer = session.scalars(
                     SpectrumReducer.select(session.user_or_token).where(
@@ -742,6 +771,17 @@ class SpectrumHandler(BaseHandler):
                         .all()
                     )
                     spec_dict['annotations'] = recursive_to_dict(annotations)
+
+                    external_pi = session.scalars(
+                        SpectrumPI.select(session.user_or_token).where(
+                            SpectrumPI.spectr_id == spec.id
+                        )
+                    ).first()
+                    if external_pi is not None:
+                        spec_dict["external_pi"] = external_pi.external_pi
+
+                    spec_dict['pis'] = recursive_to_dict(spec.pis)
+
                     external_reducer = session.scalars(
                         SpectrumReducer.select(session.user_or_token).where(
                             SpectrumReducer.spectr_id == spec.id
@@ -822,9 +862,11 @@ class SpectrumHandler(BaseHandler):
         if group_ids == 'all':
             group_ids = [g.id for g in self.current_user.accessible_groups]
 
+        pi = data.pop("pi", None)
         reduced_by = data.pop("reduced_by", None)
         observed_by = data.pop("observed_by", None)
 
+        external_pi = data.pop("external_pi", None)
         external_reducer = data.pop("external_reducer", None)
         external_observer = data.pop("external_observer", None)
 
@@ -847,6 +889,32 @@ class SpectrumHandler(BaseHandler):
 
                 if groups:
                     spectrum.groups = spectrum.groups + groups
+
+            if pi:
+                existing_pis = spectrum.pis
+                pis = []
+                for pi_id in reduced_by:
+                    stmt = User.select(session.user_or_token).where(User.id == pi_id)
+                    pi = session.scalars(stmt).first()
+                    if pi is None:
+                        raise ValueError(f'Invalid pi ID: {pi_id}.')
+                    pi_association = SpectrumReducer(external_pi=external_pi)
+                    pi_association.user = pi
+                    pis.append(pi_association)
+
+                if len(pis) == 0 and external_pi is not None:
+                    raise ValueError(
+                        "At least one valid user must be provided as a pi point of contact via the 'reduced_by' parameter."
+                    )
+
+                # remove any existing pis that are not in the new list
+                for pi in existing_pis:
+                    if pi.user_id not in [r.user_id for r in pis]:
+                        session.delete(pi)
+
+                for pi in pis:
+                    pi.spectr_id = spectrum.id
+                    session.add(pi)
 
             if reduced_by:
                 existing_reducers = spectrum.reducers
@@ -1099,6 +1167,22 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
                     f'Cannot find one or more groups with IDs: {group_ids}.'
+                )
+
+            pis = []
+            external_pi = json.pop("external_pi", None)
+            for pi_id in json.pop('pi', []):
+                stmt = User.select(self.current_user).where(User.id == pi_id)
+                pi = session.scalars(stmt).first()
+                if pi is None:
+                    return self.error(f'Invalid pi ID: {pi_id}.')
+                pi_association = SpectrumPI(external_pi=external_pi)
+                pi_association.user = pi
+                pis.append(pi_association)
+            if len(pis) == 0 and external_pi is not None:
+                self.error(
+                    "At least one valid user must be provided as a "
+                    "PI point of contact via the 'pi' parameter."
                 )
 
             reducers = []
@@ -1366,9 +1450,18 @@ class ObjSpectraHandler(BaseHandler):
                 spec_dict["telescope_id"] = spec.instrument.telescope.id
                 spec_dict["telescope_name"] = spec.instrument.telescope.name
                 spec_dict["groups"] = spec.groups
+                spec_dict["pis"] = spec.pis
                 spec_dict["reducers"] = spec.reducers
                 spec_dict["observers"] = spec.observers
                 spec_dict["observed_at_mjd"] = Time(spec.observed_at).mjd
+
+                external_pi = session.scalars(
+                    SpectrumPI.select(session.user_or_token).where(
+                        SpectrumPI.spectr_id == spec.id
+                    )
+                ).first()
+                if external_pi is not None:
+                    spec_dict["external_pi"] = external_pi.external_pi
 
                 external_reducer = session.scalars(
                     SpectrumReducer.select(session.user_or_token).where(

@@ -352,6 +352,24 @@ const UploadSpectrumForm = ({ route }) => {
         },
         uniqueItems: true,
       },
+      pi_mode: {
+        type: "string",
+        default: "User",
+        title: "PI type",
+        enum: ["User", "External"],
+      },
+      pi: {
+        type: "array",
+        title: "PI(s)",
+        items: {
+          type: "integer",
+          anyOf: users?.map((user) => ({
+            enum: [user.id],
+            title: getUserDisplay(user),
+          })),
+        },
+        uniqueItems: true,
+      },
       reducer_mode: {
         type: "string",
         default: "User",
@@ -440,6 +458,53 @@ const UploadSpectrumForm = ({ route }) => {
       "instrument_id",
     ],
     dependencies: {
+      pi_mode: {
+        oneOf: [
+          {
+            properties: {
+              pi_mode: {
+                enum: ["User"],
+              },
+              pi: {
+                type: "array",
+                title: "PI(s)",
+                items: {
+                  type: "integer",
+                  anyOf: users?.map((user) => ({
+                    enum: [user.id],
+                    title: getUserDisplay(user),
+                  })),
+                },
+                uniqueItems: true,
+              },
+            },
+          },
+          {
+            properties: {
+              pi_mode: {
+                enum: ["External"],
+              },
+              pi: {
+                type: "string",
+                title: "PI(s)",
+              },
+              pi_point_of_contact: {
+                type: "array",
+                title: "Point of contact user for PI(s)",
+                items: {
+                  type: "integer",
+                  anyOf: users?.map((user) => ({
+                    enum: [user.id],
+                    title: getUserDisplay(user),
+                  })),
+                },
+                uniqueItems: true,
+              },
+            },
+            required: ["pi_mode", "pi", "pi_point_of_contact"],
+          },
+        ],
+      },
       reducer_mode: {
         oneOf: [
           {
