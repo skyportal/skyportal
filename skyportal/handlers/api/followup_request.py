@@ -440,7 +440,7 @@ def post_followup_request(
                 raise ValueError(f'Could not find source with ID {data["obj_id"]}.')
             stmt = Obj.select(session.user_or_token).where(
                 Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), 0.5 / 3600),
-                Obj.tns_name.contains("SN"),
+                sa.func.lower(Obj.tns_name).startswith("sn"),
             )
             count = session.execute(sa.select(func.count()).select_from(stmt)).scalar()
             if count > 0:
