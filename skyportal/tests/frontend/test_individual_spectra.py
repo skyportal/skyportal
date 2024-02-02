@@ -110,7 +110,8 @@ def test_annotations(
 
     # filter once more for only this spectrum
     driver.click_xpath(
-        "//*[@id='annotations-content']//button[@data-testid='Filter Table-iconButton']"
+        "//*[@id='annotations-content']//button[@data-testid='Filter Table-iconButton']",
+        scroll_parent=True,
     )
 
     # click the filter on ID button
