@@ -1702,6 +1702,21 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         metadata={'description': "The original filename (for bookkeeping purposes)."},
         required=True,
     )
+
+    pi = fields.List(
+        fields.Integer,
+        metadata={
+            'description': "IDs of the Users who are PI of this Spectrum, or to use as points of contact given an external PI."
+        },
+        load_default=[],
+    )
+
+    external_pi = fields.String(
+        metadata={'description': "Free text provided as an external PI"},
+        required=False,
+        load_default=None,
+    )
+
     reduced_by = fields.List(
         fields.Integer,
         metadata={
@@ -1784,6 +1799,20 @@ class SpectrumPost(_Schema):
     observed_at = fields.DateTime(
         metadata={'description': 'The ISO UTC time the spectrum was taken.'},
         required=True,
+    )
+
+    pi = fields.List(
+        fields.Integer,
+        metadata={
+            'description': "IDs of the Users who are PI of this Spectrum, or to use as points of contact given an external PI."
+        },
+        load_default=[],
+    )
+
+    external_pi = fields.String(
+        metadata={'description': "Free text provided as an external PI"},
+        required=False,
+        load_default=None,
     )
 
     reduced_by = fields.List(
@@ -1877,6 +1906,20 @@ class SpectrumHead(_Schema):
     observed_at = fields.DateTime(
         metadata={'description': 'The ISO UTC time the spectrum was taken.'},
         required=True,
+    )
+
+    pi = fields.List(
+        fields.Integer,
+        metadata={
+            'description': "IDs of the Users who are PI of this Spectrum, or to use as points of contact given an external PI."
+        },
+        load_default=[],
+    )
+
+    external_pi = fields.String(
+        metadata={'description': "Free text provided as an external PI"},
+        required=False,
+        load_default=None,
     )
 
     reducers = fields.List(
