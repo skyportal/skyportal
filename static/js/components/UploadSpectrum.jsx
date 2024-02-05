@@ -634,6 +634,30 @@ const UploadSpectrumForm = ({ route }) => {
     },
   };
 
+  const uiSchema = {
+    "ui:order": [
+      "group_ids",
+      "file",
+      "mjd",
+      "instrument_id",
+      "spectrum_type",
+      "observer_mode",
+      "observer_point_of_contact",
+      "observed_by",
+      "reducer_mode",
+      "reducer_point_of_contact",
+      "reduced_by",
+      "pi_mode",
+      "pi_point_of_contact",
+      "pi",
+      "wave_column",
+      "flux_column",
+      "has_fluxerr",
+      "fluxerr_column",
+      "user_label",
+    ],
+  };
+
   const parseAscii = ({ formData }) => {
     dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
     const ascii = dataUriToBuffer(formData.file).toString();
@@ -699,6 +723,14 @@ const UploadSpectrumForm = ({ route }) => {
         persistentFormData?.reducer_mode === "External"
           ? persistentFormData.reduced_by
           : null,
+      pi:
+        persistentFormData?.pi_mode === "User"
+          ? persistentFormData.pi
+          : persistentFormData.pi_point_of_contact,
+      external_pi:
+        persistentFormData?.pi_mode === "External"
+          ? persistentFormData.pi
+          : null,
       group_ids: persistentFormData.group_ids,
     };
     const result = await dispatch(spectraActions.uploadASCIISpectrum(payload));
@@ -745,6 +777,7 @@ const UploadSpectrumForm = ({ route }) => {
           )}
           <Form
             schema={uploadFormSchema}
+            uiSchema={uiSchema}
             validator={validator}
             onSubmit={parseAscii}
             formData={persistentFormData}

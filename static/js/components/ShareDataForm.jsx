@@ -111,11 +111,13 @@ const createSpecRow = (
   owner,
   reducers,
   observers,
+  pis,
   origin,
   type,
   label,
   external_reducer,
   external_observer,
+  external_pi,
 ) => ({
   id,
   instrument,
@@ -124,11 +126,13 @@ const createSpecRow = (
   owner,
   reducers,
   observers,
+  pis,
   origin,
   type,
   label,
   external_reducer,
   external_observer,
+  external_pi,
 });
 
 const photHeadCells = [
@@ -321,11 +325,13 @@ const ShareDataForm = ({ route }) => {
           spec.owner,
           spec.reducers,
           spec.observers,
+          spec.pis,
           spec.origin,
           spec.type,
           spec.label,
           spec.external_reducer,
           spec.external_observer,
+          spec.external_pi,
         ),
       )
     : [];

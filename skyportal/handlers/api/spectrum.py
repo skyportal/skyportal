@@ -121,9 +121,18 @@ def post_spectrum(data, user_id, session):
     if instrument is None:
         raise ValueError(f'Cannot find instrument with ID: {data["instrument_id"]}')
 
+    if "units" in data:
+        if not data["units"] in ["Jy", "AB", "erg/s/cm/cm/AA"]:
+            raise ValueError("units must be Jy, AB, or erg/s/cm/cm/AA")
+
     pis = []
     external_pi = data.pop("external_pi", None)
-    for pi_id in data.pop('pi', []):
+    pi_ids = data.pop("pi", [])
+    if external_pi is not None and len(pi_ids) == 0:
+        raise ValueError(
+            "When specifying an external PI, at least one valid user must be provided as a PI point of contact via the 'pi' parameter."
+        )
+    for pi_id in pi_ids:
         stmt = User.select(user).where(User.id == pi_id)
         pi = session.scalars(stmt).first()
         if pi is None:
@@ -132,14 +141,14 @@ def post_spectrum(data, user_id, session):
         pi_association.user = pi
         pis.append(pi_association)
 
-    if len(pis) == 0 and external_pi is not None:
-        raise ValueError(
-            "At least one valid user must be provided as a PI point of contact via the 'pi' parameter."
-        )
-
     reducers = []
     external_reducer = data.pop("external_reducer", None)
-    for reducer_id in data.pop('reduced_by', []):
+    reducer_ids = data.pop("reduced_by", [])
+    if external_reducer is not None and len(reducer_ids) == 0:
+        raise ValueError(
+            "When specifying an external reducer, at least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
+        )
+    for reducer_id in reducer_ids:
         stmt = User.select(user).where(User.id == reducer_id)
         reducer = session.scalars(stmt).first()
         if reducer is None:
@@ -148,14 +157,14 @@ def post_spectrum(data, user_id, session):
         reducer_association.user = reducer
         reducers.append(reducer_association)
 
-    if len(reducers) == 0 and external_reducer is not None:
-        raise ValueError(
-            "At least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
-        )
-
     observers = []
     external_observer = data.pop("external_observer", None)
-    for observer_id in data.pop('observed_by', []):
+    observer_ids = data.pop("observed_by", [])
+    if external_observer is not None and len(observer_ids) == 0:
+        raise ValueError(
+            "When specifying an external observer, at least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
+        )
+    for observer_id in observer_ids:
         stmt = User.select(user).where(User.id == observer_id)
         observer = session.scalars(stmt).first()
         if observer is None:
@@ -163,16 +172,6 @@ def post_spectrum(data, user_id, session):
         observer_association = SpectrumObserver(external_observer=external_observer)
         observer_association.user = observer
         observers.append(observer_association)
-
-    if len(observers) == 0 and external_observer is not None:
-        raise ValueError(
-            "At least one valid user must be provided as an "
-            "observer point of contact via the 'observed_by' parameter."
-        )
-
-    if "units" in data:
-        if not data["units"] in ["Jy", "AB", "erg/s/cm/cm/AA"]:
-            raise ValueError("units must be Jy, AB, or erg/s/cm/cm/AA")
 
     group_ids = data.pop("group_ids", None)
     groups = (
@@ -192,15 +191,15 @@ def post_spectrum(data, user_id, session):
         spec.type = default_spectrum_type
     session.add(spec)
 
+    for pi in pis:
+        pi.spectrum = spec
+        session.add(pi)
     for reducer in reducers:
         reducer.spectrum = spec
         session.add(reducer)
     for observer in observers:
         observer.spectrum = spec
         session.add(observer)
-    for pi in pis:
-        pi.spectrum = spec
-        session.add(pi)
 
     session.commit()
 
@@ -1171,7 +1170,12 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
             pis = []
             external_pi = json.pop("external_pi", None)
-            for pi_id in json.pop('pi', []):
+            pi_ids = json.pop('pi', [])
+            if external_pi is not None and len(pi_ids) == 0:
+                raise ValueError(
+                    "When specifying an external PI, at least one valid user must be provided as a PI point of contact via the 'pi' parameter."
+                )
+            for pi_id in pi_ids:
                 stmt = User.select(self.current_user).where(User.id == pi_id)
                 pi = session.scalars(stmt).first()
                 if pi is None:
@@ -1179,15 +1183,15 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                 pi_association = SpectrumPI(external_pi=external_pi)
                 pi_association.user = pi
                 pis.append(pi_association)
-            if len(pis) == 0 and external_pi is not None:
-                self.error(
-                    "At least one valid user must be provided as a "
-                    "PI point of contact via the 'pi' parameter."
-                )
 
             reducers = []
             external_reducer = json.pop("external_reducer", None)
-            for reducer_id in json.pop('reduced_by', []):
+            reducer_ids = json.pop('reduced_by', [])
+            if external_reducer is not None and len(reducer_ids) == 0:
+                self.error(
+                    "When specifying an external reducer, at least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
+                )
+            for reducer_id in reducer_ids:
                 stmt = User.select(self.current_user).where(User.id == reducer_id)
                 reducer = session.scalars(stmt).first()
                 if reducer is None:
@@ -1195,15 +1199,15 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                 reducer_association = SpectrumReducer(external_reducer=external_reducer)
                 reducer_association.user = reducer
                 reducers.append(reducer_association)
-            if len(reducers) == 0 and external_reducer is not None:
-                self.error(
-                    "At least one valid user must be provided as a "
-                    "reducer point of contact via the 'reduced_by' parameter."
-                )
 
             observers = []
             external_observer = json.pop("external_observer", None)
-            for observer_id in json.pop('observed_by', []):
+            observer_ids = json.pop('observed_by', [])
+            if external_observer is not None and len(observer_ids) == 0:
+                self.error(
+                    "When specifying an external observer, at least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
+                )
+            for observer_id in observer_ids:
                 stmt = User.select(self.current_user).where(User.id == observer_id)
                 observer = session.scalars(stmt).first()
                 if observer is None:
@@ -1213,11 +1217,6 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                 )
                 observer_association.user = observer
                 observers.append(observer_association)
-            if len(observers) == 0 and external_observer is not None:
-                self.error(
-                    "At least one valid user must be provided as an "
-                    "observer point of contact via the 'observed_by' parameter."
-                )
 
             # will never KeyError as missing value is imputed
             followup_request_id = json.pop('followup_request_id', None)
@@ -1245,6 +1244,9 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             spec.groups = groups
 
             session.add(spec)
+            for pi in pis:
+                pi.spectrum = spec
+                session.add(pi)
             for reducer in reducers:
                 reducer.spectrum = spec
                 session.add(reducer)
