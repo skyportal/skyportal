@@ -155,7 +155,6 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
 
   const handleSubmit = async ({ formData }) => {
     setIsSubmitting(true);
-    // if no instrument is selected, show an error
     if (!selectedLocalizationId) {
       dispatch(showNotification("No localization selected", "error"));
       setIsSubmitting(false);

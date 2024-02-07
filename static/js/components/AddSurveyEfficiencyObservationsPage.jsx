@@ -59,7 +59,6 @@ const AddSurveyEfficiencyObservationsPage = () => {
         open={dialogOpen}
         onClose={closeDialog}
         style={{ position: "fixed" }}
-        // we want it to use the whole screen, but not be scrollable
         fullWidth
         maxWidth="xlg"
       >
