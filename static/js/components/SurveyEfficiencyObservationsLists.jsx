@@ -311,6 +311,37 @@ const SurveyEfficiencyObservationsLists = ({ survey_efficiency_analyses }) => {
     enableNestedDataAccess: ".",
     elevation: 0,
     rowsPerPageOptions: [1, 10, 15],
+    customSearch: (searchText, currentRow, columns) => {
+      try {
+        if (searchText === "" || !searchText) {
+          return true;
+        }
+        const search = searchText.toLowerCase();
+        const payloadColumnIndex = columns.findIndex(
+          (column) => column.name === "payload",
+        );
+        const statusColumnIndex = columns.findIndex(
+          (column) => column.name === "status",
+        );
+
+        const inPayload =
+          payloadColumnIndex !== -1
+            ? (JSON.stringify(currentRow[payloadColumnIndex]) || "")
+                .toLowerCase()
+                .includes(search)
+            : false;
+        const inStatus =
+          statusColumnIndex !== -1
+            ? (currentRow[statusColumnIndex] || "")
+                .toLowerCase()
+                .includes(search)
+            : false;
+
+        return inPayload || inStatus;
+      } catch (e) {
+        return false;
+      }
+    },
     customToolbar: () => (
       <TableProgressText
         nbItems={
