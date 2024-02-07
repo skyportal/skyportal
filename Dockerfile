@@ -16,9 +16,28 @@ RUN apt-get update && \
     apt-get -y upgrade && \
     apt-get install -y python3 python3-venv python3-dev \
     libpq-dev supervisor \
-    git nginx nodejs postgresql-client vim nano screen htop \
-    libcurl4-gnutls-dev libgnutls28-dev && \
-    apt-get clean && \
+    git nodejs postgresql-client vim nano screen htop \
+    libcurl4-gnutls-dev libgnutls28-dev
+
+# we install nginx from source to compile it with brotli support
+RUN git clone --recursive https://github.com/google/ngx_brotli.git && \
+    wget https://nginx.org/download/nginx-1.24.0.tar.gz && \
+    tar zxf nginx-1.24.0.tar.gz && \
+    cd ngx_brotli/deps/brotli && \
+    mkdir out && cd out && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_C_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" -DCMAKE_CXX_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" -DCMAKE_INSTALL_PREFIX=./installed .. && \
+    cmake --build . --config Release --target brotlienc && \
+    cd ../../../.. && \
+    export CURRENT_DIR=$(pwd) && \
+    cd nginx-1.24.0 && \
+    ./configure --sbin-path=/usr/sbin/nginx --conf-path=/usr/local/nginx/nginx.conf --pid-path=/usr/local/nginx/nginx.pid --with-http_ssl_module --with-stream --with-mail=dynamic --with-http_realip_module --with-compat --add-module=${CURRENT_DIR}/ngx_brotli && \
+    make && make install
+
+COPY nginx.service /lib/systemd/system/nginx.service
+
+RUN systemctl enable nginx && systemctl start nginx
+
+RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     useradd --create-home --shell /bin/bash skyportal
 
