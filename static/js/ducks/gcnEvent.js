@@ -88,6 +88,8 @@ const FETCH_GCNEVENT_SURVEY_EFFICIENCY =
   "skyportal/FETCH_GCNEVENT_SURVEY_EFFICIENCY";
 const FETCH_GCNEVENT_SURVEY_EFFICIENCY_OK =
   "skyportal/FETCH_GCNEVENT_SURVEY_EFFICIENCY_OK";
+const REFRESH_GCNEVENT_SURVEY_EFFICIENCY =
+  "skyportal/REFRESH_GCNEVENT_SURVEY_EFFICIENCY";
 
 const FETCH_GCNEVENT_CATALOG_QUERIES =
   "skyportal/FETCH_GCNEVENT_CATALOG_QUERIES";
@@ -427,6 +429,11 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   if (actionType === REFRESH_GCNEVENT_CATALOG_QUERIES) {
     if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
       dispatch(fetchGcnEventCatalogQueries({ gcnID: gcnEvent?.id }));
+    }
+  }
+  if (actionType === REFRESH_GCNEVENT_SURVEY_EFFICIENCY) {
+    if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
+      dispatch(fetchGcnEventSurveyEfficiency({ gcnID: gcnEvent?.id }));
     }
   }
   if (actionType === REFRESH_GCNEVENT_REPORT) {

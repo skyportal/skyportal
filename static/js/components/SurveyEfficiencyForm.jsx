@@ -13,6 +13,8 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
+import { showNotification } from "baselayer/components/Notifications";
+
 import * as surveyEfficiencyObservationsActions from "../ducks/survey_efficiency_observations";
 import * as surveyEfficiencyObservationPlansActions from "../ducks/survey_efficiency_observation_plans";
 import * as instrumentsActions from "../ducks/instruments";
@@ -48,11 +50,6 @@ const useStyles = makeStyles(() => ({
   },
   container: {
     width: "99%",
-    marginBottom: "1rem",
-    "& > *": {
-      marginTop: "1rem",
-      marginBottom: "1rem",
-    },
   },
 }));
 
@@ -70,6 +67,10 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { instrumentList } = useSelector((state) => state.instruments);
+
+  const instrumentsWithSensitivities = (instrumentList || []).filter(
+    (i) => i.sensitivity_data,
+  );
 
   const defaultStartDate = dayjs(gcnevent?.dateobs).format(
     "YYYY-MM-DDTHH:mm:ssZ",
@@ -117,11 +118,17 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
       const result = await dispatch(instrumentsActions.fetchInstruments());
 
       const { data } = result;
-      setSelectedInstrumentId(data[0]?.id);
+      const newInstrumentsWithSensitivities = data.filter(
+        (i) => i.sensitivity_data,
+      );
+      setSelectedInstrumentId(newInstrumentsWithSensitivities[0]?.id);
       setSelectedLocalizationId(gcnevent.localizations[0]?.id);
     };
     if (!instrumentList || instrumentList.length === 0) {
       getInstruments();
+    } else {
+      setSelectedInstrumentId(instrumentsWithSensitivities[0]?.id);
+      setSelectedLocalizationId(gcnevent?.localizations[0]?.id);
     }
 
     // Don't want to reset everytime the component rerenders and
@@ -148,6 +155,17 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
 
   const handleSubmit = async ({ formData }) => {
     setIsSubmitting(true);
+    // if no instrument is selected, show an error
+    if (!selectedLocalizationId) {
+      dispatch(showNotification("No localization selected", "error"));
+      setIsSubmitting(false);
+      return;
+    }
+    if (!selectedInstrumentId) {
+      dispatch(showNotification("No instrument selected", "error"));
+      setIsSubmitting(false);
+      return;
+    }
     formData.startDate = formData.startDate
       .replace("+00:00", "")
       .replace(".000Z", "");
@@ -347,7 +365,7 @@ const SurveyEfficiencyForm = ({ gcnevent, observationplanRequest }) => {
           name="gcnPageInstrumentSelect"
           className={classes.instrumentSelect}
         >
-          {instrumentList?.map((instrument) => (
+          {instrumentsWithSensitivities?.map((instrument) => (
             <MenuItem
               value={instrument.id}
               key={instrument.id}

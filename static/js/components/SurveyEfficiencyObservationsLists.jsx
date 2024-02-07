@@ -19,6 +19,7 @@ import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
+import { TableProgressText } from "./ProgressIndicators";
 import * as surveyEfficiencyObservationsActions from "../ducks/survey_efficiency_observations";
 
 const useStyles = makeStyles(() => ({
@@ -33,49 +34,52 @@ const useStyles = makeStyles(() => ({
   accordion: {
     width: "99%",
   },
-  container: {
-    margin: "1rem 0",
-  },
 }));
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
   createTheme({
     palette: theme.palette,
-    overrides: {
+    components: {
       MUIDataTable: {
-        paper: {
-          width: "100%",
+        styleOverrides: {
+          paper: {
+            width: "100%",
+          },
         },
       },
       MUIDataTableBodyCell: {
-        stackedCommon: {
-          overflow: "hidden",
-          "&:last-child": {
-            paddingLeft: "0.25rem",
+        styleOverrides: {
+          stackedCommon: {
+            overflow: "hidden",
+            "&:last-child": {
+              paddingLeft: "0.25rem",
+            },
           },
         },
       },
       MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
+        styleOverrides: {
+          toolbar: {
+            flexFlow: "row wrap",
+            justifyContent: "flex-end",
+            padding: "0.5rem 1rem 0",
+            [theme.breakpoints.up("sm")]: {
+              // Cancel out small screen styling and replace
+              padding: "0px",
+              paddingRight: "2px",
+              flexFlow: "row nowrap",
+            },
           },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
+          tableCellContainer: {
+            padding: "1rem",
+          },
+          selectRoot: {
+            marginRight: "0.5rem",
+            [theme.breakpoints.up("sm")]: {
+              marginLeft: "0",
+              marginRight: "2rem",
+            },
           },
         },
       },
@@ -121,18 +125,36 @@ const SurveyEfficiencyObservationsLists = ({ survey_efficiency_analyses }) => {
     value.sort();
   });
 
+  // for each analysisGroupedByInstId, we sort the analyses by their created_at date, most recent first
+  Object.keys(analysesGroupedByInstId).forEach((key) => {
+    analysesGroupedByInstId[key].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    );
+  });
+
   const getDataTableColumns = (keys, instrument_id) => {
     const columns = [{ name: "status", label: "Status" }];
 
     const renderPayload = (dataIndex) => {
       const analysis = analysesGroupedByInstId[instrument_id][dataIndex];
-      return <div>{JSON.stringify(analysis.payload)}</div>;
+      return (
+        <p
+          style={{
+            maxHeight: "120px",
+            overflowWrap: "break-word",
+            overflowY: "auto",
+          }}
+        >
+          {JSON.stringify(analysis.payload || {})}
+        </p>
+      );
     };
     columns.push({
       name: "payload",
       label: "Payload",
       options: {
         customBodyRenderLite: renderPayload,
+        setCellProps: () => ({ style: { maxWidth: "40rem" } }),
       },
     });
 
@@ -227,14 +249,14 @@ const SurveyEfficiencyObservationsLists = ({ survey_efficiency_analyses }) => {
             type="submit"
             data-testid={`simsurvey_${analysis.id}`}
           >
-            Download Skymap
+            Plot
           </Button>
         </div>
       );
     };
     columns.push({
       name: "plot",
-      label: "Plot",
+      label: " ",
       options: {
         customBodyRenderLite: renderPlot,
       },
@@ -252,7 +274,7 @@ const SurveyEfficiencyObservationsLists = ({ survey_efficiency_analyses }) => {
             ) : (
               <div>
                 <Button
-                  primary
+                  secondary
                   onClick={() => {
                     handleDelete(analysis.id);
                   }}
@@ -270,7 +292,7 @@ const SurveyEfficiencyObservationsLists = ({ survey_efficiency_analyses }) => {
     };
     columns.push({
       name: "delete",
-      label: "Delete",
+      label: " ",
       options: {
         customBodyRenderLite: renderDelete,
       },
@@ -282,13 +304,96 @@ const SurveyEfficiencyObservationsLists = ({ survey_efficiency_analyses }) => {
   const options = {
     filter: false,
     sort: false,
-    print: true,
+    print: false,
     download: true,
     search: true,
     selectableRows: "none",
     enableNestedDataAccess: ".",
     elevation: 0,
     rowsPerPageOptions: [1, 10, 15],
+    customToolbar: () => (
+      <TableProgressText
+        nbItems={
+          (survey_efficiency_analyses || []).filter(
+            (a) => a.status === "running",
+          ).length
+        }
+      />
+    ),
+    onDownload: (buildHead) => {
+      // iterate over all the payloads and get the full list of keys
+      const allKeys = survey_efficiency_analyses.reduce((r, a) => {
+        Object.keys(a.payload).forEach((key) => {
+          if (!r.includes(key)) {
+            r = [...r, key];
+          }
+        });
+        return r;
+      }, []);
+
+      // we want to have the payload keys, then the status, then the other columns
+      const columnsDownload = allKeys.map((key) => ({
+        name: key,
+        download: true,
+      }));
+      columnsDownload.push({ name: "status", download: true });
+      columnsDownload.push({ name: "ntransients", download: true });
+      columnsDownload.push({ name: "ncovered", download: true });
+      columnsDownload.push({ name: "ndetected", download: true });
+      columnsDownload.push({ name: "efficiency", download: true });
+      columnsDownload.unshift({ name: "id", download: true });
+
+      const data = survey_efficiency_analyses.map((analysis) => {
+        const row = columnsDownload.map((column) => {
+          const key = column.name;
+          if (key === "id") {
+            return analysis.id;
+          }
+          if (key === "status") {
+            return analysis[key];
+          }
+          if (key === "ntransients") {
+            return analysis.number_of_transients || "N/A";
+          }
+          if (key === "ncovered") {
+            return analysis.number_in_covered || "N/A";
+          }
+          if (key === "ndetected") {
+            return analysis.number_detected || "N/A";
+          }
+          if (key === "efficiency") {
+            return analysis.efficiency || "N/A";
+          }
+          if (key === "plot") {
+            return "";
+          }
+          if (key === "delete") {
+            return "";
+          }
+          return typeof analysis.payload[key] === "object"
+            ? JSON.stringify(analysis.payload[key])
+            : analysis.payload[key];
+        });
+        return row;
+      });
+
+      const head = buildHead(columnsDownload);
+      // we build the body ourselves, without the MUIDataTable buildBody function
+      const body = data.map((row) => row.join(","));
+      const result = head + body.join("\n");
+      const blob = new Blob([result], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "observations.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      return false;
+    },
   };
 
   const keyOrder = (a, b) => {
@@ -320,7 +425,7 @@ const SurveyEfficiencyObservationsLists = ({ survey_efficiency_analyses }) => {
   };
 
   return (
-    <div className={classes.container}>
+    <div>
       {Object.keys(analysesGroupedByInstId).map((instrument_id) => {
         // get the flat, unique list of all keys across all requests
         const keys = analysesGroupedByInstId[instrument_id].reduce((r, a) => {
@@ -338,6 +443,7 @@ const SurveyEfficiencyObservationsLists = ({ survey_efficiency_analyses }) => {
           <Accordion
             className={classes.accordion}
             key={`instrument_${instrument_id}_table_div`}
+            defaultExpanded
           >
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
@@ -350,6 +456,7 @@ const SurveyEfficiencyObservationsLists = ({ survey_efficiency_analyses }) => {
             </AccordionSummary>
             <AccordionDetails
               data-testid={`${instLookUp[instrument_id].name}_observationplanRequestsTable`}
+              style={{ padding: 0 }}
             >
               <StyledEngineProvider injectFirst>
                 <ThemeProvider theme={getMuiTheme(theme)}>
