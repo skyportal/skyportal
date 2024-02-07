@@ -128,7 +128,7 @@ const CatalogQueryLists = ({ catalog_queries }) => {
   const theme = useTheme();
 
   if (!catalog_queries || catalog_queries.length === 0) {
-    return <p>No survey efficiency analyses for this event...</p>;
+    return <p>No catalog queries for this event.</p>;
   }
 
   const getDataTableColumns = () => {
