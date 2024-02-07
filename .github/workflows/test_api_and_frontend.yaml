@@ -100,7 +100,25 @@ jobs:
           sudo add-apt-repository ppa:mozillateam/ppa
           printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001' | sudo tee /etc/apt/preferences.d/mozilla-firefox
 
-          sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
+          sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev
+
+          # if nginx is already installed, remove it
+          sudo apt remove -y nginx nginx-common nginx-core
+
+          # install nginx from source so we can add the brotli module
+          git clone --recursive https://github.com/google/ngx_brotli.git
+          wget https://nginx.org/download/nginx-1.24.0.tar.gz
+          tar zxf nginx-1.24.0.tar.gz
+          cd ngx_brotli/deps/brotli
+          mkdir out && cd out
+          cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_C_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" -DCMAKE_CXX_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" -DCMAKE_INSTALL_PREFIX=./installed ..
+          cmake --build . --config Release --target brotlienc
+          cd ../../../..
+          export CURRENT_DIR=$(pwd)
+          cd nginx-1.24.0
+          ./configure --sbin-path=/usr/bin/nginx --conf-path=/usr/local/nginx/nginx.conf --pid-path=/usr/local/nginx/nginx.pid --with-http_ssl_module --with-stream --with-mail=dynamic --with-http_realip_module --with-compat --add-module=${CURRENT_DIR}/ngx_brotli
+          sudo make && sudo make install
+          sudo nginx
 
           pip install pip==23.1.2
           pip install wheel numpy
