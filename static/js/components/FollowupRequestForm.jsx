@@ -251,10 +251,60 @@ const FollowupRequestForm = ({
     }
   };
 
+  const num_obs = {
+    "3-shot (gri)": 3,
+    "4-shot (ugri)": 4,
+    "4-shot+IFU": 5,
+    "3-shot+IFU": 4,
+    IFU: 1,
+  };
+
   const validate = (formData, errors) => {
     if (formData?.start_date && formData?.end_date) {
       if (formData.start_date > formData.end_date) {
         errors.start_date.addError("Start Date must come before End Date");
+      }
+    }
+    if (formData?.advanced) {
+      if (formData?.exposure_time) {
+        let exposure_times = [];
+        if (typeof formData.exposure_time === "string") {
+          exposure_times = formData.exposure_time.split(",").map(Number);
+        } else {
+          exposure_times = formData.exposure_time;
+        }
+        for (let i = 0; i < exposure_times.length; i += 1) {
+          if (exposure_times[i] < -1 || exposure_times[i] > 3600) {
+            errors.exposure_time.addError(
+              "Exposure times must be between -1 (to set by magnitude) and 3600 seconds"
+            );
+          }
+        }
+
+        if (formData?.observation_type === "Mix 'n Match") {
+          if (
+            !(
+              exposure_times.length === formData.observation_choices.length ||
+              exposure_times.length === 1
+            )
+          ) {
+            errors.exposure_time.addError(
+              "Exposure times should either have one entry (same exposure time for all filters) or the same length as observation_choices"
+            );
+          }
+        } else {
+          const num_exposures = num_obs[formData?.observation_type];
+          if (
+            !(
+              exposure_times.length === num_exposures ||
+              exposure_times.length === 1
+            )
+          ) {
+            errors.exposure_time.addError(
+              `Exposure times should either have one entry (same exposure time for all filters) or the same length as the number of filters: ${num_exposures.toString()}`
+            );
+          }
+        }
       }
     }
 

@@ -14,7 +14,7 @@ def test_token_user_post_robotic_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
-            'exposure_time': 300,
+            'exposure_time': [300],
             'maximum_airmass': 2,
             'maximum_fwhm': 1.2,
         },
@@ -31,6 +31,11 @@ def test_token_user_post_robotic_followup_request(
     assert status == 200
     assert data['status'] == 'success'
 
+    data['data']['payload']['exposure_time'] = [
+        int(x) for x in data['data']['payload']['exposure_time'].split(",")
+    ]
+    request_data['payload']['observation_choices'] = 'IFU'
+
     for key in request_data:
         assert data['data'][key] == request_data[key]
 
@@ -46,7 +51,7 @@ def test_token_user_delete_owned_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
-            'exposure_time': 300,
+            'exposure_time': [300],
             'maximum_airmass': 2,
             'maximum_fwhm': 1.2,
         },
@@ -75,7 +80,7 @@ def test_token_user_modify_owned_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
-            'exposure_time': 300,
+            'exposure_time': [300],
             'maximum_airmass': 2,
             'maximum_fwhm': 1.2,
         },
@@ -96,7 +101,7 @@ def test_token_user_modify_owned_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
-            'exposure_time': 300,
+            'exposure_time': [300],
             'maximum_airmass': 2,
             'maximum_fwhm': 1.2,
         },
@@ -110,6 +115,11 @@ def test_token_user_modify_owned_followup_request(
 
     status, data = api('GET', f'followup_request/{id}', token=upload_data_token)
     assert status == 200
+
+    data['data']['payload']['exposure_time'] = [
+        int(x) for x in data['data']['payload']['exposure_time'].split(",")
+    ]
+    new_request_data['payload']['observation_choices'] = 'IFU'
 
     for k in new_request_data:
         assert data['data'][k] == new_request_data[k]
@@ -126,7 +136,7 @@ def test_regular_user_delete_super_admin_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
-            'exposure_time': 300,
+            'exposure_time': [300],
             'maximum_airmass': 2,
             'maximum_fwhm': 1.2,
         },
@@ -158,7 +168,7 @@ def test_group1_user_cannot_see_group2_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
-            'exposure_time': 300,
+            'exposure_time': [300],
             'maximum_airmass': 2,
             'maximum_fwhm': 1.2,
         },
@@ -194,7 +204,7 @@ def test_filter_followup_request(
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
-            'exposure_time': 300,
+            'exposure_time': [300],
             'maximum_airmass': 2,
             'maximum_fwhm': 1.2,
         },

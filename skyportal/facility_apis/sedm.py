@@ -174,6 +174,73 @@ def prepare_payload_sedm(payload, existing_payload=None):
         "exposure_time",
         -1 if existing_payload is None else existing_payload["exposure_time"],
     )
+
+    obs = {
+        '3-shot (gri)': ['g', 'r', 'i'],
+        '4-shot (ugri)': ['u', 'g', 'r', 'i'],
+        '4-shot+IFU': ['u', 'g', 'r', 'i', 'IFU'],
+        '3-shot+IFU': ['g', 'r', 'i', 'IFU'],
+        'IFU': ['IFU'],
+    }
+
+    if type(payload["exposure_time"]) == str:
+        payload["exposure_time"] = [
+            int(exposure_time) for exposure_time in payload["exposure_time"].split(",")
+        ]
+    elif type(payload["exposure_time"]) in [float, int]:
+        payload["exposure_time"] = [payload["exposure_time"]]
+
+    if payload['observation_type'] == "Mix 'n Match":
+        # All filters have same exposure time
+        if len(payload["exposure_time"]) == 1:
+            payload["exposure_time"] = payload["exposure_time"] * len(
+                payload['observation_choices']
+            )
+        else:
+            # Confirm that number of exposure times matches number of
+            # observation choices
+            if not len(payload["exposure_time"]) == len(payload['observation_choices']):
+                raise ValueError(
+                    "Exposure times should either have one entry (same exposure time for all filters) or the same length as observation_choices"
+                )
+    else:
+        payload['observation_choices'] = obs[payload['observation_type']]
+        num_exposures = len(payload['observation_choices'])
+        # All filters have same exposure time
+        if len(payload["exposure_time"]) == 1:
+            payload["exposure_time"] = payload["exposure_time"] * num_exposures
+        else:
+            # Confirm that number of exposure times matches number of
+            # filters
+            if not len(payload["exposure_time"]) == num_exposures:
+                raise ValueError(
+                    f"Exposure times should either have one entry (same exposure time for all filters) or the same length as the number of filters: {num_exposures}"
+                )
+
+    if any(
+        [
+            (exposure_time > 3600) or (exposure_time < -1)
+            for exposure_time in payload["exposure_time"]
+        ]
+    ):
+        raise ValueError(
+            "Exposure times must be between -1 (to set by magnitude) and 3600 seconds"
+        )
+
+    preferred_ordering = ['IFU', 'u', 'g', 'r', 'i']
+    idx = [
+        preferred_ordering.index(choice) for choice in payload['observation_choices']
+    ]
+    payload['observation_choices'] = [
+        str(x) for _, x in sorted(zip(idx, payload['observation_choices']))
+    ]
+    payload['exposure_time'] = [
+        str(x) for _, x in sorted(zip(idx, payload['exposure_time']))
+    ]
+
+    payload['observation_choices'] = ",".join(payload['observation_choices'])
+    payload['exposure_time'] = ",".join(payload['exposure_time'])
+
     payload["maximum_airmass"] = payload.get(
         "maximum_airmass",
         2.8 if existing_payload is None else existing_payload["maximum_airmass"],
@@ -421,10 +488,8 @@ class SEDMAPI(FollowUpAPI):
                             "advanced": {"enum": [True]},
                             "exposure_time": {
                                 "title": "Exposure Time (Photometry) [s]",
-                                "type": "number",
-                                "default": -1,
-                                "minimum": -1,
-                                "maximum": 3600,
+                                "type": "string",
+                                "default": "-1",
                             },
                             "maximum_airmass": {
                                 "title": "Maximum Airmass (1-3)",
