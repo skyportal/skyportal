@@ -1,8 +1,10 @@
 import uuid
+
 import pytest
 from selenium.webdriver.common.action_chains import ActionChains
 
 from skyportal.tests import api
+from .test_quick_search import remove_notification
 
 
 @pytest.mark.flaky(reruns=2)
@@ -37,8 +39,12 @@ def test_news_feed(driver, user, public_group, upload_data_token, comment_token)
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
     driver.wait_for_xpath('//span[text()="a few seconds ago"]')
-    # Default is to not show bot comments; enable for now
+    driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]')
+
+    remove_notification(driver)
+
     driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
+    driver.wait_for_xpath('//*[@data-testid="categories.includeCommentsFromBots"]')
     driver.click_xpath('//*[@data-testid="categories.includeCommentsFromBots"]')
     driver.click_xpath('//button[contains(., "Save")]')
     for i in range(2):
@@ -84,8 +90,14 @@ def test_news_feed_prefs_widget(
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
-    # Default is to not show bot comments; enable for now
+
+    driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+    driver.wait_for_xpath('//*[@id="newsFeedSettingsIcon"]')
+
+    remove_notification(driver)
+
     driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
+    driver.wait_for_xpath('//*[@data-testid="categories.includeCommentsFromBots"]')
     driver.click_xpath('//*[@data-testid="categories.includeCommentsFromBots"]')
     driver.click_xpath('//button[contains(., "Save")]')
     driver.wait_for_xpath('//span[text()="a few seconds ago"]')

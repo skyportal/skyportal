@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
-import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -127,15 +126,18 @@ const SourceList = () => {
     return sourceAll;
   };
 
-  if (sourceTableEmpty) {
-    return <UninitializedDBMessage />;
-  }
-  if (!sourcesState.sources) {
+  if (!sourceTableEmpty && !sourcesState.sources) {
     return <Spinner />;
   }
 
   return (
-    <Paper elevation={1}>
+    <>
+      {sourceTableEmpty && (
+        <div>
+          <UninitializedDBMessage />
+          <br />
+        </div>
+      )}
       {sourcesState?.sources ? (
         <SourceTable
           title="Sources"
@@ -184,7 +186,7 @@ const SourceList = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </Paper>
+    </>
   );
 };
 

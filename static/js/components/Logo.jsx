@@ -6,13 +6,13 @@ import makeStyles from "@mui/styles/makeStyles";
 const useStyles = makeStyles(() => ({
   rotateLogo: {
     verticalAlign: "middle",
-    height: "3.125rem",
+    height: "100%",
     animationName: "$rotateUp",
     animationDuration: "4s",
   },
   noRotateLogo: {
     verticalAlign: "middle",
-    height: "3.125rem",
+    height: "100%",
   },
   "@keyframes rotateUp": {
     "0%": {

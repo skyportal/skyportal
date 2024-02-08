@@ -1,5 +1,7 @@
-from bokeh import palettes
 import copy
+
+from matplotlib.cm import get_cmap
+from matplotlib.colors import rgb2hex
 
 from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token
@@ -17,11 +19,19 @@ from .recurring_api import ALLOWED_RECURRING_API_METHODS
 from .source import MAX_NUM_DAYS_USING_LOCALIZATION
 from skyportal.utils.tns import TNS_INSTRUMENT_IDS
 
+from .photometry import BANDPASSES_COLORS
+from .summary_query import USE_PINECONE
+
 from skyportal.models import cosmo
 
 _, cfg = load_env()
 
 TNS_INSTRUMENTS = list(TNS_INSTRUMENT_IDS.keys())
+
+cmap = get_cmap(cfg.get("misc.color_palette", "turbo"))
+
+# we convert it to a list of hex colors
+cmap = [rgb2hex(cmap(i)) for i in range(cmap.N)]
 
 
 class ConfigHandler(BaseHandler):
@@ -96,8 +106,8 @@ class ConfigHandler(BaseHandler):
                 "summary_sourcesClasses": cfg["colors.summary_sources"],
                 "tnsAllowedInstruments": TNS_INSTRUMENTS,
                 "gcnTagsClasses": cfg["colors.gcnTags"],
-                "colorPalette": getattr(
-                    palettes, cfg.get("misc.bokeh_color_palette", "Turbo256")
-                ),
+                "colorPalette": cmap,
+                "bandpassesColors": BANDPASSES_COLORS,
+                "usePinecone": USE_PINECONE,
             }
         )

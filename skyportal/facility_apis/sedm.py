@@ -447,6 +447,11 @@ class SEDMAPI(FollowUpAPI):
                             "maximum_fwhm",
                         ],
                     },
+                    {
+                        "properties": {
+                            "advanced": {"enum": [False]},
+                        }
+                    },
                 ]
             },
         },

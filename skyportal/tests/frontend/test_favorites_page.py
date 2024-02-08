@@ -1,7 +1,5 @@
-import time
 import uuid
 import pytest
-from selenium.webdriver.common.by import By
 
 from skyportal.tests import api
 from skyportal.model_util import create_token
@@ -13,25 +11,6 @@ def test_add_remove_favorites(driver, user, public_source):
 
     # go to source page, wait until it finishes loading
     driver.get(f"/source/{public_source.id}")
-    # wait for the plots to load
-    driver.wait_for_xpath('//div[@class=" bk-root"]', timeout=30)
-    # this waits for the spectroscopy plot by looking for the element Fe III
-    num_panels = 0
-    nretries = 0
-    while num_panels < 2 and nretries < 30:
-        panels = driver.find_elements(By.XPATH, "//*[contains(@id,'bokeh')]")
-        num_panels = len(panels)
-        if num_panels == 2:
-            break
-        nretries = nretries + 1
-        time.sleep(5)
-
-    button_present = False
-    for panel in panels:
-        if "Fe III" in panel.text:
-            button_present = True
-
-    assert button_present
 
     # make sure an empty favorites button appears (exclude) then click it!
     driver.click_xpath(f'//*[@data-testid="favorites-exclude_{public_source.id}"]')

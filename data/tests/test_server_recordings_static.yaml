@@ -411,13 +411,13 @@ interactions:
         https://code.jquery.com https://ajax.googleapis.com https://cdn.datatables.net
         https://www.googletagmanager.com https://www.google-analytics.com https://cdn.materialdesignicons.com/
         https://cdn.jsdelivr.net https://fastapi.tiangolo.com https://cdn.pydata.org
-        https://cdn.bokeh.org https://cdn.datatables.net https://fonts.googleapis.com
+        https://cdn.datatables.net https://fonts.googleapis.com
         https://fonts.gstatic.com;font-src ''self'' data: ''self'' ''unsafe-inline''
         ''unsafe-eval'' *.stsci.edu ws://*.stsci.edu wss://*.stsci.edu https://stackpath.bootstrapcdn.com
         https://cdnjs.cloudflare.com https://code.jquery.com https://ajax.googleapis.com
         https://cdn.datatables.net https://www.googletagmanager.com https://www.google-analytics.com
         https://cdn.materialdesignicons.com/ https://cdn.jsdelivr.net https://fastapi.tiangolo.com
-        https://cdn.pydata.org https://cdn.bokeh.org https://cdn.datatables.net https://fonts.googleapis.com
+        https://cdn.datatables.net https://fonts.googleapis.com
         https://fonts.gstatic.com;img-src ''self'' blob: https://cdn.datatables.net
         https://www.google-analytics.com https://validator.swagger.io data:;frame-src
         ''self'' blob:'

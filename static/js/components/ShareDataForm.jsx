@@ -20,6 +20,7 @@ import TableCell from "@mui/material/TableCell";
 import Papa from "papaparse";
 import ReactJson from "react-json-view";
 import CircularProgress from "@mui/material/CircularProgress";
+import Paper from "@mui/material/Paper";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
@@ -35,8 +36,10 @@ import withRouter from "./withRouter";
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
-import { useSourceStyles } from "./SourceDesktop";
+import { useSourceStyles } from "./Source";
 import { deleteSpectrum } from "../ducks/spectra";
+
+import SpectraPlot from "./SpectraPlot";
 
 function get_filename(spectrum) {
   return `${spectrum.obj_id}_${spectrum.instrument_name}_${spectrum.observed_at}.csv`;
@@ -80,8 +83,6 @@ UserContactLink.propTypes = {
   }).isRequired,
 };
 
-const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
-
 const createPhotRow = (
   id,
   mjd,
@@ -110,11 +111,13 @@ const createSpecRow = (
   owner,
   reducers,
   observers,
+  pis,
   origin,
   type,
   label,
   external_reducer,
   external_observer,
+  external_pi,
 ) => ({
   id,
   instrument,
@@ -123,11 +126,13 @@ const createSpecRow = (
   owner,
   reducers,
   observers,
+  pis,
   origin,
   type,
   label,
   external_reducer,
   external_observer,
+  external_pi,
 });
 
 const photHeadCells = [
@@ -151,18 +156,18 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
   const styles = useSourceStyles();
   const colSpan = rowData.length + 1;
   const spectrumID = parseInt(rowData[0], 10);
+  const spectra = useSelector((state) => state.spectra)[route.id] || [];
 
   return (
     <TableRow>
       <TableCell colSpan={colSpan}>
         <Grid
           container
-          direction="row"
           justifyContent="center"
-          alignItems="center"
-          spacing={3}
+          alignItems="flex-start"
+          spacing={2}
         >
-          <Grid item className={styles.photometryContainer} sm={6}>
+          <Grid item className={styles.photometryContainer} sm={12}>
             <Suspense
               fallback={
                 <div>
@@ -170,10 +175,8 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
                 </div>
               }
             >
-              <Plot
-                className={styles.plot}
-                // eslint-disable-next-line react/prop-types
-                url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`}
+              <SpectraPlot
+                spectra={spectra.filter((spec) => spec.id === spectrumID)}
               />
             </Suspense>
           </Grid>
@@ -182,26 +185,34 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
             data-testid={`individual-spectrum-id_${rowData[0]}`}
             sm={6}
           >
-            <Typography variant="h6">Comments</Typography>
-            <Suspense fallback={<CircularProgress />}>
-              <CommentList
-                associatedResourceType="spectra"
-                objID={route.id}
-                spectrumID={spectrumID}
-              />
-            </Suspense>
+            <Paper style={{ padding: "0.5rem" }}>
+              <Typography variant="h6">Comments</Typography>
+              <Suspense fallback={<CircularProgress />}>
+                <CommentList
+                  associatedResourceType="spectra"
+                  objID={route.id}
+                  spectrumID={spectrumID}
+                />
+              </Suspense>
+            </Paper>
           </Grid>
           <Grid item sm={6}>
-            <Typography variant="h6">Annotations</Typography>
-            <AnnotationsTable annotations={annotations} />
+            <Paper style={{ padding: "0.5rem" }}>
+              <Typography variant="h6">Annotations</Typography>
+              <AnnotationsTable annotations={annotations} />
+            </Paper>
           </Grid>
           <Grid item sm={6}>
-            <Typography variant="h6">TNS</Typography>
-            <TNSSpectraForm obj_id={route.id} spectrum_id={rowData[0]} />
+            <Paper style={{ padding: "0.5rem" }}>
+              <Typography variant="h6">TNS</Typography>
+              <TNSSpectraForm obj_id={route.id} spectrum_id={rowData[0]} />
+            </Paper>
           </Grid>
           <Grid item sm={6}>
-            <Typography variant="h6">Synthetic Photometry</Typography>
-            <SyntheticPhotometryForm spectrum_id={rowData[0]} />
+            <Paper style={{ padding: "0.5rem" }}>
+              <Typography variant="h6">Synthetic Photometry</Typography>
+              <SyntheticPhotometryForm spectrum_id={rowData[0]} />
+            </Paper>
           </Grid>
         </Grid>
       </TableCell>
@@ -314,11 +325,13 @@ const ShareDataForm = ({ route }) => {
           spec.owner,
           spec.reducers,
           spec.observers,
+          spec.pis,
           spec.origin,
           spec.type,
           spec.label,
           spec.external_reducer,
           spec.external_observer,
+          spec.external_pi,
         ),
       )
     : [];
@@ -339,6 +352,15 @@ const ShareDataForm = ({ route }) => {
       return users.map((user) => <UserContactLink user={user} key={user.id} />);
     }
     return <div />;
+  };
+
+  const renderPIs = (dataIndex) => {
+    const externalPI = specRows[dataIndex]?.external_pi;
+    const users = specRows[dataIndex]?.pis;
+    if (externalPI) {
+      return <div>{externalPI}</div>;
+    }
+    return renderMultipleUsers(users);
   };
 
   const renderReducers = (dataIndex) => {
@@ -509,6 +531,14 @@ const ShareDataForm = ({ route }) => {
       label: "Uploaded by",
       options: {
         customBodyRenderLite: makeRenderSingleUser("owner"),
+        filter: false,
+      },
+    },
+    {
+      name: "pis",
+      label: "PI(s)",
+      options: {
+        customBodyRenderLite: renderPIs,
         filter: false,
       },
     },

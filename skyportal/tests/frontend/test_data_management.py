@@ -21,10 +21,14 @@ def test_share_data(
     driver.wait_for_xpath(f"//div[text()='{public_group.name}']", timeout=15)
 
     driver.wait_for_xpath(
-        '//div[@data-testid="photometry-div"]//*[@data-testid="MUIDataTableBodyRow-0"]',
+        '//*[@data-testid="MUIDataTableBodyRow-0"]',
         timeout=10,
     )
-    driver.click_xpath('//*[@id="MUIDataTableSelectCell-0"]', wait_clickable=False)
+    select = driver.wait_for_xpath(
+        '//*[@data-testid="MUIDataTableBodyRow-0"]/td[1]/div/span/input[@type="checkbox"]',
+        timeout=10,
+    )
+    select.click()
     driver.click_xpath('//*[@id="dataSharingFormGroupsSelect"]')
     driver.click_xpath(f'//li[text()="{public_group2.name}"]', scroll_parent=True)
     driver.click_xpath('//*[text()="Submit"]')

@@ -2,23 +2,37 @@ import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@mui/styles";
 import { useForm } from "react-hook-form";
-import { TextField } from "@mui/material";
+import TextField from "@mui/material/TextField";
+import Chip from "@mui/material/Chip";
 import Button from "./Button";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import SpectroscopyColorSelect from "./SpectroscopyColorSelect";
-import DeletableChips from "./DeletableChips";
 
 import * as profileActions from "../ducks/profile";
 
 const useStyles = makeStyles(() => ({
   submitButton: {
-    margin: "1.5rem 0 0 0",
+    margin: "0.5rem 0 0 0",
   },
-  form: {
+  root: {
     display: "flex",
+    flexDirection: "column",
     gap: "1rem",
     flexWrap: "wrap",
     paddingBottom: "1.5rem",
+    justifyContent: "center",
+  },
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.5rem",
+    flexWrap: "wrap",
+    maxWidth: "40rem",
+  },
+  chips: {
+    display: "flex",
+    gap: "1rem",
+    flexWrap: "wrap",
   },
 }));
 
@@ -75,17 +89,22 @@ const SpectroscopyButtonsForm = () => {
         title="Spectroscopy Extra Wavelengths"
         popupText="Select a group of wavelengths, give them a common name and color, and a button will appear on spectroscopy plots for showing those spectral lines on the plot."
       />
-      <div className={classes.form}>
+      <div className={classes.root}>
+        {spectroscopyButtons && (
+          <div className={classes.chips}>
+            {Object.entries(spectroscopyButtons).map(([key, value]) => (
+              <Chip
+                key={key}
+                label={key}
+                onDelete={() => onDelete(key)}
+                color="primary"
+                style={{ backgroundColor: value.color[0] }}
+              />
+            ))}
+          </div>
+        )}
         <form onSubmit={handleSubmit(onSubmit)}>
-          <div>
-            <TextField
-              label="Wavelengths"
-              {...register("spectroscopyButtonWavelengths", {
-                required: true,
-              })}
-              name="spectroscopyButtonWavelengths"
-              id="spectroscopyButtonWavelengthInput"
-            />
+          <div className={classes.form}>
             <SpectroscopyColorSelect
               initValue={selectedColor}
               onColorSelectChange={onColorSelectChange}
@@ -111,6 +130,14 @@ const SpectroscopyButtonsForm = () => {
                   : ""
               }
             />
+            <TextField
+              label="Wavelengths"
+              {...register("spectroscopyButtonWavelengths", {
+                required: true,
+              })}
+              name="spectroscopyButtonWavelengths"
+              id="spectroscopyButtonWavelengthInput"
+            />
           </div>
           <Button
             primary
@@ -121,13 +148,6 @@ const SpectroscopyButtonsForm = () => {
             Add Spectroscopy Button
           </Button>
         </form>
-        {spectroscopyButtons && (
-          <DeletableChips
-            items={Object.keys(spectroscopyButtons)}
-            onDelete={onDelete}
-            title="Spectroscopy Buttons"
-          />
-        )}
       </div>
     </div>
   );

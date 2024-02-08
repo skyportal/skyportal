@@ -34,7 +34,7 @@ const useStyles = makeStyles(() => ({
     margin: "1rem",
   },
   editIcon: {
-    height: "0.75rem",
+    height: "1rem",
     cursor: "pointer",
   },
   chips: {
@@ -176,14 +176,16 @@ const StartBotSummary = ({ obj_id }) => {
     <>
       {showBotIcon() ? (
         <Tooltip title="Start AI Summary">
-          <SmartToyTwoToneIcon
-            data-testid="runSummaryIconButton"
-            fontSize="small"
-            className={classes.editIcon}
-            onClick={() => {
-              setDialogOpen(true);
-            }}
-          />
+          <span>
+            <SmartToyTwoToneIcon
+              data-testid="runSummaryIconButton"
+              fontSize="small"
+              className={classes.editIcon}
+              onClick={() => {
+                setDialogOpen(true);
+              }}
+            />
+          </span>
         </Tooltip>
       ) : null}
       <Dialog

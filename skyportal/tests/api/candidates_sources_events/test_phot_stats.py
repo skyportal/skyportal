@@ -220,7 +220,7 @@ def test_phot_stats_for_public_source(upload_data_token, public_source):
     assert status == 200
     photometry = data['data']
     mag = [p['mag'] for p in photometry]
-    assert all(type(m) == float and not np.isnan(m) for m in mag)
+    assert all(isinstance(m, float) and not np.isnan(m) for m in mag)
     mag = np.array(mag)
     mjd = np.array([p['mjd'] for p in photometry])
     filt = np.array([p['filter'] for p in photometry])

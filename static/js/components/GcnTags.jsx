@@ -44,7 +44,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const GcnTags = ({ gcnEvent, show_title = false }) => {
+const GcnTags = ({ gcnEvent, show_title = false, addTags = true }) => {
   const styles = useStyles();
 
   const dispatch = useDispatch();
@@ -202,9 +202,11 @@ const GcnTags = ({ gcnEvent, show_title = false }) => {
           />
         ))}
       </div>
-      <div>
-        <AddGcnTag gcnEvent={gcnEvent} />
-      </div>
+      {addTags && permission && (
+        <div>
+          <AddGcnTag gcnEvent={gcnEvent} />
+        </div>
+      )}
     </div>
   );
 };
@@ -222,9 +224,11 @@ GcnTags.propTypes = {
     ),
   }).isRequired,
   show_title: PropTypes.bool,
+  addTags: PropTypes.bool,
 };
 
 GcnTags.defaultProps = {
   show_title: false,
+  addTags: true,
 };
 export default GcnTags;

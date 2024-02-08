@@ -3,39 +3,43 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, useLocation } from "react-router-dom";
 
 import Typography from "@mui/material/Typography";
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
 import Drawer from "@mui/material/Drawer";
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
+import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import IconButton from "@mui/material/IconButton";
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import makeStyles from '@mui/styles/makeStyles';
+import Collapse from '@mui/material/Collapse';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import Divider from "@mui/material/Divider";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 {% for group in app.sidebar -%}
+  {% if not group.name.startswith('main') and group.icon %}
+    import {{ group.icon }}Icon from "@mui/icons-material/{{ group.icon }}";
+  {% endif %}
   {% for subitem in group.subitems -%}
     import {{ subitem.icon }}Icon from "@mui/icons-material/{{ subitem.icon }}";
   {%- endfor %}
 {%- endfor %}
 import MenuIcon from "@material-ui/icons/Menu";
-import { isMobile } from "react-device-detect";
 
-import QuickSearchBar from "./QuickSearchBar";
-import { NewSourceButton } from "./NewSource";
 import HeaderContent from "./HeaderContent";
 import * as Actions from "../ducks/sidebar";
 import hydrate from "../actions";
 
-const drawerWidth = 190;
+const drawerWidth = 170;
 
 const useStyles = makeStyles((theme) => ({
   root: {
     display: 'flex',
+    padding: 0,
+    margin: 0,
   },
   appBar: {
     position: "fixed",
@@ -44,8 +48,10 @@ const useStyles = makeStyles((theme) => ({
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
     }),
-    height: "6em",
+    height: "fit-content",
     background: theme.palette.primary.dark,
+    padding: 0,
+    margin: 0,
   },
   appBarShift: {
     width: `calc(100% - ${drawerWidth}px)`,
@@ -55,40 +61,40 @@ const useStyles = makeStyles((theme) => ({
       duration: theme.transitions.duration.enteringScreen,
     }),
   },
-  menuButton: {
-    marginTop: "0.8em",
-    [theme.breakpoints.up('sm')]: {
-      marginRight: theme.spacing(2),
-    }
-  },
-  hide: {
-    display: 'none',
-  },
   drawer: {
-    width: drawerWidth,
+    maxWidth: drawerWidth,
     flexShrink: 0,
   },
   drawerPaper: {
     zIndex: 140,
-    width: drawerWidth,
+    maxWidth: drawerWidth,
     background: theme.palette.primary.light,
     fontSize: "1.2em",
-    paddingTop: "1rem",
+    padding: 0,
+  },
+  drawerPaperTemporary: {
+    zIndex: 140,
+    width: 'fit-content',
+    background: theme.palette.primary.light,
+    fontSize: "1.2em",
+    padding: 0,
   },
   toolbar: {
     display: "flex",
-    height: "4em",
-    padding: "1em 0em",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingLeft: "1.5rem",
+    paddingRight: 0,
+    [theme.breakpoints.up("md")]: {
+      paddingRight: "1rem",
+    },
   },
   drawerHeader: {
     display: 'flex',
     alignItems: 'center',
-    padding: theme.spacing(0, 1),
     // necessary for content to be below app bar
     ...theme.mixins.toolbar,
-    paddingTop: "5em",
-    justifyContent: 'flex-end',
+    paddingTop: "3em",
   },
   link: {
     color: theme.palette.info.main,
@@ -101,23 +107,16 @@ const useStyles = makeStyles((theme) => ({
   icon: {
     color: theme.palette.info.main,
   },
-  dropdown: {
-    backgroundColor: theme.palette.primary.light
-  },
-  dropdownContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    paddingLeft: 0
-  },
-  menuTextContainer: {
-    width: '8rem',
-    marginLeft: '0.4rem',
-    overflow: 'hidden',
+  minimized: {
+    display: 'none',
+    transition: theme.transitions.create(['display'], {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
   }
 }));
 
-
-const SidebarLinkText = ({ route, title }) => {
+const SidebarLinkText = ({ route, title, open }) => {
   const classes = useStyles();
   const currentRoute = useLocation().pathname;
 
@@ -128,6 +127,7 @@ const SidebarLinkText = ({ route, title }) => {
           {title}
         </Typography>
       }
+      className={!open ? classes.minimized : null}
     />
   );
 };
@@ -140,40 +140,59 @@ const SidebarAndHeader = () => {
   const dispatch = useDispatch();
   const classes = useStyles();
 
+  const isSmall = useMediaQuery(theme => theme.breakpoints.down("md"));
+
+  {% for group in app.sidebar -%}
+    {% if not group.name.startswith('main') %}
+      const [{{ group.name }}Open, set{{ group.name }}Open] = React.useState(false);
+    {% endif %}
+  {%- endfor %}
+
+  const [temporaryOpen, setTemporaryOpen] = React.useState(false);
+
+  let timer = 0;
+  const TIMEOUT = 700;
+
+  function mouseEnter() {
+    if (!temporaryOpen && !open && !isSmall) {
+      timer = setTimeout(() => {
+        setTemporaryOpen(true);
+      }, TIMEOUT);
+    }
+  }
+
+  function mouseLeave() {
+    setTemporaryOpen(false);
+    clearTimeout(timer);
+    {% for group in app.sidebar -%}
+      {% if not group.name.startswith('main') %}
+        set{{ group.name }}Open(false);
+      {% endif %}
+    {%- endfor %}
+  }
+
   const handleToggleSidebarOpen = () => {
+    if (open) {
+      {% for group in app.sidebar -%}
+        {% if not group.name.startswith('main') %}
+          set{{ group.name }}Open(false);
+        {% endif %}
+      {%- endfor %}
+    }
     dispatch(Actions.toggleSidebar());
   };
 
   useEffect(() => {
-    const handleResize = () => {
-      if (window.matchMedia("(max-width: 768px)").matches) {
-        dispatch(Actions.setSidebar(false));
-      }
-    };
-
-    // For bigger screens, let home page know content window has resized
-    // so that it can adjust widget sizes
-    // A slight delay is used to make sure the sidebar is finished
-    // closing/opening before new content window size is computed
-    if (!window.matchMedia("(max-width: 768px)").matches) {
-      setTimeout(() => {
-        window.dispatchEvent(new Event("resize"));
-      }, 250);
+    if (isSmall && open) {
+      dispatch(Actions.setSidebar(false));
+      setTemporaryOpen(false);
     }
+  }, [isSmall, dispatch]);
 
-    if (open) {
-      window.addEventListener("resize", handleResize);
-    }
-
-    const cleanupListener = () => {
-      window.removeEventListener("resize", handleResize);
-    };
-    return cleanupListener;
-  }, [open, dispatch]);
-
-  const drawerType = isMobile ? "temporary" : "persistent";
+  const drawerType = (temporaryOpen || isSmall) ? "temporary" : "permanent";
 
   const hydrateIfDashboardClicked = (url) => {
+    clearTimeout(timer);
     if (url === "/") {
       dispatch(hydrate(true));
     }
@@ -193,14 +212,29 @@ const SidebarAndHeader = () => {
     {% else %}
     <Link to="{{ item.url }}" onClick={() => hydrateIfDashboardClicked("{{ item.url }}")} className={classes.link}>
     {%- endif %}
-      <ListItem button name="sidebar{{ item.name }}Button">
-        <ListItemIcon>
-          <{{ item.icon }}Icon className={classes.icon} />
-        </ListItemIcon>
-        <SidebarLinkText
-          route="{{ item.url }}"
-          title="{{ item.name }}"
-        />
+      <ListItem name="sidebar{{ item.name }}Button" disablePadding sx={{ "{{ display: 'block' }}" }}>
+        <ListItemButton
+            sx={{"{{
+              minHeight: 48,
+              justifyContent: (open || temporaryOpen) ? 'initial' : 'center',
+              px: 2.5,
+            }}"}}
+          >
+            <ListItemIcon
+              sx={{ "{{
+                minWidth: 0,
+                mr: (open || temporaryOpen) ? 2 : 'auto',
+                justifyContent: 'center',
+              }}" }}
+            >
+              <{{ item.icon }}Icon className={classes.icon} />
+            </ListItemIcon>
+            <SidebarLinkText
+              route="{{ item.url }}"
+              title="{{ item.name }}"
+              open={open || temporaryOpen}
+            />
+        </ListItemButton>
       </ListItem>
     {% if item.url.startswith('http') -%}
     </a>
@@ -221,20 +255,41 @@ const SidebarAndHeader = () => {
       {% endfor %}
       false) && (
     {% endif %}
-    <Accordion className={classes.dropdown}>
-      <AccordionSummary
-        expandIcon={<ExpandMoreIcon className={classes.icon}/>}
-        aria-controls="panel1a-content"
-        id="panel1a-header"
-      >
-        <div className={classes.menuTextContainer}>
-          <Typography noWrap className={classes.icon}>{{ group.name }}</Typography>
-        </div>
-      </AccordionSummary>
-      <AccordionDetails className={classes.dropdownContainer}>
-        {{ add_items_to_menu(group) }}
-      </AccordionDetails>
-    </Accordion>
+    <>
+      <ListItem name="sidebar{{ group.name }}Button" disablePadding sx={{ "{{ display: 'block' }}"}} className={classes.link}>
+        <ListItemButton
+            sx={{"{{
+              minHeight: 48,
+              justifyContent: (open || temporaryOpen) ? 'initial' : 'center',
+              px: 2.5,
+            }}"}}
+            onClick={() => set{{ group.name }}Open(!{{ group.name }}Open)}
+          >
+            <ListItemIcon
+              sx={{ "{{
+                minWidth: 0,
+                mr: (open || temporaryOpen) ? 2 : 'auto',
+                justifyContent: 'center',
+              }}" }}
+            >
+              {(!(open || temporaryOpen) && {{ group.name }}Open) ? <ExpandLess /> : <{{ group.icon }}Icon className={classes.icon} />}
+            </ListItemIcon>
+            <SidebarLinkText
+              title="{{ group.name }}"
+              open={open || temporaryOpen}
+            />
+              {((open || temporaryOpen) && {{ group.name }}Open) ? <ExpandLess /> : null}
+              {(!{{ group.name }}Open && (open || temporaryOpen)) ? <ExpandMore /> : null}
+        </ListItemButton>
+      </ListItem>
+      <Collapse in={ {{group.name }}Open} timeout="auto" unmountOnExit>
+        <Divider />
+        <List component="div" disablePadding>
+          {{ add_items_to_menu(group) }}
+        </List>
+        <Divider />
+      </Collapse>
+    </>
     {% if group.permissions %}
     )}
     {% endif %}
@@ -245,7 +300,7 @@ const SidebarAndHeader = () => {
       <AppBar
         className={classes.appBar}
       >
-        <Toolbar>
+        <Toolbar className={classes.toolbar}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
@@ -262,11 +317,12 @@ const SidebarAndHeader = () => {
         className={classes.drawer}
         variant={drawerType}
         anchor="left"
-        open={open}
-        onClose={isMobile ? handleToggleSidebarOpen : undefined}
-        classes={{ "{{ paper: classes.drawerPaper }}" }}
+        open={open || temporaryOpen}
+        onClose={isSmall ? handleToggleSidebarOpen : undefined}
+        classes={{ "{{ paper: drawerType === 'temporary' ? classes.drawerPaperTemporary : classes.drawerPaper }}" }}
+        PaperProps={{ "{{ onMouseEnter: mouseEnter, onMouseLeave: mouseLeave }}" }}
       >
-        {!isMobile && <div className={classes.drawerHeader} />}
+        {!isSmall && <div className={classes.drawerHeader} />}
         <List>
         {% for group in app.sidebar -%}
           {% if group.name.startswith('main') %}
@@ -276,9 +332,6 @@ const SidebarAndHeader = () => {
           {% endif %}
         {%- endfor %}
         </List>
-
-        <QuickSearchBar id="search" />
-        <NewSourceButton id="newSource" />
       </Drawer>
     </>
   );

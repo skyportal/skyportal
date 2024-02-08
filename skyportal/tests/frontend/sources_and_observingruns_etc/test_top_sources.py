@@ -95,9 +95,10 @@ def test_top_source_prefs(driver, user, public_group, upload_data_token):
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
+
     # Wait for just top source widget to show up
-    last_30_days_button = "//button[contains(@data-testid, 'topSources_30days')]"
-    driver.wait_for_xpath(last_30_days_button)
+    timespan_button = "//button[contains(@data-testid, 'topSources_timespanButton')]"
+    driver.wait_for_xpath(timespan_button)
 
     # edit the preferences to show more than the default 10 sources
     settings_button = driver.wait_for_xpath('//*[@id="topSourcesSettingsIcon"]')
@@ -116,6 +117,10 @@ def test_top_source_prefs(driver, user, public_group, upload_data_token):
     source_view_xpath = f"//div[@data-testid='topSourceItem_{obj_id}']"
     driver.wait_for_xpath_to_disappear(source_view_xpath)
 
-    # Test that source view appears after changing prefs
+    # Test that source does show up in last 30 days of views
+    driver.click_xpath(timespan_button)
+    last_30_days_button = "//*[contains(@data-testid, 'topSources_30days')]"
     driver.click_xpath(last_30_days_button)
+
+    # Test that source view appears after changing prefs
     driver.wait_for_xpath(source_view_xpath)

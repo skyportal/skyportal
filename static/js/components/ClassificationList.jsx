@@ -3,12 +3,12 @@ import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Tooltip from "@mui/material/Tooltip";
 import GroupIcon from "@mui/icons-material/Group";
+import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Divider from "@mui/material/Divider";
 import makeStyles from "@mui/styles/makeStyles";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
-import { FixedSizeList } from "react-window";
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
@@ -27,9 +27,10 @@ const useStyles = makeStyles(() => ({
     fontSize: "90%",
     display: "flex",
     flexDirection: "column",
-    minHeight: "4rem",
-    paddingBottom: "0.5rem",
-    paddingLeft: "0.5rem",
+    minHeight: "80px",
+    maxHeight: "80px",
+    marginBottom: "5px",
+    padding: 0,
     alignItems: "start",
     justifyContent: "space-between",
     overflowAnchor: "none",
@@ -37,8 +38,6 @@ const useStyles = makeStyles(() => ({
   classificationHeader: {
     flexGrow: "4",
     flexDirection: "row",
-    paddingTop: "0.5rem",
-    paddingBottom: "0.5rem",
     alignItems: "start",
   },
   classificationTime: {
@@ -294,28 +293,23 @@ const ClassificationList = () => {
               </div>
             </div>
           </ListItem>
-          <Divider />
+          <Divider style={{ height: "1px" }} />
         </>
       );
     },
   );
 
-  const Row = ({ index }) => items[index];
-
   return (
-    <div
-      style={{ display: classifications.length > 0 ? "block" : "none" }}
-      className={styles.classifications}
-    >
-      <FixedSizeList
-        className={styles.classifications}
-        height={Math.min(360, parseInt(classifications.length * 100, 10))}
-        width="100%"
-        itemSize={150}
-        itemCount={items.length}
+    <div style={{ display: classifications.length > 0 ? "block" : "none" }}>
+      <List
+        sx={{
+          maxHeight: Math.min(360, parseInt(classifications.length * 85, 10)),
+          width: "100%",
+          overflowY: "auto",
+        }}
       >
-        {Row}
-      </FixedSizeList>
+        {items}
+      </List>
       <FormControlLabel
         label="Hide ML-based?"
         control={

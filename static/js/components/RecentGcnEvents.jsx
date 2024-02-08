@@ -29,10 +29,8 @@ const useStyles = makeStyles((theme) => ({
     height: "1rem",
   },
   eventListContainer: {
-    height: "calc(100% - 5rem)",
+    height: "calc(100% - 2.5rem)",
     overflowY: "auto",
-    marginTop: "0.625rem",
-    paddingTop: "0.625rem",
   },
   eventList: {
     display: "block",
@@ -115,12 +113,10 @@ const RecentGcnEvents = ({ classes }) => {
           </div>
         </div>
         <div className={styles.eventListContainer}>
-          <p>Displaying most-viewed events</p>
           <ul className={styles.eventList}>
             {gcnEvents?.map((gcnEvent) => (
               <li key={gcnEvent.dateobs}>
                 <div className={styles.eventContainer}>
-                  &nbsp; -&nbsp;
                   <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
                     <Button className={styles.eventName}>
                       <div className={styles.eventDateobs}>
@@ -150,7 +146,7 @@ const RecentGcnEvents = ({ classes }) => {
                     />
                   </Tooltip>
                   <div>
-                    <GcnTags gcnEvent={gcnEvent} />
+                    <GcnTags gcnEvent={gcnEvent} addTags={false} />
                     <GcnEventAllocationTriggers gcnEvent={gcnEvent} />
                   </div>
                 </div>

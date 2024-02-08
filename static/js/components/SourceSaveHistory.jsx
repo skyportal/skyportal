@@ -35,7 +35,7 @@ const SourceSaveHistory = ({ groups }) => {
   });
 
   return (
-    <>
+    <div className={classes.historyIcon}>
       <Tooltip title="Source save history">
         <span>
           <IconButton
@@ -47,7 +47,7 @@ const SourceSaveHistory = ({ groups }) => {
             size="small"
             className={classes.iconButton}
           >
-            <HistoryIcon />
+            <HistoryIcon style={{ fontSize: "1rem" }} />
           </IconButton>
         </span>
       </Tooltip>
@@ -81,7 +81,7 @@ const SourceSaveHistory = ({ groups }) => {
           </Table>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 

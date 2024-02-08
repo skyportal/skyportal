@@ -16,9 +16,8 @@ import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 import * as sourceActions from "../ducks/source";
 
-export const useStyles = makeStyles((theme) => ({
+export const useStyles = makeStyles(() => ({
   chip: {
-    margin: theme.spacing(0.5),
     fontSize: "1.2rem",
     fontWeight: "bold",
   },
@@ -405,7 +404,16 @@ function ShowClassification({
   const title = shortened ? "" : <b>Classification: </b>;
 
   return (
-    <div>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "0.25rem",
+        maxWidth: "100%",
+      }}
+    >
       {title}
       {keys.map((key) => (
         <ClassificationRow

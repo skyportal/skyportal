@@ -2074,6 +2074,13 @@ def retrieve_observations_and_simsurvey(
             session.rollback()
             return log(f"Error in retrieving observations and running SimSurvey: {e}")
 
+    flow = Flow()
+    flow.push(
+        '*',
+        "skyportal/REFRESH_GCNEVENT_SURVEY_EFFICIENCY",
+        payload={"gcnEvent_dateobs": localization.dateobs},
+    )
+
 
 class ObservationSimSurveyHandler(BaseHandler):
     @auth_or_token
@@ -2323,6 +2330,11 @@ class ObservationSimSurveyHandler(BaseHandler):
             session.add(survey_efficiency_analysis)
             session.commit()
 
+            self.push_all(
+                'skyportal/REFRESH_GCNEVENT_SURVEY_EFFICIENCY',
+                payload={"gcnEvent_dateobs": localization_dateobs},
+            )
+
             self.push_notification(
                 'Simsurvey analysis in progress. Should be available soon.'
             )
@@ -2372,8 +2384,14 @@ class ObservationSimSurveyHandler(BaseHandler):
                 return self.error(
                     f'Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}'
                 )
+            dateobs = survey_efficiency_analysis.localization.dateobs
             session.delete(survey_efficiency_analysis)
             session.commit()
+
+            self.push_all(
+                'skyportal/REFRESH_GCNEVENT_SURVEY_EFFICIENCY',
+                payload={"gcnEvent_dateobs": dateobs},
+            )
 
             return self.success()
 

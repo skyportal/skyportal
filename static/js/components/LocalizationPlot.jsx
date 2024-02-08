@@ -10,7 +10,7 @@ import * as d3 from "d3";
 import d3GeoZoom from "d3-geo-zoom";
 // eslint-disable-next-line
 import GeoPropTypes from "geojson-prop-types";
-import { sunGeoJSON, moonGeoJSON } from "../plotjs/positions";
+import { sunGeoJSON, moonGeoJSON } from "../utils";
 
 const useStyles = makeStyles(() => ({
   fieldStyle: {

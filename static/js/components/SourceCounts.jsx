@@ -13,11 +13,12 @@ import * as profileActions from "../ducks/profile";
 
 const useStyles = makeStyles(() => ({
   counter: {
+    width: "100%",
     display: "flex",
     flexDirection: "column",
+    paddingTop: "2rem",
     height: "100%",
     justifyContent: "center",
-    marginRight: "2rem",
   },
   widgetsBar: {
     position: "fixed",

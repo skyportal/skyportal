@@ -111,7 +111,7 @@ const NewGroupUserForm = ({ group_id }) => {
         data-testid="adminCheckbox"
       />
       Group Admin &nbsp;&nbsp;
-      <Button primary onClick={handleClickSubmit} size="small" disableElevation>
+      <Button primary onClick={handleClickSubmit} size="small">
         Add user to group
       </Button>
     </div>

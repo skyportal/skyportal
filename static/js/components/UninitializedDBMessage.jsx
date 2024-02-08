@@ -8,7 +8,8 @@ const UninitializedDBMessage = () => (
     <a href="https://skyportal.io/docs/setup.html">
       getting started documentation
     </a>
-    .
+    . Or, click on the <b>+</b> icon in the upper right corner of the table to
+    add a source.
   </div>
 );
 

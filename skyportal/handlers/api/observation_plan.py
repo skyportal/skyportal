@@ -2,6 +2,7 @@ import asyncio
 import functools
 import io
 import json
+import os
 import random
 import re
 import tempfile
@@ -2703,6 +2704,8 @@ def observation_simsurvey(
                 mjd_range=(trigger_time.jd, trigger_time.jd),
                 transientprop=transientprop,
                 skymap=map_struct,
+                sfd98_dir=os.path.join(cfg['misc.dustmap_folder'], "sfd"),
+                apply_mwebv=True,
             )
 
             survey = simsurvey.SimulSurvey(

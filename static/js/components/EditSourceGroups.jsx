@@ -117,7 +117,7 @@ const EditSourceGroups = ({ source, groups, icon }) => {
                 disabled={isSubmitting}
                 className={classes.iconButton}
               >
-                <EditIcon />
+                <EditIcon style={{ fontSize: "1rem" }} />
               </IconButton>
             </span>
           </Tooltip>

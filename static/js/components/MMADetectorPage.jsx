@@ -1,31 +1,18 @@
-import React, { useEffect, useState, useRef } from "react";
+import React from "react";
 
 import { useTheme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
+
 import MMADetectorPageDesktop from "./MMADetectorPageDesktop";
 import MMADetectorPageMobile from "./MMADetectorPageMobile";
 
-const sidebarWidth = 190;
-
 const MMADetectorPage = () => {
-  const ref = useRef(null);
   const theme = useTheme();
-  const initialWidth =
-    window.innerWidth - sidebarWidth - 2 * parseInt(theme.spacing(2), 10);
-  const [width, setWidth] = useState(initialWidth);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (ref.current !== null) {
-        setWidth(ref.current.offsetWidth);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-  }, [ref]);
+  const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
 
   return (
-    <div ref={ref}>
-      {width <= 600 ? <MMADetectorPageMobile /> : <MMADetectorPageDesktop />}
+    <div>
+      {isMobile ? <MMADetectorPageMobile /> : <MMADetectorPageDesktop />}
     </div>
   );
 };

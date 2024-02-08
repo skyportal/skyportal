@@ -38,9 +38,7 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "column",
     overflowY: "scroll",
-    paddingTop: "0.3125rem",
     paddingLeft: "0.3125rem",
-    marginTop: "0.625rem",
     backgroundColor: theme.palette.background.default,
   },
   entry: {
@@ -198,6 +196,12 @@ const NewsFeed = ({ classes }) => {
   if (!Object.keys(newsFeedPrefs).includes("categories")) {
     newsFeedPrefs.categories = defaultPrefs.categories;
   }
+  // if a category is missing from the user's preferences, add it with the default value
+  Object.keys(defaultPrefs.categories).forEach((cat) => {
+    if (!Object.keys(newsFeedPrefs.categories).includes(cat)) {
+      newsFeedPrefs.categories[cat] = defaultPrefs.categories[cat];
+    }
+  });
 
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
@@ -216,7 +220,14 @@ const NewsFeed = ({ classes }) => {
             />
           </div>
         </div>
-        <div className={styles.newsFeed} style={{ height: "85%" }}>
+        <div
+          className={styles.newsFeed}
+          style={{
+            height: "calc(100% - 2.5rem)",
+            overflowY: "auto",
+            paddingTop: "0.1rem",
+          }}
+        >
           {items?.map((item) => (
             <NewsFeedItem
               key={`${item.author}-${item.source_id}-${item.time}`}

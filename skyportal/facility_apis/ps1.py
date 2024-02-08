@@ -94,7 +94,7 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
 
             if len(df.index) > 0:
                 ids, _ = add_external_photometry(
-                    data_out, request.requester, duplicates="update"
+                    data_out, request.requester, duplicates="update", refresh=True
                 )
                 if ids is None:
                     raise ValueError('Failed to commit photometry')

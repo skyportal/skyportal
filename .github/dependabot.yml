@@ -4,7 +4,7 @@ updates:
     directory: "/"
     schedule:
       interval: monthly
-      time: "6:00"
+      time: "06:00"
     open-pull-requests-limit: 10
     ignore:
       - dependency-name: "@date-io/dayjs"
@@ -16,9 +16,6 @@ updates:
       - dependency-name: mui-datatables
         versions:
           - 3.7.6
-      - dependency-name: "@bokeh/bokehjs"
-        versions:
-          - 2.3.0
       - dependency-name: redoc
         versions:
           - 2.0.0-rc.41
@@ -40,7 +37,7 @@ updates:
     directory: "/"
     schedule:
       interval: monthly
-      time: "6:00"
+      time: "06:00"
     open-pull-requests-limit: 10
     ignore:
       - dependency-name: dask

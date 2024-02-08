@@ -130,7 +130,7 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
       Object.keys(data[0]).forEach((key) => {
         if (
           !keys.includes(key) &&
-          !["groups", "owner", "obj_id", "id"].includes(key)
+          !["groups", "owner", "obj_id", "id", "streams"].includes(key)
         ) {
           keys.push(key);
         }
@@ -172,6 +172,26 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
         label: "owner",
         options: {
           customBodyRenderLite: renderOwner,
+        },
+      });
+
+      const renderStreams = (dataIndex) => {
+        const phot = data[dataIndex];
+        return (
+          <div>
+            <div className={classes.actionButtons}>
+              <div>{phot.streams.map((stream) => stream.name).join(", ")}</div>
+            </div>
+          </div>
+        );
+      };
+
+      columns.push({
+        name: "streams",
+        label: "streams",
+        options: {
+          customBodyRenderLite: renderStreams,
+          display: false,
         },
       });
 
@@ -251,6 +271,132 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
         selectableRows: "none",
         customToolbar: customToolbarFunc,
         filter: false,
+        download: true,
+        onDownload: (buildHead, buildBody, cols, tableData) => {
+          const renderStreamsDownload = (streams) =>
+            streams ? streams.map((stream) => stream.name).join(";") : "";
+          const renderOwnerDownload = (owner) => (owner ? owner.username : "");
+
+          // if there is no data, cancel download
+          if (data?.length > 0) {
+            const body = tableData
+              .map((x) =>
+                [
+                  x.data[0],
+                  x.data[1],
+                  x.data[2],
+                  x.data[3],
+                  x.data[4],
+                  x.data[5],
+                  x.data[6],
+                  x.data[7],
+                  x.data[8],
+                  x.data[9],
+                  x.data[10],
+                  x.data[11],
+                  x.data[12],
+                  x.data[13],
+                  x.data[14],
+                  x.data[15],
+                  x.data[16],
+                  renderOwnerDownload(x.data[18]),
+                  renderStreamsDownload(x.data[19]),
+                ].join(","),
+              )
+              .join("\n");
+
+            const result =
+              buildHead([
+                {
+                  name: "id",
+                  download: true,
+                },
+                {
+                  name: "mjd",
+                  download: true,
+                },
+                {
+                  name: "mag",
+                  download: true,
+                },
+                {
+                  name: "magerr",
+                  download: true,
+                },
+                {
+                  name: "limiting_mag",
+                  download: true,
+                },
+                {
+                  name: "filter",
+                  download: true,
+                },
+                {
+                  name: "instrument_name",
+                  download: true,
+                },
+                {
+                  name: "instrument_id",
+                  download: true,
+                },
+                {
+                  name: "snr",
+                  download: true,
+                },
+                {
+                  name: "magsys",
+                  download: true,
+                },
+                {
+                  name: "origin",
+                  download: true,
+                },
+                {
+                  name: "altdata",
+                  download: true,
+                },
+                {
+                  name: "ra",
+                  download: true,
+                },
+                {
+                  name: "dec",
+                  download: true,
+                },
+                {
+                  name: "ra_unc",
+                  download: true,
+                },
+                {
+                  name: "dec_unc",
+                  download: true,
+                },
+                {
+                  name: "created_at",
+                  download: true,
+                },
+                {
+                  name: "streams",
+                  download: true,
+                },
+                {
+                  name: "owner",
+                  download: true,
+                },
+              ]) + body;
+            const blob = new Blob([result], {
+              type: "text/csv;charset=utf-8;",
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", "photometry.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+          return false;
+        },
       };
 
       bodyContent = (

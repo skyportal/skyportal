@@ -180,9 +180,6 @@ from skyportal.handlers.api import (
     GCNsAssociatedWithSourceHandler,
 )
 from skyportal.handlers.api.internal import (
-    PlotPhotometryHandler,
-    PlotSpectroscopyHandler,
-    PlotInstrumentLogHandler,
     SourceViewsHandler,
     SourceCountHandler,
     SourceSaverHandler,
@@ -540,9 +537,6 @@ skyportal_handlers = [
     (r'/api/internal/source_views(/.*)?', SourceViewsHandler),
     (r'/api/internal/source_counts(/.*)?', SourceCountHandler),
     (r'/api/internal/source_savers(/.*)?', SourceSaverHandler),
-    (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
-    (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
-    (r'/api/internal/plot/instrument_log/([0-9]+)', PlotInstrumentLogHandler),
     (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
     (r'/api/internal/standards', StandardsHandler),
     (r'/api/internal/wavelengths(/.*)?', FilterWavelengthHandler),

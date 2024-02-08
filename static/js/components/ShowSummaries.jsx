@@ -3,7 +3,6 @@ import ReactMarkdown from "react-markdown";
 
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
-import Paper from "@mui/material/Paper";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -29,13 +28,30 @@ export const useStyles = makeStyles((theme) => ({
     width: "100%",
     padding: "0 5px",
   },
+  compactText: {
+    "& p": {
+      padding: 0,
+      margin: 0,
+    },
+  },
 }));
 
-const ShowSummaries = ({ summaries = [] }) => {
+const ShowSummaries = ({ summaries = [], showAISummaries = true }) => {
   const styles = useStyles();
   const renderCommentText = () => {
-    if (summaries?.length > 0) {
-      return summaries[0].summary;
+    let filteredSummaries = [...(summaries || [])].filter(
+      (summary) =>
+        summary?.summary &&
+        summary?.summary !== null &&
+        summary?.summary.trim() !== "",
+    );
+    if (showAISummaries === false) {
+      filteredSummaries = filteredSummaries.filter(
+        (summary) => summary?.is_bot === false,
+      );
+    }
+    if (filteredSummaries?.length > 0) {
+      return filteredSummaries[0].summary;
     }
     return null;
   };
@@ -46,26 +62,29 @@ const ShowSummaries = ({ summaries = [] }) => {
     );
 
   return (
-    <Paper elevation={1}>
-      <div className={styles.compactContainer}>
-        <Tooltip title="Latest Summary" placement="right-start">
-          <div className={styles.compactWrap}>
-            <ReactMarkdown components={{ text: emojiSupport }}>
-              {renderCommentText()}
-            </ReactMarkdown>
-          </div>
-        </Tooltip>
-      </div>
-    </Paper>
+    <div className={styles.compactContainer}>
+      <Tooltip title="Latest Summary" placement="right-start">
+        <div className={styles.compactWrap}>
+          <ReactMarkdown
+            components={{ text: emojiSupport }}
+            className={styles.compactText}
+          >
+            {renderCommentText()}
+          </ReactMarkdown>
+        </div>
+      </Tooltip>
+    </div>
   );
 };
 
 ShowSummaries.propTypes = {
   summaries: PropTypes.arrayOf(PropTypes.string),
+  showAISummaries: PropTypes.bool,
 };
 
 ShowSummaries.defaultProps = {
   summaries: [],
+  showAISummaries: true,
 };
 
 export default ShowSummaries;
