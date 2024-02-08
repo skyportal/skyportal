@@ -2210,16 +2210,18 @@ def add_gcn_summary(
             user = session.query(User).get(user_id)
             session.user_or_token = user
 
-            gcn_summary = session.query(GcnSummary).get(summary_id)
-            group = session.query(Group).get(group_id)
-            event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
-            localization = (
-                session.query(Localization)
-                .filter(
+            gcn_summary = session.scalar(
+                GcnSummary.select(user).where(GcnSummary.id == summary_id)
+            )
+            group = session.scalar(Group.select(user).where(Group.id == group_id))
+            event = session.scalar(
+                GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+            )
+            localization = session.scalar(
+                Localization.select(user).where(
                     Localization.dateobs == dateobs,
                     Localization.localization_name == localization_name,
                 )
-                .first()
             )
 
             start_date_mjd = Time(arrow.get(start_date).datetime).mjd
@@ -2251,7 +2253,9 @@ def add_gcn_summary(
                 if len(user_ids) > 0:
                     users = []
                     for mentioned_user_id in user_ids:
-                        mentioned_user = session.query(User).get(mentioned_user_id)
+                        mentioned_user = session.scalar(
+                            User.select(user).where(User.id == mentioned_user_id)
+                        )
                         if mentioned_user is not None:
                             users.append(mentioned_user)
 
@@ -2766,7 +2770,9 @@ def add_gcn_summary(
                 and len(acknowledgements) > 0
             ):
                 contents.append("\n" + acknowledgements)
+
             gcn_summary.text = "\n".join(contents)
+            session.add(gcn_summary)
             session.commit()
 
             flow = Flow()
@@ -2784,7 +2790,6 @@ def add_gcn_summary(
             )
             session.add(notification)
             session.commit()
-
             log(f"Successfully generated GCN summary {gcn_summary.id}")
         except Exception as e:
             session.rollback()

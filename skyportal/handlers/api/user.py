@@ -90,6 +90,12 @@ def set_default_group(user, session):
             raise Exception(
                 f"Invalid default_group configuration value: {default_group_name} does not exist"
             )
+        elif session.scalars(
+            sa.select(GroupUser).where(
+                GroupUser.user_id == user.id, GroupUser.group_id == group.id
+            )
+        ).first():
+            pass
         else:
             session.add(GroupUser(user_id=user.id, group_id=group.id, admin=False))
             if group.streams:
@@ -106,7 +112,6 @@ def add_user_and_setup_groups(
     contact_email=None,
     role_ids=[],
     group_ids_and_admin=[],
-    oauth_uid=None,
     expiration_date=None,
     session=None,
 ):
@@ -121,7 +126,6 @@ def add_user_and_setup_groups(
             affiliations=affiliations,
             contact_phone=contact_phone,
             contact_email=contact_email,
-            oauth_uid=oauth_uid,
             expiration_date=expiration_date,
             session=session,
         )
@@ -462,7 +466,6 @@ class UserHandler(BaseHandler):
                     affiliations=affiliations,
                     contact_phone=contact_phone,
                     contact_email=contact_email,
-                    oauth_uid=data.get("oauth_uid"),
                     role_ids=role_ids,
                     group_ids_and_admin=group_ids_and_admin,
                     session=session,

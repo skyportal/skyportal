@@ -459,9 +459,10 @@ def update_single_user_group(mapper, connection, target):
     # Update single user group name if needed
     @event.listens_for(inspect(target).session, "after_flush_postexec", once=True)
     def receive_after_flush(session, context):
-        single_user_group = target.single_user_group
-        single_user_group.name = slugify(target.username)
-        session.merge(single_user_group)
+        if target.single_user_group:
+            single_user_group = target.single_user_group
+            single_user_group.name = slugify(target.username)
+            session.merge(single_user_group)
 
 
 @property

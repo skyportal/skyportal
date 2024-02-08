@@ -110,13 +110,13 @@ def update_healpix_if_relevant(request_data, obj):
 
     if (ra is not None) and (dec is not None):
         # This adds a healpix index for a new object being created
-        obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
+        obj.healpix = int(ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg))
         return
 
     # otherwise make sure healpix is correct
     if (obj.ra is not None) and (obj.dec is not None):
-        obj.healpix = ha.constants.HPX.lonlat_to_healpix(
-            obj.ra * u.deg, obj.dec * u.deg
+        obj.healpix = int(
+            ha.constants.HPX.lonlat_to_healpix(obj.ra * u.deg, obj.dec * u.deg)
         )
         return
 

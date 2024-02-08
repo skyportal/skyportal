@@ -3179,18 +3179,26 @@ class SourceHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-        update_summary_history_if_relevant(data, obj, self.associated_user_object)
 
-        update_healpix_if_relevant(data, obj)
+        with self.Session() as session:
+            existing_obj = session.scalar(
+                Obj.select(session.user_or_token, mode="update").where(Obj.id == obj_id)
+            )
+            if existing_obj is None:
+                return self.error("Source not found or not accessible to user.")
+            # print the session that the
+            update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+            update_summary_history_if_relevant(data, obj, self.associated_user_object)
+            update_healpix_if_relevant(data, obj)
 
-        self.verify_and_commit()
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": obj.internal_key},
-        )
+            session.merge(obj)
+            session.commit()
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj.internal_key},
+            )
 
-        return self.success()
+            return self.success()
 
     @permissions(['Manage sources'])
     def delete(self, obj_id, group_id):
