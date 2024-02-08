@@ -1,6 +1,7 @@
 import datetime
 
-from sqlalchemy.orm import sessionmaker, scoped_session, contains_eager
+import sqlalchemy as sa
+from sqlalchemy.orm import contains_eager
 
 from baselayer.log import make_log
 from baselayer.app.env import load_env
@@ -8,7 +9,7 @@ from baselayer.app.flow import Flow
 
 from ..base import BaseHandler
 
-from ...models import DBSession, ObjAnalysis
+from ...models import HandlerSession, ObjAnalysis
 
 from .candidate import (
     update_summary_history_if_relevant,
@@ -17,8 +18,6 @@ from .candidate import (
 log = make_log('app/webhook')
 
 _, cfg = load_env()
-
-Session = scoped_session(sessionmaker())
 
 
 class AnalysisWebhookHandler(BaseHandler):
@@ -72,102 +71,101 @@ class AnalysisWebhookHandler(BaseHandler):
             return self.error("Invalid analysis resource type", status=403)
 
         # Authenticate the token, then lock this analysis, before going on.
-        try:
-            if Session.registry.has():
-                session = Session()
-            else:
-                session = Session(bind=DBSession.session_factory.kw["bind"])
-            analysis = (
-                session.query(ObjAnalysis)
-                .join(ObjAnalysis.analysis_service)
-                .join(ObjAnalysis.obj)
-                .options(contains_eager(ObjAnalysis.analysis_service))
-                .options(contains_eager(ObjAnalysis.obj))
-                .filter(ObjAnalysis.token == token)
-                .first()
-            )
-            if not analysis:
-                return self.error("Invalid token", status=403)
-            last_active = analysis.last_activity
-            if analysis.status not in ['pending', 'queued']:
-                return self.error(
-                    f"Analysis already updated with status='{analysis.status}'"
-                    f" and message={analysis.status_message}",
-                    status=403,
+        with HandlerSession() as session:
+            try:
+                analysis = session.scalar(
+                    sa.select(ObjAnalysis)
+                    .join(ObjAnalysis.analysis_service)
+                    .join(ObjAnalysis.obj)
+                    .options(contains_eager(ObjAnalysis.analysis_service))
+                    .options(contains_eager(ObjAnalysis.obj))
+                    .filter(ObjAnalysis.token == token)
                 )
-            if (
-                analysis.invalid_after
-                and datetime.datetime.utcnow() > analysis.invalid_after
-            ):
-                analysis.status = 'timed_out'
-                analysis.status_message = f'Analysis timed out before webhook call at {str(datetime.datetime.utcnow())}'
+                if not analysis:
+                    return self.error("Invalid token", status=403)
+                last_active = analysis.last_activity
+                if analysis.status not in ['pending', 'queued']:
+                    return self.error(
+                        f"Analysis already updated with status='{analysis.status}'"
+                        f" and message={analysis.status_message}",
+                        status=403,
+                    )
+                if (
+                    analysis.invalid_after
+                    and datetime.datetime.utcnow() > analysis.invalid_after
+                ):
+                    analysis.status = 'timed_out'
+                    analysis.status_message = f'Analysis timed out before webhook call at {str(datetime.datetime.utcnow())}'
+                    analysis.last_activity = datetime.datetime.utcnow()
+                    analysis.duration = (
+                        analysis.last_activity - last_active
+                    ).total_seconds()
+                    session.commit()
+                    session.close()
+                    return self.error("Token has expired", status=400)
+
+                # lock the analysis associated with this token and commit immediately to avoid race conditions,
+                # so that the results are not written more than once
+                analysis.status = 'completed'
                 analysis.last_activity = datetime.datetime.utcnow()
                 analysis.duration = (
                     analysis.last_activity - last_active
                 ).total_seconds()
                 session.commit()
-                session.close()
-                return self.error("Token has expired", status=400)
+            except Exception as e:
+                session.rollback()
+                log(f'Trouble accessing Analysis with token {token} {e}.')
+                return self.error("Invalid token", status=403)
 
-            # lock the analysis associated with this token and commit immediately to avoid race conditions,
-            # so that the results are not written more than once
-            analysis.status = 'completed'
-            analysis.last_activity = datetime.datetime.utcnow()
-            analysis.duration = (analysis.last_activity - last_active).total_seconds()
-            session.commit()
-        except Exception as e:
-            log(f'Trouble accessing Analysis with token {token} {e}.')
-            return self.error("Invalid token", status=403)
+            data = self.get_json()
 
-        data = self.get_json()
+            if data.get("status", "error") != "success":
+                analysis.status = 'failure'
+            analysis.status_message = data.get("message", "")
 
-        if data.get("status", "error") != "success":
-            analysis.status = 'failure'
-        analysis.status_message = data.get("message", "")
-
-        results = data.get("analysis", {})
-        if len(results.keys()) > 0:
-            analysis._data = results
-            analysis.save_data()
-            log(
-                f"Saved webhook data at {analysis.filename}. Message: {analysis.status_message}"
-            )
-        else:
-            log(
-                f"Note: empty analysis results for this webhook. Message: {analysis.status_message}"
-            )
-
-        session.commit()
-
-        # check the analysis type and push to the source
-        # if the analysis type is a summary
-        try:
-            flow = Flow()
-            if analysis.analysis_service.is_summary:
-                summary = {"summary": analysis.serialize_results_data()['summary']}
-                summary["created_at"] = analysis.created_at
-                summary["is_bot"] = True
-                summary["analysis_id"] = analysis.id
-                update_summary_history_if_relevant(
-                    summary, analysis.obj, analysis.author
-                )
-                session.commit()
-                log("analysis is a summary. Pushing to source.")
-                flow.push(
-                    '*',
-                    'skyportal/REFRESH_SOURCE',
-                    payload={'obj_key': analysis.obj.internal_key},
+            results = data.get("analysis", {})
+            if len(results.keys()) > 0:
+                analysis._data = results
+                analysis.save_data()
+                log(
+                    f"Saved webhook data at {analysis.filename}. Message: {analysis.status_message}"
                 )
             else:
-                if analysis_resource_type.lower() == 'obj':
+                log(
+                    f"Note: empty analysis results for this webhook. Message: {analysis.status_message}"
+                )
+
+            session.commit()
+
+            # check the analysis type and push to the source
+            # if the analysis type is a summary
+            try:
+                flow = Flow()
+                if analysis.analysis_service.is_summary:
+                    summary = {"summary": analysis.serialize_results_data()['summary']}
+                    summary["created_at"] = analysis.created_at
+                    summary["is_bot"] = True
+                    summary["analysis_id"] = analysis.id
+                    update_summary_history_if_relevant(
+                        summary, analysis.obj, analysis.author
+                    )
+                    session.commit()
+                    log("analysis is a summary. Pushing to source.")
                     flow.push(
                         '*',
-                        'skyportal/REFRESH_OBJ_ANALYSES',
+                        'skyportal/REFRESH_SOURCE',
                         payload={'obj_key': analysis.obj.internal_key},
                     )
-        except Exception as e:
-            log(f"Error pushing update to source: {e}")
+                else:
+                    if analysis_resource_type.lower() == 'obj':
+                        flow.push(
+                            '*',
+                            'skyportal/REFRESH_OBJ_ANALYSES',
+                            payload={'obj_key': analysis.obj.internal_key},
+                        )
+            except Exception as e:
+                log(f"Error pushing update to source: {e}")
 
-        session.close()
+            session.close()
 
-        return self.success(data={"status": "success"})
+            return self.success(data={"status": "success"})

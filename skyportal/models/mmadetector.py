@@ -8,7 +8,7 @@ from sqlalchemy_utils import DateTimeRangeType
 from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
-    DBSession,
+    ThreadSession,
     join_model,
     public,
     accessible_by_owner,
@@ -29,12 +29,12 @@ _, cfg = load_env()
 
 def manage_mmadetector_access_logic(cls, user_or_token):
     if user_or_token.is_system_admin:
-        return DBSession().query(cls)
+        return ThreadSession().query(cls)
     elif 'Manage allocations' in [acl.id for acl in user_or_token.acls]:
-        return DBSession().query(cls)
+        return ThreadSession().query(cls)
     else:
         # return an empty query
-        return DBSession().query(cls).filter(cls.id == -1)
+        return ThreadSession().query(cls).filter(cls.id == -1)
 
 
 class MMADetector(Base):

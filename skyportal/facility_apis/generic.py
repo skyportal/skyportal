@@ -316,7 +316,7 @@ class GENERICAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import DBSession, FollowupRequest, FacilityTransaction
+        from ..models import FollowupRequest, FacilityTransaction
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
@@ -325,8 +325,7 @@ class GENERICAPI(FollowUpAPI):
         has_valid_transaction = False
         if altdata:
             req = (
-                DBSession()
-                .query(FollowupRequest)
+                session.query(FollowupRequest)
                 .filter(FollowupRequest.id == request.id)
                 .one()
             )

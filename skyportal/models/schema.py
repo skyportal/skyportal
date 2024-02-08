@@ -22,7 +22,7 @@ from marshmallow import (
 from marshmallow_enum import EnumField
 
 
-from baselayer.app.models import Base as _Base, DBSession as _DBSession
+from baselayer.app.models import Base as _Base, ThreadSession as _ThreadSession
 from baselayer.app.env import load_env
 from skyportal.enum_types import (
     ALLOWED_SPECTRUM_TYPES,
@@ -135,7 +135,7 @@ def setup_schema():
                     (),
                     {
                         'model': class_,
-                        'sqla_session': _DBSession,
+                        'sqla_session': _ThreadSession,
                         'load_instance': True,
                         'ordered': True,
                         'exclude': [],

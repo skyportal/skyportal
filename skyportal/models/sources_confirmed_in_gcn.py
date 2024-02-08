@@ -5,7 +5,7 @@ __all__ = ['SourcesConfirmedInGCN']
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
-from baselayer.app.models import Base, CustomUserAccessControl, DBSession, public
+from baselayer.app.models import Base, CustomUserAccessControl, ThreadSession, public
 from baselayer.app.env import load_env
 
 _, cfg = load_env()
@@ -15,7 +15,7 @@ def manage_sources_confirmed_in_gcn_access_logic(cls, user_or_token):
     if user_or_token.is_admin or 'Manage GCNs' in user_or_token.permissions:
         return public.query_accessible_rows(cls, user_or_token)
     else:
-        return DBSession().query(cls).filter(sa.false())
+        return ThreadSession().query(cls).filter(sa.false())
 
 
 class SourcesConfirmedInGCN(Base):

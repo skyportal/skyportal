@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import datetime
-from skyportal.models import init_db, Candidate, Source, Obj, DBSession
+from skyportal.models import init_db, Candidate, Source, Obj, ThreadSession
 from baselayer.app.env import load_env
 
 
@@ -24,19 +24,19 @@ if not 1 <= n_days <= 30:
 cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
 
 n_old_unsaved_objs = (
-    DBSession()
+    ThreadSession()
     .query(Obj)
-    .filter(Obj.id.in_(DBSession.query(Candidate.obj_id)))
-    .filter(Obj.id.notin_(DBSession.query(Source.obj_id)))
+    .filter(Obj.id.in_(ThreadSession.query(Candidate.obj_id)))
+    .filter(Obj.id.notin_(ThreadSession.query(Source.obj_id)))
     .filter(Obj.created_at <= cutoff_datetime)
     .count()
 )
 print(f"There are {n_old_unsaved_objs} unsaved Objs older than {n_days} days.")
 
 n_old_unsaved_cands = (
-    DBSession()
+    ThreadSession()
     .query(Candidate)
-    .filter(Candidate.obj_id.notin_(DBSession.query(Source.obj_id)))
+    .filter(Candidate.obj_id.notin_(ThreadSession.query(Source.obj_id)))
     .filter(Candidate.passed_at <= cutoff_datetime)
     .count()
 )

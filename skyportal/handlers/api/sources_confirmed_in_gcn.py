@@ -319,7 +319,6 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
             try:
                 sources = await get_sources(
                     user_id=self.associated_user_object.id,
-                    session=session,
                     first_detected_date=start_date,
                     last_detected_date=end_date,
                     localization_dateobs=dateobs,

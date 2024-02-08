@@ -20,7 +20,7 @@ from baselayer.app.env import load_env
 from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.models import (
-    DBSession,
+    ThreadSession,
     FollowupRequest,
     FacilityTransactionRequest,
 )
@@ -58,7 +58,7 @@ queue = []
 
 def service(queue):
     try:
-        with DBSession() as session:
+        with ThreadSession() as session:
             cutoff_time = Time.now() - TimeDelta(3 * u.day)
             requests = (
                 session.query(FacilityTransactionRequest)
@@ -93,7 +93,7 @@ def service(queue):
         if req_id is None:
             continue
 
-        with DBSession() as session:
+        with ThreadSession() as session:
             try:
                 req = session.scalars(
                     sa.select(FacilityTransactionRequest).where(

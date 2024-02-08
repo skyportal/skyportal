@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import datetime
-from skyportal.models import init_db, Candidate, Source, Obj, DBSession
+from skyportal.models import init_db, Candidate, Source, Obj, ThreadSession
 from baselayer.app.env import load_env
 
 
@@ -24,14 +24,14 @@ if not 1 <= n_days <= 30:
 cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
 
 n_deleted = (
-    DBSession()
+    ThreadSession()
     .query(Obj)
-    .filter(Obj.id.in_(DBSession.query(Candidate.obj_id)))
-    .filter(Obj.id.notin_(DBSession.query(Source.obj_id)))
+    .filter(Obj.id.in_(ThreadSession.query(Candidate.obj_id)))
+    .filter(Obj.id.notin_(ThreadSession.query(Source.obj_id)))
     .filter(Obj.created_at <= cutoff_datetime)
     .delete(synchronize_session='fetch')
 )
 
-DBSession.commit()
+ThreadSession.commit()
 
 print(f"Deleted {n_deleted} unsaved candidates.")

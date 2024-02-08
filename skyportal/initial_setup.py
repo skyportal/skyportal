@@ -6,9 +6,9 @@ from pathlib import Path
 import model_util
 
 from baselayer.app.env import load_env
-from baselayer.app.model_util import create_tables, drop_tables, status
-from baselayer.app.psa import TornadoStorage
-from skyportal.models import Base, DBSession, User, init_db
+from baselayer.app.model_util import create_tables, drop_tables
+from baselayer.tools.status import status
+from skyportal.models import Base, init_db
 
 """
 usage: initial_setup.py [-h] [--nodrop] [--adminusername ADMINUSER]
@@ -93,30 +93,15 @@ if __name__ == "__main__":
 
     if adminuser != '':
         with status(f"Creating super admin ({adminuser})"):
-            super_admin_user = User(
-                username=results.adminuser, role_ids=['Super admin']
+            super_admin_user = model_util.create_user(
+                username=results.adminuser, roles=['Super admin'], auth=True
             )
 
-            DBSession().add_all([super_admin_user])
-
-            for u in [super_admin_user]:
-                DBSession().add(
-                    TornadoStorage.user.create_social_auth(
-                        u, u.username, 'google-oauth2'
-                    )
-                )
     if user != '':
         with status(f"Creating user ({user})"):
-            user = User(username=results.user, role_ids=['Full user'])
-
-            DBSession().add_all([user])
-
-            for u in [user]:
-                DBSession().add(
-                    TornadoStorage.user.create_social_auth(
-                        u, u.username, 'google-oauth2'
-                    )
-                )
+            user = model_util.create_user(
+                username=results.user, roles=['Full user'], auth=True
+            )
     if adminuser == '' and results.adminuser is not None:
         print("Note: adminuser is not a valid email address")
     if user == '' and results.user is not None:

@@ -8,7 +8,7 @@ from baselayer.app.env import load_env
 
 from skyportal.handlers.api.earthquake import post_earthquake_from_xml
 from skyportal.models import (
-    DBSession,
+    ThreadSession,
 )
 
 env, cfg = load_env()
@@ -26,7 +26,7 @@ def service():
 
             os.makedirs(path, exist_ok=True)
 
-            with DBSession() as session:
+            with ThreadSession() as session:
 
                 class Event(LoggingEventHandler):
                     def on_modified(self, event):

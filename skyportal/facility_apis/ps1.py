@@ -1,7 +1,6 @@
 import astropy
 import requests
 import numpy as np
-from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 from . import FollowUpAPI
 from baselayer.app.env import load_env
@@ -35,98 +34,86 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
     """
 
     from ..models import (
-        DBSession,
+        ThreadSession,
         FollowupRequest,
         Instrument,
     )
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    with ThreadSession() as session:
+        try:
+            request = session.query(FollowupRequest).get(request_id)
+            instrument = session.query(Instrument).get(instrument_id)
+            allocation = request.allocation
+            if not allocation:
+                raise ValueError("Missing request's allocation information.")
 
-    try:
-        request = session.query(FollowupRequest).get(request_id)
-        instrument = session.query(Instrument).get(instrument_id)
-        allocation = request.allocation
-        if not allocation:
-            raise ValueError("Missing request's allocation information.")
+            tab = astropy.io.ascii.read(text_response)
+            # good data only
+            tab = tab[tab['psfQfPerfect'] > 0.9]
+            id2filter = np.array(['ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y'])
+            tab['filter'] = id2filter[(tab['filterID'] - 1).data.astype(int)]
+            df = tab.to_pandas()
 
-        tab = astropy.io.ascii.read(text_response)
-        # good data only
-        tab = tab[tab['psfQfPerfect'] > 0.9]
-        id2filter = np.array(['ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y'])
-        tab['filter'] = id2filter[(tab['filterID'] - 1).data.astype(int)]
-        df = tab.to_pandas()
+            df.rename(
+                columns={
+                    'obsTime': 'mjd',
+                    'psfFlux': 'flux',
+                    'psfFluxerr': 'fluxerr',
+                },
+                inplace=True,
+            )
+            df = df.replace({np.nan: None})
 
-        df.rename(
-            columns={
-                'obsTime': 'mjd',
-                'psfFlux': 'flux',
-                'psfFluxerr': 'fluxerr',
-            },
-            inplace=True,
-        )
-        df = df.replace({np.nan: None})
+            df.drop(
+                columns=[
+                    'detectID',
+                    'filterID',
+                    'psfQfPerfect',
+                ],
+                inplace=True,
+            )
+            df['magsys'] = 'ab'
+            df['zp'] = 8.90
 
-        df.drop(
-            columns=[
-                'detectID',
-                'filterID',
-                'psfQfPerfect',
-            ],
-            inplace=True,
-        )
-        df['magsys'] = 'ab'
-        df['zp'] = 8.90
-
-        # data is visible to the group attached to the allocation
-        # as well as to any of the allocation's default share groups
-        data_out = {
-            'obj_id': request.obj_id,
-            'instrument_id': instrument.id,
-            'group_ids': list(
-                set(
-                    [allocation.group_id]
-                    + (
-                        allocation.default_share_group_ids
+            # data is visible to the group attached to the allocation
+            # as well as to any of the allocation's default share groups
+            data_out = {
+                'obj_id': request.obj_id,
+                'instrument_id': instrument.id,
+                'group_ids': list(
+                    set(
+                        [allocation.group_id] + allocation.default_share_group_ids
                         if allocation.default_share_group_ids
                         else []
                     )
+                ),
+                **df.to_dict(orient='list'),
+            }
+
+            from skyportal.handlers.api.photometry import add_external_photometry
+
+            if len(df.index) > 0:
+                ids, _ = add_external_photometry(
+                    data_out, request.requester, duplicates="update", refresh=True
                 )
-            ),
-            **df.to_dict(orient='list'),
-        }
+                if ids is None:
+                    raise ValueError('Failed to commit photometry')
+                request.status = "Photometry committed to database"
+            else:
+                request.status = "No photometry to commit to database"
 
-        from skyportal.handlers.api.photometry import add_external_photometry
+            session.add(request)
+            session.commit()
 
-        if len(df.index) > 0:
-            ids, _ = add_external_photometry(
-                data_out, request.requester, duplicates="update", refresh=True
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": request.obj.internal_key},
             )
-            if ids is None:
-                raise ValueError('Failed to commit photometry')
-            request.status = "Photometry committed to database"
-        else:
-            request.status = "No photometry to commit to database"
-
-        session.add(request)
-        session.commit()
-
-        flow = Flow()
-        flow.push(
-            '*',
-            "skyportal/REFRESH_SOURCE",
-            payload={"obj_key": request.obj.internal_key},
-        )
-
-    except Exception as e:
-        session.rollback()
-        log(f"Unable to commit photometry for {request_id}: {e}")
-    finally:
-        session.close()
-        Session.remove()
+        except Exception as e:
+            session.rollback()
+            log(f"Unable to commit photometry for {request_id}: {e}")
 
 
 class PS1API(FollowUpAPI):
@@ -141,7 +128,7 @@ class PS1API(FollowUpAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
-        session : baselayer.DBSession
+        session : baselayer.HandlerSession
             Database session to use for photometry
         """
 

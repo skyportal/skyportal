@@ -12,7 +12,7 @@ from baselayer.app.models import (
     User,
     CustomUserAccessControl,
     UserAccessControl,
-    DBSession,
+    ThreadSession,
     safe_aliased,
 )
 from baselayer.app.env import load_env
@@ -25,7 +25,9 @@ _, cfg = load_env()
 def manage_shift_access_logic(cls, user_or_token):
     # admins of the shift and admins of the group associated with the shift can delete and update a shift
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = DBSession().query(cls).join(GroupUser, cls.group_id == GroupUser.group_id)
+    query = (
+        ThreadSession().query(cls).join(GroupUser, cls.group_id == GroupUser.group_id)
+    )
     if not user_or_token.is_system_admin:
         admin_query = query.filter(
             GroupUser.user_id == user_id, GroupUser.admin.is_(True)
@@ -44,12 +46,12 @@ def shiftuser_update_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     user_shift_admin = (
-        DBSession()
+        ThreadSession()
         .query(Shift)
         .join(GroupUser, GroupUser.group_id == Shift.group_id)
         .filter(sa.and_(GroupUser.user_id == user_id, GroupUser.admin.is_(True)))
     )
-    query = DBSession().query(cls).join(aliased, cls.shift_id == aliased.shift_id)
+    query = ThreadSession().query(cls).join(aliased, cls.shift_id == aliased.shift_id)
     if not user_or_token.is_system_admin:
         query = query.filter(
             sa.or_(
@@ -65,12 +67,12 @@ def shiftuser_delete_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     user_shift_admin = (
-        DBSession()
+        ThreadSession()
         .query(Shift)
         .join(GroupUser, GroupUser.group_id == Shift.group_id)
         .filter(sa.and_(GroupUser.user_id == user_id, GroupUser.admin.is_(True)))
     )
-    query = DBSession().query(cls).join(aliased, cls.shift_id == aliased.shift_id)
+    query = ThreadSession().query(cls).join(aliased, cls.shift_id == aliased.shift_id)
     if not user_or_token.is_system_admin:
         query = query.filter(
             sa.or_(

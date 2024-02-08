@@ -4,7 +4,7 @@ import uuid
 
 import pytest
 
-from skyportal.models import DBSession, SourceView
+from skyportal.models import ThreadSession, SourceView
 from skyportal.tests import api
 
 
@@ -90,8 +90,8 @@ def test_top_source_prefs(driver, user, public_group, upload_data_token):
         is_token=True,
         created_at=twenty_days_ago,
     )
-    DBSession().add(sv)
-    DBSession().commit()
+    ThreadSession().add(sv)
+    ThreadSession().commit()
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/')

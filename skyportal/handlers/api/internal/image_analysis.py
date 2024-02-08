@@ -34,7 +34,7 @@ import shutil
 
 from ..photometry import add_external_photometry
 from ...base import BaseHandler
-from ....models import Comment, Instrument, Obj, User, DBSession
+from ....models import Comment, Instrument, Obj, User, ThreadSession
 
 _, cfg = load_env()
 
@@ -218,7 +218,7 @@ def reduce_image(
         workdir_sextractor_obj1 = tempfile.mkdtemp(prefix='sex1')
         workdir_psfex = tempfile.mkdtemp(prefix='psfex')
 
-        with DBSession() as session:
+        with ThreadSession() as session:
             instrument = session.scalars(
                 sa.select(Instrument).where(Instrument.id == instrument_id)
             ).first()

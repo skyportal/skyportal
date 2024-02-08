@@ -15,7 +15,7 @@ from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
-    DBSession,
+    ThreadSession,
     join_model,
     public,
 )
@@ -56,12 +56,12 @@ class ArrayOfEnum(ARRAY):
 
 def manage_instrument_access_logic(cls, user_or_token):
     if user_or_token.is_system_admin:
-        return DBSession().query(cls)
+        return ThreadSession().query(cls)
     elif 'Manage allocations' in [acl.id for acl in user_or_token.acls]:
-        return DBSession().query(cls)
+        return ThreadSession().query(cls)
     else:
         # return an empty query
-        return DBSession().query(cls).filter(cls.id == -1)
+        return ThreadSession().query(cls).filter(cls.id == -1)
 
 
 class InstrumentField(Base):
@@ -438,7 +438,7 @@ class Instrument(Base):
             InstrumentField.instrument_id == self.id
         )
         count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-        return DBSession().execute(count_stmt).scalar()
+        return ThreadSession().execute(count_stmt).scalar()
 
     @property
     def region_summary(self):

@@ -9,7 +9,7 @@ from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.observation_plan import post_survey_efficiency_analysis
 from skyportal.models import (
-    DBSession,
+    ThreadSession,
     DefaultObservationPlanRequest,
     EventObservationPlan,
     ObservationPlanRequest,
@@ -145,7 +145,7 @@ def prioritize_requests(requests):
 def service(*args, **kwargs):
     log("Starting observation plan queue.")
     while True:
-        with DBSession() as session:
+        with ThreadSession() as session:
             try:
                 stmt = sa.select(ObservationPlanRequest).where(
                     ObservationPlanRequest.status == "pending submission",

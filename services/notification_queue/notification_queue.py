@@ -25,7 +25,7 @@ from skyportal.models import (
     AnalysisService,
     Classification,
     Comment,
-    DBSession,
+    ThreadSession,
     EventObservationPlan,
     FacilityTransaction,
     FollowupRequest,
@@ -503,7 +503,7 @@ def api(queue):
             is_followup_request = target_class_name == "FollowupRequest"
             is_listing = target_class_name == "Listing"
 
-            with DBSession() as session:
+            with ThreadSession() as session:
                 try:
                     if is_gcn_notice or is_gcn_localization or is_gcn_tag:
                         stmt = sa.select(User).where(
@@ -1511,7 +1511,7 @@ def api(queue):
                             log(
                                 f"Error processing notification for user {user.id}: {str(e)}"
                             )
-                            DBSession().rollback()
+                            session.rollback()
                             continue
 
                     if failure_count == nb_users and nb_users > 0:
@@ -1527,7 +1527,7 @@ def api(queue):
                     )
                 except Exception as e:
                     log(f"Error processing notification: {str(e)}")
-                    DBSession().rollback()
+                    session.rollback()
                     self.set_status(400)
                     return self.write(
                         {"status": "error", "message": "Error processing notification"}

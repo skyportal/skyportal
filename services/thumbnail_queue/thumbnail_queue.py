@@ -8,7 +8,7 @@ from baselayer.log import make_log
 from baselayer.app.flow import Flow
 
 from skyportal.models import (
-    DBSession,
+    ThreadSession,
     Obj,
     Thumbnail,
 )
@@ -55,7 +55,7 @@ def service(*args, **kwargs):
     while True:
         try:
             internal_key = None
-            with DBSession() as session:
+            with ThreadSession() as session:
                 try:
                     obj = fetch_obj(session)
                 except Exception as e:

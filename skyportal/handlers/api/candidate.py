@@ -13,7 +13,6 @@ import time
 
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
-from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import case, func, cast
 from sqlalchemy.sql import column, Values
 from sqlalchemy.dialects.postgresql import JSONB
@@ -58,8 +57,6 @@ cache = Cache(
     max_age=cfg["misc.minutes_to_keep_candidate_query_cache"] * 60,
 )
 log = make_log('api/candidate')
-
-Session = scoped_session(sessionmaker())
 
 
 def update_summary_history_if_relevant(results_data, obj, user):
@@ -113,13 +110,13 @@ def update_healpix_if_relevant(request_data, obj):
 
     if (ra is not None) and (dec is not None):
         # This adds a healpix index for a new object being created
-        obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
+        obj.healpix = int(ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg))
         return
 
     # otherwise make sure healpix is correct
     if (obj.ra is not None) and (obj.dec is not None):
-        obj.healpix = ha.constants.HPX.lonlat_to_healpix(
-            obj.ra * u.deg, obj.dec * u.deg
+        obj.healpix = int(
+            ha.constants.HPX.lonlat_to_healpix(obj.ra * u.deg, obj.dec * u.deg)
         )
         return
 
