@@ -429,7 +429,7 @@ User.tnsrobots = relationship(
     passive_deletes=True,
     doc='The TNSRobots this user is a co-author of.',
 )
-    
+
 
 User.update = User.delete = CustomUserAccessControl(user_update_delete_logic)
 

@@ -69,12 +69,15 @@ class TNSRobot(Base):
         doc='Groups associated with this TNSRobot.',
     )
 
+
 class TNSRobotCoAuthor(Base):
     """Mapper between TNSRobots and Users."""
 
     __tablename__ = 'tnsrobot_coauthors'
 
-    tnsrobot_id = sa.Column(sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False)
+    tnsrobot_id = sa.Column(
+        sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False
+    )
     user_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
 
     tnsrobot = relationship(
@@ -89,12 +92,15 @@ class TNSRobotCoAuthor(Base):
         doc='The User associated with this mapper.',
     )
 
+
 class TNSRobotGroup(Base):
     """Mapper between TNSRobots and Groups."""
 
     __tablename__ = 'tnsrobots_groups'
 
-    tnsrobot_id = sa.Column(sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False)
+    tnsrobot_id = sa.Column(
+        sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False
+    )
     group_id = sa.Column(sa.ForeignKey('groups.id', ondelete='CASCADE'), nullable=False)
     owner = sa.Column(sa.Boolean, nullable=False, default=False)
     auto_report = sa.Column(sa.Boolean, nullable=False, default=False)
@@ -111,12 +117,13 @@ class TNSRobotGroup(Base):
         doc='The Group associated with this mapper.',
     )
 
+
 TNSRobot.groups = relationship(
-        'TNSRobotGroup',
-        back_populates='tnsrobot',
-        passive_deletes=True,
-        doc='Groups associated with this TNSRobot.',
-    )
+    'TNSRobotGroup',
+    back_populates='tnsrobot',
+    passive_deletes=True,
+    doc='Groups associated with this TNSRobot.',
+)
 
 TNSRobot.coauthors = relationship(
     'TNSRobotCoAuthor',
