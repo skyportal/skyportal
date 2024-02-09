@@ -1901,7 +1901,6 @@ def post_source(data, user_id, session, refresh_source=True):
         tnsrobot = session.scalars(
             TNSRobot.select(user).where(
                 TNSRobot.auto_report_group_ids.contains([group.id]),
-                TNSRobot.auto_reporters.isnot(None),
             )
         ).first()
         if tnsrobot is not None:
@@ -1917,7 +1916,7 @@ def post_source(data, user_id, session, refresh_source=True):
                     obj_ids=[obj.id],
                     tnsrobot_id=tnsrobot.id,
                     user_id=user.id,
-                    reporters=tnsrobot.auto_reporters,
+                    reporters=tnsrobot.coauthors,
                     instrument_ids=[
                         instrument.id for instrument in tnsrobot.auto_report_instruments
                     ],

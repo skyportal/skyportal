@@ -47,6 +47,7 @@ const TNSRobots = ({ group_id }) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [tnsrobotToManage, setTnsrobotToManage] = useState(null);
 
+  const { users: allUsers } = useSelector((state) => state.users);
   const { tnsrobotList } = useSelector((state) => state.tnsrobots);
   const { instrumentList } = useSelector((state) => state.instruments);
   const tnsAllowedInstruments = useSelector(
@@ -60,7 +61,7 @@ const TNSRobots = ({ group_id }) => {
     source_group_id: "",
     api_key: "",
     auto_report: false,
-    auto_reporters: "",
+    auto_reporter_ids: [],
     auto_report_instrument_ids: [],
     auto_report_stream_ids: [],
   });
@@ -106,7 +107,7 @@ const TNSRobots = ({ group_id }) => {
       api_key: "",
       auto_report:
         tnsrobotListLookup[id]?.auto_report_group_ids?.includes(group_id),
-      auto_reporters: tnsrobotListLookup[id]?.auto_reporters || "",
+      auto_reporter_ids: tnsrobotListLookup[id]?.auto_reporters || [],
       auto_report_instrument_ids:
         tnsrobotListLookup[id]?.auto_report_instruments.map(
           (instrument) => instrument.id,
@@ -137,7 +138,7 @@ const TNSRobots = ({ group_id }) => {
       source_group_id,
       api_key,
       auto_report,
-      auto_reporters,
+      auto_reporter_ids,
       auto_report_instrument_ids,
       auto_report_stream_ids,
     } = formData.formData;
@@ -166,7 +167,7 @@ const TNSRobots = ({ group_id }) => {
       },
       group_id,
       auto_report_group_ids,
-      auto_reporters,
+      auto_reporter_ids,
       auto_report_instrument_ids,
       auto_report_stream_ids,
     };
@@ -201,7 +202,7 @@ const TNSRobots = ({ group_id }) => {
       source_group_id,
       api_key,
       auto_report,
-      auto_reporters,
+      auto_reporter_ids,
       auto_report_instrument_ids,
       auto_report_stream_ids,
     } = formData.formData;
@@ -216,7 +217,7 @@ const TNSRobots = ({ group_id }) => {
       bot_id,
       source_group_id,
       auto_report_group_ids,
-      auto_reporters,
+      auto_reporter_ids,
       auto_report_instrument_ids,
       auto_report_stream_ids,
     };
@@ -289,10 +290,7 @@ const TNSRobots = ({ group_id }) => {
       auto_report: {
         type: "boolean",
         title: "Auto report",
-        default:
-          tnsrobotListLookup[tnsrobotToManage]?.auto_report_group_ids?.includes(
-            group_id,
-          ) || false,
+        default: false,
       },
     },
     required: ["bot_name", "bot_id", "source_group_id"],
@@ -304,11 +302,19 @@ const TNSRobots = ({ group_id }) => {
               auto_report: {
                 enum: [true],
               },
-              auto_reporters: {
-                type: "string",
+              auto_reporter_ids: {
+                type: "array",
+                items: {
+                  type: "integer",
+                  anyOf: (users || []).map((user) => ({
+                    enum: [user.id],
+                    type: "integer",
+                    title: `${user.first_name} ${user.last_name}`,
+                  })),
+                },
+                uniqueItems: true,
+                default: [],
                 title: "Auto reporters",
-                default:
-                  tnsrobotListLookup[tnsrobotToManage]?.auto_reporters || "",
               },
               auto_report_instrument_ids: {
                 type: "array",
@@ -339,7 +345,7 @@ const TNSRobots = ({ group_id }) => {
                 title: "Streams to restrict photometry to (optional)",
               },
             },
-            required: ["auto_reporters"],
+            required: ["auto_reporter_ids"],
           },
         ],
       },
@@ -538,7 +544,7 @@ const TNSRobots = ({ group_id }) => {
                   source_group_id: "",
                   api_key: "",
                   auto_report: false,
-                  auto_reporters: "",
+                  auto_reporter_ids: [],
                   auto_report_instrument_ids: [],
                   auto_report_stream_ids: [],
                 });

@@ -23,6 +23,7 @@ from ...models import (
     SpectrumObserver,
     SpectrumReducer,
     TNSRobot,
+    TNSRobotGroup,
     Instrument,
     Stream,
 )
@@ -119,7 +120,7 @@ class TNSRobotHandler(BaseHandler):
             except Exception as e:
                 return self.error(f'Failed to retrieve TNS robots: {e}')
 
-    @permissions(['Manage groups'])
+    @permissions(['Manage TNS robots'])
     def post(self):
         """
         ---
@@ -157,6 +158,9 @@ class TNSRobotHandler(BaseHandler):
         auto_report_instrument_ids = data.pop('auto_report_instrument_ids', [])
         auto_report_stream_ids = data.pop('auto_report_stream_ids', [])
 
+        owner_group_id = data.pop('owner_group_id', None)
+        group_ids = list(set(data.pop('group_ids', [])))
+
         with self.Session() as session:
             try:
                 tnsrobot = TNSRobot.__schema__().load(data=data)
@@ -165,11 +169,17 @@ class TNSRobotHandler(BaseHandler):
                     f'Error parsing posted tnsrobot: "{e.normalized_messages()}"'
                 )
 
-            group = session.scalars(
-                Group.select(session.user_or_token).where(Group.id == tnsrobot.group_id)
+            owner_group = session.scalars(
+                Group.select(session.user_or_token).where(Group.id == owner_group_id)
             ).first()
-            if group is None:
-                return self.error(f'No group with specified ID: {tnsrobot.group_id}')
+            if owner_group is None:
+                return self.error(f'No owner group with specified ID: {tnsrobot.group_id}')
+            
+            groups = session.scalars(
+                Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+            ).unique().all()
+            if len(groups) != len(group_ids):
+                return self.error(f'One or more groups not found: {group_ids}')
 
             if len(auto_report_instrument_ids) > 0:
                 try:
@@ -228,7 +238,7 @@ class TNSRobotHandler(BaseHandler):
             )
             return self.success(data={"id": tnsrobot.id})
 
-    @permissions(['Manage groups'])
+    @permissions(['Manage TNS robots'])
     def put(self, tnsrobot_id):
         """
         ---
@@ -281,57 +291,6 @@ class TNSRobotHandler(BaseHandler):
                 return self.error(
                     "TNS source group ID must be an integer (if specified)."
                 )
-
-        if 'auto_report_group_ids' in data:
-            if isinstance(data['auto_report_group_ids'], str):
-                try:
-                    data['auto_report_group_ids'] = data['auto_report_group_ids'].split(
-                        ','
-                    )
-                except Exception:
-                    return self.error(
-                        "TNS auto report group IDs must be a list (if specified)."
-                    )
-            if not isinstance(data['auto_report_group_ids'], list):
-                return self.error(
-                    "TNS auto report group IDs must be a list (if specified)."
-                )
-            for group_id in data['auto_report_group_ids']:
-                try:
-                    int(group_id)
-                except ValueError:
-                    return self.error(
-                        "TNS auto report group IDs must be integers (if specified)."
-                    )
-
-            if 'auto_report_instrument_ids' in data:
-                try:
-                    instrument_ids = [
-                        int(x) for x in data['auto_report_instrument_ids']
-                    ]
-                    if isinstance(instrument_ids, str):
-                        instrument_ids = [int(x) for x in instrument_ids.split(",")]
-                    else:
-                        instrument_ids = [int(x) for x in instrument_ids]
-                except ValueError:
-                    return self.error(
-                        'instrument_ids must be a comma-separated list of integers'
-                    )
-                instrument_ids = list(set(instrument_ids))
-
-            if 'auto_report_stream_ids' in data:
-                try:
-                    stream_ids = [int(x) for x in data['auto_report_stream_ids']]
-                    if isinstance(stream_ids, str):
-                        stream_ids = [int(x) for x in stream_ids.split(",")]
-                    else:
-                        stream_ids = [int(x) for x in stream_ids]
-                except ValueError:
-                    return self.error(
-                        'stream_ids must be a comma-separated list of integers'
-                    )
-                stream_ids = list(set(stream_ids))
-
         with self.Session() as session:
             try:
                 tnsrobot = session.scalars(
@@ -394,10 +353,9 @@ class TNSRobotHandler(BaseHandler):
                 )
                 return self.success()
             except Exception as e:
-                raise e
                 return self.error(f'Failed to update TNS robot: {e}')
 
-    @permissions(['Manage groups'])
+    @permissions(['Manage TNS robots'])
     def delete(self, tnsrobot_id):
         """
         ---

@@ -423,6 +423,13 @@ User.sources = relationship(
     doc='The Sources accessible to this User.',
     viewonly=True,
 )
+User.tnsrobots = relationship(
+    'TNSRobotCoAuthor',
+    back_populates='user',
+    passive_deletes=True,
+    doc='The TNSRobots this user is a co-author of.',
+)
+    
 
 User.update = User.delete = CustomUserAccessControl(user_update_delete_logic)
 

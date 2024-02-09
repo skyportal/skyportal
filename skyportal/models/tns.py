@@ -1,4 +1,4 @@
-__all__ = ['TNSRobot']
+__all__ = ['TNSRobot', 'TNSRobotCoAuthor', 'TNSRobotGroup']
 
 import json
 
@@ -11,27 +11,11 @@ from sqlalchemy_utils.types.encrypted.encrypted_type import AesEngine, Encrypted
 from baselayer.app.env import load_env
 from baselayer.app.models import Base
 
-from .group import accessible_by_group_members
-
 _, cfg = load_env()
 
 
 class TNSRobot(Base):
     """A TNS robot entry."""
-
-    create = read = update = delete = accessible_by_group_members
-
-    group_id = sa.Column(
-        sa.ForeignKey('groups.id', ondelete='CASCADE'),
-        index=True,
-        doc='The ID of the Group the TNS robot is associated with.',
-        nullable=False,
-    )
-    group = relationship(
-        'Group',
-        back_populates='tnsrobots',
-        doc='The Group the TNS robot is associated with.',
-    )
 
     bot_name = sa.Column(sa.String, doc="Name of the TNS bot.", nullable=False)
     bot_id = sa.Column(sa.Integer, doc="ID of the TNS bot.", nullable=False)
@@ -48,8 +32,6 @@ class TNSRobot(Base):
         comment='List of group IDs to report from',
         nullable=True,
     )
-
-    auto_reporters = sa.Column(sa.String, doc="Auto report reporters.", nullable=True)
 
     auto_report_instruments = relationship(
         "Instrument",
@@ -79,3 +61,66 @@ class TNSRobot(Base):
     @altdata.setter
     def altdata(self, value):
         self._altdata = value
+
+    tnsrobots_groups = relationship(
+        'TNSRobotGroup',
+        back_populates='tnsrobot',
+        passive_deletes=True,
+        doc='Groups associated with this TNSRobot.',
+    )
+
+class TNSRobotCoAuthor(Base):
+    """Mapper between TNSRobots and Users."""
+
+    __tablename__ = 'tnsrobot_coauthors'
+
+    tnsrobot_id = sa.Column(sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False)
+    user_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+
+    tnsrobot = relationship(
+        'TNSRobot',
+        back_populates='coauthors',
+        doc='The TNSRobot associated with this mapper.',
+    )
+
+    user = relationship(
+        'User',
+        back_populates='tnsrobots',
+        doc='The User associated with this mapper.',
+    )
+
+class TNSRobotGroup(Base):
+    """Mapper between TNSRobots and Groups."""
+
+    __tablename__ = 'tnsrobots_groups'
+
+    tnsrobot_id = sa.Column(sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False)
+    group_id = sa.Column(sa.ForeignKey('groups.id', ondelete='CASCADE'), nullable=False)
+    owner = sa.Column(sa.Boolean, nullable=False, default=False)
+    auto_report = sa.Column(sa.Boolean, nullable=False, default=False)
+
+    tnsrobot = relationship(
+        'TNSRobot',
+        back_populates='groups',
+        doc='The TNSRobot associated with this mapper.',
+    )
+
+    group = relationship(
+        'Group',
+        back_populates='tnsrobots',
+        doc='The Group associated with this mapper.',
+    )
+
+TNSRobot.groups = relationship(
+        'TNSRobotGroup',
+        back_populates='tnsrobot',
+        passive_deletes=True,
+        doc='Groups associated with this TNSRobot.',
+    )
+
+TNSRobot.coauthors = relationship(
+    'TNSRobotCoAuthor',
+    back_populates='tnsrobot',
+    passive_deletes=True,
+    doc='Co-authors associated with this TNSRobot.',
+)
