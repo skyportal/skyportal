@@ -1,10 +1,11 @@
+import json
 import requests
+import urllib
 from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
 from astropy.time import Time
-import urllib
 
-from . import FollowUpAPI
+from . import FollowUpAPI, FacilityTransaction
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
@@ -78,6 +79,7 @@ class WINTERRequest:
             "use_field_grid": False,
             "filters": filters,
             "target_priority": target_priority,
+            "target_name": str(request.obj.id)[:30],  # 30 characters max
             "t_exp": t_exp,  # Total exposure time = exposure time (per dither) * n_dither
             "n_exp": 1,  # We force it to 1 for now
             "n_dither": n_dither,
@@ -88,6 +90,28 @@ class WINTERRequest:
         }
 
         return target
+
+    def schedule_name(request):
+        content = request.transactions[0].response["content"]
+        content = json.loads(content)
+        # the WINTERAPI POST response has a "msg" key,
+        # that contains Schedule name is <schedule_name> if successful
+        if "msg" in content:
+            # just to that we are not sensible to the exact format of the message
+            # we look for the string "Schedule name is" and get what's after that
+            # then split by space and take the second element
+            # it's in quote, so remove them and strip
+            schedule_name = (
+                str(content["msg"].split('Schedule name is')[1])
+                .split(' ')[1]
+                .split('\'')[1]
+                .strip()
+            )
+            return schedule_name
+        else:
+            raise ValueError(
+                'Failed to delete request from WINTER, no schedule name found in POST response.'
+            )
 
 
 class WINTERAPI(FollowUpAPI):
@@ -148,7 +172,34 @@ class WINTERAPI(FollowUpAPI):
             ).delete()
             session.commit()
         else:
-            raise NotImplementedError("WINTER API does not support deleting requests.")
+            altdata = request.allocation.altdata
+            if not altdata:
+                raise ValueError('Missing allocation information.')
+
+            req = WINTERRequest()
+            schedule_name = req.schedule_name(request)
+
+            url = urllib.parse.urljoin(WINTER_URL, 'too/delete')
+            r = requests.delete(
+                url,
+                params={
+                    'program_name': altdata['program_name'],
+                    'program_api_key': altdata['program_api_key'],
+                    'schedule_name': schedule_name,
+                },
+                auth=HTTPBasicAuth(altdata['username'], altdata['password']),
+            )
+
+            r.raise_for_status()
+            request.status = 'deleted'
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(r.request),
+                response=http.serialize_requests_response(r),
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+            session.add(transaction)
 
         if kwargs.get('refresh_source', False):
             flow = Flow()
