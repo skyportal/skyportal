@@ -173,11 +173,17 @@ class TNSRobotHandler(BaseHandler):
                 Group.select(session.user_or_token).where(Group.id == owner_group_id)
             ).first()
             if owner_group is None:
-                return self.error(f'No owner group with specified ID: {tnsrobot.group_id}')
-            
-            groups = session.scalars(
-                Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-            ).unique().all()
+                return self.error(
+                    f'No owner group with specified ID: {tnsrobot.group_id}'
+                )
+
+            groups = (
+                session.scalars(
+                    Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+                )
+                .unique()
+                .all()
+            )
             if len(groups) != len(group_ids):
                 return self.error(f'One or more groups not found: {group_ids}')
 
