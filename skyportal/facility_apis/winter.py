@@ -97,9 +97,6 @@ class WINTERRequest:
         # the WINTERAPI POST response has a "msg" key,
         # that contains Schedule name is <schedule_name> if successful
         if "msg" in content:
-            # just to that we are not sensible to the exact format of the message
-            # we look for the string "Schedule name is" and get what's after that
-            # then split by space and take the second element
             # it's in quote, so remove them and strip
             schedule_name = (
                 str(content["msg"].split('Schedule name is')[1])
