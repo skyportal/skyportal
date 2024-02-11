@@ -961,7 +961,7 @@ class FollowupRequestHandler(BaseHandler):
             constraints['not_if_spectra_exist'] = data.pop('not_if_spectra_exist')
         if 'not_if_tns_classified' in data:
             constraints['not_if_tns_classified'] = data.pop('not_if_tns_classified')
-        if len(list(constraints.keys())) > 0:
+        if len(list(constraints.keys())) == 0:
             constraints = None
 
         with self.Session() as session:
