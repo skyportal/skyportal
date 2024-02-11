@@ -315,7 +315,7 @@ const SourceTableFilterForm = ({
       >
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
-            Name or ID
+            Name/ID/TNS
           </Typography>
           <Controller
             render={({ field: { onChange, value } }) => (
