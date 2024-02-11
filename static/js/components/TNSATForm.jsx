@@ -36,7 +36,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const TNSATForm = ({ obj_id }) => {
+const TNSATForm = ({ obj_id, submitCallback }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.userAccessible);
@@ -118,6 +118,13 @@ const TNSATForm = ({ obj_id }) => {
     setSubmissionRequestInProcess(false);
     if (result.status === "success") {
       dispatch(showNotification("added to TNS submission queue"));
+    } else {
+      dispatch(
+        showNotification("Failed to add object to TNS submission queue"),
+      );
+    }
+    if (submitCallback) {
+      submitCallback();
     }
   };
 
@@ -255,6 +262,11 @@ const TNSATForm = ({ obj_id }) => {
 
 TNSATForm.propTypes = {
   obj_id: PropTypes.string.isRequired,
+  submitCallback: PropTypes.func,
+};
+
+TNSATForm.defaultProps = {
+  submitCallback: null,
 };
 
 export default TNSATForm;
