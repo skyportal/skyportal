@@ -56,6 +56,7 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 	     llvm libomp gsl rust
 	nvm install node
 	```
+	- If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command: `brew tap denji/nginx && brew install nginx-full --with-brotli`. _If you already had NGINX installed, you may need to uninstall it first with `brew unlink nginx`._ Otherwise, you can install NGINX normally with `brew install nginx`.
 
 2. Start the PostgreSQL server:
 
@@ -100,10 +101,21 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 1. Install dependencies
 
 	```
-	sudo apt install nginx supervisor postgresql \
+	sudo apt install supervisor postgresql \
 	      libpq-dev npm python3-pip \
 	      libcurl4-gnutls-dev libgnutls28-dev
 	```
+
+	If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you have to install NGINX and the brotli module from another source with:
+
+	```
+	sudo apt remove -y nginx nginx-common nginx-core
+	sudo add-apt-repository ppa:ondrej/nginx-mainline -y
+	sudo apt update -y
+	sudo apt install -y nginx libnginx-mod-brotli
+	```
+
+	Otherwise, you can install NGINX normally with `sudo apt-get install nginx`.
 
 2. Configure your database permissions.
 

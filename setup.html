@@ -266,6 +266,9 @@ virtual environment.</p>
 <span class="n">nvm</span> <span class="n">install</span> <span class="n">node</span>
 </pre></div>
 </div>
+<ul class="simple">
+<li><p>If you want to use <a class="reference external" href="https://en.wikipedia.org/wiki/Brotli">brotli compression</a> with NGINX (better compression rates for the frontend), you can install NGINX with the <code class="docutils literal notranslate"><span class="pre">ngx_brotli</span></code> module with this command: <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">tap</span> <span class="pre">denji/nginx</span> <span class="pre">&amp;&amp;</span> <span class="pre">brew</span> <span class="pre">install</span> <span class="pre">nginx-full</span> <span class="pre">--with-brotli</span></code>. <em>If you already had NGINX installed, you may need to uninstall it first with <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">unlink</span> <span class="pre">nginx</span></code>.</em> Otherwise, you can install NGINX normally with <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">install</span> <span class="pre">nginx</span></code>.</p></li>
+</ul>
 </li>
 <li><p>Start the PostgreSQL server:</p></li>
 </ol>
@@ -306,11 +309,19 @@ virtual environment.</p>
 <h2>Installation: Debian-based Linux and WSL<a class="headerlink" href="#installation-debian-based-linux-and-wsl" title="Link to this heading">#</a></h2>
 <ol>
 <li><p>Install dependencies</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span> <span class="n">install</span> <span class="n">nginx</span> <span class="n">supervisor</span> <span class="n">postgresql</span> \
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span> <span class="n">install</span> <span class="n">supervisor</span> <span class="n">postgresql</span> \
       <span class="n">libpq</span><span class="o">-</span><span class="n">dev</span> <span class="n">npm</span> <span class="n">python3</span><span class="o">-</span><span class="n">pip</span> \
       <span class="n">libcurl4</span><span class="o">-</span><span class="n">gnutls</span><span class="o">-</span><span class="n">dev</span> <span class="n">libgnutls28</span><span class="o">-</span><span class="n">dev</span>
 </pre></div>
 </div>
+<p>If you want to use <a class="reference external" href="https://en.wikipedia.org/wiki/Brotli">brotli compression</a> with NGINX (better compression rates for the frontend), you have to install NGINX and the brotli module from another source with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span> <span class="n">remove</span> <span class="o">-</span><span class="n">y</span> <span class="n">nginx</span> <span class="n">nginx</span><span class="o">-</span><span class="n">common</span> <span class="n">nginx</span><span class="o">-</span><span class="n">core</span>
+<span class="n">sudo</span> <span class="n">add</span><span class="o">-</span><span class="n">apt</span><span class="o">-</span><span class="n">repository</span> <span class="n">ppa</span><span class="p">:</span><span class="n">ondrej</span><span class="o">/</span><span class="n">nginx</span><span class="o">-</span><span class="n">mainline</span> <span class="o">-</span><span class="n">y</span>
+<span class="n">sudo</span> <span class="n">apt</span> <span class="n">update</span> <span class="o">-</span><span class="n">y</span>
+<span class="n">sudo</span> <span class="n">apt</span> <span class="n">install</span> <span class="o">-</span><span class="n">y</span> <span class="n">nginx</span> <span class="n">libnginx</span><span class="o">-</span><span class="n">mod</span><span class="o">-</span><span class="n">brotli</span>
+</pre></div>
+</div>
+<p>Otherwise, you can install NGINX normally with <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt-get</span> <span class="pre">install</span> <span class="pre">nginx</span></code>.</p>
 </li>
 <li><p>Configure your database permissions.</p>
 <p>In <code class="docutils literal notranslate"><span class="pre">pg_hba.conf</span></code> (typically located in
