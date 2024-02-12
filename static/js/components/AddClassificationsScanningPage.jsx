@@ -6,6 +6,9 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import { showNotification } from "baselayer/components/Notifications";
 import { useForm } from "react-hook-form";
+import AddIcon from "@mui/icons-material/Add";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import ClassificationSelect from "./ClassificationSelect";
 import * as Actions from "../ducks/source";
 import { allowedClasses } from "./ClassificationForm";
@@ -54,14 +57,15 @@ const AddClassificationsScanningPage = ({ obj_id }) => {
   };
   return (
     <>
-      <Button
-        primary
-        size="small"
-        onClick={openDialog}
-        data-testid={`addClassificationsButton_${obj_id}`}
-      >
-        Add Classifications
-      </Button>
+      <Tooltip title="Add Classifications">
+        <IconButton
+          size="small"
+          onClick={openDialog}
+          data-testid="addClassificationsButton"
+        >
+          <AddIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
       <Dialog
         open={dialogOpen}
         onClose={closeDialog}

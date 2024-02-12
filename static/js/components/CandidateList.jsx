@@ -2,7 +2,6 @@ import React, { useEffect, Suspense, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 
-import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import {
   createTheme,
@@ -48,9 +47,6 @@ import DisplayPhotStats from "./DisplayPhotStats";
 import CandidatePlugins from "./CandidatePlugins";
 
 const useStyles = makeStyles((theme) => ({
-  candidateListContainer: {
-    padding: "1rem",
-  },
   table: {
     marginTop: "1rem",
   },
@@ -67,9 +63,6 @@ const useStyles = makeStyles((theme) => ({
   spinnerDiv: {
     paddingTop: "2rem",
   },
-  itemPaddingBottom: {
-    paddingBottom: "0.1rem",
-  },
   infoItem: {
     display: "flex",
     "& > span": {
@@ -85,29 +78,20 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   saveCandidateButton: {
-    margin: "0.5rem 0",
+    margin: "0.25rem 0",
   },
-  thumbnails: (props) => ({
-    minWidth: props.thumbnailsMinWidth,
-  }),
   info: (props) => ({
     fontSize: "0.875rem",
     minWidth: props.infoMinWidth,
     maxWidth: props.infoMaxWidth,
   }),
-  annotations: (props) => ({
-    minWidth: props.annotationsMinWidth,
-    maxWidth: props.annotationsMaxWidth,
-    overflowWrap: "break-word",
-  }),
   sortButtton: {
-    verticalAlign: "top",
     "&:hover": {
       color: theme.palette.primary.main,
     },
   },
   chip: {
-    margin: theme.spacing(0.5),
+    margin: theme.spacing(0.2),
   },
   typography: {
     padding: theme.spacing(2),
@@ -130,7 +114,7 @@ const useStyles = makeStyles((theme) => ({
   },
   idButton: {
     textTransform: "none",
-    marginBottom: theme.spacing(1),
+    marginBottom: theme.spacing(0.5),
   },
 }));
 
@@ -138,86 +122,96 @@ const useStyles = makeStyles((theme) => ({
 const getMuiTheme = (theme) =>
   createTheme({
     palette: theme.palette,
-    overrides: {
+    components: {
       MUIDataTableBodyCell: {
-        root: {
-          padding: `${theme.spacing(1)} ${theme.spacing(0.5)} ${theme.spacing(
-            1,
-          )} ${theme.spacing(1)}`,
-        },
-        stackedHeader: {
-          verticalAlign: "top",
-        },
-        stackedCommon: {
-          [theme.breakpoints.up("xs")]: { width: "calc(100%)" },
-          "&$stackedHeader": {
-            display: "none",
-            overflowWrap: "break-word",
+        styleOverrides: {
+          root: {
+            padding: `${theme.spacing(1)} 0 ${theme.spacing(1)} ${theme.spacing(
+              0.5,
+            )}`,
+          },
+          stackedHeader: {
+            verticalAlign: "top",
+          },
+          stackedCommon: {
+            [theme.breakpoints.up("xs")]: { width: "calc(100%)" },
+            "&$stackedHeader": {
+              display: "none",
+              overflowWrap: "break-word",
+            },
           },
         },
       },
       MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
+        styleOverrides: {
+          toolbar: {
+            flexFlow: "row wrap",
+            justifyContent: "flex-end",
+            padding: "0.5rem 1rem 0",
+            [theme.breakpoints.up("sm")]: {
+              // Cancel out small screen styling and replace
+              padding: "0px",
+              paddingRight: "2px",
+              flexFlow: "row nowrap",
+            },
           },
-        },
-        navContainer: {
-          flexDirection: "column",
-          alignItems: "center",
-          [theme.breakpoints.up("sm")]: {
-            flexDirection: "row",
+          navContainer: {
+            flexDirection: "column",
+            alignItems: "center",
+            [theme.breakpoints.up("sm")]: {
+              flexDirection: "row",
+            },
           },
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
+          selectRoot: {
+            marginRight: "0.5rem",
+            [theme.breakpoints.up("sm")]: {
+              marginLeft: "0",
+              marginRight: "2rem",
+            },
           },
         },
       },
       MUIDataTableToolbar: {
-        filterPaper: {
-          // Use fullscreen dialog for small-screen filter form
-          width: "100%",
-          maxWidth: "100%",
-          margin: 0,
-          maxHeight: "calc(100vh - 1rem)",
-          borderRadius: 0,
-          top: "0 !important",
-          left: "0 !important",
-          [theme.breakpoints.up("md")]: {
-            // Override the overrides above for bigger screens
-            maxWidth: "25%",
-            top: "unset !important",
-            left: "unset !important",
-            float: "right",
-            position: "unset",
-            margin: "1rem",
+        styleOverrides: {
+          filterPaper: {
+            // Use fullscreen dialog for small-screen filter form
+            width: "100%",
+            maxWidth: "100%",
+            margin: 0,
+            maxHeight: "calc(100vh - 1rem)",
+            borderRadius: 0,
+            top: "0 !important",
+            left: "0 !important",
+            [theme.breakpoints.up("md")]: {
+              // Override the overrides above for bigger screens
+              maxWidth: "25%",
+              top: "unset !important",
+              left: "unset !important",
+              float: "right",
+              position: "unset",
+              margin: "1rem",
+            },
           },
-        },
-        filterCloseIcon: {
-          [theme.breakpoints.up("md")]: {
-            top: "1rem !important",
-            right: "1rem !important",
+          filterCloseIcon: {
+            [theme.breakpoints.up("md")]: {
+              top: "1rem !important",
+              right: "1rem !important",
+            },
           },
         },
       },
       MUIDataTableFilter: {
-        root: {
-          maxHeight: "calc(100vh - 5rem)",
+        styleOverrides: {
+          root: {
+            maxHeight: "calc(100vh - 5rem)",
+          },
         },
       },
       MUIDataTableFilterList: {
-        chip: {
-          maxWidth: "100%",
+        styleOverrides: {
+          chip: {
+            maxWidth: "100%",
+          },
         },
       },
     },
@@ -305,11 +299,11 @@ const CustomSortToolbar = ({
           data-testid="sortOnAnnotationButton"
           size="large"
         >
-          <span>
+          <>
             <SortIcon />
             {sortOrder !== null && sortOrder === "asc" && <ArrowUpward />}
             {sortOrder !== null && sortOrder === "desc" && <ArrowDownward />}
-          </span>
+          </>
         </IconButton>
       </span>
     </Tooltip>
@@ -335,13 +329,18 @@ CustomSortToolbar.defaultProps = {
 
 const CandidateThumbnails = ({ sourceId }) => {
   const dispatch = useDispatch();
-  const classes = useStyles();
+  const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("lg"));
+  const mediumScreen = useMediaQuery((theme) => theme.breakpoints.up("md"));
 
   const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
     useState([]);
   const generateSurveyThumbnail = (objID) => {
     setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
-    dispatch(candidatesActions.generateSurveyThumbnail(objID));
+    dispatch(candidatesActions.generateSurveyThumbnail(objID)).then(() => {
+      setPS1GenerationInProgressList(
+        ps1GenerationInProgressList.filter((id) => id !== objID),
+      );
+    });
   };
 
   let candidateObj = null;
@@ -351,6 +350,16 @@ const CandidateThumbnails = ({ sourceId }) => {
       candidateObj = { ...candidate };
     }
   });
+
+  const thumbnailsMinWidth = () => {
+    if (largeScreen) {
+      return "28rem";
+    }
+    if (mediumScreen) {
+      return "19rem";
+    }
+    return 0;
+  };
 
   const hasPS1 = candidateObj?.thumbnails?.map((t) => t.type)?.includes("ps1");
   const displayTypes = hasPS1
@@ -363,14 +372,25 @@ const CandidateThumbnails = ({ sourceId }) => {
           <CircularProgress />
         </div>
       ) : (
-        <div className={classes.thumbnails}>
-          <ThumbnailList
-            ra={candidateObj.ra}
-            dec={candidateObj.dec}
-            thumbnails={candidateObj.thumbnails}
-            size="9rem"
-            displayTypes={displayTypes}
-          />
+        <div style={{ minWidth: thumbnailsMinWidth() }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))",
+              gap: "0.5rem",
+              gridAutoFlow: "row",
+            }}
+          >
+            <ThumbnailList
+              ra={candidateObj.ra}
+              dec={candidateObj.dec}
+              thumbnails={candidateObj.thumbnails}
+              size="9rem"
+              displayTypes={displayTypes}
+              useGrid={false}
+              noMargin
+            />
+          </div>
           {!hasPS1 && (
             <Button
               primary
@@ -394,8 +414,8 @@ CandidateThumbnails.propTypes = {
   sourceId: PropTypes.string.isRequired,
 };
 
-const CandidateAutoannotations = ({ sourceId }) => {
-  const classes = useStyles();
+const CandidateAutoannotations = ({ sourceId, filterGroups }) => {
+  const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("lg"));
 
   let candidateObj = null;
   const { candidates } = useSelector((state) => state.candidates);
@@ -412,10 +432,16 @@ const CandidateAutoannotations = ({ sourceId }) => {
           <CircularProgress />
         </div>
       ) : (
-        <div className={classes.annotations}>
+        <div
+          style={{
+            minWidth: largeScreen ? "20rem" : 0,
+            overflowWrap: "break-word",
+          }}
+        >
           {candidateObj.annotations && (
             <ScanningPageCandidateAnnotations
               annotations={candidateObj.annotations}
+              filterGroups={filterGroups || []}
             />
           )}
         </div>
@@ -426,6 +452,11 @@ const CandidateAutoannotations = ({ sourceId }) => {
 
 CandidateAutoannotations.propTypes = {
   sourceId: PropTypes.string.isRequired,
+  filterGroups: PropTypes.arrayOf(PropTypes.shape({})),
+};
+
+CandidateAutoannotations.defaultProps = {
+  filterGroups: [],
 };
 
 const CandidateInfo = ({
@@ -493,7 +524,7 @@ const CandidateInfo = ({
         </div>
       ) : (
         <div className={classes.info}>
-          <span className={classes.itemPaddingBottom}>
+          <span>
             <a
               href={`/source/${candidateObj.id}`}
               target="_blank"
@@ -508,26 +539,32 @@ const CandidateInfo = ({
           </span>
           {candidateObj.is_source ? (
             <div>
-              <div className={classes.itemPaddingBottom}>
+              <div>
                 <Chip size="small" label="Previously Saved" color="primary" />
                 <RejectButton objID={candidateObj.id} />
               </div>
-              <div className={classes.saveCandidateButton}>
-                <EditSourceGroups
-                  source={{
-                    id: candidateObj.id,
-                    currentGroupIds: candidateObj.saved_groups?.map(
-                      (g) => g.id,
-                    ),
-                  }}
-                  groups={allGroups}
-                />
-              </div>
-              <div>
-                <AddClassificationsScanningPage obj_id={candidateObj.id} />
-              </div>
               <div className={classes.infoItem}>
-                <b>Saved groups: </b>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    height: "1.6rem",
+                    alignItems: "center",
+                    gap: "0.1rem",
+                  }}
+                >
+                  <b>Saved groups: </b>
+                  <EditSourceGroups
+                    source={{
+                      id: candidateObj.id,
+                      currentGroupIds: candidateObj.saved_groups?.map(
+                        (g) => g.id,
+                      ),
+                    }}
+                    groups={allGroups}
+                    icon
+                  />
+                </div>
                 <span>
                   {candidateObj.saved_groups?.map((group) => (
                     <Chip
@@ -546,11 +583,7 @@ const CandidateInfo = ({
             </div>
           ) : (
             <div>
-              <Chip
-                size="small"
-                label="NOT SAVED"
-                className={classes.itemPaddingBottom}
-              />
+              <Chip size="small" label="NOT SAVED" />
               <RejectButton objID={candidateObj.id} />
             </div>
           )}
@@ -631,44 +664,55 @@ const CandidateInfo = ({
           <div className={classes.infoItem}>
             <CandidatePlugins candidate={candidateObj} />
           </div>
-          {candidateObj.classifications &&
-            (recentHumanClassification || recentMLClassification) && (
-              <div className={classes.infoItemPadded}>
-                <b>Latest Classification(s): </b>
-                <br />
-                {recentHumanClassification && (
-                  <span>
-                    <Chip
-                      size="small"
-                      label={recentHumanClassification}
-                      color="primary"
-                      className={classes.chip}
-                    />
-                  </span>
-                )}
-                {recentMLClassification && (
-                  <span>
-                    <Chip
-                      size="small"
-                      label={
-                        <span
-                          style={{
-                            display: "flex",
-                            direction: "row",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Tooltip title="classification from an ML classifier">
-                            <span>{`ML: ${recentMLClassification}`}</span>
-                          </Tooltip>
-                        </span>
-                      }
-                      className={classes.chip}
-                    />
-                  </span>
-                )}
-              </div>
-            )}
+          {candidateObj.photstats && (
+            <DisplayPhotStats
+              photstats={candidateObj.photstats[0]}
+              display_header
+            />
+          )}
+          <div className={classes.infoItemPadded}>
+            <b>Latest Classification(s): </b>
+            <div
+              style={{
+                display: "flex",
+                flexFlow: "row wrap",
+                alignItems: "center",
+              }}
+            >
+              {recentHumanClassification && (
+                <span>
+                  <Chip
+                    size="small"
+                    label={recentHumanClassification}
+                    color="primary"
+                    className={classes.chip}
+                  />
+                </span>
+              )}
+              {recentMLClassification && (
+                <span>
+                  <Chip
+                    size="small"
+                    label={
+                      <span
+                        style={{
+                          display: "flex",
+                          direction: "row",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Tooltip title="classification from an ML classifier">
+                          <span>{`ML: ${recentMLClassification}`}</span>
+                        </Tooltip>
+                      </span>
+                    }
+                    className={classes.chip}
+                  />
+                </span>
+              )}
+              <AddClassificationsScanningPage obj_id={candidateObj.id} />
+            </div>
+          </div>
           {selectedAnnotationSortOptions !== null &&
             candidateHasAnnotationWithSelectedKey(candidateObj) && (
               <div className={classes.infoItem}>
@@ -679,9 +723,6 @@ const CandidateInfo = ({
                 <span>{getCandidateSelectedAnnotationValue(candidateObj)}</span>
               </div>
             )}
-          {candidateObj.photstats && (
-            <DisplayPhotStats photstats={candidateObj.photstats[0]} />
-          )}
         </div>
       )}
     </div>
@@ -710,18 +751,12 @@ const CandidateList = () => {
   const [filterGroups, setFilterGroups] = useState([]);
   const [viewColumns, setViewColumns] = useState(columnNames);
   // Maintain the three thumbnails in a row for larger screens
-  const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("md"));
-  const thumbnailsMinWidth = largeScreen ? "30rem" : 0;
+  const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("lg"));
   const infoMinWidth = largeScreen ? "7rem" : 0;
   const infoMaxWidth = "14rem";
-  const annotationsMinWidth = largeScreen ? "10rem" : 0;
-  const annotationsMaxWidth = "25rem";
   const classes = useStyles({
-    thumbnailsMinWidth,
     infoMinWidth,
     infoMaxWidth,
-    annotationsMinWidth,
-    annotationsMaxWidth,
   });
   const theme = useTheme();
   const {
@@ -957,7 +992,10 @@ const CandidateList = () => {
 
     return (
       <Suspense fallback={<Spinner />}>
-        <CandidateAutoannotations sourceId={sourceId} />
+        <CandidateAutoannotations
+          sourceId={sourceId}
+          filterGroups={filterGroups}
+        />
       </Suspense>
     );
   };
@@ -1279,11 +1317,8 @@ const CandidateList = () => {
   };
 
   return (
-    <Paper elevation={1}>
-      <div className={classes.candidateListContainer}>
-        <Typography variant="h6" className={classes.title}>
-          Scan candidates for sources
-        </Typography>
+    <div>
+      <div>
         <FilterCandidateList
           userAccessibleGroups={userAccessibleGroups}
           setQueryInProgress={setQueryInProgress}
@@ -1298,9 +1333,12 @@ const CandidateList = () => {
         >
           <Spinner />
         </Box>
-        <Box display={queryInProgress ? "none" : "block"}>
-          <div className={classes.pages}>
-            <div>
+        <Box
+          display={queryInProgress ? "none" : "block"}
+          style={{ marginTop: "0.75rem" }}
+        >
+          {candidateIds?.length > 0 && (
+            <div style={{ marginBottom: "0.75rem" }}>
               {bulkPS1GenerationInProgress ? (
                 <div>
                   <Spinner />
@@ -1315,7 +1353,7 @@ const CandidateList = () => {
                 </Button>
               )}
             </div>
-          </div>
+          )}
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
               <div>
@@ -1340,20 +1378,25 @@ const CandidateList = () => {
           </StyledEngineProvider>
         </Box>
       </div>
-      <div className={classes.pages}>
-        <div>
-          <Button
-            primary
-            onClick={() => {
-              window.scrollTo({ top: 0 });
-            }}
-            size="small"
-          >
-            Back to top <ArrowUpward />
-          </Button>
-        </div>
+      <div
+        style={{
+          marginTop: "1rem",
+          display: "flex",
+          justifyContent: "flex-end",
+          minWidth: "100%",
+        }}
+      >
+        <Button
+          primary
+          onClick={() => {
+            window.scrollTo({ top: 0 });
+          }}
+          size="small"
+        >
+          Back to top <ArrowUpward />
+        </Button>
       </div>
-    </Paper>
+    </div>
   );
 };
 

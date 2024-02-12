@@ -18,7 +18,7 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     background: theme.palette.background.paper,
     padding: theme.spacing(1),
-    maxHeight: "15rem",
+    maxHeight: "24rem",
     overflowY: "scroll",
     // Prevent disabled annotations from being selected, but display normally for readability
     "& .Mui-disabled": {
@@ -49,6 +49,7 @@ export const getAnnotationValueString = (value) => {
 };
 const ScanningPageCandidateAnnotations = ({
   annotations,
+  filterGroups,
   listWidth = 250,
   listItemWidth = 200,
 }) => {
@@ -57,6 +58,30 @@ const ScanningPageCandidateAnnotations = ({
   const dispatch = useDispatch();
 
   annotations?.sort((a, b) => a.origin.localeCompare(b.origin));
+  if (filterGroups?.length > 0) {
+    // put the filter groups at the top
+    annotations.sort((a, b) => {
+      const aIsFilterGroup = filterGroups.some((group) => {
+        const name = group.name ? group.name.toLowerCase() : "";
+        const nickname = group.nickname ? group.nickname.toLowerCase() : name;
+        const origin = a.origin.toLowerCase();
+        return origin.includes(nickname) || origin.includes(name);
+      });
+      const bIsFilterGroup = filterGroups.some((group) => {
+        const name = group.name ? group.name.toLowerCase() : "";
+        const nickname = group.nickname ? group.nickname.toLowerCase() : name;
+        const origin = b.origin.toLowerCase();
+        return origin.includes(nickname) || origin.includes(name);
+      });
+      if (aIsFilterGroup && !bIsFilterGroup) {
+        return -1;
+      }
+      if (!aIsFilterGroup && bIsFilterGroup) {
+        return 1;
+      }
+      return 0;
+    });
+  }
   annotations?.forEach((annotation) => {
     annotation.data = Object.fromEntries(
       Object.entries(annotation.data).sort((a, b) => a[0].localeCompare(b[0])),
@@ -156,11 +181,18 @@ ScanningPageCandidateAnnotations.propTypes = {
       data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
     }),
   ).isRequired,
+  filterGroups: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string,
+      nickname: PropTypes.string,
+    }),
+  ),
   listWidth: PropTypes.number,
   listItemWidth: PropTypes.number,
 };
 
 ScanningPageCandidateAnnotations.defaultProps = {
+  filterGroups: [],
   listWidth: 250,
   listItemWidth: 200,
 };

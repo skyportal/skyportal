@@ -1022,11 +1022,8 @@ const SourceContent = ({ source }) => {
                   <DialogTitle>Submit to TNS</DialogTitle>
                   <DialogContent>
                     <TNSATForm
-                      sourceID={source.id}
-                      ra={source.ra}
-                      dec={source.dec}
-                      tns_info={source.tns_info}
-                      tnsSubmitCallback={() => setTNSDialogOpen(false)}
+                      obj_id={source.id}
+                      submitCallback={() => setTNSDialogOpen(false)}
                     />
                   </DialogContent>
                 </Dialog>
