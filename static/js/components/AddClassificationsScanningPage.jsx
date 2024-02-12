@@ -61,7 +61,7 @@ const AddClassificationsScanningPage = ({ obj_id }) => {
         <IconButton
           size="small"
           onClick={openDialog}
-          data-testid="addClassificationsButton"
+          data-testid={`addClassificationsButton_${obj_id}`}
         >
           <AddIcon fontSize="small" />
         </IconButton>

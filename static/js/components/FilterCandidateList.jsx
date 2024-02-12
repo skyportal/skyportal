@@ -595,7 +595,6 @@ const FilterCandidateList = ({
                     labelId="rejectedCandidatesLabel"
                     name="rejectedStatus"
                     control={control}
-                    input={<Input data-testid="rejectedStatusSelect" />}
                     defaultValue={
                       selectedScanningProfile?.rejectedStatus || "hide"
                     }
@@ -606,6 +605,7 @@ const FilterCandidateList = ({
                           onChange(event.target.checked ? "show" : "hide")
                         }
                         inputProps={{ "aria-label": "controlled" }}
+                        data-testid="rejectedStatusSelect"
                       />
                     )}
                   />

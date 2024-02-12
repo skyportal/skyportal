@@ -596,8 +596,8 @@ def test_candidate_rejection_filtering(
     driver.wait_for_xpath('//*[contains(text(), "no matching records found")]')
 
     # choose to show rejected now
-    driver.click_xpath('//div[@data-testid="rejectedStatusSelect"]')
-    driver.click_xpath("//li[@data-value='show']", scroll_parent=True)
+    driver.click_xpath('//*[@data-testid="rejectedStatusSelect"]')
+
     driver.click_xpath('//button[text()="Search"]')
 
     # make sure candidate appears and that it has a "rejected" icon
