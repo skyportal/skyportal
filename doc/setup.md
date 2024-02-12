@@ -149,7 +149,41 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 	```
 	sudo apt install graphviz-dev graphviz
 	```
+## Configuring Shell Environment for Development
 
+When developing with SkyPortal, you may find it helpful to also configure your shell enviroment. Here is how you can do that by adding certain configurations to your `.zshrc` file.
+
+### Editing `.zshrc`
+
+Open your `.zshrc` file in a text editor:
+
+```
+nano ~/.zshrc
+```
+
+### Set the Location of the HDF5 directories
+
+```
+export HDF5_DIR="/opt/homebrew/Cellar/hdf5/1.14.3"
+```
+
+### Set the location for the BLOSC, LZO, and BZIP2 directories
+
+```
+export BLOSC_DIR="/opt/homebrew/Cellar/c-blosc/1.21.5"
+export LZO_DIR="/opt/homebrew/Cellar/lzo/2.10"
+export BZIP_DIR="/opt/homebrew/Cellar/bzip2/1.0.8"
+```
+### Alias pip3 and python3
+```
+alias pip='pip3'
+alias python='python3'
+```
+
+### To activate the changes, source your .zshrc file:
+```
+source ~/.zshrc
+```
 ## Launch
 
 0. Make sure you are in the skyportal env: `conda activate skyportal_env`

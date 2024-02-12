@@ -50,7 +50,7 @@ def api(
     """
     if host is None:
         env, cfg = load_env()
-        host = f'http://localhost:{cfg["ports.app"]}'
+        host = f'http://localhost:8000'
     url = urllib.parse.urljoin(host, f'/api/{endpoint}')
     headers = {'Authorization': f'token {token}'} if token else None
     response = session.request(method, url, json=data, params=params, headers=headers)

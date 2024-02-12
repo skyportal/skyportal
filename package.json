@@ -24,7 +24,7 @@
     "@rjsf/validator-ajv8": "5.5.0",
     "autosuggest-highlight": "3.3.4",
     "buffer": "6.0.3",
-    "check-dependencies": "1.1.0",
+    "check-dependencies": "^1.1.0",
     "choices.js": "10.2.0",
     "clsx": "1.2.1",
     "convert-css-length": "2.0.1",

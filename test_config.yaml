@@ -6,11 +6,14 @@ database:
   password:
 
 server:
+  port: 8000
   auth:
     debug_login: True
     google_oauth2_key:
     google_oauth2_secret:
 
+ports:
+  app: 8000
 misc:
   photometry_detection_threshold_nsigma: 3.0
   minutes_to_keep_candidate_query_cache: 0.033333 # 2 seconds
