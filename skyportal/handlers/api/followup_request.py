@@ -380,7 +380,7 @@ def post_followup_request(
     """
 
     if isinstance(constraints, dict):
-        if len(constraints.get('no_duplicates', False)):
+        if len(constraints.get('not_if_duplicates', False)):
             # verify that there is follow-up requests with the same allocation and obj_id
             # that are in the "submitted" or "completed" state
             existing_requests = session.scalars(
@@ -983,8 +983,8 @@ class FollowupRequestHandler(BaseHandler):
             )
 
         constraints = {}
-        if 'no_duplicates' in data:
-            constraints['no_duplicates'] = data.pop('no_duplicates')
+        if 'not_if_duplicates' in data:
+            constraints['not_if_duplicates'] = data.pop('not_if_duplicates')
         if 'source_group_ids' in data:
             constraints['source_group_ids'] = data.pop('source_group_ids')
         if 'ignore_source_group_ids' in data:

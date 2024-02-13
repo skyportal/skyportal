@@ -1218,7 +1218,7 @@ class FollowupRequestPost(_Schema):
         },
     )
 
-    no_duplicates = fields.Boolean(
+    not_if_duplicates = fields.Boolean(
         required=False,
         metadata={
             'description': (
