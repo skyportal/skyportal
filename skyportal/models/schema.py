@@ -1218,6 +1218,15 @@ class FollowupRequestPost(_Schema):
         },
     )
 
+    not_if_duplicates = fields.Boolean(
+        required=False,
+        metadata={
+            'description': (
+                'If true, the followup request will not be executed if the object already has a pending or completed request of the same allocation.'
+            )
+        },
+    )
+
     source_group_ids = fields.List(
         fields.Integer,
         required=False,
@@ -1232,7 +1241,7 @@ class FollowupRequestPost(_Schema):
         required=False,
         metadata={
             'description': (
-                'If true, the followup request will not be executed if the object is already classified.'
+                'If true, the followup request will not be executed if there are any sources within radius with (human-only) classifications.'
             )
         },
     )
@@ -1241,7 +1250,7 @@ class FollowupRequestPost(_Schema):
         required=False,
         metadata={
             'description': (
-                'If true, the followup request will not be executed if the object already has spectra.'
+                'If true, the followup request will not be executed if there are any sources within radius that have spectra.'
             )
         },
     )
@@ -1250,7 +1259,7 @@ class FollowupRequestPost(_Schema):
         required=False,
         metadata={
             'description': (
-                'If true, the followup request will not be executed if any object within 0.5 arcsec is already classified as SN in TNS.'
+                'If true, the followup request will not be executed if any object within radius is already classified as SN in TNS.'
             )
         },
     )
@@ -1260,9 +1269,14 @@ class FollowupRequestPost(_Schema):
         required=False,
         metadata={
             'description': (
-                'If the source is saved to any of these groups, the followup request will not be executed.'
+                'If there are any sources within radius saved to any of these groups, the followup request will not be executed.'
             )
         },
+    )
+
+    radius = fields.Float(
+        required=False,
+        metadata={'description': "Radius of to use when checking constraints."},
     )
 
 

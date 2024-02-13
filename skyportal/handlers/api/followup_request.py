@@ -380,6 +380,22 @@ def post_followup_request(
     """
 
     if isinstance(constraints, dict):
+        if len(constraints.get('not_if_duplicates', False)):
+            # verify that there is follow-up requests with the same allocation and obj_id
+            # that are in the "submitted" or "completed" state
+            existing_requests = session.scalars(
+                FollowupRequest.select(session.user_or_token).where(
+                    FollowupRequest.obj_id == data['obj_id'],
+                    FollowupRequest.allocation_id == data['allocation_id'],
+                    func.lower(FollowupRequest.status).contains("submitted").is_(True),
+                    func.lower(FollowupRequest.status).contains("completed").is_(True),
+                )
+            ).all()
+            if len(existing_requests) > 0:
+                raise ValueError(
+                    'There is already a follow-up request for this source and allocation, not submitting request.'
+                )
+
         if len(constraints.get('source_group_ids', [])) > 0:
             # verify that there is a source for each of the group IDs
             existing_sources = session.scalars(
@@ -393,12 +409,25 @@ def post_followup_request(
                 raise ValueError(
                     'There is no source for one or more of the source_group_ids specified as a constraint, not submitting request.'
                 )
+
+        # the following constraints are spatial and require position and radius
+        radius = constraints.get('radius', 0.5) / 3600
+        obj = session.scalars(
+            Obj.select(session.user_or_token).where(Obj.id == data['obj_id'])
+        ).first()
+        if obj is None:
+            raise ValueError(f'Could not find source with ID {data["obj_id"]}.')
+
         if len(constraints.get('ignore_source_group_ids', [])) > 0:
-            # verify that there is NO source saved to any of the group IDs
+            # verify that there is NO source saved to any of the group IDs (within the radius)
             ignore_existing_sources = session.scalars(
                 Source.select(session.user_or_token).where(
                     Source.group_id.in_(constraints['ignore_source_group_ids']),
-                    Source.obj_id == data['obj_id'],
+                    Source.obj_id.in_(
+                        sa.select(Obj.id).where(
+                            Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius)
+                        )
+                    ),
                     Source.active.is_(True),
                 )
             ).all()
@@ -408,10 +437,14 @@ def post_followup_request(
                 )
 
         if constraints.get("not_if_classified", False):
-            # verify that the source is not classified
+            # verify that there is no classified source (within the radius)
             existing_classifications = session.scalars(
                 Classification.select(session.user_or_token).where(
-                    Classification.obj_id == data['obj_id'],
+                    Classification.obj_id.in_(
+                        sa.select(Obj.id).where(
+                            Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius)
+                        )
+                    ),
                     Classification.ml.is_(False),  # ignore ML classifications
                 )
             ).all()
@@ -420,10 +453,14 @@ def post_followup_request(
                     'Source has already been classified, not submitting request (as per constraint).'
                 )
         if constraints.get("not_if_spectra_exist", False):
-            # verify that the source has no spectra
+            # verify that there is no source with spectra (within the radius)
             existing_spectra = session.scalars(
                 Spectrum.select(session.user_or_token).where(
-                    Spectrum.obj_id == data['obj_id']
+                    Spectrum.obj_id.in_(
+                        sa.select(Obj.id).where(
+                            Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius)
+                        )
+                    )
                 )
             ).all()
             if len(existing_spectra) > 0:
@@ -433,13 +470,8 @@ def post_followup_request(
         if constraints.get("not_if_tns_classified", False):
             # don't trigger if there is any source within 0.5 arcsec of the target
             # that has a tns_name that contains "SN"
-            obj = session.scalars(
-                Obj.select(session.user_or_token).where(Obj.id == data['obj_id'])
-            ).first()
-            if obj is None:
-                raise ValueError(f'Could not find source with ID {data["obj_id"]}.')
             stmt = Obj.select(session.user_or_token).where(
-                Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), 0.5 / 3600),
+                Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius),
                 sa.func.lower(Obj.tns_name).startswith("sn"),
             )
             count = session.execute(sa.select(func.count()).select_from(stmt)).scalar()
@@ -951,6 +983,8 @@ class FollowupRequestHandler(BaseHandler):
             )
 
         constraints = {}
+        if 'not_if_duplicates' in data:
+            constraints['not_if_duplicates'] = data.pop('not_if_duplicates')
         if 'source_group_ids' in data:
             constraints['source_group_ids'] = data.pop('source_group_ids')
         if 'ignore_source_group_ids' in data:
@@ -963,6 +997,11 @@ class FollowupRequestHandler(BaseHandler):
             constraints['not_if_tns_classified'] = data.pop('not_if_tns_classified')
         if len(list(constraints.keys())) == 0:
             constraints = None
+        if constraints is not None:
+            try:
+                constraints['radius'] = float(data.pop('radius', 0.5))
+            except ValueError:
+                return self.error('Invalid specified radius for spatial constraints.')
 
         with self.Session() as session:
             try:
