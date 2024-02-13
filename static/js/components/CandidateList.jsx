@@ -70,21 +70,18 @@ const useStyles = makeStyles((theme) => ({
       paddingBottom: "0.1rem",
     },
     flexFlow: "row wrap",
+    paddingBottom: "0.25rem",
   },
   infoItemPadded: {
     "& > span": {
       paddingLeft: "0.25rem",
       paddingBottom: "0.1rem",
     },
+    paddingBottom: "0.25rem",
   },
   saveCandidateButton: {
     margin: "0.25rem 0",
   },
-  info: (props) => ({
-    fontSize: "0.875rem",
-    minWidth: props.infoMinWidth,
-    maxWidth: props.infoMaxWidth,
-  }),
   sortButtton: {
     "&:hover": {
       color: theme.palette.primary.main,
@@ -101,7 +98,7 @@ const useStyles = makeStyles((theme) => ({
   },
   position: {
     fontWeight: "bold",
-    fontSize: "110%",
+    fontSize: "105%",
   },
   formControl: {
     margin: theme.spacing(1),
@@ -115,6 +112,7 @@ const useStyles = makeStyles((theme) => ({
   idButton: {
     textTransform: "none",
     marginBottom: theme.spacing(0.5),
+    fontSize: "0.9rem",
   },
 }));
 
@@ -126,9 +124,9 @@ const getMuiTheme = (theme) =>
       MUIDataTableBodyCell: {
         styleOverrides: {
           root: {
-            padding: `${theme.spacing(1)} 0 ${theme.spacing(1)} ${theme.spacing(
-              0.5,
-            )}`,
+            padding: `${theme.spacing(0.5)} ${theme.spacing(
+              0.25,
+            )} ${theme.spacing(0.5)} ${theme.spacing(0.25)}`,
           },
           stackedHeader: {
             verticalAlign: "top",
@@ -327,10 +325,34 @@ CustomSortToolbar.defaultProps = {
   sortOrder: null,
 };
 
+const CandidatePhotometry = ({ sourceId }) => {
+  const mediumScreen = useMediaQuery((theme) => theme.breakpoints.down("md"));
+  const smallScreen = useMediaQuery((theme) => theme.breakpoints.down("sm"));
+  return (
+    <div
+      style={{
+        minWidth: mediumScreen ? "96vw" : "24vw",
+        maxWidth: mediumScreen ? "96vw" : "26vw",
+      }}
+    >
+      <VegaPhotometry
+        sourceId={sourceId}
+        style={{
+          minWidth: mediumScreen ? (smallScreen ? "60%" : "80%") : "55%", // eslint-disable-line no-nested-ternary
+          maxWidth: mediumScreen ? (smallScreen ? "60%" : "80%") : "55%", // eslint-disable-line no-nested-ternary
+        }}
+      />
+    </div>
+  );
+};
+
+CandidatePhotometry.propTypes = {
+  sourceId: PropTypes.string.isRequired,
+};
+
 const CandidateThumbnails = ({ sourceId }) => {
   const dispatch = useDispatch();
-  const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("lg"));
-  const mediumScreen = useMediaQuery((theme) => theme.breakpoints.up("md"));
+  const mediumScreen = useMediaQuery((theme) => theme.breakpoints.down("md"));
 
   const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
     useState([]);
@@ -351,16 +373,6 @@ const CandidateThumbnails = ({ sourceId }) => {
     }
   });
 
-  const thumbnailsMinWidth = () => {
-    if (largeScreen) {
-      return "28rem";
-    }
-    if (mediumScreen) {
-      return "19rem";
-    }
-    return 0;
-  };
-
   const hasPS1 = candidateObj?.thumbnails?.map((t) => t.type)?.includes("ps1");
   const displayTypes = hasPS1
     ? ["new", "ref", "sub", "sdss", "ls", "ps1"]
@@ -372,12 +384,18 @@ const CandidateThumbnails = ({ sourceId }) => {
           <CircularProgress />
         </div>
       ) : (
-        <div style={{ minWidth: thumbnailsMinWidth() }}>
+        <div
+          style={{
+            minWidth: mediumScreen ? "98vw" : "30vw",
+            maxWidth: mediumScreen ? "98vw" : "30vw",
+          }}
+        >
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))",
-              gap: "0.5rem",
+              columnGap: 0,
+              rowGap: "0.25rem",
               gridAutoFlow: "row",
             }}
           >
@@ -385,7 +403,10 @@ const CandidateThumbnails = ({ sourceId }) => {
               ra={candidateObj.ra}
               dec={candidateObj.dec}
               thumbnails={candidateObj.thumbnails}
-              size="9rem"
+              minSize="6rem"
+              size="100%"
+              maxSize="8.8rem"
+              titleSize="0.8rem"
               displayTypes={displayTypes}
               useGrid={false}
               noMargin
@@ -415,8 +436,7 @@ CandidateThumbnails.propTypes = {
 };
 
 const CandidateAutoannotations = ({ sourceId, filterGroups }) => {
-  const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("lg"));
-
+  const mediumScreen = useMediaQuery((theme) => theme.breakpoints.down("md"));
   let candidateObj = null;
   const { candidates } = useSelector((state) => state.candidates);
   candidates?.forEach((candidate) => {
@@ -434,7 +454,8 @@ const CandidateAutoannotations = ({ sourceId, filterGroups }) => {
       ) : (
         <div
           style={{
-            minWidth: largeScreen ? "20rem" : 0,
+            minWidth: mediumScreen ? "96vw" : "12vw",
+            maxWidth: mediumScreen ? "96vw" : "30vw",
             overflowWrap: "break-word",
           }}
         >
@@ -465,6 +486,7 @@ const CandidateInfo = ({
   selectedAnnotationSortOptions,
 }) => {
   const classes = useStyles();
+  const mediumScreen = useMediaQuery((theme) => theme.breakpoints.down("md"));
 
   const allGroups = (useSelector((state) => state.groups.all) || []).filter(
     (g) => !g.single_user_group,
@@ -517,13 +539,18 @@ const CandidateInfo = ({
       : null;
 
   return (
-    <div>
+    <div
+      style={{
+        minWidth: mediumScreen ? "96vw" : "14vw",
+        maxWidth: mediumScreen ? "96vw" : "20vw",
+      }}
+    >
       {!candidateObj?.annotations ? (
         <div>
           <CircularProgress />
         </div>
       ) : (
-        <div className={classes.info}>
+        <div style={{ fontSize: "0.875rem", minWidth: "100%" }}>
           <span>
             <a
               href={`/source/${candidateObj.id}`}
@@ -647,28 +674,31 @@ const CandidateInfo = ({
           )}
           <div className={classes.infoItem}>
             <b>Coordinates: </b>
-            <span className={classes.position}>
-              {ra_to_hours(candidateObj.ra)} &nbsp;
-              {dec_to_dms(candidateObj.dec)}
-            </span>
-            &nbsp; (&alpha;,&delta;= {candidateObj.ra.toFixed(3)}, &nbsp;
-            {candidateObj.dec.toFixed(3)})
-          </div>
-          <div className={classes.infoItem}>
-            <b>Gal. Coords (l,b): </b>
-            <span>
-              {candidateObj.gal_lon.toFixed(3)}&nbsp;&nbsp;
-              {candidateObj.gal_lat.toFixed(3)}
-            </span>
+            <div>
+              <span className={classes.position}>
+                {ra_to_hours(candidateObj.ra)} &nbsp;
+                {dec_to_dms(candidateObj.dec)}
+              </span>
+            </div>
+            <div>
+              (&alpha;,&delta;= {candidateObj.ra.toFixed(3)}, &nbsp;
+              {candidateObj.dec.toFixed(3)})
+            </div>
+            <div>
+              (l,b= {candidateObj.gal_lon.toFixed(3)}, &nbsp;
+              {candidateObj.gal_lat.toFixed(3)})
+            </div>
           </div>
           <div className={classes.infoItem}>
             <CandidatePlugins candidate={candidateObj} />
           </div>
           {candidateObj.photstats && (
-            <DisplayPhotStats
-              photstats={candidateObj.photstats[0]}
-              display_header
-            />
+            <div className={classes.infoItem}>
+              <DisplayPhotStats
+                photstats={candidateObj.photstats[0]}
+                display_header
+              />
+            </div>
           )}
           <div className={classes.infoItemPadded}>
             <b>Latest Classification(s): </b>
@@ -750,14 +780,7 @@ const CandidateList = () => {
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [filterGroups, setFilterGroups] = useState([]);
   const [viewColumns, setViewColumns] = useState(columnNames);
-  // Maintain the three thumbnails in a row for larger screens
-  const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("lg"));
-  const infoMinWidth = largeScreen ? "7rem" : 0;
-  const infoMaxWidth = "14rem";
-  const classes = useStyles({
-    infoMinWidth,
-    infoMaxWidth,
-  });
+  const classes = useStyles();
   const theme = useTheme();
   const {
     candidates,
@@ -982,7 +1005,7 @@ const CandidateList = () => {
     const sourceId = candidateIds[dataIndex];
     return (
       <Suspense fallback={<Spinner />}>
-        <VegaPhotometry sourceId={sourceId} />
+        <CandidatePhotometry sourceId={sourceId} />
       </Suspense>
     );
   };
@@ -1239,7 +1262,6 @@ const CandidateList = () => {
       options: {
         display: viewColumns.includes("Images"),
         customBodyRenderLite: renderThumbnails,
-        sort: false,
         filter: false,
       },
     },

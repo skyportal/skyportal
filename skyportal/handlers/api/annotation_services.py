@@ -182,6 +182,10 @@ class GaiaQueryHandler(BaseHandler):
                         Group.name == cfg['misc.public_group_name']
                     )
                 )
+                if public_group is None:
+                    return self.error(
+                        f'No group(s) were specified and the public group "{cfg["misc.public_group_name"]}" does not exist.'
+                    )
                 group_ids = [public_group]
 
             groups = session.scalars(
@@ -304,6 +308,10 @@ class IRSAQueryWISEHandler(BaseHandler):
                         Group.name == cfg['misc.public_group_name']
                     )
                 )
+                if public_group is None:
+                    return self.error(
+                        f'No group(s) were specified and the public group "{cfg["misc.public_group_name"]}" does not exist.'
+                    )
                 group_ids = [public_group]
             groups = session.scalars(
                 Group.select(self.current_user).where(Group.id.in_(group_ids))
@@ -447,6 +455,10 @@ class VizierQueryHandler(BaseHandler):
                         Group.name == cfg['misc.public_group_name']
                     )
                 )
+                if public_group is None:
+                    return self.error(
+                        f'No group(s) were specified and the public group "{cfg["misc.public_group_name"]}" does not exist.'
+                    )
                 group_ids = [public_group]
             groups = session.scalars(
                 Group.select(self.current_user).where(Group.id.in_(group_ids))
@@ -591,6 +603,10 @@ class DatalabQueryHandler(BaseHandler):
                         Group.name == cfg['misc.public_group_name']
                     )
                 )
+                if public_group is None:
+                    return self.error(
+                        f'No group(s) were specified and the public group "{cfg["misc.public_group_name"]}" does not exist.'
+                    )
                 group_ids = [public_group]
             groups = session.scalars(
                 Group.select(self.current_user).where(Group.id.in_(group_ids))
@@ -799,6 +815,10 @@ class PS1QueryHandler(BaseHandler):
                         Group.name == cfg['misc.public_group_name']
                     )
                 )
+                if public_group is None:
+                    return self.error(
+                        f'No group(s) were specified and the public group "{cfg["misc.public_group_name"]}" does not exist.'
+                    )
                 group_ids = [public_group]
             groups = session.scalars(
                 Group.select(self.current_user).where(Group.id.in_(group_ids))

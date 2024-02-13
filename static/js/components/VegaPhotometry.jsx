@@ -37,7 +37,7 @@ const findPeriodInAnnotations = (annotations = []) => {
 
 const VegaPhotometryMemo = React.memo(
   (props) => {
-    const { values, filters, wavelengths, period } = props;
+    const { values, filters, wavelengths, period, style } = props;
 
     const colorScale = {
       domain: filters,
@@ -51,9 +51,9 @@ const VegaPhotometryMemo = React.memo(
     }
 
     const plot = period ? (
-      <VegaFoldedPlot values={values} colorScale={colorScale} />
+      <VegaFoldedPlot values={values} colorScale={colorScale} style={style} />
     ) : (
-      <VegaPlot values={values} colorScale={colorScale} />
+      <VegaPlot values={values} colorScale={colorScale} style={style} />
     );
     return (
       <Suspense
@@ -91,10 +91,12 @@ VegaPhotometryMemo.propTypes = {
   filters: PropTypes.arrayOf(PropTypes.string).isRequired,
   wavelengths: PropTypes.arrayOf(PropTypes.string).isRequired,
   period: PropTypes.number,
+  style: PropTypes.shape({}),
 };
 
 VegaPhotometryMemo.defaultProps = {
   period: null,
+  style: {},
 };
 
 const ToggleButton = (props) => {
@@ -153,7 +155,7 @@ ToggleButton.propTypes = {
 };
 
 const VegaPhotometry = (props) => {
-  const { sourceId, annotations, folded } = props;
+  const { sourceId, annotations, folded, style } = props;
   const dispatch = useDispatch();
   const photometry = useSelector((state) => state.photometry[sourceId]);
   const config = useSelector((state) => state.config);
@@ -225,6 +227,7 @@ const VegaPhotometry = (props) => {
         filters={filters}
         wavelengths={wavelengths}
         period={period}
+        style={style}
       />
       {/* the left margin is to align the toggle with the y-axis of the plot */}
       <div style={{ marginLeft: "46px" }}>
@@ -250,11 +253,13 @@ VegaPhotometry.propTypes = {
     }),
   ),
   folded: PropTypes.bool,
+  style: PropTypes.shape({}),
 };
 
 VegaPhotometry.defaultProps = {
   annotations: [],
   folded: false,
+  style: {},
 };
 
 export default VegaPhotometry;

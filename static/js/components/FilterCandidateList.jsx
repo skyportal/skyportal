@@ -8,6 +8,7 @@ import Checkbox from "@mui/material/Checkbox";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import Paper from "@mui/material/Paper";
 import SearchIcon from "@mui/icons-material/Search";
 import Input from "@mui/material/Input";
@@ -79,7 +80,7 @@ const useStyles = makeStyles(() => ({
     marginRight: "0.5rem",
   },
   savedStatusSelect: {
-    margin: "1rem 0",
+    margin: 0,
     "& input": {
       fontSize: "1rem",
     },
@@ -98,8 +99,15 @@ const useStyles = makeStyles(() => ({
     gap: "0.5rem",
   },
   savedFiltering: {
+    paddingTop: "1rem",
     display: "grid",
     gridTemplateColumns: "2fr 1fr",
+    gap: "0.5rem",
+  },
+  savedFilteringSmall: {
+    paddingTop: "1rem",
+    display: "grid",
+    gridTemplateColumns: "1fr",
     gap: "0.5rem",
   },
   timeRange: {
@@ -143,6 +151,7 @@ const FilterCandidateList = ({
   setSortOrder,
 }) => {
   const classes = useStyles();
+  const smallScreen = useMediaQuery((theme) => theme.breakpoints.down("sm"));
 
   const availableAnnotationsInfo = useSelector(
     (state) => state.candidates.annotationsInfo,
@@ -491,8 +500,8 @@ const FilterCandidateList = ({
             </Tooltip>
           </div>
         </div>
-        <Grid container spacing={2}>
-          <Grid item md={12} lg={6}>
+        <Grid container columnSpacing={{ xs: 0, lg: 1.5 }} rowSpacing={1.5}>
+          <Grid item xs={12} lg={6}>
             <Paper variant="outlined" style={{ padding: "1rem" }}>
               <div className={classes.formRow} style={{ marginTop: 0 }}>
                 <Typography variant="h6" style={{ fontSize: "1.1rem" }}>
@@ -551,7 +560,13 @@ const FilterCandidateList = ({
                   />
                 </div>
               </div>
-              <div className={classes.savedFiltering}>
+              <div
+                className={
+                  smallScreen
+                    ? classes.savedFilteringSmall
+                    : classes.savedFiltering
+                }
+              >
                 <div className={classes.savedStatusSelect}>
                   <Typography variant="h6" style={{ fontSize: "1.1rem" }}>
                     Show candidates...
@@ -588,7 +603,7 @@ const FilterCandidateList = ({
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    paddingTop: "1.5rem",
+                    paddingTop: smallScreen ? 0 : "1.5rem",
                   }}
                 >
                   <Controller
@@ -616,7 +631,7 @@ const FilterCandidateList = ({
               </div>
               <div
                 className={classes.formRow}
-                style={{ marginTop: 0, marginBottom: 0 }}
+                style={{ marginTop: 0, marginBottom: 0, paddingTop: "1rem" }}
               >
                 <div style={{ display: "flex", alignItems: "center" }}>
                   <Typography variant="h6" style={{ fontSize: "1.1rem" }}>
@@ -639,7 +654,7 @@ const FilterCandidateList = ({
                   <div
                     style={{
                       display: "grid",
-                      height: "180px",
+                      height: "181px",
                       gridTemplateColumns:
                         "repeat(auto-fill, minmax(200px, 1fr))",
                       gridGap: "0.5rem",
@@ -703,7 +718,7 @@ const FilterCandidateList = ({
               </div>
             </Paper>
           </Grid>
-          <Grid item md={12} lg={6}>
+          <Grid item xs={12} lg={6}>
             <Paper variant="outlined" style={{ padding: "1rem" }}>
               <div className={classes.formRow} style={{ marginTop: 0 }}>
                 <Typography variant="h6" style={{ fontSize: "1.1rem" }}>
