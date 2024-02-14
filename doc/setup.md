@@ -49,13 +49,32 @@ If you are using Windows Subsystem for Linux (WSL) be sure you clone the reposit
 
 These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 
-1. Install dependencies
+1. Install project dependencies
 
-	```
-	brew install supervisor nginx postgresql node \
-	     llvm libomp gsl rust
-	nvm install node
-	```
+Using Homebrew, install core dependencies:
+```
+brew install supervisor
+brew install nginx
+brew install postgresql
+brew install node
+brew install llvm
+brew install libomp
+brew install gsl
+brew install rust
+```
+Then, install Node.js with NVM:
+```
+nvm install node
+```
+Finally, install the scientific libraries:
+```
+brew install hdf5
+brew install c-blosc
+brew install lzo
+brew install bzip2
+```
+After installing each package, Homebrew will print out the installation paths. You should add these paths to your `.zshrc` file to ensure SkyPortal can locate these libraries. Instructions for this can be found in the [Configuring Shell Environment for Development](#configure-shell-mac) section below.
+  
 
 2. Start the PostgreSQL server:
 
@@ -93,7 +112,37 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
    conda activate skyportal_env
    conda install ligo.skymap
    ```
+<a name="configure-shell-mac"></a>
+### Configuring Shell Environment for Development
 
+When developing with SkyPortal on mac, you may  also need to configure your shell enviroment. Here is how you can do that by editing your `.zshrc` file.
+
+#### Open your `.zshrc` file in a text editor:
+
+```
+nano ~/.zshrc
+```
+#### Set enviroment variables to their installation paths 
+After installing the libraries with Homebrew, you'll need to set environment variables to their installation paths. Typically, Homebrew provides these paths upon successful installation. Replace the placeholder text `<path-to-library>` with the actual path that Homebrew provides upon sucessful installation.
+
+```
+export HDF5_DIR="<path-to-hdf5>"
+export BLOSC_DIR="<path-to-c-blosc>"
+export LZO_DIR="<path-to-lzo>"
+export BZIP_DIR="<path-to-bzip2>"
+```
+#### Alias pip3 and python3
+Depending on your system setup, the `python` and `pip` commands might point to Python 2 rather than Python 3. To ensure that you're using Python 3 and its corresponding pip version, you may need to set aliases in your `.zshrc` file:
+
+```
+alias pip='pip3'
+alias python='python3'
+```
+
+#### To activate the changes, source your .zshrc file:
+```
+source ~/.zshrc
+```
 
 ## Installation: Debian-based Linux and WSL
 
@@ -149,41 +198,7 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 	```
 	sudo apt install graphviz-dev graphviz
 	```
-## Configuring Shell Environment for Development
 
-When developing with SkyPortal, you may find it helpful to also configure your shell enviroment. Here is how you can do that by adding certain configurations to your `.zshrc` file.
-
-### Editing `.zshrc`
-
-Open your `.zshrc` file in a text editor:
-
-```
-nano ~/.zshrc
-```
-
-### Set the Location of the HDF5 directories
-
-```
-export HDF5_DIR="/opt/homebrew/Cellar/hdf5/1.14.3"
-```
-
-### Set the location for the BLOSC, LZO, and BZIP2 directories
-
-```
-export BLOSC_DIR="/opt/homebrew/Cellar/c-blosc/1.21.5"
-export LZO_DIR="/opt/homebrew/Cellar/lzo/2.10"
-export BZIP_DIR="/opt/homebrew/Cellar/bzip2/1.0.8"
-```
-### Alias pip3 and python3
-```
-alias pip='pip3'
-alias python='python3'
-```
-
-### To activate the changes, source your .zshrc file:
-```
-source ~/.zshrc
-```
 ## Launch
 
 0. Make sure you are in the skyportal env: `conda activate skyportal_env`
