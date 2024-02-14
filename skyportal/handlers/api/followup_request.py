@@ -380,7 +380,7 @@ def post_followup_request(
     """
 
     if isinstance(constraints, dict):
-        if len(constraints.get('not_if_duplicates', False)):
+        if constraints.get('not_if_duplicates', False):
             # verify that there is follow-up requests with the same allocation and obj_id
             # that are in the "submitted" or "completed" state
             existing_requests = session.scalars(
