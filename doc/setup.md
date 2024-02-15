@@ -143,7 +143,8 @@ alias python='python3'
 ```
 source ~/.zshrc
 ```
-
+### Checking for Port Availability 
+When configuring SkyPortal on macOS, it's helpful to ensure that the port you intend to use is available and not already in use by other services like Macports. You can check port availability using the lsof command in the terminal. 
 ## Installation: Debian-based Linux and WSL
 
 1. Install dependencies
