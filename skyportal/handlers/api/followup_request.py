@@ -408,8 +408,14 @@ def post_followup_request(
             existing_requests = session.scalars(
                 FollowupRequest.select(session.user_or_token).where(
                     FollowupRequest.allocation_id == data['allocation_id'],
-                    func.lower(FollowupRequest.status).contains("submitted").is_(True),
-                    func.lower(FollowupRequest.status).contains("completed").is_(True),
+                    sa.or_(
+                        func.lower(FollowupRequest.status)
+                        .contains("submitted")
+                        .is_(True),
+                        func.lower(FollowupRequest.status)
+                        .contains("completed")
+                        .is_(True),
+                    ),
                     FollowupRequest.obj_id.in_(
                         sa.select(Obj.id).where(
                             Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius)
