@@ -53,25 +53,15 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 
 Using Homebrew, install core dependencies:
 ```
-brew install supervisor
-brew install nginx
-brew install postgresql
-brew install node
-brew install llvm
-brew install libomp
-brew install gsl
-brew install rust
+brew install supervisor nginx postgresql node llvm libomp gsl rust
 ```
 Then, install Node.js with NVM:
 ```
 nvm install node
 ```
-Finally, install the scientific libraries:
+Finally, install these compression libraries. These are needed in order to install the Python depedency `tables` later on:
 ```
-brew install hdf5
-brew install c-blosc
-brew install lzo
-brew install bzip2
+brew install hdf5 c-blosc lzo bzip2
 ```
 After installing each package, Homebrew will print out the installation paths. You should add these paths to your `.zshrc` file to ensure SkyPortal can locate these libraries. Instructions for this can be found in the [Configuring Shell Environment for Development](#configure-shell-mac) section below.
   
@@ -144,7 +134,13 @@ alias python='python3'
 source ~/.zshrc
 ```
 ### Checking for Port Availability 
-When configuring SkyPortal on macOS, it's helpful to ensure that the port you intend to use is available and not already in use by other services like Macports. You can check port availability using the lsof command in the terminal. 
+SkyPortal defaults to using port 5000. However, this port may already be in use by MacPorts or other services. To verify if port 5000 is available, use the `lsof` command in the terminal.
+
+```
+lsof -i :5000
+```
+If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port.
+
 ## Installation: Debian-based Linux and WSL
 
 1. Install dependencies
