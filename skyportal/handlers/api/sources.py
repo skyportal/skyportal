@@ -662,16 +662,22 @@ async def get_sources(
             )
 
         # OBJ
-        if sourceID is not None:
+        if sourceID not in [None, ""]:
+            sourceID = str(sourceID).strip().lower()
             try:
-                query_params.append(
-                    bindparam(
-                        'sourceID', value=str(sourceID).strip().lower(), type_=sa.String
-                    )
+                query_params.extend(
+                    [
+                        bindparam('sourceID', value=sourceID, type_=sa.String),
+                        bindparam(
+                            'sourceIDNoSpace',
+                            value=sourceID.replace(' ', ''),
+                            type_=sa.String,
+                        ),
+                    ]
                 )
                 statements.append(
                     """
-                    (lower(objs.id) LIKE '%' || :sourceID || '%')
+                    (lower(objs.id) LIKE '%' || :sourceID || '%' OR lower(replace(objs.tns_name, ' ', '')) LIKE '%' || :sourceIDNoSpace || '%')
                     """
                 )
             except Exception as e:
@@ -1767,8 +1773,6 @@ async def get_sources(
                     )
                     query_params.extend(allocation_bindparams)
 
-                # SORTING
-                print(sort_by, sort_order)
                 if sort_by == "gcn_status":
                     statement += f"""ORDER BY
                         CASE

@@ -1,4 +1,4 @@
-__all__ = ['Spectrum', 'SpectrumReducer', 'SpectrumObserver']
+__all__ = ['Spectrum', 'SpectrumReducer', 'SpectrumObserver', 'SpectrumPI']
 
 import warnings
 import json
@@ -112,18 +112,23 @@ class Spectrum(Base):
         passive_deletes=True,
         doc='Groups that can view this spectrum.',
     )
-
+    pis = relationship(
+        "User",
+        secondary="spectrum_pis",
+        doc="Users that are PIs of the program, or users to serve as points of contact given an external program PI.",
+        overlaps='pis, owner',
+    )
     reducers = relationship(
         "User",
         secondary="spectrum_reducers",
         doc="Users that reduced this spectrum, or users to serve as points of contact given an external reducer.",
-        overlaps='observers, owner',
+        overlaps='reducers, owner',
     )
     observers = relationship(
         "User",
         secondary="spectrum_observers",
         doc="Users that observed this spectrum, or users to serve as points of contact given an external observer.",
-        overlaps='reducers, owner',
+        overlaps='observers, owner',
     )
 
     followup_request_id = sa.Column(
@@ -385,6 +390,9 @@ class Spectrum(Base):
         )
 
 
+SpectrumPI = join_model(
+    "spectrum_pis", Spectrum, User, new_name='SpectrumPI', overlaps='pis'
+)
 SpectrumReducer = join_model(
     "spectrum_reducers", Spectrum, User, new_name='SpectrumReducer', overlaps='reducers'
 )
@@ -395,6 +403,9 @@ SpectrumObserver = join_model(
     new_name='SpectrumObserver',
     overlaps='observers',
 )
+SpectrumPI.create = SpectrumPI.delete = SpectrumPI.update = AccessibleIfUserMatches(
+    'spectrum.owner'
+)
 SpectrumReducer.create = (
     SpectrumReducer.delete
 ) = SpectrumReducer.update = AccessibleIfUserMatches('spectrum.owner')
@@ -403,7 +414,13 @@ SpectrumObserver.create = (
 ) = SpectrumObserver.update = AccessibleIfUserMatches('spectrum.owner')
 
 # should be accessible only by spectrumowner ^^
-
+SpectrumPI.external_pi = sa.Column(
+    sa.String,
+    nullable=True,
+    doc="The actual PI for the spectrum, provided as free text if the "
+    "PI is not a user in the database. Separate from the point-of-contact "
+    "user designated as PI",
+)
 SpectrumReducer.external_reducer = sa.Column(
     sa.String,
     nullable=True,

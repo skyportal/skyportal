@@ -61,4 +61,29 @@ CircularProgressWithLabel.propTypes = {
   percentage: PropTypes.bool,
 };
 
+const TableProgressText = ({ nbItems, status }) => {
+  if (nbItems === 0) {
+    return null;
+  }
+  return (
+    <div>
+      <Typography variant="caption" component="div" color="text.secondary">
+        {`${nbItems} ${status}`}
+      </Typography>
+    </div>
+  );
+};
+
+TableProgressText.defaultProps = {
+  nbItems: 0,
+  status: "pending",
+};
+
+TableProgressText.propTypes = {
+  nbItems: PropTypes.number,
+  status: PropTypes.string,
+};
+
 export default CircularProgressWithLabel;
+
+export { TableProgressText };

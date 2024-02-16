@@ -44,9 +44,6 @@ const useStyles = makeStyles(() => ({
     flexFlow: "row wrap",
     gap: "0.2rem",
   },
-  accordion: {
-    width: "99%",
-  },
   chip: {
     margin: "0.1em",
   },
@@ -58,10 +55,11 @@ const useStyles = makeStyles(() => ({
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    width: "100%",
   },
   container: {
-    margin: "1rem 0",
+    width: "100%",
+    margin: "auto",
+    height: "100%",
   },
 }));
 
@@ -69,40 +67,39 @@ const useStyles = makeStyles(() => ({
 const getMuiTheme = (theme) =>
   createTheme({
     palette: theme.palette,
-    overrides: {
-      MUIDataTable: {
-        paper: {
-          width: "100%",
-        },
-      },
+    components: {
       MUIDataTableBodyCell: {
-        stackedCommon: {
-          overflow: "hidden",
-          "&:last-child": {
-            paddingLeft: "0.25rem",
+        styleOverrides: {
+          stackedCommon: {
+            overflow: "hidden",
+            "&:last-child": {
+              paddingLeft: "0.25rem",
+            },
           },
         },
       },
       MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
+        styleOverrides: {
+          toolbar: {
+            flexFlow: "row wrap",
+            justifyContent: "flex-end",
+            padding: "0.5rem 1rem 0",
+            [theme.breakpoints.up("sm")]: {
+              // Cancel out small screen styling and replace
+              padding: "0px",
+              paddingRight: "2px",
+              flexFlow: "row nowrap",
+            },
           },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
+          tableCellContainer: {
+            padding: "1rem",
+          },
+          selectRoot: {
+            marginRight: "0.5rem",
+            [theme.breakpoints.up("sm")]: {
+              marginLeft: "0",
+              marginRight: "2rem",
+            },
           },
         },
       },
@@ -395,27 +392,29 @@ const AnalysisList = ({ obj_id }) => {
   };
 
   return (
-    <div className={classes.container}>
-      <Accordion className={classes.accordion} key="analysis_table_div">
-        <AccordionSummary
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls="analysis-requests"
-          data-testid="analysis-header"
-        >
-          <Typography variant="subtitle1">Analysis Requests</Typography>
-        </AccordionSummary>
-        <AccordionDetails data-testid="analysisTable">
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                data={analysesList || []}
-                options={options}
-                columns={getDataTableColumns()}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-        </AccordionDetails>
-      </Accordion>
+    <div style={{ height: "100%", width: "100%" }}>
+      <div className={classes.container}>
+        <Accordion className={classes.accordion} key="analysis_table_div">
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="analysis-requests"
+            data-testid="analysis-header"
+          >
+            <Typography variant="subtitle1">Analysis Requests</Typography>
+          </AccordionSummary>
+          <AccordionDetails data-testid="analysisTable">
+            <StyledEngineProvider injectFirst>
+              <ThemeProvider theme={getMuiTheme(theme)}>
+                <MUIDataTable
+                  data={analysesList || []}
+                  options={options}
+                  columns={getDataTableColumns()}
+                />
+              </ThemeProvider>
+            </StyledEngineProvider>
+          </AccordionDetails>
+        </Accordion>
+      </div>
     </div>
   );
 };

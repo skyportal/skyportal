@@ -1218,6 +1218,15 @@ class FollowupRequestPost(_Schema):
         },
     )
 
+    not_if_duplicates = fields.Boolean(
+        required=False,
+        metadata={
+            'description': (
+                'If true, the followup request will not be executed if the object already has a pending or completed request of the same allocation.'
+            )
+        },
+    )
+
     source_group_ids = fields.List(
         fields.Integer,
         required=False,
@@ -1232,7 +1241,7 @@ class FollowupRequestPost(_Schema):
         required=False,
         metadata={
             'description': (
-                'If true, the followup request will not be executed if the object is already classified.'
+                'If true, the followup request will not be executed if there are any sources within radius with (human-only) classifications.'
             )
         },
     )
@@ -1241,7 +1250,16 @@ class FollowupRequestPost(_Schema):
         required=False,
         metadata={
             'description': (
-                'If true, the followup request will not be executed if the object already has spectra.'
+                'If true, the followup request will not be executed if there are any sources within radius that have spectra.'
+            )
+        },
+    )
+
+    not_if_tns_classified = fields.Boolean(
+        required=False,
+        metadata={
+            'description': (
+                'If true, the followup request will not be executed if any object within radius is already classified as SN in TNS.'
             )
         },
     )
@@ -1251,9 +1269,14 @@ class FollowupRequestPost(_Schema):
         required=False,
         metadata={
             'description': (
-                'If the source is saved to any of these groups, the followup request will not be executed.'
+                'If there are any sources within radius saved to any of these groups, the followup request will not be executed.'
             )
         },
+    )
+
+    radius = fields.Float(
+        required=False,
+        metadata={'description': "Radius of to use when checking constraints."},
     )
 
 
@@ -1693,6 +1716,21 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         metadata={'description': "The original filename (for bookkeeping purposes)."},
         required=True,
     )
+
+    pi = fields.List(
+        fields.Integer,
+        metadata={
+            'description': "IDs of the Users who are PI of this Spectrum, or to use as points of contact given an external PI."
+        },
+        load_default=[],
+    )
+
+    external_pi = fields.String(
+        metadata={'description': "Free text provided as an external PI"},
+        required=False,
+        load_default=None,
+    )
+
     reduced_by = fields.List(
         fields.Integer,
         metadata={
@@ -1775,6 +1813,20 @@ class SpectrumPost(_Schema):
     observed_at = fields.DateTime(
         metadata={'description': 'The ISO UTC time the spectrum was taken.'},
         required=True,
+    )
+
+    pi = fields.List(
+        fields.Integer,
+        metadata={
+            'description': "IDs of the Users who are PI of this Spectrum, or to use as points of contact given an external PI."
+        },
+        load_default=[],
+    )
+
+    external_pi = fields.String(
+        metadata={'description': "Free text provided as an external PI"},
+        required=False,
+        load_default=None,
     )
 
     reduced_by = fields.List(
@@ -1868,6 +1920,20 @@ class SpectrumHead(_Schema):
     observed_at = fields.DateTime(
         metadata={'description': 'The ISO UTC time the spectrum was taken.'},
         required=True,
+    )
+
+    pi = fields.List(
+        fields.Integer,
+        metadata={
+            'description': "IDs of the Users who are PI of this Spectrum, or to use as points of contact given an external PI."
+        },
+        load_default=[],
+    )
+
+    external_pi = fields.String(
+        metadata={'description': "Free text provided as an external PI"},
+        required=False,
+        load_default=None,
     )
 
     reducers = fields.List(

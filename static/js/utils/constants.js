@@ -150,8 +150,8 @@ const LINES = [
       6548, 6563, 6583, 6717, 6731,
     ],
   },
-  { color: "#e5806b", name: "Tellurics-1", x: [6867, 6884] },
-  { color: "#e5806b", name: "Tellurics-2", x: [7594, 7621] },
+  { color: "#e5806b", name: "Tellurics-1", x: [6867, 6884], fixed: true },
+  { color: "#e5806b", name: "Tellurics-2", x: [7594, 7621], fixed: true },
   {
     color: "#6dcff6",
     name: "Sky Lines",
@@ -165,6 +165,7 @@ const LINES = [
       8831, 8854, 8871, 8889, 8907, 8923, 8947, 8961, 8991, 9004, 9040, 9051,
       9093, 9103, 9158,
     ],
+    fixed: true,
   },
 ];
 

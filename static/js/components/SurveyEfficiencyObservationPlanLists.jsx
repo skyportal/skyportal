@@ -42,40 +42,46 @@ const useStyles = makeStyles(() => ({
 const getMuiTheme = (theme) =>
   createTheme({
     palette: theme.palette,
-    overrides: {
+    components: {
       MUIDataTable: {
-        paper: {
-          width: "100%",
+        styleOverrides: {
+          paper: {
+            width: "100%",
+          },
         },
       },
       MUIDataTableBodyCell: {
-        stackedCommon: {
-          overflow: "hidden",
-          "&:last-child": {
-            paddingLeft: "0.25rem",
+        styleOverrides: {
+          stackedCommon: {
+            overflow: "hidden",
+            "&:last-child": {
+              paddingLeft: "0.25rem",
+            },
           },
         },
       },
       MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
+        styleOverrides: {
+          toolbar: {
+            flexFlow: "row wrap",
+            justifyContent: "flex-end",
+            padding: "0.5rem 1rem 0",
+            [theme.breakpoints.up("sm")]: {
+              // Cancel out small screen styling and replace
+              padding: "0px",
+              paddingRight: "2px",
+              flexFlow: "row nowrap",
+            },
           },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
+          tableCellContainer: {
+            padding: "1rem",
+          },
+          selectRoot: {
+            marginRight: "0.5rem",
+            [theme.breakpoints.up("sm")]: {
+              marginLeft: "0",
+              marginRight: "2rem",
+            },
           },
         },
       },
@@ -91,7 +97,7 @@ const SurveyEfficiencyObservationPlanLists = ({
   const [isDeleting, setIsDeleting] = useState(null);
 
   if (!survey_efficiency_analyses || survey_efficiency_analyses.length === 0) {
-    return <p>No survey efficiency analyses for this event...</p>;
+    return <p>No survey efficiency analyses for this observation plan...</p>;
   }
 
   const handleDelete = async (id) => {
@@ -213,14 +219,14 @@ const SurveyEfficiencyObservationPlanLists = ({
             type="submit"
             data-testid={`simsurvey_${analysis.id}`}
           >
-            Download Skymap
+            Download Plot
           </Button>
         </div>
       );
     };
     columns.push({
       name: "plot",
-      label: "Plot",
+      label: " ",
       options: {
         customBodyRenderLite: renderPlot,
       },
@@ -256,7 +262,7 @@ const SurveyEfficiencyObservationPlanLists = ({
     };
     columns.push({
       name: "delete",
-      label: "Delete",
+      label: " ",
       options: {
         customBodyRenderLite: renderDelete,
       },

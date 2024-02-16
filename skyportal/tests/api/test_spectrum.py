@@ -1870,9 +1870,12 @@ def test_spectrum_external_reducer_and_observer(
             'external_reducer': "Test external reducer",
             'observed_by': [user.id],
             'external_observer': "Test external observer",
+            'pi': [user.id],
+            'external_pi': "Test external PI",
         },
         token=upload_data_token,
     )
+    print(data)
     assert status == 200
     assert data['status'] == 'success'
 
@@ -1882,8 +1885,10 @@ def test_spectrum_external_reducer_and_observer(
     assert data['status'] == 'success'
     assert data['data']['reducers'][0]['id'] == user.id
     assert data['data']['observers'][0]['id'] == user.id
+    assert data['data']['pis'][0]['id'] == user.id
     assert data['data']['external_reducer'] == "Test external reducer"
     assert data['data']['external_observer'] == "Test external observer"
+    assert data['data']['external_pi'] == "Test external PI"
 
 
 def test_post_get_spectrum_type(upload_data_token, public_source, public_group, lris):

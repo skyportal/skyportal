@@ -194,15 +194,23 @@ const PhotometryPlot = ({
   const [photStats, setPhotStats] = useState(null);
   const [layouts, setLayouts] = useState({});
 
-  const filter2color = useSelector(
-    (state) => state.config.bandpassesColors || {},
-  );
+  const config = useSelector((state) => state.config);
+
+  const [filter2color, setFilter2Color] = useState(config?.bandpassesColors);
 
   const [layoutReset, setLayoutReset] = useState(false);
 
   const [showNonDetections, setShowNonDetections] = useState(true);
 
-  const preparePhotometry = (photometryData) => {
+  const [initialized, setInitialized] = useState(false);
+
+  const profile = useSelector((state) => state.profile);
+
+  const [defaultVisibleFilters, setDefaultVisibleFilters] = useState(null);
+  const [appliedDefaultVisibleFilters, setAppliedDefaultVisibleFilters] =
+    useState(false);
+
+  const preparePhotometry = (photometryData, distance_modulus) => {
     const stats = {
       mag: {
         min: 100,
@@ -262,6 +270,11 @@ const PhotometryPlot = ({
         <br>Mag: ${newPoint.mag ? newPoint.mag.toFixed(3) : "NaN"}
         <br>Magerr: ${newPoint.magerr ? newPoint.magerr.toFixed(3) : "NaN"}
         `;
+        if (distance_modulus) {
+          newPoint.text += `<br>m - DM: ${(
+            newPoint.mag - distance_modulus
+          ).toFixed(3)}`;
+        }
       }
       newPoint.text += `
         <br>Limiting Mag: ${
@@ -369,11 +382,21 @@ const PhotometryPlot = ({
 
   const createTraces = (
     groupedPhotometry,
+    photometryStats,
     plotType,
     periodValue,
     smoothingValue,
     phaseValue,
+    showNonDetectionsValue,
+    existingPlotData,
+    filter2colorMapper,
   ) => {
+    const existingTracesVisibilities = {};
+    if (existingPlotData && existingPlotData?.length > 0) {
+      existingPlotData.forEach((trace) => {
+        existingTracesVisibilities[trace.legendgroup] = trace.visible;
+      });
+    }
     if (plotType === "mag" || plotType === "flux") {
       const newPlotData = Object.keys(groupedPhotometry)
         .map((key) => {
@@ -385,13 +408,20 @@ const PhotometryPlot = ({
           );
 
           // TEMPORARY: until we have a mapper for each sncosmo filter, we force the color to be black
-          const colorRGB = filter2color[groupedPhotometry[key][0].filter] || [
-            0, 0, 0,
-          ];
+          const colorRGB = filter2colorMapper[
+            groupedPhotometry[key][0].filter
+          ] || [0, 0, 0];
           const colorBorder = rgba(colorRGB, 1);
           const colorInteriorNonDet = rgba(colorRGB, 0.1);
           const colorInteriorDet = rgba(colorRGB, 0.3);
           const colorError = rgba(colorRGB, 0.5);
+
+          const existingDetectionTraceVisibility = existingPlotData
+            ? existingTracesVisibilities[`${key}detections`]
+            : true;
+          const existingUpperLimitsTraceVisibility = existingPlotData
+            ? existingTracesVisibilities[`${key}upperLimits`]
+            : true;
 
           const upperLimitsTrace = {
             dataType: "upperLimits",
@@ -414,7 +444,10 @@ const PhotometryPlot = ({
               size: markerSize,
               symbol: "triangle-down",
             },
-            visible: true,
+            visible:
+              showNonDetectionsValue === false
+                ? false
+                : existingUpperLimitsTraceVisibility,
             hoverlabel: {
               bgcolor: "white",
               font: { size: 14 },
@@ -452,7 +485,7 @@ const PhotometryPlot = ({
               color: colorInteriorDet,
               size: markerSize,
             },
-            visible: true,
+            visible: existingDetectionTraceVisibility,
             hoverlabel: {
               bgcolor: "white",
               font: { size: 14 },
@@ -462,8 +495,8 @@ const PhotometryPlot = ({
           };
 
           const secondaryAxisX = {
-            x: [photStats.days_ago.max, photStats.days_ago.min],
-            y: [photStats.mag.max, photStats.mag.min],
+            x: [photometryStats.days_ago.max, photometryStats.days_ago.min],
+            y: [photometryStats.mag.max, photometryStats.mag.min],
             mode: "markers",
             type: "scatter",
             name: "secondaryAxisX",
@@ -481,7 +514,7 @@ const PhotometryPlot = ({
           };
 
           const secondaryAxisY = {
-            x: [photStats.mjd.min, photStats.mjd.max],
+            x: [photometryStats.mjd.min, photometryStats.mjd.max],
             mode: "markers",
             type: "scatter",
             name: "secondaryAxisY",
@@ -497,11 +530,14 @@ const PhotometryPlot = ({
             yaxis: "y2",
             hoverinfo: "skip",
           };
-          if (plotType === "mag" && dm && photStats) {
-            secondaryAxisY.y = [photStats.mag.max - dm, photStats.mag.min - dm];
+          if (plotType === "mag" && dm && photometryStats) {
+            secondaryAxisY.y = [
+              photometryStats.mag.max - dm,
+              photometryStats.mag.min - dm,
+            ];
           }
 
-          if (photStats && plotType === "mag" && dm) {
+          if (photometryStats && plotType === "mag" && dm) {
             return [
               detectionsTrace,
               upperLimitsTrace,
@@ -521,9 +557,9 @@ const PhotometryPlot = ({
         .map((key) => {
           // using the period state variable, calculate the phase of each point
           // and then plot the phase vs mag
-          const colorRGB = filter2color[groupedPhotometry[key][0].filter] || [
-            0, 0, 0,
-          ];
+          const colorRGB = filter2colorMapper[
+            groupedPhotometry[key][0].filter
+          ] || [0, 0, 0];
           const colorBorder = rgba(colorRGB, 1);
           const colorInteriorNonDet = rgba(colorRGB, 0.1);
           const colorInteriorDet = rgba(colorRGB, 0.3);
@@ -581,6 +617,10 @@ const PhotometryPlot = ({
             upperLimitsText = upperLimitsText.concat(upperLimitsText);
           }
 
+          const existingDetectionTraceVisibility = existingPlotData
+            ? existingTracesVisibilities[`${key}detections`]
+            : true;
+
           const detectionsTrace = {
             dataType: "detections",
             x: detectionsX,
@@ -589,7 +629,7 @@ const PhotometryPlot = ({
             mode: "markers",
             type: "scatter",
             name: key,
-            legendgroup: key,
+            legendgroup: `${key}detections`,
             marker: {
               line: {
                 width: 1,
@@ -598,7 +638,7 @@ const PhotometryPlot = ({
               color: colorInteriorDet,
               size: markerSize,
             },
-            visible: true,
+            visible: existingDetectionTraceVisibility,
             hoverlabel: {
               bgcolor: "white",
               font: { size: 14 },
@@ -606,6 +646,10 @@ const PhotometryPlot = ({
             },
             hovertemplate: "%{text}<extra></extra>",
           };
+
+          const existingUpperLimitsTraceVisibility = existingPlotData
+            ? existingTracesVisibilities[`${key}upperLimits`]
+            : true;
 
           const upperLimitsTrace = {
             dataType: "upperLimits",
@@ -625,7 +669,10 @@ const PhotometryPlot = ({
               size: markerSize,
               symbol: "triangle-down",
             },
-            visible: true,
+            visible:
+              showNonDetectionsValue === false
+                ? false
+                : existingUpperLimitsTraceVisibility,
             hoverlabel: {
               bgcolor: "white",
               font: { size: 14 },
@@ -635,10 +682,10 @@ const PhotometryPlot = ({
           };
 
           let secondaryAxisY = {};
-          if (dm && photStats) {
+          if (dm && photometryStats) {
             secondaryAxisY = {
               x: [0, 1],
-              y: [photStats.mag.max - dm, photStats.mag.min - dm],
+              y: [photometryStats.mag.max - dm, photometryStats.mag.min - dm],
               mode: "markers",
               type: "scatter",
               name: "secondaryAxisY",
@@ -677,6 +724,7 @@ const PhotometryPlot = ({
         side: "top",
         range: [...photStats_value.mjd.range],
         tickformat: ".6~f",
+        zeroline: false,
         ...BASE_LAYOUT,
       };
       newLayouts.xaxis2 = {
@@ -685,6 +733,7 @@ const PhotometryPlot = ({
         overlaying: "x",
         side: "bottom",
         showgrid: false,
+        zeroline: false,
         tickformat: ".6~f",
         ...BASE_LAYOUT,
       };
@@ -702,6 +751,7 @@ const PhotometryPlot = ({
       newLayouts.yaxis = {
         title: "AB Mag",
         range: [...photStats_value.mag.range],
+        zeroline: false,
         ...BASE_LAYOUT,
       };
       if (dm && photStats_value) {
@@ -714,6 +764,7 @@ const PhotometryPlot = ({
           overlaying: "y",
           side: "right",
           showgrid: false,
+          zeroline: false,
           ...BASE_LAYOUT,
         };
       }
@@ -728,53 +779,125 @@ const PhotometryPlot = ({
   };
 
   useEffect(() => {
-    const [newPhotometry, newPhotStats] = preparePhotometry([...photometry]);
-    const groupedPhotometry = groupPhotometry(newPhotometry);
-    setPhotStats(newPhotStats);
-    setData(groupedPhotometry);
-  }, [photometry]);
-
-  useEffect(() => {
-    if (data !== null && filter2color !== null && photStats !== null) {
-      if (!layoutReset) {
-        const traces = createTraces(
-          data,
-          tabToPlotType(tabIndex),
-          period,
-          smoothing,
-          phase,
-        );
-        setPlotData(traces);
-      }
-
-      const newLayouts = createLayouts(tabToPlotType(tabIndex), photStats, dm);
-      setLayouts(newLayouts);
-      if (layoutReset) {
-        setLayoutReset(false);
-      }
+    if (!filter2color && config?.bandpassesColors) {
+      setFilter2Color(config?.bandpassesColors);
     }
-  }, [data, filter2color, photStats, tabIndex, phase, layoutReset]);
+  }, [config]);
 
   useEffect(() => {
-    if (data !== null && filter2color !== null && photStats !== null) {
+    if (profile?.id && defaultVisibleFilters === null) {
+      setDefaultVisibleFilters(
+        profile?.preferences?.automaticallyVisibleFilters || [],
+      );
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    if (photometry && filter2color && defaultVisibleFilters) {
+      const [newPhotometry, newPhotStats] = preparePhotometry(
+        [...photometry],
+        dm,
+      );
+      const groupedPhotometry = groupPhotometry(newPhotometry);
+      setPhotStats(newPhotStats);
+      setData(groupedPhotometry);
+
       const traces = createTraces(
-        data,
+        groupedPhotometry,
+        newPhotStats,
         tabToPlotType(tabIndex),
         period,
         smoothing,
         phase,
+        showNonDetections,
+        plotData || [],
+        filter2color,
+      );
+
+      if (defaultVisibleFilters?.length > 0 && !appliedDefaultVisibleFilters) {
+        const visibleTraces = traces.map((trace) => {
+          const newTrace = { ...trace };
+          if (
+            !(
+              newTrace.name &&
+              ["detections", "upperLimits"].includes(newTrace.dataType)
+            )
+          ) {
+            return newTrace;
+          }
+          if (
+            defaultVisibleFilters.some((filter) =>
+              newTrace.name.includes(filter),
+            )
+          ) {
+            newTrace.visible = true;
+          } else {
+            newTrace.visible = "legendonly";
+          }
+          return newTrace;
+        });
+        setPlotData(visibleTraces);
+        setAppliedDefaultVisibleFilters(true);
+      } else {
+        setPlotData(traces);
+      }
+
+      const newLayouts = createLayouts(
+        tabToPlotType(tabIndex),
+        newPhotStats,
+        dm,
+      );
+      setLayouts(newLayouts);
+      setInitialized(true);
+    }
+  }, [photometry, dm, filter2color, defaultVisibleFilters]);
+
+  useEffect(() => {
+    if (initialized && filter2color) {
+      const traces = createTraces(
+        data,
+        photStats,
+        tabToPlotType(tabIndex),
+        period,
+        smoothing,
+        phase,
+        showNonDetections,
+        plotData,
+        filter2color,
+      );
+      setPlotData(traces);
+      const newLayouts = createLayouts(tabToPlotType(tabIndex), photStats, dm);
+      setLayouts(newLayouts);
+    }
+  }, [tabIndex, phase]);
+
+  useEffect(() => {
+    if (initialized && filter2color && layoutReset) {
+      const newLayouts = createLayouts(tabToPlotType(tabIndex), photStats, dm);
+      setLayouts(newLayouts);
+      setLayoutReset(false);
+    }
+  }, [layoutReset]);
+
+  useEffect(() => {
+    if (initialized && filter2color && tabIndex === 2) {
+      const traces = createTraces(
+        data,
+        photStats,
+        tabToPlotType(tabIndex),
+        period,
+        smoothing,
+        phase,
+        showNonDetections,
+        plotData,
+        filter2color,
       );
       setPlotData(traces);
     }
   }, [period, smoothing]);
 
   useEffect(() => {
-    if (
-      data !== null &&
-      filter2color !== null &&
-      photStats !== null &&
-      annotations !== null
-    ) {
+    if (initialized && annotations !== null) {
       // each annotation has a data key, which is an object with key value pairs
       // try to find keys named 'period'
       // for each, get its value and the created_at value of the annotation
@@ -799,10 +922,10 @@ const PhotometryPlot = ({
         setPeriod(parseFloat(mostRecentPeriod, 10));
       }
     }
-  }, [data, filter2color, photStats, annotations]);
+  }, [initialized && annotations]);
 
   useEffect(() => {
-    if (plotData !== null) {
+    if (plotData) {
       const newPlotData = plotData.map((trace) => {
         const newTrace = { ...trace };
         newTrace.marker.size = parseInt(markerSize, 10);
@@ -813,7 +936,7 @@ const PhotometryPlot = ({
   }, [markerSize]);
 
   useEffect(() => {
-    if (plotData !== null) {
+    if (plotData) {
       const newPlotData = plotData.map((trace) => {
         const newTrace = { ...trace };
         if (
@@ -990,6 +1113,7 @@ const PhotometryPlot = ({
             ],
           }}
           config={{
+            // scrollZoom: true, // this is not working properly, creating issues when we are around the default zooming level. TOFIX
             responsive: true,
             displaylogo: false,
             // the native autoScale2d and resetScale2d buttons are not working
@@ -1020,12 +1144,12 @@ const PhotometryPlot = ({
             const visibleTraces = e.data.filter(
               (trace) =>
                 ["detections", "upperLimits"].includes(trace.dataType) &&
-                trace.visible === true,
+                (trace.visible === true || trace.visible === undefined),
             ).length;
             const visibleTraceIndex = e.data.findIndex(
               (trace) =>
                 ["detections", "upperLimits"].includes(trace.dataType) &&
-                trace.visible === true,
+                (trace.visible === true || trace.visible === undefined),
             );
             e.data.forEach((trace, index) => {
               if (

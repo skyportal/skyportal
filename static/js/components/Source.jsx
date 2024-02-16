@@ -355,6 +355,15 @@ const SourceContent = ({ source }) => {
     ":",
   )}`;
 
+  // associatedGCNs is an array of dateobs
+  // source.gcn_crossmatch is an array of objects with dateobs
+  // we want to combine these two arrays into one array of dateobs deduplicated
+  // and sorted by date in descending order
+  const gcn_crossmatches = (associatedGCNs || [])
+    .concat((source.gcn_crossmatch || []).map((gcn) => gcn.dateobs))
+    .filter((gcn, index, self) => self.indexOf(gcn) === index)
+    .sort((a, b) => new Date(b) - new Date(a));
+
   useEffect(() => {
     dispatch(photometryActions.fetchSourcePhotometry(source.id));
     dispatch(spectraActions.fetchSourceSpectra(source.id));
@@ -386,7 +395,7 @@ const SourceContent = ({ source }) => {
     <>
       <Grid item xs={12} lg={6} order={{ md: 4, lg: 3 }}>
         <Accordion
-          defaultExpanded={!downLarge}
+          defaultExpanded
           disableGutters
           className={classes.flexColumn}
         >
@@ -551,7 +560,13 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={12} order={{ md: 13, lg: 13 }}>
+      <Grid
+        item
+        xs={12}
+        lg={6}
+        order={{ md: 13, lg: 13 }}
+        style={{ overflow: "auto", paddingBottom: "1px", paddingRight: "1px" }}
+      >
         <Accordion
           defaultExpanded
           disableGutters
@@ -574,7 +589,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={12} order={{ md: 14, lg: 14 }}>
+      <Grid item xs={12} lg={6} order={{ md: 14, lg: 14 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -770,16 +785,7 @@ const SourceContent = ({ source }) => {
                 <b>GCN Crossmatches: &nbsp;</b>
                 {source.gcn_crossmatch?.length > 0 && (
                   <SourceGCNCrossmatchList
-                    gcn_crossmatches={
-                      (associatedGCNs || [])
-                        .map(
-                          (dateobs) =>
-                            ({
-                              dateobs,
-                            }) || [],
-                        )
-                        .concat(source.gcn_crossmatch) || []
-                    }
+                    gcn_crossmatches={gcn_crossmatches}
                   />
                 )}
                 {hovering === "gcn" && (
@@ -1016,11 +1022,8 @@ const SourceContent = ({ source }) => {
                   <DialogTitle>Submit to TNS</DialogTitle>
                   <DialogContent>
                     <TNSATForm
-                      sourceID={source.id}
-                      ra={source.ra}
-                      dec={source.dec}
-                      tns_info={source.tns_info}
-                      tnsSubmitCallback={() => setTNSDialogOpen(false)}
+                      obj_id={source.id}
+                      submitCallback={() => setTNSDialogOpen(false)}
                     />
                   </DialogContent>
                 </Dialog>

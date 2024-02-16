@@ -111,11 +111,13 @@ const createSpecRow = (
   owner,
   reducers,
   observers,
+  pis,
   origin,
   type,
   label,
   external_reducer,
   external_observer,
+  external_pi,
 ) => ({
   id,
   instrument,
@@ -124,11 +126,13 @@ const createSpecRow = (
   owner,
   reducers,
   observers,
+  pis,
   origin,
   type,
   label,
   external_reducer,
   external_observer,
+  external_pi,
 });
 
 const photHeadCells = [
@@ -321,11 +325,13 @@ const ShareDataForm = ({ route }) => {
           spec.owner,
           spec.reducers,
           spec.observers,
+          spec.pis,
           spec.origin,
           spec.type,
           spec.label,
           spec.external_reducer,
           spec.external_observer,
+          spec.external_pi,
         ),
       )
     : [];
@@ -346,6 +352,15 @@ const ShareDataForm = ({ route }) => {
       return users.map((user) => <UserContactLink user={user} key={user.id} />);
     }
     return <div />;
+  };
+
+  const renderPIs = (dataIndex) => {
+    const externalPI = specRows[dataIndex]?.external_pi;
+    const users = specRows[dataIndex]?.pis;
+    if (externalPI) {
+      return <div>{externalPI}</div>;
+    }
+    return renderMultipleUsers(users);
   };
 
   const renderReducers = (dataIndex) => {
@@ -516,6 +531,14 @@ const ShareDataForm = ({ route }) => {
       label: "Uploaded by",
       options: {
         customBodyRenderLite: makeRenderSingleUser("owner"),
+        filter: false,
+      },
+    },
+    {
+      name: "pis",
+      label: "PI(s)",
+      options: {
+        customBodyRenderLite: renderPIs,
         filter: false,
       },
     },

@@ -16,4 +16,5 @@ from .nicer import NICERAPI
 from .ps1 import PS1API
 from .swift import UVOTXRTAPI, UVOTXRTMMAAPI
 from .tess import TESSAPI
+from .winter import WINTERAPI
 from .ztf import ZTFAPI, ZTFMMAAPI

@@ -3,6 +3,8 @@ import { useDispatch, useSelector } from "react-redux";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import Grid from "@mui/material/Grid";
+import Paper from "@mui/material/Paper";
 
 import Button from "./Button";
 import SurveyEfficiencyForm from "./SurveyEfficiencyForm";
@@ -57,17 +59,23 @@ const AddSurveyEfficiencyObservationsPage = () => {
         open={dialogOpen}
         onClose={closeDialog}
         style={{ position: "fixed" }}
+        fullWidth
+        maxWidth="xlg"
       >
         <DialogTitle>SimSurvey Analysis</DialogTitle>
         <DialogContent>
-          <div>
-            <SurveyEfficiencyForm gcnevent={gcnEvent} />
-            {surveyEfficiencyAnalysisList?.length > 0 && (
+          <Grid container spacing={2} style={{ paddingTop: "0.1em" }}>
+            <Grid item xs={12} lg={8}>
               <SurveyEfficiencyObservationsLists
-                survey_efficiency_analyses={surveyEfficiencyAnalysisList}
+                survey_efficiency_analyses={surveyEfficiencyAnalysisList || []}
               />
-            )}
-          </div>
+            </Grid>
+            <Grid item xs={12} lg={4}>
+              <Paper style={{ padding: "1em" }}>
+                <SurveyEfficiencyForm gcnevent={gcnEvent} />
+              </Paper>
+            </Grid>
+          </Grid>
         </DialogContent>
       </Dialog>
     </>
