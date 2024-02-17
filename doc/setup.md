@@ -59,13 +59,13 @@ Then, install Node.js with NVM:
 ```
 nvm install node
 ```
-Finally, install these compression libraries. These are needed in order to install the Python depedency `tables` later on:
+Finally, install these compression libraries. These are needed in order to install the Python dependency `tables` later on:
 ```
 brew install hdf5 c-blosc lzo bzip2
 ```
 After installing each package, Homebrew will print out the installation paths. You should add these paths to your `.zshrc` file to ensure SkyPortal can locate these libraries. Instructions for this can be found in the [Configuring Shell Environment for Development](#configure-shell-mac) section below.
-  
-	- If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command: `brew tap denji/nginx && brew install nginx-full --with-brotli`. _If you already had NGINX installed, you may need to uninstall it first with `brew unlink nginx`._ Otherwise, you can install NGINX normally with `brew install nginx`.
+
+If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command: `brew tap denji/nginx && brew install nginx-full --with-brotli`. _If you already had NGINX installed, you may need to uninstall it first with `brew unlink nginx`._ Otherwise, you can install NGINX normally with `brew install nginx`.
 
 2. Start the PostgreSQL server:
 
@@ -113,14 +113,20 @@ When developing with SkyPortal on mac, you may  also need to configure your shel
 ```
 nano ~/.zshrc
 ```
-#### Set enviroment variables to their installation paths 
-After installing the libraries with Homebrew, you'll need to set environment variables to their installation paths. Typically, Homebrew provides these paths upon successful installation. Replace the placeholder text `<path-to-library>` with the actual path that Homebrew provides upon sucessful installation.
+#### Set enviroment variables to their installation paths
+After installing the libraries with Homebrew, you'll need to set environment variables to their installation paths. Replace the placeholder text `<path-to-library>` with the actual path that Homebrew provides upon sucessful installation.
 
 ```
 export HDF5_DIR="<path-to-hdf5>"
 export BLOSC_DIR="<path-to-c-blosc>"
 export LZO_DIR="<path-to-lzo>"
 export BZIP_DIR="<path-to-bzip2>"
+```
+
+Typically, Homebrew provides these paths upon successful installation. You can also discover where a library was installed by Homebrew with this command:
+
+```
+brew info <name_of_package>
 ```
 #### Alias pip3 and python3
 Depending on your system setup, the `python` and `pip` commands might point to Python 2 rather than Python 3. To ensure that you're using Python 3 and its corresponding pip version, you may need to set aliases in your `.zshrc` file:
@@ -134,7 +140,7 @@ alias python='python3'
 ```
 source ~/.zshrc
 ```
-### Checking for Port Availability 
+### Checking for Port Availability
 SkyPortal defaults to using port 5000. However, this port may already be in use by MacPorts or other services. To verify if port 5000 is available, use the `lsof` command in the terminal.
 
 ```
