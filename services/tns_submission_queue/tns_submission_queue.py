@@ -19,7 +19,6 @@ from skyportal.models import (
     Photometry,
     TNSRobot,
     TNSRobotSubmission,
-    TNSRobotCoAuthor,
     TNSRobotGroup,
     User,
     Source,
@@ -79,10 +78,30 @@ def service(*args, **kwargs):
                     continue
 
                 tns_robot = session.scalar(
-                    sa.select(TNSRobot).where(TNSRobot.id == tnsrobot_id)
+                    TNSRobot.select(user).where(TNSRobot.id == tnsrobot_id)
                 )
                 if tns_robot is None:
-                    error_msg = f'No TNSRobot found with ID {tnsrobot_id}.'
+                    error_msg = f'No TNSRobot found with ID {tnsrobot_id} or user {user_id} does not have access to it.'
+                    log(error_msg)
+                    submission_request.status = f'error: {error_msg}'
+                    session.commit()
+                    continue
+
+                # verify that the user is allowed to submit to TNS with this robot
+                if user_id not in [tns_user.user_id for tns_user in tns_robot.users]:
+                    error_msg = f'User {user_id} is not allowed to submit to TNS with TNSRobot {tnsrobot_id}.'
+                    log(error_msg)
+                    submission_request.status = f'error: {error_msg}'
+                    session.commit()
+                    continue
+
+                # if this is an auto_submission, we need to check if the user is allowed to auto-submit
+                if submission_request.auto_submission and user_id not in [
+                    tns_user.user_id
+                    for tns_user in tns_robot.users
+                    if tns_user.auto_report
+                ]:
+                    error_msg = f'This is an auto-submission and user {user_id} is not allowed to auto-submit to TNS with TNSRobot {tnsrobot_id}.'
                     log(error_msg)
                     submission_request.status = f'error: {error_msg}'
                     session.commit()
@@ -155,16 +174,18 @@ def service(*args, **kwargs):
                     # the same user that is submitting the report, we add the user that is submitting
                     # as the second author
                     author_ids = []
-                    author_ids.append(source.saved_by_id)
-                    if source.saved_by_id != user_id:
-                        author_ids.append(user_id)
+                    if source.saved_by_id != user_id and source.saved_by_id in [
+                        tns_user.user_id for tns_user in tns_robot.users
+                    ]:
+                        author_ids.append(source.saved_by_id)
+                    author_ids.append(user_id)
                     coauthor_ids = [
                         coauthor.user_id
-                        for coauthor in session.scalars(
-                            sa.select(TNSRobotCoAuthor).where(
-                                TNSRobotCoAuthor.tnsrobot_id == tnsrobot_id
-                            )
-                        )
+                        for coauthor in [
+                            tns_user
+                            for tns_user in tns_robot.users
+                            if tns_user.coauthor
+                        ]
                     ]
                     author_ids = list(set(author_ids + coauthor_ids))
                     authors = (
@@ -492,6 +513,8 @@ def service(*args, **kwargs):
                         )
                         submission_id = tns_id
                         status = 'submitted'
+                    elif status_code == 401:
+                        status = f"Unauthorized to submit {obj_id} to TNS with TNSRobot {tnsrobot_id}, credentials may be invalid"
                     else:
                         status = f"Failed to submit {obj_id} to TNS with TNSRobot {tnsrobot_id}: {r.content}"
                     break

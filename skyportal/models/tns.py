@@ -1,4 +1,4 @@
-__all__ = ['TNSRobot', 'TNSRobotCoAuthor', 'TNSRobotGroup', 'TNSRobotSubmission']
+__all__ = ['TNSRobot', 'TNSRobotUser', 'TNSRobotGroup', 'TNSRobotSubmission']
 
 import json
 
@@ -66,20 +66,41 @@ class TNSRobot(Base):
         doc='Groups associated with this TNSRobot.',
     )
 
+    users = relationship(
+        'TNSRobotUser',
+        back_populates='tnsrobot',
+        passive_deletes=True,
+        doc='Users associated with this TNSRobot, as co-authors and/or to trigger auto-reporting.',
+    )
 
-class TNSRobotCoAuthor(Base):
+
+class TNSRobotUser(Base):
     """Mapper between TNSRobots and Users."""
 
-    __tablename__ = 'tnsrobot_coauthors'
+    __tablename__ = 'tnsrobot_users'
 
     tnsrobot_id = sa.Column(
         sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False
     )
     user_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
 
+    coauthor = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        doc="Whether this user is always a co-author of the reports sent by this robot.",
+    )
+
+    auto_report = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        doc="Whether this user is allowed to trigger auto-report when he saves a source to a group associated with this robot.",
+    )
+
     tnsrobot = relationship(
         'TNSRobot',
-        back_populates='coauthors',
+        back_populates='users',
         doc='The TNSRobot associated with this mapper.',
     )
 
@@ -88,6 +109,9 @@ class TNSRobotCoAuthor(Base):
         back_populates='tnsrobots',
         doc='The User associated with this mapper.',
     )
+
+    # we want a unique index on the tnsrobot_id and user_id columns
+    __table_args__ = (sa.UniqueConstraint('tnsrobot_id', 'user_id'),)
 
 
 class TNSRobotGroup(Base):
@@ -199,11 +223,11 @@ TNSRobot.groups = relationship(
     doc='Groups associated with this TNSRobot.',
 )
 
-TNSRobot.coauthors = relationship(
-    'TNSRobotCoAuthor',
+TNSRobot.users = relationship(
+    'TNSRobotUser',
     back_populates='tnsrobot',
     passive_deletes=True,
-    doc='Co-authors associated with this TNSRobot.',
+    doc='Users associated with this TNSRobot, as co-authors and/or to trigger auto-reporting.',
 )
 
 TNSRobot.submissions = relationship(
