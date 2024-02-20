@@ -74,7 +74,8 @@ from ...models import (
     Taxonomy,
     Telescope,
     Thumbnail,
-    TNSRobot,
+    TNSRobotGroup,
+    TNSRobotSubmission,
     Token,
     User,
 )
@@ -86,7 +87,6 @@ from ...utils.offset import (
     source_image_parameters,
 )
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
-from ...utils.tns import post_tns
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 from ..base import BaseHandler
 from .candidate import (
@@ -1894,38 +1894,24 @@ def post_source(data, user_id, session, refresh_source=True):
 
     session.commit()
 
-    loop = None
     # remove from groups that we didn't save to
     groups = [group for group in groups if group.id not in not_saved_to_group_ids]
     for group in groups:
-        tnsrobot = session.scalars(
-            TNSRobot.select(user).where(
-                TNSRobot.auto_report_group_ids.contains([group.id]),
+        tnsrobot_group = session.scalars(
+            TNSRobotGroup.select(user).where(
+                TNSRobotGroup.group_id == group.id,
+                TNSRobotGroup.auto_report,
             )
         ).first()
-        if tnsrobot is not None:
-            if loop is None:
-                try:
-                    loop = IOLoop.current()
-                except RuntimeError:
-                    loop = IOLoop(make_current=True).current()
-
-            loop.run_in_executor(
-                None,
-                lambda: post_tns(
-                    obj_ids=[obj.id],
-                    tnsrobot_id=tnsrobot.id,
-                    user_id=user.id,
-                    reporters=tnsrobot.coauthors,
-                    instrument_ids=[
-                        instrument.id for instrument in tnsrobot.auto_report_instruments
-                    ],
-                    stream_ids=[stream.id for stream in tnsrobot.auto_report_streams],
-                    timeout=30,
-                ),
+        if tnsrobot_group is not None:
+            # add a request to submit to TNS for only the first group we save to
+            # that has access to TNSRobot and auto_report is True
+            submission_request = TNSRobotSubmission(
+                obj_id=obj.id,
+                tnsrobot_id=tnsrobot_group.tnsrobot_id,
+                user_id=user.id,
             )
-
-            # only need to report once
+            session.add(submission_request)
             break
 
     if not obj_already_exists:

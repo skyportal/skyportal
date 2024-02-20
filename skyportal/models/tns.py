@@ -1,9 +1,8 @@
-__all__ = ['TNSRobot', 'TNSRobotCoAuthor', 'TNSRobotGroup']
+__all__ = ['TNSRobot', 'TNSRobotCoAuthor', 'TNSRobotGroup', 'TNSRobotSubmission']
 
 import json
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy_utils.types.encrypted.encrypted_type import AesEngine, EncryptedType
@@ -27,12 +26,6 @@ class TNSRobot(Base):
         EncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5')
     )
 
-    auto_report_group_ids = sa.Column(
-        ARRAY(sa.Integer),
-        comment='List of group IDs to report from',
-        nullable=True,
-    )
-
     auto_report_instruments = relationship(
         "Instrument",
         secondary="instrument_tnsrobots",
@@ -51,6 +44,10 @@ class TNSRobot(Base):
         doc="Streams to restrict the photometry to when auto-reporting.",
     )
 
+    acknowledgments = sa.Column(
+        sa.String, nullable=False, doc="Acknowledgments to use for this robot."
+    )
+
     @property
     def altdata(self):
         if self._altdata is None:
@@ -62,7 +59,7 @@ class TNSRobot(Base):
     def altdata(self, value):
         self._altdata = value
 
-    tnsrobots_groups = relationship(
+    groups = relationship(
         'TNSRobotGroup',
         back_populates='tnsrobot',
         passive_deletes=True,
@@ -118,6 +115,73 @@ class TNSRobotGroup(Base):
     )
 
 
+class TNSRobotSubmission(Base):
+    """Objects to be auto-submitted to TNS."""
+
+    # when the autoreporting is activated for a robot + a group, we'll have a
+    # DB trigger run somewhere in the code where users save objects as sources
+    # to their group. If saved to a group that has any TNSRobot associated with
+    # and the robot has autoreporting activated for that group, then we'll add
+    # an entry to this table. This will be used to keep track of which objects
+    # need to be autoreported to TNS for a given robot.
+    # we also have a status column to keep track of the status of the submission
+
+    __tablename__ = 'tns_submissions'
+
+    tnsrobot_id = sa.Column(
+        sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False
+    )
+    obj_id = sa.Column(sa.ForeignKey('objs.id', ondelete='CASCADE'), nullable=False)
+    user_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+
+    custom_reporting_string = sa.Column(
+        sa.String,
+        nullable=True,
+        default=None,
+        doc="Custom reporting string to use for this submission only.",
+    )
+
+    status = sa.Column(sa.String, nullable=False, default='pending')
+
+    archival = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        doc="Whether this is an archival submission or not.",
+    )
+    archival_comment = sa.Column(
+        sa.String,
+        nullable=True,
+        default=None,
+        doc="Comment to use for archival submission.",
+    )
+
+    submission_id = sa.Column(
+        sa.Integer,
+        nullable=True,
+        default=None,
+        doc="ID of the submission returned by TNS.",
+    )
+
+    tnsrobot = relationship(
+        'TNSRobot',
+        back_populates='submissions',
+        doc='The TNSRobot associated with this mapper.',
+    )
+
+    obj = relationship(
+        'Obj',
+        back_populates='tns_submissions',
+        doc='The Obj associated with this mapper.',
+    )
+
+    user = relationship(
+        'User',
+        back_populates='tns_submissions',
+        doc='The User associated with this mapper.',
+    )
+
+
 TNSRobot.groups = relationship(
     'TNSRobotGroup',
     back_populates='tnsrobot',
@@ -130,4 +194,11 @@ TNSRobot.coauthors = relationship(
     back_populates='tnsrobot',
     passive_deletes=True,
     doc='Co-authors associated with this TNSRobot.',
+)
+
+TNSRobot.submissions = relationship(
+    'TNSRobotSubmission',
+    back_populates='tnsrobot',
+    passive_deletes=True,
+    doc='Auto-submissions associated with this TNSRobot.',
 )

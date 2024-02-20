@@ -1,15 +1,10 @@
-import asyncio
 import json
 import time
 import urllib
-from threading import Thread
 
 import astropy
 import requests
 import sqlalchemy as sa
-import tornado.escape
-import tornado.ioloop
-import tornado.web
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from baselayer.app.env import load_env
@@ -17,7 +12,18 @@ from baselayer.app.models import init_db
 from baselayer.log import make_log
 from baselayer.app.flow import Flow
 from skyportal.handlers.api.photometry import serialize
-from skyportal.models import DBSession, Instrument, Obj, Photometry, TNSRobot, User
+from skyportal.models import (
+    DBSession,
+    Instrument,
+    Obj,
+    Photometry,
+    TNSRobot,
+    TNSRobotSubmission,
+    TNSRobotCoAuthor,
+    TNSRobotGroup,
+    User,
+    Source,
+)
 from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
     TNS_INSTRUMENT_IDS,
@@ -34,8 +40,6 @@ Session = scoped_session(sessionmaker())
 TNS_URL = cfg['app.tns.endpoint']
 report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
 search_frontend_url = urllib.parse.urljoin(TNS_URL, 'search')
-
-queue = []
 
 
 def tns_submission(
@@ -363,97 +367,180 @@ def tns_submission(
             Session.remove()
 
 
-def service(queue):
+def service():
     while True:
         with DBSession() as session:
             try:
-                if len(queue) == 0:
-                    time.sleep(1)
+                submission_request = session.scalar(
+                    sa.select(TNSRobotSubmission)
+                    .where(TNSRobotSubmission.status.in_(['pending', 'processing']))
+                    .order_by(TNSRobotSubmission.created_at.asc())
+                )
+                if submission_request is None:
+                    time.sleep(5)
                     continue
-                data = queue.pop(0)
-                if data is None:
+                else:
+                    submission_request.status = 'processing'
+                    session.commit()
+            except Exception as e:
+                log(f"Error getting TNS submission request: {str(e)}")
+                continue
+
+            submission_request_id = submission_request.id
+
+            try:
+                obj_id = submission_request.obj_id
+                tnsrobot_id = submission_request.tnsrobot_id
+                user_id = submission_request.user_id
+
+                tns_robot = session.scalar(
+                    sa.select(TNSRobot).where(TNSRobot.id == tnsrobot_id)
+                )
+
+                # we look for the first group that has the robot, set to auto-report, and that first saved
+                tnsrobot_group = session.scalar(
+                    sa.select(TNSRobotGroup)
+                    .join(Source, Source.group_id == TNSRobotGroup.group_id)
+                    .where(TNSRobotGroup.tnsrobot_id == tnsrobot_id)
+                    .where(TNSRobotGroup.auto_report.is_(True))
+                    .where(Source.active.is_(True))
+                    .order_by(Source.created_at.asc())
+                )
+                if tnsrobot_group is None:
+                    error_msg = f'No group with TNSRobot {tnsrobot_id} set to auto-report and with {obj_id} saved to it.'
+                    log(error_msg)
+                    submission_request.status = f'error: {error_msg}'
+                    session.commit()
+                    continue
+                source = session.scalar(
+                    sa.select(Source).where(
+                        Source.obj_id == obj_id,
+                        Source.active.is_(True),
+                        Source.group_id == tnsrobot_group.group_id,
+                    )
+                )
+                if source is None:
+                    error_msg = (
+                        f'No source {obj_id} saved to group {tnsrobot_group.group_id}.'
+                    )
+                    log(error_msg)
+                    submission_request.status = f'error: {error_msg}'
+                    session.commit()
                     continue
 
-                obj_ids = data.get("obj_ids")
-                tnsrobot_id = data.get("tnsrobot_id")
-                user_id = data.get("user_id")
-                reporters = data.get("reporters", "")
-                archival = data.get("archival", False)
-                archival_comment = data.get("archival_comment", "")
-                instrument_ids = data.get("instrument_ids", [])
-                stream_ids = data.get("stream_ids", [])
+                if submission_request.custom_reporting_string not in [None, ""]:
+                    reporters = submission_request.custom_reporting_string
+                else:
+                    # unless a specific reporting string is provided for this request
+                    # we find which user saved the obj to that group and use their name
+                    # and first affiliations as main author of the report
+                    # if the user that first saved the obj to a group of that tnsrobot is not
+                    # the same user that is submitting the report, we add the user that is submitting
+                    # as the second author
+                    author_ids = []
+                    author_ids.append(source.saved_by_id)
+                    if source.saved_by_id != user_id:
+                        author_ids.append(user_id)
+                    coauthor_ids = [
+                        coauthor.user_id
+                        for coauthor in session.scalars(
+                            sa.select(TNSRobotCoAuthor).where(
+                                TNSRobotCoAuthor.tnsrobot_id == tnsrobot_id
+                            )
+                        )
+                    ]
+                    author_ids = list(set(author_ids + coauthor_ids))
+                    authors = (
+                        session.scalars(sa.select(User).where(User.id.in_(author_ids)))
+                        .unique()
+                        .all()
+                    )
+                    if len(authors) == 0:
+                        error_msg = f'No authors found for tnsrobot {tnsrobot_id} and source {obj_id}, cannot report to TNS.'
+                        log(error_msg)
+                        submission_request.status = f'error: {error_msg}'
+                        session.commit()
+                        continue
+                    # if any of the users are missing an affiliation, we don't submit
+                    if any([len(author.affiliations) == 0 for author in authors]):
+                        error_msg = f'One or more authors are missing an affiliation, cannot report {obj_id} to TNS.'
+                        log(error_msg)
+                        submission_request.status = f'error: {error_msg}'
+                        session.commit()
+                        continue
+                    reporters = ', '.join(
+                        [
+                            f'{author.first_name} {author.last_name} ({author.affiliations[0]})'
+                            for author in authors
+                        ]
+                    )
+                    if tns_robot.acknowledgments in [None, ""]:
+                        error_msg = f'No acknowledgments found for tnsrobot {tnsrobot_id}, cannot report {obj_id} to TNS.'
+                        log(error_msg)
+                        submission_request.status = f'error: {error_msg}'
+                        session.commit()
+                        continue
+                    reporters += f' {tns_robot.acknowledgments}'
 
-                tns_submission(
-                    obj_ids,
-                    tnsrobot_id,
-                    user_id,
-                    reporters=reporters,
-                    archival=archival,
-                    archival_comment=archival_comment,
-                    instrument_ids=instrument_ids,
-                    stream_ids=stream_ids,
-                    parent_session=session,
+                archival = submission_request.archival
+                archival_comment = submission_request.archival_comment
+                if archival and (archival_comment in [None, ""]):
+                    error_msg = f'Archival submission requested for {obj_id} but no archival_comment provided.'
+                    log(error_msg)
+                    submission_request.status = f'error: {error_msg}'
+                    session.commit()
+                    continue
+
+                instrument_ids = [
+                    instrument.id for instrument in tns_robot.auto_report_instruments
+                ] # noqa: E841
+                stream_ids = [
+                    stream.id for stream in tns_robot.auto_report_streams
+                ] # noqa: E841
+
+                # DEBUG ONLY, NOT ACTUALLY SUBMITTING TO TNS
+                # tns_submission(
+                #     [obj_id],
+                #     tnsrobot_id,
+                #     user_id,
+                #     reporters=reporters,
+                #     archival=archival,
+                #     archival_comment=archival_comment,
+                #     instrument_ids=instrument_ids,
+                #     stream_ids=stream_ids,
+                #     parent_session=session,
+                # )
+                submission_request.status = 'submitted'
+                session.commit()
+                log(
+                    f'Successfully submitted {obj_id} to TNS using TNSRobot with bot_id {tns_robot.bot_id}'
                 )
             except Exception as e:
-                log(
-                    f"Error processing TNS request for objects {str(data['obj_ids'])}: {str(e)}"
-                )
-
-
-def api(queue):
-    class QueueHandler(tornado.web.RequestHandler):
-        def get(self):
-            self.set_header("Content-Type", "application/json")
-            self.write({"status": "success", "data": {"queue_length": len(queue)}})
-
-        async def post(self):
-            try:
-                data = tornado.escape.json_decode(self.request.body)
-            except json.JSONDecodeError:
-                self.set_status(400)
-                return self.write({"status": "error", "message": "Malformed JSON data"})
-
-            required_keys = {'obj_ids', 'tnsrobot_id', 'user_id', 'reporters'}
-            if not required_keys.issubset(set(data.keys())):
-                self.set_status(400)
-                return self.write(
-                    {
-                        "status": "error",
-                        "message": "TNS requests require obj_ids, tnsrobot_id, user_id, and reporters",
-                    }
-                )
-
-            queue.append(data)
-
-            self.set_status(200)
-            return self.write(
-                {
-                    "status": "success",
-                    "message": "TNS request accepted into queue",
-                    "data": {"queue_length": len(queue)},
-                }
-            )
-
-    app = tornado.web.Application([(r"/", QueueHandler)])
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    app.listen(cfg["ports.tns_submission_queue"])
-    loop.run_forever()
+                try:
+                    session.rollback()
+                except Exception as e:
+                    log(f"Error rolling back session: {str(e)}")
+                finally:
+                    try:
+                        log(
+                            f"Error processing TNS request for object {obj_id} and TNSRobot {tnsrobot_id}: {str(e)}"
+                        )
+                        submission_request = session.scalar(
+                            sa.select(TNSRobotSubmission).where(
+                                TNSRobotSubmission.id == submission_request_id
+                            )
+                        )
+                        submission_request.status = f'error: {str(e)}'
+                        session.commit()
+                    except Exception as e:
+                        log(f"Error updating TNS request status: {str(e)}")
+                    finally:
+                        continue
 
 
 if __name__ == "__main__":
     try:
-        t = Thread(target=service, args=(queue,))
-        t2 = Thread(target=api, args=(queue,))
-        t.start()
-        t2.start()
-
-        while True:
-            log(f"Current TNS submission queue length: {len(queue)}")
-            time.sleep(120)
+        service()
     except Exception as e:
         log(f"Error starting TNS submission queue: {str(e)}")
         raise e

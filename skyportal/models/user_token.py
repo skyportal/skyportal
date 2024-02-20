@@ -429,6 +429,12 @@ User.tnsrobots = relationship(
     passive_deletes=True,
     doc='The TNSRobots this user is a co-author of.',
 )
+User.tns_submissions = relationship(
+    'TNSRobotSubmission',
+    back_populates='user',
+    passive_deletes=True,
+    doc='The TNSRobotSubmission this user has made (manual or automatic).',
+)
 
 
 User.update = User.delete = CustomUserAccessControl(user_update_delete_logic)
