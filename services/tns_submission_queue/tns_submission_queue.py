@@ -493,10 +493,10 @@ def service():
 
                 instrument_ids = [
                     instrument.id for instrument in tns_robot.auto_report_instruments
-                ] # noqa: E841
+                ]  # noqa: E841
                 stream_ids = [
                     stream.id for stream in tns_robot.auto_report_streams
-                ] # noqa: E841
+                ]  # noqa: E841
 
                 # DEBUG ONLY, NOT ACTUALLY SUBMITTING TO TNS
                 # tns_submission(
