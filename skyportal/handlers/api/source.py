@@ -1896,6 +1896,7 @@ def post_source(data, user_id, session, refresh_source=True):
 
     # remove from groups that we didn't save to
     groups = [group for group in groups if group.id not in not_saved_to_group_ids]
+    print(f"Saved to groups: {' '.join([str(g.id) for g in groups])}")
     for group in groups:
         tnsrobot_group = session.scalars(
             TNSRobotGroup.select(user).where(
@@ -1910,6 +1911,7 @@ def post_source(data, user_id, session, refresh_source=True):
                 obj_id=obj.id,
                 tnsrobot_id=tnsrobot_group.tnsrobot_id,
                 user_id=user.id,
+                auto_submission=True,
             )
             session.add(submission_request)
             break

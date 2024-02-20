@@ -106,7 +106,7 @@ class TNSRobotHandler(BaseHandler):
                     return self.error(
                         f'No owner group with specified ID: {owner_group_id}'
                     )
-
+                group_ids = list(set(group_ids).difference({owner_group_id}))
                 groups = (
                     session.scalars(
                         Group.select(session.user_or_token).where(
@@ -133,9 +133,6 @@ class TNSRobotHandler(BaseHandler):
                     )
                     # if there is already a TNS robot with the same bot_id, bot_name, and source_group_id, we return an error
                     if existing_tnsrobot is not None:
-                        owner_group_id = [
-                            x.id for x in existing_tnsrobot.groups if x.owner
-                        ][0]
                         return self.error(
                             f'A TNS robot with the same bot_id, bot_name, and source_group_id already exists with id: {existing_tnsrobot.id} (owned by group_id: {owner_group_id}), specify the ID to update it'
                         )
@@ -320,7 +317,9 @@ class TNSRobotHandler(BaseHandler):
                             tnsrobot=tnsrobot,
                             group_id=owner_group_id,
                             owner=True,
-                            auto_report=False,
+                            auto_report=True
+                            if owner_group_id in auto_report_group_ids
+                            else False,
                         )
                     ] + [
                         TNSRobotGroup(

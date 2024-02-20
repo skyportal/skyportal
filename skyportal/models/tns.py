@@ -114,6 +114,9 @@ class TNSRobotGroup(Base):
         doc='The Group associated with this mapper.',
     )
 
+    # we want a unique index on the tnsrobot_id and group_id columns
+    __table_args__ = (sa.UniqueConstraint('tnsrobot_id', 'group_id'),)
+
 
 class TNSRobotSubmission(Base):
     """Objects to be auto-submitted to TNS."""
@@ -161,6 +164,13 @@ class TNSRobotSubmission(Base):
         nullable=True,
         default=None,
         doc="ID of the submission returned by TNS.",
+    )
+
+    auto_submission = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        doc="Whether this submission was auto-requested or not.",
     )
 
     tnsrobot = relationship(
