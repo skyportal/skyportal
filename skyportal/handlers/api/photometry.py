@@ -1340,7 +1340,9 @@ class PhotometryHandler(BaseHandler):
             )
 
         ignore_flux = self.get_query_arguments('ignore_flux_deduplication', False)
-        ignore_flux_replace = self.get_query_arguments('ignore_flux_replace', False)
+        ignore_flux_replace = self.get_query_arguments(
+            'ignore_flux_deduplication_replace', False
+        )
 
         obj_id = df['obj_id'].unique()[0]
         username = self.associated_user_object.username
