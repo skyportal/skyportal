@@ -166,9 +166,10 @@ def run_openai_summarization(data_dict):
         )
         return rez
     try:
-        import openai
+        from openai import OpenAI
 
-        openai.api_key = analysis_parameters.get("openai_api_key")
+        client = OpenAI(api_key=analysis_parameters.get("openai_api_key"))
+
     except Exception as e:
         rez.update(
             {
@@ -222,7 +223,7 @@ def run_openai_summarization(data_dict):
         return rez
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             messages=[
                 {
                     "role": "system",
@@ -250,7 +251,7 @@ def run_openai_summarization(data_dict):
         )
         return rez
 
-    openai_summary = response["choices"][0]["message"]["content"]
+    openai_summary = response.choices[0].message.content
 
     # remove dislaimers & newlines
     openai_summary = openai_summary.replace("Based on the given information, it", "It")
@@ -268,7 +269,7 @@ def run_openai_summarization(data_dict):
     result = {"summary": openai_summary}
 
     if USE_PINECONE:
-        e = openai.Embedding.create(
+        e = client.embeddings.create(
             input=openai_summary,
             model=summarize_embedding_config.get("model", "text-embedding-ada-002"),
         )
@@ -284,8 +285,8 @@ def run_openai_summarization(data_dict):
 
         metadata["summary"] = openai_summary
 
-        pinecone_index.upsert([(source_id, e["data"][0]["embedding"], metadata)])
-        result["embedding"] = e["data"][0]["embedding"]
+        pinecone_index.upsert([(source_id, e.data[0].embedding, metadata)])
+        result["embedding"] = e.data[0].embedding
 
     f = tempfile.NamedTemporaryFile(suffix=".joblib", prefix="results_", delete=False)
     f.close()
