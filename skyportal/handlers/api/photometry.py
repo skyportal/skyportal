@@ -1424,7 +1424,13 @@ class PhotometryHandler(BaseHandler):
                             )
 
                     # if ignoring flux deduplication, do we update the value(s) of the existing photometry?
-                    if ignore_flux and ignore_flux_replace:
+                    # ALSO, we only allow updating rows when the existing row has an origin specified, not when it's None
+                    if (
+                        ignore_flux
+                        and ignore_flux_replace
+                        and str(duplicate.origin).strip().lower()
+                        not in ['none', '', 'nan', 'null']
+                    ):
                         duplicate.flux = df.loc[df_index]['standardized_flux']
                         duplicate.fluxerr = df.loc[df_index]['standardized_fluxerr']
                         duplicate.filter = df.loc[df_index]['filter']
