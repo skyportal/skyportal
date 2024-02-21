@@ -195,7 +195,7 @@ def run_openai_summarization(data_dict):
 
     try:
         redshift = Table.read(data_dict["inputs"]["redshift"], format='ascii.csv')
-        z = redshift['redshift'][0]
+        z = float(redshift['redshift'][0])
         if np.ma.is_masked(z):
             z = None
         source_id = data_dict.get("resource_id", "unknown")

@@ -732,7 +732,6 @@ analysis_services:
     embeddings_store:
       summary:
         location: pinecone
-        environment: us-east1-gcp
         api_key:
         index_name: openai-skyportal-summary
         index_size: 1536
