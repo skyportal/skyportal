@@ -14,7 +14,7 @@ import requests
 from astropy.table import Table
 import joblib
 
-import pinecone
+from pinecone import Pinecone
 
 from tornado.ioloop import IOLoop
 import tornado.web
@@ -31,23 +31,24 @@ log = make_log('openai_analysis_service')
 summarize_embedding_config = cfg[
     'analysis_services.openai_analysis_service.embeddings_store.summary'
 ]
+pinecone_client = None
 USE_PINECONE = False
 if (
     summarize_embedding_config.get("location") == "pinecone"
     and summarize_embedding_config.get("api_key")
-    and summarize_embedding_config.get("environment")
     and summarize_embedding_config.get("index_name")
     and summarize_embedding_config.get("index_size")
 ):
     log("initializing pinecone...")
-    pinecone.init(
+    pinecone_client = Pinecone(
         api_key=summarize_embedding_config.get("api_key"),
-        environment=summarize_embedding_config.get("environment"),
     )
 
     summarize_embedding_index = summarize_embedding_config.get("index_name")
-    if summarize_embedding_index not in pinecone.list_indexes():
-        pinecone.create_index(
+    if summarize_embedding_index not in [
+        index.name for index in pinecone_client.list_indexes().indexes
+    ]:
+        pinecone_client.create_index(
             summarize_embedding_index,
             dimension=summarize_embedding_config.get("index_size"),
         )
@@ -271,7 +272,7 @@ def run_openai_summarization(data_dict):
             input=openai_summary,
             model=summarize_embedding_config.get("model", "text-embedding-ada-002"),
         )
-        pinecone_index = pinecone.Index(summarize_embedding_index)
+        pinecone_index = pinecone_client.Index(summarize_embedding_index)
         metadata = {}
         if z is not None:
             metadata["redshift"] = z

@@ -2,10 +2,9 @@ import os
 import copy
 import yaml
 
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain_community.vectorstores import Pinecone
+from langchain_openai import OpenAIEmbeddings
 from typing import List, Optional
-import pinecone
+from pinecone import Pinecone
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -21,11 +20,13 @@ log = make_log('query')
 
 # add in this new search method to the Pinecone class
 def search_sources(
-    self,
+    client: Pinecone,
     query: str,
     k: int = 4,
     filter: Optional[dict] = None,
+    index_name: Optional[str] = None,
     namespace: Optional[str] = None,
+    openai_api_key: Optional[str] = None,
 ) -> List[dict]:
     """Return pinecone documents most similar to query, along with scores.
 
@@ -37,17 +38,31 @@ def search_sources(
     Returns:
         List of source dictionaries most similar to the query and score for each
     """
-    if namespace is None:
-        namespace = self._namespace
-    query_obj = self._embedding_function(query)
-    sources = []
-    results = self._index.query(
-        [query_obj],
+    if client is None:
+        raise ValueError("pinecone_client must be provided")
+    if index_name is None:
+        raise ValueError("index_name must be provided")
+    if openai_api_key is None:
+        raise ValueError("openai_api_key must be provided")
+
+    embeddings = OpenAIEmbeddings(
+        model=summarize_embedding_model,
+        embedding_ctx_length=summarize_embedding_index_size,
+        openai_api_key=openai_api_key,
+    )
+    query_vector = embeddings.embed_query(query)
+
+    index = client.Index(index_name)
+    results = index.query(
         top_k=k,
+        vector=query_vector,
+        include_values=False,
         include_metadata=True,
         namespace=namespace,
         filter=filter,
     )
+
+    sources = []
     for res in results["matches"]:
         try:
             source = {
@@ -62,7 +77,7 @@ def search_sources(
     return sources
 
 
-setattr(Pinecone, 'search_sources', search_sources)
+pinecone_client = None
 
 # Preamble: get the embeddings and summary parameters ready
 # for now, we only support pinecone embeddings
@@ -73,21 +88,21 @@ USE_PINECONE = False
 if (
     summarize_embedding_config.get("location") == "pinecone"
     and summarize_embedding_config.get("api_key")
-    and summarize_embedding_config.get("environment")
     and summarize_embedding_config.get("index_name")
     and summarize_embedding_config.get("index_size")
 ):
     log("initializing pinecone access...")
-    pinecone.init(
+    pinecone_client = Pinecone(
         api_key=summarize_embedding_config.get("api_key"),
-        environment=summarize_embedding_config.get("environment"),
     )
 
     summarize_embedding_index_name = summarize_embedding_config.get("index_name")
     summarize_embedding_index_size = summarize_embedding_config.get("index_size")
     summarize_embedding_model = summarize_embedding_config.get("model")
 
-    if summarize_embedding_index_name in pinecone.list_indexes():
+    if summarize_embedding_index_name in [
+        index.name for index in pinecone_client.list_indexes().indexes
+    ]:
         USE_PINECONE = True
 else:
     if cfg['database.database'] == 'skyportal_test':
@@ -262,28 +277,24 @@ class SummaryQueryHandler(BaseHandler):
             filt = {}
 
         if search_by_string:
-            try:
-                embeddings = OpenAIEmbeddings(
-                    model=summarize_embedding_model,
-                    embedding_ctx_length=summarize_embedding_index_size,
-                    openai_api_key=user_openai_key,
-                )
-                docsearch = Pinecone.from_existing_index(
-                    summarize_embedding_index_name, embeddings, text_key="summary"
-                )
-            except Exception as e:
-                return self.error(f'Could not load embeddings or pinecone index: {e}')
-
             # get the top k sources
             try:
-                results = docsearch.search_sources(query, k=k, filter=filt)
+                results = search_sources(
+                    pinecone_client,
+                    query,
+                    k,
+                    filt,
+                    summarize_embedding_index_name,
+                    "",
+                    user_openai_key,
+                )
             except Exception as e:
                 return self.error(f'Could not search sources: {e}')
         else:
             # search by objID. Will return an empty list if objID not in
             # vector database.
             try:
-                index = pinecone.Index(summarize_embedding_index_name)
+                index = pinecone_client.Index(summarize_embedding_index_name)
                 query_response = index.query(
                     top_k=k,
                     index=summarize_embedding_index_name,
