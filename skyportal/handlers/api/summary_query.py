@@ -31,10 +31,13 @@ def search_sources(
     """Return pinecone documents most similar to query, along with scores.
 
     Args:
+        client: Pinecone client object.
         query: Text to look up documents similar to.
         k: Number of Documents to return. Defaults to 4.
         filter: Dictionary of argument(s) to filter on metadata
+        index_name: Name of the index to search in.
         namespace: Namespace to search in. Default will search in '' namespace.
+        openai_api_key: OpenAI API key to use for embeddings.
     Returns:
         List of source dictionaries most similar to the query and score for each
     """
