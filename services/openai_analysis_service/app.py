@@ -48,12 +48,57 @@ if (
     if summarize_embedding_index not in [
         index.name for index in pinecone_client.list_indexes().indexes
     ]:
-        pinecone_client.create_index(
-            summarize_embedding_index,
-            dimension=summarize_embedding_config.get("index_size"),
+        # check if we have the spec variable in the config
+        pod_spec_required_keys = ["environment", "pod_type"]
+        serverless_spec_required_keys = ["cloud", "region"]
+
+        pod_spec_optional_keys = ["replicas", "pods", "shards"]
+
+        has_pod_spec = all(
+            summarize_embedding_config.get(k) is not None
+            for k in pod_spec_required_keys
         )
-        log(f"index {summarize_embedding_index} created in pinecone")
-    USE_PINECONE = True
+        has_serverless_spec = all(
+            summarize_embedding_config.get(k) is not None
+            for k in serverless_spec_required_keys
+        )
+
+        if has_pod_spec:
+            USE_PINECONE = True
+        else:
+            log(
+                "Pod spec not found in the config file, cannot create index in pinecone"
+            )
+
+        if USE_PINECONE:
+            spec = {
+                "pod": {
+                    "environment": summarize_embedding_config.get("environment"),
+                    "pod_type": summarize_embedding_config.get("pod_type"),
+                }
+            }
+            for k in pod_spec_optional_keys:
+                if summarize_embedding_config.get(k) is not None:
+                    spec["pod"][k] = summarize_embedding_config.get(k)
+            if has_serverless_spec:
+                spec = {
+                    "serverless": {
+                        "cloud": summarize_embedding_config.get("cloud"),
+                        "region": summarize_embedding_config.get("region"),
+                    }
+                }
+            pinecone_client.create_index(
+                summarize_embedding_index,
+                dimension=summarize_embedding_config.get("index_size"),
+                spec=spec,
+            )
+            log(f"index {summarize_embedding_index} created in pinecone")
+    else:
+        USE_PINECONE = True
+else:
+    log(
+        "Pinecone access does not seem to be configured in the config file, not using pinecone"
+    )
 
 summary_config = copy.deepcopy(cfg['analysis_services.openai_analysis_service.summary'])
 if summary_config.get("api_key"):

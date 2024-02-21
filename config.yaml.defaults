@@ -736,6 +736,9 @@ analysis_services:
         index_name: openai-skyportal-summary
         index_size: 1536
         model: text-embedding-ada-002
+        environment: gcp-starter
+        pod_type: p1.x1
+
 
 
 comments_folder: persistentdata/comments
