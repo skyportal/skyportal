@@ -222,7 +222,7 @@
 <p>SkyPortal requires the following software to be installed.  We show
 how to install them on MacOS and Debian-based systems below.</p>
 <ul class="simple">
-<li><p>Python 3.8 or later (&lt;3.11, since <code class="docutils literal notranslate"><span class="pre">numba</span></code> requires &lt;3.11)</p></li>
+<li><p>Python 3.9 or later (&lt;3.13, since <code class="docutils literal notranslate"><span class="pre">numba</span></code> requires &lt;3.13)</p></li>
 <li><p>Supervisor (v&gt;=4.2.1)</p></li>
 <li><p>NGINX (v&gt;=1.7)</p></li>
 <li><p>PostgreSQL (v&gt;=14.0)</p></li>
@@ -259,17 +259,28 @@ virtual environment.</p>
 <section id="installation-macos">
 <h2>Installation: MacOS<a class="headerlink" href="#installation-macos" title="Link to this heading">#</a></h2>
 <p>These instructions assume that you have <a class="reference external" href="http://brew.sh/">Homebrew</a> installed.</p>
-<ol>
-<li><p>Install dependencies</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">brew</span> <span class="n">install</span> <span class="n">supervisor</span> <span class="n">nginx</span> <span class="n">postgresql</span> <span class="n">node</span> \
-     <span class="n">llvm</span> <span class="n">libomp</span> <span class="n">gsl</span> <span class="n">rust</span>
-<span class="n">nvm</span> <span class="n">install</span> <span class="n">node</span>
+<ol class="simple">
+<li><p>Install project dependencies</p></li>
+</ol>
+<p>Using Homebrew, install core dependencies:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">brew</span> <span class="n">install</span> <span class="n">supervisor</span> <span class="n">nginx</span> <span class="n">postgresql</span> <span class="n">node</span> <span class="n">llvm</span> <span class="n">libomp</span> <span class="n">gsl</span> <span class="n">rust</span>
 </pre></div>
 </div>
-<ul class="simple">
-<li><p>If you want to use <a class="reference external" href="https://en.wikipedia.org/wiki/Brotli">brotli compression</a> with NGINX (better compression rates for the frontend), you can install NGINX with the <code class="docutils literal notranslate"><span class="pre">ngx_brotli</span></code> module with this command: <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">tap</span> <span class="pre">denji/nginx</span> <span class="pre">&amp;&amp;</span> <span class="pre">brew</span> <span class="pre">install</span> <span class="pre">nginx-full</span> <span class="pre">--with-brotli</span></code>. <em>If you already had NGINX installed, you may need to uninstall it first with <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">unlink</span> <span class="pre">nginx</span></code>.</em> Otherwise, you can install NGINX normally with <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">install</span> <span class="pre">nginx</span></code>.</p></li>
-</ul>
-</li>
+<p>If you want to use <a class="reference external" href="https://en.wikipedia.org/wiki/Brotli">brotli compression</a> with NGINX (better compression rates for the frontend), you can install NGINX with the <code class="docutils literal notranslate"><span class="pre">ngx_brotli</span></code> module with this command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">brew</span> <span class="n">tap</span> <span class="n">denji</span><span class="o">/</span><span class="n">nginx</span> <span class="o">&amp;&amp;</span> <span class="n">brew</span> <span class="n">install</span> <span class="n">nginx</span><span class="o">-</span><span class="n">full</span> <span class="o">--</span><span class="k">with</span><span class="o">-</span><span class="n">brotli</span>
+</pre></div>
+</div>
+<p><em>If you already had NGINX installed, you may need to uninstall it first with <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">unlink</span> <span class="pre">nginx</span></code>.</em> Otherwise, you can install NGINX normally with <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">install</span> <span class="pre">nginx</span></code>.</p>
+<p>Then, install Node.js with NVM:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">nvm</span> <span class="n">install</span> <span class="n">node</span>
+</pre></div>
+</div>
+<p>Finally, install these compression libraries. These are needed in order to install the Python dependency <code class="docutils literal notranslate"><span class="pre">tables</span></code> later on:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">brew</span> <span class="n">install</span> <span class="n">hdf5</span> <span class="n">c</span><span class="o">-</span><span class="n">blosc</span> <span class="n">lzo</span> <span class="n">bzip2</span>
+</pre></div>
+</div>
+<p>After installing each package, Homebrew will print out the installation paths. You should add these paths to your <code class="docutils literal notranslate"><span class="pre">.zshrc</span></code> file to ensure SkyPortal can locate these libraries. Instructions for this can be found in the <a class="reference external" href="#configure-shell-mac">Configuring Shell Environment for Development</a> section below.</p>
+<ol class="simple">
 <li><p>Start the PostgreSQL server:</p></li>
 </ol>
 <ul class="simple">
@@ -304,6 +315,53 @@ virtual environment.</p>
 </div>
 </li>
 </ol>
+<p><a name="configure-shell-mac"></a></p>
+<section id="configuring-shell-environment-for-development">
+<h3>Configuring Shell Environment for Development<a class="headerlink" href="#configuring-shell-environment-for-development" title="Link to this heading">#</a></h3>
+<p>When developing with SkyPortal on mac, you may  also need to configure your shell enviroment. Here is how you can do that by editing your <code class="docutils literal notranslate"><span class="pre">.zshrc</span></code> file.</p>
+<section id="open-your-zshrc-file-in-a-text-editor">
+<h4>Open your <code class="docutils literal notranslate"><span class="pre">.zshrc</span></code> file in a text editor:<a class="headerlink" href="#open-your-zshrc-file-in-a-text-editor" title="Link to this heading">#</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">nano</span> <span class="o">~/.</span><span class="n">zshrc</span>
+</pre></div>
+</div>
+</section>
+<section id="set-enviroment-variables-to-their-installation-paths">
+<h4>Set enviroment variables to their installation paths<a class="headerlink" href="#set-enviroment-variables-to-their-installation-paths" title="Link to this heading">#</a></h4>
+<p>After installing the libraries with Homebrew, you’ll need to set environment variables to their installation paths. Replace the placeholder text <code class="docutils literal notranslate"><span class="pre">&lt;path-to-library&gt;</span></code> with the actual path that Homebrew provides upon sucessful installation.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">HDF5_DIR</span><span class="o">=</span><span class="s2">&quot;&lt;path-to-hdf5&gt;&quot;</span>
+<span class="n">export</span> <span class="n">BLOSC_DIR</span><span class="o">=</span><span class="s2">&quot;&lt;path-to-c-blosc&gt;&quot;</span>
+<span class="n">export</span> <span class="n">LZO_DIR</span><span class="o">=</span><span class="s2">&quot;&lt;path-to-lzo&gt;&quot;</span>
+<span class="n">export</span> <span class="n">BZIP_DIR</span><span class="o">=</span><span class="s2">&quot;&lt;path-to-bzip2&gt;&quot;</span>
+</pre></div>
+</div>
+<p>Typically, Homebrew provides these paths upon successful installation. You can also discover where a library was installed by Homebrew with this command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">brew</span> <span class="n">info</span> <span class="o">&lt;</span><span class="n">name_of_package</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+</section>
+<section id="alias-pip3-and-python3">
+<h4>Alias pip3 and python3<a class="headerlink" href="#alias-pip3-and-python3" title="Link to this heading">#</a></h4>
+<p>Depending on your system setup, the <code class="docutils literal notranslate"><span class="pre">python</span></code> and <code class="docutils literal notranslate"><span class="pre">pip</span></code> commands might point to Python 2 rather than Python 3. To ensure that you’re using Python 3 and its corresponding pip version, you may need to set aliases in your <code class="docutils literal notranslate"><span class="pre">.zshrc</span></code> file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">alias</span> <span class="n">pip</span><span class="o">=</span><span class="s1">&#39;pip3&#39;</span>
+<span class="n">alias</span> <span class="n">python</span><span class="o">=</span><span class="s1">&#39;python3&#39;</span>
+</pre></div>
+</div>
+</section>
+<section id="to-activate-the-changes-source-your-zshrc-file">
+<h4>To activate the changes, source your .zshrc file:<a class="headerlink" href="#to-activate-the-changes-source-your-zshrc-file" title="Link to this heading">#</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">source</span> <span class="o">~/.</span><span class="n">zshrc</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="checking-for-port-availability">
+<h3>Checking for Port Availability<a class="headerlink" href="#checking-for-port-availability" title="Link to this heading">#</a></h3>
+<p>SkyPortal defaults to using port 5000. However, this port may already be in use by MacPorts or other services. To verify if port 5000 is available, use the <code class="docutils literal notranslate"><span class="pre">lsof</span></code> command in the terminal.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">lsof</span> <span class="o">-</span><span class="n">i</span> <span class="p">:</span><span class="mi">5000</span>
+</pre></div>
+</div>
+<p>If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port.</p>
+</section>
 </section>
 <section id="installation-debian-based-linux-and-wsl">
 <h2>Installation: Debian-based Linux and WSL<a class="headerlink" href="#installation-debian-based-linux-and-wsl" title="Link to this heading">#</a></h2>
@@ -513,7 +571,17 @@ sudo certbot renew</p>
 <li><a class="reference internal" href="#">Setup</a><ul>
 <li><a class="reference internal" href="#dependencies">Dependencies</a></li>
 <li><a class="reference internal" href="#source-download-python-environment">Source download, Python environment</a></li>
-<li><a class="reference internal" href="#installation-macos">Installation: MacOS</a></li>
+<li><a class="reference internal" href="#installation-macos">Installation: MacOS</a><ul>
+<li><a class="reference internal" href="#configuring-shell-environment-for-development">Configuring Shell Environment for Development</a><ul>
+<li><a class="reference internal" href="#open-your-zshrc-file-in-a-text-editor">Open your <code class="docutils literal notranslate"><span class="pre">.zshrc</span></code> file in a text editor:</a></li>
+<li><a class="reference internal" href="#set-enviroment-variables-to-their-installation-paths">Set enviroment variables to their installation paths</a></li>
+<li><a class="reference internal" href="#alias-pip3-and-python3">Alias pip3 and python3</a></li>
+<li><a class="reference internal" href="#to-activate-the-changes-source-your-zshrc-file">To activate the changes, source your .zshrc file:</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#checking-for-port-availability">Checking for Port Availability</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#installation-debian-based-linux-and-wsl">Installation: Debian-based Linux and WSL</a></li>
 <li><a class="reference internal" href="#launch">Launch</a></li>
 <li><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
