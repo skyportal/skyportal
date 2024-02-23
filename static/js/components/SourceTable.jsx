@@ -1437,7 +1437,10 @@ const SourceTable = ({
   };
 
   const handleSearchChange = (searchText) => {
-    const data = { sourceID: searchText };
+    const data = {
+      ...filterFormData,
+      sourceID: searchText,
+    };
     paginateCallback(1, rowsPerPage, {}, data);
   };
 

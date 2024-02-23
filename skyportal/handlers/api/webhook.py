@@ -144,7 +144,22 @@ class AnalysisWebhookHandler(BaseHandler):
         try:
             flow = Flow()
             if analysis.analysis_service.is_summary:
-                summary = {"summary": analysis.serialize_results_data()['summary']}
+                if "Incorrect API key provided" in analysis.status_message:
+                    try:
+                        flow.push(
+                            analysis.author_id,
+                            'baselayer/SHOW_NOTIFICATION',
+                            payload={
+                                'note': 'Invalid OpenAI API key for this summary. If you provided your own key, please correct it and try again.',
+                                'type': 'error',
+                            },
+                        )
+                    except Exception:
+                        pass
+                try:
+                    summary = {"summary": analysis.serialize_results_data()['summary']}
+                except Exception as e:
+                    raise ValueError(f"Error serializing summary: {e}")
                 summary["created_at"] = analysis.created_at
                 summary["is_bot"] = True
                 summary["analysis_id"] = analysis.id

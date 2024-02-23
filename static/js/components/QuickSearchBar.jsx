@@ -135,6 +135,7 @@ const QuickSearchBar = () => {
         } else if (type === "GCN Events") {
           matchingEntries = await response.data.events;
         }
+
         if (matchingEntries) {
           const rez = Object.keys(matchingEntries).map((key) => {
             if (type === "GCN Events") {
@@ -147,6 +148,17 @@ const QuickSearchBar = () => {
                 name,
               };
             }
+            if (type === "Sources") {
+              let name = matchingEntries[key].id;
+              if (matchingEntries[key]?.tns_name?.length > 0) {
+                name = `${name} (${matchingEntries[key].tns_name})`;
+              }
+              return {
+                id: matchingEntries[key].id,
+                name,
+              };
+            }
+            // fallback
             return {
               id: matchingEntries[key].id,
               name: matchingEntries[key].id,

@@ -278,6 +278,7 @@ class Obj(Base, conesearch_alchemy.Point):
     tns_name = sa.Column(
         sa.String,
         doc="Transient Name Server name.",
+        index=True,
     )
     tns_info = sa.Column(
         JSONB,

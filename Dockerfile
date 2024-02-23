@@ -16,9 +16,15 @@ RUN apt-get update && \
     apt-get -y upgrade && \
     apt-get install -y python3 python3-venv python3-dev \
     libpq-dev supervisor \
-    git nginx nodejs postgresql-client vim nano screen htop \
-    libcurl4-gnutls-dev libgnutls28-dev && \
-    apt-get clean && \
+    git nodejs postgresql-client vim nano screen htop \
+    libcurl4-gnutls-dev libgnutls28-dev
+
+# we install nginx with brotli support from ppa:ondrej/nginx-mainline
+RUN add-apt-repository ppa:ondrej/nginx-mainline -y && \
+	apt update -y && \
+	apt install -y nginx libnginx-mod-brotli
+
+RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     useradd --create-home --shell /bin/bash skyportal
 

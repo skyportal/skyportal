@@ -154,6 +154,7 @@ def check_if_obj_has_photometry(obj_id, user, session):
 
 async def get_source(
     obj_id,
+    tns_name,
     user_id,
     session,
     include_thumbnails=False,
@@ -190,9 +191,20 @@ async def get_source(
     if include_detection_stats:
         options.append(joinedload(Obj.photstats))
 
-    s = session.scalars(
-        Obj.select(user, options=options).where(Obj.id == obj_id)
-    ).first()
+    stmt = Obj.select(user, options=options)
+
+    if obj_id in [None, ""] and tns_name in [None, ""]:
+        raise ValueError("Either obj_id or tns_name must be provided")
+
+    if obj_id not in [None, ""]:
+        stmt = stmt.where(func.lower(Obj.id) == str(obj_id).strip().lower())
+    if tns_name not in [None, ""]:
+        stmt = stmt.where(
+            func.lower(func.replace(Obj.tns_name, " ", ""))
+            == str(tns_name).strip().lower().replace(" ", "")
+        )
+
+    s = session.scalar(stmt)
     if s is None:
         raise ValueError("Source not found")
 
@@ -644,9 +656,15 @@ async def get_sources(
     obj_query = Obj.select(user, columns=[Obj.id])
     source_query = Source.select(user)
 
-    if sourceID:
+    if sourceID not in [None, ""]:
+        sourceID = str(sourceID).strip().lower()
         obj_query = obj_query.where(
-            func.lower(Obj.id).contains(func.lower(sourceID.strip()))
+            or_(
+                func.lower(Obj.id).contains(sourceID),
+                func.lower(func.replace(Obj.tns_name, " ", "")).contains(
+                    sourceID.replace(" ", "")
+                ),
+            )
         )
     if rejectedSourceIDs:
         obj_query = obj_query.where(Obj.id.notin_(rejectedSourceIDs))
@@ -2019,6 +2037,13 @@ class SourceHandler(BaseHandler):
               required: false
               schema:
                 type: string
+              description: Source ID
+            - in: query
+              name: TNSname
+              nullable: true
+              schema:
+                type: string
+              description: TNS name for the source
             - in: query
               name: includePhotometry
               nullable: true
@@ -2123,7 +2148,7 @@ class SourceHandler(BaseHandler):
             nullable: true
             schema:
               type: string
-            description: Portion of ID to filter on
+            description: Portion of ID or TNS name to filter on
           - in: query
             name: rejectedSourceIDs
             nullable: true
@@ -2862,6 +2887,7 @@ class SourceHandler(BaseHandler):
         simbad_class = self.get_query_argument('simbadClass', None)
         alias = self.get_query_argument('alias', None)
         origin = self.get_query_argument('origin', None)
+        tns_name = self.get_query_argument('TNSname', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
         has_no_tns_name = self.get_query_argument('hasNoTNSname', None)
         has_been_labelled = self.get_query_argument('hasBeenLabelled', False)
@@ -2884,6 +2910,7 @@ class SourceHandler(BaseHandler):
                 try:
                     source_info = await get_source(
                         obj_id,
+                        tns_name,
                         self.associated_user_object.id,
                         session,
                         include_thumbnails=include_thumbnails,
