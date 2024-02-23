@@ -211,6 +211,7 @@ class SummaryQueryHandler(BaseHandler):
             return self.error(
                 "No valid pinecone configuration found. Please check your config file."
             )
+        user_openai_key = None
         if not openai_api_key:
             user_id = self.associated_user_object.id
             with self.Session() as session:
