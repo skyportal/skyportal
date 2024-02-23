@@ -86,8 +86,8 @@ def upgrade():
     op.add_column(
         'tnsrobots', sa.Column('acknowledgments', sa.String(), nullable=False)
     )
-    # we don't want that the TNSrobots suddently have no owner group because we are removing the group_id column
-    # so, we create entries in the tnsrobots_groups table for the current owner group, with owner=True and auto_report=False
+    # we don't want the existing TNSrobots to have no owner group because we are removing the group_id column
+    # so, we create entries in the tnsrobots_groups table for the current owner groups, with owner=True and auto_report=False
     op.execute(
         """
         INSERT INTO tnsrobots_groups (tnsrobot_id, group_id, owner, auto_report, created_at, modified)
