@@ -14,7 +14,7 @@ import requests
 from astropy.table import Table
 import joblib
 
-import pinecone
+from pinecone import Pinecone
 
 from tornado.ioloop import IOLoop
 import tornado.web
@@ -31,28 +31,74 @@ log = make_log('openai_analysis_service')
 summarize_embedding_config = cfg[
     'analysis_services.openai_analysis_service.embeddings_store.summary'
 ]
+pinecone_client = None
 USE_PINECONE = False
 if (
     summarize_embedding_config.get("location") == "pinecone"
     and summarize_embedding_config.get("api_key")
-    and summarize_embedding_config.get("environment")
     and summarize_embedding_config.get("index_name")
     and summarize_embedding_config.get("index_size")
 ):
     log("initializing pinecone...")
-    pinecone.init(
+    pinecone_client = Pinecone(
         api_key=summarize_embedding_config.get("api_key"),
-        environment=summarize_embedding_config.get("environment"),
     )
 
     summarize_embedding_index = summarize_embedding_config.get("index_name")
-    if summarize_embedding_index not in pinecone.list_indexes():
-        pinecone.create_index(
-            summarize_embedding_index,
-            dimension=summarize_embedding_config.get("index_size"),
+    if summarize_embedding_index not in [
+        index.name for index in pinecone_client.list_indexes().indexes
+    ]:
+        # check if we have the spec variable in the config
+        pod_spec_required_keys = ["environment", "pod_type"]
+        serverless_spec_required_keys = ["cloud", "region"]
+
+        pod_spec_optional_keys = ["replicas", "pods", "shards"]
+
+        has_pod_spec = all(
+            summarize_embedding_config.get(k) is not None
+            for k in pod_spec_required_keys
         )
-        log(f"index {summarize_embedding_index} created in pinecone")
-    USE_PINECONE = True
+        has_serverless_spec = all(
+            summarize_embedding_config.get(k) is not None
+            for k in serverless_spec_required_keys
+        )
+
+        if has_pod_spec:
+            USE_PINECONE = True
+        else:
+            log(
+                "Pod spec not found in the config file, cannot create index in pinecone"
+            )
+
+        if USE_PINECONE:
+            spec = {
+                "pod": {
+                    "environment": summarize_embedding_config.get("environment"),
+                    "pod_type": summarize_embedding_config.get("pod_type"),
+                }
+            }
+            for k in pod_spec_optional_keys:
+                if summarize_embedding_config.get(k) is not None:
+                    spec["pod"][k] = summarize_embedding_config.get(k)
+            if has_serverless_spec:
+                spec = {
+                    "serverless": {
+                        "cloud": summarize_embedding_config.get("cloud"),
+                        "region": summarize_embedding_config.get("region"),
+                    }
+                }
+            pinecone_client.create_index(
+                summarize_embedding_index,
+                dimension=summarize_embedding_config.get("index_size"),
+                spec=spec,
+            )
+            log(f"index {summarize_embedding_index} created in pinecone")
+    else:
+        USE_PINECONE = True
+else:
+    log(
+        "Pinecone access does not seem to be configured in the config file, not using pinecone"
+    )
 
 summary_config = copy.deepcopy(cfg['analysis_services.openai_analysis_service.summary'])
 if summary_config.get("api_key"):
@@ -165,9 +211,10 @@ def run_openai_summarization(data_dict):
         )
         return rez
     try:
-        import openai
+        from openai import OpenAI
 
-        openai.api_key = analysis_parameters.get("openai_api_key")
+        client = OpenAI(api_key=analysis_parameters.get("openai_api_key"))
+
     except Exception as e:
         rez.update(
             {
@@ -193,8 +240,8 @@ def run_openai_summarization(data_dict):
 
     try:
         redshift = Table.read(data_dict["inputs"]["redshift"], format='ascii.csv')
-        z = redshift['redshift'][0]
-        if np.ma.is_masked(z):
+        z = float(redshift['redshift'][0])
+        if np.ma.is_masked(z) or np.isnan(z):
             z = None
         source_id = data_dict.get("resource_id", "unknown")
     except Exception as e:
@@ -221,7 +268,7 @@ def run_openai_summarization(data_dict):
         return rez
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             messages=[
                 {
                     "role": "system",
@@ -249,7 +296,7 @@ def run_openai_summarization(data_dict):
         )
         return rez
 
-    openai_summary = response["choices"][0]["message"]["content"]
+    openai_summary = response.choices[0].message.content
 
     # remove dislaimers & newlines
     openai_summary = openai_summary.replace("Based on the given information, it", "It")
@@ -267,11 +314,11 @@ def run_openai_summarization(data_dict):
     result = {"summary": openai_summary}
 
     if USE_PINECONE:
-        e = openai.Embedding.create(
+        e = client.embeddings.create(
             input=openai_summary,
             model=summarize_embedding_config.get("model", "text-embedding-ada-002"),
         )
-        pinecone_index = pinecone.Index(summarize_embedding_index)
+        pinecone_index = pinecone_client.Index(summarize_embedding_index)
         metadata = {}
         if z is not None:
             metadata["redshift"] = z
@@ -283,8 +330,8 @@ def run_openai_summarization(data_dict):
 
         metadata["summary"] = openai_summary
 
-        pinecone_index.upsert([(source_id, e["data"][0]["embedding"], metadata)])
-        result["embedding"] = e["data"][0]["embedding"]
+        pinecone_index.upsert([(source_id, e.data[0].embedding, metadata)])
+        result["embedding"] = e.data[0].embedding
 
     f = tempfile.NamedTemporaryFile(suffix=".joblib", prefix="results_", delete=False)
     f.close()
