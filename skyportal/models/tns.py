@@ -8,7 +8,12 @@ from sqlalchemy_utils.types import JSONType
 from sqlalchemy_utils.types.encrypted.encrypted_type import AesEngine, EncryptedType
 
 from baselayer.app.env import load_env
-from baselayer.app.models import Base
+from baselayer.app.models import (
+    Base,
+    UserAccessControl,
+    CustomUserAccessControl,
+)
+from .group import Group, GroupUser
 
 _, cfg = load_env()
 
@@ -235,4 +240,68 @@ TNSRobot.submissions = relationship(
     back_populates='tnsrobot',
     passive_deletes=True,
     doc='Auto-submissions associated with this TNSRobot.',
+)
+
+
+def tnsrobot_create_read_access_logic(cls, user_or_token):
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = sa.select(cls)
+    if not user_or_token.is_system_admin:
+        # a user should only be able to read TNSRobots that are associated with groups
+        # to which they have access
+        query = query.join(TNSRobotGroup).join(Group).join(GroupUser)
+        query = query.where(GroupUser.user_id == user_id)
+    return query
+
+
+def tnsrobot_update_delete_access_logic(cls, user_or_token):
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = sa.select(cls)
+    if not user_or_token.is_system_admin:
+        # a user should only be able to read TNSRobots that are associated with groups
+        # to which they have access, and the group is an owner of the robot
+        query = query.join(TNSRobotGroup).join(Group).join(GroupUser)
+        query = query.where(GroupUser.user_id == user_id)
+        query = query.where(TNSRobotGroup.owner.is_(True))
+    return query
+
+
+TNSRobot.read = TNSRobot.create = CustomUserAccessControl(
+    tnsrobot_create_read_access_logic
+)
+TNSRobot.update = TNSRobot.delete = CustomUserAccessControl(
+    tnsrobot_update_delete_access_logic
+)
+
+
+def tnsrobot_group_read_access_logic(cls, user_or_token):
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = sa.select(cls)
+    if not user_or_token.is_system_admin:
+        # a user should only be able to read TNSRobotGroups that are associated with groups
+        # to which they have access
+        query = query.join(Group)
+        query = query.join(GroupUser)
+        query = query.where(GroupUser.user_id == user_id)
+    return query
+
+
+def tnsrobot_group_create_update_delete_access_logic(cls, user_or_token):
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = sa.select(cls)
+    if not user_or_token.is_system_admin:
+        # a user should only be able to read TNSRobotGroups that are associated with groups
+        # to which they have access, and the group is an owner of the robot
+        query = query.join(Group)
+        query = query.join(GroupUser)
+        query = query.where(GroupUser.user_id == user_id)
+        query = query.where(TNSRobotGroup.owner.is_(True))
+    return query
+
+
+TNSRobotGroup.read = CustomUserAccessControl(tnsrobot_group_read_access_logic)
+TNSRobotGroup.create = (
+    TNSRobotGroup.update
+) = TNSRobotGroup.delete = CustomUserAccessControl(
+    tnsrobot_group_create_update_delete_access_logic
 )

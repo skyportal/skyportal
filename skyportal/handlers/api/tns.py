@@ -43,6 +43,324 @@ report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
 log = make_log('api/tns')
 
 
+def create_tns_robot(
+    data,
+    owner_group_id,
+    groups,
+    users,
+    auto_report_instrument_ids,
+    auto_report_stream_ids,
+    session,
+):
+    try:
+        tnsrobot = TNSRobot.__schema__().load(data=data)
+    except ValidationError as e:
+        raise ValueError(f'Error parsing posted tnsrobot: "{e.normalized_messages()}"')
+    session.add(tnsrobot)
+
+    # we create the TNSRobotGroup association objects
+    tnsrobot_groups = [
+        TNSRobotGroup(
+            tnsrobot_id=tnsrobot.id,
+            group_id=owner_group_id,
+            owner=True,
+            auto_report=True
+            if groups.get(owner_group_id).get('auto_report')
+            else False,
+        )
+    ] + [
+        TNSRobotGroup(
+            tnsrobot_id=tnsrobot.id,
+            group_id=group_id,
+            owner=False,
+            auto_report=True if group_value.get('auto_report') else False,
+        )
+        for group_id, group_value in groups.items()
+        if group_id != owner_group_id
+    ]
+
+    tnsrobot.groups = tnsrobot_groups
+    for tnsrobot_group in tnsrobot_groups:
+        session.add(tnsrobot_group)
+
+    tnsrobot_users = [
+        TNSRobotUser(
+            tnsrobot_id=tnsrobot.id,
+            user_id=user_id,
+            coauthor=True if users.get(user_id).get('coauthor') else False,
+            auto_report=True if users.get(user_id).get('auto_report') else False,
+        )
+        for user_id in users.keys()
+    ]
+    tnsrobot.users = tnsrobot_users
+    for tnsrobot_coauthor in tnsrobot_users:
+        session.add(tnsrobot_coauthor)
+
+    # TNS AUTO-REPORTING INSTRUMENTS: ADD/MODIFY/DELETE
+    # (it's not as important as the groups, so we re-set it fully each time)
+    if len(auto_report_instrument_ids) > 0:
+        try:
+            instrument_ids = [int(x) for x in auto_report_instrument_ids]
+            if isinstance(instrument_ids, str):
+                instrument_ids = [int(x) for x in instrument_ids.split(",")]
+            else:
+                instrument_ids = [int(x) for x in instrument_ids]
+        except ValueError:
+            raise ValueError(
+                'instrument_ids must be a comma-separated list of integers'
+            )
+        instrument_ids = list(set(instrument_ids))
+        instruments = session.scalars(
+            Instrument.select(session.user_or_token).where(
+                Instrument.id.in_(instrument_ids)
+            )
+        ).all()
+        if len(instruments) != len(instrument_ids):
+            raise ValueError(f'One or more instruments not found: {instrument_ids}')
+        for instrument in instruments:
+            if instrument.name.lower() not in TNS_INSTRUMENT_IDS:
+                raise ValueError(
+                    f'Instrument {instrument.name} not supported for TNS reporting'
+                )
+        tnsrobot.auto_report_instruments = instruments
+
+    # TNS AUTO-REPORTING STREAMS: ADD/MODIFY/DELETE
+    # (it's not as important as the groups, so we re-set it fully each time)
+    if len(auto_report_stream_ids) > 0:
+        try:
+            stream_ids = [int(x) for x in auto_report_stream_ids]
+            if isinstance(stream_ids, str):
+                stream_ids = [int(x) for x in stream_ids.split(",")]
+            else:
+                stream_ids = [int(x) for x in stream_ids]
+        except ValueError:
+            raise ValueError('stream_ids must be a comma-separated list of integers')
+        stream_ids = list(set(stream_ids))
+        streams = session.scalars(
+            Stream.select(session.user_or_token).where(Stream.id.in_(stream_ids))
+        ).all()
+        if len(streams) != len(stream_ids):
+            raise ValueError(f'One or more streams not found: {stream_ids}')
+        tnsrobot.auto_report_streams = streams
+
+    session.commit()
+    return tnsrobot.id
+
+
+def update_tns_robot(
+    data,
+    existing_id,
+    owner_group_id,
+    groups,
+    users,
+    remove_group_ids,
+    remove_user_ids,
+    auto_report_instrument_ids,
+    auto_report_stream_ids,
+    session,
+):
+    tnsrobot = session.scalar(
+        TNSRobot.select(session.user_or_token, mode="update").where(
+            TNSRobot.id == existing_id
+        )
+    )
+    if tnsrobot is None:
+        raise ValueError(
+            f'No TNS robot with specified ID: {existing_id}, or you are not authorized to update it'
+        )
+    if 'bot_name' in data:
+        tnsrobot.bot_name = data['bot_name']
+    if 'bot_id' in data:
+        tnsrobot.bot_id = data['bot_id']
+    if 'source_group_id' in data:
+        tnsrobot.source_group_id = data['source_group_id']
+    if '_altdata' in data:
+        tnsrobot._altdata = data['_altdata']
+    if 'acknowledgments' in data and data.get('acknowledgments', None) not in [
+        None,
+        '',
+    ]:
+        tnsrobot.acknowledgments = data['acknowledgments']
+
+    # TNS GROUP ASSOCIATIONS: ADD/MODIFY/DELETE
+    existing_owner_group = [x.group_id for x in tnsrobot.groups if x.owner]
+    if len(existing_owner_group) == 0:
+        # if there are no owner groups, make sure to add the new owner group to the groups list
+        existing_owner_group_id = None
+        if owner_group_id not in groups:
+            groups[owner_group_id] = {'auto_report': False}
+    else:
+        existing_owner_group_id = existing_owner_group[0]
+        # if there is one owner group, make sure it is in the groups list
+        # in case we want to change its settings or its owner status
+        if owner_group_id != existing_owner_group_id:
+            if existing_owner_group_id not in groups:
+                groups[existing_owner_group_id] = {
+                    'auto_report': existing_owner_group[0].auto_report
+                }
+
+    existing_group_ids = {x.group_id for x in tnsrobot.groups}
+    remove_group_ids = set(remove_group_ids).intersection(existing_group_ids)
+    add_group_ids = set(list(groups.keys())).difference(
+        existing_group_ids, remove_group_ids, {existing_owner_group_id}
+    )
+    modify_group_ids = (
+        set(list(groups.keys()))
+        .intersection(existing_group_ids)
+        .difference(add_group_ids, remove_group_ids)
+    )
+
+    # convert everything back to lists
+    existing_group_ids = list(existing_group_ids)
+    remove_group_ids = list(remove_group_ids)
+    add_group_ids = list(add_group_ids)
+    modify_group_ids = list(modify_group_ids)
+
+    # remove TNS robot group associations if necessary
+    if len(remove_group_ids) > 0:
+        for group_id in remove_group_ids:
+            tnsrobot_group = session.scalar(
+                TNSRobotGroup.select(session.user_or_token, mode="delete").where(
+                    TNSRobotGroup.group_id == group_id,
+                    TNSRobotGroup.tnsrobot_id == tnsrobot.id,
+                )
+            )
+            session.delete(tnsrobot_group)
+        existing_group_ids = list(
+            set(existing_group_ids).difference(set(remove_group_ids))
+        )
+
+    # add TNS robot group associations if necessary
+    if len(add_group_ids) > 0:
+        for group_id in add_group_ids:
+            tnsrobot_group = TNSRobotGroup(
+                tnsrobot_id=tnsrobot.id,
+                group_id=group_id,
+                owner=True if group_id == owner_group_id else False,
+                auto_report=True if groups.get(group_id).get('auto_report') else False,
+            )
+            session.add(tnsrobot_group)
+
+    if len(modify_group_ids) > 0:
+        for group_id in modify_group_ids:
+            tnsrobot_group = session.scalar(
+                TNSRobotGroup.select(session.user_or_token, mode="update").where(
+                    TNSRobotGroup.group_id == group_id,
+                    TNSRobotGroup.tnsrobot_id == tnsrobot.id,
+                )
+            )
+            tnsrobot_group.owner = True if group_id == owner_group_id else False
+            tnsrobot_group.auto_report = (
+                True if groups.get(group_id).get('auto_report') else False
+            )
+            session.add(tnsrobot_group)
+
+    # TNS CO-AUTHORS: ADD/MODIFY/DELETE
+    existing_user_ids = [x.user_id for x in tnsrobot.users]
+    remove_user_ids = list(set(remove_user_ids).intersection(set(existing_user_ids)))
+    add_user_ids = list(
+        set(list(users.keys()))
+        .difference(set(existing_user_ids))
+        .difference(set(remove_user_ids))
+    )
+    modify_user_ids = list(
+        set(list(users.keys()))
+        .intersection(set(existing_user_ids))
+        .difference(set(add_user_ids))
+        .difference(set(remove_user_ids))
+    )
+
+    # remove TNS co-author associations if necessary
+    if len(remove_user_ids) > 0:
+        for user_id in remove_user_ids:
+            tnsrobot_coauthor = session.scalar(
+                TNSRobotUser.select(session.user_or_token, mode="delete").where(
+                    TNSRobotUser.user_id == user_id,
+                    TNSRobotUser.tnsrobot_id == tnsrobot.id,
+                )
+            )
+            session.delete(tnsrobot_coauthor)
+        existing_user_ids = list(
+            set(existing_user_ids).difference(set(remove_user_ids))
+        )
+
+    if len(add_user_ids) > 0:
+        for user_id in add_user_ids:
+            tnsrobot_coauthor = TNSRobotUser(
+                tnsrobot_id=tnsrobot.id,
+                user_id=user_id,
+                coauthor=True if users.get(user_id).get('coauthor') else False,
+                auto_report=True if users.get(user_id).get('auto_report') else False,
+            )
+            session.add(tnsrobot_coauthor)
+
+    if len(modify_user_ids) > 0:
+        for user_id in modify_user_ids:
+            tnsrobot_coauthor = session.scalar(
+                TNSRobotUser.select(session.user_or_token, mode="update").where(
+                    TNSRobotUser.user_id == user_id,
+                    TNSRobotUser.tnsrobot_id == tnsrobot.id,
+                )
+            )
+            tnsrobot_coauthor.coauthor = (
+                True if users.get(user_id).get('coauthor') else False
+            )
+            tnsrobot_coauthor.auto_report = (
+                True if users.get(user_id).get('auto_report') else False
+            )
+            session.add(tnsrobot_coauthor)
+
+    # TNS AUTO-REPORTING INSTRUMENTS: ADD/MODIFY/DELETE
+    # (it's not as important as the groups, so we re-set it fully each time)
+    if len(auto_report_instrument_ids) > 0:
+        try:
+            instrument_ids = [int(x) for x in auto_report_instrument_ids]
+            if isinstance(instrument_ids, str):
+                instrument_ids = [int(x) for x in instrument_ids.split(",")]
+            else:
+                instrument_ids = [int(x) for x in instrument_ids]
+        except ValueError:
+            raise ValueError(
+                'instrument_ids must be a comma-separated list of integers'
+            )
+        instrument_ids = list(set(instrument_ids))
+        instruments = session.scalars(
+            Instrument.select(session.user_or_token).where(
+                Instrument.id.in_(instrument_ids)
+            )
+        ).all()
+        if len(instruments) != len(instrument_ids):
+            raise ValueError(f'One or more instruments not found: {instrument_ids}')
+        for instrument in instruments:
+            if instrument.name.lower() not in TNS_INSTRUMENT_IDS:
+                raise ValueError(
+                    f'Instrument {instrument.name} not supported for TNS reporting'
+                )
+        tnsrobot.auto_report_instruments = instruments
+
+    # TNS AUTO-REPORTING STREAMS: ADD/MODIFY/DELETE
+    # (it's not as important as the groups, so we re-set it fully each time)
+    if len(auto_report_stream_ids) > 0:
+        try:
+            stream_ids = [int(x) for x in auto_report_stream_ids]
+            if isinstance(stream_ids, str):
+                stream_ids = [int(x) for x in stream_ids.split(",")]
+            else:
+                stream_ids = [int(x) for x in stream_ids]
+        except ValueError:
+            raise ValueError('stream_ids must be a comma-separated list of integers')
+        stream_ids = list(set(stream_ids))
+        streams = session.scalars(
+            Stream.select(session.user_or_token).where(Stream.id.in_(stream_ids))
+        ).all()
+        if len(streams) != len(stream_ids):
+            raise ValueError(f'One or more streams not found: {stream_ids}')
+        tnsrobot.auto_report_streams = streams
+
+    session.commit()
+    return tnsrobot.id
+
+
 class TNSRobotHandler(BaseHandler):
     @permissions(['Manage TNS robots'])
     def put(self, existing_id=None):
@@ -127,314 +445,48 @@ class TNSRobotHandler(BaseHandler):
                             f'A TNS robot with the same bot_id, bot_name, and source_group_id already exists with id: {existing_tnsrobot.id} (owned by group_id: {owner_group_id}), specify the ID to update it'
                         )
 
-                # UPDATE TNS ROBOT INFO
-                if existing_id:
-                    tnsrobot = session.scalar(
-                        TNSRobot.select(session.user_or_token, mode="update").where(
-                            TNSRobot.id == existing_id
-                        )
-                    )
-                    if tnsrobot is None:
-                        return self.error(
-                            f'No TNS robot with specified ID: {existing_id}, or you are not authorized to update it'
-                        )
-                    print(f'Updating TNSRobot with ID {existing_id}')
-                    if 'bot_name' in data:
-                        tnsrobot.bot_name = data['bot_name']
-                    if 'bot_id' in data:
-                        tnsrobot.bot_id = data['bot_id']
-                    if 'source_group_id' in data:
-                        tnsrobot.source_group_id = data['source_group_id']
-                    if '_altdata' in data:
-                        tnsrobot._altdata = data['_altdata']
-                    if 'acknowledgments' in data and data.get(
-                        'acknowledgments', None
-                    ) not in [None, '']:
-                        tnsrobot.acknowledgments = data['acknowledgments']
-
-                # CREATE NEW TNS ROBOT
-                else:
-                    print('Creating new TNSRobot')
+                if not existing_id:
                     try:
-                        tnsrobot = TNSRobot.__schema__().load(data=data)
-                    except ValidationError as e:
-                        return self.error(
-                            f'Error parsing posted tnsrobot: "{e.normalized_messages()}"'
+                        id = create_tns_robot(
+                            data,
+                            owner_group_id,
+                            groups,
+                            users,
+                            auto_report_instrument_ids,
+                            auto_report_stream_ids,
+                            session,
                         )
-                    session.add(tnsrobot)
-
-                # TNS GROUP ASSOCIATIONS: ADD/MODIFY/DELETE
-                if existing_id:
-                    existing_owner_group_id = [
-                        x.group_id for x in tnsrobot.groups if x.owner
-                    ][0]
-                    existing_group_ids = list({x.group_id for x in tnsrobot.groups})
-                    remove_group_ids = list(
-                        set(remove_group_ids).difference(set(existing_group_ids))
-                    )
-                    add_group_ids = list(
-                        set(list(groups.keys()))
-                        .difference(set(existing_group_ids))
-                        .difference(set(remove_group_ids))
-                    )
-                    modify_group_ids = list(
-                        set(list(groups.keys()))
-                        .intersection(set(existing_group_ids))
-                        .difference(set(add_group_ids))
-                        .difference(set(remove_group_ids))
-                    )
-                    print(f'existing_owner_group_id: {existing_owner_group_id}')
-                    print(f'existing_group_ids: {existing_group_ids}')
-                    print(f'remove_group_ids: {remove_group_ids}')
-                    print(f'add_group_ids: {add_group_ids}')
-                    print(f'modify_group_ids: {modify_group_ids}')
-
-                    # if the owner group has changed, we add the old owner group to the modify_group_ids list
-                    if owner_group_id != existing_owner_group_id:
-                        modify_group_ids.append(existing_owner_group_id)
-                        if existing_owner_group_id not in groups:
-                            groups[existing_owner_group_id] = {'auto_report': False}
-                    # if it's the same but the auto_report has changed, we add it to the modify_group_ids list
-                    elif owner_group_id in groups:
-                        if (
-                            groups.get(owner_group_id).get('auto_report')
-                            != [
-                                x.auto_report
-                                for x in tnsrobot.groups
-                                if x.group_id == owner_group_id
-                            ][0]
-                        ):
-                            modify_group_ids.append(owner_group_id)
-
-                    # remove TNS robot group associations if necessary
-                    if len(remove_group_ids) > 0:
-                        for group_id in remove_group_ids:
-                            tnsrobot_group = session.scalar(
-                                TNSRobotGroup.select(
-                                    session.user_or_token, mode="delete"
-                                ).where(
-                                    TNSRobotGroup.group_id == group_id,
-                                    TNSRobotGroup.tnsrobot_id == tnsrobot.id,
-                                )
-                            )
-                            session.delete(tnsrobot_group)
-                        existing_group_ids = list(
-                            set(existing_group_ids).difference(set(remove_group_ids))
+                        self.push(
+                            action='skyportal/REFRESH_TNSROBOTS',
                         )
-
-                    # add TNS robot group associations if necessary
-                    if len(add_group_ids) > 0:
-                        tnsrobot_groups = [
-                            TNSRobotGroup(
-                                tnsrobot=tnsrobot,
-                                group_id=group_id,
-                                owner=True if group_id == owner_group_id else False,
-                                auto_report=True
-                                if groups.get(group_id).get('auto_report')
-                                else False,
-                            )
-                            for group_id in groups
-                        ]
-                        tnsrobot.groups = tnsrobot_groups
-                        for tnsrobot_group in tnsrobot_groups:
-                            session.add(tnsrobot_group)
-
-                    # modify TNS robot group associations if necessary
-                    if len(modify_group_ids) > 0:
-                        for group_id in modify_group_ids:
-                            tnsrobot_group = session.scalar(
-                                TNSRobotGroup.select(
-                                    session.user_or_token, mode="update"
-                                ).where(
-                                    TNSRobotGroup.group_id == group_id,
-                                    TNSRobotGroup.tnsrobot_id == tnsrobot.id,
-                                )
-                            )
-                            tnsrobot_group.owner = (
-                                True if group_id == owner_group_id else False
-                            )
-                            tnsrobot_group.auto_report = (
-                                True
-                                if groups.get(group_id).get('auto_report')
-                                else False
-                            )
-                            session.add(tnsrobot_group)
-
+                        return self.success(data={"id": id})
+                    except Exception as e:
+                        traceback.print_exc()
+                        return self.error(f'Failed to create TNS robot: {e}')
                 else:
-                    # we create the TNSRobotGroup association objects
-                    tnsrobot_groups = [
-                        TNSRobotGroup(
-                            tnsrobot=tnsrobot,
-                            group_id=owner_group_id,
-                            owner=True,
-                            auto_report=True
-                            if groups.get(owner_group_id).get('auto_report')
-                            else False,
-                        )
-                    ] + [
-                        TNSRobotGroup(
-                            tnsrobot=tnsrobot,
-                            group_id=group_id,
-                            owner=False,
-                            auto_report=True
-                            if group_value.get('auto_report')
-                            else False,
-                        )
-                        for group_id, group_value in groups.items()
-                        if group_id != owner_group_id
-                    ]
-
-                    tnsrobot.groups = tnsrobot_groups
-                    for tnsrobot_group in tnsrobot_groups:
-                        session.add(tnsrobot_group)
-
-                # TNS CO-AUTHORS: ADD/MODIFY/DELETE
-                if existing_id:
-                    existing_user_ids = [x.user_id for x in tnsrobot.users]
-                    remove_user_ids = list(
-                        set(remove_user_ids).difference(set(existing_user_ids))
-                    )
-                    add_user_ids = list(
-                        set(list(users.keys()))
-                        .difference(set(existing_user_ids))
-                        .difference(set(remove_user_ids))
-                    )
-                    modify_user_ids = list(
-                        set(list(users.keys()))
-                        .intersection(set(existing_user_ids))
-                        .difference(set(add_user_ids))
-                        .difference(set(remove_user_ids))
-                    )
-
-                    # remove TNS co-author associations if necessary
-                    if len(remove_user_ids) > 0:
-                        for user_id in remove_user_ids:
-                            tnsrobot_coauthor = session.scalar(
-                                TNSRobotUser.select(
-                                    session.user_or_token, mode="delete"
-                                ).where(
-                                    TNSRobotUser.user_id == user_id,
-                                    TNSRobotUser.tnsrobot_id == tnsrobot.id,
-                                )
-                            )
-                            session.delete(tnsrobot_coauthor)
-                        existing_user_ids = list(
-                            set(existing_user_ids).difference(set(remove_user_ids))
-                        )
-
-                    if len(add_user_ids) > 0:
-                        for user_id in add_user_ids:
-                            tnsrobot_coauthor = TNSRobotUser(
-                                tnsrobot=tnsrobot,
-                                user_id=user_id,
-                                coauthor=True
-                                if users.get(user_id).get('coauthor')
-                                else False,
-                                auto_report=True
-                                if users.get(user_id).get('auto_report')
-                                else False,
-                            )
-                            session.add(tnsrobot_coauthor)
-
-                    if len(modify_user_ids) > 0:
-                        for user_id in modify_user_ids:
-                            tnsrobot_coauthor = session.scalar(
-                                TNSRobotUser.select(
-                                    session.user_or_token, mode="update"
-                                ).where(
-                                    TNSRobotUser.user_id == user_id,
-                                    TNSRobotUser.tnsrobot_id == tnsrobot.id,
-                                )
-                            )
-                            tnsrobot_coauthor.coauthor = (
-                                True if users.get(user_id).get('coauthor') else False
-                            )
-                            tnsrobot_coauthor.auto_report = (
-                                True if users.get(user_id).get('auto_report') else False
-                            )
-                            session.add(tnsrobot_coauthor)
-
-                else:
-                    tnsrobot_users = [
-                        TNSRobotUser(
-                            tnsrobot=tnsrobot,
-                            user_id=user_id,
-                            coauthor=True
-                            if users.get(user_id).get('coauthor')
-                            else False,
-                            auto_report=True
-                            if users.get(user_id).get('auto_report')
-                            else False,
-                        )
-                        for user_id in users.keys()
-                    ]
-                    tnsrobot.users = tnsrobot_users
-                    for tnsrobot_coauthor in tnsrobot_users:
-                        session.add(tnsrobot_coauthor)
-
-                # TNS AUTO-REPORTING INSTRUMENTS: ADD/MODIFY/DELETE
-                # (it's not as important as the groups, so we re-set it fully each time)
-                if len(auto_report_instrument_ids) > 0:
                     try:
-                        instrument_ids = [int(x) for x in auto_report_instrument_ids]
-                        if isinstance(instrument_ids, str):
-                            instrument_ids = [int(x) for x in instrument_ids.split(",")]
-                        else:
-                            instrument_ids = [int(x) for x in instrument_ids]
-                    except ValueError:
-                        return self.error(
-                            'instrument_ids must be a comma-separated list of integers'
+                        id = update_tns_robot(
+                            data,
+                            existing_id,
+                            owner_group_id,
+                            groups,
+                            users,
+                            remove_group_ids,
+                            remove_user_ids,
+                            auto_report_instrument_ids,
+                            auto_report_stream_ids,
+                            session,
                         )
-                    instrument_ids = list(set(instrument_ids))
-                    instruments = session.scalars(
-                        Instrument.select(session.user_or_token).where(
-                            Instrument.id.in_(instrument_ids)
+                        self.push(
+                            action='skyportal/REFRESH_TNSROBOTS',
                         )
-                    ).all()
-                    if len(instruments) != len(instrument_ids):
-                        return self.error(
-                            f'One or more instruments not found: {instrument_ids}'
-                        )
-                    for instrument in instruments:
-                        if instrument.name.lower() not in TNS_INSTRUMENT_IDS:
-                            return self.error(
-                                f'Instrument {instrument.name} not supported for TNS reporting'
-                            )
-                    tnsrobot.auto_report_instruments = instruments
-
-                # TNS AUTO-REPORTING STREAMS: ADD/MODIFY/DELETE
-                # (it's not as important as the groups, so we re-set it fully each time)
-                if len(auto_report_stream_ids) > 0:
-                    try:
-                        stream_ids = [int(x) for x in auto_report_stream_ids]
-                        if isinstance(stream_ids, str):
-                            stream_ids = [int(x) for x in stream_ids.split(",")]
-                        else:
-                            stream_ids = [int(x) for x in stream_ids]
-                    except ValueError:
-                        return self.error(
-                            'stream_ids must be a comma-separated list of integers'
-                        )
-                    stream_ids = list(set(stream_ids))
-                    streams = session.scalars(
-                        Stream.select(session.user_or_token).where(
-                            Stream.id.in_(stream_ids)
-                        )
-                    ).all()
-                    if len(streams) != len(stream_ids):
-                        return self.error(
-                            f'One or more streams not found: {stream_ids}'
-                        )
-                    tnsrobot.auto_report_streams = streams
-
-                session.commit()
-                self.push(
-                    action='skyportal/REFRESH_TNSROBOTS',
-                )
-                return self.success(data={"id": tnsrobot.id})
+                        return self.success(data={"id": id})
+                    except Exception as e:
+                        traceback.print_exc()
+                        return self.error(f'Failed to update TNS robot: {e}')
         except Exception as e:
             traceback.print_exc()
-            return self.error(f'Failed to create TNS robot: {e}')
+            return self.error(f'Failed to create/update TNS robot: {e}')
 
     @auth_or_token
     def get(self, tnsrobot_id=None):
@@ -461,7 +513,7 @@ class TNSRobotHandler(BaseHandler):
         """
 
         with self.Session() as session:
-            stmt = TNSRobot.select(session.user_or_token).options(
+            stmt = TNSRobot.select(session.user_or_token, mode="read").options(
                 joinedload(TNSRobot.groups), joinedload(TNSRobot.users)
             )
             if tnsrobot_id is not None:
