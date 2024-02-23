@@ -84,8 +84,19 @@ def upgrade():
         unique=False,
     )
     op.add_column(
-        'tnsrobots', sa.Column('acknowledgments', sa.String(), nullable=False)
+        'tnsrobots',
+        sa.Column('acknowledgments', sa.String(), nullable=False, server_default=""),
     )
+    # we set the default value to '' because the value is not nullable, then we replace it with
+    # the current auto_reporters value because we are removing the column, but they're equivalent
+    # so we can just copy the value, unless auto_reporters is null, in which case we set it to ''
+    op.execute(
+        """
+        UPDATE tnsrobots
+        SET acknowledgments = COALESCE(auto_reporters, '')
+        """
+    )
+
     # we don't want the existing TNSrobots to have no owner group because we are removing the group_id column
     # so, we create entries in the tnsrobots_groups table for the current owner groups, with owner=True and auto_report=False
     op.execute(
