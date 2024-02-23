@@ -287,7 +287,6 @@ const SourceContent = ({ source }) => {
   const photometry = useSelector((state) => state.photometry[source.id]);
   const spectra = useSelector((state) => state.spectra)[source.id];
   const associatedGCNs = useSelector((state) => state.source.associatedGCNs);
-  const image_analysis = useSelector((state) => state.config.image_analysis);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments,
@@ -1290,15 +1289,6 @@ const SourceContent = ({ source }) => {
                       <Button secondary>Periodogram Analysis</Button>
                     </Link>
                   )}
-                  {currentUser?.permissions?.includes("Upload data") &&
-                    image_analysis && (
-                      <Link
-                        to={`/source/${source.id}/image_analysis`}
-                        role="link"
-                      >
-                        <Button variant="contained">Image Analysis</Button>
-                      </Link>
-                    )}
                 </div>
               </Grid>
             </AccordionDetails>
