@@ -55,6 +55,13 @@ Using Homebrew, install core dependencies:
 ```
 brew install supervisor nginx postgresql node llvm libomp gsl rust
 ```
+If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command:
+```
+brew tap denji/nginx && brew install nginx-full --with-brotli
+```
+
+ _If you already had NGINX installed, you may need to uninstall it first with `brew unlink nginx`._ Otherwise, you can install NGINX normally with `brew install nginx`.
+
 Then, install Node.js with NVM:
 ```
 nvm install node
@@ -65,7 +72,6 @@ brew install hdf5 c-blosc lzo bzip2
 ```
 After installing each package, Homebrew will print out the installation paths. You should add these paths to your `.zshrc` file to ensure SkyPortal can locate these libraries. Instructions for this can be found in the [Configuring Shell Environment for Development](#configure-shell-mac) section below.
 
-If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command: `brew tap denji/nginx && brew install nginx-full --with-brotli`. _If you already had NGINX installed, you may need to uninstall it first with `brew unlink nginx`._ Otherwise, you can install NGINX normally with `brew install nginx`.
 
 2. Start the PostgreSQL server:
 
