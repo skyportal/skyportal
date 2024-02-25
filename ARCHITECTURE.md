@@ -15,7 +15,9 @@ The SkyPortal front-end uses React, a component-based UI library, in conjunction
 
 Each component definition typically goes in its own file in `static/js/components`.
 
-We bundle all of our Redux-related code (action types, action creators, reducer) associated with a particular branch of the application state together in a file in the `static/js/ducks` directory ([read more about "ducks" modules here](https://github.com/erikras/ducks-modular-redux)).
+SkyPortal bundles all Redux-related code (action types, action creators, reducer) associated with a particular branch of the application state together in a file in the `static/js/ducks` directory ([read more about "ducks" modules here](https://github.com/erikras/ducks-modular-redux)).
+
+SkyPortal hydrates new tabs using the redux state of previous tabs to minimize redundant interactions with the server.
 
 ## Back-end
 
@@ -45,10 +47,14 @@ from baselayer.app.access import permissions
 @permissions(["System admin"])
 ```
 
+## Microservices
+
+SkyPortal uses a microservice architecture managed with supervisord, which allows for running multiple instances of the application in parallel to ensure availability and reduce downtime. Moreover, we can add microservices to run background operations continuously. This is used to run the application, as well as the database migration manager, the webpack builder, websocket server, cron jobs, external logging, and nginx. It is also used when adding computationally expensive or long-running features such as the ingestion of GCN events with low latency, processing of observation plans, sending notifications and reminders, and programming recurrent API calls. These services and others can be found in the directory `services/`.
+
 ## Testing
 
 SkyPortal has a test suite, which appear in the directory `skyportal/tests`. They are generally broken down into front-end and back-end, however, there is also a `flaky` directory for tests that do not always pass, such as those with external interactions. The [developer guide](./doc/dev.md) contains more information on test infrastructure.
 
 ## Plotting
 
-SkyPortal uses [plotly](https://github.com/plotly/plotly.py) for interactive plotting. Examples include the photometry plot (in `/components/PhotometryPlot.jsx`) and spectroscopy plot (in `/components/SpectraPlot.jsx`).
+SkyPortal uses [plotly](https://github.com/plotly/plotly.py) for interactive plotting. Examples include the photometry plot (in `/components/PhotometryPlot.jsx`) and spectroscopy plot (in `/components/SpectraPlot.jsx`). [Vega-lite](https://vega.github.io/) is used for simple, lightweight plots requiring minimal customization and fast render times, such as for the photometry plot on the candidates page (in `static/js/components/VegaPhotometry.jsx`).
