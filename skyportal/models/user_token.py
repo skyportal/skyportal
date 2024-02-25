@@ -423,12 +423,7 @@ User.sources = relationship(
     doc='The Sources accessible to this User.',
     viewonly=True,
 )
-User.tnsrobots = relationship(
-    'TNSRobotUser',
-    back_populates='user',
-    passive_deletes=True,
-    doc='The TNSRobots this user can use, as a coauthor and/or to auto-report.',
-)
+
 User.tns_submissions = relationship(
     'TNSRobotSubmission',
     back_populates='user',

@@ -18,10 +18,11 @@ from skyportal.models import (
     Instrument,
     Photometry,
     TNSRobot,
+    TNSRobotGroupAutoreporter,
     TNSRobotSubmission,
-    TNSRobotGroup,
     User,
     Source,
+    GroupUser,
 )
 from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
@@ -77,37 +78,17 @@ def service(*args, **kwargs):
                     session.commit()
                     continue
 
-                tns_robot = session.scalar(
+                tnsrobot = session.scalar(
                     TNSRobot.select(user).where(TNSRobot.id == tnsrobot_id)
                 )
-                if tns_robot is None:
+                if tnsrobot is None:
                     error_msg = f'No TNSRobot found with ID {tnsrobot_id} or user {user_id} does not have access to it.'
                     log(error_msg)
                     submission_request.status = f'error: {error_msg}'
                     session.commit()
                     continue
 
-                # verify that the user is allowed to submit to TNS with this robot
-                if user_id not in [tns_user.user_id for tns_user in tns_robot.users]:
-                    error_msg = f'User {user_id} is not allowed to submit to TNS with TNSRobot {tnsrobot_id}.'
-                    log(error_msg)
-                    submission_request.status = f'error: {error_msg}'
-                    session.commit()
-                    continue
-
-                # if this is an auto_submission, we need to check if the user is allowed to auto-submit
-                if submission_request.auto_submission and user_id not in [
-                    tns_user.user_id
-                    for tns_user in tns_robot.users
-                    if tns_user.auto_report
-                ]:
-                    error_msg = f'This is an auto-submission and user {user_id} is not allowed to auto-submit to TNS with TNSRobot {tnsrobot_id}.'
-                    log(error_msg)
-                    submission_request.status = f'error: {error_msg}'
-                    session.commit()
-                    continue
-
-                altdata = tns_robot.altdata
+                altdata = tnsrobot.altdata
                 if not altdata or 'api_key' not in altdata:
                     error_msg = f'No TNS API key found for TNSRobot {tnsrobot_id}.'
                     log(error_msg)
@@ -115,8 +96,69 @@ def service(*args, **kwargs):
                     session.commit()
                     continue
 
+                # verify that the user is allowed to submit to TNS with this robot
+                # for that, verify that there is a TNSRobotGroup which group_id is in the list of groups the user has access to
+                tnsrobot_groups = tnsrobot.groups
+                user_accessible_group_ids = [
+                    group_user.group_id for group_user in user.accessible_groups
+                ]
+                tnsrobot_groups = [
+                    tnsrobot_group
+                    for tnsrobot_group in tnsrobot_groups
+                    if tnsrobot_group.group_id in user_accessible_group_ids
+                ]
+
+                if len(tnsrobot_groups) == 0:
+                    error_msg = f'User {user_id} does not have access to any group with TNSRobot {tnsrobot_id}.'
+                    log(error_msg)
+                    submission_request.status = f'error: {error_msg}'
+                    session.commit()
+                    continue
+
+                # if this is an auto_submission, we need to check if the group has auto-report enabled
+                # and if the user is an auto-reporter for that group
+                if submission_request.auto_submission:
+                    tnsrobot_group = [
+                        tnsrobot_group
+                        for tnsrobot_group in tnsrobot_groups
+                        if tnsrobot_group.auto_report is True
+                    ]
+                    if len(tnsrobot_group) == 0:
+                        error_msg = (
+                            f'No group with TNSRobot {tnsrobot_id} set to auto-report.'
+                        )
+                        log(error_msg)
+                        submission_request.status = f'error: {error_msg}'
+                        session.commit()
+                        continue
+
+                    # we filter out the groups that this user is not an auto-reporter for
+                    tnsrobot_group = [
+                        tnsrobot_group
+                        for tnsrobot_group in tnsrobot_group
+                        if session.scalar(
+                            sa.select(TNSRobotGroupAutoreporter).where(
+                                TNSRobotGroupAutoreporter.tnsrobot_group_id
+                                == tnsrobot_group.id,
+                                TNSRobotGroupAutoreporter.group_user_id.in_(
+                                    sa.select(GroupUser.id).where(
+                                        GroupUser.user_id == user_id,
+                                        GroupUser.group_id == tnsrobot_group.group_id,
+                                    )
+                                ),
+                            )
+                        )
+                    ]
+
+                    if len(tnsrobot_group) == 0:
+                        error_msg = f'User {user_id} is not an auto-reporter for any group with TNSRobot {tnsrobot_id} set to auto-report.'
+                        log(error_msg)
+                        submission_request.status = f'error: {error_msg}'
+                        session.commit()
+                        continue
+
                 tns_headers = {
-                    'User-Agent': f'tns_marker{{"tns_id":{tns_robot.bot_id},"type":"bot", "name":"{tns_robot.bot_name}"}}'
+                    'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
                 }
 
                 _, existing_tns_name = get_IAUname(
@@ -131,34 +173,24 @@ def service(*args, **kwargs):
                     session.commit()
                     continue
 
-                # we look for the first group that has the robot, set to auto-report,
-                # and that this object was first saved to as a source
-                tnsrobot_group = session.scalar(
-                    sa.select(TNSRobotGroup)
-                    .join(Source, Source.group_id == TNSRobotGroup.group_id)
-                    .where(TNSRobotGroup.tnsrobot_id == tnsrobot_id)
-                    .where(TNSRobotGroup.auto_report.is_(True))
-                    .where(Source.active.is_(True))
-                    .order_by(Source.created_at.asc())
-                    .limit(1)
-                )
-                if tnsrobot_group is None:
-                    error_msg = f'No group with TNSRobot {tnsrobot_id} set to auto-report and with {obj_id} saved to it.'
-                    log(error_msg)
-                    submission_request.status = f'error: {error_msg}'
-                    session.commit()
-                    continue
+                # fetch the first source saved with this obj_id and to any of group with this tnsrobot
                 source = session.scalar(
-                    sa.select(Source).where(
+                    sa.select(Source)
+                    .where(
                         Source.obj_id == obj_id,
                         Source.active.is_(True),
-                        Source.group_id == tnsrobot_group.group_id,
+                        Source.group_id.in_(
+                            [
+                                tnsrobot_group.group_id
+                                for tnsrobot_group in tnsrobot_groups
+                            ]
+                        ),
                     )
+                    .order_by(Source.created_at.asc())
                 )
+
                 if source is None:
-                    error_msg = (
-                        f'No source {obj_id} saved to group {tnsrobot_group.group_id}.'
-                    )
+                    error_msg = f'No source {obj_id} saved to any group with TNSRobot {tnsrobot_id}.'
                     log(error_msg)
                     submission_request.status = f'error: {error_msg}'
                     session.commit()
@@ -167,26 +199,15 @@ def service(*args, **kwargs):
                 if submission_request.custom_reporting_string not in [None, ""]:
                     reporters = submission_request.custom_reporting_string
                 else:
-                    # unless a specific reporting string is provided for this request
-                    # we find which user saved the obj to that group and use their name
-                    # and first affiliations as main author of the report
-                    # if the user that first saved the obj to a group of that tnsrobot is not
-                    # the same user that is submitting the report, we add the user that is submitting
-                    # as the second author
+                    # if the user that first ever saved this source to a group that have access to this
+                    # tnsrobot is not the user that is submitting, we make them the first author
+                    # and the submitter the second author
                     author_ids = []
-                    if source.saved_by_id != user_id and source.saved_by_id in [
-                        tns_user.user_id for tns_user in tns_robot.users
-                    ]:
+                    if source.saved_by_id is not None and source.saved_by_id != user_id:
                         author_ids.append(source.saved_by_id)
                     author_ids.append(user_id)
-                    coauthor_ids = [
-                        coauthor.user_id
-                        for coauthor in [
-                            tns_user
-                            for tns_user in tns_robot.users
-                            if tns_user.coauthor
-                        ]
-                    ]
+
+                    coauthor_ids = [coauthor.user_id for coauthor in tnsrobot.coauthors]
                     author_ids = list(set(author_ids + coauthor_ids))
                     authors = (
                         session.scalars(sa.select(User).where(User.id.in_(author_ids)))
@@ -212,13 +233,13 @@ def service(*args, **kwargs):
                             for author in authors
                         ]
                     )
-                    if tns_robot.acknowledgments in [None, ""]:
+                    if tnsrobot.acknowledgments in [None, ""]:
                         error_msg = f'No acknowledgments found for tnsrobot {tnsrobot_id}, cannot report {obj_id} to TNS.'
                         log(error_msg)
                         submission_request.status = f'error: {error_msg}'
                         session.commit()
                         continue
-                    reporters += f' {tns_robot.acknowledgments}'
+                    reporters += f' {str(tnsrobot.acknowledgments).strip()}'
 
                 archival = submission_request.archival
                 archival_comment = submission_request.archival_comment
@@ -243,10 +264,10 @@ def service(*args, **kwargs):
                     )
 
                 instrument_ids = [
-                    instrument.id for instrument in tns_robot.auto_report_instruments
+                    instrument.id for instrument in tnsrobot.auto_report_instruments
                 ]  # noqa: E841
                 stream_ids = [
-                    stream.id for stream in tns_robot.auto_report_streams
+                    stream.id for stream in tnsrobot.auto_report_streams
                 ]  # noqa: E841
 
                 # keep the instruments from all_tns_instruments that are in the list of instruments this robot is set to auto-report

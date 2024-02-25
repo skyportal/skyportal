@@ -1,4 +1,10 @@
-__all__ = ['TNSRobot', 'TNSRobotUser', 'TNSRobotGroup', 'TNSRobotSubmission']
+__all__ = [
+    'TNSRobot',
+    'TNSRobotCoauthor',
+    'TNSRobotGroup',
+    'TNSRobotGroupAutoreporter',
+    'TNSRobotSubmission',
+]
 
 import json
 
@@ -71,52 +77,39 @@ class TNSRobot(Base):
         doc='Groups associated with this TNSRobot.',
     )
 
-    users = relationship(
-        'TNSRobotUser',
+    coauthors = relationship(
+        'TNSRobotCoauthor',
         back_populates='tnsrobot',
         passive_deletes=True,
-        doc='Users associated with this TNSRobot, as co-authors and/or to trigger auto-reporting.',
+        doc='Coauthors associated with this TNSRobot.',
     )
 
 
-class TNSRobotUser(Base):
-    """Mapper between TNSRobots and Users."""
+# we want a unique constraint on the bot_name, bot_id, source_group_id columns
+TNSRobot.__table_args__ = (
+    sa.UniqueConstraint('bot_name', 'bot_id', 'source_group_id'),
+)
 
-    __tablename__ = 'tnsrobot_users'
+
+class TNSRobotCoauthor(Base):
+    """Coauthors for TNS auto-reports."""
+
+    __tablename__ = 'tnsrobot_coauthors'
 
     tnsrobot_id = sa.Column(
         sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False
     )
     user_id = sa.Column(sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
 
-    coauthor = sa.Column(
-        sa.Boolean,
-        nullable=False,
-        default=False,
-        doc="Whether this user is always a co-author of the reports sent by this robot.",
-    )
-
-    auto_report = sa.Column(
-        sa.Boolean,
-        nullable=False,
-        default=False,
-        doc="Whether this user is allowed to trigger auto-report when he saves a source to a group associated with this robot.",
-    )
-
     tnsrobot = relationship(
         'TNSRobot',
-        back_populates='users',
+        back_populates='coauthors',
         doc='The TNSRobot associated with this mapper.',
     )
 
-    user = relationship(
-        'User',
-        back_populates='tnsrobots',
-        doc='The User associated with this mapper.',
-    )
 
-    # we want a unique index on the tnsrobot_id and user_id columns
-    __table_args__ = (sa.UniqueConstraint('tnsrobot_id', 'user_id'),)
+# unique constraint on the tnsrobot_id and user_id columns
+TNSRobotCoauthor.__table_args__ = (sa.UniqueConstraint('tnsrobot_id', 'user_id'),)
 
 
 class TNSRobotGroup(Base):
@@ -128,6 +121,7 @@ class TNSRobotGroup(Base):
         sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False
     )
     group_id = sa.Column(sa.ForeignKey('groups.id', ondelete='CASCADE'), nullable=False)
+
     owner = sa.Column(sa.Boolean, nullable=False, default=False)
     auto_report = sa.Column(sa.Boolean, nullable=False, default=False)
 
@@ -143,8 +137,43 @@ class TNSRobotGroup(Base):
         doc='The Group associated with this mapper.',
     )
 
+    autoreporters = relationship(
+        'TNSRobotGroupAutoreporter',
+        back_populates='tnsrobot_group',
+        passive_deletes=True,
+        doc='Users associated with this TNSRobotGroup.',
+    )
+
     # we want a unique index on the tnsrobot_id and group_id columns
-    __table_args__ = (sa.UniqueConstraint('tnsrobot_id', 'group_id'),)
+
+
+TNSRobotGroup.__table_args__ = (sa.UniqueConstraint('tnsrobot_id', 'group_id'),)
+
+
+class TNSRobotGroupAutoreporter(Base):
+    """Mapper between TNSRobots and Users that are allowed to auto-report."""
+
+    __tablename__ = 'tnsrobot_users'
+
+    tnsrobot_group_id = sa.Column(
+        sa.ForeignKey('tnsrobots_groups.id', ondelete='CASCADE'), nullable=False
+    )
+    group_user_id = sa.Column(
+        sa.ForeignKey('group_users.id', ondelete='CASCADE'), nullable=False
+    )
+
+    tnsrobot_group = relationship(
+        'TNSRobotGroup',
+        back_populates='autoreporters',
+        doc='The TNSRobot associated with this mapper.',
+    )
+
+    # we want a unique index on the tnsrobot_id and user_id columns
+
+
+TNSRobotGroupAutoreporter.__table_args__ = (
+    sa.UniqueConstraint('tnsrobot_group_id', 'group_user_id'),
+)
 
 
 class TNSRobotSubmission(Base):
@@ -221,20 +250,6 @@ class TNSRobotSubmission(Base):
     )
 
 
-TNSRobot.groups = relationship(
-    'TNSRobotGroup',
-    back_populates='tnsrobot',
-    passive_deletes=True,
-    doc='Groups associated with this TNSRobot.',
-)
-
-TNSRobot.users = relationship(
-    'TNSRobotUser',
-    back_populates='tnsrobot',
-    passive_deletes=True,
-    doc='Users associated with this TNSRobot, as co-authors and/or to trigger auto-reporting.',
-)
-
 TNSRobot.submissions = relationship(
     'TNSRobotSubmission',
     back_populates='tnsrobot',
@@ -249,8 +264,12 @@ def tnsrobot_create_read_access_logic(cls, user_or_token):
     if not user_or_token.is_system_admin:
         # a user should only be able to read TNSRobots that are associated with groups
         # to which they have access
-        query = query.join(TNSRobotGroup).join(Group).join(GroupUser)
-        query = query.where(GroupUser.user_id == user_id)
+        query = query.join(TNSRobotGroup)
+        query = query.where(
+            TNSRobotGroup.group_id.in_(
+                sa.select(GroupUser.group_id).where(GroupUser.user_id == user_id)
+            )
+        )
     return query
 
 
@@ -260,9 +279,12 @@ def tnsrobot_update_delete_access_logic(cls, user_or_token):
     if not user_or_token.is_system_admin:
         # a user should only be able to read TNSRobots that are associated with groups
         # to which they have access, and the group is an owner of the robot
-        query = query.join(TNSRobotGroup).join(Group).join(GroupUser)
-        query = query.where(GroupUser.user_id == user_id)
-        query = query.where(TNSRobotGroup.owner.is_(True))
+        query = query.where(
+            TNSRobotGroup.group_id.in_(
+                sa.select(GroupUser.group_id).where(GroupUser.user_id == user_id)
+            ),
+            TNSRobotGroup.owner.is_(True),
+        )
     return query
 
 
@@ -280,9 +302,11 @@ def tnsrobot_group_read_access_logic(cls, user_or_token):
     if not user_or_token.is_system_admin:
         # a user should only be able to read TNSRobotGroups that are associated with groups
         # to which they have access
-        query = query.join(Group)
-        query = query.join(GroupUser)
-        query = query.where(GroupUser.user_id == user_id)
+        query = query.where(
+            TNSRobotGroup.group_id.in_(
+                sa.select(GroupUser.group_id).where(GroupUser.user_id == user_id)
+            )
+        )
     return query
 
 
@@ -290,12 +314,24 @@ def tnsrobot_group_create_update_delete_access_logic(cls, user_or_token):
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = sa.select(cls)
     if not user_or_token.is_system_admin:
-        # a user should only be able to read TNSRobotGroups that are associated with groups
-        # to which they have access, and the group is an owner of the robot
-        query = query.join(Group)
-        query = query.join(GroupUser)
-        query = query.where(GroupUser.user_id == user_id)
-        query = query.where(TNSRobotGroup.owner.is_(True))
+        # 1. the user has access to the group
+        # 2. the user has access to any group that is associated with the robot
+        # as an owner
+        query = query.where(
+            TNSRobotGroup.group_id.in_(
+                sa.select(GroupUser.group_id).where(GroupUser.user_id == user_id)
+            ),
+            TNSRobotGroup.tnsrobot_id.in_(
+                sa.select(TNSRobotGroup.tnsrobot_id).where(
+                    TNSRobotGroup.group_id.in_(
+                        sa.select(GroupUser.group_id).where(
+                            GroupUser.user_id == user_id
+                        )
+                    ),
+                    TNSRobotGroup.owner.is_(True),
+                )
+            ),
+        )
     return query
 
 
@@ -304,4 +340,51 @@ TNSRobotGroup.create = (
     TNSRobotGroup.update
 ) = TNSRobotGroup.delete = CustomUserAccessControl(
     tnsrobot_group_create_update_delete_access_logic
+)
+
+
+def tnsrobot_user_read_access_logic(cls, user_or_token):
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = sa.select(cls)
+    if not user_or_token.is_system_admin:
+        # a user should only be able to read TNSRobotUsers that are associated with groups
+        # to which they have access
+        query = query.join(TNSRobotGroup)
+        query = query.join(Group).join(GroupUser)
+        query = query.where(GroupUser.user_id == user_id)
+    return query
+
+
+def tnsrobot_user_create_update_delete_access_logic(cls, user_or_token):
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = sa.select(cls)
+    if not user_or_token.is_system_admin:
+        # a user should only be able to create/update/delete TNSRobotUsers from TNSRobots that the user has access to
+        query = query.join(TNSRobot)
+        query = query.join(TNSRobotGroup).join(Group).join(GroupUser)
+        query = query.where(GroupUser.user_id == user_id)
+    return query
+
+
+# users should be able to read/create/edit/delete tns submissions only for tns robots they have access to
+def tnsrobot_submission_access_logic(cls, user_or_token):
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = sa.select(cls)
+    if not user_or_token.is_system_admin:
+        query = query.where(
+            TNSRobotSubmission.tnsrobot_id.in_(
+                sa.select(TNSRobot.id)
+                .join(TNSRobotGroup)
+                .join(Group)
+                .join(GroupUser)
+                .where(GroupUser.user_id == user_id)
+            )
+        )
+    return query
+
+
+TNSRobotSubmission.read = (
+    TNSRobotSubmission.create
+) = TNSRobotSubmission.update = TNSRobotSubmission.delete = CustomUserAccessControl(
+    tnsrobot_submission_access_logic
 )

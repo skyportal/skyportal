@@ -74,7 +74,7 @@ from ...models import (
     Taxonomy,
     Telescope,
     Thumbnail,
-    TNSRobotUser,
+    TNSRobotGroupAutoreporter,
     TNSRobotGroup,
     TNSRobotSubmission,
     Token,
@@ -1913,26 +1913,37 @@ def post_source(data, user_id, session, refresh_source=True):
 
     session.commit()
 
+    # TNS AUTO REPORT
+
     # remove from groups that we didn't save to
     groups = [group for group in groups if group.id not in not_saved_to_group_ids]
-    print(f"Saved to groups: {' '.join([str(g.id) for g in groups])}")
+
     for group in groups:
-        tnsrobot_group_and_user = session.scalars(
+        # see if there is a tnsrobot_group set up for autosubmission
+        # and if the user has autosubmission set up
+        tnsrobot_group_autoreporter = session.scalars(
             TNSRobotGroup.select(user)
-            .join(TNSRobotUser, TNSRobotGroup.tnsrobot_id == TNSRobotUser.tnsrobot_id)
+            .join(
+                TNSRobotGroupAutoreporter,
+                TNSRobotGroup.id == TNSRobotGroupAutoreporter.tnsrobot_group_id,
+            )
             .where(
                 TNSRobotGroup.group_id == group.id,
                 TNSRobotGroup.auto_report,
-                TNSRobotUser.user_id == user.id,
-                TNSRobotUser.auto_report.is_(True),
+                TNSRobotGroupAutoreporter.group_user_id.in_(
+                    sa.select(GroupUser.id).where(
+                        GroupUser.user_id == user.id, GroupUser.group_id == group.id
+                    )
+                ),
             )
         ).first()
-        if tnsrobot_group_and_user is not None:
+
+        if tnsrobot_group_autoreporter is not None:
             # add a request to submit to TNS for only the first group we save to
             # that has access to TNSRobot and auto_report is True
             submission_request = TNSRobotSubmission(
                 obj_id=obj.id,
-                tnsrobot_id=tnsrobot_group_and_user.tnsrobot_id,
+                tnsrobot_id=tnsrobot_group_autoreporter.tnsrobot_id,
                 user_id=user.id,
                 auto_submission=True,
             )
