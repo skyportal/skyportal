@@ -115,7 +115,7 @@ jobs:
           # install nginx
           # sudo apt install nginx=1.25.4-1+ubuntu22.04.1+deb.sury.org+1 -y
           # sudo apt install nginx-core=1.25.4-1+ubuntu22.04.1+deb.sury.org+1 -y
-          # sudo apt install nginx-common=1.25.4-1+ubuntu22.04.1+deb.sury.org+1 -y
+          sudo apt install nginx-common=1.25.4-1+ubuntu22.04.1+deb.sury.org+1 -y
           # sudo apt install nginx-full=1.25.4-1+ubuntu22.04.1+deb.sury.org+1 -y
           sudo apt install libnginx-mod-brotli -y
 
