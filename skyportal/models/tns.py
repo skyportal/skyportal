@@ -115,7 +115,7 @@ TNSRobotCoauthor.__table_args__ = (sa.UniqueConstraint('tnsrobot_id', 'user_id')
 class TNSRobotGroup(Base):
     """Mapper between TNSRobots and Groups."""
 
-    __tablename__ = 'tnsrobots_groups'
+    __tablename__ = 'tnsrobot_groups'
 
     tnsrobot_id = sa.Column(
         sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False
@@ -152,10 +152,10 @@ TNSRobotGroup.__table_args__ = (sa.UniqueConstraint('tnsrobot_id', 'group_id'),)
 class TNSRobotGroupAutoreporter(Base):
     """Mapper between TNSRobots and Users that are allowed to auto-report."""
 
-    __tablename__ = 'tnsrobot_users'
+    __tablename__ = 'tnsrobot_group_users'
 
     tnsrobot_group_id = sa.Column(
-        sa.ForeignKey('tnsrobots_groups.id', ondelete='CASCADE'), nullable=False
+        sa.ForeignKey('tnsrobot_groups.id', ondelete='CASCADE'), nullable=False
     )
     group_user_id = sa.Column(
         sa.ForeignKey('group_users.id', ondelete='CASCADE'), nullable=False
