@@ -329,6 +329,7 @@ def get_properties(root):
         # Gravitational waves
         "HasNS",
         "HasRemnant",
+        "HasMassGap",
         "FAR",
         "BNS",
         "NSBH",
