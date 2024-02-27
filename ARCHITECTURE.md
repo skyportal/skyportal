@@ -24,7 +24,7 @@ SkyPortal hydrates new tabs using the redux state of previous tabs to minimize r
 The SkyPortal back-end is built using [Tornado](https://www.tornadoweb.org/en/stable/), a Python web application framework that provides its own I/O event loop for non-blocking sockets, making it ideal for use with websockets.
 
 To handle HTTP requests, we define _request handlers_ that are mapped to API endpoints in the application's configuration (in `skyportal/app_server.py` -- see below). Each SkyPortal request handler is a subclass of
-Handler`(defined in`skyportal/handlers/base.py`), a handler that extends Tornado's base [RequestHandler](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler), handling authentication and providing utility methods for pushing websocket messages to the front-end and returning HTTP responses.
+BaseHandler`(defined in`skyportal/handlers/base.py`), a handler that extends Tornado's base [RequestHandler](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler), handling authentication and providing utility methods for pushing websocket messages to the front-end and returning HTTP responses.
 
 Handlers appear in the directory `skyportal/handlers/api`.
 
@@ -36,7 +36,9 @@ SkyPortal uses a PostgreSQL database to manage persistent state. The SkyPortal P
 Each database table is represented by a Python class, and each table Column
 is represented by a class attribute.
 
-The models defined in SkyPortal can be found in the directory `skyportal/models`, while those found in baselayer can be found in `baselayer/app/models.py`. When adding a new model, one of the GitHub actions automatically will create the alembic migration file, which should then be committed in the directory `alembic/versions`.
+The models defined in SkyPortal can be found in the directory `skyportal/models`, while those found in baselayer can be found in `baselayer/app/models.py`.
+
+When adding a new model, database migrations will be key. In addition to the Database Migrations section, which describes how to create migration files locally, one of the GitHub actions automatically will create the alembic migration file, which should then be committed in the directory `alembic/versions`.
 
 ## Permissions
 
@@ -47,9 +49,11 @@ from baselayer.app.access import permissions
 @permissions(["System admin"])
 ```
 
+It also has permissions on the database models. In SkyPortal, RLS policies are defined on SQLAlchemy mapped classes. Each class has a single policy for each of the create, delete, update, and read access modes. Records are read- and create-public by default, and update- and delete-restricted (i.e., only accessible to users with the "System admin" ACL) by default. Join table classes are also update- and delete-restricted by default, but they can (by default) be created or read by any user that can read both their left and right records. These defaults can be overridden on any mapped class.
+
 ## Microservices
 
-SkyPortal uses a microservice architecture managed with supervisord, which allows for running multiple instances of the application in parallel to ensure availability and reduce downtime. Moreover, we can add microservices to run background operations continuously. This is used to run the application, as well as the database migration manager, the webpack builder, websocket server, cron jobs, external logging, and nginx. It is also used when adding computationally expensive or long-running features such as the ingestion of GCN events with low latency, processing of observation plans, sending notifications and reminders, and programming recurrent API calls. These services and others can be found in the directory `services/`.
+SkyPortal uses a microservice architecture managed with supervisord, which allows for running multiple instances of the application in parallel to ensure availability and reduce downtime. Moreover, we can add microservices to run background operations continuously. This is used to run the application, as well as the database migration manager, the webpack builder, websocket server, cron jobs, external logging, and nginx. It is also used when adding computationally expensive or long-running features such as the ingestion of GCN events with low latency, processing of observation plans, sending notifications and reminders, and programming recurrent API calls. These services and others can be found in the directory `services/` in both SkyPortal and baselayer.
 
 ## Testing
 
