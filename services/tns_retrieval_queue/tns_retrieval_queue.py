@@ -2,6 +2,7 @@ import asyncio
 import json
 import time
 import urllib
+import traceback
 from threading import Thread
 
 import requests
@@ -179,6 +180,7 @@ def tns_retrieval(
     group_ids=None,
     include_photometry=False,
     include_spectra=False,
+    radius=2.0,
     parent_session=None,
 ):
     """Retrieve object from TNS.
@@ -232,7 +234,11 @@ def tns_retrieval(
         }
 
         tns_prefix, tns_name = get_IAUname(
-            altdata['api_key'], tns_headers, ra=obj.ra, dec=obj.dec
+            altdata['api_key'],
+            tns_headers,
+            ra=obj.ra,
+            dec=obj.dec,
+            radius=float(radius),
         )
         if tns_name is None:
             raise ValueError(f'{obj_id} not yet posted to TNS.')
@@ -357,7 +363,19 @@ def tns_retrieval(
         )
 
     except Exception as e:
+        traceback.print_exc()
         log(f"Unable to retrieve TNS report for {obj_id}: {e}")
+        try:
+            flow.push(
+                user.id,
+                'baselayer/SHOW_NOTIFICATION',
+                {
+                    'note': f'Unable to retrieve TNS report for {obj_id}: {e}',
+                    'type': 'error',
+                },
+            )
+        except Exception:
+            pass
     finally:
         if parent_session is not None:
             session.close()
@@ -382,6 +400,7 @@ def service(queue):
                 group_ids = data.get("group_ids", None)
                 obj_id = data.get("obj_id", None)
                 start_date = data.get("start_date", None)
+                radius = data.get("radius", None)
 
                 if obj_id is None and start_date is None:
                     raise ValueError('obj_id or start_date must be specified')
@@ -394,6 +413,7 @@ def service(queue):
                         group_ids=group_ids,
                         include_photometry=include_photometry,
                         include_spectra=include_spectra,
+                        radius=radius,
                         parent_session=session,
                     )
 
@@ -501,8 +521,12 @@ def tns_watcher():
                                         continue
                                     elif obj.tns_name is None or obj.tns_name == "":
                                         obj.tns_name = str(tns_obj["name"]).strip()
-                                    # if the current name contains AT but the new name does not, update
-                                    elif "AT" in obj.tns_name and "AT" not in str(
+                                    # if the current name doesn't have the SN designation but the new name has it, update
+                                    elif not str(
+                                        obj.tns_name
+                                    ).lower().strip().startswith(
+                                        "sn"
+                                    ) and "AT" not in str(
                                         tns_obj["name"]
                                     ):
                                         obj.tns_name = str(tns_obj["name"]).strip()

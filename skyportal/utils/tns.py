@@ -165,7 +165,7 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
     return sources
 
 
-def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=5):
+def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=2.0):
     """Query TNS to get IAU name (if exists)
     Parameters
     ----------
@@ -230,12 +230,21 @@ def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=5):
         r = requests.post(search_url, headers=headers, data=data)
         count += 1
 
+    if r.status_code not in [200, 429, 401]:
+        raise ValueError(f'TNS request failed: {str(r.json())}')
+
+    if r.status_code == 401:
+        raise ValueError('TNS request failed: invalid TNSRobot API key.')
+
     if count == count_limit:
         raise ValueError('TNS request failed: request rate exceeded.')
 
     reply = r.json().get("data", dict()).get("reply", [])
     if len(reply) > 0:
-        return reply[0]['prefix'], reply[0]['objname']
+        # it should be ordered from oldest to newest, so we take the last one
+        # which should be the most recent existing source within the radius
+        # ideally we want to use the closest, but this TNS endpont doesn't return position or distances
+        return reply[-1]['prefix'], reply[-1]['objname']
     else:
         return None, None
 
@@ -245,6 +254,7 @@ def get_tns(
     user_id,
     include_photometry=False,
     include_spectra=False,
+    radius=2.0,
     timeout=2,
     obj_id=None,
     start_date=None,
@@ -261,6 +271,7 @@ def get_tns(
         'group_ids': group_ids,
         'include_photometry': include_photometry,
         'include_spectra': include_spectra,
+        'radius': radius,
     }
 
     tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_retrieval_queue"]}'

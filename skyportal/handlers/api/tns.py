@@ -1024,8 +1024,17 @@ class ObjTNSHandler(BaseHandler):
         if tnsrobot_id is None:
             return self.error('tnsrobotID is required')
 
+        radius = self.get_query_argument("radius", 2.0)
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_spectra = self.get_query_argument("includeSpectra", False)
+
+        try:
+            radius = float(radius)
+        except ValueError:
+            return self.error('radius must be a number')
+        else:
+            if radius < 0:
+                return self.error('radius must be non-negative')
 
         with self.Session() as session:
             obj = session.scalars(
@@ -1059,6 +1068,7 @@ class ObjTNSHandler(BaseHandler):
                     self.associated_user_object.id,
                     include_photometry=include_photometry,
                     include_spectra=include_spectra,
+                    radius=radius,
                     obj_id=obj.id,
                 ),
             )
