@@ -1,7 +1,7 @@
 """tns-v2
 
 Revision ID: 588304a4791a
-Revises: f6915b9a8805
+Revises: 550fbafe6a2c
 Create Date: 2024-02-27 10:29:52.040523
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '588304a4791a'
-down_revision = 'f6915b9a8805'
+down_revision = '550fbafe6a2c'
 branch_labels = None
 depends_on = None
 
