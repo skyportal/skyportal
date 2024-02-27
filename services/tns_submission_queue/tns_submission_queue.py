@@ -242,8 +242,11 @@ def service(*args, **kwargs):
                         session.commit()
                         continue
                     # if any of the users are missing an affiliation, we don't submit
-                    if any([len(author.affiliations) == 0 for author in authors]):
-                        error_msg = f'One or more authors are missing an affiliation, cannot report {obj_id} to TNS.'
+                    authors_with_missing_affiliations = [
+                        author for author in authors if len(author.affiliations) == 0
+                    ]
+                    if len(authors_with_missing_affiliations) > 0:
+                        error_msg = f'One or more authors are missing an affiliation: {", ".join([author.username for author in authors_with_missing_affiliations])}, cannot report {obj_id} to TNS.'
                         log(error_msg)
                         submission_request.status = f'error: {error_msg}'
                         session.commit()
@@ -550,7 +553,6 @@ def service(*args, **kwargs):
                     'data': json.dumps(report),
                 }
 
-                # DEBUG ONLY, NOT SENDING
                 status_code = 0
                 n_retries = 0
                 status = None

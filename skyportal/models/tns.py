@@ -184,15 +184,7 @@ TNSRobotGroupAutoreporter.user_id = column_property(
 class TNSRobotSubmission(Base):
     """Objects to be auto-submitted to TNS."""
 
-    # when the autoreporting is activated for a  robot + a group, we'll have a
-    # DB trigger run somewhere in the code where users save objects as sources
-    # to their group. If saved to a group that has any TNSRobot associated with
-    # and the robot has autoreporting activated for that group, then we'll add
-    # an entry to this table. This will be used to keep track of which objects
-    # need to be autoreported to TNS for a given robot.
-    # we also have a status column to keep track of the status of the submission
-
-    __tablename__ = 'tns_submissions'
+    __tablename__ = 'tnsrobot_submissions'
 
     tnsrobot_id = sa.Column(
         sa.ForeignKey('tnsrobots.id', ondelete='CASCADE'), nullable=False

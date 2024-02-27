@@ -155,7 +155,6 @@ def update_tns_robot(
         tnsrobot.acknowledgments = data['acknowledgments']
 
     # TNS AUTO-REPORTING INSTRUMENTS: ADD/MODIFY/DELETE
-    # (it's not as important as the groups, so we re-set it fully each time)
     if len(instrument_ids) > 0:
         try:
             instrument_ids = [int(x) for x in instrument_ids]
@@ -183,7 +182,6 @@ def update_tns_robot(
         tnsrobot.instruments = instruments
 
     # TNS AUTO-REPORTING STREAMS: ADD/MODIFY/DELETE
-    # (it's not as important as the groups, so we re-set it fully each time)
     if len(stream_ids) > 0:
         try:
             stream_ids = [int(x) for x in stream_ids]
@@ -562,7 +560,8 @@ class TNSRobotGroupHandler(BaseHandler):
 
                 if owner is not None and owner != tnsrobot_group.owner:
                     # here we want to be careful not to remove the last owner
-                    # so we check if the tnsrobot has any other groups that are owners. If this is the only on
+                    # so we check if the tnsrobot has any other groups that are owners.
+                    # If this is the only one, we return an error
                     owners_nb = 0
                     for g in tnsrobot_group.tnsrobot.groups:
                         if g.owner is True:
