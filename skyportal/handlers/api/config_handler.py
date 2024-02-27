@@ -100,7 +100,6 @@ class ConfigHandler(BaseHandler):
                 "gcnNoticeTypes": GCN_NOTICE_TYPES,
                 "gcnSummaryAcknowledgements": GCN_ACKNOWLEDGEMENTS,
                 "maxNumDaysUsingLocalization": MAX_NUM_DAYS_USING_LOCALIZATION,
-                "image_analysis": True if 'image_analysis' in cfg else False,
                 "allowedRecurringAPIMethods": ALLOWED_RECURRING_API_METHODS,
                 "classificationsClasses": cfg["colors.classifications"],
                 "summary_sourcesClasses": cfg["colors.summary_sources"],

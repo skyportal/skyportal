@@ -23,7 +23,3 @@ from .standards import StandardsHandler
 from .notifications import NotificationHandler, BulkNotificationHandler
 from .notifications_test import NotificationTestHandler
 from .recent_gcn_events import RecentGcnEventsHandler
-
-
-if 'image_analysis' in cfg:
-    from .image_analysis import ImageAnalysisHandler

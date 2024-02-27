@@ -173,6 +173,18 @@ def get_tags(root):
         else:
             yield "Subthreshold"
 
+    # Check for Swift losing tracking
+    try:
+        lost_lock = root.find(
+            "./What/Group[@name='Solution_Status']/Param[@name='StarTrack_Lost_Lock']"
+        ).attrib['value']
+    except AttributeError:
+        pass
+    else:
+        if lost_lock is not None:
+            if lost_lock == "true":
+                yield "StarTrack_Lost_Lock"
+
 
 def get_notice_aliases(root, notice_type):
     aliases = []
