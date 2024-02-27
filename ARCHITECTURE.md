@@ -38,7 +38,7 @@ is represented by a class attribute.
 
 The models defined in SkyPortal can be found in the directory `skyportal/models`, while those found in baselayer can be found in `baselayer/app/models.py`.
 
-When adding a new model, database migrations will be key. In addition to the Database Migrations section, which describes how to create migration files locally, one of the GitHub actions automatically will create the alembic migration file, which should then be committed in the directory `alembic/versions`.
+When adding a new model, database migrations will be key. In addition to the Database Migrations section of the documentation, which describes how to create migration files locally, one of the GitHub actions automatically will create the alembic migration file, which should then be committed in the directory `alembic/versions`.
 
 ## Permissions
 
