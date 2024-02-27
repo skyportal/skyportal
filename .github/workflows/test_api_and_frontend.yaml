@@ -112,7 +112,7 @@ jobs:
           sudo apt install -f nginx-core -y
           sudo apt install -f nginx-common -y
           sudo apt install -f nginx-full -y
-          sudo apt install -y libnginx-mod-brotli
+          sudo apt install -f libnginx-mod-brotli -y
 
           pip install pip==23.1.2
           pip install wheel numpy
