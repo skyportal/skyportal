@@ -240,37 +240,6 @@ def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=5):
         return None, None
 
 
-def post_tns(
-    obj_ids,
-    tnsrobot_id,
-    user_id,
-    reporters="",
-    archival=False,
-    archival_comment="",
-    instrument_ids=[],
-    stream_ids=[],
-    timeout=2,
-):
-    request_body = {
-        'obj_ids': obj_ids,
-        'tnsrobot_id': tnsrobot_id,
-        'user_id': user_id,
-        'reporters': reporters,
-        'archival': archival,
-        'archival_comment': archival_comment,
-        'instrument_ids': instrument_ids,
-        'stream_ids': stream_ids,
-    }
-
-    tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_submission_queue"]}'
-
-    resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
-    if resp.status_code != 200:
-        log(
-            f'TNS request failed for {str(request_body["obj_ids"])} by user ID {request_body["user_id"]}: {resp.content}'
-        )
-
-
 def get_tns(
     tnsrobot_id,
     user_id,

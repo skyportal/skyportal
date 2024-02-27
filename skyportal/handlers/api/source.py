@@ -1918,10 +1918,12 @@ def post_source(data, user_id, session, refresh_source=True):
     # remove from groups that we didn't save to
     groups = [group for group in groups if group.id not in not_saved_to_group_ids]
 
+    print("SAVING SOURCE")
+
     for group in groups:
         # see if there is a tnsrobot_group set up for autosubmission
         # and if the user has autosubmission set up
-        tnsrobot_group_autoreporter = session.scalars(
+        tnsrobot_group_with_autoreporter = session.scalars(
             TNSRobotGroup.select(user)
             .join(
                 TNSRobotGroupAutoreporter,
@@ -1938,12 +1940,14 @@ def post_source(data, user_id, session, refresh_source=True):
             )
         ).first()
 
-        if tnsrobot_group_autoreporter is not None:
+        print("TNSROBOTGROUP AUTOREPORTER", tnsrobot_group_with_autoreporter)
+
+        if tnsrobot_group_with_autoreporter is not None:
             # add a request to submit to TNS for only the first group we save to
             # that has access to TNSRobot and auto_report is True
             submission_request = TNSRobotSubmission(
                 obj_id=obj.id,
-                tnsrobot_id=tnsrobot_group_autoreporter.tnsrobot_id,
+                tnsrobot_id=tnsrobot_group_with_autoreporter.tnsrobot_id,
                 user_id=user.id,
                 auto_submission=True,
             )

@@ -9,7 +9,7 @@ __all__ = [
 import json
 
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, column_property
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy_utils.types.encrypted.encrypted_type import AesEngine, EncryptedType
 
@@ -37,22 +37,22 @@ class TNSRobot(Base):
         EncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5')
     )
 
-    auto_report_instruments = relationship(
+    instruments = relationship(
         "Instrument",
         secondary="instrument_tnsrobots",
         back_populates="tnsrobots",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc="Instruments to restrict the photometry to when auto-reporting.",
+        doc="Instruments to restrict the photometry to when reporting.",
     )
 
-    auto_report_streams = relationship(
+    streams = relationship(
         "Stream",
         secondary="stream_tnsrobots",
         back_populates="tnsrobots",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
-        doc="Streams to restrict the photometry to when auto-reporting.",
+        doc="Streams to restrict the photometry to when reporting.",
     )
 
     acknowledgments = sa.Column(
@@ -144,9 +144,8 @@ class TNSRobotGroup(Base):
         doc='Users associated with this TNSRobotGroup.',
     )
 
-    # we want a unique index on the tnsrobot_id and group_id columns
 
-
+# we want a unique index on the tnsrobot_id and group_id columns
 TNSRobotGroup.__table_args__ = (sa.UniqueConstraint('tnsrobot_id', 'group_id'),)
 
 
@@ -168,18 +167,24 @@ class TNSRobotGroupAutoreporter(Base):
         doc='The TNSRobot associated with this mapper.',
     )
 
-    # we want a unique index on the tnsrobot_id and user_id columns
 
-
+# we want a unique index on the tnsrobot_id and group_user_id columns
 TNSRobotGroupAutoreporter.__table_args__ = (
     sa.UniqueConstraint('tnsrobot_group_id', 'group_user_id'),
+)
+
+# we add a method that gives us the user_id from that group_user
+TNSRobotGroupAutoreporter.user_id = column_property(
+    sa.select(GroupUser.user_id).where(
+        GroupUser.id == TNSRobotGroupAutoreporter.group_user_id
+    )
 )
 
 
 class TNSRobotSubmission(Base):
     """Objects to be auto-submitted to TNS."""
 
-    # when the autoreporting is activated for a robot + a group, we'll have a
+    # when the autoreporting is activated for a  robot + a group, we'll have a
     # DB trigger run somewhere in the code where users save objects as sources
     # to their group. If saved to a group that has any TNSRobot associated with
     # and the robot has autoreporting activated for that group, then we'll add
@@ -229,6 +234,20 @@ class TNSRobotSubmission(Base):
         nullable=False,
         default=False,
         doc="Whether this submission was auto-requested or not.",
+    )
+
+    instrument_ids = sa.Column(
+        sa.ARRAY(sa.Integer),
+        nullable=True,
+        default=None,
+        doc="Instrument IDs to use for this submission.",
+    )
+
+    stream_ids = sa.Column(
+        sa.ARRAY(sa.Integer),
+        nullable=True,
+        default=None,
+        doc="Stream IDs to use for this submission.",
     )
 
     tnsrobot = relationship(

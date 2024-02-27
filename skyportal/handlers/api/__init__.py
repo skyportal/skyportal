@@ -185,6 +185,9 @@ from .tns import (
     BulkTNSHandler,
     SpectrumTNSHandler,
     TNSRobotHandler,
+    TNSRobotCoauthorHandler,
+    TNSRobotGroupHandler,
+    TNSRobotGroupAutoreporterHandler,
     TNSRobotSubmissionHandler,
 )
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler

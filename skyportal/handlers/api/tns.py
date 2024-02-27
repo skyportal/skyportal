@@ -34,7 +34,7 @@ from ...models import (
     User,
     GroupUser,
 )
-from ...utils.tns import get_IAUname, get_tns, post_tns, TNS_INSTRUMENT_IDS
+from ...utils.tns import get_IAUname, get_tns, TNS_INSTRUMENT_IDS
 from ..base import BaseHandler
 
 _, cfg = load_env()
@@ -50,9 +50,9 @@ log = make_log('api/tns')
 
 def create_tns_robot(
     data,
-    owner_group_id,
-    auto_report_instrument_ids,
-    auto_report_stream_ids,
+    owner_group_ids,
+    instrument_ids,
+    stream_ids,
     session,
 ):
     try:
@@ -61,19 +61,24 @@ def create_tns_robot(
         raise ValueError(f'Error parsing posted tnsrobot: "{e.normalized_messages()}"')
     session.add(tnsrobot)
 
-    # we create the owner group
-    owner_group = TNSRobotGroup(
-        tnsrobot_id=tnsrobot.id,
-        group_id=owner_group_id,
-        owner=True,
-        auto_report=False,
-    )
-    session.add(owner_group)
+    # we create the owner group(s)
+    owner_groups = [
+        TNSRobotGroup(
+            tnsrobot_id=tnsrobot.id,
+            group_id=owner_group_id,
+            owner=True,
+            auto_report=False,
+        )
+        for owner_group_id in owner_group_ids
+    ]
+    for owner_group in owner_groups:
+        session.add(owner_group)
+        tnsrobot.groups.append(owner_group)
 
     # TNS AUTO-REPORTING INSTRUMENTS: ADD/MODIFY/DELETE
-    if len(auto_report_instrument_ids) > 0:
+    if len(instrument_ids) > 0:
         try:
-            instrument_ids = [int(x) for x in auto_report_instrument_ids]
+            instrument_ids = [int(x) for x in instrument_ids]
             if isinstance(instrument_ids, str):
                 instrument_ids = [int(x) for x in instrument_ids.split(",")]
             else:
@@ -95,12 +100,12 @@ def create_tns_robot(
                 raise ValueError(
                     f'Instrument {instrument.name} not supported for TNS reporting'
                 )
-        tnsrobot.auto_report_instruments = instruments
+        tnsrobot.instruments = instruments
 
     # TNS AUTO-REPORTING STREAMS: ADD/MODIFY/DELETE
-    if len(auto_report_stream_ids) > 0:
+    if len(stream_ids) > 0:
         try:
-            stream_ids = [int(x) for x in auto_report_stream_ids]
+            stream_ids = [int(x) for x in stream_ids]
             if isinstance(stream_ids, str):
                 stream_ids = [int(x) for x in stream_ids.split(",")]
             else:
@@ -113,7 +118,7 @@ def create_tns_robot(
         ).all()
         if len(streams) != len(stream_ids):
             raise ValueError(f'One or more streams not found: {stream_ids}')
-        tnsrobot.auto_report_streams = streams
+        tnsrobot.streams = streams
 
     session.commit()
     return tnsrobot.id
@@ -122,8 +127,8 @@ def create_tns_robot(
 def update_tns_robot(
     data,
     existing_id,
-    auto_report_instrument_ids,
-    auto_report_stream_ids,
+    instrument_ids,
+    stream_ids,
     session,
 ):
     tnsrobot = session.scalar(
@@ -151,9 +156,9 @@ def update_tns_robot(
 
     # TNS AUTO-REPORTING INSTRUMENTS: ADD/MODIFY/DELETE
     # (it's not as important as the groups, so we re-set it fully each time)
-    if len(auto_report_instrument_ids) > 0:
+    if len(instrument_ids) > 0:
         try:
-            instrument_ids = [int(x) for x in auto_report_instrument_ids]
+            instrument_ids = [int(x) for x in instrument_ids]
             if isinstance(instrument_ids, str):
                 instrument_ids = [int(x) for x in instrument_ids.split(",")]
             else:
@@ -175,13 +180,13 @@ def update_tns_robot(
                 raise ValueError(
                     f'Instrument {instrument.name} not supported for TNS reporting'
                 )
-        tnsrobot.auto_report_instruments = instruments
+        tnsrobot.instruments = instruments
 
     # TNS AUTO-REPORTING STREAMS: ADD/MODIFY/DELETE
     # (it's not as important as the groups, so we re-set it fully each time)
-    if len(auto_report_stream_ids) > 0:
+    if len(stream_ids) > 0:
         try:
-            stream_ids = [int(x) for x in auto_report_stream_ids]
+            stream_ids = [int(x) for x in stream_ids]
             if isinstance(stream_ids, str):
                 stream_ids = [int(x) for x in stream_ids.split(",")]
             else:
@@ -194,7 +199,7 @@ def update_tns_robot(
         ).all()
         if len(streams) != len(stream_ids):
             raise ValueError(f'One or more streams not found: {stream_ids}')
-        tnsrobot.auto_report_streams = streams
+        tnsrobot.streams = streams
 
     session.commit()
     return tnsrobot.id
@@ -236,10 +241,22 @@ class TNSRobotHandler(BaseHandler):
                     data['_altdata'] = json.dumps(data['_altdata'])
                 data['_altdata'] = data['_altdata'].replace("'", '"')
 
-            owner_group_id = data.pop('owner_group_id', None)
+            owner_group_ids = data.pop('owner_group_ids', [])
 
-            auto_report_instrument_ids = data.pop('auto_report_instrument_ids', [])
-            auto_report_stream_ids = data.pop('auto_report_stream_ids', [])
+            if isinstance(owner_group_ids, str) or isinstance(owner_group_ids, int):
+                owner_group_ids = [
+                    int(owner_group_id)
+                    for owner_group_id in str(owner_group_ids).split(",")
+                ]
+            elif isinstance(owner_group_ids, list):
+                owner_group_ids = [
+                    int(owner_group_id) for owner_group_id in owner_group_ids
+                ]
+            if len(owner_group_ids) > 0:
+                owner_group_ids = list(set(owner_group_ids))
+
+            instrument_ids = data.pop('instrument_ids', [])
+            stream_ids = data.pop('stream_ids', [])
 
             with self.Session() as session:
                 # CHECK FOR EXISTING TNS ROBOT
@@ -250,34 +267,34 @@ class TNSRobotHandler(BaseHandler):
                             TNSRobot.bot_name == data['bot_name'],
                             TNSRobot.source_group_id == data['source_group_id'],
                             TNSRobot.groups.any(
-                                TNSRobotGroup.group_id == owner_group_id
+                                TNSRobotGroup.group_id.in_(owner_group_ids)
                             ),
                         )
                     )
                     # if there is already a TNS robot with the same bot_id, bot_name, and source_group_id, we return an error
                     if existing_tnsrobot is not None:
                         return self.error(
-                            f'A TNS robot with the same bot_id, bot_name, and source_group_id already exists with id: {existing_tnsrobot.id} (owned by group_id: {owner_group_id}), specify the ID to update it'
+                            f'A TNS robot with the same bot_id, bot_name, and source_group_id already exists with id: {existing_tnsrobot.id} (owned by group_ids: {owner_group_ids}), specify the ID to update it'
                         )
 
                 if not existing_id:
                     try:
                         # OWNER GROUP: VERIFY THAT IT EXISTS
-                        owner_group = session.scalars(
+                        owner_groups = session.scalars(
                             Group.select(session.user_or_token).where(
-                                Group.id == owner_group_id
+                                Group.id.in_(owner_group_ids)
                             )
-                        ).first()
-                        if owner_group is None:
+                        ).all()
+                        if len(owner_groups) != len(owner_group_ids):
                             return self.error(
-                                f'No owner group with specified ID: {owner_group_id}'
+                                f'One or more owner groups not found: {owner_group_ids}'
                             )
 
                         id = create_tns_robot(
                             data,
-                            owner_group_id,
-                            auto_report_instrument_ids,
-                            auto_report_stream_ids,
+                            owner_group_ids,
+                            instrument_ids,
+                            stream_ids,
                             session,
                         )
                         self.push(
@@ -292,8 +309,8 @@ class TNSRobotHandler(BaseHandler):
                         id = update_tns_robot(
                             data,
                             existing_id,
-                            auto_report_instrument_ids,
-                            auto_report_stream_ids,
+                            instrument_ids,
+                            stream_ids,
                             session,
                         )
                         self.push(
@@ -333,22 +350,30 @@ class TNSRobotHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = TNSRobot.select(session.user_or_token, mode="read").options(
-                joinedload(TNSRobot.groups),
+                joinedload(TNSRobot.groups), joinedload(TNSRobot.coauthors)
             )
             if tnsrobot_id is not None:
                 tnsrobot = session.scalar(stmt.where(TNSRobot.id == tnsrobot_id))
                 if tnsrobot is None:
                     return self.error(f'No TNS robot with ID {tnsrobot_id}')
-                # for each of the groups, we load the users
+                # for each of the groups, we load the users, and grab the list of owner groups
+                owner_group_ids = []
                 for group in tnsrobot.groups:
-                    group.group_users  # we just need to load the users by accessing the attribute
+                    if group.owner:
+                        owner_group_ids.append(group.group_id)
+                    group.autoreporters  # we just need to load the users by accessing the attribute
+                tnsrobot.owner_group_ids = owner_group_ids
                 return self.success(data=tnsrobot)
             else:
                 tnsrobots = session.scalars(stmt).unique().all()
                 # for each of the groups, we load the users
                 for tnsrobot in tnsrobots:
+                    owner_group_ids = []
                     for group in tnsrobot.groups:
-                        group.group_users  # we just need to load the users by accessing the attribute
+                        if group.owner:
+                            owner_group_ids.append(group.group_id)
+                        group.autoreporters  # we just need to load the users by accessing the attribute
+                    tnsrobot.owner_group_ids = owner_group_ids
                 return self.success(data=tnsrobots)
 
     @permissions(['Manage TNS robots'])
@@ -397,8 +422,9 @@ class TNSRobotCoauthorHandler(BaseHandler):
     # here we can add or remove coauthors from a TNSRobot, so we implement POST and DELETE
     # the POST handler is used to add a coauthor to a TNSRobot
     @permissions(['Manage TNS robots'])
-    def post(self, tnsrobot_id):
-        user_id = self.get_json().get('user_id')
+    def post(self, tnsrobot_id, user_id=None):
+        if user_id is None:
+            user_id = self.get_json().get('user_id')
         if user_id is None:
             return self.error(
                 'You must specify a coauthor_id when adding a coauthor to a TNSRobot'
@@ -428,10 +454,13 @@ class TNSRobotCoauthorHandler(BaseHandler):
             coauthor = TNSRobotCoauthor(tnsrobot_id=tnsrobot_id, user_id=user_id)
             session.add(coauthor)
             session.commit()
+            self.push(
+                action='skyportal/REFRESH_TNSROBOTS',
+            )
             return self.success(data={"id": coauthor.id})
 
     @permissions(['Manage TNS robots'])
-    def delete(self, tnsrobot_id, coauthor_id):
+    def delete(self, tnsrobot_id, user_id):
         # the DELETE handler is used to remove a coauthor from a TNSRobot
         with self.Session() as session:
             # verify that the user has access to the tnsrobot
@@ -444,33 +473,33 @@ class TNSRobotCoauthorHandler(BaseHandler):
             # verify that the coauthor exists and/or can be deleted
             coauthor = session.scalar(
                 TNSRobotCoauthor.select(session.user_or_token, mode="delete").where(
-                    TNSRobotCoauthor.id == coauthor_id
+                    TNSRobotCoauthor.user_id == user_id,
+                    TNSRobotCoauthor.tnsrobot_id == tnsrobot_id,
                 )
             )
             if coauthor is None:
                 return self.error(
-                    f'No TNSRobotCoauthor with ID {coauthor_id}, or unable to delete it'
-                )
-
-            # verify that it is attached to the right tnsrobot_id
-            if coauthor.tnsrobot_id != tnsrobot_id:
-                return self.error(
-                    f'TNSRobotCoauthor {coauthor_id} is not attached to TNSRobot {tnsrobot_id}'
+                    f'No TNSRobotCoauthor with userID {user_id}, or unable to delete it'
                 )
 
             session.delete(coauthor)
             session.commit()
+            self.push(
+                action='skyportal/REFRESH_TNSROBOTS',
+            )
             return self.success()
 
 
 class TNSRobotGroupHandler(BaseHandler):
     # here users can add a group to a TNSRobot, edit it (allow auto-reporting or not), or remove it
     @permissions(['Manage TNS robots'])
-    def put(self, tnsrobot_id, group_id):
+    def put(self, tnsrobot_id, group_id=None):
         # the PUT handler is used to add or edit a group
         data = self.get_json()
         autoreport = data.get('autoreport', None)
         owner = data.get('owner', None)
+        if group_id is None:
+            group_id = data.get('group_id', None)
 
         if autoreport is not None:
             # try to convert the autoreport to a boolean
@@ -502,11 +531,13 @@ class TNSRobotGroupHandler(BaseHandler):
 
             if group_id is None:
                 return self.error(
-                    'You must specify a group_id when giving or editing  the access to a TNSRobot for a group'
+                    'You must specify a group_id when giving or editing the access to a TNSRobot for a group'
                 )
 
             # verify that this group is accessible by the user
-            if group_id not in [g.id for g in self.current_user.accessible_groups]:
+            if not self.current_user.is_system_admin and group_id not in [
+                g.id for g in self.current_user.accessible_groups
+            ]:
                 return self.error(
                     f'Group {group_id} is not accessible by the current user'
                 )
@@ -526,10 +557,10 @@ class TNSRobotGroupHandler(BaseHandler):
                         'You must specify autoreport and/or owner when editing a TNSRobotGroup'
                     )
 
-                if autoreport is not None:
-                    tnsrobot_group.autoreport = autoreport
+                if autoreport is not None and autoreport != tnsrobot_group.auto_report:
+                    tnsrobot_group.auto_report = autoreport
 
-                if owner is not None:
+                if owner is not None and owner != tnsrobot_group.owner:
                     # here we want to be careful not to remove the last owner
                     # so we check if the tnsrobot has any other groups that are owners. If this is the only on
                     owners_nb = 0
@@ -543,6 +574,9 @@ class TNSRobotGroupHandler(BaseHandler):
                     tnsrobot_group.owner = owner
 
                 session.commit()
+                self.push(
+                    action='skyportal/REFRESH_TNSROBOTS',
+                )
                 return self.success(data=tnsrobot_group)
             else:
                 # verify that we don't actually have a tnsrobot_group with this group and tnsrobot
@@ -562,12 +596,15 @@ class TNSRobotGroupHandler(BaseHandler):
                 tnsrobot_group = TNSRobotGroup(
                     tnsrobot_id=tnsrobot_id,
                     group_id=group_id,
-                    autoreport=autoreport if autoreport is not None else False,
+                    auto_report=True if autoreport is not None else False,
                     owner=owner if owner is not None else False,
                 )
 
                 session.add(tnsrobot_group)
                 session.commit()
+                self.push(
+                    action='skyportal/REFRESH_TNSROBOTS',
+                )
                 return self.success(data={"id": tnsrobot_group.id})
 
     @permissions(['Manage TNS robots'])
@@ -589,7 +626,9 @@ class TNSRobotGroupHandler(BaseHandler):
                 )
 
             # verify that this group is accessible by the user
-            if group_id not in [g.id for g in self.current_user.accessible_groups]:
+            if not self.current_user.is_system_admin and group_id not in [
+                g.id for g in self.current_user.accessible_groups
+            ]:
                 return self.error(
                     f'Group {group_id} is not accessible by the current user'
                 )
@@ -614,22 +653,36 @@ class TNSRobotGroupHandler(BaseHandler):
                     owners_nb += 1
             if owners_nb == 1 and tnsrobot_group.owner is True:
                 return self.error(
-                    'Cannot remove ownership from the only tnsrobot_group owning this robot, add another group as an owner first.'
+                    'Cannot delete the only tnsrobot_group owning this robot, add another group as an owner first.'
                 )
 
             session.delete(tnsrobot_group)
             session.commit()
+            self.push(
+                action='skyportal/REFRESH_TNSROBOTS',
+            )
             return self.success()
 
 
 class TNSRobotGroupAutoreporterHandler(BaseHandler):
     # this handler is used to add group users as autoreporters for a TNSRobot that their group has access to
     @permissions(['Manage TNS robots'])
-    def post(self, tnsrobot_id, group_id):
-        user_id = self.get_argument('user_id', None)
+    def post(self, tnsrobot_id, group_id, user_id=None):
         if user_id is None:
+            user_id = self.get_json().get('user_id', None)
+
+        user_ids = [user_id]
+
+        if "user_ids" in self.get_json():
+            user_ids = self.get_json()["user_ids"]
+            if isinstance(user_ids, str) or isinstance(user_ids, int):
+                user_ids = [int(user_id) for user_id in str(user_ids).split(",")]
+            elif isinstance(user_ids, list):
+                user_ids = [int(user_id) for user_id in user_ids]
+
+        if len(user_ids) == 0:
             return self.error(
-                'You must specify a user_id when adding a user as an autoreporter for a TNSRobot group'
+                'You must specify at least one user_id when adding autoreporter(s) for a TNSRobotGroup'
             )
 
         with self.Session() as session:
@@ -641,27 +694,12 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
                 return self.error(f'No TNSRobot with ID {tnsrobot_id}, or unaccessible')
 
             # verify that the user has access to the group
-            if group_id not in [g.id for g in self.current_user.accessible_groups]:
+            if not self.current_user.is_system_admin and group_id not in [
+                g.id for g in self.current_user.accessible_groups
+            ]:
                 return self.error(
                     f'Group {group_id} is not accessible by the current user'
                 )
-
-            # verify that the user has access to the user_id
-            user = session.scalar(
-                User.select(session.user_or_token).where(User.id == user_id)
-            )
-            if user is None:
-                return self.error(f'No user with ID {user_id}, or unaccessible')
-
-            # verify that the user specified is a group user of the group
-            group_user = session.scalar(
-                GroupUser.select(session.user_or_token).where(
-                    GroupUser.group_id == group_id, GroupUser.user_id == user_id
-                )
-            )
-
-            if group_user is None:
-                return self.error(f'User {user_id} is not a member of group {group_id}')
 
             # check if the group already has access to the tnsrobot
             tnsrobot_group = session.scalar(
@@ -676,32 +714,71 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
                     f'Group {group_id} does not have access to TNSRobot {tnsrobot_id}, cannot add autoreporter'
                 )
 
-            # verify that the user isn't already an autoreporter
-            existing_autoreporter = session.scalar(
-                TNSRobotGroupAutoreporter.select(session.user_or_token).where(
-                    TNSRobotGroupAutoreporter.tnsrobot_group_id == tnsrobot_group.id,
-                    TNSRobotGroupAutoreporter.group_user_id == group_user.id,
+            autoreporters = []
+            for user_id in user_ids:
+                # verify that the user has access to the user_id
+                user = session.scalar(
+                    User.select(session.user_or_token).where(User.id == user_id)
                 )
-            )
+                if user is None:
+                    return self.error(f'No user with ID {user_id}, or unaccessible')
 
-            if existing_autoreporter is not None:
-                return self.error(
-                    f'User {user_id} is already an autoreporter for TNSRobot {tnsrobot_id}'
+                # verify that the user specified is a group user of the group
+                group_user = session.scalar(
+                    GroupUser.select(session.user_or_token).where(
+                        GroupUser.group_id == group_id, GroupUser.user_id == user_id
+                    )
                 )
 
-            autoreporter = TNSRobotGroupAutoreporter(
-                tnsrobot_group_id=tnsrobot_group.id, group_user_id=group_user.id
-            )
-            session.add(autoreporter)
+                if group_user is None:
+                    return self.error(
+                        f'User {user_id} is not a member of group {group_id}'
+                    )
+
+                # verify that the user isn't already an autoreporter
+                existing_autoreporter = session.scalar(
+                    TNSRobotGroupAutoreporter.select(session.user_or_token).where(
+                        TNSRobotGroupAutoreporter.tnsrobot_group_id
+                        == tnsrobot_group.id,
+                        TNSRobotGroupAutoreporter.group_user_id == group_user.id,
+                    )
+                )
+
+                if existing_autoreporter is not None:
+                    return self.error(
+                        f'User {user_id} is already an autoreporter for TNSRobot {tnsrobot_id}'
+                    )
+
+                autoreporter = TNSRobotGroupAutoreporter(
+                    tnsrobot_group_id=tnsrobot_group.id, group_user_id=group_user.id
+                )
+                autoreporters.append(autoreporter)
+
+            for a in autoreporters:
+                session.add(a)
             session.commit()
-            return self.success(data={'id': autoreporter.id})
+            self.push(
+                action='skyportal/REFRESH_TNSROBOTS',
+            )
+            return self.success(data={'ids': [a.id for a in autoreporters]})
 
     @permissions(['Manage TNS robots'])
-    def delete(self, tnsrobot_id, group_id):
-        user_id = self.get_argument('user_id', None)
+    def delete(self, tnsrobot_id, group_id, user_id):
         if user_id is None:
+            user_id = self.get_json().get('user_id', None)
+
+        user_ids = [user_id]
+
+        if "user_ids" in self.get_json():
+            user_ids = self.get_json()["user_ids"]
+            if isinstance(user_ids, str) or isinstance(user_ids, int):
+                user_ids = [int(user_id) for user_id in str(user_ids).split(",")]
+            elif isinstance(user_ids, list):
+                user_ids = [int(user_id) for user_id in user_ids]
+
+        if len(user_ids) == 0:
             return self.error(
-                'You must specify a user_id when adding a user as an autoreporter for a TNSRobot group'
+                'You must specify at least one user_id when removing autoreporter(s) from a TNSRobotGroup'
             )
 
         with self.Session() as session:
@@ -713,27 +790,12 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
                 return self.error(f'No TNSRobot with ID {tnsrobot_id}, or unaccessible')
 
             # verify that the user has access to the group
-            if group_id not in [g.id for g in self.current_user.accessible_groups]:
+            if not self.current_user.is_system_admin and group_id not in [
+                g.id for g in self.current_user.accessible_groups
+            ]:
                 return self.error(
                     f'Group {group_id} is not accessible by the current user'
                 )
-
-            # verify that the user has access to the user_id
-            user = session.scalar(
-                User.select(session.user_or_token).where(User.id == user_id)
-            )
-            if user is None:
-                return self.error(f'No user with ID {user_id}, or unaccessible')
-
-            # verify that the user specified is a group user of the group
-            group_user = session.scalar(
-                GroupUser.select(session.user_or_token).where(
-                    GroupUser.group_id == group_id, GroupUser.user_id == user_id
-                )
-            )
-
-            if group_user is None:
-                return self.error(f'User {user_id} is not a member of group {group_id}')
 
             # check if the group already has access to the tnsrobot
             tnsrobot_group = session.scalar(
@@ -748,21 +810,50 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
                     f'Group {group_id} does not have access to TNSRobot {tnsrobot_id}, cannot remove autoreporter'
                 )
 
-            # verify that the user is an autoreporter
-            autoreporter = session.scalar(
-                TNSRobotGroupAutoreporter.select(session.user_or_token).where(
-                    TNSRobotGroupAutoreporter.tnsrobot_group_id == tnsrobot_group.id,
-                    TNSRobotGroupAutoreporter.group_user_id == group_user.id,
+            autoreporters = []
+            for user_id in user_ids:
+                # verify that the user has access to the user_id
+                user = session.scalar(
+                    User.select(session.user_or_token).where(User.id == user_id)
                 )
-            )
+                if user is None:
+                    return self.error(f'No user with ID {user_id}, or unaccessible')
 
-            if autoreporter is None:
-                return self.error(
-                    f'User {user_id} is not an autoreporter for TNSRobot {tnsrobot_id}'
+                # verify that the user specified is a group user of the group
+                group_user = session.scalar(
+                    GroupUser.select(session.user_or_token).where(
+                        GroupUser.group_id == group_id, GroupUser.user_id == user_id
+                    )
                 )
 
-            session.delete(autoreporter)
+                if group_user is None:
+                    return self.error(
+                        f'User {user_id} is not a member of group {group_id}'
+                    )
+
+                # verify that the user is an autoreporter
+                autoreporter = session.scalar(
+                    TNSRobotGroupAutoreporter.select(session.user_or_token).where(
+                        TNSRobotGroupAutoreporter.tnsrobot_group_id
+                        == tnsrobot_group.id,
+                        TNSRobotGroupAutoreporter.group_user_id == group_user.id,
+                    )
+                )
+
+                if autoreporter is None:
+                    return self.error(
+                        f'User {user_id} is not an autoreporter for TNSRobot {tnsrobot_id}'
+                    )
+
+                autoreporters.append(autoreporter)
+
+            for a in autoreporters:
+                session.delete(a)
+
             session.commit()
+            self.push(
+                action='skyportal/REFRESH_TNSROBOTS',
+            )
             return self.success()
 
 
@@ -789,7 +880,20 @@ class TNSRobotSubmissionHandler(BaseHandler):
                     return self.error(
                         f'Submission {id} not found for TNSRobot {tnsrobot_id}'
                     )
-            return self.success(data=tnsrobot.submissions)
+                return self.success(data=submission)
+            else:
+                stmt = (
+                    TNSRobotSubmission.select(session.user_or_token)
+                    .where(TNSRobotSubmission.tnsrobot_id == tnsrobot_id)
+                    .order_by(TNSRobotSubmission.created_at.desc())
+                )
+                submissions = session.execute(stmt).scalars().all()
+                return self.success(
+                    data={
+                        'tnsrobot_id': tnsrobot.id,
+                        'submissions': [s.to_dict() for s in submissions],
+                    }
+                )
 
 
 class BulkTNSHandler(BaseHandler):
@@ -1068,27 +1172,19 @@ class ObjTNSHandler(BaseHandler):
             if 'api_key' not in altdata:
                 return self.error('Missing TNS API key.')
 
-            try:
-                loop = asyncio.get_event_loop()
-            except Exception:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: post_tns(
-                    obj_ids=[obj.id],
-                    tnsrobot_id=tnsrobot.id,
-                    user_id=self.associated_user_object.id,
-                    reporters=reporters,
-                    archival=archival,
-                    archival_comment=archival_comment,
-                    instrument_ids=instrument_ids,
-                    stream_ids=stream_ids,
-                    timeout=30,
-                ),
+            # create a TNSRobotSubmission entry with that information
+            tnsrobot_submission = TNSRobotSubmission(
+                tnsrobot_id=tnsrobot.id,
+                obj_id=obj.id,
+                user_id=self.associated_user_object.id,
+                custom_reporting_string=reporters,
+                archival=archival,
+                archival_comment=archival_comment,
+                instrument_ids=instrument_ids,
+                stream_ids=stream_ids,
             )
-
+            session.add(tnsrobot_submission)
+            session.commit()
             return self.success()
 
 
