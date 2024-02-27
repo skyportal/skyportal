@@ -107,7 +107,7 @@ jobs:
           sudo apt purge -y nginx nginx-common nginx-core nginx-full
 
           # add the PPA repository with brotli support
-          sudo add-apt-repository ppa:ondrej/nginx-mainline -y
+          sudo add-apt-repository ppa:ondrej/nginx -y
           sudo apt update -y
 
           # apt list -a libnginx-mod-brotli
@@ -115,9 +115,9 @@ jobs:
           # install nginx
           # sudo apt install nginx=1.25.4-1+ubuntu22.04.1+deb.sury.org+1 -y
           # sudo apt install nginx-core=1.25.4-1+ubuntu22.04.1+deb.sury.org+1 -y
-          sudo apt install nginx-common=1.25.4-1+ubuntu22.04.1+deb.sury.org+1 -y
+          # sudo apt install nginx-common=1.25.4-1+ubuntu22.04.1+deb.sury.org+1 -y
           # sudo apt install nginx-full=1.25.4-1+ubuntu22.04.1+deb.sury.org+1 -y
-          sudo apt install libnginx-mod-brotli -y
+          sudo apt install nginx libnginx-mod-brotli -y
 
           pip install pip==23.1.2
           pip install wheel numpy
