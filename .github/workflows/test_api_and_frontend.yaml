@@ -103,10 +103,15 @@ jobs:
           sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev
 
           # if nginx is already installed, remove it
-          sudo apt remove -y nginx
+          sudo apt remove -y nginx nginx-common nginx-core nginx-full
+          sudo apt purge -y nginx nginx-common nginx-core nginx-full
 
           sudo add-apt-repository ppa:ondrej/nginx-mainline -y
           sudo apt update -y
+          sudo apt install -f nginx -y
+          sudo apt install -f nginx-core -y
+          sudo apt install -f nginx-common -y
+          sudo apt install -f nginx-full y
           sudo apt install -y nginx libnginx-mod-brotli
 
           pip install pip==23.1.2
