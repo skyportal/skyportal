@@ -56,7 +56,10 @@ class TNSRobot(Base):
     )
 
     acknowledgments = sa.Column(
-        sa.String, nullable=False, doc="Acknowledgments to use for this robot."
+        sa.String,
+        nullable=False,
+        server_default="",
+        doc="Acknowledgments to use for this robot.",
     )
 
     @property
