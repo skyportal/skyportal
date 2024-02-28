@@ -22,7 +22,7 @@ RUN apt-get update && \
 # we install nginx with brotli support from ppa:ondrej/nginx-mainline
 RUN add-apt-repository ppa:ondrej/nginx-mainline -y && \
 	apt update -y && \
-	apt install -y nginx libnginx-mod-brotli
+	apt install -y nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter
 
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
