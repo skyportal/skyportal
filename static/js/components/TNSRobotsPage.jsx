@@ -126,7 +126,7 @@ const TNSRobotGroup = ({ tnsrobot_group, groupsLookup, usersLookup }) => {
         tnsrobotsActions.editTNSRobotGroup(
           tnsrobot_group.tnsrobot_id,
           tnsrobot_group.group_id,
-          { owner, autoreport },
+          { owner, auto_report: autoreport },
         ),
       ).then((response) => {
         if (response.status === "success") {
