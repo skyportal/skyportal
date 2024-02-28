@@ -494,7 +494,7 @@ class TNSRobotGroupHandler(BaseHandler):
     def put(self, tnsrobot_id, group_id=None):
         # the PUT handler is used to add or edit a group
         data = self.get_json()
-        autoreport = data.get('autoreport', None)
+        autoreport = data.get('auto_report', None)
         owner = data.get('owner', None)
         if group_id is None:
             group_id = data.get('group_id', None)
@@ -562,11 +562,11 @@ class TNSRobotGroupHandler(BaseHandler):
                     # here we want to be careful not to remove the last owner
                     # so we check if the tnsrobot has any other groups that are owners.
                     # If this is the only one, we return an error
-                    owners_nb = 0
+                    owners = []
                     for g in tnsrobot_group.tnsrobot.groups:
                         if g.owner is True:
-                            owners_nb += 1
-                    if owners_nb == 1:
+                            owners.append(g.group_id)
+                    if len(owners) == 1 and owners[0] == group_id:
                         return self.error(
                             'Cannot remove ownership from the only tnsrobot_group owning this robot, add another group as an owner first.'
                         )
