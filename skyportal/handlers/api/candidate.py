@@ -1823,7 +1823,7 @@ def grab_query_results(
     return info
 
 
-class CandidateCandidHandler(BaseHandler):
+class CandidateFilterHandler(BaseHandler):
     @auth_or_token
     def get(self):
         # here we want a lighter version of the CandidateHandler, that applies

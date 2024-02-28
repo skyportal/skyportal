@@ -7,7 +7,7 @@ from .analysis import (
     AnalysisProductsHandler,
     DefaultAnalysisHandler,
 )
-from .candidate import CandidateHandler, CandidateCandidHandler
+from .candidate import CandidateHandler, CandidateFilterHandler
 from .classification import (
     ClassificationHandler,
     ClassificationVotesHandler,

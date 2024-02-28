@@ -1719,8 +1719,8 @@ def test_candidate_savers(
     assert data["data"][1]["saves"] == 1
 
 
-def test_candidate_candid_list(view_only_token, public_candidate):
-    status, data = api("GET", "candidates_candid", token=view_only_token)
+def test_candidate_filter_list(view_only_token, public_candidate):
+    status, data = api("GET", "candidates_filter", token=view_only_token)
     assert status == 200
     assert data["status"] == "success"
     assert len(data["data"]["candidates"]) >= 1
