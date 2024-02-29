@@ -375,32 +375,47 @@ const NewTNSRobotGroup = ({ tnsrobot, groupsLookup }) => {
         aria-labelledby="form-dialog-title"
       >
         <DialogTitle id="form-dialog-title">Add Group</DialogTitle>
-        <DialogContent>
-          <InputLabel>Group</InputLabel>
-          <Select
-            value={group}
-            onChange={(e) => setGroup(e.target.value)}
-            style={{ minWidth: "20vw" }}
+        <DialogContent
+          style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+        >
+          <div>
+            <InputLabel>Group</InputLabel>
+            <Select
+              value={group}
+              onChange={(e) => setGroup(e.target.value)}
+              style={{ minWidth: "20vw" }}
+            >
+              {groupOptions.map(
+                (
+                  group, // eslint-disable-line no-shadow
+                ) => (
+                  <MenuItem key={group.id} value={group.id}>
+                    {group.name || "loading..."}
+                  </MenuItem>
+                ),
+              )}
+            </Select>
+          </div>
+          <div>
+            <InputLabel>Owner</InputLabel>
+            <Switch
+              checked={owner}
+              onChange={(e) => setOwner(e.target.checked)}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              gap: "0.5rem",
+              justifyContent: "space-between",
+            }}
           >
-            {groupOptions.map(
-              (
-                group, // eslint-disable-line no-shadow
-              ) => (
-                <MenuItem key={group.id} value={group.id}>
-                  {group.name || "loading..."}
-                </MenuItem>
-              ),
-            )}
-          </Select>
-          <InputLabel>Owner</InputLabel>
-          <Switch
-            checked={owner}
-            onChange={(e) => setOwner(e.target.checked)}
-          />
-          <Button primary onClick={handleAdd} disabled={loading}>
-            Add
-          </Button>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button primary onClick={handleAdd} disabled={loading}>
+              Add
+            </Button>
+            <Button onClick={() => setOpen(false)}>Cancel</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
@@ -515,27 +530,40 @@ const NewTNSRobotCoauthor = ({ tnsrobot, usersLookup }) => {
         aria-labelledby="form-dialog-title"
       >
         <DialogTitle id="form-dialog-title">Add Coauthor</DialogTitle>
-        <DialogContent>
-          <InputLabel>Coauthor</InputLabel>
-          <Select
-            value={user}
-            onChange={(e) => setUser(e.target.value)}
-            style={{ minWidth: "20vw" }}
+        <DialogContent
+          style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+        >
+          <div>
+            <InputLabel>Coauthor</InputLabel>
+            <Select
+              value={user}
+              onChange={(e) => setUser(e.target.value)}
+              style={{ minWidth: "20vw" }}
+            >
+              {userOptions.map(
+                (
+                  user, // eslint-disable-line no-shadow
+                ) => (
+                  <MenuItem key={user.id} value={user.id}>
+                    {userLabel(user)}
+                  </MenuItem>
+                ),
+              )}
+            </Select>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              gap: "0.5rem",
+              justifyContent: "space-between",
+            }}
           >
-            {userOptions.map(
-              (
-                user, // eslint-disable-line no-shadow
-              ) => (
-                <MenuItem key={user.id} value={user.id}>
-                  {userLabel(user)}
-                </MenuItem>
-              ),
-            )}
-          </Select>
-          <Button primary onClick={handleAdd} disabled={loading}>
-            Add
-          </Button>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button primary onClick={handleAdd} disabled={loading}>
+              Add
+            </Button>
+            <Button onClick={() => setOpen(false)}>Cancel</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

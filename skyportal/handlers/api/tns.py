@@ -595,8 +595,10 @@ class TNSRobotGroupHandler(BaseHandler):
                 tnsrobot_group = TNSRobotGroup(
                     tnsrobot_id=tnsrobot_id,
                     group_id=group_id,
-                    auto_report=True if autoreport is not None else False,
-                    owner=owner if owner is not None else False,
+                    auto_report=bool(
+                        autoreport
+                    ),  # None || False -> False, True -> True
+                    owner=bool(owner),  # None || False -> False, True -> True
                 )
 
                 session.add(tnsrobot_group)
