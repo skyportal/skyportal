@@ -42,17 +42,29 @@ def get_trigger(root):
 def get_dateobs(root):
     """Get the UTC event time from a GCN notice, rounded to the nearest second,
     as a datetime.datetime object."""
-    dateobs = Time(
-        root.find(
+
+    t0 = root.find(
+        "./WhereWhen/{*}ObsDataLocation"
+        "/{*}ObservationLocation"
+        "/{*}AstroCoords"
+        "[@coord_system_id='UTC-FK5-GEO']"
+        "/Time/TimeInstant/ISOTime"
+    )
+    if t0 is None:
+        t0 = root.find(
             "./WhereWhen/{*}ObsDataLocation"
             "/{*}ObservationLocation"
             "/{*}AstroCoords"
-            "[@coord_system_id='UTC-FK5-GEO']"
+            "[@coord_system_id='UTC-ICRS-GEO']"
             "/Time/TimeInstant/ISOTime"
-        ).text,
+        )
+    if t0 is None:
+        return None
+
+    dateobs = Time(
+        t0.text,
         precision=0,
     )
-
     # FIXME: https://github.com/astropy/astropy/issues/7179
     dateobs = Time(dateobs.iso)
 
