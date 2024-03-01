@@ -1,6 +1,7 @@
 import copy
 import uuid
 import datetime
+import hashlib
 import json
 from io import StringIO
 import traceback
@@ -1328,6 +1329,11 @@ class PhotometryHandler(BaseHandler):
 
         refresh = self.get_query_argument('refresh', default=False)
 
+        if refresh is not None and str(refresh).lower() in ['true', 't', '1']:
+            refresh = True
+        else:
+            refresh = False
+
         try:
             df, instrument_cache = standardize_photometry_data(self.get_json())
         except ValidationError as e:
@@ -1339,10 +1345,24 @@ class PhotometryHandler(BaseHandler):
                 'Please break up the data into smaller sets and try again'
             )
 
-        ignore_flux = self.get_query_arguments('ignore_flux_deduplication', False)
-        ignore_flux_replace = self.get_query_arguments(
+        ignore_flux = self.get_query_argument('ignore_flux_deduplication', False)
+        ignore_flux_replace = self.get_query_argument(
             'ignore_flux_deduplication_replace', False
         )
+
+        if ignore_flux is not None and str(ignore_flux).lower() in ['true', 't', '1']:
+            ignore_flux = True
+        else:
+            ignore_flux = False
+
+        if ignore_flux_replace is not None and str(ignore_flux_replace).lower() in [
+            'true',
+            't',
+            '1',
+        ]:
+            ignore_flux_replace = True
+        else:
+            ignore_flux_replace = False
 
         obj_id = df['obj_id'].unique()[0]
         username = self.associated_user_object.username
@@ -1388,6 +1408,7 @@ class PhotometryHandler(BaseHandler):
                 id_map = {}
 
                 updated_ids = []
+                updated_duplicate_hash = []
                 for df_index, duplicate in duplicated_photometry:
                     id_map[df_index] = duplicate.id
                     duplicate_group_ids = {g.id for g in duplicate.groups}
@@ -1433,6 +1454,17 @@ class PhotometryHandler(BaseHandler):
                         and str(duplicate.origin).strip().lower()
                         not in ['none', '', 'nan', 'null']
                     ):
+                        # we might have more than one datapoint at a given: jd, instrument_id, filter, and origin
+                        # that do have different flux values. We can't update the flux/fluxerr for all of them,
+                        # because this will conflict with the deduplication index we have and raise an error
+                        # so we only want to update the first one we find
+                        # for that, we compute a hash of the jd, instrument_id, filter, and origin everytime we update a row
+                        # store it, and make sure we don't update a row with the same hash twice
+                        duplicate_hash = hashlib.sha256(
+                            f"{duplicate.jd}{duplicate.instrument_id}{duplicate.filter}{duplicate.origin}".encode()
+                        ).hexdigest()
+                        if duplicate_hash in updated_duplicate_hash:
+                            continue
                         duplicate.flux = df.loc[df_index]['standardized_flux']
                         duplicate.fluxerr = df.loc[df_index]['standardized_fluxerr']
                         duplicate.filter = df.loc[df_index]['filter']
@@ -1444,13 +1476,10 @@ class PhotometryHandler(BaseHandler):
                         duplicate.ref_fluxerr = df.loc[df_index][
                             'ref_standardized_fluxerr'
                         ]
-                        duplicate.original_user_data = df.loc[df_index][
-                            'original_user_data'
-                        ]
-                        duplicate.altdata = df.loc[df_index]['altdata']
+                        duplicate.altdata = json.dumps(df.loc[df_index]['altdata'])
                         duplicate.modified = datetime.datetime.utcnow().isoformat()
-                        session.add(duplicate)
                         updated_ids.append(duplicate.id)
+                        updated_duplicate_hash.append(duplicate_hash)
 
                 # now safely drop the duplicates:
                 new_photometry = df.loc[new_photometry_df_idxs]
@@ -1460,7 +1489,7 @@ class PhotometryHandler(BaseHandler):
                 )
                 if ignore_flux and ignore_flux_replace and len(updated_ids) > 0:
                     log(
-                        f'A total of (len{updated_ids}) duplicate photometry points (by obj_id, instrument_id, mjd, origin) were updated: {updated_ids} as requested.'
+                        f'A total of {len(updated_ids)} duplicate photometry points (by obj_id, instrument_id, mjd, origin only, ignoring flux/fluxerr) were updated as requested.'
                     )
 
                 if len(new_photometry) > 0:

@@ -614,6 +614,65 @@ def test_token_user_post_put_photometry_data(
     assert len(new_ids) == 3
     assert len(set(new_ids).intersection(set(ids))) == 1
 
+    # next we test the ignore_flux_deduplication and ignore_flux_deduplication_replace arguments
+    # when set to True, the flux isn't used when assessing if a new datapoint is a duplicate of an existing
+    # and if replace is also true, the existing entry will have its flux value updated
+    # This should ONLY work if an origin is specified for both the existing and new datapoint.
+
+    # so we send:
+    # - same first point with different flux, should not be updated because the existing point has no origin
+    # - same second point with different flux, should update the existing point as the new and existing points have an origin
+    # - different third point, should be added
+    ids = new_ids
+    status, data = api(
+        'PUT',
+        'photometry?ignore_flux_deduplication=True&ignore_flux_deduplication_replace=True',
+        data={
+            'obj_id': str(public_source.id),
+            'instrument_id': ztf_camera.id,
+            "mjd": [59400, 59401, 59403],
+            "mag": [20.2, 20.3, np.random.uniform(18, 19)],
+            "magerr": [0.05, 0.1, np.random.uniform(0.01, 0.1)],
+            "limiting_mag": [21.0, 20.1, 20.2],
+            "magsys": ["ab", "ab", "ab"],
+            "filter": ["ztfr", "ztfg", "ztfr"],
+            "ra": [42.01, 42.01, 42.02],
+            "dec": [42.02, 42.01, 42.03],
+            "origin": [None, "omg", "lol"],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    new_ids = data["data"]["ids"]
+    assert len(new_ids) == 3
+    # we should have 1 same + 1 updated - 1 new = 2 identical ids
+    assert len(set(new_ids).intersection(set(ids))) == 2
+
+    # GET the photometry
+    # First point should be identical
+    status, data = api(
+        'GET', f'photometry/{ids[0]}?format=mag', token=upload_data_token
+    )
+    assert status == 200
+    assert "data" in data
+    data = data["data"]
+    assert data["mjd"] == 59400
+    assert data["mag"] == 19.2
+    assert data["magerr"] == 0.05
+
+    # second point should be updated
+    status, data = api(
+        'GET', f'photometry/{ids[1]}?format=mag', token=upload_data_token
+    )
+    assert status == 200
+    assert "data" in data
+    data = data["data"]
+    assert data["mjd"] == 59401
+    assert data["mag"] == 20.3
+    assert data["magerr"] == 0.1
+
 
 def test_token_user_post_put_get_photometry_data(
     upload_data_token_two_groups, public_source, public_group, public_group2, ztf_camera
