@@ -448,6 +448,12 @@ class TNSRobotCoauthorHandler(BaseHandler):
                     f'User {user_id} is already a coauthor of TNSRobot {tnsrobot_id}'
                 )
 
+            # if the user has no affiliations, return an error (autoreporting would not work)
+            if len(user.affiliations) == 0:
+                return self.error(
+                    f'User {user_id} has no affiliation(s), required to be a coauthor of TNSRobot {tnsrobot_id}. User must add one in their profile.'
+                )
+
             # add the coauthor
             coauthor = TNSRobotCoauthor(tnsrobot_id=tnsrobot_id, user_id=user_id)
             session.add(coauthor)
@@ -748,6 +754,12 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
                 if existing_autoreporter is not None:
                     return self.error(
                         f'User {user_id} is already an autoreporter for TNSRobot {tnsrobot_id}'
+                    )
+
+                # if the user has no affiliations, return an error (autoreporting would not work)
+                if len(user.affiliations) == 0:
+                    return self.error(
+                        f'User {user_id} has no affiliation(s), required to be an autoreporter of TNSRobot {tnsrobot_id}. User must add one in their profile.'
                     )
 
                 autoreporter = TNSRobotGroupAutoreporter(

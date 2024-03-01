@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
+
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
 
@@ -57,11 +58,28 @@ const TNSRobotSubmissionsPage = () => {
       },
     },
     {
+      name: "created_at",
+      label: "Created At",
+      options: {
+        display: true,
+        filter: false,
+        sort: false,
+      },
+    },
+    {
       name: "obj_id",
       label: "Source",
       options: {
         filter: false,
         sort: true,
+        customBodyRenderLite: (dataIndex) => {
+          const { obj_id } = tnsrobot_submissions[dataIndex];
+          return (
+            <Link to={`/source/${obj_id}`} target="_blank">
+              {obj_id}
+            </Link>
+          );
+        },
       },
     },
     {
@@ -74,6 +92,15 @@ const TNSRobotSubmissionsPage = () => {
           const { user_id } = tnsrobot_submissions[dataIndex];
           return userLabel(usersLookup[user_id]);
         },
+      },
+    },
+    {
+      name: "custom_reporting_string",
+      label: "Custom Reporting String",
+      options: {
+        display: false,
+        filter: false,
+        sort: true,
       },
     },
     {
@@ -106,7 +133,7 @@ const TNSRobotSubmissionsPage = () => {
           filter: false,
           print: false,
           download: false,
-          viewColumns: false,
+          viewColumns: true,
           pagination: false,
           search: false,
         }}

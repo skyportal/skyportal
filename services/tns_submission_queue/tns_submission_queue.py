@@ -118,12 +118,12 @@ def service(*args, **kwargs):
                 # if this is an auto_submission, we need to check if the group has auto-report enabled
                 # and if the user is an auto-reporter for that group
                 if submission_request.auto_submission:
-                    tnsrobot_groups = [
+                    tnsrobot_groups_with_autoreport = [
                         tnsrobot_group
                         for tnsrobot_group in tnsrobot_groups
                         if tnsrobot_group.auto_report is True
                     ]
-                    if len(tnsrobot_groups) == 0:
+                    if len(tnsrobot_groups_with_autoreport) == 0:
                         error_msg = (
                             f'No group with TNSRobot {tnsrobot_id} set to auto-report.'
                         )
@@ -133,9 +133,9 @@ def service(*args, **kwargs):
                         continue
 
                     # we filter out the groups that this user is not an auto-reporter for
-                    tnsrobot_groups = [
+                    tnsrobot_groups_with_autoreport = [
                         tnsrobot_group
-                        for tnsrobot_group in tnsrobot_groups
+                        for tnsrobot_group in tnsrobot_groups_with_autoreport
                         if session.scalar(
                             sa.select(TNSRobotGroupAutoreporter).where(
                                 TNSRobotGroupAutoreporter.tnsrobot_group_id
@@ -150,15 +150,18 @@ def service(*args, **kwargs):
                         )
                     ]
 
-                    if len(tnsrobot_groups) == 0:
+                    if len(tnsrobot_groups_with_autoreport) == 0:
                         error_msg = f'User {user_id} is not an auto-reporter for any group with TNSRobot {tnsrobot_id} set to auto-report.'
                         log(error_msg)
                         submission_request.status = f'error: {error_msg}'
                         session.commit()
                         continue
 
-                # we use the first remaining group to submit the object to
-                tnsrobot_group = tnsrobot_groups[0]
+                    # we use the first remaining auto-report group to submit the object
+                    tnsrobot_group = tnsrobot_groups_with_autoreport[0]
+                else:
+                    # we use the first remaining group to submit the object
+                    tnsrobot_group = tnsrobot_groups[0]
 
                 tns_headers = {
                     'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
@@ -176,32 +179,23 @@ def service(*args, **kwargs):
                     session.commit()
                     continue
 
-                # fetch the first source saved with this obj_id
-                # if its an autosubmission, restrict it to source with any group with this tnsrobot
-                if submission_request.auto_submission:
-                    source = session.scalar(
-                        sa.select(Source)
-                        .where(
-                            Source.obj_id == obj_id,
-                            Source.active.is_(True),
-                            Source.group_id.in_(
-                                [
-                                    tnsrobot_group.group_id
-                                    for tnsrobot_group in tnsrobot_groups
-                                ]
-                            ),
-                        )
-                        .order_by(Source.created_at.asc())
+                # Get the sources saved to the groups that have access to this TNS robot,
+                # this is so if a user that has access to this robot saved the obj as a source before,
+                # he is the first author when another user auto-submits the source
+                source = session.scalar(
+                    sa.select(Source)
+                    .where(
+                        Source.obj_id == obj_id,
+                        Source.active.is_(True),
+                        Source.group_id.in_(
+                            [
+                                tnsrobot_group.group_id
+                                for tnsrobot_group in tnsrobot_groups
+                            ]
+                        ),
                     )
-                else:
-                    source = session.scalar(
-                        sa.select(Source)
-                        .where(
-                            Source.obj_id == obj_id,
-                            Source.active.is_(True),
-                        )
-                        .order_by(Source.created_at.asc())
-                    )
+                    .order_by(Source.saved_at.asc())
+                )
 
                 if source is None:
                     if submission_request.auto_submission:
@@ -229,12 +223,20 @@ def service(*args, **kwargs):
                     author_ids.append(user_id)
 
                     coauthor_ids = [coauthor.user_id for coauthor in tnsrobot.coauthors]
-                    author_ids = list(set(author_ids + coauthor_ids))
+                    for coauthor_id in coauthor_ids:
+                        if coauthor_id not in author_ids:
+                            author_ids.append(coauthor_id)
+
                     authors = (
                         session.scalars(sa.select(User).where(User.id.in_(author_ids)))
                         .unique()
                         .all()
                     )
+                    # reorder the authors to match the order of the author_ids
+                    authors = sorted(
+                        authors, key=lambda author: author_ids.index(author.id)
+                    )
+
                     if len(authors) == 0:
                         error_msg = f'No authors found for tnsrobot {tnsrobot_id} and source {obj_id}, cannot report to TNS.'
                         log(error_msg)
@@ -265,6 +267,7 @@ def service(*args, **kwargs):
                         session.commit()
                         continue
                     reporters += f' {str(tnsrobot.acknowledgments).strip()}'
+                    submission_request.custom_reporting_string = reporters
 
                 archival = submission_request.archival
                 archival_comment = submission_request.archival_comment

@@ -210,6 +210,7 @@ class TNSRobotSubmission(Base):
         default=False,
         doc="Whether this is an archival submission or not.",
     )
+
     archival_comment = sa.Column(
         sa.String,
         nullable=True,
