@@ -287,7 +287,6 @@ const SourceContent = ({ source }) => {
   const photometry = useSelector((state) => state.photometry[source.id]);
   const spectra = useSelector((state) => state.spectra)[source.id];
   const associatedGCNs = useSelector((state) => state.source.associatedGCNs);
-  const image_analysis = useSelector((state) => state.config.image_analysis);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments,
@@ -354,6 +353,15 @@ const SourceContent = ({ source }) => {
     source.dec,
     ":",
   )}`;
+
+  // associatedGCNs is an array of dateobs
+  // source.gcn_crossmatch is an array of objects with dateobs
+  // we want to combine these two arrays into one array of dateobs deduplicated
+  // and sorted by date in descending order
+  const gcn_crossmatches = (associatedGCNs || [])
+    .concat((source.gcn_crossmatch || []).map((gcn) => gcn.dateobs))
+    .filter((gcn, index, self) => self.indexOf(gcn) === index)
+    .sort((a, b) => new Date(b) - new Date(a));
 
   useEffect(() => {
     dispatch(photometryActions.fetchSourcePhotometry(source.id));
@@ -776,16 +784,7 @@ const SourceContent = ({ source }) => {
                 <b>GCN Crossmatches: &nbsp;</b>
                 {source.gcn_crossmatch?.length > 0 && (
                   <SourceGCNCrossmatchList
-                    gcn_crossmatches={
-                      (associatedGCNs || [])
-                        .map(
-                          (dateobs) =>
-                            ({
-                              dateobs,
-                            }) || [],
-                        )
-                        .concat(source.gcn_crossmatch) || []
-                    }
+                    gcn_crossmatches={gcn_crossmatches}
                   />
                 )}
                 {hovering === "gcn" && (
@@ -1290,15 +1289,6 @@ const SourceContent = ({ source }) => {
                       <Button secondary>Periodogram Analysis</Button>
                     </Link>
                   )}
-                  {currentUser?.permissions?.includes("Upload data") &&
-                    image_analysis && (
-                      <Link
-                        to={`/source/${source.id}/image_analysis`}
-                        role="link"
-                      >
-                        <Button variant="contained">Image Analysis</Button>
-                      </Link>
-                    )}
                 </div>
               </Grid>
             </AccordionDetails>

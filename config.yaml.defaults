@@ -154,8 +154,6 @@ app:
       component: FindingChart
     - path: "/source/:id/periodogram"
       component: Periodogram
-    # - path: "/source/:id/image_analysis"
-      # component: ImageAnalysisPage
     - path: "/db_stats"
       component: DBStats
     - path: "/gcn_events"
@@ -732,11 +730,13 @@ analysis_services:
     embeddings_store:
       summary:
         location: pinecone
-        environment: us-east1-gcp
         api_key:
         index_name: openai-skyportal-summary
         index_size: 1536
         model: text-embedding-ada-002
+        environment: gcp-starter
+        pod_type: p1.x1
+
 
 
 comments_folder: persistentdata/comments

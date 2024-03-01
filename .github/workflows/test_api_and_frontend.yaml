@@ -103,11 +103,13 @@ jobs:
           sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev
 
           # if nginx is already installed, remove it
-          sudo apt remove -y nginx nginx-common nginx-core
+          sudo apt remove -y nginx nginx-common nginx-core nginx-full
+          sudo apt purge -y nginx nginx-common nginx-core nginx-full
 
-          sudo add-apt-repository ppa:ondrej/nginx-mainline -y
+          # add the PPA repository with brotli support for nginx
+          sudo add-apt-repository ppa:ondrej/nginx -y
           sudo apt update -y
-          sudo apt install -y nginx libnginx-mod-brotli
+          sudo apt install nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter -y
 
           pip install pip==23.1.2
           pip install wheel numpy
