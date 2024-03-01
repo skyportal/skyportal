@@ -1,5 +1,4 @@
 import tornado.web
-import shutil
 
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app.model_util import create_tables
@@ -18,6 +17,7 @@ from skyportal.handlers.api import (
     AssignmentHandler,
     BulkTNSHandler,
     CandidateHandler,
+    CandidateFilterHandler,
     CatalogQueryHandler,
     ClassificationHandler,
     ClassificationVotesHandler,
@@ -238,6 +238,7 @@ skyportal_handlers = [
         AnalysisProductsHandler,
     ),
     (r'/api/assignment(/.*)?', AssignmentHandler),
+    (r'/api/candidates_filter', CandidateFilterHandler),
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/catalogs/swift_lsxps', SwiftLSXPSQueryHandler),
@@ -599,32 +600,6 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         print('  Your server is insecure. Please update the secret string ')
         print('  in the configuration file!')
         print('!' * 80)
-
-    if 'image_analysis' in cfg:
-        missing_bins = []
-        for exe in ['scamp', 'psfex']:
-            bin = shutil.which(exe)
-            if bin is None:
-                missing_bins.append(exe)
-
-        if len(missing_bins) > 0:
-            log('!' * 80)
-            log(
-                f"  Can't run image analysis. Missing dependencies: {', '.join(missing_bins)}"
-            )
-            log('!' * 80)
-            return
-
-        # ignore the flake8 error due to the import being before in this file
-
-        from skyportal.handlers.api.internal import ImageAnalysisHandler
-
-        baselayer_handlers = baselayer_handlers + [
-            (
-                r'/api/internal/sources(/[0-9A-Za-z-_\.\+]+)/image_analysis',
-                ImageAnalysisHandler,
-            ),
-        ]
 
     handlers = baselayer_handlers + skyportal_handlers
 
