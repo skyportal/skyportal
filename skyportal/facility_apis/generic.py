@@ -183,6 +183,7 @@ class GENERICAPI(FollowUpAPI):
             else None
         )
 
+        transaction = None
         if altdata is not None:
             if 'endpoint' in altdata and 'api_token' in altdata:
                 payload = {
@@ -288,7 +289,8 @@ class GENERICAPI(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
 
-        session.add(transaction)
+        if transaction is not None:
+            session.add(transaction)
 
         if kwargs.get('refresh_source', False):
             flow = Flow()
@@ -333,27 +335,27 @@ class GENERICAPI(FollowUpAPI):
             if (
                 getattr(req, 'transactions', None) is not None
                 and getattr(req, 'transactions', None) != []
+                and getattr(req.transactions[0], 'response', None) is not None
             ):
-                if getattr(req.transactions[0], 'response', None) is not None:
-                    content = req.transactions[0].response["content"]
-                    content = json.loads(content)
+                content = req.transactions[0].response["content"]
+                content = json.loads(content)
 
-                    uid = content["data"]["id"]
+                uid = content["data"]["id"]
 
-                    r = requests.delete(
-                        f"{altdata['endpoint']}/{uid}",
-                        headers={"Authorization": f"token {altdata['api_token']}"},
-                    )
-                    r.raise_for_status()
-                    request.status = "deleted"
+                r = requests.delete(
+                    f"{altdata['endpoint']}/{uid}",
+                    headers={"Authorization": f"token {altdata['api_token']}"},
+                )
+                r.raise_for_status()
+                request.status = "deleted"
 
-                    transaction = FacilityTransaction(
-                        request=http.serialize_requests_request(r.request),
-                        response=http.serialize_requests_response(r),
-                        followup_request=request,
-                        initiator_id=request.last_modified_by_id,
-                    )
-                    has_valid_transaction = True
+                transaction = FacilityTransaction(
+                    request=http.serialize_requests_request(r.request),
+                    response=http.serialize_requests_response(r),
+                    followup_request=request,
+                    initiator_id=request.last_modified_by_id,
+                )
+                has_valid_transaction = True
 
         if not has_valid_transaction:
             request.status = 'deleted'
