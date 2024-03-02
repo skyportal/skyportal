@@ -310,11 +310,14 @@ class PhotometryValidationHandler(BaseHandler):
             if not photometry_validation:
                 return self.error("Photometry is not validated/rejected")
 
+            obj_id = photometry_validation.photometry.obj.id
+            photometry_validation_id = photometry_validation.id
+
             session.delete(photometry_validation)
             session.commit()
 
             self.push_all(
                 action='skyportal/FETCH_SOURCE_PHOTOMETRY',
-                payload={'obj_id': photometry_validation.photometry.obj.id},
+                payload={'obj_id': obj_id},
             )
-            return self.success(data={'id': photometry_validation.id})
+            return self.success(data={'id': photometry_validation_id})

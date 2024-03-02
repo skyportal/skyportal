@@ -1730,6 +1730,11 @@ class ObjPhotometryHandler(BaseHandler):
         else:
             include_stream_info = False
 
+        if str(include_validation_info).lower() in ['true', 't', '1']:
+            include_validation_info = True
+        else:
+            include_validation_info = False
+
         with self.Session() as session:
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
