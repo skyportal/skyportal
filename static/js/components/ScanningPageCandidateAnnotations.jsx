@@ -10,6 +10,7 @@ import Collapse from "@mui/material/Collapse";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import Divider from "@mui/material/Divider";
+import Paper from "@mui/material/Paper";
 
 import * as candidatesActions from "../ducks/candidates";
 
@@ -17,7 +18,8 @@ const useStyles = makeStyles((theme) => ({
   root: {
     width: "100%",
     background: theme.palette.background.paper,
-    padding: theme.spacing(1),
+    padding: 0,
+    margin: 0,
     maxHeight: "24rem",
     overflowY: "scroll",
     // Prevent disabled annotations from being selected, but display normally for readability
@@ -117,60 +119,66 @@ const ScanningPageCandidateAnnotations = ({
   };
 
   return (
-    <List
-      component="nav"
-      aria-labelledby="nested-list-subheader"
-      className={classes.root}
-      dense
-    >
-      {annotations.map((annotation) => (
-        <div key={`annotation_${annotation.origin}`}>
-          <Divider />
-          <ListItem button onClick={() => handleClick(annotation.origin)}>
-            <ListItemText
-              primary={`${annotation.origin}`}
-              primaryTypographyProps={{ variant: "button" }}
-            />
-            {openedOrigins[annotation.origin] ? <ExpandLess /> : <ExpandMore />}
-          </ListItem>
-          <Collapse
-            in={openedOrigins[annotation.origin]}
-            timeout="auto"
-            unmountOnExit
-          >
-            <List
-              component="div"
-              sx={{ maxWidth: listWidth }}
-              dense
-              disablePadding
+    <Paper variant="outlined">
+      <List
+        component="nav"
+        aria-labelledby="nested-list-subheader"
+        className={classes.root}
+        dense
+      >
+        {annotations.map((annotation) => (
+          <div key={`annotation_${annotation.origin}`}>
+            <Divider />
+            <ListItem button onClick={() => handleClick(annotation.origin)}>
+              <ListItemText
+                primary={`${annotation.origin}`}
+                primaryTypographyProps={{ variant: "button" }}
+              />
+              {openedOrigins[annotation.origin] ? (
+                <ExpandLess />
+              ) : (
+                <ExpandMore />
+              )}
+            </ListItem>
+            <Collapse
+              in={openedOrigins[annotation.origin]}
+              timeout="auto"
+              unmountOnExit
             >
-              {Object.entries(annotation.data).map(([key, value]) => (
-                <ListItem
-                  key={`key_${annotation.origin}_${key}`}
-                  button
-                  className={classes.nested}
-                  selected={
-                    selectedAnnotationSortOptions &&
-                    selectedAnnotationSortOptions.origin ===
-                      annotation.origin &&
-                    selectedAnnotationSortOptions.key === key
-                  }
-                  onClick={() => handleItemSelect(annotation.origin, key)}
-                >
-                  <ListItemText
-                    secondaryTypographyProps={{
-                      sx: { maxWidth: listItemWidth },
-                    }}
-                    secondary={`${key}: ${getAnnotationValueString(value)}`}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </Collapse>
-          <Divider />
-        </div>
-      ))}
-    </List>
+              <List
+                component="div"
+                sx={{ maxWidth: listWidth }}
+                dense
+                disablePadding
+              >
+                {Object.entries(annotation.data).map(([key, value]) => (
+                  <ListItem
+                    key={`key_${annotation.origin}_${key}`}
+                    button
+                    className={classes.nested}
+                    selected={
+                      selectedAnnotationSortOptions &&
+                      selectedAnnotationSortOptions.origin ===
+                        annotation.origin &&
+                      selectedAnnotationSortOptions.key === key
+                    }
+                    onClick={() => handleItemSelect(annotation.origin, key)}
+                  >
+                    <ListItemText
+                      secondaryTypographyProps={{
+                        sx: { maxWidth: listItemWidth },
+                      }}
+                      secondary={`${key}: ${getAnnotationValueString(value)}`}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </Collapse>
+            <Divider />
+          </div>
+        ))}
+      </List>
+    </Paper>
   );
 };
 

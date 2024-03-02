@@ -13,6 +13,7 @@ const spec = (
   labelFontSize,
   values,
   hasStyle,
+  style,
 ) => {
   const specJSON = {
     $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
@@ -216,7 +217,12 @@ const spec = (
     };
   }
   if (hasStyle) {
-    specJSON.layer[0].width = "container";
+    if (style.width || style.maxWidth || style.minWidth) {
+      specJSON.layer[0].width = "container";
+    }
+    if (style.height || style.maxHeight || style.minHeight) {
+      specJSON.layer[0].height = "container";
+    }
     specJSON.layer[0].autosize = {
       type: "fit",
       contains: "padding",
@@ -243,6 +249,7 @@ const VegaPlot = React.memo((props) => {
               theme.plotFontSizes.labelFontSize,
               values,
               hasStyle,
+              style,
             ),
             {
               actions: false,

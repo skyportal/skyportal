@@ -654,7 +654,7 @@ const FilterCandidateList = ({
                   <div
                     style={{
                       display: "grid",
-                      height: "181px",
+                      height: "173px",
                       gridTemplateColumns:
                         "repeat(auto-fill, minmax(200px, 1fr))",
                       gridGap: "0.5rem",
@@ -768,134 +768,6 @@ const FilterCandidateList = ({
                     name="redshiftMaximum"
                     control={control}
                   />
-                </div>
-              </div>
-              <div className={classes.formRow}>
-                <Typography variant="h6" style={{ fontSize: "1.1rem" }}>
-                  Annotation Sorting
-                </Typography>
-                {errors.sortingOrigin && (
-                  <FormValidationError message="All sorting fields must be left empty or all filled out" />
-                )}
-                <div className={classes.annotationSorting}>
-                  <div style={{ minWidth: "100%" }}>
-                    <InputLabel
-                      id="sorting-select-label"
-                      style={{ marginTop: 0 }}
-                    >
-                      Origin
-                    </InputLabel>
-                    <Controller
-                      labelId="sorting-select-label"
-                      name="sortingOrigin"
-                      control={control}
-                      input={
-                        <Input data-testid="annotationSortingOriginSelect" />
-                      }
-                      defaultValue={
-                        selectedScanningProfile?.sortingOrigin || ""
-                      }
-                      render={({ field: { onChange, value } }) => (
-                        <Select
-                          id="annotationSortingOriginSelect"
-                          key={
-                            selectedScanningProfile?.sortingOrigin
-                              ? "notLoadedYet"
-                              : "loaded"
-                          }
-                          value={value}
-                          onChange={(event) => {
-                            setSelectedAnnotationOrigin(event.target.value);
-                            onChange(event.target.value);
-                          }}
-                          style={{ minWidth: "100%" }}
-                        >
-                          {availableAnnotationsInfo ? (
-                            [""]
-                              .concat(Object.keys(availableAnnotationsInfo))
-                              .map((option) => (
-                                <MenuItem key={option} value={option}>
-                                  {option === "" ? "None" : option}
-                                </MenuItem>
-                              ))
-                          ) : (
-                            <div />
-                          )}
-                        </Select>
-                      )}
-                      rules={{ validate: validateSorting }}
-                    />
-                  </div>
-                  <div style={{ minWidth: "100%" }}>
-                    <InputLabel
-                      id="sorting-select-key-label"
-                      style={{ marginTop: 0 }}
-                    >
-                      Key
-                    </InputLabel>
-                    <Controller
-                      labelId="sorting-select-key-label"
-                      name="sortingKey"
-                      control={control}
-                      input={<Input data-testid="annotationSortingKeySelect" />}
-                      defaultValue={selectedScanningProfile?.sortingKey || ""}
-                      render={({ field: { onChange, value } }) => (
-                        <Select
-                          id="annotationSortingKeySelect"
-                          onChange={onChange}
-                          value={value}
-                          style={{ minWidth: "100%" }}
-                        >
-                          {availableAnnotationsInfo ? (
-                            availableAnnotationsInfo[
-                              selectedAnnotationOrigin
-                            ]?.map((option) => (
-                              <MenuItem
-                                key={Object.keys(option)[0]}
-                                value={Object.keys(option)[0]}
-                              >
-                                {Object.keys(option)[0]}
-                              </MenuItem>
-                            ))
-                          ) : (
-                            <div />
-                          )}
-                        </Select>
-                      )}
-                    />
-                  </div>
-                  <div style={{ minWidth: "100%" }}>
-                    <InputLabel
-                      id="sorting-select-order-label"
-                      style={{ marginTop: 0 }}
-                    >
-                      Sort Order
-                    </InputLabel>
-                    <Controller
-                      labelId="sorting-select-order-label"
-                      name="sortingOrder"
-                      control={control}
-                      input={
-                        <Input data-testid="annotationSortingOrderSelect" />
-                      }
-                      defaultValue={selectedScanningProfile?.sortingOrder || ""}
-                      render={({ field: { onChange, value } }) => (
-                        <Select
-                          id="annotationSortingOrderSelect"
-                          onChange={onChange}
-                          value={value}
-                          style={{ minWidth: "100%" }}
-                        >
-                          <MenuItem key="desc" value="desc">
-                            Descending
-                          </MenuItem>
-                          <MenuItem key="asc" value="asc">
-                            Ascending
-                          </MenuItem>
-                        </Select>
-                      )}
-                    />
-                  </div>
                 </div>
               </div>
               <div className={classes.formRow} style={{ marginBottom: 0 }}>
@@ -1063,6 +935,137 @@ const FilterCandidateList = ({
                   }
                   label="Ignore Forced Photometry"
                 />
+              </div>
+              <div
+                className={classes.formRow}
+                style={{ marginTop: "0.5rem", marginBottom: 0 }}
+              >
+                <Typography variant="h6" style={{ fontSize: "1.1rem" }}>
+                  Annotation Sorting
+                </Typography>
+                {errors.sortingOrigin && (
+                  <FormValidationError message="All sorting fields must be left empty or all filled out" />
+                )}
+                <div className={classes.annotationSorting}>
+                  <div style={{ minWidth: "100%" }}>
+                    <InputLabel
+                      id="sorting-select-label"
+                      style={{ marginTop: 0 }}
+                    >
+                      Origin
+                    </InputLabel>
+                    <Controller
+                      labelId="sorting-select-label"
+                      name="sortingOrigin"
+                      control={control}
+                      input={
+                        <Input data-testid="annotationSortingOriginSelect" />
+                      }
+                      defaultValue={
+                        selectedScanningProfile?.sortingOrigin || ""
+                      }
+                      render={({ field: { onChange, value } }) => (
+                        <Select
+                          id="annotationSortingOriginSelect"
+                          key={
+                            selectedScanningProfile?.sortingOrigin
+                              ? "notLoadedYet"
+                              : "loaded"
+                          }
+                          value={value}
+                          onChange={(event) => {
+                            setSelectedAnnotationOrigin(event.target.value);
+                            onChange(event.target.value);
+                          }}
+                          style={{ minWidth: "100%" }}
+                        >
+                          {availableAnnotationsInfo ? (
+                            [""]
+                              .concat(Object.keys(availableAnnotationsInfo))
+                              .map((option) => (
+                                <MenuItem key={option} value={option}>
+                                  {option === "" ? "None" : option}
+                                </MenuItem>
+                              ))
+                          ) : (
+                            <div />
+                          )}
+                        </Select>
+                      )}
+                      rules={{ validate: validateSorting }}
+                    />
+                  </div>
+                  <div style={{ minWidth: "100%" }}>
+                    <InputLabel
+                      id="sorting-select-key-label"
+                      style={{ marginTop: 0 }}
+                    >
+                      Key
+                    </InputLabel>
+                    <Controller
+                      labelId="sorting-select-key-label"
+                      name="sortingKey"
+                      control={control}
+                      input={<Input data-testid="annotationSortingKeySelect" />}
+                      defaultValue={selectedScanningProfile?.sortingKey || ""}
+                      render={({ field: { onChange, value } }) => (
+                        <Select
+                          id="annotationSortingKeySelect"
+                          onChange={onChange}
+                          value={value}
+                          style={{ minWidth: "100%" }}
+                        >
+                          {availableAnnotationsInfo ? (
+                            availableAnnotationsInfo[
+                              selectedAnnotationOrigin
+                            ]?.map((option) => (
+                              <MenuItem
+                                key={Object.keys(option)[0]}
+                                value={Object.keys(option)[0]}
+                              >
+                                {Object.keys(option)[0]}
+                              </MenuItem>
+                            ))
+                          ) : (
+                            <div />
+                          )}
+                        </Select>
+                      )}
+                    />
+                  </div>
+                  <div style={{ minWidth: "100%" }}>
+                    <InputLabel
+                      id="sorting-select-order-label"
+                      style={{ marginTop: 0 }}
+                    >
+                      Sort Order
+                    </InputLabel>
+                    <Controller
+                      labelId="sorting-select-order-label"
+                      name="sortingOrder"
+                      control={control}
+                      input={
+                        <Input data-testid="annotationSortingOrderSelect" />
+                      }
+                      defaultValue={selectedScanningProfile?.sortingOrder || ""}
+                      render={({ field: { onChange, value } }) => (
+                        <Select
+                          id="annotationSortingOrderSelect"
+                          onChange={onChange}
+                          value={value}
+                          style={{ minWidth: "100%" }}
+                        >
+                          <MenuItem key="desc" value="desc">
+                            Descending
+                          </MenuItem>
+                          <MenuItem key="asc" value="asc">
+                            Ascending
+                          </MenuItem>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                </div>
               </div>
             </Paper>
           </Grid>

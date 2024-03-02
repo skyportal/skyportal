@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 
 import CircularProgress from "@mui/material/CircularProgress";
+import Switch from "@mui/material/Switch";
 
 import * as photometryActions from "../ducks/photometry";
 
@@ -163,7 +164,9 @@ const VegaPhotometry = (props) => {
   const [filters, setFilters] = useState([]);
   const [wavelengths, setWavelengths] = useState([]);
   const [period, setPeriod] = useState(null);
-  const [showNonDetections, setShowNonDetections] = useState(true);
+  const [showUpperLimits, setShowUpperLimits] = useState(true);
+  const [showForcedPhotometry, setShowForcedPhotometry] = useState(true);
+  const [hasForcedPhotometry, setHasForcedPhotometry] = useState(false);
 
   const filter2color = config?.bandpassesColors || {};
 
@@ -172,7 +175,7 @@ const VegaPhotometry = (props) => {
     if (folded && p !== undefined && p !== null) {
       setPeriod(p);
     }
-  }, [annotations]);
+  }, [annotations, folded]);
 
   useEffect(() => {
     async function fetchPhotometry() {
@@ -197,6 +200,11 @@ const VegaPhotometry = (props) => {
           });
           setFilters(newFilters);
           setWavelengths(newWavelengths);
+          setHasForcedPhotometry(
+            photometry.some((datum) =>
+              ["fp", "alert_fp"].includes(datum.origin),
+            ),
+          );
         }
         setLoading(false);
       }
@@ -216,27 +224,68 @@ const VegaPhotometry = (props) => {
     return <CircularProgress color="secondary" />;
   }
 
+  let photometryFiltered = photometry;
+  if (!showUpperLimits) {
+    photometryFiltered = photometry.filter((datum) => datum.mag !== null);
+  }
+  if (!showForcedPhotometry) {
+    photometryFiltered = photometryFiltered.filter(
+      (datum) => !["fp", "alert_fp"].includes(datum.origin),
+    );
+  }
+
   return (
     <div>
       <VegaPhotometryMemo
-        values={
-          showNonDetections
-            ? photometry
-            : [...photometry].filter((datum) => datum.mag !== null)
-        }
+        values={photometryFiltered}
         filters={filters}
         wavelengths={wavelengths}
         period={period}
         style={style}
       />
       {/* the left margin is to align the toggle with the y-axis of the plot */}
-      <div style={{ marginLeft: "46px" }}>
-        <ToggleButton
-          text="Non-detections"
-          id={`${sourceId}_${period}`}
-          value={showNonDetections}
-          onChange={setShowNonDetections}
-        />
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "flex-start",
+          gap: "0.5rem",
+          width: "100%",
+          marginLeft: "0.75rem",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+          }}
+        >
+          <Switch
+            checked={showUpperLimits}
+            onChange={() => setShowUpperLimits(!showUpperLimits)}
+            name="showUpperLimits"
+            inputProps={{ "aria-label": "show upper limits" }}
+          />
+          <div>Upper limits</div>
+        </div>
+        {hasForcedPhotometry && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <Switch
+              checked={showForcedPhotometry}
+              onChange={() => setShowForcedPhotometry(!showForcedPhotometry)}
+              name="showForcedPhotometry"
+              inputProps={{ "aria-label": "show forced photometry" }}
+            />
+            <div>Forced photometry</div>
+          </div>
+        )}
       </div>
     </div>
   );

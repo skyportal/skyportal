@@ -1,16 +1,9 @@
-import React, { useEffect, Suspense, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 
-import Typography from "@mui/material/Typography";
-import {
-  createTheme,
-  ThemeProvider,
-  StyledEngineProvider,
-  useTheme,
-} from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
-import useMediaQuery from "@mui/material/useMediaQuery";
+import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -20,15 +13,11 @@ import SortIcon from "@mui/icons-material/Sort";
 import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
-import Popover from "@mui/material/Popover";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-// eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/mui";
-import validator from "@rjsf/validator-ajv8";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import Paper from "@mui/material/Paper";
 
 import { showNotification } from "baselayer/components/Notifications";
-import * as candidatesActions from "../ducks/candidates";
-import CustomDataTable from "./CustomDataTable";
 import ThumbnailList from "./ThumbnailList";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
@@ -36,17 +25,46 @@ import ScanningPageCandidateAnnotations, {
   getAnnotationValueString,
 } from "./ScanningPageCandidateAnnotations";
 import EditSourceGroups from "./EditSourceGroups";
-import { ra_to_hours, dec_to_dms } from "../units";
 import RejectButton from "./RejectButton";
 import VegaPhotometry from "./VegaPhotometry";
 import Spinner from "./Spinner";
 import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import Button from "./Button";
 import DisplayPhotStats from "./DisplayPhotStats";
-
 import CandidatePlugins from "./CandidatePlugins";
 
+import { ra_to_hours, dec_to_dms } from "../units";
+
+import * as candidatesActions from "../ducks/candidates";
+
+const numPerPage = 25;
+const numPerPageOffset = 5;
+
 const useStyles = makeStyles((theme) => ({
+  listPaper: {
+    borderColor: theme.palette.grey[350],
+    borderWidth: "2px",
+    marginBottom: "1rem",
+  },
+  listItem: {
+    display: "grid",
+    gridGap: "0.5rem",
+    padding: "0.5rem",
+    alignItems: "center",
+    // we change the order of the children and the layout based on the screen size
+    [theme.breakpoints.up("lg")]: {
+      gridTemplateColumns: "5fr 2.5fr 4fr 3fr",
+      gridTemplateAreas: `"thumbnails info photometry annotations"`,
+    },
+    [theme.breakpoints.down("lg")]: {
+      gridTemplateAreas: `"thumbnails info" "photometry annotations"`,
+      gridTemplateColumns: "5fr 3fr",
+    },
+    [theme.breakpoints.down("sm")]: {
+      gridTemplateAreas: `"info" "thumbnails" "photometry" "annotations"`,
+      gridTemplateColumns: "1fr",
+    },
+  },
   table: {
     marginTop: "1rem",
   },
@@ -116,105 +134,6 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-// Tweak responsive column widths
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTableBodyCell: {
-        styleOverrides: {
-          root: {
-            padding: `${theme.spacing(0.5)} ${theme.spacing(
-              0.25,
-            )} ${theme.spacing(0.5)} ${theme.spacing(0.25)}`,
-          },
-          stackedHeader: {
-            verticalAlign: "top",
-          },
-          stackedCommon: {
-            [theme.breakpoints.up("xs")]: { width: "calc(100%)" },
-            "&$stackedHeader": {
-              display: "none",
-              overflowWrap: "break-word",
-            },
-          },
-        },
-      },
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          navContainer: {
-            flexDirection: "column",
-            alignItems: "center",
-            [theme.breakpoints.up("sm")]: {
-              flexDirection: "row",
-            },
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-      MUIDataTableToolbar: {
-        styleOverrides: {
-          filterPaper: {
-            // Use fullscreen dialog for small-screen filter form
-            width: "100%",
-            maxWidth: "100%",
-            margin: 0,
-            maxHeight: "calc(100vh - 1rem)",
-            borderRadius: 0,
-            top: "0 !important",
-            left: "0 !important",
-            [theme.breakpoints.up("md")]: {
-              // Override the overrides above for bigger screens
-              maxWidth: "25%",
-              top: "unset !important",
-              left: "unset !important",
-              float: "right",
-              position: "unset",
-              margin: "1rem",
-            },
-          },
-          filterCloseIcon: {
-            [theme.breakpoints.up("md")]: {
-              top: "1rem !important",
-              right: "1rem !important",
-            },
-          },
-        },
-      },
-      MUIDataTableFilter: {
-        styleOverrides: {
-          root: {
-            maxHeight: "calc(100vh - 5rem)",
-          },
-        },
-      },
-      MUIDataTableFilterList: {
-        styleOverrides: {
-          chip: {
-            maxWidth: "100%",
-          },
-        },
-      },
-    },
-  });
-
 const getMostRecentClassification = (classifications) => {
   // Display the most recent non-zero probability class
   const filteredClasses = classifications?.filter((i) => i.probability > 0);
@@ -227,21 +146,7 @@ const getMostRecentClassification = (classifications) => {
   return recentClassification;
 };
 
-const getMuiPopoverTheme = () =>
-  createTheme({
-    components: {
-      MuiPopover: {
-        paper: {
-          maxWidth: "30rem",
-        },
-      },
-    },
-  });
-
-const defaultNumPerPage = 25;
-
 const CustomSortToolbar = ({
-  rowsPerPage,
   filterGroups,
   filterFormData,
   setQueryInProgress,
@@ -263,7 +168,7 @@ const CustomSortToolbar = ({
     setQueryInProgress(true);
     let data = {
       pageNumber: 1,
-      numPerPage: rowsPerPage,
+      numPerPage,
       groupIDs: filterGroups?.map((g) => g.id).join(),
       sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
       sortByAnnotationKey: selectedAnnotationSortOptions.key,
@@ -276,14 +181,16 @@ const CustomSortToolbar = ({
       };
     }
 
-    await dispatch(
+    dispatch(
       candidatesActions.setCandidatesAnnotationSortOptions({
         ...selectedAnnotationSortOptions,
         order: newSortOrder,
       }),
-    );
-    await dispatch(candidatesActions.fetchCandidates(data));
-    setQueryInProgress(false);
+    ).then(() => {
+      dispatch(candidatesActions.fetchCandidates(data)).then(() => {
+        setQueryInProgress(false);
+      });
+    });
   };
 
   // Wait until sorted data is received before rendering the toolbar
@@ -312,7 +219,6 @@ const CustomSortToolbar = ({
 
 CustomSortToolbar.propTypes = {
   setQueryInProgress: PropTypes.func.isRequired,
-  rowsPerPage: PropTypes.number.isRequired,
   filterGroups: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   filterFormData: PropTypes.shape({}),
   loaded: PropTypes.bool.isRequired,
@@ -325,34 +231,8 @@ CustomSortToolbar.defaultProps = {
   sortOrder: null,
 };
 
-const CandidatePhotometry = ({ sourceId }) => {
-  const mediumScreen = useMediaQuery((theme) => theme.breakpoints.down("md"));
-  const smallScreen = useMediaQuery((theme) => theme.breakpoints.down("sm"));
-  return (
-    <div
-      style={{
-        minWidth: mediumScreen ? "96vw" : "24vw",
-        maxWidth: mediumScreen ? "96vw" : "26vw",
-      }}
-    >
-      <VegaPhotometry
-        sourceId={sourceId}
-        style={{
-          minWidth: mediumScreen ? (smallScreen ? "60%" : "80%") : "55%", // eslint-disable-line no-nested-ternary
-          maxWidth: mediumScreen ? (smallScreen ? "60%" : "80%") : "55%", // eslint-disable-line no-nested-ternary
-        }}
-      />
-    </div>
-  );
-};
-
-CandidatePhotometry.propTypes = {
-  sourceId: PropTypes.string.isRequired,
-};
-
 const CandidateThumbnails = ({ sourceId }) => {
   const dispatch = useDispatch();
-  const mediumScreen = useMediaQuery((theme) => theme.breakpoints.down("md"));
 
   const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
     useState([]);
@@ -384,12 +264,7 @@ const CandidateThumbnails = ({ sourceId }) => {
           <CircularProgress />
         </div>
       ) : (
-        <div
-          style={{
-            minWidth: mediumScreen ? "98vw" : "30vw",
-            maxWidth: mediumScreen ? "98vw" : "30vw",
-          }}
-        >
+        <div>
           <div
             style={{
               display: "grid",
@@ -435,58 +310,12 @@ CandidateThumbnails.propTypes = {
   sourceId: PropTypes.string.isRequired,
 };
 
-const CandidateAutoannotations = ({ sourceId, filterGroups }) => {
-  const mediumScreen = useMediaQuery((theme) => theme.breakpoints.down("md"));
-  let candidateObj = null;
-  const { candidates } = useSelector((state) => state.candidates);
-  candidates?.forEach((candidate) => {
-    if (candidate.id === sourceId) {
-      candidateObj = { ...candidate };
-    }
-  });
-
-  return (
-    <div>
-      {!candidateObj?.annotations ? (
-        <div>
-          <CircularProgress />
-        </div>
-      ) : (
-        <div
-          style={{
-            minWidth: mediumScreen ? "96vw" : "12vw",
-            maxWidth: mediumScreen ? "96vw" : "30vw",
-            overflowWrap: "break-word",
-          }}
-        >
-          {candidateObj.annotations && (
-            <ScanningPageCandidateAnnotations
-              annotations={candidateObj.annotations}
-              filterGroups={filterGroups || []}
-            />
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-CandidateAutoannotations.propTypes = {
-  sourceId: PropTypes.string.isRequired,
-  filterGroups: PropTypes.arrayOf(PropTypes.shape({})),
-};
-
-CandidateAutoannotations.defaultProps = {
-  filterGroups: [],
-};
-
 const CandidateInfo = ({
   sourceId,
   filterGroups,
   selectedAnnotationSortOptions,
 }) => {
   const classes = useStyles();
-  const mediumScreen = useMediaQuery((theme) => theme.breakpoints.down("md"));
 
   const allGroups = (useSelector((state) => state.groups.all) || []).filter(
     (g) => !g.single_user_group,
@@ -539,12 +368,7 @@ const CandidateInfo = ({
       : null;
 
   return (
-    <div
-      style={{
-        minWidth: mediumScreen ? "96vw" : "14vw",
-        maxWidth: mediumScreen ? "96vw" : "20vw",
-      }}
-    >
+    <div>
       {!candidateObj?.annotations ? (
         <div>
           <CircularProgress />
@@ -773,15 +597,71 @@ CandidateInfo.defaultProps = {
   selectedAnnotationSortOptions: null,
 };
 
-const columnNames = ["Images", "Info", "Photometry", "Autoannotations"];
+const CandidatePhotometry = ({ sourceId }) => (
+  <div>
+    <VegaPhotometry
+      sourceId={sourceId}
+      style={{
+        width: "70%",
+        height: "100%",
+        minHeight: "18rem",
+        maxHeight: "18rem",
+      }}
+    />
+  </div>
+);
+
+CandidatePhotometry.propTypes = {
+  sourceId: PropTypes.string.isRequired,
+};
+
+const CandidateAutoannotations = ({ sourceId, filterGroups }) => {
+  let candidateObj = null;
+  const { candidates } = useSelector((state) => state.candidates);
+  candidates?.forEach((candidate) => {
+    if (candidate.id === sourceId) {
+      candidateObj = { ...candidate };
+    }
+  });
+
+  return (
+    <div>
+      {!candidateObj?.annotations ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <div
+          style={{
+            overflowWrap: "break-word",
+          }}
+        >
+          {candidateObj.annotations && (
+            <ScanningPageCandidateAnnotations
+              annotations={candidateObj.annotations}
+              filterGroups={filterGroups || []}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+CandidateAutoannotations.propTypes = {
+  sourceId: PropTypes.string.isRequired,
+  filterGroups: PropTypes.arrayOf(PropTypes.shape({})),
+};
+
+CandidateAutoannotations.defaultProps = {
+  filterGroups: [],
+};
 
 const CandidateList = () => {
+  const observerTarget = useRef(null);
   const [queryInProgress, setQueryInProgress] = useState(false);
-  const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [filterGroups, setFilterGroups] = useState([]);
-  const [viewColumns, setViewColumns] = useState(columnNames);
   const classes = useStyles();
-  const theme = useTheme();
   const {
     candidates,
     pageNumber,
@@ -817,6 +697,41 @@ const CandidateList = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && candidates.length < totalMatches) {
+          dispatch(showNotification("Loading more candidates..."));
+          dispatch(
+            candidatesActions.fetchCandidates(
+              {
+                pageNumber: pageNumber + 1,
+                numPerPage,
+                queryID,
+                filterGroups,
+                sortOrder,
+                annotationsInfo: availableAnnotationsInfo,
+                filterFormData,
+              },
+              true,
+            ),
+          );
+        }
+      },
+      { threshold: 1 },
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current);
+      }
+    };
+  }, [observerTarget, dispatch, queryInProgress, candidates]);
+
+  useEffect(() => {
     // Grab the available annotation fields for filtering
     if (!availableAnnotationsInfo) {
       dispatch(candidatesActions.fetchAnnotationsInfo());
@@ -836,16 +751,6 @@ const CandidateList = () => {
     }
   }, [dispatch, defaultScanningProfile]);
 
-  const [annotationsHeaderAnchor, setAnnotationsHeaderAnchor] = useState(null);
-  const annotationsHelpOpen = Boolean(annotationsHeaderAnchor);
-  const annotationsHelpId = annotationsHelpOpen ? "simple-popover" : undefined;
-  const handleClickAnnotationsHelp = (event) => {
-    setAnnotationsHeaderAnchor(event.currentTarget);
-  };
-  const handleCloseAnnotationsHelp = () => {
-    setAnnotationsHeaderAnchor(null);
-  };
-
   const candidateIds = [];
   candidates?.forEach((candidate) => {
     candidateIds.push(candidate.id);
@@ -856,488 +761,6 @@ const CandidateList = () => {
     groupIds.push(g.id);
   });
 
-  // Annotations filtering
-  const [tableFilterList, setTableFilterList] = useState([]);
-  const [filterListQueryStrings, setFilterListQueryStrings] = useState([]);
-
-  const filterChipToAnnotationObj = (chip) => {
-    // Convert a MuiDataTable filter list chip-formatted string to an object.
-    // Returns null for improperly formatted strings
-    const tokens = chip.split(/\s\(|\):|-/);
-    let returnObject = null;
-    switch (tokens.length) {
-      case 3:
-        returnObject = {
-          origin: tokens[1].trim(),
-          key: tokens[0].trim(),
-          value: tokens[2].trim(),
-        };
-        break;
-      case 4:
-        returnObject = {
-          origin: tokens[1].trim(),
-          key: tokens[0].trim(),
-          min: tokens[2].trim(),
-          max: tokens[3].trim(),
-        };
-        break;
-      default:
-        break;
-    }
-    return returnObject;
-  };
-
-  const filterAnnotationObjToChip = (annotationObj) =>
-    // Convert an object representing an annotation filter to a formatted string
-    // to be displayed by the MuiDataTable
-    "value" in annotationObj
-      ? `${annotationObj.key} (${annotationObj.origin}): ${annotationObj.value}`
-      : `${annotationObj.key} (${annotationObj.origin}): ${annotationObj.min} - ${annotationObj.max}`;
-
-  const handleFilterSubmit = async (filterListQueryString) => {
-    setQueryInProgress(true);
-
-    let data = {
-      pageNumber: 1,
-      numPerPage: rowsPerPage,
-      groupIDs: filterGroups?.map((g) => g.id).join(),
-    };
-    if (filterListQueryString !== null) {
-      data = {
-        ...data,
-        annotationFilterList: filterListQueryString,
-      };
-    }
-
-    if (selectedAnnotationSortOptions !== null) {
-      data = {
-        ...data,
-        sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
-        sortByAnnotationKey: selectedAnnotationSortOptions.key,
-        sortByAnnotationOrder: selectedAnnotationSortOptions.order,
-      };
-    }
-
-    if (filterFormData !== null) {
-      data = {
-        ...data,
-        ...filterFormData,
-      };
-    }
-
-    await dispatch(candidatesActions.fetchCandidates(data));
-
-    setQueryInProgress(false);
-  };
-
-  const handleFilterAdd = ({ formData }) => {
-    if (filterGroups.length === 0) {
-      dispatch(
-        showNotification("At least one program should be selected.", "warning"),
-      );
-      return;
-    }
-    // The key is actually a combination of `origin<>key`, so parse out the key part
-    const key = formData.key.split("<>")[1];
-    const annotationObj = { ...formData, key };
-    const filterListChip = filterAnnotationObjToChip(annotationObj);
-    const filterListQueryItem = JSON.stringify(annotationObj);
-
-    setTableFilterList(tableFilterList.concat([filterListChip]));
-    const newFilterListQueryStrings = filterListQueryStrings.concat([
-      filterListQueryItem,
-    ]);
-    setFilterListQueryStrings(newFilterListQueryStrings);
-
-    handleFilterSubmit(newFilterListQueryStrings.join());
-  };
-
-  const [bulkPS1GenerationInProgress, setBulkPS1GenerationInProgress] =
-    useState(false);
-  const generatePS1BulkThumbnails = (candidateList) => {
-    setBulkPS1GenerationInProgress(true);
-    const ids = [];
-    candidateList?.forEach((candidateObj) => {
-      const hasPS1 = candidateObj?.thumbnails
-        ?.map((t) => t.type)
-        ?.includes("ps1");
-      if (!hasPS1) {
-        ids.push(candidateObj.id);
-      }
-    });
-    dispatch(candidatesActions.generateSurveyThumbnails(ids));
-    setBulkPS1GenerationInProgress(false);
-  };
-
-  const handleViewColumnsChange = (changedColumn, action) => {
-    let selectedColumns = [];
-    if (action === "remove") {
-      selectedColumns = viewColumns?.filter((col) => col !== changedColumn);
-    } else {
-      selectedColumns = [...viewColumns, changedColumn];
-    }
-    setViewColumns(selectedColumns);
-  };
-
-  const renderThumbnails = (dataIndex) => {
-    const sourceId = candidateIds[dataIndex];
-    return (
-      <Suspense fallback={<Spinner />}>
-        <CandidateThumbnails sourceId={sourceId} />
-      </Suspense>
-    );
-  };
-
-  const renderInfo = (dataIndex) => {
-    const sourceId = candidateIds[dataIndex];
-    return (
-      <Suspense fallback={<Spinner />}>
-        <CandidateInfo
-          sourceId={sourceId}
-          filterGroups={filterGroups}
-          selectedAnnotationSortOptions={selectedAnnotationSortOptions}
-        />
-      </Suspense>
-    );
-  };
-
-  const renderPhotometry = (dataIndex) => {
-    const sourceId = candidateIds[dataIndex];
-    return (
-      <Suspense fallback={<Spinner />}>
-        <CandidatePhotometry sourceId={sourceId} />
-      </Suspense>
-    );
-  };
-
-  const renderAutoannotations = (dataIndex) => {
-    const sourceId = candidateIds[dataIndex];
-
-    return (
-      <Suspense fallback={<Spinner />}>
-        <CandidateAutoannotations
-          sourceId={sourceId}
-          filterGroups={filterGroups}
-        />
-      </Suspense>
-    );
-  };
-
-  const renderAutoannotationsHeader = () => (
-    <div>
-      Autoannotations
-      <IconButton
-        aria-label="help"
-        size="small"
-        onClick={handleClickAnnotationsHelp}
-        className={classes.helpButton}
-      >
-        <HelpOutlineIcon />
-      </IconButton>
-      <StyledEngineProvider injectFirst>
-        <ThemeProvider theme={getMuiPopoverTheme(theme)}>
-          <Popover
-            id={annotationsHelpId}
-            open={annotationsHelpOpen}
-            anchorEl={annotationsHeaderAnchor}
-            onClose={handleCloseAnnotationsHelp}
-            className={classes.helpPopover}
-            anchorOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "left",
-            }}
-          >
-            <Typography className={classes.typography}>
-              Annotation fields are uniquely identified by the combination of
-              origin and key. That is, two annotation values belonging to a key
-              with the same name will be considered different if they come from
-              different origins. <br />
-              <b>Sorting: </b> Clicking on an annotation field will display it,
-              if available, in the Info column. You can then click on the sort
-              tool button at the top of the table to sort on that annotation
-              field. You can also set the initial sorting parameters when
-              submitting a new candidates search via the form at the top of the
-              page.
-              <br />
-              <b>Filtering: </b> Filtering on annotations is available through
-              the filtering tool at the top right of the table. <br />
-              <i>
-                Warning: applying multiple filters on annotations from different
-                origins is not supported currently and will return zero results.
-                For example, you cannot filter for a specific annotation value
-                in annotations from both &quot;origin_a&quot; and
-                &quot;origin_b&quot; at the same time.
-              </i>
-            </Typography>
-          </Popover>
-        </ThemeProvider>
-      </StyledEngineProvider>
-    </div>
-  );
-
-  const handlePageChange = async (page, numPerPage) => {
-    setQueryInProgress(true);
-    // API takes 1-indexed page number
-    let data = {
-      pageNumber: page + 1,
-      numPerPage,
-      queryID,
-      groupIDs: filterGroups?.map((g) => g.id)?.join(),
-    };
-    if (selectedAnnotationSortOptions !== null) {
-      data = {
-        ...data,
-        sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
-        sortByAnnotationKey: selectedAnnotationSortOptions.key,
-        sortByAnnotationOrder: selectedAnnotationSortOptions.order,
-      };
-    }
-
-    if (filterListQueryStrings.length !== 0) {
-      data = {
-        ...data,
-        annotationFilterList: filterListQueryStrings.join(),
-      };
-    }
-
-    if (filterFormData !== null) {
-      data = {
-        ...data,
-        ...filterFormData,
-      };
-    }
-
-    await dispatch(candidatesActions.fetchCandidates(data));
-    setQueryInProgress(false);
-  };
-
-  const handleTableChange = (action, tableState) => {
-    setRowsPerPage(tableState.rowsPerPage);
-    switch (action) {
-      case "changePage":
-      case "changeRowsPerPage":
-        handlePageChange(tableState.page, tableState.rowsPerPage);
-        break;
-      default:
-    }
-  };
-
-  const handleTableFilterChipChange = (column, filterList, type) => {
-    if (type === "chip") {
-      const annotationsFilterList = filterList[3];
-      setTableFilterList(annotationsFilterList);
-      const newFilterListQueryStrings = annotationsFilterList?.map((chip) => {
-        const annotationObject = filterChipToAnnotationObj(chip);
-        return JSON.stringify(annotationObject);
-      });
-      setFilterListQueryStrings(newFilterListQueryStrings);
-
-      handleFilterSubmit(
-        newFilterListQueryStrings.length === 0
-          ? null
-          : newFilterListQueryStrings.join(),
-      );
-    }
-  };
-
-  // Assemble json form schema for possible annotation filtering values
-  const filterFormSchema = {
-    description: "Add an annotation filter field.",
-    type: "object",
-    properties: {
-      origin: {
-        type: "string",
-        title: "Origin",
-        enum: [],
-      },
-    },
-    required: ["origin", "key"],
-    dependencies: {
-      origin: {
-        oneOf: [],
-      },
-      key: {
-        oneOf: [],
-      },
-    },
-  };
-
-  if (availableAnnotationsInfo !== null) {
-    Object.entries(availableAnnotationsInfo).forEach(([origin, fields]) => {
-      // Add origin to the list selectable from
-      filterFormSchema.properties.origin.enum.push(origin);
-
-      // Make a list of keys to select from based on the origin
-      // We tack on the origin (using a separator that shouldn't be part of expected
-      // origin or key strings ('<>')) so that keys that are common across origin
-      // get their own fields in the form schema.
-      const keySelect = {
-        properties: {
-          origin: {
-            enum: [origin],
-          },
-          key: {
-            type: "string",
-            title: "Key",
-            anyOf: fields?.map((field) => ({
-              enum: [`${origin}<>${Object.keys(field)[0]}`],
-              type: "string",
-              title: Object.keys(field)[0],
-            })),
-          },
-        },
-      };
-      filterFormSchema.dependencies.origin.oneOf.push(keySelect);
-
-      // Add filter value selection based on selected key type
-      fields.forEach((field) => {
-        const key = Object.keys(field)[0];
-        const keyType = field[key];
-        const valueSelect = {
-          properties: {
-            key: {
-              enum: [`${origin}<>${key}`],
-            },
-          },
-          required: [],
-        };
-        switch (keyType) {
-          case "string":
-          case "object":
-            valueSelect.properties.value = {
-              type: "string",
-              title: "Value (exact match)",
-            };
-            valueSelect.required.push("value");
-            break;
-          case "number":
-            valueSelect.properties.min = {
-              type: "number",
-              title: "Min",
-            };
-            valueSelect.properties.max = {
-              type: "number",
-              title: "Max",
-            };
-            valueSelect.required.push("min");
-            valueSelect.required.push("max");
-            break;
-          case "boolean":
-            valueSelect.properties.value = {
-              type: "boolean",
-              title: "Is True",
-              default: false,
-            };
-            valueSelect.required.push("value");
-            break;
-          default:
-            break;
-        }
-        filterFormSchema.dependencies.key.oneOf.push(valueSelect);
-      });
-    });
-  }
-
-  const annotationsFilterDisplay = () =>
-    !queryInProgress ? (
-      <div>
-        <Form
-          schema={filterFormSchema}
-          validator={validator}
-          onSubmit={handleFilterAdd}
-        />
-      </div>
-    ) : (
-      <div />
-    );
-
-  const columns = [
-    {
-      name: "Images",
-      label: "Images",
-      options: {
-        display: viewColumns.includes("Images"),
-        customBodyRenderLite: renderThumbnails,
-        filter: false,
-      },
-    },
-    {
-      name: "Info",
-      label: "Info",
-      options: {
-        display: viewColumns.includes("Info"),
-        customBodyRenderLite: renderInfo,
-        filter: false,
-      },
-    },
-    {
-      name: "Photometry",
-      label: "Photometry",
-      options: {
-        display: viewColumns.includes("Photometry"),
-        customBodyRenderLite: renderPhotometry,
-        sort: false,
-        filter: false,
-      },
-    },
-    {
-      name: "Autoannotations",
-      label: "Autoannotations",
-      options: {
-        display: viewColumns.includes("Autoannotations"),
-        customBodyRenderLite: renderAutoannotations,
-        sort: false,
-        filter: true,
-        filterType: "custom",
-        filterList: tableFilterList,
-        filterOptions: {
-          // eslint-disable-next-line react/display-name
-          display: annotationsFilterDisplay,
-        },
-        customHeadLabelRender: renderAutoannotationsHeader,
-      },
-    },
-  ];
-
-  const options = {
-    responsive: "vertical",
-    search: false,
-    print: false,
-    download: false,
-    sort: false,
-    filter: true,
-    filterType: "custom",
-    count: totalMatches,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    rowsPerPage,
-    rowsPerPageOptions: [5, 10, 25, 50, 75, 100, 200],
-    jumpToPage: true,
-    serverSide: true,
-    page: pageNumber - 1,
-    pagination: true,
-    rowHover: false,
-    onTableChange: handleTableChange,
-    // eslint-disable-next-line react/display-name
-    customToolbar: () => (
-      <CustomSortToolbar
-        rowsPerPage={rowsPerPage}
-        filterGroups={filterGroups}
-        filterFormData={filterFormData}
-        setQueryInProgress={setQueryInProgress}
-        loaded={!queryInProgress}
-        sortOrder={sortOrder}
-        setSortOrder={setSortOrder}
-      />
-    ),
-    onFilterChange: handleTableFilterChipChange,
-    onViewColumnsChange: handleViewColumnsChange,
-  };
-
   return (
     <div>
       <div>
@@ -1345,8 +768,8 @@ const CandidateList = () => {
           userAccessibleGroups={userAccessibleGroups}
           setQueryInProgress={setQueryInProgress}
           setFilterGroups={setFilterGroups}
-          numPerPage={rowsPerPage}
-          annotationFilterList={filterListQueryStrings.join()}
+          numPerPage={numPerPage}
+          annotationFilterList=""
           setSortOrder={setSortOrder}
         />
         <Box
@@ -1355,49 +778,105 @@ const CandidateList = () => {
         >
           <Spinner />
         </Box>
-        <Box
-          display={queryInProgress ? "none" : "block"}
-          style={{ marginTop: "0.75rem" }}
-        >
-          {candidateIds?.length > 0 && (
-            <div style={{ marginBottom: "0.75rem" }}>
-              {bulkPS1GenerationInProgress ? (
-                <div>
-                  <Spinner />
-                </div>
-              ) : (
-                <Button
-                  primary
-                  onClick={() => generatePS1BulkThumbnails(candidates)}
-                  size="small"
+        <Box style={{ marginTop: "0.75rem" }}>
+          {queryInProgress ? (
+            <div>
+              <Spinner />
+            </div>
+          ) : (
+            <div>
+              {candidates?.length > 0 && (
+                <Paper
+                  variant="outlined"
+                  style={{ display: "flex", justifyContent: "space-between" }}
                 >
-                  Query PS1 Thumbnails for all candidates
-                </Button>
+                  <div style={{ padding: "0.5rem" }}>
+                    <Typography variant="h6">
+                      Found {totalMatches} candidates (loaded:{" "}
+                      {candidateIds?.length})
+                    </Typography>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "row" }}>
+                    <CustomSortToolbar
+                      filterGroups={filterGroups}
+                      filterFormData={filterFormData}
+                      setQueryInProgress={setQueryInProgress}
+                      loaded={!queryInProgress}
+                      sortOrder={sortOrder}
+                      setSortOrder={setSortOrder}
+                    />
+                  </div>
+                </Paper>
               )}
+              <List>
+                {candidateIds?.map((candidateId, index) => (
+                  <ListItem
+                    key={candidateId}
+                    style={{
+                      padding: 0,
+                      margin: 0,
+                      minWidth: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    <Paper variant="outlined" className={classes.listPaper}>
+                      <div className={classes.listItem}>
+                        <div style={{ gridArea: "thumbnails" }}>
+                          <CandidateThumbnails sourceId={candidateId} />
+                        </div>
+                        <div style={{ gridArea: "info" }}>
+                          <CandidateInfo sourceId={candidateId} />
+                        </div>
+                        <div style={{ gridArea: "photometry" }}>
+                          <CandidatePhotometry sourceId={candidateId} />
+                        </div>
+                        <div
+                          style={{
+                            gridArea: "annotations",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "space-between",
+                            minHeight: "100%",
+                          }}
+                        >
+                          <CandidateAutoannotations
+                            sourceId={candidateId}
+                            filterGroups={filterGroups}
+                          />
+                          {/* here show a counter, saying this is candidate n/m */}
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "flex-end",
+                              paddingTop: "0.5rem",
+                            }}
+                          >
+                            <Typography fontWeight="bold">
+                              {`${
+                                candidateIds.indexOf(candidateId) + 1
+                              }/${totalMatches}`}
+                            </Typography>
+                          </div>
+                        </div>
+                      </div>
+                    </Paper>
+                    {totalMatches > 0 &&
+                      candidates?.length < totalMatches &&
+                      index === candidates?.length - numPerPageOffset - 1 && (
+                        <div
+                          style={{
+                            minWidth: "100%",
+                            height: "1px",
+                          }}
+                          ref={observerTarget}
+                        />
+                      )}
+                  </ListItem>
+                ))}
+              </List>
             </div>
           )}
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <div>
-                {queryInProgress ? (
-                  <div>
-                    <Spinner />
-                  </div>
-                ) : (
-                  <CustomDataTable
-                    // Reset key to reset page number
-                    // https://github.com/gregnb/mui-datatables/issues/1166
-                    key={`table_${pageNumber}`}
-                    columns={columns}
-                    data={candidateIds}
-                    className={classes.table}
-                    options={options}
-                    groupIds={groupIds}
-                  />
-                )}
-              </div>
-            </ThemeProvider>
-          </StyledEngineProvider>
         </Box>
       </div>
       <div
