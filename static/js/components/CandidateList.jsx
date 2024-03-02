@@ -677,7 +677,11 @@ const Candidate = React.memo(
     const classes = useStyles();
 
     return (
-      <Paper variant="outlined" className={classes.listPaper}>
+      <Paper
+        variant="outlined"
+        className={classes.listPaper}
+        data-testid={`candidate-${index}`}
+      >
         <div className={classes.listItem}>
           <div style={{ gridArea: "thumbnails" }}>
             <CandidateThumbnails
@@ -885,29 +889,26 @@ const CandidateList = () => {
             </div>
           ) : (
             <div>
-              {candidates?.length > 0 && (
-                <Paper
-                  variant="outlined"
-                  style={{ display: "flex", justifyContent: "space-between" }}
-                >
-                  <div style={{ padding: "0.5rem" }}>
-                    <Typography variant="h6">
-                      Found {totalMatches} candidates (loaded:{" "}
-                      {candidates?.length})
-                    </Typography>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "row" }}>
-                    <CustomSortToolbar
-                      filterGroups={filterGroups}
-                      filterFormData={filterFormData}
-                      setQueryInProgress={setQueryInProgress}
-                      loaded={!queryInProgress}
-                      sortOrder={sortOrder}
-                      setSortOrder={setSortOrder}
-                    />
-                  </div>
-                </Paper>
-              )}
+              <Paper
+                variant="outlined"
+                style={{ display: "flex", justifyContent: "space-between" }}
+              >
+                <div style={{ padding: "0.5rem 0.5rem 0.5rem 1rem" }}>
+                  <Typography variant="h6">
+                    Found {totalMatches} candidates.
+                  </Typography>
+                </div>
+                <div style={{ display: "flex", flexDirection: "row" }}>
+                  <CustomSortToolbar
+                    filterGroups={filterGroups}
+                    filterFormData={filterFormData}
+                    setQueryInProgress={setQueryInProgress}
+                    loaded={!queryInProgress}
+                    sortOrder={sortOrder}
+                    setSortOrder={setSortOrder}
+                  />
+                </div>
+              </Paper>
               <List>
                 {(candidates || []).map((candidate, index) => (
                   <ListItem
