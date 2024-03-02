@@ -6,6 +6,10 @@ import DialogContent from "@mui/material/DialogContent";
 import Slide from "@mui/material/Slide";
 import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
+import CheckIcon from "@mui/icons-material/Check";
+import ClearIcon from "@mui/icons-material/Clear";
+import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
+import PriorityHigh from "@mui/icons-material/PriorityHigh";
 import Tooltip from "@mui/material/Tooltip";
 import makeStyles from "@mui/styles/makeStyles";
 import {
@@ -18,6 +22,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import MUIDataTable from "mui-datatables";
 
 import UpdatePhotometry from "./UpdatePhotometry";
+import PhotometryValidation from "./PhotometryValidation";
 import Button from "./Button";
 import * as Actions from "../ducks/photometry";
 
@@ -130,7 +135,14 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
       Object.keys(data[0]).forEach((key) => {
         if (
           !keys.includes(key) &&
-          !["groups", "owner", "obj_id", "id", "streams"].includes(key)
+          ![
+            "groups",
+            "owner",
+            "obj_id",
+            "id",
+            "streams",
+            "validations",
+          ].includes(key)
         ) {
           keys.push(key);
         }
@@ -191,6 +203,108 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
         label: "streams",
         options: {
           customBodyRenderLite: renderStreams,
+          display: false,
+        },
+      });
+
+      const renderValidationStatus = (dataIndex) => {
+        const phot = data[dataIndex];
+        let statusIcon = null;
+        if (phot?.validations.length === 0) {
+          statusIcon = <PriorityHigh size="small" color="primary" />;
+        } else if (phot?.validations[0]?.validated === true) {
+          statusIcon = <CheckIcon size="small" color="green" />;
+        } else if (phot?.validations[0]?.validated === false) {
+          statusIcon = <ClearIcon size="small" color="secondary" />;
+        } else {
+          statusIcon = <QuestionMarkIcon size="small" color="primary" />;
+        }
+
+        return (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            name={`${phot.id}_validation_status`}
+          >
+            {statusIcon}
+            <PhotometryValidation phot={phot} />
+          </div>
+        );
+      };
+
+      columns.push({
+        name: "validation_status",
+        label: "Validation",
+        options: {
+          customBodyRenderLite: renderValidationStatus,
+          display: false,
+        },
+      });
+
+      const renderValidationExplanation = (dataIndex) => {
+        const phot = data[dataIndex];
+        let validationExplanation = null;
+        if (phot?.validations.length === 0) {
+          validationExplanation = "";
+        } else {
+          validationExplanation = phot?.validations[0]?.explanation;
+        }
+        return (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            name={`${phot.id}_validation_explanation`}
+          >
+            {validationExplanation}
+          </div>
+        );
+      };
+
+      columns.push({
+        name: "validation_explanation",
+        label: "Explanation",
+        options: {
+          customBodyRenderLite: renderValidationExplanation,
+          display: false,
+        },
+      });
+
+      const renderValidationNotes = (dataIndex) => {
+        const phot = data[dataIndex];
+        let notes = null;
+        if (phot?.validations.length === 0) {
+          notes = "";
+        } else {
+          notes = phot?.validations[0]?.notes;
+        }
+        return (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            name={`${phot.id}_validation_notes`}
+          >
+            {notes}
+          </div>
+        );
+      };
+
+      columns.push({
+        name: "validation_notes",
+        label: "Notes",
+        options: {
+          customBodyRenderLite: renderValidationNotes,
           display: false,
         },
       });

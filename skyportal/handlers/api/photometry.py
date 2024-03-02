@@ -228,6 +228,7 @@ def serialize(
     annotations=True,
     owner=False,
     stream=False,
+    validation=False,
 ):
     return_value = {
         'obj_id': phot.obj_id,
@@ -258,6 +259,10 @@ def serialize(
         return_value['owner'] = phot.owner.to_dict()
     if stream:
         return_value['streams'] = [stream.to_dict() for stream in phot.streams]
+    if validation:
+        return_value['validations'] = [
+            validation.to_dict() for validation in phot.validations
+        ]
 
     if (
         phot.ref_flux is not None
@@ -1710,6 +1715,9 @@ class ObjPhotometryHandler(BaseHandler):
         outsys = self.get_query_argument('magsys', 'ab')
         include_owner_info = self.get_query_argument('includeOwnerInfo', False)
         include_stream_info = self.get_query_argument('includeStreamInfo', False)
+        include_validation_info = self.get_query_argument(
+            'includeValidationInfo', False
+        )
         deduplicate_photometry = self.get_query_argument('deduplicatePhotometry', False)
 
         if str(include_owner_info).lower() in ['true', 't', '1']:
@@ -1765,6 +1773,7 @@ class ObjPhotometryHandler(BaseHandler):
                         format,
                         owner=include_owner_info,
                         stream=include_stream_info,
+                        validation=include_validation_info,
                     )
                     for phot in photometry
                 ]
