@@ -37,8 +37,8 @@ import { ra_to_hours, dec_to_dms } from "../units";
 
 import * as candidatesActions from "../ducks/candidates";
 
-const numPerPage = 25;
-const numPerPageOffset = 5;
+const numPerPage = 2;
+const numPerPageOffset = 1;
 
 const useStyles = makeStyles((theme) => ({
   listPaper: {
@@ -161,8 +161,19 @@ const CustomSortToolbar = ({
   );
 
   const handleSort = async () => {
-    const newSortOrder =
-      sortOrder === null || sortOrder === "desc" ? "asc" : "desc";
+    const calculateSortOrder = () => {
+      // 1. click once to sort by ascending order
+      if (sortOrder === null) {
+        return "asc";
+      }
+      // 2. click again to sort by descending order
+      if (sortOrder === "asc") {
+        return "desc";
+      }
+      // 3. click again to remove sorting
+      return null;
+    };
+    const newSortOrder = calculateSortOrder();
     setSortOrder(newSortOrder);
 
     setQueryInProgress(true);
@@ -170,9 +181,6 @@ const CustomSortToolbar = ({
       pageNumber: 1,
       numPerPage,
       groupIDs: filterGroups?.map((g) => g.id).join(),
-      sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
-      sortByAnnotationKey: selectedAnnotationSortOptions.key,
-      sortByAnnotationOrder: newSortOrder,
     };
     if (filterFormData !== null) {
       data = {
@@ -180,16 +188,28 @@ const CustomSortToolbar = ({
         ...filterFormData,
       };
     }
+    // apply the sorting last, in case we need to overwrite
+    // the sorting from the filterFormData
+    data = {
+      ...data,
+      sortByAnnotationOrigin: newSortOrder
+        ? selectedAnnotationSortOptions.origin
+        : null,
+      sortByAnnotationKey: newSortOrder
+        ? selectedAnnotationSortOptions.key
+        : null,
+      sortByAnnotationOrder: newSortOrder,
+    };
 
     dispatch(
       candidatesActions.setCandidatesAnnotationSortOptions({
         ...selectedAnnotationSortOptions,
         order: newSortOrder,
       }),
-    ).then(() => {
-      dispatch(candidatesActions.fetchCandidates(data)).then(() => {
-        setQueryInProgress(false);
-      });
+    );
+
+    dispatch(candidatesActions.fetchCandidates(data)).then(() => {
+      setQueryInProgress(false);
     });
   };
 
@@ -231,7 +251,7 @@ CustomSortToolbar.defaultProps = {
   sortOrder: null,
 };
 
-const CandidateThumbnails = ({ sourceId }) => {
+const CandidateThumbnails = ({ id, ra, dec, thumbnails }) => {
   const dispatch = useDispatch();
 
   const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
@@ -240,26 +260,18 @@ const CandidateThumbnails = ({ sourceId }) => {
     setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
     dispatch(candidatesActions.generateSurveyThumbnail(objID)).then(() => {
       setPS1GenerationInProgressList(
-        ps1GenerationInProgressList.filter((id) => id !== objID),
+        ps1GenerationInProgressList.filter((ps1_id) => ps1_id !== objID),
       );
     });
   };
 
-  let candidateObj = null;
-  const { candidates } = useSelector((state) => state.candidates);
-  candidates?.forEach((candidate) => {
-    if (candidate.id === sourceId) {
-      candidateObj = { ...candidate };
-    }
-  });
-
-  const hasPS1 = candidateObj?.thumbnails?.map((t) => t.type)?.includes("ps1");
+  const hasPS1 = thumbnails?.map((t) => t.type)?.includes("ps1");
   const displayTypes = hasPS1
     ? ["new", "ref", "sub", "sdss", "ls", "ps1"]
     : ["new", "ref", "sub", "sdss", "ls"];
   return (
     <div>
-      {!candidateObj?.thumbnails ? (
+      {!thumbnails ? (
         <div>
           <CircularProgress />
         </div>
@@ -275,9 +287,9 @@ const CandidateThumbnails = ({ sourceId }) => {
             }}
           >
             <ThumbnailList
-              ra={candidateObj.ra}
-              dec={candidateObj.dec}
-              thumbnails={candidateObj.thumbnails}
+              ra={ra}
+              dec={dec}
+              thumbnails={thumbnails}
               minSize="6rem"
               size="100%"
               maxSize="8.8rem"
@@ -290,12 +302,12 @@ const CandidateThumbnails = ({ sourceId }) => {
           {!hasPS1 && (
             <Button
               primary
-              disabled={ps1GenerationInProgressList.includes(candidateObj.id)}
+              disabled={ps1GenerationInProgressList.includes(id)}
               size="small"
               onClick={() => {
-                generateSurveyThumbnail(candidateObj.id);
+                generateSurveyThumbnail(id);
               }}
-              data-testid={`generatePS1Button${candidateObj.id}`}
+              data-testid={`generatePS1Button${id}`}
             >
               Generate PS1 Cutout
             </Button>
@@ -307,11 +319,18 @@ const CandidateThumbnails = ({ sourceId }) => {
 };
 
 CandidateThumbnails.propTypes = {
-  sourceId: PropTypes.string.isRequired,
+  id: PropTypes.string.isRequired,
+  ra: PropTypes.number.isRequired,
+  dec: PropTypes.number.isRequired,
+  thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
+};
+
+CandidateThumbnails.defaultProps = {
+  thumbnails: null,
 };
 
 const CandidateInfo = ({
-  sourceId,
+  candidateObj,
   filterGroups,
   selectedAnnotationSortOptions,
 }) => {
@@ -323,14 +342,6 @@ const CandidateInfo = ({
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible,
   );
-
-  let candidateObj = null;
-  const { candidates } = useSelector((state) => state.candidates);
-  candidates?.forEach((candidate) => {
-    if (candidate.id === sourceId) {
-      candidateObj = { ...candidate };
-    }
-  });
 
   const candidateHasAnnotationWithSelectedKey = (obj) => {
     const annotation = obj.annotations.find(
@@ -584,7 +595,19 @@ const CandidateInfo = ({
 };
 
 CandidateInfo.propTypes = {
-  sourceId: PropTypes.string.isRequired,
+  candidateObj: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    ra: PropTypes.number.isRequired,
+    dec: PropTypes.number.isRequired,
+    gal_lon: PropTypes.number.isRequired,
+    gal_lat: PropTypes.number.isRequired,
+    is_source: PropTypes.bool.isRequired,
+    saved_groups: PropTypes.arrayOf(PropTypes.shape({})),
+    last_detected_at: PropTypes.string,
+    photstats: PropTypes.arrayOf(PropTypes.shape({})),
+    classifications: PropTypes.arrayOf(PropTypes.shape({})),
+    annotations: PropTypes.arrayOf(PropTypes.shape({})),
+  }).isRequired,
   filterGroups: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   selectedAnnotationSortOptions: PropTypes.shape({
     origin: PropTypes.string.isRequired,
@@ -615,64 +638,63 @@ CandidatePhotometry.propTypes = {
   sourceId: PropTypes.string.isRequired,
 };
 
-const CandidateAutoannotations = ({ sourceId, filterGroups }) => {
-  let candidateObj = null;
-  const { candidates } = useSelector((state) => state.candidates);
-  candidates?.forEach((candidate) => {
-    if (candidate.id === sourceId) {
-      candidateObj = { ...candidate };
-    }
-  });
-
-  return (
-    <div>
-      {!candidateObj?.annotations ? (
-        <div>
-          <CircularProgress />
-        </div>
-      ) : (
-        <div
-          style={{
-            overflowWrap: "break-word",
-          }}
-        >
-          {candidateObj.annotations && (
-            <ScanningPageCandidateAnnotations
-              annotations={candidateObj.annotations}
-              filterGroups={filterGroups || []}
-            />
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
+const CandidateAutoannotations = ({ annotations, filterGroups }) => (
+  <div>
+    {!annotations ? (
+      <div>
+        <CircularProgress />
+      </div>
+    ) : (
+      <div
+        style={{
+          overflowWrap: "break-word",
+        }}
+      >
+        {annotations && (
+          <ScanningPageCandidateAnnotations
+            annotations={annotations}
+            filterGroups={filterGroups || []}
+          />
+        )}
+      </div>
+    )}
+  </div>
+);
 
 CandidateAutoannotations.propTypes = {
-  sourceId: PropTypes.string.isRequired,
+  annotations: PropTypes.arrayOf(PropTypes.shape({})),
   filterGroups: PropTypes.arrayOf(PropTypes.shape({})),
 };
 
 CandidateAutoannotations.defaultProps = {
+  annotations: null,
   filterGroups: [],
 };
 
 const Candidate = React.memo(
   (props) => {
-    const { sourceId, filterGroups, index, totalMatches } = props;
+    const { candidate, filterGroups, index, totalMatches } = props;
     const classes = useStyles();
 
     return (
       <Paper variant="outlined" className={classes.listPaper}>
         <div className={classes.listItem}>
           <div style={{ gridArea: "thumbnails" }}>
-            <CandidateThumbnails sourceId={sourceId} />
+            <CandidateThumbnails
+              id={candidate.id}
+              ra={candidate.ra}
+              dec={candidate.dec}
+              thumbnails={candidate.thumbnails}
+            />
           </div>
           <div style={{ gridArea: "info" }}>
-            <CandidateInfo sourceId={sourceId} />
+            <CandidateInfo
+              candidateObj={candidate}
+              filterGroups={filterGroups}
+            />
           </div>
           <div style={{ gridArea: "photometry" }}>
-            <CandidatePhotometry sourceId={sourceId} />
+            <CandidatePhotometry sourceId={candidate.id} />
           </div>
           <div
             style={{
@@ -684,7 +706,7 @@ const Candidate = React.memo(
             }}
           >
             <CandidateAutoannotations
-              sourceId={sourceId}
+              annotations={candidate.annotations}
               filterGroups={filterGroups}
             />
             {/* here show a counter, saying this is candidate n/m */}
@@ -704,17 +726,33 @@ const Candidate = React.memo(
       </Paper>
     );
   },
-  (prevProps, nextProps) =>
-    prevProps.sourceId === nextProps.sourceId &&
-    prevProps.filterGroups === nextProps.filterGroups &&
-    prevProps.index === nextProps.index &&
-    prevProps.totalMatches === nextProps.totalMatches,
+  (prevProps, nextProps) => {
+    const keys = Object.keys(nextProps);
+    for (let i = 0; i < keys.length; i += 1) {
+      const key = keys[i];
+      if (key === "values") {
+        // we simply compare the length of the values array
+        if (prevProps.values.length !== nextProps.values.length) {
+          return false;
+        }
+      } else if (prevProps[key] !== nextProps[key]) {
+        return false;
+      }
+    }
+    return true;
+  },
 );
 
 Candidate.displayName = "Candidate";
 
 Candidate.propTypes = {
-  sourceId: PropTypes.string.isRequired,
+  candidate: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    ra: PropTypes.number.isRequired,
+    dec: PropTypes.number.isRequired,
+    thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
+    annotations: PropTypes.arrayOf(PropTypes.shape({})),
+  }).isRequired,
   filterGroups: PropTypes.arrayOf(PropTypes.shape({})),
   index: PropTypes.number.isRequired,
   totalMatches: PropTypes.number.isRequired,
@@ -818,11 +856,6 @@ const CandidateList = () => {
     }
   }, [dispatch, defaultScanningProfile]);
 
-  const candidateIds = [];
-  candidates?.forEach((candidate) => {
-    candidateIds.push(candidate.id);
-  });
-
   const groupIds = [];
   filterGroups?.forEach((g) => {
     groupIds.push(g.id);
@@ -860,7 +893,7 @@ const CandidateList = () => {
                   <div style={{ padding: "0.5rem" }}>
                     <Typography variant="h6">
                       Found {totalMatches} candidates (loaded:{" "}
-                      {candidateIds?.length})
+                      {candidates?.length})
                     </Typography>
                   </div>
                   <div style={{ display: "flex", flexDirection: "row" }}>
@@ -876,9 +909,9 @@ const CandidateList = () => {
                 </Paper>
               )}
               <List>
-                {candidateIds?.map((candidateId, index) => (
+                {(candidates || []).map((candidate, index) => (
                   <ListItem
-                    key={candidateId}
+                    key={candidate.id}
                     style={{
                       padding: 0,
                       margin: 0,
@@ -888,7 +921,7 @@ const CandidateList = () => {
                     }}
                   >
                     <Candidate
-                      sourceId={candidateId}
+                      candidate={candidate}
                       filterGroups={filterGroups}
                       index={index + 1}
                       totalMatches={totalMatches}
