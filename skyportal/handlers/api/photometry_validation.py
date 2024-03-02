@@ -48,7 +48,7 @@ class PhotometryValidationHandler(BaseHandler):
             name: photometry_id
             required: true
             schema:
-              type: string
+              type: int
             description: Photometry ID
         requestBody:
           content:
@@ -105,10 +105,7 @@ class PhotometryValidationHandler(BaseHandler):
         except ValidationError as e:
             return self.error(f'Error parsing query params: {e.args[0]}.')
 
-        print(validator)
         validated = validator['validated']
-        print(validated)
-
         with self.Session() as session:
             phot = session.scalars(
                 Photometry.select(session.user_or_token).where(
@@ -175,7 +172,7 @@ class PhotometryValidationHandler(BaseHandler):
             name: photometry_id
             required: true
             schema:
-              type: integer
+              type: int
         requestBody:
           content:
             application/json:
@@ -270,7 +267,7 @@ class PhotometryValidationHandler(BaseHandler):
             name: photometric_id
             required: true
             schema:
-              type: number
+              type: int
         responses:
           200:
             content:
