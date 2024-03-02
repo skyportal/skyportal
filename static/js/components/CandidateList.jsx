@@ -270,7 +270,7 @@ const CandidateThumbnails = ({ sourceId }) => {
               display: "grid",
               gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))",
               columnGap: 0,
-              rowGap: "0.25rem",
+              rowGap: "0.5rem",
               gridAutoFlow: "row",
             }}
           >
@@ -657,6 +657,73 @@ CandidateAutoannotations.defaultProps = {
   filterGroups: [],
 };
 
+const Candidate = React.memo(
+  (props) => {
+    const { sourceId, filterGroups, index, totalMatches } = props;
+    const classes = useStyles();
+
+    return (
+      <Paper variant="outlined" className={classes.listPaper}>
+        <div className={classes.listItem}>
+          <div style={{ gridArea: "thumbnails" }}>
+            <CandidateThumbnails sourceId={sourceId} />
+          </div>
+          <div style={{ gridArea: "info" }}>
+            <CandidateInfo sourceId={sourceId} />
+          </div>
+          <div style={{ gridArea: "photometry" }}>
+            <CandidatePhotometry sourceId={sourceId} />
+          </div>
+          <div
+            style={{
+              gridArea: "annotations",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              minHeight: "100%",
+            }}
+          >
+            <CandidateAutoannotations
+              sourceId={sourceId}
+              filterGroups={filterGroups}
+            />
+            {/* here show a counter, saying this is candidate n/m */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                paddingTop: "0.5rem",
+              }}
+            >
+              <Typography fontWeight="bold">
+                {`${index}/${totalMatches}`}
+              </Typography>
+            </div>
+          </div>
+        </div>
+      </Paper>
+    );
+  },
+  (prevProps, nextProps) =>
+    prevProps.sourceId === nextProps.sourceId &&
+    prevProps.filterGroups === nextProps.filterGroups &&
+    prevProps.index === nextProps.index &&
+    prevProps.totalMatches === nextProps.totalMatches,
+);
+
+Candidate.displayName = "Candidate";
+
+Candidate.propTypes = {
+  sourceId: PropTypes.string.isRequired,
+  filterGroups: PropTypes.arrayOf(PropTypes.shape({})),
+  index: PropTypes.number.isRequired,
+  totalMatches: PropTypes.number.isRequired,
+};
+
+Candidate.defaultProps = {
+  filterGroups: [],
+};
+
 const CandidateList = () => {
   const observerTarget = useRef(null);
   const [queryInProgress, setQueryInProgress] = useState(false);
@@ -820,47 +887,12 @@ const CandidateList = () => {
                       flexDirection: "column",
                     }}
                   >
-                    <Paper variant="outlined" className={classes.listPaper}>
-                      <div className={classes.listItem}>
-                        <div style={{ gridArea: "thumbnails" }}>
-                          <CandidateThumbnails sourceId={candidateId} />
-                        </div>
-                        <div style={{ gridArea: "info" }}>
-                          <CandidateInfo sourceId={candidateId} />
-                        </div>
-                        <div style={{ gridArea: "photometry" }}>
-                          <CandidatePhotometry sourceId={candidateId} />
-                        </div>
-                        <div
-                          style={{
-                            gridArea: "annotations",
-                            display: "flex",
-                            flexDirection: "column",
-                            justifyContent: "space-between",
-                            minHeight: "100%",
-                          }}
-                        >
-                          <CandidateAutoannotations
-                            sourceId={candidateId}
-                            filterGroups={filterGroups}
-                          />
-                          {/* here show a counter, saying this is candidate n/m */}
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "flex-end",
-                              paddingTop: "0.5rem",
-                            }}
-                          >
-                            <Typography fontWeight="bold">
-                              {`${
-                                candidateIds.indexOf(candidateId) + 1
-                              }/${totalMatches}`}
-                            </Typography>
-                          </div>
-                        </div>
-                      </div>
-                    </Paper>
+                    <Candidate
+                      sourceId={candidateId}
+                      filterGroups={filterGroups}
+                      index={index + 1}
+                      totalMatches={totalMatches}
+                    />
                     {totalMatches > 0 &&
                       candidates?.length < totalMatches &&
                       index === candidates?.length - numPerPageOffset - 1 && (
