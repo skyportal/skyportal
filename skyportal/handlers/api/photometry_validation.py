@@ -42,7 +42,7 @@ class PhotometryValidationHandler(BaseHandler):
         ---
         description: Validate or reject a photometric point
         tags:
-          -
+          - photometryvalidations
         parameters:
           - in: path
             name: photometry_id
