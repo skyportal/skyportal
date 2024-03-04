@@ -47,6 +47,13 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: "1rem",
   },
   listItem: {
+    padding: 0,
+    margin: 0,
+    minWidth: "100%",
+    display: "flex",
+    flexDirection: "column",
+  },
+  candidatePaper: {
     display: "grid",
     gridGap: "0.5rem",
     padding: "0.5rem",
@@ -65,18 +72,30 @@ const useStyles = makeStyles((theme) => ({
       gridTemplateColumns: "1fr",
     },
   },
-  table: {
+  thumbnailsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))",
+    columnGap: 0,
+    rowGap: "0.5rem",
+    gridAutoFlow: "row",
+  },
+  backToTop: {
     marginTop: "1rem",
+    display: "flex",
+    justifyContent: "flex-end",
+    minWidth: "100%",
   },
-  title: {
-    marginBottom: "0.625rem",
+  groupsList: {
+    display: "flex",
+    flexDirection: "row",
+    height: "1.6rem",
+    alignItems: "center",
+    gap: "0.1rem",
   },
-  pages: {
-    margin: "1rem",
-    "& > div": {
-      display: "inline-block",
-      margin: "1rem",
-    },
+  classificationsList: {
+    display: "flex",
+    flexFlow: "row wrap",
+    alignItems: "center",
   },
   spinnerDiv: {
     paddingTop: "2rem",
@@ -108,24 +127,9 @@ const useStyles = makeStyles((theme) => ({
   chip: {
     margin: theme.spacing(0.2),
   },
-  typography: {
-    padding: theme.spacing(2),
-  },
-  helpButton: {
-    display: "inline-block",
-  },
   position: {
     fontWeight: "bold",
     fontSize: "105%",
-  },
-  formControl: {
-    margin: theme.spacing(1),
-    minWidth: 120,
-  },
-  formContainer: {
-    display: "flex",
-    flexFlow: "row wrap",
-    alignItems: "center",
   },
   idButton: {
     textTransform: "none",
@@ -252,6 +256,7 @@ CustomSortToolbar.defaultProps = {
 };
 
 const CandidateThumbnails = ({ id, ra, dec, thumbnails }) => {
+  const classes = useStyles();
   const dispatch = useDispatch();
 
   const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
@@ -277,15 +282,7 @@ const CandidateThumbnails = ({ id, ra, dec, thumbnails }) => {
         </div>
       ) : (
         <div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))",
-              columnGap: 0,
-              rowGap: "0.5rem",
-              gridAutoFlow: "row",
-            }}
-          >
+          <div className={classes.thumbnailsGrid}>
             <ThumbnailList
               ra={ra}
               dec={dec}
@@ -406,15 +403,7 @@ const CandidateInfo = ({
                 <RejectButton objID={candidateObj.id} />
               </div>
               <div className={classes.infoItem}>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "row",
-                    height: "1.6rem",
-                    alignItems: "center",
-                    gap: "0.1rem",
-                  }}
-                >
+                <div className={classes.groupsList}>
                   <b>Saved groups: </b>
                   <EditSourceGroups
                     source={{
@@ -537,13 +526,7 @@ const CandidateInfo = ({
           )}
           <div className={classes.infoItemPadded}>
             <b>Latest Classification(s): </b>
-            <div
-              style={{
-                display: "flex",
-                flexFlow: "row wrap",
-                alignItems: "center",
-              }}
-            >
+            <div className={classes.classificationsList}>
               {recentHumanClassification && (
                 <span>
                   <Chip
@@ -682,7 +665,7 @@ const Candidate = React.memo(
         className={classes.listPaper}
         data-testid={`candidate-${index}`}
       >
-        <div className={classes.listItem}>
+        <div className={classes.candidatePaper}>
           <div style={{ gridArea: "thumbnails" }}>
             <CandidateThumbnails
               id={candidate.id}
@@ -911,16 +894,7 @@ const CandidateList = () => {
               </Paper>
               <List>
                 {(candidates || []).map((candidate, index) => (
-                  <ListItem
-                    key={candidate.id}
-                    style={{
-                      padding: 0,
-                      margin: 0,
-                      minWidth: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                    }}
-                  >
+                  <ListItem key={candidate.id} className={classes.listItem}>
                     <Candidate
                       candidate={candidate}
                       filterGroups={filterGroups}
@@ -945,14 +919,7 @@ const CandidateList = () => {
           )}
         </Box>
       </div>
-      <div
-        style={{
-          marginTop: "1rem",
-          display: "flex",
-          justifyContent: "flex-end",
-          minWidth: "100%",
-        }}
-      >
+      <div className={classes.backToTop}>
         <Button
           primary
           onClick={() => {
