@@ -791,7 +791,11 @@ const CandidateList = () => {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && candidates.length < totalMatches) {
+        if (
+          entries[0].isIntersecting &&
+          candidates.length < totalMatches &&
+          !queryInProgress
+        ) {
           dispatch(showNotification("Loading more candidates..."));
           dispatch(
             candidatesActions.fetchCandidates(
