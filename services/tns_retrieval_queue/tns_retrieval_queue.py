@@ -20,7 +20,7 @@ from baselayer.log import make_log
 from skyportal.handlers.api.photometry import add_external_photometry
 from skyportal.handlers.api.source import post_source
 from skyportal.handlers.api.spectrum import post_spectrum
-from skyportal.models import DBSession, Obj, TNSRobot, User
+from skyportal.models import DBSession, Obj, TNSRobot, User, Group
 from skyportal.utils.tns import (
     get_IAUname,
     read_tns_photometry,
@@ -84,7 +84,14 @@ def tns_bulk_retrieval(
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
     if group_ids is None:
-        group_ids = [g.id for g in user.accessible_groups]
+        public_group = session.scalar(
+            sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
+        )
+        if public_group is None:
+            raise ValueError(
+                f'No group(s) specified, and could not find public group {cfg["misc.public_group_name"]}'
+            )
+        group_ids = [public_group.id]
 
     try:
         tnsrobot = session.scalars(
