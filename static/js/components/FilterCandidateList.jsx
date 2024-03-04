@@ -8,7 +8,9 @@ import Checkbox from "@mui/material/Checkbox";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
-import useMediaQuery from "@mui/material/useMediaQuery";
+import IconButton from "@mui/material/IconButton";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import Paper from "@mui/material/Paper";
 import SearchIcon from "@mui/icons-material/Search";
 import Input from "@mui/material/Input";
@@ -37,7 +39,7 @@ import * as gcnEventsActions from "../ducks/gcnEvents";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   filterListContainer: {
     padding: "1rem 1rem 0 1rem",
     display: "flex",
@@ -101,19 +103,46 @@ const useStyles = makeStyles(() => ({
   savedFiltering: {
     paddingTop: "1rem",
     display: "grid",
-    gridTemplateColumns: "2fr 1fr",
+    [theme.breakpoints.down("sm")]: {
+      gridTemplateColumns: "1fr",
+    },
+    [theme.breakpoints.up("md")]: {
+      gridTemplateColumns: "2fr 1fr",
+    },
     gap: "0.5rem",
   },
-  savedFilteringSmall: {
-    paddingTop: "1rem",
-    display: "grid",
-    gridTemplateColumns: "1fr",
-    gap: "0.5rem",
+  rejectCandidatesSelect: {
+    display: "flex",
+    alignItems: "center",
+    [theme.breakpoints.down("sm")]: {
+      paddingTop: 0,
+    },
+    [theme.breakpoints.up("md")]: {
+      paddingTop: "1.5rem",
+    },
   },
   timeRange: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
     gap: "0.5rem",
+  },
+  title: {
+    fontSize: "1.1rem",
+  },
+  body: {
+    fontSize: "1rem",
+    lineHeight: "1.1rem",
+  },
+  groupOptions: {
+    paddingTop: "0.5rem",
+    display: "flex",
+    flexFlow: "row wrap",
+    alignItems: "flex-start",
+    columnGap: "2rem",
+    rowGap: "1rem",
+  },
+  simplePadding: {
+    padding: "1rem",
   },
 }));
 
@@ -151,7 +180,6 @@ const FilterCandidateList = ({
   setSortOrder,
 }) => {
   const classes = useStyles();
-  const smallScreen = useMediaQuery((theme) => theme.breakpoints.down("sm"));
 
   const availableAnnotationsInfo = useSelector(
     (state) => state.candidates.annotationsInfo,
@@ -232,6 +260,8 @@ const FilterCandidateList = ({
   const [filterGroupsInput, setFilterGroupsInput] = useState("");
 
   const [filterGroupOptions, setFilterGroupOptions] = useState([]);
+
+  const [showAllGroups, setShowAllGroups] = useState(true);
 
   useEffect(() => {
     dispatch(gcnEventsActions.fetchGcnEvents());
@@ -502,9 +532,9 @@ const FilterCandidateList = ({
         </div>
         <Grid container columnSpacing={{ xs: 0, lg: 1.5 }} rowSpacing={1.5}>
           <Grid item xs={12} lg={6}>
-            <Paper variant="outlined" style={{ padding: "1rem" }}>
+            <Paper variant="outlined" className={classes.simplePadding}>
               <div className={classes.formRow} style={{ marginTop: 0 }}>
-                <Typography variant="h6" style={{ fontSize: "1.1rem" }}>
+                <Typography variant="h6" className={classes.title}>
                   Selected scanning profile:&nbsp;
                   {selectedScanningProfile
                     ? selectedScanningProfile.name || "No name"
@@ -560,15 +590,9 @@ const FilterCandidateList = ({
                   />
                 </div>
               </div>
-              <div
-                className={
-                  smallScreen
-                    ? classes.savedFilteringSmall
-                    : classes.savedFiltering
-                }
-              >
+              <div className={classes.savedFiltering}>
                 <div className={classes.savedStatusSelect}>
-                  <Typography variant="h6" style={{ fontSize: "1.1rem" }}>
+                  <Typography variant="h6" className={classes.title}>
                     Show candidates...
                   </Typography>
                   <Controller
@@ -599,13 +623,7 @@ const FilterCandidateList = ({
                     )}
                   />
                 </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    paddingTop: smallScreen ? 0 : "1.5rem",
-                  }}
-                >
+                <div className={classes.rejectCandidatesSelect}>
                   <Controller
                     labelId="rejectedCandidatesLabel"
                     name="rejectedStatus"
@@ -634,14 +652,28 @@ const FilterCandidateList = ({
                 style={{ marginTop: 0, marginBottom: 0, paddingTop: "1rem" }}
               >
                 <div style={{ display: "flex", alignItems: "center" }}>
-                  <Typography variant="h6" style={{ fontSize: "1.1rem" }}>
+                  <Typography variant="h6" className={classes.title}>
                     Program Selection
                   </Typography>
+                  {/* we want an eye (show/hide) icon to quickly show/hide the groups that are not selected */}
+                  <Tooltip title="Show/Hide unselected groups, useful to only see selected groups">
+                    <IconButton
+                      onClick={() => setShowAllGroups(!showAllGroups)}
+                      size="small"
+                      style={{ marginLeft: "0.25rem" }}
+                    >
+                      {showAllGroups ? (
+                        <VisibilityIcon />
+                      ) : (
+                        <VisibilityOffIcon />
+                      )}
+                    </IconButton>
+                  </Tooltip>
                   {errors.groupIDs && (
                     <FormValidationError message="Select at least one group." />
                   )}
                 </div>
-                <Paper variant="outlined" style={{ padding: "1rem" }}>
+                <Paper variant="outlined" className={classes.simplePadding}>
                   <TextField
                     label="Search"
                     variant="outlined"
@@ -653,75 +685,76 @@ const FilterCandidateList = ({
                   />
                   <div
                     style={{
-                      display: "grid",
-                      height: "173px",
-                      gridTemplateColumns:
-                        "repeat(auto-fill, minmax(200px, 1fr))",
-                      gridGap: "0.5rem",
-                      alignItems: "flex-start",
-                      overflowY: "scroll",
-                      padding: "0.5rem",
+                      minHeight: "167px",
+                      maxHeight: "167px",
+                      overflowY: "auto",
                     }}
                   >
-                    {filterGroupOptions.map((group, idx) => (
-                      <div
-                        key={group.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "flex-start",
-                        }}
-                      >
-                        <Controller
-                          render={({ field: { onChange, value } }) => (
-                            <Checkbox
-                              onChange={(event) => {
-                                onChange(event.target.checked);
-                                // Let parent component know program selection has changed
-                                const groupIDs = filterGroupOptions.map(
-                                  (g) => g.id,
-                                );
-                                const selectedGroupIDs = groupIDs?.filter(
-                                  (ID, i) => getValues().groupIDs[i],
-                                );
-                                setFilterGroups(
-                                  filterGroupOptions.filter((g) =>
-                                    selectedGroupIDs.includes(g.id),
-                                  ),
-                                );
-                              }}
-                              checked={value}
-                              data-testid={`filteringFormGroupCheckbox-${group.id}`}
-                              style={{
-                                margin: 0,
-                                padding: 0,
-                                marginRight: "0.2rem",
-                              }}
-                            />
-                          )}
-                          name={`groupIDs[${idx}]`}
-                          control={control}
-                          rules={{ validate: validateGroups }}
-                          defaultValue={false}
-                        />
-                        <Typography
-                          variant="body1"
-                          style={{ fontSize: "1rem", lineHeight: "1.1rem" }}
+                    <div className={classes.groupOptions}>
+                      {filterGroupOptions.map((group, idx) => (
+                        // if the group.id is not in getValues().groupIDs, then we want to hide it
+                        <div
                           key={group.id}
+                          style={{
+                            display:
+                              !showAllGroups && !getValues().groupIDs[idx]
+                                ? "none"
+                                : "flex",
+                            alignItems: "center",
+                            justifyContent: "flex-start",
+                          }}
                         >
-                          {group.name}
-                        </Typography>
-                      </div>
-                    ))}
+                          <Controller
+                            render={({ field: { onChange, value } }) => (
+                              <Checkbox
+                                onChange={(event) => {
+                                  onChange(event.target.checked);
+                                  // Let parent component know program selection has changed
+                                  const groupIDs = filterGroupOptions.map(
+                                    (g) => g.id,
+                                  );
+                                  const selectedGroupIDs = groupIDs?.filter(
+                                    (ID, i) => getValues().groupIDs[i],
+                                  );
+                                  setFilterGroups(
+                                    filterGroupOptions.filter((g) =>
+                                      selectedGroupIDs.includes(g.id),
+                                    ),
+                                  );
+                                }}
+                                checked={value}
+                                data-testid={`filteringFormGroupCheckbox-${group.id}`}
+                                style={{
+                                  margin: 0,
+                                  padding: 0,
+                                  marginRight: "0.2rem",
+                                }}
+                              />
+                            )}
+                            name={`groupIDs[${idx}]`}
+                            control={control}
+                            rules={{ validate: validateGroups }}
+                            defaultValue={false}
+                          />
+                          <Typography
+                            variant="body1"
+                            classes={classes.body}
+                            key={group.id}
+                          >
+                            {group.name}
+                          </Typography>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </Paper>
               </div>
             </Paper>
           </Grid>
           <Grid item xs={12} lg={6}>
-            <Paper variant="outlined" style={{ padding: "1rem" }}>
+            <Paper variant="outlined" className={classes.simplePadding}>
               <div className={classes.formRow} style={{ marginTop: 0 }}>
-                <Typography variant="h6" style={{ fontSize: "1.1rem" }}>
+                <Typography variant="h6" className={classes.title}>
                   Classification(s)
                 </Typography>
                 <ClassificationSelect
@@ -731,7 +764,7 @@ const FilterCandidateList = ({
                 />
               </div>
               <div className={classes.formRow}>
-                <Typography variant="h6" style={{ fontSize: "1.1rem" }}>
+                <Typography variant="h6" className={classes.title}>
                   Redshift
                 </Typography>
                 <div className={classes.redshiftFiltering}>
@@ -771,7 +804,7 @@ const FilterCandidateList = ({
                 </div>
               </div>
               <div className={classes.formRow} style={{ marginBottom: 0 }}>
-                <Typography variant="h6" style={{ fontSize: "1.1rem" }}>
+                <Typography variant="h6" className={classes.title}>
                   GCN Events
                 </Typography>
                 <div className={classes.gcnGrid}>
@@ -940,7 +973,7 @@ const FilterCandidateList = ({
                 className={classes.formRow}
                 style={{ marginTop: "0.5rem", marginBottom: 0 }}
               >
-                <Typography variant="h6" style={{ fontSize: "1.1rem" }}>
+                <Typography variant="h6" className={classes.title}>
                   Annotation Sorting
                 </Typography>
                 {errors.sortingOrigin && (
