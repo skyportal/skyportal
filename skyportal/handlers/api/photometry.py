@@ -1,7 +1,6 @@
 import copy
 import uuid
 import datetime
-import hashlib
 import json
 from io import StringIO
 import traceback
@@ -1295,6 +1294,34 @@ class PhotometryHandler(BaseHandler):
         description: Update and/or upload photometry, resolving potential duplicates
         tags:
           - photometry
+        parameters:
+          - in: path
+            name: refresh
+            schema:
+              type: boolean
+            required: false
+            description: |
+              If true, triggers a refresh of the object's photometry on the web page,
+              only for the users that have the object's source page open.
+          - in: path
+            name: ignore_flux_deduplication
+            schema:
+              type: boolean
+            required: false
+            description: |
+              If true, will not use the flux/fluxerr of existing rows when looking for duplicates
+              but only mjd, instrument_id, filter, and origin. Reserved to super admin users only,
+              to avoid misuse and permanent data loss.
+          - in: path
+            name: ignore_flux_deduplication_replace
+            schema:
+              type: boolean
+            required: false
+            description: |
+              If true and ignore_flux_deduplication is true, will replace the flux/fluxerr of
+              existing rows (duplicates) with the new values. Applies only to rows with
+              an origin already specified. If existing duplicates have no origin, the update
+              will be skipped.
         requestBody:
           content:
             application/json:
@@ -1418,7 +1445,7 @@ class PhotometryHandler(BaseHandler):
                 id_map = {}
 
                 updated_ids = []
-                updated_duplicate_hash = []
+                updated_duplicate_values = []
                 for df_index, duplicate in duplicated_photometry:
                     id_map[df_index] = duplicate.id
                     duplicate_group_ids = {g.id for g in duplicate.groups}
@@ -1456,24 +1483,25 @@ class PhotometryHandler(BaseHandler):
                                 f'Adding streams {stream_ids_update} to photometry {duplicate.id}'
                             )
 
-                    # if ignoring flux deduplication, do we update the value(s) of the existing photometry?
-                    # ALSO, we only allow updating rows when the existing row has an origin specified, not when it's None
+                    # update duplicate's flux and fluxerr if we are ignoring flux deduplication
+                    # and both the duplicate and the new datapoint have origins that are not None, '', 'nan', or 'null'
                     if (
-                        ignore_flux
+                        "origin" in df.columns
+                        and ignore_flux
                         and ignore_flux_replace
                         and str(duplicate.origin).strip().lower()
                         not in ['none', '', 'nan', 'null']
+                        and str(df.loc[df_index]['origin']).strip().lower()
+                        not in ['none', '', 'nan', 'null']
                     ):
                         # we might have more than one datapoint at a given: jd, instrument_id, filter, and origin
-                        # that do have different flux values. We can't update the flux/fluxerr for all of them,
-                        # because this will conflict with the deduplication index we have and raise an error
-                        # so we only want to update the first one we find
-                        # for that, we compute a hash of the jd, instrument_id, filter, and origin everytime we update a row
-                        # store it, and make sure we don't update a row with the same hash twice
-                        duplicate_hash = hashlib.sha256(
-                            f"{duplicate.jd}{duplicate.instrument_id}{duplicate.filter}{duplicate.origin}".encode()
-                        ).hexdigest()
-                        if duplicate_hash in updated_duplicate_hash:
+                        # that have different flux values (i.e, multiple duplicates not just one)
+                        # because we have a unique index that includes flux and fluxerr, we can't update all the duplicates
+                        # with the new flux values, as we would end up with more than one entry with the same columns in the database
+                        # which will yield an error. So, we keep track of the duplicates we have already updated
+                        # to avoid updating more than one row with the same values
+                        duplicate_value = f"{duplicate.jd}_{duplicate.instrument_id}_{duplicate.filter}_{duplicate.origin}".encode()
+                        if duplicate_value in updated_duplicate_values:
                             continue
                         duplicate.flux = df.loc[df_index]['standardized_flux']
                         duplicate.fluxerr = df.loc[df_index]['standardized_fluxerr']
@@ -1489,7 +1517,7 @@ class PhotometryHandler(BaseHandler):
                         duplicate.altdata = json.dumps(df.loc[df_index]['altdata'])
                         duplicate.modified = datetime.datetime.utcnow().isoformat()
                         updated_ids.append(duplicate.id)
-                        updated_duplicate_hash.append(duplicate_hash)
+                        updated_duplicate_values.append(duplicate_value)
 
                 # now safely drop the duplicates:
                 new_photometry = df.loc[new_photometry_df_idxs]
