@@ -102,7 +102,26 @@ def test_post_and_delete_tns_robot(
     assert group[0]['owner'] is True
     assert group[0]['auto_report'] is True
 
-    # ADD A COAUTHOR TO THE ROBOT
+    # TRY ADDING A COAUTHOR WITH NO AFFILIATIONS TO THE ROBOT
+    status, data = api(
+        'POST',
+        f'tns_robot/{id}/coauthor/{super_admin_user.id}',
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "has no affiliation(s), required to be a coauthor of" in data['message']
+
+    # add an affiliation to the user
+    status, data = api(
+        'PATCH',
+        f'internal/profile/{super_admin_user.id}',
+        data={'affiliations': ['CIT']},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # now add the coauthor
     status, data = api(
         'POST',
         f'tns_robot/{id}/coauthor/{super_admin_user.id}',
@@ -118,7 +137,28 @@ def test_post_and_delete_tns_robot(
     assert len(data['data']['coauthors']) == 1
     assert data['data']['coauthors'][0]['user_id'] == super_admin_user.id
 
-    # ADD THE VIEWONLY USER AS AN AUTOREPORTER OF THE TNS ROBOT PUBLIC GROUP
+    # TRY ADDING THE VIEWONLY USER AS AN AUTOREPORTER OF THE TNS ROBOT PUBLIC GROUP
+    # will fail (no affiliation)
+    status, data = api(
+        'POST',
+        f'tns_robot/{id}/group/{public_group.id}/autoreporter',
+        data={'user_ids': [view_only_user.id]},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "has no affiliation(s), required to be an autoreporter of" in data['message']
+
+    # add an affiliation to the user
+    status, data = api(
+        'PATCH',
+        f'internal/profile/{view_only_user.id}',
+        data={'affiliations': ['CIT']},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # now add the autoreporter
     status, data = api(
         'POST',
         f'tns_robot/{id}/group/{public_group.id}/autoreporter',
