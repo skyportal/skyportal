@@ -1,17 +1,9 @@
-import React, { useEffect, Suspense, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
-import {
-  createTheme,
-  ThemeProvider,
-  StyledEngineProvider,
-  useTheme,
-} from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
-import useMediaQuery from "@mui/material/useMediaQuery";
+import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -21,15 +13,11 @@ import SortIcon from "@mui/icons-material/Sort";
 import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
-import Popover from "@mui/material/Popover";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-// eslint-disable-next-line import/no-unresolved
-import Form from "@rjsf/mui";
-import validator from "@rjsf/validator-ajv8";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import Paper from "@mui/material/Paper";
 
 import { showNotification } from "baselayer/components/Notifications";
-import * as candidatesActions from "../ducks/candidates";
-import CustomDataTable from "./CustomDataTable";
 import ThumbnailList from "./ThumbnailList";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
@@ -37,38 +25,80 @@ import ScanningPageCandidateAnnotations, {
   getAnnotationValueString,
 } from "./ScanningPageCandidateAnnotations";
 import EditSourceGroups from "./EditSourceGroups";
-import { ra_to_hours, dec_to_dms } from "../units";
 import RejectButton from "./RejectButton";
 import VegaPhotometry from "./VegaPhotometry";
 import Spinner from "./Spinner";
 import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import Button from "./Button";
 import DisplayPhotStats from "./DisplayPhotStats";
-
 import CandidatePlugins from "./CandidatePlugins";
 
+import { ra_to_hours, dec_to_dms } from "../units";
+
+import * as candidatesActions from "../ducks/candidates";
+
+const numPerPage = 25;
+const numPerPageOffset = 5;
+
 const useStyles = makeStyles((theme) => ({
-  candidateListContainer: {
-    padding: "1rem",
+  listPaper: {
+    borderColor: theme.palette.grey[350],
+    borderWidth: "2px",
+    marginBottom: "1rem",
   },
-  table: {
-    marginTop: "1rem",
+  listItem: {
+    padding: 0,
+    margin: 0,
+    minWidth: "100%",
+    display: "flex",
+    flexDirection: "column",
   },
-  title: {
-    marginBottom: "0.625rem",
-  },
-  pages: {
-    margin: "1rem",
-    "& > div": {
-      display: "inline-block",
-      margin: "1rem",
+  candidatePaper: {
+    display: "grid",
+    gridGap: "0.5rem",
+    padding: "0.5rem",
+    alignItems: "center",
+    // we change the order of the children and the layout based on the screen size
+    [theme.breakpoints.up("lg")]: {
+      gridTemplateColumns: "5fr 2.5fr 4fr 3fr",
+      gridTemplateAreas: `"thumbnails info photometry annotations"`,
     },
+    [theme.breakpoints.down("lg")]: {
+      gridTemplateAreas: `"thumbnails info" "photometry annotations"`,
+      gridTemplateColumns: "5fr 3fr",
+    },
+    [theme.breakpoints.down("sm")]: {
+      gridTemplateAreas: `"info" "thumbnails" "photometry" "annotations"`,
+      gridTemplateColumns: "1fr",
+    },
+  },
+  thumbnailsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))",
+    columnGap: 0,
+    rowGap: "0.5rem",
+    gridAutoFlow: "row",
+  },
+  backToTop: {
+    marginTop: "1rem",
+    display: "flex",
+    justifyContent: "flex-end",
+    minWidth: "100%",
+  },
+  groupsList: {
+    display: "flex",
+    flexDirection: "row",
+    height: "1.6rem",
+    alignItems: "center",
+    gap: "0.1rem",
+  },
+  classificationsList: {
+    display: "flex",
+    flexFlow: "row wrap",
+    alignItems: "center",
   },
   spinnerDiv: {
     paddingTop: "2rem",
-  },
-  itemPaddingBottom: {
-    paddingBottom: "0.1rem",
   },
   infoItem: {
     display: "flex",
@@ -77,151 +107,36 @@ const useStyles = makeStyles((theme) => ({
       paddingBottom: "0.1rem",
     },
     flexFlow: "row wrap",
+    paddingBottom: "0.25rem",
   },
   infoItemPadded: {
     "& > span": {
       paddingLeft: "0.25rem",
       paddingBottom: "0.1rem",
     },
+    paddingBottom: "0.25rem",
   },
   saveCandidateButton: {
-    margin: "0.5rem 0",
+    margin: "0.25rem 0",
   },
-  thumbnails: (props) => ({
-    minWidth: props.thumbnailsMinWidth,
-  }),
-  info: (props) => ({
-    fontSize: "0.875rem",
-    minWidth: props.infoMinWidth,
-    maxWidth: props.infoMaxWidth,
-  }),
-  annotations: (props) => ({
-    minWidth: props.annotationsMinWidth,
-    maxWidth: props.annotationsMaxWidth,
-    overflowWrap: "break-word",
-  }),
   sortButtton: {
-    verticalAlign: "top",
     "&:hover": {
       color: theme.palette.primary.main,
     },
   },
   chip: {
-    margin: theme.spacing(0.5),
-  },
-  typography: {
-    padding: theme.spacing(2),
-  },
-  helpButton: {
-    display: "inline-block",
+    margin: theme.spacing(0.2),
   },
   position: {
     fontWeight: "bold",
-    fontSize: "110%",
-  },
-  formControl: {
-    margin: theme.spacing(1),
-    minWidth: 120,
-  },
-  formContainer: {
-    display: "flex",
-    flexFlow: "row wrap",
-    alignItems: "center",
+    fontSize: "105%",
   },
   idButton: {
     textTransform: "none",
-    marginBottom: theme.spacing(1),
+    marginBottom: theme.spacing(0.5),
+    fontSize: "0.9rem",
   },
 }));
-
-// Tweak responsive column widths
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTableBodyCell: {
-        root: {
-          padding: `${theme.spacing(1)} ${theme.spacing(0.5)} ${theme.spacing(
-            1,
-          )} ${theme.spacing(1)}`,
-        },
-        stackedHeader: {
-          verticalAlign: "top",
-        },
-        stackedCommon: {
-          [theme.breakpoints.up("xs")]: { width: "calc(100%)" },
-          "&$stackedHeader": {
-            display: "none",
-            overflowWrap: "break-word",
-          },
-        },
-      },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        navContainer: {
-          flexDirection: "column",
-          alignItems: "center",
-          [theme.breakpoints.up("sm")]: {
-            flexDirection: "row",
-          },
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-      MUIDataTableToolbar: {
-        filterPaper: {
-          // Use fullscreen dialog for small-screen filter form
-          width: "100%",
-          maxWidth: "100%",
-          margin: 0,
-          maxHeight: "calc(100vh - 1rem)",
-          borderRadius: 0,
-          top: "0 !important",
-          left: "0 !important",
-          [theme.breakpoints.up("md")]: {
-            // Override the overrides above for bigger screens
-            maxWidth: "25%",
-            top: "unset !important",
-            left: "unset !important",
-            float: "right",
-            position: "unset",
-            margin: "1rem",
-          },
-        },
-        filterCloseIcon: {
-          [theme.breakpoints.up("md")]: {
-            top: "1rem !important",
-            right: "1rem !important",
-          },
-        },
-      },
-      MUIDataTableFilter: {
-        root: {
-          maxHeight: "calc(100vh - 5rem)",
-        },
-      },
-      MUIDataTableFilterList: {
-        chip: {
-          maxWidth: "100%",
-        },
-      },
-    },
-  });
 
 const getMostRecentClassification = (classifications) => {
   // Display the most recent non-zero probability class
@@ -235,21 +150,7 @@ const getMostRecentClassification = (classifications) => {
   return recentClassification;
 };
 
-const getMuiPopoverTheme = () =>
-  createTheme({
-    components: {
-      MuiPopover: {
-        paper: {
-          maxWidth: "30rem",
-        },
-      },
-    },
-  });
-
-const defaultNumPerPage = 25;
-
 const CustomSortToolbar = ({
-  rowsPerPage,
   filterGroups,
   filterFormData,
   setQueryInProgress,
@@ -264,18 +165,26 @@ const CustomSortToolbar = ({
   );
 
   const handleSort = async () => {
-    const newSortOrder =
-      sortOrder === null || sortOrder === "desc" ? "asc" : "desc";
+    const calculateSortOrder = () => {
+      // 1. click once to sort by ascending order
+      if (sortOrder === null) {
+        return "asc";
+      }
+      // 2. click again to sort by descending order
+      if (sortOrder === "asc") {
+        return "desc";
+      }
+      // 3. click again to remove sorting
+      return null;
+    };
+    const newSortOrder = calculateSortOrder();
     setSortOrder(newSortOrder);
 
     setQueryInProgress(true);
     let data = {
       pageNumber: 1,
-      numPerPage: rowsPerPage,
+      numPerPage,
       groupIDs: filterGroups?.map((g) => g.id).join(),
-      sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
-      sortByAnnotationKey: selectedAnnotationSortOptions.key,
-      sortByAnnotationOrder: newSortOrder,
     };
     if (filterFormData !== null) {
       data = {
@@ -283,15 +192,29 @@ const CustomSortToolbar = ({
         ...filterFormData,
       };
     }
+    // apply the sorting last, in case we need to overwrite
+    // the sorting from the filterFormData
+    data = {
+      ...data,
+      sortByAnnotationOrigin: newSortOrder
+        ? selectedAnnotationSortOptions.origin
+        : null,
+      sortByAnnotationKey: newSortOrder
+        ? selectedAnnotationSortOptions.key
+        : null,
+      sortByAnnotationOrder: newSortOrder,
+    };
 
-    await dispatch(
+    dispatch(
       candidatesActions.setCandidatesAnnotationSortOptions({
         ...selectedAnnotationSortOptions,
         order: newSortOrder,
       }),
     );
-    await dispatch(candidatesActions.fetchCandidates(data));
-    setQueryInProgress(false);
+
+    dispatch(candidatesActions.fetchCandidates(data)).then(() => {
+      setQueryInProgress(false);
+    });
   };
 
   // Wait until sorted data is received before rendering the toolbar
@@ -305,11 +228,11 @@ const CustomSortToolbar = ({
           data-testid="sortOnAnnotationButton"
           size="large"
         >
-          <span>
+          <>
             <SortIcon />
             {sortOrder !== null && sortOrder === "asc" && <ArrowUpward />}
             {sortOrder !== null && sortOrder === "desc" && <ArrowDownward />}
-          </span>
+          </>
         </IconButton>
       </span>
     </Tooltip>
@@ -320,7 +243,6 @@ const CustomSortToolbar = ({
 
 CustomSortToolbar.propTypes = {
   setQueryInProgress: PropTypes.func.isRequired,
-  rowsPerPage: PropTypes.number.isRequired,
   filterGroups: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   filterFormData: PropTypes.shape({}),
   loaded: PropTypes.bool.isRequired,
@@ -333,53 +255,56 @@ CustomSortToolbar.defaultProps = {
   sortOrder: null,
 };
 
-const CandidateThumbnails = ({ sourceId }) => {
-  const dispatch = useDispatch();
+const CandidateThumbnails = ({ id, ra, dec, thumbnails }) => {
   const classes = useStyles();
+  const dispatch = useDispatch();
 
   const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
     useState([]);
   const generateSurveyThumbnail = (objID) => {
     setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
-    dispatch(candidatesActions.generateSurveyThumbnail(objID));
+    dispatch(candidatesActions.generateSurveyThumbnail(objID)).then(() => {
+      setPS1GenerationInProgressList(
+        ps1GenerationInProgressList.filter((ps1_id) => ps1_id !== objID),
+      );
+    });
   };
 
-  let candidateObj = null;
-  const { candidates } = useSelector((state) => state.candidates);
-  candidates?.forEach((candidate) => {
-    if (candidate.id === sourceId) {
-      candidateObj = { ...candidate };
-    }
-  });
-
-  const hasPS1 = candidateObj?.thumbnails?.map((t) => t.type)?.includes("ps1");
+  const hasPS1 = thumbnails?.map((t) => t.type)?.includes("ps1");
   const displayTypes = hasPS1
     ? ["new", "ref", "sub", "sdss", "ls", "ps1"]
     : ["new", "ref", "sub", "sdss", "ls"];
   return (
     <div>
-      {!candidateObj?.thumbnails ? (
+      {!thumbnails ? (
         <div>
           <CircularProgress />
         </div>
       ) : (
-        <div className={classes.thumbnails}>
-          <ThumbnailList
-            ra={candidateObj.ra}
-            dec={candidateObj.dec}
-            thumbnails={candidateObj.thumbnails}
-            size="9rem"
-            displayTypes={displayTypes}
-          />
+        <div>
+          <div className={classes.thumbnailsGrid}>
+            <ThumbnailList
+              ra={ra}
+              dec={dec}
+              thumbnails={thumbnails}
+              minSize="6rem"
+              size="100%"
+              maxSize="8.8rem"
+              titleSize="0.8rem"
+              displayTypes={displayTypes}
+              useGrid={false}
+              noMargin
+            />
+          </div>
           {!hasPS1 && (
             <Button
               primary
-              disabled={ps1GenerationInProgressList.includes(candidateObj.id)}
+              disabled={ps1GenerationInProgressList.includes(id)}
               size="small"
               onClick={() => {
-                generateSurveyThumbnail(candidateObj.id);
+                generateSurveyThumbnail(id);
               }}
-              data-testid={`generatePS1Button${candidateObj.id}`}
+              data-testid={`generatePS1Button${id}`}
             >
               Generate PS1 Cutout
             </Button>
@@ -391,45 +316,18 @@ const CandidateThumbnails = ({ sourceId }) => {
 };
 
 CandidateThumbnails.propTypes = {
-  sourceId: PropTypes.string.isRequired,
+  id: PropTypes.string.isRequired,
+  ra: PropTypes.number.isRequired,
+  dec: PropTypes.number.isRequired,
+  thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
 };
 
-const CandidateAutoannotations = ({ sourceId }) => {
-  const classes = useStyles();
-
-  let candidateObj = null;
-  const { candidates } = useSelector((state) => state.candidates);
-  candidates?.forEach((candidate) => {
-    if (candidate.id === sourceId) {
-      candidateObj = { ...candidate };
-    }
-  });
-
-  return (
-    <div>
-      {!candidateObj?.annotations ? (
-        <div>
-          <CircularProgress />
-        </div>
-      ) : (
-        <div className={classes.annotations}>
-          {candidateObj.annotations && (
-            <ScanningPageCandidateAnnotations
-              annotations={candidateObj.annotations}
-            />
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-CandidateAutoannotations.propTypes = {
-  sourceId: PropTypes.string.isRequired,
+CandidateThumbnails.defaultProps = {
+  thumbnails: null,
 };
 
 const CandidateInfo = ({
-  sourceId,
+  candidateObj,
   filterGroups,
   selectedAnnotationSortOptions,
 }) => {
@@ -441,14 +339,6 @@ const CandidateInfo = ({
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible,
   );
-
-  let candidateObj = null;
-  const { candidates } = useSelector((state) => state.candidates);
-  candidates?.forEach((candidate) => {
-    if (candidate.id === sourceId) {
-      candidateObj = { ...candidate };
-    }
-  });
 
   const candidateHasAnnotationWithSelectedKey = (obj) => {
     const annotation = obj.annotations.find(
@@ -492,8 +382,8 @@ const CandidateInfo = ({
           <CircularProgress />
         </div>
       ) : (
-        <div className={classes.info}>
-          <span className={classes.itemPaddingBottom}>
+        <div style={{ fontSize: "0.875rem", minWidth: "100%" }}>
+          <span>
             <a
               href={`/source/${candidateObj.id}`}
               target="_blank"
@@ -508,26 +398,24 @@ const CandidateInfo = ({
           </span>
           {candidateObj.is_source ? (
             <div>
-              <div className={classes.itemPaddingBottom}>
+              <div>
                 <Chip size="small" label="Previously Saved" color="primary" />
                 <RejectButton objID={candidateObj.id} />
               </div>
-              <div className={classes.saveCandidateButton}>
-                <EditSourceGroups
-                  source={{
-                    id: candidateObj.id,
-                    currentGroupIds: candidateObj.saved_groups?.map(
-                      (g) => g.id,
-                    ),
-                  }}
-                  groups={allGroups}
-                />
-              </div>
-              <div>
-                <AddClassificationsScanningPage obj_id={candidateObj.id} />
-              </div>
               <div className={classes.infoItem}>
-                <b>Saved groups: </b>
+                <div className={classes.groupsList}>
+                  <b>Saved groups: </b>
+                  <EditSourceGroups
+                    source={{
+                      id: candidateObj.id,
+                      currentGroupIds: candidateObj.saved_groups?.map(
+                        (g) => g.id,
+                      ),
+                    }}
+                    groups={allGroups}
+                    icon
+                  />
+                </div>
                 <span>
                   {candidateObj.saved_groups?.map((group) => (
                     <Chip
@@ -546,11 +434,7 @@ const CandidateInfo = ({
             </div>
           ) : (
             <div>
-              <Chip
-                size="small"
-                label="NOT SAVED"
-                className={classes.itemPaddingBottom}
-              />
+              <Chip size="small" label="NOT SAVED" />
               <RejectButton objID={candidateObj.id} />
             </div>
           )}
@@ -614,61 +498,69 @@ const CandidateInfo = ({
           )}
           <div className={classes.infoItem}>
             <b>Coordinates: </b>
-            <span className={classes.position}>
-              {ra_to_hours(candidateObj.ra)} &nbsp;
-              {dec_to_dms(candidateObj.dec)}
-            </span>
-            &nbsp; (&alpha;,&delta;= {candidateObj.ra.toFixed(3)}, &nbsp;
-            {candidateObj.dec.toFixed(3)})
-          </div>
-          <div className={classes.infoItem}>
-            <b>Gal. Coords (l,b): </b>
-            <span>
-              {candidateObj.gal_lon.toFixed(3)}&nbsp;&nbsp;
-              {candidateObj.gal_lat.toFixed(3)}
-            </span>
+            <div>
+              <span className={classes.position}>
+                {ra_to_hours(candidateObj.ra)} &nbsp;
+                {dec_to_dms(candidateObj.dec)}
+              </span>
+            </div>
+            <div>
+              (&alpha;,&delta;= {candidateObj.ra.toFixed(3)}, &nbsp;
+              {candidateObj.dec.toFixed(3)})
+            </div>
+            <div>
+              (l,b= {candidateObj.gal_lon.toFixed(3)}, &nbsp;
+              {candidateObj.gal_lat.toFixed(3)})
+            </div>
           </div>
           <div className={classes.infoItem}>
             <CandidatePlugins candidate={candidateObj} />
           </div>
-          {candidateObj.classifications &&
-            (recentHumanClassification || recentMLClassification) && (
-              <div className={classes.infoItemPadded}>
-                <b>Latest Classification(s): </b>
-                <br />
-                {recentHumanClassification && (
-                  <span>
-                    <Chip
-                      size="small"
-                      label={recentHumanClassification}
-                      color="primary"
-                      className={classes.chip}
-                    />
-                  </span>
-                )}
-                {recentMLClassification && (
-                  <span>
-                    <Chip
-                      size="small"
-                      label={
-                        <span
-                          style={{
-                            display: "flex",
-                            direction: "row",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Tooltip title="classification from an ML classifier">
-                            <span>{`ML: ${recentMLClassification}`}</span>
-                          </Tooltip>
-                        </span>
-                      }
-                      className={classes.chip}
-                    />
-                  </span>
-                )}
-              </div>
-            )}
+          {candidateObj.photstats && (
+            <div className={classes.infoItem}>
+              <DisplayPhotStats
+                photstats={candidateObj.photstats[0]}
+                display_header
+              />
+            </div>
+          )}
+          <div className={classes.infoItemPadded}>
+            <b>Latest Classification(s): </b>
+            <div className={classes.classificationsList}>
+              {recentHumanClassification && (
+                <span>
+                  <Chip
+                    size="small"
+                    label={recentHumanClassification}
+                    color="primary"
+                    className={classes.chip}
+                  />
+                </span>
+              )}
+              {recentMLClassification && (
+                <span>
+                  <Chip
+                    size="small"
+                    label={
+                      <span
+                        style={{
+                          display: "flex",
+                          direction: "row",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Tooltip title="classification from an ML classifier">
+                          <span>{`ML: ${recentMLClassification}`}</span>
+                        </Tooltip>
+                      </span>
+                    }
+                    className={classes.chip}
+                  />
+                </span>
+              )}
+              <AddClassificationsScanningPage obj_id={candidateObj.id} />
+            </div>
+          </div>
           {selectedAnnotationSortOptions !== null &&
             candidateHasAnnotationWithSelectedKey(candidateObj) && (
               <div className={classes.infoItem}>
@@ -679,9 +571,6 @@ const CandidateInfo = ({
                 <span>{getCandidateSelectedAnnotationValue(candidateObj)}</span>
               </div>
             )}
-          {candidateObj.photstats && (
-            <DisplayPhotStats photstats={candidateObj.photstats[0]} />
-          )}
         </div>
       )}
     </div>
@@ -689,7 +578,19 @@ const CandidateInfo = ({
 };
 
 CandidateInfo.propTypes = {
-  sourceId: PropTypes.string.isRequired,
+  candidateObj: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    ra: PropTypes.number.isRequired,
+    dec: PropTypes.number.isRequired,
+    gal_lon: PropTypes.number.isRequired,
+    gal_lat: PropTypes.number.isRequired,
+    is_source: PropTypes.bool.isRequired,
+    saved_groups: PropTypes.arrayOf(PropTypes.shape({})),
+    last_detected_at: PropTypes.string,
+    photstats: PropTypes.arrayOf(PropTypes.shape({})),
+    classifications: PropTypes.arrayOf(PropTypes.shape({})),
+    annotations: PropTypes.arrayOf(PropTypes.shape({})),
+  }).isRequired,
   filterGroups: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   selectedAnnotationSortOptions: PropTypes.shape({
     origin: PropTypes.string.isRequired,
@@ -702,28 +603,157 @@ CandidateInfo.defaultProps = {
   selectedAnnotationSortOptions: null,
 };
 
-const columnNames = ["Images", "Info", "Photometry", "Autoannotations"];
+const CandidatePhotometry = ({ sourceId }) => (
+  <div>
+    <VegaPhotometry
+      sourceId={sourceId}
+      style={{
+        width: "70%",
+        height: "100%",
+        minHeight: "18rem",
+        maxHeight: "18rem",
+      }}
+    />
+  </div>
+);
+
+CandidatePhotometry.propTypes = {
+  sourceId: PropTypes.string.isRequired,
+};
+
+const CandidateAutoannotations = ({ annotations, filterGroups }) => (
+  <div>
+    {!annotations ? (
+      <div>
+        <CircularProgress />
+      </div>
+    ) : (
+      <div
+        style={{
+          overflowWrap: "break-word",
+        }}
+      >
+        {annotations && (
+          <ScanningPageCandidateAnnotations
+            annotations={annotations}
+            filterGroups={filterGroups || []}
+          />
+        )}
+      </div>
+    )}
+  </div>
+);
+
+CandidateAutoannotations.propTypes = {
+  annotations: PropTypes.arrayOf(PropTypes.shape({})),
+  filterGroups: PropTypes.arrayOf(PropTypes.shape({})),
+};
+
+CandidateAutoannotations.defaultProps = {
+  annotations: null,
+  filterGroups: [],
+};
+
+const Candidate = React.memo(
+  (props) => {
+    const { candidate, filterGroups, index, totalMatches } = props;
+    const classes = useStyles();
+
+    return (
+      <Paper
+        variant="outlined"
+        className={classes.listPaper}
+        data-testid={`candidate-${index}`}
+      >
+        <div className={classes.candidatePaper}>
+          <div style={{ gridArea: "thumbnails" }}>
+            <CandidateThumbnails
+              id={candidate.id}
+              ra={candidate.ra}
+              dec={candidate.dec}
+              thumbnails={candidate.thumbnails}
+            />
+          </div>
+          <div style={{ gridArea: "info" }}>
+            <CandidateInfo
+              candidateObj={candidate}
+              filterGroups={filterGroups}
+            />
+          </div>
+          <div style={{ gridArea: "photometry" }}>
+            <CandidatePhotometry sourceId={candidate.id} />
+          </div>
+          <div
+            style={{
+              gridArea: "annotations",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              minHeight: "100%",
+            }}
+          >
+            <CandidateAutoannotations
+              annotations={candidate.annotations}
+              filterGroups={filterGroups}
+            />
+            {/* here show a counter, saying this is candidate n/m */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                paddingTop: "0.5rem",
+              }}
+            >
+              <Typography fontWeight="bold">
+                {`${index}/${totalMatches}`}
+              </Typography>
+            </div>
+          </div>
+        </div>
+      </Paper>
+    );
+  },
+  (prevProps, nextProps) => {
+    const keys = Object.keys(nextProps);
+    for (let i = 0; i < keys.length; i += 1) {
+      const key = keys[i];
+      if (key === "values") {
+        // we simply compare the length of the values array
+        if (prevProps.values.length !== nextProps.values.length) {
+          return false;
+        }
+      } else if (prevProps[key] !== nextProps[key]) {
+        return false;
+      }
+    }
+    return true;
+  },
+);
+
+Candidate.displayName = "Candidate";
+
+Candidate.propTypes = {
+  candidate: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    ra: PropTypes.number.isRequired,
+    dec: PropTypes.number.isRequired,
+    thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
+    annotations: PropTypes.arrayOf(PropTypes.shape({})),
+  }).isRequired,
+  filterGroups: PropTypes.arrayOf(PropTypes.shape({})),
+  index: PropTypes.number.isRequired,
+  totalMatches: PropTypes.number.isRequired,
+};
+
+Candidate.defaultProps = {
+  filterGroups: [],
+};
 
 const CandidateList = () => {
+  const observerTarget = useRef(null);
   const [queryInProgress, setQueryInProgress] = useState(false);
-  const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [filterGroups, setFilterGroups] = useState([]);
-  const [viewColumns, setViewColumns] = useState(columnNames);
-  // Maintain the three thumbnails in a row for larger screens
-  const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("md"));
-  const thumbnailsMinWidth = largeScreen ? "30rem" : 0;
-  const infoMinWidth = largeScreen ? "7rem" : 0;
-  const infoMaxWidth = "14rem";
-  const annotationsMinWidth = largeScreen ? "10rem" : 0;
-  const annotationsMaxWidth = "25rem";
-  const classes = useStyles({
-    thumbnailsMinWidth,
-    infoMinWidth,
-    infoMaxWidth,
-    annotationsMinWidth,
-    annotationsMaxWidth,
-  });
-  const theme = useTheme();
+  const classes = useStyles();
   const {
     candidates,
     pageNumber,
@@ -759,6 +789,45 @@ const CandidateList = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0].isIntersecting &&
+          candidates.length < totalMatches &&
+          !queryInProgress
+        ) {
+          dispatch(showNotification("Loading more candidates..."));
+          dispatch(
+            candidatesActions.fetchCandidates(
+              {
+                pageNumber: pageNumber + 1,
+                numPerPage,
+                queryID,
+                filterGroups,
+                sortOrder,
+                annotationsInfo: availableAnnotationsInfo,
+                filterFormData,
+              },
+              true,
+            ),
+          );
+        }
+      },
+      { threshold: 1 },
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current);
+      }
+    };
+  }, [observerTarget, dispatch, queryInProgress, candidates]);
+
+  useEffect(() => {
     // Grab the available annotation fields for filtering
     if (!availableAnnotationsInfo) {
       dispatch(candidatesActions.fetchAnnotationsInfo());
@@ -778,518 +847,20 @@ const CandidateList = () => {
     }
   }, [dispatch, defaultScanningProfile]);
 
-  const [annotationsHeaderAnchor, setAnnotationsHeaderAnchor] = useState(null);
-  const annotationsHelpOpen = Boolean(annotationsHeaderAnchor);
-  const annotationsHelpId = annotationsHelpOpen ? "simple-popover" : undefined;
-  const handleClickAnnotationsHelp = (event) => {
-    setAnnotationsHeaderAnchor(event.currentTarget);
-  };
-  const handleCloseAnnotationsHelp = () => {
-    setAnnotationsHeaderAnchor(null);
-  };
-
-  const candidateIds = [];
-  candidates?.forEach((candidate) => {
-    candidateIds.push(candidate.id);
-  });
-
   const groupIds = [];
   filterGroups?.forEach((g) => {
     groupIds.push(g.id);
   });
 
-  // Annotations filtering
-  const [tableFilterList, setTableFilterList] = useState([]);
-  const [filterListQueryStrings, setFilterListQueryStrings] = useState([]);
-
-  const filterChipToAnnotationObj = (chip) => {
-    // Convert a MuiDataTable filter list chip-formatted string to an object.
-    // Returns null for improperly formatted strings
-    const tokens = chip.split(/\s\(|\):|-/);
-    let returnObject = null;
-    switch (tokens.length) {
-      case 3:
-        returnObject = {
-          origin: tokens[1].trim(),
-          key: tokens[0].trim(),
-          value: tokens[2].trim(),
-        };
-        break;
-      case 4:
-        returnObject = {
-          origin: tokens[1].trim(),
-          key: tokens[0].trim(),
-          min: tokens[2].trim(),
-          max: tokens[3].trim(),
-        };
-        break;
-      default:
-        break;
-    }
-    return returnObject;
-  };
-
-  const filterAnnotationObjToChip = (annotationObj) =>
-    // Convert an object representing an annotation filter to a formatted string
-    // to be displayed by the MuiDataTable
-    "value" in annotationObj
-      ? `${annotationObj.key} (${annotationObj.origin}): ${annotationObj.value}`
-      : `${annotationObj.key} (${annotationObj.origin}): ${annotationObj.min} - ${annotationObj.max}`;
-
-  const handleFilterSubmit = async (filterListQueryString) => {
-    setQueryInProgress(true);
-
-    let data = {
-      pageNumber: 1,
-      numPerPage: rowsPerPage,
-      groupIDs: filterGroups?.map((g) => g.id).join(),
-    };
-    if (filterListQueryString !== null) {
-      data = {
-        ...data,
-        annotationFilterList: filterListQueryString,
-      };
-    }
-
-    if (selectedAnnotationSortOptions !== null) {
-      data = {
-        ...data,
-        sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
-        sortByAnnotationKey: selectedAnnotationSortOptions.key,
-        sortByAnnotationOrder: selectedAnnotationSortOptions.order,
-      };
-    }
-
-    if (filterFormData !== null) {
-      data = {
-        ...data,
-        ...filterFormData,
-      };
-    }
-
-    await dispatch(candidatesActions.fetchCandidates(data));
-
-    setQueryInProgress(false);
-  };
-
-  const handleFilterAdd = ({ formData }) => {
-    if (filterGroups.length === 0) {
-      dispatch(
-        showNotification("At least one program should be selected.", "warning"),
-      );
-      return;
-    }
-    // The key is actually a combination of `origin<>key`, so parse out the key part
-    const key = formData.key.split("<>")[1];
-    const annotationObj = { ...formData, key };
-    const filterListChip = filterAnnotationObjToChip(annotationObj);
-    const filterListQueryItem = JSON.stringify(annotationObj);
-
-    setTableFilterList(tableFilterList.concat([filterListChip]));
-    const newFilterListQueryStrings = filterListQueryStrings.concat([
-      filterListQueryItem,
-    ]);
-    setFilterListQueryStrings(newFilterListQueryStrings);
-
-    handleFilterSubmit(newFilterListQueryStrings.join());
-  };
-
-  const [bulkPS1GenerationInProgress, setBulkPS1GenerationInProgress] =
-    useState(false);
-  const generatePS1BulkThumbnails = (candidateList) => {
-    setBulkPS1GenerationInProgress(true);
-    const ids = [];
-    candidateList?.forEach((candidateObj) => {
-      const hasPS1 = candidateObj?.thumbnails
-        ?.map((t) => t.type)
-        ?.includes("ps1");
-      if (!hasPS1) {
-        ids.push(candidateObj.id);
-      }
-    });
-    dispatch(candidatesActions.generateSurveyThumbnails(ids));
-    setBulkPS1GenerationInProgress(false);
-  };
-
-  const handleViewColumnsChange = (changedColumn, action) => {
-    let selectedColumns = [];
-    if (action === "remove") {
-      selectedColumns = viewColumns?.filter((col) => col !== changedColumn);
-    } else {
-      selectedColumns = [...viewColumns, changedColumn];
-    }
-    setViewColumns(selectedColumns);
-  };
-
-  const renderThumbnails = (dataIndex) => {
-    const sourceId = candidateIds[dataIndex];
-    return (
-      <Suspense fallback={<Spinner />}>
-        <CandidateThumbnails sourceId={sourceId} />
-      </Suspense>
-    );
-  };
-
-  const renderInfo = (dataIndex) => {
-    const sourceId = candidateIds[dataIndex];
-    return (
-      <Suspense fallback={<Spinner />}>
-        <CandidateInfo
-          sourceId={sourceId}
-          filterGroups={filterGroups}
-          selectedAnnotationSortOptions={selectedAnnotationSortOptions}
-        />
-      </Suspense>
-    );
-  };
-
-  const renderPhotometry = (dataIndex) => {
-    const sourceId = candidateIds[dataIndex];
-    return (
-      <Suspense fallback={<Spinner />}>
-        <VegaPhotometry sourceId={sourceId} />
-      </Suspense>
-    );
-  };
-
-  const renderAutoannotations = (dataIndex) => {
-    const sourceId = candidateIds[dataIndex];
-
-    return (
-      <Suspense fallback={<Spinner />}>
-        <CandidateAutoannotations sourceId={sourceId} />
-      </Suspense>
-    );
-  };
-
-  const renderAutoannotationsHeader = () => (
-    <div>
-      Autoannotations
-      <IconButton
-        aria-label="help"
-        size="small"
-        onClick={handleClickAnnotationsHelp}
-        className={classes.helpButton}
-      >
-        <HelpOutlineIcon />
-      </IconButton>
-      <StyledEngineProvider injectFirst>
-        <ThemeProvider theme={getMuiPopoverTheme(theme)}>
-          <Popover
-            id={annotationsHelpId}
-            open={annotationsHelpOpen}
-            anchorEl={annotationsHeaderAnchor}
-            onClose={handleCloseAnnotationsHelp}
-            className={classes.helpPopover}
-            anchorOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "left",
-            }}
-          >
-            <Typography className={classes.typography}>
-              Annotation fields are uniquely identified by the combination of
-              origin and key. That is, two annotation values belonging to a key
-              with the same name will be considered different if they come from
-              different origins. <br />
-              <b>Sorting: </b> Clicking on an annotation field will display it,
-              if available, in the Info column. You can then click on the sort
-              tool button at the top of the table to sort on that annotation
-              field. You can also set the initial sorting parameters when
-              submitting a new candidates search via the form at the top of the
-              page.
-              <br />
-              <b>Filtering: </b> Filtering on annotations is available through
-              the filtering tool at the top right of the table. <br />
-              <i>
-                Warning: applying multiple filters on annotations from different
-                origins is not supported currently and will return zero results.
-                For example, you cannot filter for a specific annotation value
-                in annotations from both &quot;origin_a&quot; and
-                &quot;origin_b&quot; at the same time.
-              </i>
-            </Typography>
-          </Popover>
-        </ThemeProvider>
-      </StyledEngineProvider>
-    </div>
-  );
-
-  const handlePageChange = async (page, numPerPage) => {
-    setQueryInProgress(true);
-    // API takes 1-indexed page number
-    let data = {
-      pageNumber: page + 1,
-      numPerPage,
-      queryID,
-      groupIDs: filterGroups?.map((g) => g.id)?.join(),
-    };
-    if (selectedAnnotationSortOptions !== null) {
-      data = {
-        ...data,
-        sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
-        sortByAnnotationKey: selectedAnnotationSortOptions.key,
-        sortByAnnotationOrder: selectedAnnotationSortOptions.order,
-      };
-    }
-
-    if (filterListQueryStrings.length !== 0) {
-      data = {
-        ...data,
-        annotationFilterList: filterListQueryStrings.join(),
-      };
-    }
-
-    if (filterFormData !== null) {
-      data = {
-        ...data,
-        ...filterFormData,
-      };
-    }
-
-    await dispatch(candidatesActions.fetchCandidates(data));
-    setQueryInProgress(false);
-  };
-
-  const handleTableChange = (action, tableState) => {
-    setRowsPerPage(tableState.rowsPerPage);
-    switch (action) {
-      case "changePage":
-      case "changeRowsPerPage":
-        handlePageChange(tableState.page, tableState.rowsPerPage);
-        break;
-      default:
-    }
-  };
-
-  const handleTableFilterChipChange = (column, filterList, type) => {
-    if (type === "chip") {
-      const annotationsFilterList = filterList[3];
-      setTableFilterList(annotationsFilterList);
-      const newFilterListQueryStrings = annotationsFilterList?.map((chip) => {
-        const annotationObject = filterChipToAnnotationObj(chip);
-        return JSON.stringify(annotationObject);
-      });
-      setFilterListQueryStrings(newFilterListQueryStrings);
-
-      handleFilterSubmit(
-        newFilterListQueryStrings.length === 0
-          ? null
-          : newFilterListQueryStrings.join(),
-      );
-    }
-  };
-
-  // Assemble json form schema for possible annotation filtering values
-  const filterFormSchema = {
-    description: "Add an annotation filter field.",
-    type: "object",
-    properties: {
-      origin: {
-        type: "string",
-        title: "Origin",
-        enum: [],
-      },
-    },
-    required: ["origin", "key"],
-    dependencies: {
-      origin: {
-        oneOf: [],
-      },
-      key: {
-        oneOf: [],
-      },
-    },
-  };
-
-  if (availableAnnotationsInfo !== null) {
-    Object.entries(availableAnnotationsInfo).forEach(([origin, fields]) => {
-      // Add origin to the list selectable from
-      filterFormSchema.properties.origin.enum.push(origin);
-
-      // Make a list of keys to select from based on the origin
-      // We tack on the origin (using a separator that shouldn't be part of expected
-      // origin or key strings ('<>')) so that keys that are common across origin
-      // get their own fields in the form schema.
-      const keySelect = {
-        properties: {
-          origin: {
-            enum: [origin],
-          },
-          key: {
-            type: "string",
-            title: "Key",
-            anyOf: fields?.map((field) => ({
-              enum: [`${origin}<>${Object.keys(field)[0]}`],
-              type: "string",
-              title: Object.keys(field)[0],
-            })),
-          },
-        },
-      };
-      filterFormSchema.dependencies.origin.oneOf.push(keySelect);
-
-      // Add filter value selection based on selected key type
-      fields.forEach((field) => {
-        const key = Object.keys(field)[0];
-        const keyType = field[key];
-        const valueSelect = {
-          properties: {
-            key: {
-              enum: [`${origin}<>${key}`],
-            },
-          },
-          required: [],
-        };
-        switch (keyType) {
-          case "string":
-          case "object":
-            valueSelect.properties.value = {
-              type: "string",
-              title: "Value (exact match)",
-            };
-            valueSelect.required.push("value");
-            break;
-          case "number":
-            valueSelect.properties.min = {
-              type: "number",
-              title: "Min",
-            };
-            valueSelect.properties.max = {
-              type: "number",
-              title: "Max",
-            };
-            valueSelect.required.push("min");
-            valueSelect.required.push("max");
-            break;
-          case "boolean":
-            valueSelect.properties.value = {
-              type: "boolean",
-              title: "Is True",
-              default: false,
-            };
-            valueSelect.required.push("value");
-            break;
-          default:
-            break;
-        }
-        filterFormSchema.dependencies.key.oneOf.push(valueSelect);
-      });
-    });
-  }
-
-  const annotationsFilterDisplay = () =>
-    !queryInProgress ? (
-      <div>
-        <Form
-          schema={filterFormSchema}
-          validator={validator}
-          onSubmit={handleFilterAdd}
-        />
-      </div>
-    ) : (
-      <div />
-    );
-
-  const columns = [
-    {
-      name: "Images",
-      label: "Images",
-      options: {
-        display: viewColumns.includes("Images"),
-        customBodyRenderLite: renderThumbnails,
-        sort: false,
-        filter: false,
-      },
-    },
-    {
-      name: "Info",
-      label: "Info",
-      options: {
-        display: viewColumns.includes("Info"),
-        customBodyRenderLite: renderInfo,
-        filter: false,
-      },
-    },
-    {
-      name: "Photometry",
-      label: "Photometry",
-      options: {
-        display: viewColumns.includes("Photometry"),
-        customBodyRenderLite: renderPhotometry,
-        sort: false,
-        filter: false,
-      },
-    },
-    {
-      name: "Autoannotations",
-      label: "Autoannotations",
-      options: {
-        display: viewColumns.includes("Autoannotations"),
-        customBodyRenderLite: renderAutoannotations,
-        sort: false,
-        filter: true,
-        filterType: "custom",
-        filterList: tableFilterList,
-        filterOptions: {
-          // eslint-disable-next-line react/display-name
-          display: annotationsFilterDisplay,
-        },
-        customHeadLabelRender: renderAutoannotationsHeader,
-      },
-    },
-  ];
-
-  const options = {
-    responsive: "vertical",
-    search: false,
-    print: false,
-    download: false,
-    sort: false,
-    filter: true,
-    filterType: "custom",
-    count: totalMatches,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    rowsPerPage,
-    rowsPerPageOptions: [5, 10, 25, 50, 75, 100, 200],
-    jumpToPage: true,
-    serverSide: true,
-    page: pageNumber - 1,
-    pagination: true,
-    rowHover: false,
-    onTableChange: handleTableChange,
-    // eslint-disable-next-line react/display-name
-    customToolbar: () => (
-      <CustomSortToolbar
-        rowsPerPage={rowsPerPage}
-        filterGroups={filterGroups}
-        filterFormData={filterFormData}
-        setQueryInProgress={setQueryInProgress}
-        loaded={!queryInProgress}
-        sortOrder={sortOrder}
-        setSortOrder={setSortOrder}
-      />
-    ),
-    onFilterChange: handleTableFilterChipChange,
-    onViewColumnsChange: handleViewColumnsChange,
-  };
-
   return (
-    <Paper elevation={1}>
-      <div className={classes.candidateListContainer}>
-        <Typography variant="h6" className={classes.title}>
-          Scan candidates for sources
-        </Typography>
+    <div>
+      <div>
         <FilterCandidateList
           userAccessibleGroups={userAccessibleGroups}
           setQueryInProgress={setQueryInProgress}
           setFilterGroups={setFilterGroups}
-          numPerPage={rowsPerPage}
-          annotationFilterList={filterListQueryStrings.join()}
+          numPerPage={numPerPage}
+          annotationFilterList=""
           setSortOrder={setSortOrder}
         />
         <Box
@@ -1298,62 +869,72 @@ const CandidateList = () => {
         >
           <Spinner />
         </Box>
-        <Box display={queryInProgress ? "none" : "block"}>
-          <div className={classes.pages}>
+        <Box style={{ marginTop: "0.75rem" }}>
+          {queryInProgress ? (
             <div>
-              {bulkPS1GenerationInProgress ? (
-                <div>
-                  <Spinner />
-                </div>
-              ) : (
-                <Button
-                  primary
-                  onClick={() => generatePS1BulkThumbnails(candidates)}
-                  size="small"
-                >
-                  Query PS1 Thumbnails for all candidates
-                </Button>
-              )}
+              <Spinner />
             </div>
-          </div>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <div>
-                {queryInProgress ? (
-                  <div>
-                    <Spinner />
-                  </div>
-                ) : (
-                  <CustomDataTable
-                    // Reset key to reset page number
-                    // https://github.com/gregnb/mui-datatables/issues/1166
-                    key={`table_${pageNumber}`}
-                    columns={columns}
-                    data={candidateIds}
-                    className={classes.table}
-                    options={options}
-                    groupIds={groupIds}
+          ) : (
+            <div>
+              <Paper
+                variant="outlined"
+                style={{ display: "flex", justifyContent: "space-between" }}
+              >
+                <div style={{ padding: "0.5rem 0.5rem 0.5rem 1rem" }}>
+                  <Typography variant="h6">
+                    Found {totalMatches} candidates.
+                  </Typography>
+                </div>
+                <div style={{ display: "flex", flexDirection: "row" }}>
+                  <CustomSortToolbar
+                    filterGroups={filterGroups}
+                    filterFormData={filterFormData}
+                    setQueryInProgress={setQueryInProgress}
+                    loaded={!queryInProgress}
+                    sortOrder={sortOrder}
+                    setSortOrder={setSortOrder}
                   />
-                )}
-              </div>
-            </ThemeProvider>
-          </StyledEngineProvider>
+                </div>
+              </Paper>
+              <List>
+                {(candidates || []).map((candidate, index) => (
+                  <ListItem key={candidate.id} className={classes.listItem}>
+                    <Candidate
+                      candidate={candidate}
+                      filterGroups={filterGroups}
+                      index={index + 1}
+                      totalMatches={totalMatches}
+                    />
+                    {totalMatches > 0 &&
+                      candidates?.length < totalMatches &&
+                      index === candidates?.length - numPerPageOffset - 1 && (
+                        <div
+                          style={{
+                            minWidth: "100%",
+                            height: "1px",
+                          }}
+                          ref={observerTarget}
+                        />
+                      )}
+                  </ListItem>
+                ))}
+              </List>
+            </div>
+          )}
         </Box>
       </div>
-      <div className={classes.pages}>
-        <div>
-          <Button
-            primary
-            onClick={() => {
-              window.scrollTo({ top: 0 });
-            }}
-            size="small"
-          >
-            Back to top <ArrowUpward />
-          </Button>
-        </div>
+      <div className={classes.backToTop}>
+        <Button
+          primary
+          onClick={() => {
+            window.scrollTo({ top: 0 });
+          }}
+          size="small"
+        >
+          Back to top <ArrowUpward />
+        </Button>
       </div>
-    </Paper>
+    </div>
   );
 };
 

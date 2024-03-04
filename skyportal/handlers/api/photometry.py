@@ -136,12 +136,18 @@ def get_color(bandpass, format="hex"):
         bandcolor = '#FF00FF'
     elif 3000 < wavelength <= 4000:  # U, sdss u
         bandcolor = '#0000FF'
-    elif 4000 < wavelength <= 5000:  # B, sdss g
+    elif 4000 < wavelength <= 4800:  # B, sdss g
+        bandcolor = '#02d193'
+    elif 4800 < wavelength <= 5000:  # ztfg
         bandcolor = '#008000'
     elif 5000 < wavelength <= 6000:  # V
         bandcolor = '#9ACD32'
-    elif 6000 < wavelength <= 7000:  # sdss r
+    elif 6000 < wavelength <= 6400:  # sdssr
+        bandcolor = '#ff6f00'
+    elif 6400 < wavelength <= 6600:  # ztfr
         bandcolor = '#FF0000'
+    elif 6400 < wavelength <= 7000:  # bessellr, atlaso
+        bandcolor = '#c80000'
     elif 7000 < wavelength <= 8000:  # sdss i
         bandcolor = '#FFA500'
     elif 8000 < wavelength <= 9000:  # sdss z
@@ -172,6 +178,10 @@ def get_color(bandpass, format="hex"):
 
 BANDPASSES_COLORS = {
     bandpass: get_color(bandpass, "rgb") for bandpass in ALLOWED_BANDPASSES
+}
+
+BANDPASSES_WAVELENGTHS = {
+    bandpass: get_effective_wavelength(bandpass) for bandpass in ALLOWED_BANDPASSES
 }
 
 

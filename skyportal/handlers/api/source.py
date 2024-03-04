@@ -238,7 +238,8 @@ async def get_source(
         ).where(ClassicalAssignment.obj_id == obj_id)
     ).all()
     point = ca.Point(ra=s.ra, dec=s.dec)
-    # Check for duplicates (within 4 arcsecs)
+
+    # Check for nearby galaxies (within 10 arcsecs)
     galaxies = session.scalars(
         Galaxy.select(user).where(Galaxy.within(point, 10 / 3600))
     ).all()
@@ -247,7 +248,7 @@ async def get_source(
     else:
         source_info["galaxies"] = None
 
-    # Check for nearby galaxies (within 10 arcsecs)
+    # Check for nearby objects (within 4 arcsecs)
     duplicate_objs = (
         Obj.select(user)
         .where(Obj.within(point, 4 / 3600))

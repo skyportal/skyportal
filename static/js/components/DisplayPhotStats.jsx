@@ -5,7 +5,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
-import VisibilityIcon from "@mui/icons-material/Visibility";
+import AnalyticsIcon from "@mui/icons-material/Analytics";
 import Tooltip from "@mui/material/Tooltip";
 
 const DisplayPhotStats = ({ photstats, display_header }) => {
@@ -15,7 +15,7 @@ const DisplayPhotStats = ({ photstats, display_header }) => {
     <div
       style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
     >
-      {display_header ? <b>Photometry Statistics: </b> : ""}
+      {display_header ? <b>Photometry Statistics:</b> : ""}
       <Tooltip title="Photometry Statistics">
         <IconButton
           data-testid="showPhotStatsIcon"
@@ -23,8 +23,13 @@ const DisplayPhotStats = ({ photstats, display_header }) => {
           onClick={() => {
             setDialogOpen(true);
           }}
+          style={{
+            margin: 0,
+            padding: 0,
+            marginLeft: display_header ? "0.25rem" : 0,
+          }}
         >
-          <VisibilityIcon />
+          <AnalyticsIcon />
         </IconButton>
       </Tooltip>
       <Dialog
