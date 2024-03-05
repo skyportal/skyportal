@@ -38,7 +38,7 @@ import { ra_to_hours, dec_to_dms } from "../units";
 
 import * as candidatesActions from "../ducks/candidates";
 
-const numPerPage = 25;
+const numPerPage = 50;
 
 const useStyles = makeStyles((theme) => ({
   listPaper: {
