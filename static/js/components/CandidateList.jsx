@@ -36,8 +36,8 @@ import { ra_to_hours, dec_to_dms } from "../units";
 
 import * as candidatesActions from "../ducks/candidates";
 
-const numPerPage = 2;
-const numPerPageOffset = 1;
+const numPerPage = 25;
+const numPerPageOffset = 5;
 
 const useStyles = makeStyles((theme) => ({
   listPaper: {
@@ -837,6 +837,8 @@ const CandidateList = () => {
   filterGroups?.forEach((g) => {
     groupIds.push(g.id);
   });
+
+  console.log("length of candidates", candidates?.length);
 
   return (
     <div>
