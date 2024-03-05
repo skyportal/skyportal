@@ -58,16 +58,19 @@ def test_candidate_group_filtering(
     driver.scroll_to_element_and_click(group_checkbox)
     submit_button = driver.wait_for_xpath('//button[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(5):  # data-testid
-        driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]')
+
+    driver.wait_for_xpath(
+        '//*[contains(., "Found 6 candidates.")]'
+    )  # the 5 candidates we added and the public candidate
+
     driver.scroll_to_element_and_click(group_checkbox)
     driver.click_xpath(
         f'//*[@data-testid="filteringFormGroupCheckbox-{new_group_id}"]',
         wait_clickable=False,
     )
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(5):
-        driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}_{i}"]')
+
+    driver.wait_for_xpath('//*[contains(., "Found 0 candidates.")]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -131,15 +134,19 @@ def test_candidate_saved_status_filtering(
         "//li[@data-value='notSavedToAnyAccessible']", scroll_parent=True
     )
     driver.click_xpath('//button[text()="Search"]')
-    for i in range(5):
-        driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}_{i}"]')
+
+    driver.wait_for_xpath(
+        '//*[contains(., "Found 1 candidates.")]'
+    )  # the public candidate
 
     # Set to candidates is saved to any accessibe groups and submit again
     driver.click_xpath("//*[@data-testid='savedStatusSelect']")
     driver.click_xpath("//li[@data-value='savedToAnyAccessible']", scroll_parent=True)
     driver.click_xpath('//button[text()="Search"]')
-    for i in range(5):
-        driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]')
+
+    driver.wait_for_xpath(
+        '//*[contains(., "Found 5 candidates.")]'
+    )  # the 5 candidates we added
 
 
 @pytest.mark.flaky(reruns=2)
