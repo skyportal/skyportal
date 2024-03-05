@@ -13,9 +13,8 @@ import SortIcon from "@mui/icons-material/Sort";
 import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
 import Paper from "@mui/material/Paper";
+import { ViewportList } from "react-viewport-list";
 
 import { showNotification } from "baselayer/components/Notifications";
 import ThumbnailList from "./ThumbnailList";
@@ -37,8 +36,8 @@ import { ra_to_hours, dec_to_dms } from "../units";
 
 import * as candidatesActions from "../ducks/candidates";
 
-const numPerPage = 25;
-const numPerPageOffset = 5;
+const numPerPage = 2;
+const numPerPageOffset = 1;
 
 const useStyles = makeStyles((theme) => ({
   listPaper: {
@@ -135,6 +134,14 @@ const useStyles = makeStyles((theme) => ({
     textTransform: "none",
     marginBottom: theme.spacing(0.5),
     fontSize: "0.9rem",
+  },
+  scrollContainer: {
+    maxHeight: "calc(100vh - 12.5rem)",
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    overflowX: "hidden",
+    overflowY: "auto",
   },
 }));
 
@@ -654,81 +661,59 @@ CandidateAutoannotations.defaultProps = {
   filterGroups: [],
 };
 
-const Candidate = React.memo(
-  (props) => {
-    const { candidate, filterGroups, index, totalMatches } = props;
-    const classes = useStyles();
-
-    return (
-      <Paper
-        variant="outlined"
-        className={classes.listPaper}
-        data-testid={`candidate-${index}`}
-      >
-        <div className={classes.candidatePaper}>
-          <div style={{ gridArea: "thumbnails" }}>
-            <CandidateThumbnails
-              id={candidate.id}
-              ra={candidate.ra}
-              dec={candidate.dec}
-              thumbnails={candidate.thumbnails}
-            />
-          </div>
-          <div style={{ gridArea: "info" }}>
-            <CandidateInfo
-              candidateObj={candidate}
-              filterGroups={filterGroups}
-            />
-          </div>
-          <div style={{ gridArea: "photometry" }}>
-            <CandidatePhotometry sourceId={candidate.id} />
-          </div>
+const Candidate = ({ candidate, filterGroups, index, totalMatches }) => {
+  const classes = useStyles();
+  return (
+    <Paper
+      variant="outlined"
+      className={classes.listPaper}
+      data-testid={`candidate-${index}`}
+    >
+      <div className={classes.candidatePaper}>
+        <div style={{ gridArea: "thumbnails" }}>
+          <CandidateThumbnails
+            id={candidate.id}
+            ra={candidate.ra}
+            dec={candidate.dec}
+            thumbnails={candidate.thumbnails}
+          />
+        </div>
+        <div style={{ gridArea: "info" }}>
+          <CandidateInfo candidateObj={candidate} filterGroups={filterGroups} />
+        </div>
+        <div style={{ gridArea: "photometry" }}>
+          <CandidatePhotometry sourceId={candidate.id} />
+        </div>
+        <div
+          style={{
+            gridArea: "annotations",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minHeight: "100%",
+          }}
+        >
+          <CandidateAutoannotations
+            annotations={candidate.annotations}
+            filterGroups={filterGroups}
+          />
+          {/* here show a counter, saying this is candidate n/m */}
           <div
             style={{
-              gridArea: "annotations",
               display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              minHeight: "100%",
+              justifyContent: "flex-end",
+              paddingTop: "0.5rem",
             }}
           >
-            <CandidateAutoannotations
-              annotations={candidate.annotations}
-              filterGroups={filterGroups}
-            />
-            {/* here show a counter, saying this is candidate n/m */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                paddingTop: "0.5rem",
-              }}
-            >
-              <Typography fontWeight="bold">
-                {`${index}/${totalMatches}`}
-              </Typography>
-            </div>
+            <Typography fontWeight="bold">
+              {`${index}/${totalMatches}`}
+            </Typography>
           </div>
         </div>
-      </Paper>
-    );
-  },
-  (prevProps, nextProps) => {
-    const keys = Object.keys(nextProps);
-    for (let i = 0; i < keys.length; i += 1) {
-      const key = keys[i];
-      if (key === "values") {
-        // we simply compare the length of the values array
-        if (prevProps.values.length !== nextProps.values.length) {
-          return false;
-        }
-      } else if (prevProps[key] !== nextProps[key]) {
-        return false;
-      }
-    }
-    return true;
-  },
-);
+      </div>
+    </Paper>
+  );
+};
 
 Candidate.displayName = "Candidate";
 
@@ -750,6 +735,7 @@ Candidate.defaultProps = {
 };
 
 const CandidateList = () => {
+  const ref = useRef(null);
   const observerTarget = useRef(null);
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [filterGroups, setFilterGroups] = useState([]);
@@ -878,7 +864,11 @@ const CandidateList = () => {
             <div>
               <Paper
                 variant="outlined"
-                style={{ display: "flex", justifyContent: "space-between" }}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "1rem",
+                }}
               >
                 <div style={{ padding: "0.5rem 0.5rem 0.5rem 1rem" }}>
                   <Typography variant="h6">
@@ -896,29 +886,31 @@ const CandidateList = () => {
                   />
                 </div>
               </Paper>
-              <List>
-                {(candidates || []).map((candidate, index) => (
-                  <ListItem key={candidate.id} className={classes.listItem}>
-                    <Candidate
-                      candidate={candidate}
-                      filterGroups={filterGroups}
-                      index={index + 1}
-                      totalMatches={totalMatches}
-                    />
-                    {totalMatches > 0 &&
-                      candidates?.length < totalMatches &&
-                      index === candidates?.length - numPerPageOffset - 1 && (
-                        <div
-                          style={{
-                            minWidth: "100%",
-                            height: "1px",
-                          }}
-                          ref={observerTarget}
-                        />
-                      )}
-                  </ListItem>
-                ))}
-              </List>
+              <div className={classes.scrollContainer} ref={ref}>
+                <ViewportList viewportRef={ref} items={candidates || []}>
+                  {(candidate, index) => (
+                    <div key={candidate.id} className={classes.listItem}>
+                      <Candidate
+                        candidate={candidate}
+                        filterGroups={filterGroups}
+                        index={index + 1}
+                        totalMatches={totalMatches}
+                      />
+                      {totalMatches > 0 &&
+                        candidates?.length < totalMatches &&
+                        index === candidates?.length - numPerPageOffset - 1 && (
+                          <div
+                            style={{
+                              minWidth: "100%",
+                              height: "1px",
+                            }}
+                            ref={observerTarget}
+                          />
+                        )}
+                    </div>
+                  )}
+                </ViewportList>
+              </div>
             </div>
           )}
         </Box>
