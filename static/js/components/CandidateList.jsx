@@ -55,21 +55,23 @@ const useStyles = makeStyles((theme) => ({
   },
   candidatePaper: {
     display: "grid",
-    gridGap: "0.5rem",
     padding: "0.5rem",
     alignItems: "center",
+    gridColumnGap: 0,
+    gridRowGap: "0.5rem",
+    justifyContent: "space-between",
     // we change the order of the children and the layout based on the screen size
     [theme.breakpoints.up("lg")]: {
-      gridTemplateColumns: "5fr 2.5fr 4fr 3fr",
+      gridTemplateColumns: "32% 16% 32% 20%",
       gridTemplateAreas: `"thumbnails info photometry annotations"`,
     },
     [theme.breakpoints.down("lg")]: {
       gridTemplateAreas: `"thumbnails info" "photometry annotations"`,
-      gridTemplateColumns: "5fr 3fr",
+      gridTemplateColumns: "60% 40%",
     },
     [theme.breakpoints.down("sm")]: {
       gridTemplateAreas: `"info" "thumbnails" "photometry" "annotations"`,
-      gridTemplateColumns: "1fr",
+      gridTemplateColumns: "100%",
     },
   },
   thumbnailsGrid: {
@@ -617,7 +619,7 @@ const CandidatePhotometry = ({ sourceId }) => (
     <VegaPhotometry
       sourceId={sourceId}
       style={{
-        width: "70%",
+        width: "68%",
         height: "100%",
         minHeight: "18rem",
         maxHeight: "18rem",
@@ -680,7 +682,7 @@ const Candidate = ({ candidate, filterGroups, index, totalMatches }) => {
             thumbnails={candidate.thumbnails}
           />
         </div>
-        <div style={{ gridArea: "info" }}>
+        <div style={{ gridArea: "info", padding: "0 0 0 0.25rem" }}>
           <CandidateInfo candidateObj={candidate} filterGroups={filterGroups} />
         </div>
         <div style={{ gridArea: "photometry" }}>
@@ -693,6 +695,7 @@ const Candidate = ({ candidate, filterGroups, index, totalMatches }) => {
             flexDirection: "column",
             justifyContent: "space-between",
             minHeight: "100%",
+            paddingLeft: "1rem",
           }}
         >
           <CandidateAutoannotations
