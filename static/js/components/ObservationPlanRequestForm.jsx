@@ -28,6 +28,7 @@ import * as allocationActions from "../ducks/allocations";
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as instrumentActions from "../ducks/instrument";
 import * as instrumentsActions from "../ducks/instruments";
+import planWithSameNameExists from "../ducks/observationPlans";
 import GroupShareSelect from "./GroupShareSelect";
 import LocalizationPlot from "./LocalizationPlot";
 
@@ -302,7 +303,6 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   const { allocationListApiObsplan } = useSelector(
     (state) => state.allocations,
   );
-  const observationPlanNames = useSelector((state) => state.observationPlans);
   const { useAMPM } = useSelector((state) => state.profile.preferences);
 
   const { obsplanLoc } = useSelector((state) => state.localization);
@@ -537,17 +537,42 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   };
 
   const handleQueueSubmit = async ({ formData }) => {
-    if (selectedFields.length > 0) {
-      formData.field_ids = selectedFields;
+    // if there is already a plan with the same name in the queue, show an error
+    const planQueueExists = planQueues.find(
+      (planQueue) => planQueue.payload.queue_name === formData.queue_name,
+    );
+    if (planQueueExists) {
+      dispatch(
+        showNotification(
+          "An observation plan with the same name already exists in the queue. Use another name",
+          "warning",
+        ),
+      );
+      return;
     }
-    const json = {
-      gcnevent_id: gcnEvent.id,
-      allocation_id: selectedAllocationId,
-      localization_id: selectedLocalizationId,
-      target_group_ids: selectedGroupIds,
-      payload: formData,
-    };
-    setPlanQueues([...planQueues, json]);
+    // if there is already a plan with the same name in the DB, show an error
+    dispatch(planWithSameNameExists(formData.queue_name)).then((response) => {
+      if (response.status === "success" && response.data.exists === true) {
+        dispatch(
+          showNotification(
+            "An observation plan with the same name already exists. Use another name",
+            "warning",
+          ),
+        );
+      } else {
+        if (selectedFields.length > 0) {
+          formData.field_ids = selectedFields;
+        }
+        const json = {
+          gcnevent_id: gcnEvent.id,
+          allocation_id: selectedAllocationId,
+          localization_id: selectedLocalizationId,
+          target_group_ids: selectedGroupIds,
+          payload: formData,
+        };
+        setPlanQueues([...planQueues, json]);
+      }
+    });
   };
 
   const handleSubmit = async () => {
@@ -589,10 +614,6 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
       formData.start_date > formData.end_date
     ) {
       errors.start_date.addError("Start Date must come before End Date");
-    }
-
-    if ((observationPlanNames || []).includes(formData.queue_name)) {
-      errors.queue_name.addError("Need a unique plan name");
     }
 
     return errors;
