@@ -263,6 +263,8 @@ const FilterCandidateList = ({
 
   const [showAllGroups, setShowAllGroups] = useState(true);
 
+  const [selectedGroupIDs, setSelectedGroupIDs] = useState([]);
+
   useEffect(() => {
     dispatch(gcnEventsActions.fetchGcnEvents());
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -312,12 +314,16 @@ const FilterCandidateList = ({
   }, [selectedGcnEventId]);
 
   useEffect(() => {
-    const selectedGroupIDs = Array(userAccessibleGroups.length).fill(false);
-    const groupIDs = userAccessibleGroups?.map((g) => g.id);
-    groupIDs?.forEach((ID, i) => {
-      selectedGroupIDs[i] = selectedScanningProfile?.groupIDs.includes(ID);
-    });
-
+    // reset the selectedGroupIDs when the user selected another scanning profile
+    // with the default groupIDs from the profile
+    if (selectedScanningProfile?.groupIDs && userAccessibleGroups.length > 0) {
+      setFilterGroups(
+        userAccessibleGroups.filter((group) =>
+          selectedScanningProfile.groupIDs.includes(group.id),
+        ),
+      );
+      setSelectedGroupIDs(selectedScanningProfile.groupIDs || []);
+    }
     const resetFormFields = async () => {
       // Wait for the selected annotation origin state to update before setting
       // the new default form fields, so that the sortingKey options list can
@@ -374,11 +380,6 @@ const FilterCandidateList = ({
 
   let formState = getValues();
 
-  const validateGroups = () => {
-    formState = getValues();
-    return formState.groupIDs?.filter((value) => Boolean(value)).length >= 1;
-  };
-
   const validateDates = () => {
     formState = getValues();
     if (!!formState.startDate && !!formState.endDate) {
@@ -401,10 +402,6 @@ const FilterCandidateList = ({
 
   const onSubmit = async (formData) => {
     setQueryInProgress(true);
-    const groupIDs = userAccessibleGroups.map((g) => g.id);
-    const selectedGroupIDs = groupIDs?.filter(
-      (ID, idx) => formData.groupIDs[idx],
-    );
     const data = {
       groupIDs: selectedGroupIDs,
       savedStatus: formData.savedStatus,
@@ -691,55 +688,65 @@ const FilterCandidateList = ({
                     }}
                   >
                     <div className={classes.groupOptions}>
-                      {filterGroupOptions.map((group, idx) => (
+                      {filterGroupOptions.map((group) => (
                         // if the group.id is not in getValues().groupIDs, then we want to hide it
                         <div
                           key={group.id}
                           style={{
                             display:
-                              !showAllGroups && !getValues().groupIDs[idx]
+                              !showAllGroups &&
+                              !selectedGroupIDs.includes(group.id)
                                 ? "none"
                                 : "flex",
                             alignItems: "center",
                             justifyContent: "flex-start",
                           }}
                         >
-                          <Controller
-                            render={({ field: { onChange, value } }) => (
-                              <Checkbox
-                                onChange={(event) => {
-                                  onChange(event.target.checked);
-                                  // Let parent component know program selection has changed
-                                  const groupIDs = filterGroupOptions.map(
-                                    (g) => g.id,
+                          <Checkbox
+                            key={`filteringFormGroupCheckbox-${group.id}`}
+                            onChange={(event) => {
+                              if (
+                                selectedGroupIDs.includes(group.id) &&
+                                !event.target.checked
+                              ) {
+                                const newSelectedGroupIDs =
+                                  selectedGroupIDs.filter(
+                                    (id) => id !== group.id,
                                   );
-                                  const selectedGroupIDs = groupIDs?.filter(
-                                    (ID, i) => getValues().groupIDs[i],
-                                  );
-                                  setFilterGroups(
-                                    filterGroupOptions.filter((g) =>
-                                      selectedGroupIDs.includes(g.id),
-                                    ),
-                                  );
-                                }}
-                                checked={value}
-                                data-testid={`filteringFormGroupCheckbox-${group.id}`}
-                                style={{
-                                  margin: 0,
-                                  padding: 0,
-                                  marginRight: "0.2rem",
-                                }}
-                              />
-                            )}
-                            name={`groupIDs[${idx}]`}
-                            control={control}
-                            rules={{ validate: validateGroups }}
-                            defaultValue={false}
+                                setFilterGroups(
+                                  userAccessibleGroups.filter((g) =>
+                                    newSelectedGroupIDs.includes(g.id),
+                                  ),
+                                );
+                                setSelectedGroupIDs(newSelectedGroupIDs);
+                              } else if (
+                                !selectedGroupIDs.includes(group.id) &&
+                                event.target.checked
+                              ) {
+                                const newSelectedGroupIDs = [
+                                  ...selectedGroupIDs,
+                                  group.id,
+                                ];
+                                setFilterGroups(
+                                  userAccessibleGroups.filter((g) =>
+                                    newSelectedGroupIDs.includes(g.id),
+                                  ),
+                                );
+                                setSelectedGroupIDs(newSelectedGroupIDs);
+                              }
+                            }}
+                            checked={selectedGroupIDs.includes(group.id)}
+                            data-testid={`filteringFormGroupCheckbox-${group.id}`}
+                            style={{
+                              margin: 0,
+                              padding: 0,
+                              marginRight: "0.2rem",
+                            }}
                           />
                           <Typography
                             variant="body1"
-                            classes={classes.body}
-                            key={group.id}
+                            className={classes.body}
+                            key={`filteringFormGroupLabel-${group.id}`}
                           >
                             {group.name}
                           </Typography>
@@ -812,7 +819,7 @@ const FilterCandidateList = ({
                     render={() => (
                       <Autocomplete
                         id="gcn-event-filtering"
-                        options={gcnEvents?.events}
+                        options={gcnEvents?.events || []}
                         getOptionLabel={(option) =>
                           `${option?.dateobs}${
                             option?.aliases?.length > 0
