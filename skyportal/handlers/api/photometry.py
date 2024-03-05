@@ -1304,7 +1304,7 @@ class PhotometryHandler(BaseHandler):
               If true, triggers a refresh of the object's photometry on the web page,
               only for the users that have the object's source page open.
           - in: path
-            name: ignore_flux_deduplication
+            name: duplicate_ignore_flux
             schema:
               type: boolean
             required: false
@@ -1313,12 +1313,12 @@ class PhotometryHandler(BaseHandler):
               but only mjd, instrument_id, filter, and origin. Reserved to super admin users only,
               to avoid misuse and permanent data loss.
           - in: path
-            name: ignore_flux_deduplication_replace
+            name: overwrite_flux
             schema:
               type: boolean
             required: false
             description: |
-              If true and ignore_flux_deduplication is true, will replace the flux/fluxerr of
+              If true and duplicate_ignore_flux is also true, will update the flux/fluxerr of
               existing rows (duplicates) with the new values. Applies only to rows with
               an origin already specified. If existing duplicates have no origin, the update
               will be skipped.
@@ -1382,24 +1382,28 @@ class PhotometryHandler(BaseHandler):
                 'Please break up the data into smaller sets and try again'
             )
 
-        ignore_flux = self.get_query_argument('ignore_flux_deduplication', False)
-        ignore_flux_replace = self.get_query_argument(
-            'ignore_flux_deduplication_replace', False
-        )
+        ignore_flux = self.get_query_argument('duplicate_ignore_flux', False)
+        overwrite_flux = self.get_query_argument('overwrite_flux', False)
 
         if ignore_flux is not None and str(ignore_flux).lower() in ['true', 't', '1']:
             ignore_flux = True
         else:
             ignore_flux = False
 
-        if ignore_flux_replace is not None and str(ignore_flux_replace).lower() in [
+        # if ignore_flux is True, verify that the current_user is a super admin
+        if ignore_flux and not self.associated_user_object.is_admin:
+            return self.error(
+                'Ignoring flux/fluxerr when checking for duplicates is reserved to super admin users only'
+            )
+
+        if overwrite_flux is not None and str(overwrite_flux).lower() in [
             'true',
             't',
             '1',
         ]:
-            ignore_flux_replace = True
+            overwrite_flux = True
         else:
-            ignore_flux_replace = False
+            overwrite_flux = False
 
         obj_id = df['obj_id'].unique()[0]
         username = self.associated_user_object.username
@@ -1488,7 +1492,7 @@ class PhotometryHandler(BaseHandler):
                     if (
                         "origin" in df.columns
                         and ignore_flux
-                        and ignore_flux_replace
+                        and overwrite_flux
                         and str(duplicate.origin).strip().lower()
                         not in ['none', '', 'nan', 'null']
                         and str(df.loc[df_index]['origin']).strip().lower()
@@ -1525,7 +1529,7 @@ class PhotometryHandler(BaseHandler):
                     f'Inserting {len(new_photometry.index)} '
                     f'(out of {len(df.index)}) new photometry points'
                 )
-                if ignore_flux and ignore_flux_replace and len(updated_ids) > 0:
+                if ignore_flux and overwrite_flux and len(updated_ids) > 0:
                     log(
                         f'A total of {len(updated_ids)} duplicate photometry points (by obj_id, instrument_id, mjd, origin only, ignoring flux/fluxerr) were updated as requested.'
                     )
