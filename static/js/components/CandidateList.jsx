@@ -14,6 +14,8 @@ import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import Paper from "@mui/material/Paper";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { ViewportList } from "react-viewport-list";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -37,7 +39,6 @@ import { ra_to_hours, dec_to_dms } from "../units";
 import * as candidatesActions from "../ducks/candidates";
 
 const numPerPage = 25;
-const numPerPageOffset = 5;
 
 const useStyles = makeStyles((theme) => ({
   listPaper: {
@@ -83,6 +84,7 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     justifyContent: "flex-end",
     minWidth: "100%",
+    gap: "1rem",
   },
   groupsList: {
     display: "flex",
@@ -736,7 +738,6 @@ Candidate.defaultProps = {
 
 const CandidateList = () => {
   const ref = useRef(null);
-  const observerTarget = useRef(null);
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [filterGroups, setFilterGroups] = useState([]);
   const classes = useStyles();
@@ -775,45 +776,6 @@ const CandidateList = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (
-          entries[0].isIntersecting &&
-          candidates.length < totalMatches &&
-          !queryInProgress
-        ) {
-          dispatch(showNotification("Loading more candidates..."));
-          dispatch(
-            candidatesActions.fetchCandidates(
-              {
-                pageNumber: pageNumber + 1,
-                numPerPage,
-                queryID,
-                filterGroups,
-                sortOrder,
-                annotationsInfo: availableAnnotationsInfo,
-                filterFormData,
-              },
-              true,
-            ),
-          );
-        }
-      },
-      { threshold: 1 },
-    );
-
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
-    }
-
-    return () => {
-      if (observerTarget.current) {
-        observer.unobserve(observerTarget.current);
-      }
-    };
-  }, [observerTarget, dispatch, queryInProgress, candidates]);
-
-  useEffect(() => {
     // Grab the available annotation fields for filtering
     if (!availableAnnotationsInfo) {
       dispatch(candidatesActions.fetchAnnotationsInfo());
@@ -837,6 +799,26 @@ const CandidateList = () => {
   filterGroups?.forEach((g) => {
     groupIds.push(g.id);
   });
+
+  const fetchPage = (offset) => {
+    if (!queryInProgress && candidates?.length < totalMatches) {
+      setQueryInProgress(true); // prevent multiple queries
+      dispatch(showNotification("Loading more candidates..."));
+      dispatch(
+        candidatesActions.fetchCandidates({
+          pageNumber: pageNumber + offset,
+          numPerPage,
+          queryID,
+          filterGroups,
+          sortOrder,
+          annotationsInfo: availableAnnotationsInfo,
+          filterFormData,
+        }),
+      ).then(() => {
+        setQueryInProgress(false);
+      });
+    }
+  };
 
   return (
     <div>
@@ -887,26 +869,18 @@ const CandidateList = () => {
                 </div>
               </Paper>
               <div className={classes.scrollContainer} ref={ref}>
-                <ViewportList viewportRef={ref} items={candidates || []}>
-                  {(candidate, index) => (
-                    <div key={candidate.id} className={classes.listItem}>
+                <ViewportList viewportRef={ref} count={candidates?.length || 0}>
+                  {(index) => (
+                    <div
+                      key={candidates[index].id}
+                      className={classes.listItem}
+                    >
                       <Candidate
-                        candidate={candidate}
+                        candidate={candidates[index]}
                         filterGroups={filterGroups}
                         index={index + 1}
                         totalMatches={totalMatches}
                       />
-                      {totalMatches > 0 &&
-                        candidates?.length < totalMatches &&
-                        index === candidates?.length - numPerPageOffset - 1 && (
-                          <div
-                            style={{
-                              minWidth: "100%",
-                              height: "1px",
-                            }}
-                            ref={observerTarget}
-                          />
-                        )}
                     </div>
                   )}
                 </ViewportList>
@@ -916,6 +890,28 @@ const CandidateList = () => {
         </Box>
       </div>
       <div className={classes.backToTop}>
+        <Button
+          primary
+          onClick={() => {
+            fetchPage(-1);
+          }}
+          size="small"
+          disabled={pageNumber === 1 || queryInProgress}
+        >
+          <ArrowBackIcon />
+          Previous
+        </Button>
+        <Button
+          primary
+          onClick={() => {
+            fetchPage(1);
+          }}
+          size="small"
+          disabled={pageNumber * numPerPage >= totalMatches || queryInProgress}
+        >
+          Next
+          <ArrowForwardIcon />
+        </Button>
         <Button
           primary
           onClick={() => {
