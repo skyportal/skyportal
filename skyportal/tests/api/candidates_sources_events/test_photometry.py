@@ -2981,6 +2981,20 @@ def test_photometry_validation(
     assert data['status'] == 'success'
     photometry_id = data['data']['ids'][0]
 
+    # insufficient access, should fail
+    status, data = api(
+        'POST',
+        f'photometry/{photometry_id}/validation',
+        data={
+            'validated': True,
+            'explanation': 'GOOD SUBTRACTION',
+            'notes': 'beautiful image',
+        },
+        token=view_only_token,
+    )
+    assert status == 401
+    assert data['status'] == 'error'
+
     status, data = api(
         'POST',
         f'photometry/{photometry_id}/validation',

@@ -42,13 +42,6 @@ class PhotometryValidation(Base):
         "If undefined, the photometry is not yet validated or deemed unreliable.",
     )
 
-    # the person who validated the photometry
-    validator = relationship(
-        'User',
-        back_populates='photometryvalidations',
-        doc="The User who created this PhotometryValidation.",
-        foreign_keys="PhotometryValidation.validator_id",
-    )
     validator_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
