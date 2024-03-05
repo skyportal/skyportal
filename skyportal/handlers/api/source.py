@@ -1952,12 +1952,6 @@ def post_source(data, user_id, session, refresh_source=True):
             # only need to report once
             break
 
-    if not obj_already_exists:
-        try:
-            obj.add_linked_thumbnails(['sdss', 'ls'], session)
-        except Exception:
-            session.rollback()
-            pass
     else:
         if refresh_source:
             flow = Flow()
