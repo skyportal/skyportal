@@ -838,8 +838,6 @@ const CandidateList = () => {
     groupIds.push(g.id);
   });
 
-  console.log("length of candidates", candidates?.length);
-
   return (
     <div>
       <div>
