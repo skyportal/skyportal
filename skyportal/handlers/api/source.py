@@ -1872,7 +1872,11 @@ def post_source(data, user_id, session, refresh_source=True):
 
     not_saved_to_group_ids = []
     for group in groups:
-        if len(list(ignore_if_in_group_ids.keys())) > 0:
+        if (
+            isinstance(ignore_if_in_group_ids, dict)
+            and isinstance(ignore_if_in_group_ids.get(group.id), list)
+            and len(ignore_if_in_group_ids[group.id]) > 0
+        ):
             existing_sources = session.scalars(
                 Source.select(user).where(
                     Source.group_id.in_(ignore_if_in_group_ids[group.id]),
