@@ -652,7 +652,7 @@ def standardize_photometry_data(data):
     return df, instrument_cache
 
 
-def get_values_table_and_condition(df):
+def get_values_table_and_condition(df, ignore_flux=False):
     """Return a postgres VALUES representation of the indexed columns of
     a photometry dataframe returned by `standardize_photometry_data`.
     Also returns the join condition for cross-matching the VALUES
@@ -664,6 +664,8 @@ def get_values_table_and_condition(df):
     df: `pandas.DataFrame`
         Dataframe with the columns 'obj_id', 'instrument_id', 'origin',
         'mjd', 'standardized_fluxerr', 'standardized_flux'.
+    ignore_flux: bool
+        Whether or not we take flux into account when deduplicating
 
     Returns
     -------
@@ -700,16 +702,25 @@ def get_values_table_and_condition(df):
         )
         .alias("values_table")
     )
-
-    # make sure no duplicate data are posted using the index
-    condition = and_(
-        Photometry.obj_id == values_table.c.obj_id,
-        Photometry.instrument_id == values_table.c.instrument_id,
-        Photometry.origin == values_table.c.origin,
-        Photometry.mjd == values_table.c.mjd,
-        Photometry.fluxerr == values_table.c.fluxerr,
-        Photometry.flux == values_table.c.flux,
-    )
+    # make sure no duplicate data are posted
+    if ignore_flux:
+        # WARNING: here we don't use the unique index, so that might be slower
+        condition = and_(
+            Photometry.obj_id == values_table.c.obj_id,
+            Photometry.instrument_id == values_table.c.instrument_id,
+            Photometry.origin == values_table.c.origin,
+            Photometry.mjd == values_table.c.mjd,
+        )
+    else:
+        # here we use the existing deduplication index
+        condition = and_(
+            Photometry.obj_id == values_table.c.obj_id,
+            Photometry.instrument_id == values_table.c.instrument_id,
+            Photometry.origin == values_table.c.origin,
+            Photometry.mjd == values_table.c.mjd,
+            Photometry.fluxerr == values_table.c.fluxerr,
+            Photometry.flux == values_table.c.flux,
+        )
 
     return values_table, condition
 
@@ -1283,6 +1294,34 @@ class PhotometryHandler(BaseHandler):
         description: Update and/or upload photometry, resolving potential duplicates
         tags:
           - photometry
+        parameters:
+          - in: path
+            name: refresh
+            schema:
+              type: boolean
+            required: false
+            description: |
+              If true, triggers a refresh of the object's photometry on the web page,
+              only for the users that have the object's source page open.
+          - in: path
+            name: duplicate_ignore_flux
+            schema:
+              type: boolean
+            required: false
+            description: |
+              If true, will not use the flux/fluxerr of existing rows when looking for duplicates
+              but only mjd, instrument_id, filter, and origin. Reserved to super admin users only,
+              to avoid misuse and permanent data loss.
+          - in: path
+            name: overwrite_flux
+            schema:
+              type: boolean
+            required: false
+            description: |
+              If true and duplicate_ignore_flux is also true, will update the flux/fluxerr of
+              existing rows (duplicates) with the new values. Applies only to rows with
+              an origin already specified. If existing duplicates have no origin, the update
+              will be skipped.
         requestBody:
           content:
             application/json:
@@ -1327,6 +1366,11 @@ class PhotometryHandler(BaseHandler):
 
         refresh = self.get_query_argument('refresh', default=False)
 
+        if refresh is not None and str(refresh).lower() in ['true', 't', '1']:
+            refresh = True
+        else:
+            refresh = False
+
         try:
             df, instrument_cache = standardize_photometry_data(self.get_json())
         except ValidationError as e:
@@ -1338,13 +1382,36 @@ class PhotometryHandler(BaseHandler):
                 'Please break up the data into smaller sets and try again'
             )
 
+        ignore_flux = self.get_query_argument('duplicate_ignore_flux', False)
+        overwrite_flux = self.get_query_argument('overwrite_flux', False)
+
+        if ignore_flux is not None and str(ignore_flux).lower() in ['true', 't', '1']:
+            ignore_flux = True
+        else:
+            ignore_flux = False
+
+        # if ignore_flux is True, verify that the current_user is a super admin
+        if ignore_flux and not self.associated_user_object.is_admin:
+            return self.error(
+                'Ignoring flux/fluxerr when checking for duplicates is reserved to super admin users only'
+            )
+
+        if overwrite_flux is not None and str(overwrite_flux).lower() in [
+            'true',
+            't',
+            '1',
+        ]:
+            overwrite_flux = True
+        else:
+            overwrite_flux = False
+
         obj_id = df['obj_id'].unique()[0]
         username = self.associated_user_object.username
         log(
             f'Pending request from {username} for object {obj_id} with {len(df.index)} rows'
         )
 
-        values_table, condition = get_values_table_and_condition(df)
+        values_table, condition = get_values_table_and_condition(df, ignore_flux)
 
         # This lock ensures that the Photometry table data are not modified
         # in any way between when the query for duplicate photometry is first
@@ -1381,6 +1448,8 @@ class PhotometryHandler(BaseHandler):
 
                 id_map = {}
 
+                updated_ids = []
+                updated_duplicate_values = []
                 for df_index, duplicate in duplicated_photometry:
                     id_map[df_index] = duplicate.id
                     duplicate_group_ids = {g.id for g in duplicate.groups}
@@ -1418,12 +1487,52 @@ class PhotometryHandler(BaseHandler):
                                 f'Adding streams {stream_ids_update} to photometry {duplicate.id}'
                             )
 
+                    # update duplicate's flux and fluxerr if we are ignoring flux deduplication
+                    # and both the duplicate and the new datapoint have origins that are not None, '', 'nan', or 'null'
+                    if (
+                        "origin" in df.columns
+                        and ignore_flux
+                        and overwrite_flux
+                        and str(duplicate.origin).strip().lower()
+                        not in ['none', '', 'nan', 'null']
+                        and str(df.loc[df_index]['origin']).strip().lower()
+                        not in ['none', '', 'nan', 'null']
+                    ):
+                        # we might have more than one datapoint at a given: jd, instrument_id, filter, and origin
+                        # that have different flux values (i.e, multiple duplicates not just one)
+                        # because we have a unique index that includes flux and fluxerr, we can't update all the duplicates
+                        # with the new flux values, as we would end up with more than one entry with the same columns in the database
+                        # which will yield an error. So, we keep track of the duplicates we have already updated
+                        # to avoid updating more than one row with the same values
+                        duplicate_value = f"{duplicate.jd}_{duplicate.instrument_id}_{duplicate.filter}_{duplicate.origin}".encode()
+                        if duplicate_value in updated_duplicate_values:
+                            continue
+                        duplicate.flux = df.loc[df_index]['standardized_flux']
+                        duplicate.fluxerr = df.loc[df_index]['standardized_fluxerr']
+                        duplicate.filter = df.loc[df_index]['filter']
+                        duplicate.ra = df.loc[df_index]['ra']
+                        duplicate.dec = df.loc[df_index]['dec']
+                        duplicate.ra_unc = df.loc[df_index]['ra_unc']
+                        duplicate.dec_unc = df.loc[df_index]['dec_unc']
+                        duplicate.ref_flux = df.loc[df_index]['ref_standardized_flux']
+                        duplicate.ref_fluxerr = df.loc[df_index][
+                            'ref_standardized_fluxerr'
+                        ]
+                        duplicate.altdata = json.dumps(df.loc[df_index]['altdata'])
+                        duplicate.modified = datetime.datetime.utcnow().isoformat()
+                        updated_ids.append(duplicate.id)
+                        updated_duplicate_values.append(duplicate_value)
+
                 # now safely drop the duplicates:
                 new_photometry = df.loc[new_photometry_df_idxs]
                 log(
                     f'Inserting {len(new_photometry.index)} '
                     f'(out of {len(df.index)}) new photometry points'
                 )
+                if ignore_flux and overwrite_flux and len(updated_ids) > 0:
+                    log(
+                        f'A total of {len(updated_ids)} duplicate photometry points (by obj_id, instrument_id, mjd, origin only, ignoring flux/fluxerr) were updated as requested.'
+                    )
 
                 if len(new_photometry) > 0:
                     ids, upload_id = insert_new_photometry_data(
