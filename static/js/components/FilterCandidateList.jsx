@@ -666,7 +666,7 @@ const FilterCandidateList = ({
                       )}
                     </IconButton>
                   </Tooltip>
-                  {errors.groupIDs && (
+                  {selectedGroupIDs.length === 0 && (
                     <FormValidationError message="Select at least one group." />
                   )}
                 </div>
