@@ -298,16 +298,6 @@ async def get_source(
         source_info = recursive_to_dict(source_info)
         session.commit()
 
-    if include_thumbnails:
-        existing_thumbnail_types = [thumb.type for thumb in s.thumbnails]
-        thumbnails = list({"sdss", "ls"} - set(existing_thumbnail_types))
-        if len(thumbnails) > 0:
-            try:
-                s.add_linked_thumbnails(thumbnails, session)
-            except Exception as e:
-                session.rollback()
-                log(f"Error generating thumbnail for object {obj_id}: {e}")
-
     if include_comments:
         comments = (
             session.scalars(
