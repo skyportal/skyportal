@@ -8,6 +8,9 @@ import Checkbox from "@mui/material/Checkbox";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
+import IconButton from "@mui/material/IconButton";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import Paper from "@mui/material/Paper";
 import SearchIcon from "@mui/icons-material/Search";
 import Input from "@mui/material/Input";
@@ -17,15 +20,15 @@ import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 import Tooltip from "@mui/material/Tooltip";
-import { Typography } from "@mui/material";
+import Grid from "@mui/material/Grid";
+import Switch from "@mui/material/Switch";
+import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import * as candidatesActions from "../ducks/candidates";
-import Responsive from "./Responsive";
-import FoldBox from "./FoldBox";
 import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "./FormValidationError";
 import { allowedClasses } from "./ClassificationForm";
@@ -36,19 +39,19 @@ import * as gcnEventsActions from "../ducks/gcnEvents";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   filterListContainer: {
-    padding: "1rem",
+    padding: "1rem 1rem 0 1rem",
     display: "flex",
     flexFlow: "column nowrap",
   },
-  buttonsRow: {
-    marginTop: "1rem",
+  headerRow: {
     display: "flex",
     flexFlow: "row wrap",
-    "& > div": {
-      marginRight: "1rem",
-    },
+    columnGap: "1rem",
+    marginBottom: "0.5rem",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   pages: {
     marginTop: "1rem",
@@ -69,56 +72,102 @@ const useStyles = makeStyles(() => ({
   formRow: {
     margin: "1rem 0",
   },
-  gcnFormRow: {
+  gcnGrid: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr 1fr",
-    gridGap: "0.5rem",
-    marginTop: "1rem",
+    gridGap: "0.75rem",
   },
   redshiftField: {
     display: "inline-block",
     marginRight: "0.5rem",
   },
   savedStatusSelect: {
-    margin: "1rem 0",
+    margin: 0,
     "& input": {
       fontSize: "1rem",
     },
   },
   annotationSorting: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
     "& label": {
       marginTop: "1rem",
     },
+    gap: "0.5rem",
+  },
+  redshiftFiltering: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "0.5rem",
+  },
+  savedFiltering: {
+    paddingTop: "1rem",
+    display: "grid",
+    [theme.breakpoints.down("sm")]: {
+      gridTemplateColumns: "1fr",
+    },
+    [theme.breakpoints.up("md")]: {
+      gridTemplateColumns: "2fr 1fr",
+    },
+    gap: "0.5rem",
+  },
+  rejectCandidatesSelect: {
+    display: "flex",
+    alignItems: "center",
+    [theme.breakpoints.down("sm")]: {
+      paddingTop: 0,
+    },
+    [theme.breakpoints.up("md")]: {
+      paddingTop: "1.5rem",
+    },
+  },
+  timeRange: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "0.5rem",
+  },
+  title: {
+    fontSize: "1.1rem",
+  },
+  body: {
+    fontSize: "1rem",
+    lineHeight: "1.1rem",
+  },
+  groupOptions: {
+    paddingTop: "0.5rem",
+    display: "flex",
+    flexFlow: "row wrap",
+    alignItems: "flex-start",
+    columnGap: "2rem",
+    rowGap: "1rem",
+  },
+  simplePadding: {
+    padding: "1rem",
   },
 }));
 
-const rejectedStatusSelectOptions = [
-  { value: "hide", label: "Hide rejected candidates" },
-  { value: "show", label: "Show rejected candidates" },
-];
-
 const savedStatusSelectOptions = [
   { value: "all", label: "regardless of saved status" },
-  { value: "savedToAllSelected", label: "and is saved to all selected groups" },
+  { value: "savedToAllSelected", label: "saved to all selected groups" },
   {
     value: "savedToAnySelected",
-    label: "and is saved to at least one of the selected groups",
+    label: "saved to at least one of the selected groups",
   },
   {
     value: "savedToAnyAccessible",
-    label: "and is saved to at least one group I have access to",
+    label: "saved to at least one group I have access to",
   },
   {
     value: "notSavedToAnyAccessible",
-    label: "and is not saved to any of group I have access to",
+    label: "not saved to any of group I have access to",
   },
   {
     value: "notSavedToAnySelected",
-    label: "and is not saved to any of the selected groups",
+    label: "not saved to any of the selected groups",
   },
   {
     value: "notSavedToAllSelected",
-    label: "and is not saved to all of the selected groups",
+    label: "not saved to all of the selected groups",
   },
 ];
 
@@ -208,6 +257,14 @@ const FilterCandidateList = ({
 
   const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
 
+  const [filterGroupsInput, setFilterGroupsInput] = useState("");
+
+  const [filterGroupOptions, setFilterGroupOptions] = useState([]);
+
+  const [showAllGroups, setShowAllGroups] = useState(true);
+
+  const [selectedGroupIDs, setSelectedGroupIDs] = useState([]);
+
   useEffect(() => {
     dispatch(gcnEventsActions.fetchGcnEvents());
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -257,12 +314,16 @@ const FilterCandidateList = ({
   }, [selectedGcnEventId]);
 
   useEffect(() => {
-    const selectedGroupIDs = Array(userAccessibleGroups.length).fill(false);
-    const groupIDs = userAccessibleGroups?.map((g) => g.id);
-    groupIDs?.forEach((ID, i) => {
-      selectedGroupIDs[i] = selectedScanningProfile?.groupIDs.includes(ID);
-    });
-
+    // reset the selectedGroupIDs when the user selected another scanning profile
+    // with the default groupIDs from the profile
+    if (selectedScanningProfile?.groupIDs && userAccessibleGroups.length > 0) {
+      setFilterGroups(
+        userAccessibleGroups.filter((group) =>
+          selectedScanningProfile.groupIDs.includes(group.id),
+        ),
+      );
+      setSelectedGroupIDs(selectedScanningProfile.groupIDs || []);
+    }
     const resetFormFields = async () => {
       // Wait for the selected annotation origin state to update before setting
       // the new default form fields, so that the sortingKey options list can
@@ -303,12 +364,21 @@ const FilterCandidateList = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
-  let formState = getValues();
+  useEffect(() => {
+    // when the search bar for groups is updated, update the list of groups
+    if (filterGroupsInput) {
+      setFilterGroupOptions(
+        userAccessibleGroups.filter((group) =>
+          group.name.toLowerCase().includes(filterGroupsInput.toLowerCase()),
+        ),
+      );
+    } else {
+      // if the bar is empty show all groups
+      setFilterGroupOptions(userAccessibleGroups);
+    }
+  }, [filterGroupsInput, userAccessibleGroups]);
 
-  const validateGroups = () => {
-    formState = getValues();
-    return formState.groupIDs?.filter((value) => Boolean(value)).length >= 1;
-  };
+  let formState = getValues();
 
   const validateDates = () => {
     formState = getValues();
@@ -332,10 +402,6 @@ const FilterCandidateList = ({
 
   const onSubmit = async (formData) => {
     setQueryInProgress(true);
-    const groupIDs = userAccessibleGroups.map((g) => g.id);
-    const selectedGroupIDs = groupIDs?.filter(
-      (ID, idx) => formData.groupIDs[idx],
-    );
     const data = {
       groupIDs: selectedGroupIDs,
       savedStatus: formData.savedStatus,
@@ -435,522 +501,617 @@ const FilterCandidateList = ({
   };
 
   return (
-    <Paper variant="outlined">
-      <div className={classes.filterListContainer}>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div>
-            {(errors.startDate || errors.endDate) && (
-              <FormValidationError message="Invalid date range." />
-            )}
-            <Controller
-              render={({ field: { onChange, value } }) => (
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                  <DateTimePicker
-                    value={value}
-                    onChange={(newValue) => onChange(newValue)}
-                    label="Start (Local Time)"
-                    showTodayButton={false}
-                    ampm={useAMPM}
-                    slotProps={{ textField: { variant: "outlined" } }}
-                  />
-                </LocalizationProvider>
-              )}
-              rules={{ validate: validateDates }}
-              name="startDate"
-              control={control}
-              defaultValue={defaultStartDate}
+    <div>
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <div className={classes.headerRow}>
+          <Typography variant="h5">
+            <b>Scan candidates for sources</b>
+          </Typography>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              columnGap: "0.75rem",
+            }}
+          >
+            <CandidatesPreferences
+              selectedScanningProfile={selectedScanningProfile}
+              setSelectedScanningProfile={setSelectedScanningProfile}
             />
-            &nbsp;
-            <Controller
-              render={({ field: { onChange, value } }) => (
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                  <DateTimePicker
-                    value={value}
-                    onChange={(newValue) => onChange(newValue)}
-                    label="End (Local Time)"
-                    showTodayButton={false}
-                    ampm={useAMPM}
-                    slotProps={{ textField: { variant: "outlined" } }}
-                  />
-                </LocalizationProvider>
-              )}
-              rules={{ validate: validateDates }}
-              name="endDate"
-              control={control}
-              defaultValue={defaultEndDate}
-            />
+            <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
+              <div>
+                <Button primary type="submit" endIcon={<SearchIcon />}>
+                  Search
+                </Button>
+              </div>
+            </Tooltip>
           </div>
-          <div className={classes.savedStatusSelect}>
-            <InputLabel id="savedStatusSelectLabel">
-              Show only candidates which passed a filter from the selected
-              groups...
-            </InputLabel>
-            <Controller
-              labelId="savedStatusSelectLabel"
-              name="savedStatus"
-              control={control}
-              input={<Input data-testid="savedStatusSelect" />}
-              render={({ field: { onChange } }) => (
-                <Select
-                  key={
-                    selectedScanningProfile?.savedStatus
-                      ? "notLoadedYet"
-                      : "loaded"
-                  }
-                  onChange={onChange}
-                  defaultValue={selectedScanningProfile?.savedStatus || "all"}
-                  data-testid="savedStatusSelect"
-                >
-                  {savedStatusSelectOptions?.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
-            />
-          </div>
-          <ClassificationSelect
-            selectedClassifications={selectedClassifications}
-            setSelectedClassifications={setSelectedClassifications}
-            showShortcuts
-          />
-          <div className={classes.formRow}>
-            <InputLabel id="redshift-select-label">Redshift</InputLabel>
-            <div className={classes.redshiftField}>
-              <Controller
-                render={({ field: { onChange } }) => (
-                  <TextField
-                    id="minimum-redshift"
-                    label="Minimum"
-                    type="number"
-                    inputProps={{ step: 0.001 }}
-                    size="small"
-                    margin="dense"
-                    InputLabelProps={{
-                      shrink: true,
-                    }}
-                    onChange={(event) => onChange(event.target.value)}
-                    value={selectedScanningProfile?.redshiftMinimum || ""}
-                  />
+        </div>
+        <Grid container columnSpacing={{ xs: 0, lg: 1.5 }} rowSpacing={1.5}>
+          <Grid item xs={12} lg={6}>
+            <Paper variant="outlined" className={classes.simplePadding}>
+              <div className={classes.formRow} style={{ marginTop: 0 }}>
+                <Typography variant="h6" className={classes.title}>
+                  Selected scanning profile:&nbsp;
+                  {selectedScanningProfile
+                    ? selectedScanningProfile.name || "No name"
+                    : "None"}
+                </Typography>
+                <Typography variant="subtitle2">
+                  <i>
+                    Click <q>Manage Scanning Profiles</q> to select a new
+                    profile.
+                  </i>
+                </Typography>
+              </div>
+              <div>
+                {(errors.startDate || errors.endDate) && (
+                  <FormValidationError message="Invalid date range." />
                 )}
-                name="redshiftMinimum"
-                labelId="redshift-select-label"
-                control={control}
-              />
-            </div>
-            <div className={classes.redshiftField}>
-              <Controller
-                render={({ field: { onChange } }) => (
-                  <TextField
-                    id="maximum-redshift"
-                    label="Maximum"
-                    type="number"
-                    inputProps={{ step: 0.001 }}
-                    size="small"
-                    margin="dense"
-                    InputLabelProps={{
-                      shrink: true,
-                    }}
-                    onChange={(event) => onChange(event.target.value)}
-                    value={selectedScanningProfile?.redshiftMaximum || ""}
+                <div className={classes.timeRange}>
+                  <Controller
+                    render={({ field: { onChange, value } }) => (
+                      <LocalizationProvider dateAdapter={AdapterDateFns}>
+                        <DateTimePicker
+                          value={value}
+                          onChange={(newValue) => onChange(newValue)}
+                          label="Start (Local Time)"
+                          showTodayButton={false}
+                          ampm={useAMPM}
+                          slotProps={{ textField: { variant: "outlined" } }}
+                        />
+                      </LocalizationProvider>
+                    )}
+                    rules={{ validate: validateDates }}
+                    name="startDate"
+                    control={control}
+                    defaultValue={defaultStartDate}
                   />
-                )}
-                name="redshiftMaximum"
-                control={control}
-              />
-            </div>
-          </div>
-          <div className={classes.formRow}>
-            <InputLabel id="rejectedCandidatesLabel">
-              Show/hide rejected candidates
-            </InputLabel>
-            <Controller
-              labelId="rejectedCandidatesLabel"
-              name="rejectedStatus"
-              control={control}
-              input={<Input data-testid="rejectedStatusSelect" />}
-              defaultValue={selectedScanningProfile?.rejectedStatus || "hide"}
-              render={({ field: { onChange, value } }) => (
-                <Select
-                  value={value}
-                  onChange={onChange}
-                  data-testid="rejectedStatusSelect"
-                >
-                  {rejectedStatusSelectOptions?.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
-            />
-          </div>
-          <div className={`${classes.formRow} ${classes.annotationSorting}`}>
-            {errors.sortingOrigin && (
-              <FormValidationError message="All sorting fields must be left empty or all filled out" />
-            )}
-            <Responsive
-              element={FoldBox}
-              title="Annotation Sorting"
-              mobileProps={{ folded: true }}
-            >
-              <InputLabel id="sorting-select-label">
-                Annotation Origin
-              </InputLabel>
-              <Controller
-                labelId="sorting-select-label"
-                name="sortingOrigin"
-                control={control}
-                input={<Input data-testid="annotationSortingOriginSelect" />}
-                defaultValue={selectedScanningProfile?.sortingOrigin || ""}
-                render={({ field: { onChange, value } }) => (
-                  <Select
-                    id="annotationSortingOriginSelect"
-                    key={
-                      selectedScanningProfile?.sortingOrigin
-                        ? "notLoadedYet"
-                        : "loaded"
+                  <Controller
+                    render={({ field: { onChange, value } }) => (
+                      <LocalizationProvider dateAdapter={AdapterDateFns}>
+                        <DateTimePicker
+                          value={value}
+                          onChange={(newValue) => onChange(newValue)}
+                          label="End (Local Time)"
+                          showTodayButton={false}
+                          ampm={useAMPM}
+                          slotProps={{ textField: { variant: "outlined" } }}
+                        />
+                      </LocalizationProvider>
+                    )}
+                    rules={{ validate: validateDates }}
+                    name="endDate"
+                    control={control}
+                    defaultValue={defaultEndDate}
+                  />
+                </div>
+              </div>
+              <div className={classes.savedFiltering}>
+                <div className={classes.savedStatusSelect}>
+                  <Typography variant="h6" className={classes.title}>
+                    Show candidates...
+                  </Typography>
+                  <Controller
+                    labelId="savedStatusSelectLabel"
+                    name="savedStatus"
+                    control={control}
+                    input={<Input data-testid="savedStatusSelect" />}
+                    render={({ field: { onChange } }) => (
+                      <Select
+                        key={
+                          selectedScanningProfile?.savedStatus
+                            ? "notLoadedYet"
+                            : "loaded"
+                        }
+                        onChange={onChange}
+                        defaultValue={
+                          selectedScanningProfile?.savedStatus || "all"
+                        }
+                        data-testid="savedStatusSelect"
+                        style={{ minWidth: "100%" }}
+                      >
+                        {savedStatusSelectOptions?.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div className={classes.rejectCandidatesSelect}>
+                  <Controller
+                    labelId="rejectedCandidatesLabel"
+                    name="rejectedStatus"
+                    control={control}
+                    defaultValue={
+                      selectedScanningProfile?.rejectedStatus || "hide"
                     }
-                    value={value}
-                    onChange={(event) => {
-                      setSelectedAnnotationOrigin(event.target.value);
-                      onChange(event.target.value);
+                    render={({ field: { onChange, value } }) => (
+                      <Switch
+                        checked={value === "show"}
+                        onChange={(event) =>
+                          onChange(event.target.checked ? "show" : "hide")
+                        }
+                        inputProps={{ "aria-label": "controlled" }}
+                        data-testid="rejectedStatusSelect"
+                      />
+                    )}
+                  />
+                  <InputLabel id="rejectedCandidatesLabel">
+                    Hide Rejected
+                  </InputLabel>
+                </div>
+              </div>
+              <div
+                className={classes.formRow}
+                style={{ marginTop: 0, marginBottom: 0, paddingTop: "1rem" }}
+              >
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  <Typography variant="h6" className={classes.title}>
+                    Program Selection
+                  </Typography>
+                  {/* we want an eye (show/hide) icon to quickly show/hide the groups that are not selected */}
+                  <Tooltip title="Show/Hide unselected groups, useful to only see selected groups">
+                    <IconButton
+                      onClick={() => setShowAllGroups(!showAllGroups)}
+                      size="small"
+                      style={{ marginLeft: "0.25rem" }}
+                    >
+                      {showAllGroups ? (
+                        <VisibilityIcon />
+                      ) : (
+                        <VisibilityOffIcon />
+                      )}
+                    </IconButton>
+                  </Tooltip>
+                  {selectedGroupIDs.length === 0 && (
+                    <FormValidationError message="Select at least one group." />
+                  )}
+                </div>
+                <Paper variant="outlined" className={classes.simplePadding}>
+                  <TextField
+                    label="Search"
+                    variant="outlined"
+                    style={{ minWidth: "100%", marginBottom: "0.5rem" }}
+                    size="small"
+                    onChange={(event) =>
+                      setFilterGroupsInput(event.target.value)
+                    }
+                  />
+                  <div
+                    style={{
+                      minHeight: "167px",
+                      maxHeight: "167px",
+                      overflowY: "auto",
                     }}
                   >
-                    {availableAnnotationsInfo ? (
-                      [""]
-                        .concat(Object.keys(availableAnnotationsInfo))
-                        .map((option) => (
-                          <MenuItem key={option} value={option}>
-                            {option === "" ? "None" : option}
-                          </MenuItem>
-                        ))
-                    ) : (
-                      <div />
-                    )}
-                  </Select>
-                )}
-                rules={{ validate: validateSorting }}
-              />
-              {selectedAnnotationOrigin ? (
-                <>
-                  <InputLabel id="sorting-select-key-label">
-                    Annotation Key
-                  </InputLabel>
-                  <Controller
-                    labelId="sorting-select-key-label"
-                    name="sortingKey"
-                    control={control}
-                    input={<Input data-testid="annotationSortingKeySelect" />}
-                    defaultValue={selectedScanningProfile?.sortingKey || ""}
-                    render={({ field: { onChange, value } }) => (
-                      <Select
-                        id="annotationSortingKeySelect"
-                        onChange={onChange}
-                        value={value}
-                      >
-                        {availableAnnotationsInfo ? (
-                          availableAnnotationsInfo[
-                            selectedAnnotationOrigin
-                          ]?.map((option) => (
-                            <MenuItem
-                              key={Object.keys(option)[0]}
-                              value={Object.keys(option)[0]}
-                            >
-                              {Object.keys(option)[0]}
-                            </MenuItem>
-                          ))
-                        ) : (
-                          <div />
-                        )}
-                      </Select>
-                    )}
-                  />
-                  <InputLabel id="sorting-select-order-label">
-                    Annotation Sort Order
-                  </InputLabel>
-                  <Controller
-                    labelId="sorting-select-order-label"
-                    name="sortingOrder"
-                    control={control}
-                    input={<Input data-testid="annotationSortingOrderSelect" />}
-                    defaultValue={selectedScanningProfile?.sortingOrder || ""}
-                    render={({ field: { onChange, value } }) => (
-                      <Select
-                        id="annotationSortingOrderSelect"
-                        onChange={onChange}
-                        value={value}
-                      >
-                        <MenuItem key="desc" value="desc">
-                          Descending
-                        </MenuItem>
-                        <MenuItem key="asc" value="asc">
-                          Ascending
-                        </MenuItem>
-                      </Select>
-                    )}
-                  />
-                </>
-              ) : (
-                <div />
-              )}
-            </Responsive>
-          </div>
-          <div>
-            <Responsive element={FoldBox} title="GCN Filtering" folded>
-              {gcnEvents?.events ? (
-                <>
-                  <div className={classes.gcnFormRow}>
-                    <Controller
-                      render={() => (
-                        <Autocomplete
-                          id="gcn-event-filtering"
-                          options={gcnEvents?.events}
-                          getOptionLabel={(option) =>
-                            `${option?.dateobs}${
-                              option?.aliases?.length > 0
-                                ? ` (${option?.aliases})`
-                                : ""
-                            }` || ""
-                          }
-                          className={classes.select}
-                          // eslint-disable-next-line no-shadow
-                          onInputChange={(event, value) => {
-                            if (
-                              ((event?.type === "change" ||
-                                event?.type === "clear") &&
-                                value !== null &&
-                                value !== "") ||
-                              (event?.type === "click" && value === "")
-                            ) {
-                              dispatch(
-                                gcnEventsActions.fetchGcnEvents({
-                                  partialdateobs: value,
-                                }),
-                              );
-                            }
+                    <div className={classes.groupOptions}>
+                      {filterGroupOptions.map((group) => (
+                        // if the group.id is not in getValues().groupIDs, then we want to hide it
+                        <div
+                          key={group.id}
+                          style={{
+                            display:
+                              !showAllGroups &&
+                              !selectedGroupIDs.includes(group.id)
+                                ? "none"
+                                : "flex",
+                            alignItems: "center",
+                            justifyContent: "flex-start",
                           }}
-                          onChange={(event, newValue) => {
-                            if (newValue !== null) {
-                              reset({
-                                ...getValues(),
-                                gcneventid:
-                                  newValue.id === -1 ? "" : newValue.id,
-                                localizationid:
-                                  newValue.id === -1
-                                    ? ""
-                                    : gcnEventsLookUp[newValue.id]
-                                        ?.localizations[0]?.id || "",
-                              });
-                              setSelectedGcnEventId(newValue.id);
-                            } else {
-                              reset({
-                                ...getValues(),
-                                gcneventid: "",
-                                localizationid: "",
-                              });
-                              setSelectedGcnEventId("");
-                            }
-                          }}
-                          renderInput={(params) => (
-                            <TextField {...params} label="Dateobs/Name" />
-                          )}
-                        />
-                      )}
-                      name="gcneventid"
-                      control={control}
-                      defaultValue={gcnEvents?.events[0]?.id || ""}
-                    />
-                    <Controller
-                      render={({ field: { onChange, value } }) => (
-                        <Select
-                          inputProps={{
-                            MenuProps: { disableScrollLock: true },
-                          }}
-                          labelId="localizationSelectLabel"
-                          value={value || ""}
-                          onChange={(event) => {
-                            onChange(event.target.value);
-                          }}
-                          className={classes.select}
-                          disabled={!selectedGcnEventId}
                         >
-                          {gcnEventsLookUp[
-                            selectedGcnEventId
-                          ]?.localizations?.map((localization) => (
-                            <MenuItem
-                              value={localization.id}
-                              key={localization.id}
-                              className={classes.selectItem}
-                            >
-                              {`${localization.localization_name}`}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      )}
-                      name="localizationid"
-                      control={control}
-                      defaultValue=""
-                    />
-                    <Controller
-                      render={({ field: { onChange } }) => (
-                        <TextField
-                          id="cumprob"
-                          label="Cumulative Probability"
-                          type="number"
-                          inputProps={{ step: 0.01, min: 0, max: 1 }}
-                          onChange={(event) => onChange(event.target.value)}
-                          defaultValue={0.95}
-                        />
-                      )}
-                      name="localizationCumprob"
-                      control={control}
-                    />
+                          <Checkbox
+                            key={`filteringFormGroupCheckbox-${group.id}`}
+                            onChange={(event) => {
+                              if (
+                                selectedGroupIDs.includes(group.id) &&
+                                !event.target.checked
+                              ) {
+                                const newSelectedGroupIDs =
+                                  selectedGroupIDs.filter(
+                                    (id) => id !== group.id,
+                                  );
+                                setFilterGroups(
+                                  userAccessibleGroups.filter((g) =>
+                                    newSelectedGroupIDs.includes(g.id),
+                                  ),
+                                );
+                                setSelectedGroupIDs(newSelectedGroupIDs);
+                              } else if (
+                                !selectedGroupIDs.includes(group.id) &&
+                                event.target.checked
+                              ) {
+                                const newSelectedGroupIDs = [
+                                  ...selectedGroupIDs,
+                                  group.id,
+                                ];
+                                setFilterGroups(
+                                  userAccessibleGroups.filter((g) =>
+                                    newSelectedGroupIDs.includes(g.id),
+                                  ),
+                                );
+                                setSelectedGroupIDs(newSelectedGroupIDs);
+                              }
+                            }}
+                            checked={selectedGroupIDs.includes(group.id)}
+                            data-testid={`filteringFormGroupCheckbox-${group.id}`}
+                            style={{
+                              margin: 0,
+                              padding: 0,
+                              marginRight: "0.2rem",
+                            }}
+                          />
+                          <Typography
+                            variant="body1"
+                            className={classes.body}
+                            key={`filteringFormGroupLabel-${group.id}`}
+                          >
+                            {group.name}
+                          </Typography>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className={classes.gcnFormRow}>
-                    <Controller
-                      render={({ field: { onChange, value } }) => (
-                        <TextField
-                          type="text"
-                          value={value || " "}
-                          onChange={(event) => onChange(event.target.value)}
-                          label="First Detection After (UTC)"
-                        />
-                      )}
-                      name="firstDetectionAfter"
-                      control={control}
-                    />
-                    <Controller
-                      render={({ field: { onChange, value } }) => (
-                        <TextField
-                          type="text"
-                          value={value || " "}
-                          onChange={(event) => onChange(event.target.value)}
-                          label="Last Detection Before (UTC)"
-                        />
-                      )}
-                      name="lastDetectionBefore"
-                      control={control}
-                    />
-                    <Controller
-                      render={({ field: { onChange } }) => (
-                        <TextField
-                          id="minNbDect"
-                          label="Minimum Number of Detections"
-                          type="number"
-                          inputProps={{ step: 1, min: 0 }}
-                          onChange={(event) => onChange(event.target.value)}
-                          defaultValue={1}
-                        />
-                      )}
-                      name="numberDetections"
-                      control={control}
-                    />
-                  </div>
-                  <div className={classes.gcnFormRow}>
-                    <FormControlLabel
-                      control={
-                        <Controller
-                          render={({ field: { onChange, value } }) => (
-                            <Checkbox
-                              onChange={(event) => {
-                                onChange(event.target.checked);
-                              }}
-                              checked={value}
-                            />
-                          )}
-                          name="excludeForcedPhotometry"
-                          control={control}
-                          defaultValue
-                        />
-                      }
-                      label="Exclude Forced Photometry"
-                    />
-                  </div>
-                </>
-              ) : (
-                <p> Loading events</p>
-              )}
-            </Responsive>
-          </div>
-
-          <div>
-            <Responsive
-              element={FoldBox}
-              title="Program Selection"
-              mobileProps={{ folded: true }}
-            >
-              {errors.groupIDs && (
-                <FormValidationError message="Select at least one group." />
-              )}
-              {userAccessibleGroups.map((group, idx) => (
+                </Paper>
+              </div>
+            </Paper>
+          </Grid>
+          <Grid item xs={12} lg={6}>
+            <Paper variant="outlined" className={classes.simplePadding}>
+              <div className={classes.formRow} style={{ marginTop: 0 }}>
+                <Typography variant="h6" className={classes.title}>
+                  Classification(s)
+                </Typography>
+                <ClassificationSelect
+                  selectedClassifications={selectedClassifications}
+                  setSelectedClassifications={setSelectedClassifications}
+                  showShortcuts
+                />
+              </div>
+              <div className={classes.formRow}>
+                <Typography variant="h6" className={classes.title}>
+                  Redshift
+                </Typography>
+                <div className={classes.redshiftFiltering}>
+                  <Controller
+                    render={({ field: { onChange } }) => (
+                      <TextField
+                        id="minimum-redshift"
+                        label="Minimum"
+                        type="number"
+                        inputProps={{ step: 0.001 }}
+                        margin="dense"
+                        style={{ minWidth: "100%" }}
+                        onChange={(event) => onChange(event.target.value)}
+                        value={selectedScanningProfile?.redshiftMinimum || ""}
+                      />
+                    )}
+                    name="redshiftMinimum"
+                    labelId="redshift-select-label"
+                    control={control}
+                  />
+                  <Controller
+                    render={({ field: { onChange } }) => (
+                      <TextField
+                        id="maximum-redshift"
+                        label="Maximum"
+                        type="number"
+                        inputProps={{ step: 0.001 }}
+                        margin="dense"
+                        style={{ minWidth: "100%" }}
+                        onChange={(event) => onChange(event.target.value)}
+                        value={selectedScanningProfile?.redshiftMaximum || ""}
+                      />
+                    )}
+                    name="redshiftMaximum"
+                    control={control}
+                  />
+                </div>
+              </div>
+              <div className={classes.formRow} style={{ marginBottom: 0 }}>
+                <Typography variant="h6" className={classes.title}>
+                  GCN Events
+                </Typography>
+                <div className={classes.gcnGrid}>
+                  <Controller
+                    render={() => (
+                      <Autocomplete
+                        id="gcn-event-filtering"
+                        options={gcnEvents?.events || []}
+                        getOptionLabel={(option) =>
+                          `${option?.dateobs}${
+                            option?.aliases?.length > 0
+                              ? ` (${option?.aliases})`
+                              : ""
+                          }` || ""
+                        }
+                        className={classes.select}
+                        // eslint-disable-next-line no-shadow
+                        onInputChange={(event, value) => {
+                          if (
+                            ((event?.type === "change" ||
+                              event?.type === "clear") &&
+                              value !== null &&
+                              value !== "") ||
+                            (event?.type === "click" && value === "")
+                          ) {
+                            dispatch(
+                              gcnEventsActions.fetchGcnEvents({
+                                partialdateobs: value,
+                              }),
+                            );
+                          }
+                        }}
+                        onChange={(event, newValue) => {
+                          if (newValue !== null) {
+                            reset({
+                              ...getValues(),
+                              gcneventid: newValue.id === -1 ? "" : newValue.id,
+                              localizationid:
+                                newValue.id === -1
+                                  ? ""
+                                  : gcnEventsLookUp[newValue.id]
+                                      ?.localizations[0]?.id || "",
+                            });
+                            setSelectedGcnEventId(newValue.id);
+                          } else {
+                            reset({
+                              ...getValues(),
+                              gcneventid: "",
+                              localizationid: "",
+                            });
+                            setSelectedGcnEventId("");
+                          }
+                        }}
+                        renderInput={(params) => (
+                          <TextField {...params} label="Dateobs/Name" />
+                        )}
+                      />
+                    )}
+                    name="gcneventid"
+                    control={control}
+                  />
+                  <Controller
+                    render={({ field: { onChange, value } }) => (
+                      <Select
+                        inputProps={{
+                          MenuProps: { disableScrollLock: true },
+                        }}
+                        labelId="localizationSelectLabel"
+                        value={value || ""}
+                        onChange={(event) => {
+                          onChange(event.target.value);
+                        }}
+                        className={classes.select}
+                        disabled={!selectedGcnEventId}
+                      >
+                        {gcnEventsLookUp[
+                          selectedGcnEventId
+                        ]?.localizations?.map((localization) => (
+                          <MenuItem
+                            value={localization.id}
+                            key={localization.id}
+                            className={classes.selectItem}
+                          >
+                            {`${localization.localization_name}`}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    )}
+                    name="localizationid"
+                    control={control}
+                    defaultValue=""
+                  />
+                  <Controller
+                    render={({ field: { onChange } }) => (
+                      <TextField
+                        id="cumprob"
+                        label="Cumulative Probability"
+                        type="number"
+                        inputProps={{ step: 0.01, min: 0, max: 1 }}
+                        onChange={(event) => onChange(event.target.value)}
+                        defaultValue={0.95}
+                      />
+                    )}
+                    name="localizationCumprob"
+                    control={control}
+                  />
+                  <Controller
+                    render={({ field: { onChange, value } }) => (
+                      <TextField
+                        type="text"
+                        value={value || " "}
+                        onChange={(event) => onChange(event.target.value)}
+                        label="First Detection After (UTC)"
+                      />
+                    )}
+                    name="firstDetectionAfter"
+                    control={control}
+                  />
+                  <Controller
+                    render={({ field: { onChange, value } }) => (
+                      <TextField
+                        type="text"
+                        value={value || " "}
+                        onChange={(event) => onChange(event.target.value)}
+                        label="Last Detection Before (UTC)"
+                      />
+                    )}
+                    name="lastDetectionBefore"
+                    control={control}
+                  />
+                  <Controller
+                    render={({ field: { onChange } }) => (
+                      <TextField
+                        id="minNbDect"
+                        label="Minimum Number of Detections"
+                        type="number"
+                        inputProps={{ step: 1, min: 0 }}
+                        onChange={(event) => onChange(event.target.value)}
+                        defaultValue={1}
+                      />
+                    )}
+                    name="numberDetections"
+                    control={control}
+                  />
+                </div>
                 <FormControlLabel
-                  key={group.id}
                   control={
                     <Controller
                       render={({ field: { onChange, value } }) => (
                         <Checkbox
                           onChange={(event) => {
                             onChange(event.target.checked);
-                            // Let parent component know program selection has changed
-                            const groupIDs = userAccessibleGroups.map(
-                              (g) => g.id,
-                            );
-                            const selectedGroupIDs = groupIDs?.filter(
-                              (ID, i) => getValues().groupIDs[i],
-                            );
-                            setFilterGroups(
-                              userAccessibleGroups.filter((g) =>
-                                selectedGroupIDs.includes(g.id),
-                              ),
-                            );
                           }}
                           checked={value}
-                          data-testid={`filteringFormGroupCheckbox-${group.id}`}
                         />
                       )}
-                      name={`groupIDs[${idx}]`}
+                      name="excludeForcedPhotometry"
                       control={control}
-                      rules={{ validate: validateGroups }}
-                      defaultValue={false}
+                      defaultValue
                     />
                   }
-                  label={group.name}
+                  label="Ignore Forced Photometry"
                 />
-              ))}
-            </Responsive>
-          </div>
-          <div className={classes.formRow}>
-            <Typography variant="subtitle2">
-              Selected scanning profile:&nbsp;
-              {selectedScanningProfile
-                ? selectedScanningProfile.name || "No name"
-                : "None"}
-            </Typography>
-            <Typography variant="subtitle2">
-              Click <q>Manage Scanning Profiles</q> to select a new profile.
-            </Typography>
-          </div>
-          <div className={classes.buttonsRow}>
-            <CandidatesPreferences
-              selectedScanningProfile={selectedScanningProfile}
-              setSelectedScanningProfile={setSelectedScanningProfile}
-            />
-            <div>
-              <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
-                <div>
-                  <Button primary type="submit" endIcon={<SearchIcon />}>
-                    Search
-                  </Button>
+              </div>
+              <div
+                className={classes.formRow}
+                style={{ marginTop: "0.5rem", marginBottom: 0 }}
+              >
+                <Typography variant="h6" className={classes.title}>
+                  Annotation Sorting
+                </Typography>
+                {errors.sortingOrigin && (
+                  <FormValidationError message="All sorting fields must be left empty or all filled out" />
+                )}
+                <div className={classes.annotationSorting}>
+                  <div style={{ minWidth: "100%" }}>
+                    <InputLabel
+                      id="sorting-select-label"
+                      style={{ marginTop: 0 }}
+                    >
+                      Origin
+                    </InputLabel>
+                    <Controller
+                      labelId="sorting-select-label"
+                      name="sortingOrigin"
+                      control={control}
+                      input={
+                        <Input data-testid="annotationSortingOriginSelect" />
+                      }
+                      defaultValue={
+                        selectedScanningProfile?.sortingOrigin || ""
+                      }
+                      render={({ field: { onChange, value } }) => (
+                        <Select
+                          id="annotationSortingOriginSelect"
+                          key={
+                            selectedScanningProfile?.sortingOrigin
+                              ? "notLoadedYet"
+                              : "loaded"
+                          }
+                          value={value}
+                          onChange={(event) => {
+                            setSelectedAnnotationOrigin(event.target.value);
+                            onChange(event.target.value);
+                          }}
+                          style={{ minWidth: "100%" }}
+                        >
+                          {availableAnnotationsInfo ? (
+                            [""]
+                              .concat(Object.keys(availableAnnotationsInfo))
+                              .map((option) => (
+                                <MenuItem key={option} value={option}>
+                                  {option === "" ? "None" : option}
+                                </MenuItem>
+                              ))
+                          ) : (
+                            <div />
+                          )}
+                        </Select>
+                      )}
+                      rules={{ validate: validateSorting }}
+                    />
+                  </div>
+                  <div style={{ minWidth: "100%" }}>
+                    <InputLabel
+                      id="sorting-select-key-label"
+                      style={{ marginTop: 0 }}
+                    >
+                      Key
+                    </InputLabel>
+                    <Controller
+                      labelId="sorting-select-key-label"
+                      name="sortingKey"
+                      control={control}
+                      input={<Input data-testid="annotationSortingKeySelect" />}
+                      defaultValue={selectedScanningProfile?.sortingKey || ""}
+                      render={({ field: { onChange, value } }) => (
+                        <Select
+                          id="annotationSortingKeySelect"
+                          onChange={onChange}
+                          value={value}
+                          style={{ minWidth: "100%" }}
+                        >
+                          {availableAnnotationsInfo ? (
+                            availableAnnotationsInfo[
+                              selectedAnnotationOrigin
+                            ]?.map((option) => (
+                              <MenuItem
+                                key={Object.keys(option)[0]}
+                                value={Object.keys(option)[0]}
+                              >
+                                {Object.keys(option)[0]}
+                              </MenuItem>
+                            ))
+                          ) : (
+                            <div />
+                          )}
+                        </Select>
+                      )}
+                    />
+                  </div>
+                  <div style={{ minWidth: "100%" }}>
+                    <InputLabel
+                      id="sorting-select-order-label"
+                      style={{ marginTop: 0 }}
+                    >
+                      Sort Order
+                    </InputLabel>
+                    <Controller
+                      labelId="sorting-select-order-label"
+                      name="sortingOrder"
+                      control={control}
+                      input={
+                        <Input data-testid="annotationSortingOrderSelect" />
+                      }
+                      defaultValue={selectedScanningProfile?.sortingOrder || ""}
+                      render={({ field: { onChange, value } }) => (
+                        <Select
+                          id="annotationSortingOrderSelect"
+                          onChange={onChange}
+                          value={value}
+                          style={{ minWidth: "100%" }}
+                        >
+                          <MenuItem key="desc" value="desc">
+                            Descending
+                          </MenuItem>
+                          <MenuItem key="asc" value="asc">
+                            Ascending
+                          </MenuItem>
+                        </Select>
+                      )}
+                    />
+                  </div>
                 </div>
-              </Tooltip>
-            </div>
-          </div>
-        </form>
-        <br />
-      </div>
-    </Paper>
+              </div>
+            </Paper>
+          </Grid>
+        </Grid>
+      </form>
+    </div>
   );
 };
 FilterCandidateList.propTypes = {

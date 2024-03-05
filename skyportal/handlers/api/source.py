@@ -239,7 +239,8 @@ async def get_source(
         ).where(ClassicalAssignment.obj_id == obj_id)
     ).all()
     point = ca.Point(ra=s.ra, dec=s.dec)
-    # Check for duplicates (within 4 arcsecs)
+
+    # Check for nearby galaxies (within 10 arcsecs)
     galaxies = session.scalars(
         Galaxy.select(user).where(Galaxy.within(point, 10 / 3600))
     ).all()
@@ -248,7 +249,7 @@ async def get_source(
     else:
         source_info["galaxies"] = None
 
-    # Check for nearby galaxies (within 10 arcsecs)
+    # Check for nearby objects (within 4 arcsecs)
     duplicate_objs = (
         Obj.select(user)
         .where(Obj.within(point, 4 / 3600))
@@ -297,16 +298,6 @@ async def get_source(
         # To keep loaded relationships from being cleared in verify_and_commit:
         source_info = recursive_to_dict(source_info)
         session.commit()
-
-    if include_thumbnails:
-        existing_thumbnail_types = [thumb.type for thumb in s.thumbnails]
-        thumbnails = list({"sdss", "ls"} - set(existing_thumbnail_types))
-        if len(thumbnails) > 0:
-            try:
-                s.add_linked_thumbnails(thumbnails, session)
-            except Exception as e:
-                session.rollback()
-                log(f"Error generating thumbnail for object {obj_id}: {e}")
 
     if include_comments:
         comments = (
@@ -1872,7 +1863,11 @@ def post_source(data, user_id, session, refresh_source=True):
 
     not_saved_to_group_ids = []
     for group in groups:
-        if len(list(ignore_if_in_group_ids.keys())) > 0:
+        if (
+            isinstance(ignore_if_in_group_ids, dict)
+            and isinstance(ignore_if_in_group_ids.get(group.id), list)
+            and len(ignore_if_in_group_ids[group.id]) > 0
+        ):
             existing_sources = session.scalars(
                 Source.select(user).where(
                     Source.group_id.in_(ignore_if_in_group_ids[group.id]),
@@ -1950,12 +1945,6 @@ def post_source(data, user_id, session, refresh_source=True):
             session.add(submission_request)
             break
 
-    if not obj_already_exists:
-        try:
-            obj.add_linked_thumbnails(['sdss', 'ls'], session)
-        except Exception:
-            session.rollback()
-            pass
     else:
         if refresh_source:
             flow = Flow()

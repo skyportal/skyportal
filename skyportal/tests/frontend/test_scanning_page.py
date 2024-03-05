@@ -58,16 +58,19 @@ def test_candidate_group_filtering(
     driver.scroll_to_element_and_click(group_checkbox)
     submit_button = driver.wait_for_xpath('//button[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(5):  # data-testid
-        driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]')
+
+    driver.wait_for_xpath(
+        '//*[contains(., "Found 6 candidates.")]'
+    )  # the 5 candidates we added and the public candidate
+
     driver.scroll_to_element_and_click(group_checkbox)
     driver.click_xpath(
         f'//*[@data-testid="filteringFormGroupCheckbox-{new_group_id}"]',
         wait_clickable=False,
     )
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(5):
-        driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}_{i}"]')
+
+    driver.wait_for_xpath('//*[contains(., "Found 0 candidates.")]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -131,15 +134,19 @@ def test_candidate_saved_status_filtering(
         "//li[@data-value='notSavedToAnyAccessible']", scroll_parent=True
     )
     driver.click_xpath('//button[text()="Search"]')
-    for i in range(5):
-        driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}_{i}"]')
+
+    driver.wait_for_xpath(
+        '//*[contains(., "Found 1 candidates.")]'
+    )  # the public candidate
 
     # Set to candidates is saved to any accessibe groups and submit again
     driver.click_xpath("//*[@data-testid='savedStatusSelect']")
     driver.click_xpath("//li[@data-value='savedToAnyAccessible']", scroll_parent=True)
     driver.click_xpath('//button[text()="Search"]')
-    for i in range(5):
-        driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]')
+
+    driver.wait_for_xpath(
+        '//*[contains(., "Found 5 candidates.")]'
+    )  # the 5 candidates we added
 
 
 @pytest.mark.flaky(reruns=2)
@@ -299,99 +306,28 @@ def test_submit_annotations_sorting(
     driver.click_xpath('//button[text()="Search"]')
     driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
 
-    # the annotation selected on the form should be selected in the table as well, no need to click it
+    # Check that results come back as expected
+    # candidate-1 should have the lowest value
+    driver.wait_for_xpath(
+        '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"1.0000")]]'
+    )
+    driver.wait_for_xpath(
+        '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"2.0000")]]'
+    )
+
     # Check to see that sorting button has become enabled, and click
     driver.wait_for_xpath_to_be_clickable(
         "//button[@data-testid='sortOnAnnotationButton']"
     )
     driver.click_xpath("//button[@data-testid='sortOnAnnotationButton']")
 
-    # Check that results come back as expected
-    # Col 3, Row 0 should be the first candidate's info (MuiDataTableBodyCell-1-0)
+    # the order should now be reversed
     driver.wait_for_xpath(
-        '//td[contains(@data-testid, "MuiDataTableBodyCell-3-0")][.//*[contains(.,"1.0000")]]'
+        '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"2.0000")]]'
     )
-    # Col 3, Row 1 should be the second candidate's info (MuiDataTableBodyCell-1-1)
     driver.wait_for_xpath(
-        '//td[contains(@data-testid, "MuiDataTableBodyCell-3-1")][.//*[contains(.,"2.0000")]]'
+        '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"1.0000")]]'
     )
-
-
-@pytest.mark.flaky(reruns=2)
-def test_submit_annotations_filtering(
-    driver,
-    view_only_user,
-    public_group,
-    public_candidate,
-    public_candidate2,
-    annotation_token,
-):
-    origin = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate.id}/annotations",
-        data={
-            "obj_id": public_candidate.id,
-            "origin": origin,
-            "data": {"numeric_field": 1},
-        },
-        token=annotation_token,
-    )
-    assert status == 200
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate2.id}/annotations",
-        data={
-            "obj_id": public_candidate2.id,
-            "origin": origin,
-            "data": {"numeric_field": 2},
-        },
-        token=annotation_token,
-    )
-    assert status == 200
-
-    # origins are cached, so we wait for the cache to invalidate (2 seconds in test config)
-    time.sleep(2)
-
-    driver.get(f"/become_user/{view_only_user.id}")
-    driver.get("/candidates")
-    driver.click_xpath(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
-        wait_clickable=False,
-    )
-    driver.click_xpath('//button[text()="Search"]')
-    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
-
-    # scroll to top of page so dialog doesn't get cut off
-    element = driver.wait_for_xpath("//button[@data-testid='Filter Table-iconButton']")
-    scroll_element_to_top = '''
-        const viewPortHeight = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
-        const elementTop = arguments[0].getBoundingClientRect().top;
-        window.scrollBy(0, viewPortHeight - 0.5*elementTop);
-    '''
-    driver.execute_script(scroll_element_to_top, element)
-    element.click()
-
-    driver.click_xpath("//div[@id='root_origin']")
-    driver.click_xpath("//button[text()='RESET']", scroll_parent=True)
-    # Filter by numeric_field < 1.5
-    driver.click_xpath("//div[@id='root_origin']")
-    driver.click_xpath(f'//li[contains(text(), "{origin}")]', scroll_parent=True)
-    driver.click_xpath("//div[@id='root_key']")
-    driver.click_xpath('//li[contains(text(), "numeric_field")]', scroll_parent=True)
-    min_box = driver.wait_for_xpath("//*[@id='root_min']")
-    min_text = "0"
-    min_box.send_keys(min_text)
-    max_box = driver.wait_for_xpath("//*[@id='root_max']")
-    max_text = "1.5"
-    max_box.send_keys(max_text)
-    driver.click_xpath("//button[text()='Submit']", scroll_parent=True)
-
-    # Check that results come back as expected
-    # The first candidate should exist
-    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
-    # The second candidate should not exist
-    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{public_candidate2.id}"]')
 
 
 def test_candidate_classifications_filtering(
@@ -593,11 +529,11 @@ def test_candidate_rejection_filtering(
     driver.click_xpath('//button[text()="Search"]')
 
     # now the candidate doesn't show up anymore
-    driver.wait_for_xpath('//*[contains(text(), "no matching records found")]')
+    driver.wait_for_xpath('//*[contains(., "Found 0 candidates.")]')
 
     # choose to show rejected now
-    driver.click_xpath('//div[@data-testid="rejectedStatusSelect"]')
-    driver.click_xpath("//li[@data-value='show']", scroll_parent=True)
+    driver.click_xpath('//*[@data-testid="rejectedStatusSelect"]')
+
     driver.click_xpath('//button[text()="Search"]')
 
     # make sure candidate appears and that it has a "rejected" icon
