@@ -736,9 +736,7 @@ const FilterCandidateList = ({
                   />
                   <div
                     style={{
-                      // the height here should use all that's available in the parent container
-                      minHeight: "100%",
-                      maxHeight: "100%",
+                      height: "10rem",
                       overflowY: "auto",
                     }}
                   >
