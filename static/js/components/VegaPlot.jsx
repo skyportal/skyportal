@@ -35,7 +35,7 @@ const spec = (
           type: "point",
           shape: "circle",
           filled: "true",
-          size: 16,
+          size: 24,
         },
         transform: [
           {
@@ -76,6 +76,10 @@ const spec = (
             field: "filter",
             type: "nominal",
             scale: colorScale,
+            legend: {
+              titleAnchor: "start",
+              offset: 5,
+            },
           },
           tooltip: [
             { field: "magAndErr", title: "mag", type: "nominal" },
@@ -117,6 +121,7 @@ const spec = (
             scale: {
               zero: false,
               reverse: true,
+              padding: 0,
             },
             axis: {
               title: "days ago",
