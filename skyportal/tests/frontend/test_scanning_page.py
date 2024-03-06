@@ -287,7 +287,7 @@ def test_submit_annotations_sorting(
     assert status == 200
 
     # origins are cached, so we wait for the cache to invalidate (5 seconds in test config)
-    time.sleep(5)
+    time.sleep(3)
 
     driver.get(f"/become_user/{view_only_user.id}")
     driver.get("/candidates")
