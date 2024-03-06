@@ -29,6 +29,7 @@ from skyportal.utils.tns import (
     TNS_INSTRUMENT_IDS,
     get_IAUname,
 )
+from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
@@ -167,17 +168,30 @@ def service(*args, **kwargs):
                     'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
                 }
 
-                _, existing_tns_name = get_IAUname(
-                    altdata['api_key'], tns_headers, obj_id=obj_id
-                )
-                if existing_tns_name is not None:
-                    error_msg = (
-                        f'{obj_id} already posted to TNS as {existing_tns_name}.'
+                # if the bot is set up to only report objects to TNS if they are not already there,
+                # we check if an object is already on TNS (within 2 arcsec of the object's position)
+                # and if it is, we skip the submission
+                # otherwise, we submit as long as there are no reports with the same internal source name
+                # (i.e. the same obj_id from the same survey)
+                if not tnsrobot.testing:
+                    _, existing_tns_name = get_IAUname(
+                        altdata['api_key'], tns_headers, obj_id=obj_id
                     )
-                    log(error_msg)
-                    submission_request.status = f'skipped: {error_msg}'
-                    session.commit()
-                    continue
+                    if not tnsrobot.report_existing:
+                        if existing_tns_name is not None:
+                            error_msg = f'{obj_id} already posted to TNS as {existing_tns_name}.'
+                            log(error_msg)
+                            submission_request.status = f'skipped: {error_msg}'
+                            session.commit()
+                            continue
+                    else:
+                        # TODO: query TNS to get the photometry of that object, and check that none of it
+                        # has been submitted with the same internal source name (i.e. the same obj_id from the same survey)
+                        # if it has, we skip the submission
+                        log(
+                            'report_existing is set to True, but this is not implemented yet'
+                        )
+                        pass
 
                 # Get the sources saved to the groups that have access to this TNS robot,
                 # this is so if a user that has access to this robot saved the obj as a source before,
@@ -556,41 +570,53 @@ def service(*args, **kwargs):
                     'data': json.dumps(report),
                 }
 
-                status_code = 0
-                n_retries = 0
-                status = None
-                submission_id = None
-                while (
-                    n_retries < 6
-                ):  # 6 * 10 seconds = 1 minute, which is when the TNS API limit resets
-                    r = requests.post(report_url, headers=tns_headers, data=data)
-                    status_code = r.status_code
-                    if status_code == 429:
-                        status = f"Exceeded TNS API rate limit when submitting {obj_id} to TNS with TNSRobot {tnsrobot_id}"
-                        log(f"{status}, waiting 10 seconds before retrying...")
-                        time.sleep(10)
-                        n_retries += 1
-                        continue
-                    if status_code == 200:
-                        tns_id = r.json()['data']['report_id']
-                        log(
-                            f'Successfully submitted {obj_id} to TNS with request ID {tns_id} for TNSRobot {tnsrobot_id}'
-                        )
-                        submission_id = tns_id
-                        status = 'submitted'
-                    elif status_code == 401:
-                        status = f"Unauthorized to submit {obj_id} to TNS with TNSRobot {tnsrobot_id}, credentials may be invalid"
-                    else:
-                        status = f"Failed to submit {obj_id} to TNS with TNSRobot {tnsrobot_id}: {r.content}"
-                    break
+                if not tnsrobot.testing:
+                    status_code = 0
+                    n_retries = 0
+                    status = None
+                    submission_id = None
+                    while n_retries < 24:  # 6 * 4 * 10 seconds = 4 minutes of retries
+                        r = requests.post(report_url, headers=tns_headers, data=data)
+                        status_code = r.status_code
+                        if status_code == 429:
+                            status = f"Exceeded TNS API rate limit when submitting {obj_id} to TNS with TNSRobot {tnsrobot_id}"
+                            log(f"{status}, waiting 10 seconds before retrying...")
+                            time.sleep(10)
+                            n_retries += 1
+                            continue
+                        if status_code == 200:
+                            tns_id = r.json()['data']['report_id']
+                            log(
+                                f'Successfully submitted {obj_id} to TNS with request ID {tns_id} for TNSRobot {tnsrobot_id}'
+                            )
+                            submission_id = tns_id
+                            status = 'submitted'
+                        elif status_code == 401:
+                            status = f"Unauthorized to submit {obj_id} to TNS with TNSRobot {tnsrobot_id}, credentials may be invalid"
+                        else:
+                            status = f"Failed to submit {obj_id} to TNS with TNSRobot {tnsrobot_id}: {r.content}"
+                        break
 
-                if status_code == 429:
-                    status = f"{status}, and exceeded number of retries (6)"
-                submission_request.status = (
-                    f'error: {status}' if status_code != 200 else status
-                )
-                if submission_id is not None:
-                    submission_request.submission_id = submission_id
+                    if status_code == 429:
+                        status = f"{status}, and exceeded number of retries (6)"
+                    submission_request.status = (
+                        f'error: {status}' if status_code != 200 else status
+                    )
+                    if submission_id is not None:
+                        submission_request.submission_id = submission_id
+
+                    if isinstance(r, requests.models.Response):
+                        # we store the request's payload and TNS response in the database for bookkeeping and debugging
+                        submission_request.payload = data['data']
+                        submission_request.response = serialize_requests_response(r)
+
+                else:
+                    log(
+                        f"TNS Robot {tnsrobot_id} is in testing mode, not submitting {obj_id} to TNS."
+                    )
+                    # we store the payload in the database for bookkeeping and debugging
+                    submission_request.payload = data['data']
+                    submission_request.status = 'testing mode, not submitted to TNS'
 
                 session.commit()
 

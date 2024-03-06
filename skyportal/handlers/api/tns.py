@@ -55,6 +55,22 @@ def create_tns_robot(
     stream_ids,
     session,
 ):
+    # False if not specified
+    report_existing = data.get('report_existing', False)
+    if str(report_existing).lower().strip() in ['true', 't', '1']:
+        report_existing = True
+    else:
+        report_existing = False
+    data['report_existing'] = report_existing
+
+    # True if not specified
+    testing = data.get('testing', True)
+    if str(testing).lower().strip() in ['false', 'f', '0']:
+        testing = False
+    else:
+        testing = True
+    data['testing'] = testing
+
     try:
         tnsrobot = TNSRobot.__schema__().load(data=data)
     except ValidationError as e:
@@ -140,6 +156,7 @@ def update_tns_robot(
         raise ValueError(
             f'No TNS robot with specified ID: {existing_id}, or you are not authorized to update it'
         )
+
     if 'bot_name' in data:
         tnsrobot.bot_name = data['bot_name']
     if 'bot_id' in data:
@@ -153,6 +170,21 @@ def update_tns_robot(
         '',
     ]:
         tnsrobot.acknowledgments = data['acknowledgments']
+    report_existing = data.get('report_existing', None)
+    if str(report_existing).lower().strip() in ['true', 't', '1']:
+        report_existing = True
+    elif str(report_existing).lower().strip() in ['false', 'f', '0']:
+        report_existing = False
+    if report_existing is not None:
+        tnsrobot.report_existing = report_existing
+
+    testing = data.get('testing', None)
+    if str(testing).lower().strip() in ['true', 't', '1']:
+        testing = True
+    elif str(testing).lower().strip() in ['false', 'f', '0']:
+        testing = False
+    if testing is not None:
+        tnsrobot.testing = testing
 
     # TNS AUTO-REPORTING INSTRUMENTS: ADD/MODIFY/DELETE
     if len(instrument_ids) > 0:
@@ -873,7 +905,35 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
 class TNSRobotSubmissionHandler(BaseHandler):
     @auth_or_token
     def get(self, tnsrobot_id, id=None):
-        # for a given TNSRobot, return all the submissions
+        include_payload = self.get_query_argument('include_payload', False)
+        include_response = self.get_query_argument('include_response', False)
+        if str(include_payload).lower().strip() in ['true', 't', '1']:
+            include_payload = True
+        if str(include_response).lower().strip() in ['true', 't', '1']:
+            include_response = True
+
+        page_number = self.get_query_argument('pageNumber', 1)
+        page_size = self.get_query_argument('numPerPage', 100)
+        obj_id = self.get_query_argument('objectID', None)
+        try:
+            page_number = int(page_number)
+            page_size = int(page_size)
+            if page_number < 1 or page_size < 1:
+                raise ValueError
+        except ValueError:
+            return self.error(
+                'pageNumber and pageSize must be integers, with pageNumber starting at 1 and pageSize > 0'
+            )
+
+        if obj_id is not None:
+            try:
+                obj_id = str(obj_id)
+                if len(obj_id) == 0:
+                    obj_id = None
+            except ValueError:
+                return self.error('objectID must be a string')
+
+        # for a given TNSRobot, return all the submissions (paginated)
         with self.Session() as session:
             tnsrobot = session.scalar(
                 TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobot_id)
@@ -895,16 +955,38 @@ class TNSRobotSubmissionHandler(BaseHandler):
                     )
                 return self.success(data=submission)
             else:
-                stmt = (
-                    TNSRobotSubmission.select(session.user_or_token)
-                    .where(TNSRobotSubmission.tnsrobot_id == tnsrobot_id)
-                    .order_by(TNSRobotSubmission.created_at.desc())
+                stmt = TNSRobotSubmission.select(session.user_or_token).where(
+                    TNSRobotSubmission.tnsrobot_id == tnsrobot_id
                 )
-                submissions = session.execute(stmt).scalars().all()
+                if obj_id is not None:
+                    stmt = stmt.where(TNSRobotSubmission.obj_id == obj_id)
+
+                # run a count query to get the total number of results
+                total_matches = session.execute(
+                    sa.select(sa.func.count()).select_from(stmt)
+                ).scalar()
+
+                # order by created_at descending
+                stmt = stmt.order_by(TNSRobotSubmission.created_at.desc())
+
+                # undefer the payload and response columns if requested
+                if include_payload:
+                    stmt = stmt.options(sa.orm.undefer(TNSRobotSubmission.payload))
+                if include_response:
+                    stmt = stmt.options(sa.orm.undefer(TNSRobotSubmission.response))
+
+                # get the paginated results
+                submissions = session.scalars(
+                    stmt.limit(page_size).offset((page_number - 1) * page_size)
+                ).all()
+
                 return self.success(
                     data={
                         'tnsrobot_id': tnsrobot.id,
                         'submissions': [s.to_dict() for s in submissions],
+                        'pageNumber': page_number,
+                        'numPerPage': page_size,
+                        'totalMatches': total_matches,
                     }
                 )
 

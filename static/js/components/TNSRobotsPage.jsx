@@ -10,6 +10,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import IconButton from "@mui/material/IconButton";
 import ChecklistIcon from "@mui/icons-material/Checklist";
+import BugReportIcon from "@mui/icons-material/BugReport";
+import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -705,6 +707,7 @@ const TNSRobotsPage = () => {
       owner_group_ids,
       instrument_ids,
       stream_ids,
+      testing,
     } = formData.formData;
 
     if (api_key?.length === 0) {
@@ -728,6 +731,7 @@ const TNSRobotsPage = () => {
       owner_group_ids,
       instrument_ids,
       stream_ids,
+      testing,
     };
 
     dispatch(tnsrobotsActions.addTNSRobot(data)).then((result) => {
@@ -762,6 +766,7 @@ const TNSRobotsPage = () => {
       acknowledgments,
       instrument_ids,
       stream_ids,
+      testing,
     } = formData.formData;
 
     const data = {
@@ -771,6 +776,7 @@ const TNSRobotsPage = () => {
       acknowledgments,
       instrument_ids,
       stream_ids,
+      testing,
     };
 
     if (api_key?.length > 0) {
@@ -873,6 +879,20 @@ const TNSRobotsPage = () => {
         default: [],
         title: "Streams to restrict photometry to (optional)",
       },
+      testing: {
+        type: "boolean",
+        title: "Testing Mode",
+        default: tnsrobotListLookup[tnsrobotToManage]?.testing || true,
+        description:
+          "If enabled, the bot will not submit to TNS but only store the payload in the DB (useful for debug).",
+      },
+      report_existing: {
+        type: "boolean",
+        title: "Report existing",
+        default: tnsrobotListLookup[tnsrobotToManage]?.report_existing || false,
+        description:
+          "If disabled, the bot will not send a report to TNS if an object within 2 arcsec is already in the TNS database. If enabled, a report is sent as long as there are no reports with the same internal name.",
+      },
     },
     required: ["bot_name", "bot_id", "source_group_id", "acknowledgments"],
   };
@@ -962,15 +982,22 @@ const TNSRobotsPage = () => {
     );
   };
 
-  const renderManage = (dataIndex) => {
-    const deleteButton = renderDelete(dataIndex);
-    const editButton = renderEdit(dataIndex);
-    const submissionsButton = renderSubmissions(dataIndex);
+  const renderBotName = (dataIndex) => {
+    const tnsrobot = tnsrobotList[dataIndex];
+
     return (
-      <div className={classes.manageButtons}>
-        {submissionsButton}
-        {editButton}
-        {deleteButton}
+      <div style={{ display: "flex", alignItems: "center" }}>
+        {tnsrobot.testing === true && (
+          <Tooltip
+            title="This bot is in testing mode and won't submit to TNS but only store the payload in the database (useful for debug). Click on the edit button to change this."
+            placement="right"
+          >
+            <BugReportIcon style={{ color: "orange" }} />
+          </Tooltip>
+        )}
+        <Typography variant="body1" style={{ marginLeft: "0.5rem" }}>
+          {tnsrobot.bot_name}
+        </Typography>
       </div>
     );
   };
@@ -1050,6 +1077,37 @@ const TNSRobotsPage = () => {
     );
   };
 
+  const renderReportExisting = (dataIndex) => {
+    const tnsrobot = tnsrobotList[dataIndex];
+    return (
+      <Tooltip
+        title={
+          tnsrobot.report_existing
+            ? "This bot will send a report even if an object is already on TNS (within 2 arcsec of the reported position), as long as there are no reports with the same internal name."
+            : "This bot will not send a report if an object is already on TNS (within 2 arcsec of the reported position)."
+        }
+        placement="left"
+      >
+        <Typography variant="body1">
+          {tnsrobot.report_existing ? "Yes" : "No"}
+        </Typography>
+      </Tooltip>
+    );
+  };
+
+  const renderManage = (dataIndex) => {
+    const deleteButton = renderDelete(dataIndex);
+    const editButton = renderEdit(dataIndex);
+    const submissionsButton = renderSubmissions(dataIndex);
+    return (
+      <div className={classes.manageButtons}>
+        {submissionsButton}
+        {editButton}
+        {deleteButton}
+      </div>
+    );
+  };
+
   const columns = [
     {
       name: "id",
@@ -1066,6 +1124,7 @@ const TNSRobotsPage = () => {
       options: {
         filter: false,
         sort: true,
+        customBodyRenderLite: renderBotName,
       },
     },
     {
@@ -1144,6 +1203,15 @@ const TNSRobotsPage = () => {
           }
           return <span />;
         },
+      },
+    },
+    {
+      name: "report_existing",
+      label: "Report existing",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderReportExisting,
       },
     },
     {

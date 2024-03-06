@@ -4,8 +4,21 @@ import { useParams, Link } from "react-router-dom";
 
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
+import CircularProgress from "@mui/material/CircularProgress";
+import IconButton from "@mui/material/IconButton";
+import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import Tooltip from "@mui/material/Tooltip";
 
 import MUIDataTable from "mui-datatables";
+import ReactJson from "react-json-view";
+
+import { Typography } from "@mui/material";
+import Button from "./Button";
 
 import { userLabel } from "./TNSRobotsPage";
 
@@ -32,13 +45,42 @@ const TNSRobotSubmissionsPage = () => {
   const submissions = useSelector((state) => state.tnsrobots.submissions);
 
   const tnsrobot_submissions =
-    submissions && submissions[id] ? submissions[id] : [];
+    submissions && submissions[id] ? submissions[id]?.submissions : [];
+
+  const [page, setPage] = React.useState(1);
+  const [rowsPerPage, setRowsPerPage] = React.useState(100);
+
+  const [loading, setLoading] = React.useState(false);
+
+  const [showPayload, setShowPayload] = React.useState(null);
 
   useEffect(() => {
-    if (id) {
-      dispatch(tnsrobotsActions.fetchTNSRobotSubmissions(id));
+    if (id && !loading) {
+      setLoading(true);
+      const params = {
+        pageNumber: page,
+        numPerPage: rowsPerPage,
+      };
+      dispatch(tnsrobotsActions.fetchTNSRobotSubmissions(id, params)).then(
+        () => {
+          setLoading(false);
+        },
+      );
     }
-  }, [dispatch, id]);
+  }, [dispatch, page, rowsPerPage, id]);
+
+  const handleTableChange = (action, tableState) => {
+    switch (action) {
+      case "changePage":
+        setPage(tableState.page + 1);
+        break;
+      case "changeRowsPerPage":
+        setRowsPerPage(tableState.rowsPerPage);
+        break;
+      default:
+        break;
+    }
+  };
 
   const usersLookup = {};
   if (allUsers?.length > 0) {
@@ -119,25 +161,110 @@ const TNSRobotSubmissionsPage = () => {
         sort: false,
       },
     },
+    {
+      name: "payload",
+      label: "Payload",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: (dataIndex) => {
+          const { payload } = tnsrobot_submissions[dataIndex];
+          if (payload === null) {
+            return null;
+          }
+          return (
+            <div
+              style={{ display: "flex", flexDirection: "row", width: "100%" }}
+            >
+              <IconButton
+                onClick={() => {
+                  setShowPayload(dataIndex);
+                }}
+              >
+                <HistoryEduIcon />
+              </IconButton>
+            </div>
+          );
+        },
+      },
+    },
   ];
 
   return (
     <div>
-      <MUIDataTable
-        className={classes.tnsrobots}
-        title="TNS Robot Submissions"
-        data={tnsrobot_submissions}
-        columns={columns}
-        options={{
-          selectableRows: "none",
-          filter: false,
-          print: false,
-          download: false,
-          viewColumns: true,
-          pagination: false,
-          search: false,
-        }}
-      />
+      {loading ? (
+        <CircularProgress />
+      ) : (
+        <MUIDataTable
+          className={classes.tnsrobots}
+          title="TNS Robot Submissions"
+          data={tnsrobot_submissions}
+          columns={columns}
+          options={{
+            selectableRows: "none",
+            filter: false,
+            print: false,
+            download: false,
+            viewColumns: true,
+            pagination: true,
+            search: false,
+            serverSide: true,
+            page: page - 1,
+            rowsPerPage,
+            rowsPerPageOptions: [1, 25, 50, 100, 200],
+            jumpToPage: true,
+            count: submissions[id]?.totalMatches || 0,
+            onTableChange: handleTableChange,
+          }}
+        />
+      )}
+      {tnsrobot_submissions?.length > 0 && (
+        <Dialog
+          open={showPayload !== null}
+          onClose={() => setShowPayload(null)}
+          maxWidth="lg"
+        >
+          <DialogTitle
+            style={{ display: "flex", justifyContent: "space-between" }}
+          >
+            <Typography variant="h6">Payload</Typography>
+            <Tooltip title="Copy to clipboard">
+              <span>
+                <IconButton
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      typeof tnsrobot_submissions[showPayload]?.payload ===
+                        "string"
+                        ? tnsrobot_submissions[showPayload]?.payload
+                        : JSON.stringify(
+                            tnsrobot_submissions[showPayload]?.payload,
+                          ),
+                    );
+                  }}
+                >
+                  <ContentCopyIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </DialogTitle>
+          <DialogContent>
+            <ReactJson
+              src={
+                typeof tnsrobot_submissions[showPayload]?.payload === "string"
+                  ? JSON.parse(tnsrobot_submissions[showPayload]?.payload)
+                  : tnsrobot_submissions[showPayload]?.payload
+              }
+              displayDataTypes={false}
+              displayObjectSize={false}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowPayload(null)} color="primary">
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </div>
   );
 };

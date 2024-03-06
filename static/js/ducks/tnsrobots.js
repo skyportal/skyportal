@@ -89,10 +89,14 @@ export const deleteTNSRobotCoauthor = (tnsrobot_id, user_id) =>
     DELETE_TNSROBOT_COAUTHOR,
   );
 
-export const fetchTNSRobotSubmissions = (tnsrobot_id) =>
+export const fetchTNSRobotSubmissions = (tnsrobot_id, params) =>
   API.GET(
-    `/api/tns_robot/${tnsrobot_id}/submissions`,
+    `/api/tns_robot/${tnsrobot_id}/submissions?`,
     FETCH_TNSROBOT_SUBMISSIONS,
+    {
+      ...params,
+      include_payload: true,
+    },
   );
 
 messageHandler.add((actionType, payload, dispatch) => {
@@ -115,12 +119,15 @@ const reducer = (state = { tnsrobotList: [], submissions: {} }, action) => {
       };
     }
     case FETCH_TNSROBOT_SUBMISSIONS_OK: {
-      const { tnsrobot_id, submissions } = action.data;
+      const { tnsrobot_id, submissions, totalMatches } = action.data;
       return {
         ...state,
         submissions: {
           ...state.submissions,
-          [tnsrobot_id]: submissions,
+          [tnsrobot_id]: {
+            totalMatches,
+            submissions,
+          },
         },
       };
     }

@@ -9,7 +9,8 @@ __all__ = [
 import json
 
 import sqlalchemy as sa
-from sqlalchemy.orm import relationship, column_property
+from sqlalchemy.orm import relationship, column_property, deferred
+from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy_utils.types.encrypted.encrypted_type import AesEngine, EncryptedType
 
@@ -60,6 +61,20 @@ class TNSRobot(Base):
         nullable=False,
         server_default="",
         doc="Acknowledgments to use for this robot.",
+    )
+
+    report_existing = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether to still report objects that are already in the TNS, but not reported with this object internal name (i.e., reportedby another survey).",
+    )
+
+    testing = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="true",
+        doc="If true, robot will not report to TNS and only store the request's payload.",
     )
 
     @property
@@ -245,6 +260,9 @@ class TNSRobotSubmission(Base):
         default=None,
         doc="Stream IDs to use for this submission.",
     )
+
+    payload = deferred(sa.Column(psql.JSONB, doc='Payload to be sent to TNS.'))
+    response = deferred(sa.Column(psql.JSONB, doc='Serialized HTTP response.'))
 
     tnsrobot = relationship(
         'TNSRobot',
