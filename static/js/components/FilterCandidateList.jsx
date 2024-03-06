@@ -840,7 +840,7 @@ const FilterCandidateList = ({
                 </Typography>
                 <div className={classes.redshiftFiltering}>
                   <Controller
-                    render={({ field: { onChange } }) => (
+                    render={({ field: { onChange, value } }) => (
                       <TextField
                         id="minimum-redshift"
                         label="Minimum"
@@ -849,7 +849,10 @@ const FilterCandidateList = ({
                         margin="dense"
                         style={{ minWidth: "100%" }}
                         onChange={(event) => onChange(event.target.value)}
-                        value={selectedScanningProfile?.redshiftMinimum || ""}
+                        value={value}
+                        InputLabelProps={{
+                          shrink: true,
+                        }}
                       />
                     )}
                     name="redshiftMinimum"
@@ -857,7 +860,7 @@ const FilterCandidateList = ({
                     control={control}
                   />
                   <Controller
-                    render={({ field: { onChange } }) => (
+                    render={({ field: { onChange, value } }) => (
                       <TextField
                         id="maximum-redshift"
                         label="Maximum"
@@ -866,7 +869,10 @@ const FilterCandidateList = ({
                         margin="dense"
                         style={{ minWidth: "100%" }}
                         onChange={(event) => onChange(event.target.value)}
-                        value={selectedScanningProfile?.redshiftMaximum || ""}
+                        value={value}
+                        InputLabelProps={{
+                          shrink: true,
+                        }}
                       />
                     )}
                     name="redshiftMaximum"
