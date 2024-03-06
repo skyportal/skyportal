@@ -253,7 +253,7 @@ def test_save_candidate_no_groups_error_message(
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_submit_annotations_sorting(
     driver,
     view_only_user,
@@ -286,8 +286,8 @@ def test_submit_annotations_sorting(
     )
     assert status == 200
 
-    # origins are cached, so we wait for the cache to invalidate (2 seconds in test config)
-    time.sleep(2)
+    # origins are cached, so we wait for the cache to invalidate (5 seconds in test config)
+    time.sleep(5)
 
     driver.get(f"/become_user/{view_only_user.id}")
     driver.get("/candidates")
@@ -296,11 +296,11 @@ def test_submit_annotations_sorting(
         wait_clickable=False,
     )
 
-    driver.click_xpath('//div[@aria-labelledby="annotationSortingOriginSelect"]')
+    driver.click_xpath('//input[@id="annotationSortingOriginSelect"]')
     driver.click_xpath(f'//li[text()="{origin}"]')
-    driver.click_xpath('//div[@aria-labelledby="annotationSortingKeySelect"]')
+    driver.click_xpath('//input[@id="annotationSortingKeySelect"]')
     driver.click_xpath('//li[text()="numeric_field"]')
-    driver.click_xpath('//div[@aria-labelledby="annotationSortingOrderSelect"]')
+    driver.click_xpath('//input[@id="annotationSortingOrderSelect"]')
     driver.click_xpath('//li[text()="Ascending"]')
 
     driver.click_xpath('//button[text()="Search"]')
@@ -617,8 +617,8 @@ def test_add_scanning_profile(
         f'//span[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
     )
     # driver.wait_for_xpath('//div[text()="kowalski"]')
-    driver.wait_for_xpath('//div[text()="offset_from_host_galaxy"]')
-    driver.wait_for_xpath('//div[text()="Descending"]')
+    driver.wait_for_xpath('//input[@value="offset_from_host_galaxy"]')
+    driver.wait_for_xpath('//input[@value="Descending"]')
 
 
 def test_delete_scanning_profile(driver, user, public_group):

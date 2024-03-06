@@ -272,6 +272,9 @@ const FilterCandidateList = ({
 
   const [showAllGroups, setShowAllGroups] = useState(true);
 
+  const [annotationSortingKeyOptions, setAnnotationSortingKeyOptions] =
+    useState([]);
+
   useEffect(() => {
     dispatch(gcnEventsActions.fetchGcnEvents());
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -330,6 +333,14 @@ const FilterCandidateList = ({
     }
     setSelectedGcnEventId("");
     setSelectedClassifications(scanningProfile?.classifications || []);
+    if (availableAnnotationsInfo) {
+      const newOptions = scanningProfile?.sortingOrigin
+        ? (availableAnnotationsInfo[scanningProfile?.sortingOrigin] || [])
+            .map((annotation) => Object.keys(annotation || {}))
+            .flat()
+        : [];
+      setAnnotationSortingKeyOptions(newOptions);
+    }
     reset({
       startDate,
       endDate,
@@ -356,7 +367,12 @@ const FilterCandidateList = ({
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reset, selectedScanningProfile, userAccessibleGroups]);
+  }, [
+    reset,
+    selectedScanningProfile,
+    userAccessibleGroups,
+    availableAnnotationsInfo,
+  ]);
 
   // Set initial form values in the redux state
   useEffect(() => {
@@ -502,19 +518,6 @@ const FilterCandidateList = ({
     );
     setQueryInProgress(false);
   };
-
-  const annotationSortingOriginOptions = Object.keys(
-    availableAnnotationsInfo || [],
-  );
-
-  // availableAnnotationsInfo has the origin as the key and the annotations as the value
-  // the annotations are a list of objects with keys and values
-  // we want to extract the keys to use as options for the sorting key
-  const annotationSortingKeyOptions = formState.sortingOrigin
-    ? Object.keys(availableAnnotationsInfo[formState.sortingOrigin] || {})
-    : [];
-
-  const annotationSortingOrderOptions = ["asc", "desc"];
 
   return (
     <div>
@@ -1064,7 +1067,7 @@ const FilterCandidateList = ({
                       render={({ field: { onChange, value } }) => (
                         <Autocomplete
                           id="annotationSortingOriginSelect"
-                          options={annotationSortingOriginOptions}
+                          options={Object.keys(availableAnnotationsInfo || [])}
                           style={{ minWidth: "100%" }}
                           value={value}
                           onChange={(event, newValue) => {
@@ -1075,8 +1078,17 @@ const FilterCandidateList = ({
                                 sortingKey: null,
                                 sortingOrder: null,
                               });
+                              setAnnotationSortingKeyOptions([]);
                             } else {
                               onChange(newValue);
+                              const newOptions = (
+                                availableAnnotationsInfo[newValue] || []
+                              )
+                                .map((annotation) =>
+                                  Object.keys(annotation || {}),
+                                )
+                                .flat();
+                              setAnnotationSortingKeyOptions(newOptions);
                             }
                           }}
                           renderInput={(params) => (
@@ -1147,7 +1159,7 @@ const FilterCandidateList = ({
                       render={({ field: { onChange, value } }) => (
                         <Autocomplete
                           id="annotationSortingOrderSelect"
-                          options={annotationSortingOrderOptions}
+                          options={["asc", "desc"]}
                           style={{ minWidth: "100%" }}
                           value={value}
                           getOptionLabel={(option) => {
