@@ -2116,6 +2116,41 @@ ObjPhotometryHandler.get.__doc__ = f"""
               type: boolean
             description: |
               Boolean indicating whether to phase fold the light curve. Defaults to false.
+          - in: query
+            name: phaseFoldData
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to phase fold the light curve. Defaults to false.
+          - in: query
+            name: deduplicatePhotometry
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to deduplicate photometry. Defaults to false.
+          - in: query
+            name: includeOwnerInfo
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include photometry owner. Defaults to false.
+          - in: query
+            name: includeStreamInfo
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include photometry stream information. Defaults to false.
+          - in: query
+            name: includeValidationInfo
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include photometry validation information. Defaults to false.
         responses:
           200:
             content:

@@ -24,11 +24,7 @@ class Validator(Schema):
             raise ValidationError('method is required')
         if data['method'] not in ['POST', 'PATCH', 'DELETE']:
             raise ValidationError('method must be one of POST, PATCH or DELETE')
-        if (
-            data['method'] == 'PATCH'
-            or data['method'] == 'DELETE'
-            or data['method'] == 'POST'
-        ):
+        if data['method'] in ['PATCH', 'DELETE', 'POST']:
             if 'photometry_id' not in data:
                 raise ValidationError('Missing required fields')
             if data['photometry_id'] is None:
@@ -40,7 +36,7 @@ class PhotometryValidationHandler(BaseHandler):
     async def post(self, photometry_id):
         """
         ---
-        description: Validate or reject a photometric point
+        description: Validate or reject a photometric point based on data quality (e.g. examining quality of the image and/or reduction)
         tags:
           - photometryvalidations
         parameters:
