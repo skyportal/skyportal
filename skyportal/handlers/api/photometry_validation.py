@@ -125,9 +125,8 @@ class PhotometryValidationHandler(BaseHandler):
                     and photometry_validation.explanation == explanation
                     and photometry_validation.notes == notes
                 ):
-                    return self.error(
-                        "Photometry is already validated/rejected with the same explanation and notes"
-                    )
+                    # Everything already up-to-date!
+                    return self.success(data={'id': photometry_validation.id})
                 # otherwise, update the status and explanation
                 else:
                     photometry_validation.validated = validated
