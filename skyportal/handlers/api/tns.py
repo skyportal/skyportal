@@ -55,6 +55,27 @@ def create_tns_robot(
     stream_ids,
     session,
 ):
+    """Create a TNSRobot and its owner TNSRobotGroups
+
+    Parameters
+    ----------
+    data : dict
+        Dictionary containing the TNSRobot data passed in the PUT request
+    owner_group_ids : list of int
+        List of group IDs that will own the TNSRobot
+    instrument_ids : list of int
+        List of instrument IDs that can be used for TNS reporting
+    stream_ids : list of int
+        List of stream IDs that can be used for TNS reporting
+    session : `baselayer.app.models.Session`
+        Database session
+
+    Returns
+    -------
+    int
+        The ID of the newly created TNSRobot
+    """
+
     # False if not specified
     report_existing = data.get('report_existing', False)
     if str(report_existing).lower().strip() in ['true', 't', '1']:
@@ -147,6 +168,26 @@ def update_tns_robot(
     stream_ids,
     session,
 ):
+    """Update a TNSRobot and its owner TNSRobotGroups
+
+    Parameters
+    ----------
+    data : dict
+        Dictionary containing the TNSRobot data passed in the PUT request, won't update missing or empty fields
+    existing_id : int
+        The ID of the TNSRobot to update
+    instrument_ids : list of int
+        List of instrument IDs that can be used for TNS reporting
+    stream_ids : list of int
+        List of stream IDs that can be used for TNS reporting
+    session : `baselayer.app.models.Session`
+        Database session
+
+    Returns
+    -------
+    None
+    """
+
     tnsrobot = session.scalar(
         TNSRobot.select(session.user_or_token, mode="update").where(
             TNSRobot.id == existing_id
@@ -449,10 +490,45 @@ class TNSRobotHandler(BaseHandler):
 
 
 class TNSRobotCoauthorHandler(BaseHandler):
-    # here we can add or remove coauthors from a TNSRobot, so we implement POST and DELETE
-    # the POST handler is used to add a coauthor to a TNSRobot
     @permissions(['Manage TNS robots'])
     def post(self, tnsrobot_id, user_id=None):
+        """
+        ---
+        description: Add a coauthor to a TNS robot
+        tags:
+            - tnsrobots
+        parameters:
+            - in: path
+              name: tnsrobot_id
+              required: true
+              schema:
+                type: integer
+              description: ID of the TNS robot
+            - in: path
+              name: user_id
+              required: false
+              schema:
+                type: integer
+              description: ID of the user to add as a coauthor
+        requestBody:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            user_id:
+                                type: integer
+                                description: ID of the user to add as a coauthor, if not specified in the URL
+        responses:
+            200:
+                content:
+                    application/json:
+                        schema: Success
+            400:
+                content:
+                    application/json:
+                        schema: Error
+        """
         if user_id is None:
             user_id = self.get_json().get('user_id')
         if user_id is None:
@@ -497,6 +573,35 @@ class TNSRobotCoauthorHandler(BaseHandler):
 
     @permissions(['Manage TNS robots'])
     def delete(self, tnsrobot_id, user_id):
+        """
+        ---
+        description: Remove a coauthor from a TNS robot
+        tags:
+            - tnsrobots
+        parameters:
+            - in: path
+              name: tnsrobot_id
+              required: true
+              schema:
+                type: integer
+              description: ID of the TNS robot
+            - in: path
+              name: user_id
+              required: true
+              schema:
+                type: integer
+              description: ID of the user to remove as a coauthor
+        responses:
+            200:
+                content:
+                    application/json:
+                        schema: Success
+            400:
+                content:
+                    application/json:
+                        schema: Error
+        """
+
         # the DELETE handler is used to remove a coauthor from a TNSRobot
         with self.Session() as session:
             # verify that the user has access to the tnsrobot
@@ -527,9 +632,51 @@ class TNSRobotCoauthorHandler(BaseHandler):
 
 
 class TNSRobotGroupHandler(BaseHandler):
-    # here users can add a group to a TNSRobot, edit it (allow auto-reporting or not), or remove it
     @permissions(['Manage TNS robots'])
     def put(self, tnsrobot_id, group_id=None):
+        """
+        ---
+        description: Add or edit a group for a TNS robot
+        tags:
+            - tnsrobots
+        parameters:
+            - in: path
+              name: tnsrobot_id
+              required: true
+              schema:
+                type: integer
+              description: ID of the TNS robot
+            - in: path
+              name: group_id
+              required: false
+              schema:
+                type: integer
+              description: ID of the group to edit
+        requestBody:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            group_id:
+                                type: integer
+                                description: ID of the group to add
+                            auto_report:
+                                type: boolean
+                                description: Whether to automatically report to this group
+                            owner:
+                                type: boolean
+                                description: Whether this group is the owner of the TNS robot
+        responses:
+            200:
+                content:
+                    application/json:
+                        schema: Success
+            400:
+                content:
+                    application/json:
+                        schema: Error
+        """
         # the PUT handler is used to add or edit a group
         data = self.get_json()
         autoreport = data.get('auto_report', None)
@@ -648,6 +795,32 @@ class TNSRobotGroupHandler(BaseHandler):
 
     @permissions(['Manage TNS robots'])
     def delete(self, tnsrobot_id, group_id):
+        """
+        ---
+        description: Delete a group from a TNSRobot
+        parameters:
+            - in: path
+              name: tnsrobot_id
+              required: true
+              schema:
+                type: string
+              description: The ID of the TNSRobot
+            - in: path
+              name: group_id
+              required: true
+              schema:
+                type: string
+              description: The ID of the group to remove from the TNSRobot
+        responses:
+            200:
+                content:
+                    application/json:
+                        schema: Success
+            400:
+                content:
+                    application/json:
+                        schema: Error
+        """
         # the DELETE handler is used to remove a group from a TNSRobot
         with self.Session() as session:
             # verify that the user has access to the tnsrobot
@@ -704,9 +877,54 @@ class TNSRobotGroupHandler(BaseHandler):
 
 
 class TNSRobotGroupAutoreporterHandler(BaseHandler):
-    # this handler is used to add group users as autoreporters for a TNSRobot that their group has access to
     @permissions(['Manage TNS robots'])
     def post(self, tnsrobot_id, group_id, user_id=None):
+        """
+        ---
+        description: Add autoreporter(s) to a TNSRobotGroup
+        parameters:
+            - in: path
+              name: tnsrobot_id
+              required: true
+              schema:
+                type: string
+              description: The ID of the TNSRobot
+            - in: path
+              name: group_id
+              required: true
+              schema:
+                type: string
+              description: The ID of the group to add autoreporter(s) to
+            - in: query
+              name: user_id
+              required: false
+              schema:
+                type: string
+              description: The ID of the user to add as an autoreporter
+        requestBody:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            user_ids:
+                                type: array
+                                items:
+                                    type: string
+                                description: |
+                                    An array of user IDs to add as autoreporters.
+                                    If a string is provided, it will be split by commas.
+        responses:
+            200:
+                content:
+                    application/json:
+                        schema: Success
+            400:
+                content:
+                    application/json:
+                        schema: Error
+        """
+
         if user_id is None:
             user_id = self.get_json().get('user_id', None)
 
@@ -809,6 +1027,55 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
 
     @permissions(['Manage TNS robots'])
     def delete(self, tnsrobot_id, group_id, user_id):
+        """
+        ---
+        description: Delete an autoreporter from a TNSRobotGroup
+        tags:
+            - tnsrobot_groups
+        parameters:
+            - in: path
+              name: tnsrobot_id
+              required: true
+              schema:
+                type: integer
+              description: The ID of the TNSRobot
+            - in: path
+              name: group_id
+              required: true
+              schema:
+                type: integer
+              description: The ID of the Group
+            - in: path
+              name: user_id
+              required: false
+              schema:
+                type: integer
+              description: The ID of the User to remove as an autoreporter. If not provided, the user_id will be taken from the request body.
+        requestBody:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            user_id:
+                                type: integer
+                                description: The ID of the User to remove as an autoreporter
+                            user_ids:
+                                type: array
+                                items:
+                                    type: integer
+                                description: The IDs of the Users to remove as autoreporters, overrides user_id
+        responses:
+            200:
+                content:
+                    application/json:
+                        schema: Success
+            400:
+                content:
+                    application/json:
+                        schema: Error
+        """
+
         if user_id is None:
             user_id = self.get_json().get('user_id', None)
 
@@ -905,6 +1172,75 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
 class TNSRobotSubmissionHandler(BaseHandler):
     @auth_or_token
     def get(self, tnsrobot_id, id=None):
+        """
+        ---
+        single:
+            description: Retrieve a TNSRobotSubmission
+            parameters:
+                - in: path
+                  name: tnsrobot_id
+                  required: true
+                  schema:
+                    type: integer
+                  description: The ID of the TNSRobot
+                - in: path
+                  name: id
+                  required: false
+                  schema:
+                    type: integer
+                  description: The ID of the TNSRobotSubmission
+            responses:
+                200:
+                    content:
+                        application/json:
+                            schema: TNSRobotSubmission
+                400:
+                    content:
+                        application/json:
+                            schema: Error
+        multiple:
+            description: Retrieve all TNSRobotSubmissions
+            parameters:
+                - in: path
+                  name: tnsrobot_id
+                  required: true
+                  schema:
+                    type: integer
+                  description: The ID of the TNSRobot
+                - in: query
+                  name: pageNumber
+                  required: false
+                  schema:
+                    type: integer
+                  description: The page number to retrieve, starting at 1
+                - in: query
+                  name: numPerPage
+                  required: false
+                  schema:
+                    type: integer
+                  description: The number of results per page, defaults to 100
+                - in: query
+                  name: include_payload
+                  required: false
+                  schema:
+                    type: boolean
+                  description: Whether to include the payload in the response
+                - in: query
+                  name: include_response
+                  required: false
+                  schema:
+                    type: boolean
+                  description: Whether to include the response in the response
+            responses:
+                200:
+                    content:
+                        application/json:
+                            schema: ArrayOfTNSRobotSubmissions
+                400:
+                    content:
+                        application/json:
+                            schema: Error
+        """
         include_payload = self.get_query_argument('include_payload', False)
         include_response = self.get_query_argument('include_response', False)
         if str(include_payload).lower().strip() in ['true', 't', '1']:

@@ -250,6 +250,22 @@ def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=2.0):
 
 
 def get_internal_names(api_key, headers, tns_name=None):
+    """Query TNS to get internal names of an object
+
+    Parameters
+    ----------
+    api_key : str
+        TNS api key
+    headers : str
+        TNS query headers
+    tns_name : str
+        Name of the object to query TNS for
+
+    Returns
+    -------
+    list
+        Internal names of the object
+    """
     data = {
         'api_key': api_key,
         'data': json.dumps(
@@ -318,6 +334,34 @@ def get_tns(
     start_date=None,
     group_ids=None,
 ):
+    """Get TNS data for an object
+
+    Parameters
+    ----------
+    tnsrobot_id : str
+        TNSRobot API key
+    user_id : str
+        TNSRobot user id
+    include_photometry : bool, optional
+        Include photometry data, by default False
+    include_spectra : bool, optional
+        Include spectra data, by default False
+    radius : float, optional
+        Radius to search around the object, by default 2.0
+    timeout : int, optional
+        Timeout for the request, by default 2
+    obj_id : str, optional
+        TNS object id, by default None
+    start_date : str, optional
+        Start date for the search, by default None
+    group_ids : list, optional
+        List of group ids to search for, by default None
+
+    Returns
+    -------
+    dict
+        TNS data
+    """
     if obj_id is None and start_date is None:
         raise ValueError('obj_id or start_date must be specified')
 
@@ -342,6 +386,20 @@ def get_tns(
 
 
 def read_tns_photometry(photometry, session):
+    """Read TNS photometry data
+
+    Parameters
+    ----------
+    photometry : dict
+        TNS photometry data
+    session : Session
+        Database session
+
+    Returns
+    -------
+    dict
+        Formatted photometry data
+    """
     tns_instrument_id = photometry["instrument"]["id"]
     inst_name = None
     for key, value in TNS_INSTRUMENT_IDS.items():
@@ -399,6 +457,20 @@ def read_tns_photometry(photometry, session):
 
 
 def read_tns_spectrum(spectrum, session):
+    """Read TNS spectrum data
+
+    Parameters
+    ----------
+    spectrum : dict
+        TNS spectrum data
+    session : Session
+        Database session
+
+    Returns
+    -------
+    dict
+        Formatted spectrum data
+    """
     try:
         tab = Table.read(spectrum["asciifile"], format="ascii")
         tab.rename_column(tab.columns[0].name, 'wavelengths')
@@ -435,6 +507,18 @@ def read_tns_spectrum(spectrum, session):
 
 
 def get_objects_from_soup(soup):
+    """Get objects from a TNS search result page
+
+    Parameters
+    ----------
+    soup : BeautifulSoup
+        The soup of a TNS search result page
+
+    Returns
+    -------
+    list
+        A list of dictionaries with the keys 'name', 'ra', and 'dec'
+    """
     objects = []
     try:
         table = soup.find('table', attrs={'class': 'results-table'})
@@ -462,6 +546,24 @@ def get_objects_from_soup(soup):
 def get_objects_from_page(
     headers, page=1, discovered_period_value=5, discovered_period_units='days'
 ):
+    """Get objects from a TNS search result page
+
+    Parameters
+    ----------
+    headers : dict
+        Headers to use for the request
+    page : int, optional
+        Page number, by default 1
+    discovered_period_value : int, optional
+        Discovered period value, by default 5
+    discovered_period_units : str, optional
+        Discovered period units, by default 'days'
+
+    Returns
+    -------
+    list
+        A list of dictionaries with the keys 'name', 'ra', and 'dec'
+    """
     url = (
         search_frontend_url
         + f"?discovered_period_value={discovered_period_value}&discovered_period_units={discovered_period_units}&page={page}"
@@ -501,6 +603,22 @@ def get_objects_from_page(
 
 
 def get_tns_objects(headers, discovered_period_value=5, discovered_period_units='days'):
+    """Get all objects from TNS
+
+    Parameters
+    ----------
+    headers : dict
+        Headers to use for the request
+    discovered_period_value : int, optional
+        Discovered period value, by default 5
+    discovered_period_units : str, optional
+        Discovered period units, by default 'days'
+
+    Returns
+    -------
+    list
+        A list of dictionaries with the keys 'name', 'ra', and 'dec'
+    """
     all_objects = []
     page = 0
     next_page = True

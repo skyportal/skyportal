@@ -54,6 +54,7 @@ class TNSReportError(Exception):
 
 @check_loaded(logger=log)
 def service(*args, **kwargs):
+    """Service to submit AT reports for sources to TNS, processing the TNSRobotSubmission table."""
     while True:
         with DBSession() as session:
             try:
