@@ -28,6 +28,7 @@ from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
     TNS_INSTRUMENT_IDS,
     get_IAUname,
+    get_internal_names,
 )
 from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.services import check_loaded
@@ -173,25 +174,29 @@ def service(*args, **kwargs):
                 # and if it is, we skip the submission
                 # otherwise, we submit as long as there are no reports with the same internal source name
                 # (i.e. the same obj_id from the same survey)
-                if not tnsrobot.testing:
-                    _, existing_tns_name = get_IAUname(
-                        altdata['api_key'], tns_headers, obj_id=obj_id
-                    )
-                    if not tnsrobot.report_existing:
-                        if existing_tns_name is not None:
-                            error_msg = f'{obj_id} already posted to TNS as {existing_tns_name}.'
-                            log(error_msg)
-                            submission_request.status = f'skipped: {error_msg}'
-                            session.commit()
-                            continue
-                    else:
-                        # TODO: query TNS to get the photometry of that object, and check that none of it
-                        # has been submitted with the same internal source name (i.e. the same obj_id from the same survey)
-                        # if it has, we skip the submission
-                        log(
-                            'report_existing is set to True, but this is not implemented yet'
+                _, existing_tns_name = get_IAUname(
+                    altdata['api_key'], tns_headers, obj_id=obj_id
+                )
+                if not tnsrobot.report_existing:
+                    if existing_tns_name is not None:
+                        error_msg = (
+                            f'{obj_id} already posted to TNS as {existing_tns_name}.'
                         )
-                        pass
+                        log(error_msg)
+                        submission_request.status = f'skipped: {error_msg}'
+                        session.commit()
+                        continue
+                else:
+                    # look if the object on TNS has already been reported by the same survey (same internal name, here being the obj_id)
+                    internal_names = get_internal_names(
+                        altdata['api_key'], tns_headers, tns_name=existing_tns_name
+                    )
+                    if len(internal_names) > 0 and obj_id in internal_names:
+                        error_msg = f'{obj_id} already posted to TNS with the same internal source name.'
+                        log(error_msg)
+                        submission_request.status = f'skipped: {error_msg}'
+                        session.commit()
+                        continue
 
                 # Get the sources saved to the groups that have access to this TNS robot,
                 # this is so if a user that has access to this robot saved the obj as a source before,

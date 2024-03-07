@@ -249,6 +249,31 @@ def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=2.0):
         return None, None
 
 
+def get_internal_names(api_key, headers, tns_name=None):
+    data = {
+        'api_key': api_key,
+        'data': json.dumps(
+            {
+                "objname": tns_name,
+            }
+        ),
+    }
+
+    r = requests.post(
+        object_url,
+        headers=headers,
+        data=data,
+        allow_redirects=True,
+        stream=True,
+        timeout=10,
+    )
+    reply = json.loads(r.text)
+    internal_names = reply["data"]["reply"]["internal_names"]
+    # comma separated list of internal names, starting with a comma (so we fiter out the first empty string after splitting)
+    internal_names = list(filter(None, map(str.strip, internal_names.split(","))))
+    return internal_names
+
+
 def get_tns(
     tnsrobot_id,
     user_id,

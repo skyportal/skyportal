@@ -38,7 +38,6 @@ init_db(**cfg['database'])
 Session = scoped_session(sessionmaker())
 
 TNS_URL = cfg['app.tns.endpoint']
-report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
 object_url = urllib.parse.urljoin(TNS_URL, 'api/get/object')
 search_frontend_url = urllib.parse.urljoin(TNS_URL, 'search')
 
