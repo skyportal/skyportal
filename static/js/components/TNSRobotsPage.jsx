@@ -708,6 +708,7 @@ const TNSRobotsPage = () => {
       instrument_ids,
       stream_ids,
       testing,
+      report_existing,
     } = formData.formData;
 
     if (api_key?.length === 0) {
@@ -732,6 +733,7 @@ const TNSRobotsPage = () => {
       instrument_ids,
       stream_ids,
       testing,
+      report_existing,
     };
 
     dispatch(tnsrobotsActions.addTNSRobot(data)).then((result) => {
@@ -767,6 +769,7 @@ const TNSRobotsPage = () => {
       instrument_ids,
       stream_ids,
       testing,
+      report_existing,
     } = formData.formData;
 
     const data = {
@@ -777,6 +780,7 @@ const TNSRobotsPage = () => {
       instrument_ids,
       stream_ids,
       testing,
+      report_existing,
     };
 
     if (api_key?.length > 0) {
@@ -884,7 +888,7 @@ const TNSRobotsPage = () => {
         title: "Testing Mode",
         default: tnsrobotListLookup[tnsrobotToManage]?.testing || true,
         description:
-          "If enabled, the bot will not submit to TNS but only store the payload in the DB (useful for debug).",
+          "If enabled, the bot will not submit to TNS but only store the payload in the DB (useful for debugging).",
       },
       report_existing: {
         type: "boolean",
@@ -989,7 +993,7 @@ const TNSRobotsPage = () => {
       <div style={{ display: "flex", alignItems: "center" }}>
         {tnsrobot.testing === true && (
           <Tooltip
-            title="This bot is in testing mode and won't submit to TNS but only store the payload in the database (useful for debug). Click on the edit button to change this."
+            title="This bot is in testing mode and won't submit to TNS but only store the payload in the database (useful for debugging). Click on the edit button to change this."
             placement="right"
           >
             <BugReportIcon style={{ color: "orange" }} />
