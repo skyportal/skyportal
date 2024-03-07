@@ -1,16 +1,17 @@
-"""tns-v2
+"""tns_v2
 
-Revision ID: 588304a4791a
+Revision ID: 0322f907b589
 Revises: 550fbafe6a2c
-Create Date: 2024-02-27 10:29:52.040523
+Create Date: 2024-03-07 10:23:32.409674
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '588304a4791a'
+revision = '0322f907b589'
 down_revision = '550fbafe6a2c'
 branch_labels = None
 depends_on = None
@@ -55,33 +56,6 @@ def upgrade():
         unique=False,
     )
     op.create_table(
-        'tnsrobot_submissions',
-        sa.Column('tnsrobot_id', sa.Integer(), nullable=False),
-        sa.Column('obj_id', sa.String(), nullable=False),
-        sa.Column('user_id', sa.Integer(), nullable=False),
-        sa.Column('custom_reporting_string', sa.String(), nullable=True),
-        sa.Column('status', sa.String(), nullable=False),
-        sa.Column('archival', sa.Boolean(), nullable=False),
-        sa.Column('archival_comment', sa.String(), nullable=True),
-        sa.Column('submission_id', sa.Integer(), nullable=True),
-        sa.Column('auto_submission', sa.Boolean(), nullable=False),
-        sa.Column('instrument_ids', sa.ARRAY(sa.Integer()), nullable=True),
-        sa.Column('stream_ids', sa.ARRAY(sa.Integer()), nullable=True),
-        sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.Column('modified', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['obj_id'], ['objs.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['tnsrobot_id'], ['tnsrobots.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('id'),
-    )
-    op.create_index(
-        op.f('ix_tnsrobot_submissions_created_at'),
-        'tnsrobot_submissions',
-        ['created_at'],
-        unique=False,
-    )
-    op.create_table(
         'tnsrobot_group_users',
         sa.Column('tnsrobot_group_id', sa.Integer(), nullable=False),
         sa.Column('group_user_id', sa.Integer(), nullable=False),
@@ -102,13 +76,52 @@ def upgrade():
         ['created_at'],
         unique=False,
     )
+    op.create_table(
+        'tnsrobot_submissions',
+        sa.Column('tnsrobot_id', sa.Integer(), nullable=False),
+        sa.Column('obj_id', sa.String(), nullable=False),
+        sa.Column('user_id', sa.Integer(), nullable=False),
+        sa.Column('custom_reporting_string', sa.String(), nullable=True),
+        sa.Column('status', sa.String(), nullable=False),
+        sa.Column('archival', sa.Boolean(), nullable=False),
+        sa.Column('archival_comment', sa.String(), nullable=True),
+        sa.Column('submission_id', sa.Integer(), nullable=True),
+        sa.Column('auto_submission', sa.Boolean(), nullable=False),
+        sa.Column('instrument_ids', sa.ARRAY(sa.Integer()), nullable=True),
+        sa.Column('stream_ids', sa.ARRAY(sa.Integer()), nullable=True),
+        sa.Column('payload', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column('response', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('modified', sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(['obj_id'], ['objs.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['tnsrobot_id'], ['tnsrobots.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id'),
+    )
+    op.create_index(
+        op.f('ix_tnsrobot_submissions_created_at'),
+        'tnsrobot_submissions',
+        ['created_at'],
+        unique=False,
+    )
     op.add_column(
         'tnsrobots',
-        sa.Column('acknowledgments', sa.String(), nullable=False, server_default=""),
+        sa.Column('acknowledgments', sa.String(), server_default='', nullable=False),
+    )
+    op.add_column(
+        'tnsrobots',
+        sa.Column(
+            'report_existing', sa.Boolean(), server_default='false', nullable=False
+        ),
+    )
+    op.add_column(
+        'tnsrobots',
+        sa.Column('testing', sa.Boolean(), server_default='true', nullable=False),
     )
 
-    # we set the default value to '' because the value is not nullable, then we replace it with
-    # the current auto_reporters value because we are removing the column, but they're equivalent
+    # we've set the default acknowledgments value to '' because the value is not nullable,
+    # replace it with the current auto_reporters before removing the column, as they're equivalent
     # so we can just copy the value, unless auto_reporters is null, in which case we set it to ''
     op.execute(
         """
@@ -128,18 +141,14 @@ def upgrade():
 
     op.drop_index('ix_tnsrobots_group_id', table_name='tnsrobots')
     op.drop_constraint('tnsrobots_group_id_fkey', 'tnsrobots', type_='foreignkey')
+    op.drop_column('tnsrobots', 'group_id')
     op.drop_column('tnsrobots', 'auto_report_group_ids')
     op.drop_column('tnsrobots', 'auto_reporters')
-    op.drop_column('tnsrobots', 'group_id')
     # ### end Alembic commands ###
 
 
 def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
-    op.add_column(
-        'tnsrobots',
-        sa.Column('group_id', sa.INTEGER(), autoincrement=False, nullable=False),
-    )
     op.add_column(
         'tnsrobots',
         sa.Column('auto_reporters', sa.VARCHAR(), autoincrement=False, nullable=True),
@@ -154,6 +163,10 @@ def downgrade():
             comment='List of group IDs to report from',
         ),
     )
+    op.add_column(
+        'tnsrobots',
+        sa.Column('group_id', sa.INTEGER(), autoincrement=False, nullable=False),
+    )
     op.create_foreign_key(
         'tnsrobots_group_id_fkey',
         'tnsrobots',
@@ -163,15 +176,17 @@ def downgrade():
         ondelete='CASCADE',
     )
     op.create_index('ix_tnsrobots_group_id', 'tnsrobots', ['group_id'], unique=False)
+    op.drop_column('tnsrobots', 'testing')
+    op.drop_column('tnsrobots', 'report_existing')
     op.drop_column('tnsrobots', 'acknowledgments')
-    op.drop_index(
-        op.f('ix_tnsrobot_group_users_created_at'), table_name='tnsrobot_group_users'
-    )
-    op.drop_table('tnsrobot_group_users')
     op.drop_index(
         op.f('ix_tnsrobot_submissions_created_at'), table_name='tnsrobot_submissions'
     )
     op.drop_table('tnsrobot_submissions')
+    op.drop_index(
+        op.f('ix_tnsrobot_group_users_created_at'), table_name='tnsrobot_group_users'
+    )
+    op.drop_table('tnsrobot_group_users')
     op.drop_index(op.f('ix_tnsrobot_groups_created_at'), table_name='tnsrobot_groups')
     op.drop_table('tnsrobot_groups')
     op.drop_index(
