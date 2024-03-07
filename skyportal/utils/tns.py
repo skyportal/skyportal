@@ -221,12 +221,12 @@ def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=2.0):
     r = requests.post(search_url, headers=headers, data=data)
 
     count = 0
-    count_limit = 5
+    count_limit = 24  # 6 * 4 * 10 = 4 minutes of retries
     while r.status_code == 429 and count < count_limit:
         log(
-            f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
+            f'TNS request rate limited: {str(r.json())}.  Waiting 10 seconds to try again.'
         )
-        time.sleep(30)
+        time.sleep(10)
         r = requests.post(search_url, headers=headers, data=data)
         count += 1
 
@@ -259,18 +259,51 @@ def get_internal_names(api_key, headers, tns_name=None):
         ),
     }
 
-    r = requests.post(
-        object_url,
-        headers=headers,
-        data=data,
-        allow_redirects=True,
-        stream=True,
-        timeout=10,
-    )
-    reply = json.loads(r.text)
-    internal_names = reply["data"]["reply"]["internal_names"]
-    # comma separated list of internal names, starting with a comma (so we fiter out the first empty string after splitting)
-    internal_names = list(filter(None, map(str.strip, internal_names.split(","))))
+    status_code = 429
+    n_retries = 0
+    r = None
+    while n_retries < 24:  # 6 * 4 * 10 = 4 minutes of retries
+        r = requests.post(
+            object_url,
+            headers=headers,
+            data=data,
+            allow_redirects=True,
+            stream=True,
+            timeout=10,
+        )
+        status_code = r.status_code
+        if status_code == 429:
+            n_retries += 1
+            log(
+                f'TNS request rate limited: {str(r.json())}.  Waiting 10 seconds to try again.'
+            )
+            time.sleep(10)
+        else:
+            break
+
+    if not isinstance(r, requests.Response):
+        raise ValueError('TNS request failed: no response received.')
+
+    if r.status_code not in [200, 429, 401]:
+        raise ValueError(f'TNS request failed: {str(r.json())}')
+
+    if status_code == 401:
+        raise ValueError('TNS request failed: invalid TNSRobot API key.')
+
+    if n_retries == 24:
+        raise ValueError('TNS request failed: request rate exceeded.')
+
+    internal_names = []
+    try:
+        reply = json.loads(r.text)
+        internal_names = reply["data"]["reply"]["internal_names"]
+        # comma separated list of internal names, starting with a comma (so we fiter out the first empty string after splitting)
+        internal_names = list(filter(None, map(str.strip, internal_names.split(","))))
+    except Exception as e:
+        raise ValueError(
+            f'Failed to parse TNS response to retrieve internal names: {str(e)}'
+        )
+
     return internal_names
 
 
