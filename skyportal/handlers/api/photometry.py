@@ -2117,13 +2117,6 @@ ObjPhotometryHandler.get.__doc__ = f"""
             description: |
               Boolean indicating whether to phase fold the light curve. Defaults to false.
           - in: query
-            name: phaseFoldData
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to phase fold the light curve. Defaults to false.
-          - in: query
             name: deduplicatePhotometry
             nullable: true
             schema:
