@@ -95,7 +95,7 @@ class AllocationHandler(BaseHandler):
                     return self.error("Allocation ID must be an integer.")
 
                 page_number = self.get_query_argument("pageNumber", 1)
-                n_per_page = self.get_query_argument("numPerPage", 10)
+                n_per_page = self.get_query_argument("numPerPage", 50)
 
                 sortBy = self.get_query_argument("sortBy", "created_at")
                 sortOrder = self.get_query_argument("sortOrder", "asc")
