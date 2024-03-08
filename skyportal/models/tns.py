@@ -291,12 +291,13 @@ TNSRobot.submissions = relationship(
 )
 
 
-def tnsrobot_create_read_access_logic(cls, user_or_token):
+def tnsrobot_read_access_logic(cls, user_or_token):
+    """Return a query that filters TNSRobot instances based on user read access."""
+    # if the user is a system admin, they can see all TNSRobots
+    # otherwise, they can only see TNSRobots that are associated with groups they are in
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = sa.select(cls)
     if not user_or_token.is_system_admin:
-        # a user should only be able to read TNSRobots that are associated with groups
-        # to which they have access
         query = query.join(TNSRobotGroup)
         query = query.where(
             TNSRobotGroup.group_id.in_(
@@ -307,11 +308,12 @@ def tnsrobot_create_read_access_logic(cls, user_or_token):
 
 
 def tnsrobot_update_delete_access_logic(cls, user_or_token):
+    """Return a query that filters TNSRobot instances based on user update/delete access."""
+    # same as read access, but at least one of the groups must be an owner of the TNSRobot
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = sa.select(cls)
     if not user_or_token.is_system_admin:
-        # a user should only be able to read TNSRobots that are associated with groups
-        # to which they have access, and the group is an owner of the robot
+        query = query.join(TNSRobotGroup)
         query = query.where(
             TNSRobotGroup.group_id.in_(
                 sa.select(GroupUser.group_id).where(GroupUser.user_id == user_id)
@@ -321,15 +323,67 @@ def tnsrobot_update_delete_access_logic(cls, user_or_token):
     return query
 
 
-TNSRobot.read = TNSRobot.create = CustomUserAccessControl(
-    tnsrobot_create_read_access_logic
-)
+TNSRobot.read = CustomUserAccessControl(tnsrobot_read_access_logic)
 TNSRobot.update = TNSRobot.delete = CustomUserAccessControl(
     tnsrobot_update_delete_access_logic
 )
 
 
+def tnsrobot_coauthor_read_access_logic(cls, user_or_token):
+    """Return a query that filters TNSRobotCoauthor instances based on user read access."""
+    # if the user is a system admin, they can see all TNSRobotCoauthors
+    # otherwise, they can only see TNSRobotCoauthors from TNSRobots that are associated with groups they are in
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = sa.select(cls)
+    if not user_or_token.is_system_admin:
+        query = query.where(
+            TNSRobotCoauthor.tnsrobot_id.in_(
+                sa.select(TNSRobotGroup.tnsrobot_id).where(
+                    TNSRobotGroup.group_id.in_(
+                        sa.select(GroupUser.group_id).where(
+                            GroupUser.user_id == user_id
+                        )
+                    ),
+                )
+            ),
+        )
+    return query
+
+
+def tnsrobot_coauthor_create_update_delete_access_logic(cls, user_or_token):
+    """Return a query that filters TNSRobotCoauthor instances based on user create/update/delete access."""
+    # same as read access, but at least one of the groups must be an owner of the TNSRobot
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = sa.select(cls)
+    if not user_or_token.is_system_admin:
+        query = query.where(
+            TNSRobotCoauthor.tnsrobot_id.in_(
+                sa.select(TNSRobotGroup.tnsrobot_id).where(
+                    TNSRobotGroup.group_id.in_(
+                        sa.select(GroupUser.group_id).where(
+                            GroupUser.user_id == user_id
+                        )
+                    ),
+                    TNSRobotGroup.owner.is_(True),
+                )
+            ),
+        )
+    return query
+
+
+TNSRobotCoauthor.read = CustomUserAccessControl(tnsrobot_coauthor_read_access_logic)
+
+TNSRobotCoauthor.create = (
+    TNSRobotCoauthor.update
+) = TNSRobotCoauthor.delete = CustomUserAccessControl(
+    tnsrobot_coauthor_create_update_delete_access_logic
+)
+
+
 def tnsrobot_group_read_access_logic(cls, user_or_token):
+    """Return a query that filters TNSRobotGroup instances based on user read access."""
+    # if the user is a system admin, they can see all TNSRobotGroups
+    # otherwise, they can only see TNSRobotGroups that are associated with groups they are in
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = sa.select(cls)
     if not user_or_token.is_system_admin:
@@ -344,6 +398,8 @@ def tnsrobot_group_read_access_logic(cls, user_or_token):
 
 
 def tnsrobot_group_create_update_delete_access_logic(cls, user_or_token):
+    """Return a query that filters TNSRobotGroup instances based on user create/update/delete access."""
+    # same as read access, but at least one of the groups must be an owner of the TNSRobot
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = sa.select(cls)
     if not user_or_token.is_system_admin:
@@ -375,32 +431,19 @@ TNSRobotGroup.create = (
     tnsrobot_group_create_update_delete_access_logic
 )
 
-
-def tnsrobot_user_read_access_logic(cls, user_or_token):
-    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = sa.select(cls)
-    if not user_or_token.is_system_admin:
-        # a user should only be able to read TNSRobotUsers that are associated with groups
-        # to which they have access
-        query = query.join(TNSRobotGroup)
-        query = query.join(Group).join(GroupUser)
-        query = query.where(GroupUser.user_id == user_id)
-    return query
+# for the TNSRobotGroupAutoreporter, we will use the same access logic as for TNSRobotGroup
+TNSRobotGroupAutoreporter.read = CustomUserAccessControl(tnsrobot_read_access_logic)
+TNSRobotGroupAutoreporter.create = (
+    TNSRobotGroupAutoreporter.update
+) = TNSRobotGroupAutoreporter.delete = CustomUserAccessControl(
+    tnsrobot_update_delete_access_logic
+)
 
 
-def tnsrobot_user_create_update_delete_access_logic(cls, user_or_token):
-    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = sa.select(cls)
-    if not user_or_token.is_system_admin:
-        # a user should only be able to create/update/delete TNSRobotUsers from TNSRobots that the user has access to
-        query = query.join(TNSRobot)
-        query = query.join(TNSRobotGroup).join(Group).join(GroupUser)
-        query = query.where(GroupUser.user_id == user_id)
-    return query
-
-
-# users should be able to read/create/edit/delete tns submissions only for tns robots they have access to
 def tnsrobot_submission_access_logic(cls, user_or_token):
+    """Return a query that filters TNSRobotSubmission instances based on user read/create/update/delete access."""
+    # if the user is a system admin, they can create/read/update/delete all TNSRobotSubmissions
+    # otherwise, they can do so only using TNSRobots that are associated with groups they are in
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = sa.select(cls)
     if not user_or_token.is_system_admin:
