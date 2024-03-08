@@ -2,7 +2,6 @@ import asyncio
 import json
 import tempfile
 import urllib
-import traceback
 
 import arrow
 import astropy.units as u
@@ -373,7 +372,6 @@ class TNSRobotHandler(BaseHandler):
                         )
                         return self.success(data={"id": id})
                     except Exception as e:
-                        traceback.print_exc()
                         return self.error(f'Failed to create TNS robot: {e}')
                 else:
                     try:
@@ -389,10 +387,8 @@ class TNSRobotHandler(BaseHandler):
                         )
                         return self.success(data={"id": id})
                     except Exception as e:
-                        traceback.print_exc()
                         return self.error(f'Failed to update TNS robot: {e}')
         except Exception as e:
-            traceback.print_exc()
             return self.error(f'Failed to create/update TNS robot: {e}')
 
     @auth_or_token
@@ -421,7 +417,10 @@ class TNSRobotHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = TNSRobot.select(session.user_or_token, mode="read").options(
-                joinedload(TNSRobot.groups), joinedload(TNSRobot.coauthors)
+                joinedload(TNSRobot.groups),
+                joinedload(TNSRobot.coauthors),
+                joinedload(TNSRobot.instruments),
+                joinedload(TNSRobot.streams),
             )
             if tnsrobot_id is not None:
                 tnsrobot = session.scalar(stmt.where(TNSRobot.id == tnsrobot_id))
@@ -682,7 +681,12 @@ class TNSRobotGroupHandler(BaseHandler):
         autoreport = data.get('auto_report', None)
         owner = data.get('owner', None)
         if group_id is None:
-            group_id = data.get('group_id', None)
+            group_id = int(data.get('group_id', None))
+
+        try:
+            group_id = int(group_id)
+        except ValueError:
+            return self.error(f'Invalid group_id: {group_id}, must be an integer')
 
         if autoreport is not None:
             # try to convert the autoreport to a boolean
