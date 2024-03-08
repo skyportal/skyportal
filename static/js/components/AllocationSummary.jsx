@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
@@ -162,20 +162,53 @@ SimpleMenu.propTypes = {
   }).isRequired,
 };
 
+const defaultNumPerPage = 10;
+
 const AllocationSummary = ({ route }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
-  const allocation = useSelector((state) => state.allocation);
+  const { allocation, totalMatches } = useSelector((state) => state.allocation);
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
 
+  const [fetchParams, setFetchParams] = useState({
+    pageNumber: 1,
+    numPerPage: defaultNumPerPage,
+    sortBy: "created_at",
+    sortOrder: "desc",
+  });
+
+  const handlePageChange = async (page, numPerPage) => {
+    const params = {
+      ...fetchParams,
+      numPerPage,
+      pageNumber: page + 1,
+    };
+    // Save state for future
+    setFetchParams(params);
+    await dispatch(Action.fetchAllocation(route.id, params));
+  };
+
+  const handleTableChange = async (action, tableState) => {
+    if (action === "changePage" || action === "changeRowsPerPage") {
+      return handlePageChange(tableState.page, tableState.rowsPerPage);
+    }
+    return null;
+  };
+
   // Load the observing run and its assignments if needed
   useEffect(() => {
-    dispatch(Action.fetchAllocation(route.id));
+    dispatch(Action.fetchAllocation(route.id, fetchParams));
   }, [route.id, dispatch]);
 
-  if (!("id" in allocation && allocation.id === parseInt(route.id, 10))) {
+  if (
+    !(
+      allocation &&
+      "id" in allocation &&
+      allocation.id === parseInt(route.id, 10)
+    )
+  ) {
     // Don't need to do this for assignments -- we can just let the page be blank for a short time
     return (
       <div>
@@ -309,6 +342,24 @@ const AllocationSummary = ({ route }) => {
       },
     },
     {
+      name: "Request Date",
+      options: {
+        filter: true,
+      },
+    },
+    {
+      name: "Start Date",
+      options: {
+        filter: true,
+      },
+    },
+    {
+      name: "End Date",
+      options: {
+        filter: true,
+      },
+    },
+    {
       name: "Status",
       options: {
         filter: true,
@@ -383,15 +434,26 @@ const AllocationSummary = ({ route }) => {
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
     selectableRows: "none",
+    onTableChange: handleTableChange,
+    count: totalMatches,
+    page: fetchParams.pageNumber - 1,
+    rowsPerPage: fetchParams.numPerPage,
+    rowsPerPageOptions: [10, 25, 50, 100],
+    jumpToPage: true,
+    serverSide: true,
+    pagination: true,
   };
 
   const data = requests?.map((request) => [
     request.obj.id,
+    request.created_at,
+    request.payload?.start_date,
+    request.payload?.end_date,
     request.status,
     request.obj.ra,
     request.obj.dec,
     request.obj.redshift,
-    request.requester.username,
+    request.requester?.username,
     request.payload.priority,
     request.rise_time_utc,
     request.set_time_utc,
