@@ -8,7 +8,6 @@ import sqlalchemy as sa
 from astroplan.moon import moon_phase_angle
 from marshmallow.exceptions import ValidationError
 from sqlalchemy import func
-from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
 
@@ -121,11 +120,9 @@ class AllocationHandler(BaseHandler):
                         f'numPerPage should be no larger than {MAX_FOLLOWUP_REQUESTS}.'
                     )
 
-                allocations = Allocation.select(
-                    self.current_user, options=[joinedload(Allocation.requests)]
+                allocations = Allocation.select(self.current_user).where(
+                    Allocation.id == allocation_id
                 )
-
-                allocations = allocations.where(Allocation.id == allocation_id)
                 allocation = session.scalars(allocations).first()
                 if allocation is None:
                     return self.error("Could not retrieve allocation.")
