@@ -8,6 +8,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import SmartToyIcon from "@mui/icons-material/SmartToy";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -132,6 +133,23 @@ const TNSRobotSubmissionsPage = () => {
         sort: true,
         customBodyRenderLite: (dataIndex) => {
           const { user_id } = tnsrobot_submissions[dataIndex];
+          if (tnsrobot_submissions[dataIndex].auto_submission) {
+            return (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                {userLabel(usersLookup[user_id])}
+                <Tooltip title="This submission was triggered automatically when the user saved the source.">
+                  <SmartToyIcon fontSize="small" style={{ color: "gray" }} />
+                </Tooltip>
+              </div>
+            );
+          }
           return userLabel(usersLookup[user_id]);
         },
       },
