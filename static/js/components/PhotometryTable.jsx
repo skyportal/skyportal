@@ -20,6 +20,7 @@ import MUIDataTable from "mui-datatables";
 import UpdatePhotometry from "./UpdatePhotometry";
 import Button from "./Button";
 import * as Actions from "../ducks/photometry";
+import { mjd_to_utc } from "../units";
 
 const useStyles = makeStyles(() => ({
   actionButtons: {
@@ -156,6 +157,24 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
           display: !defaultHiddenColumns.includes(key),
         },
       }));
+
+      const renderUTC = (dataIndex) => {
+        const phot = data[dataIndex];
+        return (
+          <div>
+            <div className={classes.actionButtons}>
+              <div>{mjd_to_utc(phot.mjd)}</div>
+            </div>
+          </div>
+        );
+      };
+      columns.push({
+        name: "UTC",
+        label: "UTC",
+        options: {
+          customBodyRenderLite: renderUTC,
+        },
+      });
 
       const renderOwner = (dataIndex) => {
         const phot = data[dataIndex];

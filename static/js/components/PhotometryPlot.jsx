@@ -26,6 +26,7 @@ import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
+import PhotometryMagsys from "./PhotometryMagsys";
 import { addAnnotation } from "../ducks/source";
 import { BASE_LAYOUT, PHOT_ZP, smoothing_func, mjdnow, rgba } from "../utils";
 
@@ -179,6 +180,7 @@ const PhotometryPlot = ({
   gcn_events,
   mode,
   plotStyle,
+  setMagsys,
 }) => {
   const classes = useStyles();
   const [data, setData] = useState(null);
@@ -1187,6 +1189,7 @@ const PhotometryPlot = ({
         />
       </div>
       <div className={classes.gridContainer}>
+        <PhotometryMagsys setMagsys={setMagsys} />
         <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
           <Typography id="photometry-show-hide" noWrap>
             Non-Detections
@@ -1359,6 +1362,7 @@ PhotometryPlot.propTypes = {
   plotStyle: PropTypes.shape({
     height: PropTypes.string,
   }),
+  setMagsys: PropTypes.func.isRequired,
 };
 
 PhotometryPlot.defaultProps = {

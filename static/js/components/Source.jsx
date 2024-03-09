@@ -309,6 +309,7 @@ const SourceContent = ({ source }) => {
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
+  const [magsys, setMagsys] = useState("ab");
 
   const downSm = useMediaQuery((theme) => theme.breakpoints.down("sm"));
   const downMd = useMediaQuery((theme) => theme.breakpoints.down("md"));
@@ -364,10 +365,10 @@ const SourceContent = ({ source }) => {
     .sort((a, b) => new Date(b) - new Date(a));
 
   useEffect(() => {
-    dispatch(photometryActions.fetchSourcePhotometry(source.id));
+    dispatch(photometryActions.fetchSourcePhotometry(source.id, { magsys }));
     dispatch(spectraActions.fetchSourceSpectra(source.id));
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
-  }, [source.id, dispatch]);
+  }, [source.id, magsys, dispatch]);
 
   const setHost = (galaxyName) => {
     dispatch(sourceActions.addHost(source.id, { galaxyName }));
@@ -1260,6 +1261,7 @@ const SourceContent = ({ source }) => {
                           height: rightPanelVisible ? "65vh" : "75vh",
                         }}
                         mode={downMd ? "mobile" : "desktop"}
+                        setMagsys={setMagsys}
                       />
                     </Suspense>
                   )}
