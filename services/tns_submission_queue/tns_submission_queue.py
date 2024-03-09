@@ -766,7 +766,7 @@ def process_submission_request(submission_request, session):
                 action_type='baselayer/SHOW_NOTIFICATION',
                 payload={
                     'note': f"Error submitting {submission_request.obj_id} to TNS: {str(e)}",
-                    'type': 'error',
+                    'type': 'error' if 'already posted' not in str(e) else 'warning',
                 },
             )
         except Exception:

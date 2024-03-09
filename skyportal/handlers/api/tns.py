@@ -1456,13 +1456,7 @@ class ObjTNSHandler(BaseHandler):
                 schema: Error
         """
 
-        tnsrobot_id = self.get_query_argument("tnsrobotID", None)
-        if tnsrobot_id is None:
-            return self.error('tnsrobotID is required')
-
         radius = self.get_query_argument("radius", 2.0)
-        include_photometry = self.get_query_argument("includePhotometry", False)
-        include_spectra = self.get_query_argument("includeSpectra", False)
 
         try:
             radius = float(radius)
@@ -1479,18 +1473,6 @@ class ObjTNSHandler(BaseHandler):
             if obj is None:
                 return self.error(f'No object available with ID {obj_id}')
 
-            tnsrobot = session.scalars(
-                TNSRobot.select(session.user_or_token).where(TNSRobot.id == tnsrobot_id)
-            ).first()
-            if tnsrobot is None:
-                return self.error(f'No TNSRobot available with ID {tnsrobot_id}')
-
-            altdata = tnsrobot.altdata
-            if not altdata:
-                return self.error('Missing TNS information.')
-            if 'api_key' not in altdata:
-                return self.error('Missing TNS API key.')
-
             try:
                 loop = asyncio.get_event_loop()
             except Exception:
@@ -1500,12 +1482,9 @@ class ObjTNSHandler(BaseHandler):
             IOLoop.current().run_in_executor(
                 None,
                 lambda: get_tns(
-                    tnsrobot.id,
-                    self.associated_user_object.id,
-                    include_photometry=include_photometry,
-                    include_spectra=include_spectra,
-                    radius=radius,
                     obj_id=obj.id,
+                    radius=radius,
+                    user_id=self.associated_user_object.id,
                 ),
             )
 
@@ -1697,6 +1676,10 @@ class SpectrumTNSHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        # for now this is deprecated, as the feature is not used by any user
+        # + needs to be updated to use the new TNS submission queue
+        return self.error('This feature is deprecated')
 
         data = self.get_json()
         tnsrobotID = data.get('tnsrobotID')

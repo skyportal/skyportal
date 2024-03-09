@@ -105,9 +105,34 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
     }
 
     data = {'api_key': api_key, 'data': json.dumps(req_data)}
-    r = requests.post(search_url, headers=headers, data=data)
-    json_response = json.loads(r.text)
-    reply = json_response['data']['reply']
+    status_code = 429
+    n_retries = 0
+    r = None
+    while status_code == 429 and n_retries < 24:
+        r = requests.post(search_url, headers=headers, data=data)
+        status_code = r.status_code
+        if status_code == 429:
+            log(
+                f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
+            )
+            time.sleep(30)
+            n_retries += 1
+        elif status_code != 200:
+            log(f'TNS request failed: {str(r.json())}.')
+            return []
+
+    if r is None:
+        log('TNS request failed: no response.')
+        return []
+    if status_code != 200:
+        log(f'TNS request failed: {str(r.json())}.')
+        return []
+    try:
+        json_response = json.loads(r.text)
+        reply = json_response['data']['reply']
+    except Exception as e:
+        log(f'TNS request failed: {str(e)}.')
+        return []
 
     sources = []
     log(f'Found {len(reply)} recent sources from TNS since {str(public_timestamp)}')
@@ -159,7 +184,8 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
         else:
             sources.append(
                 {
-                    'id': obj["objname"],
+                    'id': obj['objname'],
+                    'prefix': obj['prefix'],
                 }
             )
     return sources
@@ -324,56 +350,35 @@ def get_internal_names(api_key, headers, tns_name=None):
 
 
 def get_tns(
-    tnsrobot_id,
-    user_id,
-    include_photometry=False,
-    include_spectra=False,
-    radius=2.0,
-    timeout=2,
     obj_id=None,
-    start_date=None,
-    group_ids=None,
+    radius=2.0,
+    user_id=None,
+    timeout=2,
 ):
     """Get TNS data for an object
 
     Parameters
     ----------
-    tnsrobot_id : str
-        TNSRobot API key
-    user_id : str
-        TNSRobot user id
-    include_photometry : bool, optional
-        Include photometry data, by default False
-    include_spectra : bool, optional
-        Include spectra data, by default False
-    radius : float, optional
-        Radius to search around the object, by default 2.0
-    timeout : int, optional
-        Timeout for the request, by default 2
     obj_id : str, optional
         TNS object id, by default None
-    start_date : str, optional
-        Start date for the search, by default None
-    group_ids : list, optional
-        List of group ids to search for, by default None
-
+    radius : float, optional
+        Radius to search around the object, by default 2.0
+    user_id : str, optional
+        User ID, by default None
+    timeout : int, optional
+        Timeout for the request, by default 2
     Returns
     -------
     dict
         TNS data
     """
-    if obj_id is None and start_date is None:
-        raise ValueError('obj_id or start_date must be specified')
+    if obj_id is None:
+        raise ValueError('obj_id')
 
     request_body = {
         'obj_id': obj_id,
-        'start_date': start_date,
-        'tnsrobot_id': tnsrobot_id,
-        'user_id': user_id,
-        'group_ids': group_ids,
-        'include_photometry': include_photometry,
-        'include_spectra': include_spectra,
         'radius': radius,
+        'user_id': user_id,
     }
 
     tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_retrieval_queue"]}'
@@ -381,7 +386,7 @@ def get_tns(
     resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
     if resp.status_code != 200:
         log(
-            f'TNS request failed for {str(request_body["obj_id"])}/{str(request_body["start_date"])} by user ID {request_body["user_id"]}: {resp.content}'
+            f'TNS request failed for {str(request_body["obj_id"])} by user ID {request_body["user_id"]}: {resp.content}'
         )
 
 

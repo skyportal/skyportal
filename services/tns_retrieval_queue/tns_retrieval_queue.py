@@ -2,8 +2,8 @@ import asyncio
 import json
 import time
 import urllib
-import traceback
 from threading import Thread
+from datetime import datetime, timedelta
 
 import requests
 import sqlalchemy as sa
@@ -20,15 +20,13 @@ from baselayer.log import make_log
 from skyportal.handlers.api.photometry import add_external_photometry
 from skyportal.handlers.api.source import post_source
 from skyportal.handlers.api.spectrum import post_spectrum
-from skyportal.models import DBSession, Obj, TNSRobot, User, Group
+from skyportal.models import DBSession, Obj, User, Group
 from skyportal.utils.tns import (
     get_IAUname,
     read_tns_photometry,
     read_tns_spectrum,
     get_recent_TNS,
-    get_tns_objects,
 )
-from skyportal.utils.calculations import radec_str2deg
 
 env, cfg = load_env()
 log = make_log('tns_queue')
@@ -36,6 +34,9 @@ log = make_log('tns_queue')
 init_db(**cfg['database'])
 
 Session = scoped_session(sessionmaker())
+
+USER_ID = 1  # super admin user ID
+DEFAULT_RADIUS = 2.0 / 3600  # 2 arcsec in degrees
 
 TNS_URL = cfg['app.tns.endpoint']
 object_url = urllib.parse.urljoin(TNS_URL, 'api/get/object')
@@ -49,397 +50,363 @@ look_back_days = cfg.get('app.tns.look_back_days', 1)
 queue = []
 
 
-def tns_bulk_retrieval(
-    start_date,
-    tnsrobot_id,
-    user_id,
-    group_ids=None,
-    include_photometry=False,
-    include_spectra=False,
-    parent_session=None,
-):
-    """Retrieve objects from TNS.
-    start_date : str
-        ISO-based start time
-    tnsrobot_id : int
-        TNSRobot ID
-    user_id : int
-        SkyPortal ID of User retrieving from TNS
-    group_ids : List[int]
-        List of groups to post TNS sources to
-    include_photometry: boolean
-        Include photometry available on TNS
-    include_spectra : boolean
-        Include spectra available on TNS
+def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, session):
+    """Add TNS name to existing objects within 2 arcseconds of the TNS position.
+
+    Parameters
+    ----------
+    tns_name : str
+        TNS name to be added to the object
+    tns_source_data : dict
+        TNS source data to be added to the object as tns_info
+    tns_ra : float
+        Right ascension of the TNS source
+    tns_dec : float
+        Declination of the TNS source
+    session : `sqlalchemy.orm.session.Session`
+        Database session object
     """
+    tns_name = str(tns_name).strip()
+    other = ca.Point(ra=tns_ra, dec=tns_dec)
+    existing_objs = session.scalars(
+        sa.select(Obj).where(Obj.within(other, DEFAULT_RADIUS))  # 2 arcseconds
+    ).all()
+    if len(existing_objs) > 0:
+        for obj in existing_objs:
+            try:
+                if obj.tns_name == tns_name:
+                    continue
+                elif obj.tns_name is None or obj.tns_name == "":
+                    obj.tns_name = tns_name
+                    obj.tns_info = tns_source_data
+                # if the current name doesn't have the SN designation but the new name has it, update
+                elif not str(obj.tns_name).lower().strip().startswith(
+                    "sn"
+                ) and "AT" not in str(tns_name):
+                    obj.tns_name = str(tns_name).strip()
+                    obj.tns_info = tns_source_data
+                else:
+                    continue
 
-    if parent_session is None:
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
-    else:
-        session = parent_session
+                session.commit()
+                log(f"Updated object {obj.id} with TNS name {tns_name}")
+                flow = Flow()
+                flow.push(
+                    '*',
+                    'skyportal/REFRESH_SOURCE',
+                    payload={'obj_key': obj.internal_key},
+                )
+            except Exception as e:
+                log(f"Error updating object: {str(e)}")
+                session.rollback()
 
-    user = session.scalar(sa.select(User).where(User.id == user_id))
-    if group_ids is None:
-        public_group = session.scalar(
-            sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
-        )
-        if public_group is None:
-            raise ValueError(
-                f'No group(s) specified, and could not find public group {cfg["misc.public_group_name"]}'
-            )
-        group_ids = [public_group.id]
 
-    try:
-        tnsrobot = session.scalars(
-            TNSRobot.select(user).where(TNSRobot.id == tnsrobot_id)
-        ).first()
-        if tnsrobot is None:
-            raise ValueError(f'No TNSRobot available with ID {tnsrobot_id}')
+def service(queue):
+    """Process the TNS retrieval queue
 
-        altdata = tnsrobot.altdata
-        if not altdata:
-            raise ValueError('Missing TNS information.')
-        if 'api_key' not in altdata:
-            raise ValueError('Missing TNS API key.')
+    Parameters
+    ----------
+    queue : list
+        List of tasks to be processed
+    """
+    if TNS_URL is None or bot_id is None or bot_name is None or api_key is None:
+        log("TNS watcher not configured, skipping")
+        return
+    tns_headers = {
+        "User-Agent": f'tns_marker{{"tns_id": {bot_id},"type": "bot", "name": "{bot_name}"}}',
+    }
 
-        tns_headers = {
-            'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
-        }
+    while True:
+        if len(queue) == 0:
+            time.sleep(1)
+            continue
+        task = queue.pop(0)
+        if task is None:
+            continue
 
-        tns_sources = get_recent_TNS(
-            altdata['api_key'], tns_headers, start_date, get_data=False
-        )
-        if len(tns_sources) == 0:
-            raise ValueError(f'No objects posted to TNS since {start_date}.')
+        tns_source = None
+        existing_obj = None
+        tns_name = None
+        public_group_id = None
 
-        for source in tns_sources:
-            s = session.scalars(Obj.select(user).where(Obj.id == source['id'])).first()
-            if s is None:
-                log(f"Posting {source['id']} as source")
+        try:
+            with DBSession() as session:
+                # verify that the public group exists
+                public_group = session.scalar(
+                    sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
+                )
+                if public_group is None:
+                    log(
+                        f"WARNING: Public group {cfg['misc.public_group_name']} not found in the database, stopping TNS watcher"
+                    )
+                    return
+                public_group_id = public_group.id
+
+                if task.get("obj_id") is not None:
+                    # here we are looking for the TNS name of an existing object
+                    # to add the TNS name to the object + create a TNS source
+                    existing_obj = session.scalar(
+                        sa.select(Obj).where(Obj.id == task.get("obj_id"))
+                    )
+                    if existing_obj is None:
+                        log(
+                            f"Object {task['obj_id']} not found in the database, skipping"
+                        )
+                        continue
+
+                    # find the most recent object on TNS within a certain radius (default 2 arcsec) of the object
+                    tns_prefix, tns_name = get_IAUname(
+                        api_key,
+                        tns_headers,
+                        ra=existing_obj.ra,
+                        dec=existing_obj.dec,
+                        radius=float(task.get("radius", DEFAULT_RADIUS)),
+                    )
+                    if tns_name is None:
+                        raise ValueError(f'{task.get("obj_id")} not found on TNS.')
+                    tns_source = f"{tns_prefix} {tns_name}"
+                elif (
+                    task.get("tns_name") is not None
+                    and task.get("tns_prefix") is not None
+                ):
+                    # here we just want to create a TNS source
+                    tns_name = task.get("tns_name")
+                    tns_source = f"{task.get('tns_prefix')} {task.get('tns_name')}"
+                else:
+                    log("No obj_id or tns_name provided, skipping")
+                    continue
+
+                # fetch the data from TNS
                 data = {
                     'api_key': api_key,
                     'data': json.dumps(
                         {
-                            "objname": source["id"],
+                            "objname": tns_name,
+                            "photometry": 1,
+                            "spectra": 1,
                         }
                     ),
                 }
-
-                r = requests.post(
-                    object_url,
-                    headers=tns_headers,
-                    data=data,
-                    allow_redirects=True,
-                    stream=True,
-                    timeout=10,
-                )
-
-                count = 0
-                count_limit = 5
-                while r.status_code == 429 and count < count_limit:
-                    log(
-                        f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
+                status_code = 429
+                n_retries = 0
+                r = None
+                while (
+                    status_code == 429 and n_retries < 24
+                ):  # 6 * 4 * 10 seconds = 4 minutes of retries
+                    r = requests.post(
+                        object_url,
+                        headers=tns_headers,
+                        data=data,
+                        allow_redirects=True,
+                        stream=True,
+                        timeout=10,
                     )
-                    time.sleep(30)
-                    r = requests.post(object_url, headers=tns_headers, data=data)
-                    count += 1
-
-                if count == count_limit:
-                    log(f"TNS request rate limited. Skipping {source['id']}.")
+                    status_code = r.status_code
+                    if status_code == 429:
+                        n_retries += 1
+                        time.sleep(10)
+                    else:
+                        break
+                if not isinstance(r, requests.Response):
+                    log(f"Error getting TNS data for {tns_source}: no response")
+                    continue
+                if status_code != 200:
+                    log(f"Error getting TNS data for {tns_source}: {r.text}")
                     continue
 
-                if r.status_code == 200:
-                    source_data = r.json().get("data", dict()).get("reply", dict())
-                    if source_data:
-                        source["ra"] = source_data.get("radeg", None)
-                        source["dec"] = source_data.get("decdeg", None)
+                tns_source_data = r.json().get("data", dict()).get("reply", dict())
+                if tns_source_data is None:
+                    log(f"Error getting TNS data for {tns_source}: no reply in data")
+                    continue
 
-                source['group_ids'] = group_ids
-                post_source(source, user_id, session)
+                ra, dec = tns_source_data.get("radeg", None), tns_source_data.get(
+                    "decdeg", None
+                )
+                if ra is None or dec is None:
+                    log(f"Error processing TNS source {tns_source}: no coordinates")
+                    continue
 
-            tns_retrieval(
-                source['id'],
-                tnsrobot_id,
-                user_id,
-                group_ids=group_ids,
-                include_photometry=include_photometry,
-                include_spectra=include_spectra,
-                parent_session=session,
-            )
-        session.commit()
+                if existing_obj is not None:
+                    # if were looking for the TNS name of an existing source,
+                    # simply add the TNS name to the existing object
+                    existing_obj.tns_name = tns_source
+                    existing_obj.tns_info = tns_source_data
+                else:
+                    # otherwise, add the TNS name to all the existing sources within a 2 arcsec radius
+                    add_tns_name_to_existing_objs(
+                        tns_source, tns_source_data, ra, dec, session
+                    )
 
-    except Exception as e:
-        log(f"Unable to retrieve TNS report for objects since {start_date}: {e}")
-    finally:
-        if parent_session is not None:
-            session.close()
-            Session.remove()
+                with DBSession() as session:
+                    existing_tns_obj = session.scalar(
+                        sa.select(Obj).where(Obj.id == tns_name)
+                    )
+                    if existing_tns_obj is None:
+                        # we add the TNS source to the database if it doesn't exist yet
+                        # with its photometry and spectra
+                        new_source_data = {
+                            "id": tns_name,
+                            "ra": ra,
+                            "dec": dec,
+                            "tns_name": tns_source,
+                            "tns_info": tns_source_data,
+                        }
+                        post_source(new_source_data, USER_ID, session)
 
-
-def tns_retrieval(
-    obj_id,
-    tnsrobot_id,
-    user_id,
-    group_ids=None,
-    include_photometry=False,
-    include_spectra=False,
-    radius=2.0,
-    parent_session=None,
-):
-    """Retrieve object from TNS.
-    obj_id : str
-        Object ID
-    tnsrobot_id : int
-        TNSRobot ID
-    user_id : int
-        SkyPortal ID of User retrieving from TNS
-    include_photometry: boolean
-        Include photometry available on TNS
-    include_spectra : boolean
-        Include spectra available on TNS
-    group_ids : List[int]
-        List of groups to share photometry and spectroscopy with
-    """
-
-    if parent_session is None:
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
-    else:
-        session = parent_session
-
-    flow = Flow()
-
-    user = session.scalar(sa.select(User).where(User.id == user_id))
-    if group_ids is None:
-        group_ids = [g.id for g in user.accessible_groups]
-
-    try:
-        obj = session.scalars(Obj.select(user).where(Obj.id == obj_id)).first()
-        if obj is None:
-            raise ValueError(f'No object available with ID {obj_id}')
-
-        tnsrobot = session.scalars(
-            TNSRobot.select(user).where(TNSRobot.id == tnsrobot_id)
-        ).first()
-        if tnsrobot is None:
-            raise ValueError(f'No TNSRobot available with ID {tnsrobot_id}')
-
-        altdata = tnsrobot.altdata
-        if not altdata:
-            raise ValueError('Missing TNS information.')
-        if 'api_key' not in altdata:
-            raise ValueError('Missing TNS API key.')
-
-        tns_headers = {
-            'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
-        }
-
-        tns_prefix, tns_name = get_IAUname(
-            altdata['api_key'],
-            tns_headers,
-            ra=obj.ra,
-            dec=obj.dec,
-            radius=float(radius),
-        )
-        if tns_name is None:
-            raise ValueError(f'{obj_id} not yet posted to TNS.')
-
-        obj.tns_name = f"{tns_prefix} {tns_name}"
-
-        data = {
-            'api_key': altdata['api_key'],
-            'data': json.dumps(
-                {
-                    "objname": tns_name,
-                    "photometry": "1" if include_photometry else "0",
-                    "spectra": "1" if include_spectra else "0",
-                }
-            ),
-        }
-
-        r = requests.post(
-            object_url,
-            headers=tns_headers,
-            data=data,
-            allow_redirects=True,
-            stream=True,
-            timeout=10,
-        )
-
-        count = 0
-        count_limit = 5
-        while r.status_code == 429 and count < count_limit:
-            log(
-                f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
-            )
-            time.sleep(30)
-            r = requests.post(
-                object_url,
-                headers=tns_headers,
-                data=data,
-                allow_redirects=True,
-                stream=True,
-                timeout=10,
-            )
-            count += 1
-
-        if r.status_code == 200:
-            source_data = r.json().get("data", dict()).get("reply", dict())
-            if source_data:
-                obj.tns_info = source_data
-                if include_photometry and 'photometry' in source_data:
-                    photometry = source_data['photometry']
-
-                    failed_photometry = []
-                    failed_photometry_errors = []
-                    for phot in photometry:
-                        read_photometry = False
-                        try:
-                            df, instrument_id = read_tns_photometry(phot, session)
-                            data_out = {
-                                'obj_id': obj_id,
-                                'instrument_id': instrument_id,
-                                'group_ids': group_ids,
-                                **df.to_dict(orient='list'),
-                            }
-                            read_photometry = True
-                        except Exception as e:
-                            failed_photometry.append(phot)
-                            failed_photometry_errors.append(str(e))
-                            log(f'Cannot read TNS photometry {str(phot)}: {str(e)}')
+                        user = session.scalar(sa.select(User).where(User.id == USER_ID))
+                        if user is None:
+                            log(
+                                f"Error getting user {USER_ID}, required to add photometry with add_external_photometry()"
+                            )
                             continue
-                        if read_photometry:
+
+                        photometry = tns_source_data.get('photometry', [])
+                        if len(photometry) == 0:
+                            log(f"No photometry found on TNS for source {tns_source}")
+                            continue
+                        failed_photometry = []
+                        failed_photometry_errors = []
+                        for phot in photometry:
+                            read_photometry = False
                             try:
-                                add_external_photometry(
-                                    data_out, user, parent_session=session
-                                )
+                                df, instrument_id = read_tns_photometry(phot, session)
+                                data_out = {
+                                    'obj_id': tns_name,
+                                    'instrument_id': instrument_id,
+                                    'group_ids': [public_group_id],
+                                    **df.to_dict(orient='list'),
+                                }
+                                read_photometry = True
                             except Exception as e:
                                 failed_photometry.append(phot)
                                 failed_photometry_errors.append(str(e))
+                                log(f'Cannot read TNS photometry {str(phot)}: {str(e)}')
                                 continue
-                    if len(failed_photometry) > 0:
-                        log(
-                            f'Failed to retrieve {len(failed_photometry)}/{len(photometry)} TNS photometry points for {obj_id} from TNS as {tns_name}: {str(list(set(failed_photometry_errors)))}'
-                        )
-                    else:
-                        log(
-                            f'Successfully retrieved {len(photometry)} TNS photometry points for {obj_id} from TNS as {tns_name}'
-                        )
+                            if read_photometry:
+                                try:
+                                    add_external_photometry(
+                                        data_out, user, parent_session=session
+                                    )
+                                except Exception as e:
+                                    failed_photometry.append(phot)
+                                    failed_photometry_errors.append(str(e))
+                                    continue
 
-                if include_spectra and 'spectra' in source_data:
-                    group_ids = [g.id for g in user.accessible_groups]
-                    spectra = source_data['spectra']
+                        if len(failed_photometry) > 0:
+                            log(
+                                f'Failed to retrieve {len(failed_photometry)}/{len(photometry)} TNS photometry points from {tns_source}: {str(list(set(failed_photometry_errors)))}'
+                            )
+                        else:
+                            log(
+                                f'Successfully retrieved {len(photometry)} TNS photometry points from {tns_source}'
+                            )
 
-                    failed_spectra = []
-                    failed_spectra_errors = []
-
-                    for spectrum in spectra:
-                        try:
-                            data = read_tns_spectrum(spectrum, session)
-                        except Exception as e:
-                            log(f'Cannot read TNS spectrum {str(spectrum)}: {str(e)}')
+                        spectra = tns_source_data.get('spectra', [])
+                        if len(spectra) == 0:
+                            log(f"No spectra found on TNS for source {tns_source}")
                             continue
-                        data["obj_id"] = obj_id
-                        data["group_ids"] = group_ids
-                        post_spectrum(data, user_id, session)
 
-                    if len(failed_spectra) > 0:
-                        log(
-                            f'Failed to retrieve {len(failed_spectra)}/{len(spectra)} TNS spectra for {obj_id} from TNS as {tns_name}: {str(list(set(failed_spectra_errors)))}'
-                        )
-                    else:
-                        log(
-                            f'Successfully retrieved {len(spectra)} TNS spectra for {obj_id} from TNS as {tns_name}'
-                        )
+                        failed_spectra = []
+                        failed_spectra_errors = []
 
-            log(f'Successfully retrieved {obj_id} from TNS as {tns_name}')
-        else:
-            log(f'Failed to retrieve {obj_id} from TNS: {r.content}')
-        session.commit()
+                        for spectrum in spectra:
+                            try:
+                                data = read_tns_spectrum(spectrum, session)
+                            except Exception as e:
+                                log(
+                                    f'Cannot read TNS spectrum {str(spectrum)}: {str(e)}'
+                                )
+                                continue
+                            data["obj_id"] = tns_name
+                            data["group_ids"] = [public_group_id]
+                            post_spectrum(data, USER_ID, session)
 
-        flow.push(
-            '*',
-            'skyportal/REFRESH_SOURCE',
-            payload={'obj_key': obj.internal_key},
-        )
+                        if len(failed_spectra) > 0:
+                            log(
+                                f'Failed to retrieve {len(failed_spectra)}/{len(spectra)} TNS spectra from {tns_source}: {str(list(set(failed_spectra_errors)))}'
+                            )
+                        else:
+                            log(
+                                f'Successfully retrieved {len(spectra)} TNS spectra from {tns_source}'
+                            )
+        except Exception as e:
+            log(f"Error processing TNS source {tns_source}: {e}")
+            user_id = task.get("user_id", None)
+            if user_id is not None:
+                flow = Flow()
+                if 'not found on TNS' in str(e):
+                    flow.push(
+                        user_id,
+                        action_type="baselayer/SHOW_NOTIFICATION",
+                        payload={
+                            "note": str(e),
+                            "type": "warning",
+                        },
+                    )
+                else:
+                    flow.push(
+                        user_id,
+                        action_type="baselayer/SHOW_NOTIFICATION",
+                        payload={
+                            "note": f"Error processing TNS source {tns_source}: {e}",
+                            "type": "error",
+                        },
+                    )
 
-    except Exception as e:
-        traceback.print_exc()
-        log(f"Unable to retrieve TNS report for {obj_id}: {e}")
-        try:
-            flow.push(
-                user.id,
-                'baselayer/SHOW_NOTIFICATION',
-                {
-                    'note': f'Unable to retrieve TNS report for {obj_id}: {e}',
-                    'type': 'error',
-                },
-            )
-        except Exception:
-            pass
-    finally:
-        if parent_session is not None:
-            session.close()
-            Session.remove()
 
+def tns_watcher(queue):
+    """Watch TNS for new sources and add them to the queue
 
-def service(queue):
+    Parameters
+    ----------
+    queue : list
+        The queue to add the TNS sources to, shared across threads
+    """
+    if (
+        TNS_URL is None
+        or bot_id is None
+        or bot_name is None
+        or api_key is None
+        or look_back_days is None
+    ):
+        log("TNS watcher not configured, skipping")
+        return
+    tns_headers = {
+        "User-Agent": f'tns_marker{{"tns_id": {bot_id},"type": "bot", "name": "{bot_name}"}}',
+    }
+
+    # when the service starts, we look back a certain number of days
+    # useful if the app has been down for a while
+    start_date = datetime.now() - timedelta(days=look_back_days)
     while True:
-        with DBSession() as session:
-            try:
-                if len(queue) == 0:
-                    time.sleep(1)
-                    continue
-                data = queue.pop(0)
-                if data is None:
-                    continue
+        # convert start date to isot format
+        start_date = start_date.strftime("%Y-%m-%dT%H:%M:%S")
+        tns_sources = get_recent_TNS(api_key, tns_headers, start_date, get_data=False)
+        for tns_source in tns_sources:
+            # add the tns_source to the queue
+            queue.append(
+                {
+                    "tns_prefix": tns_source['prefix'],
+                    "tns_name": tns_source['id'],
+                    "obj_id": None,
+                }
+            )
+            log(f"Added TNS source {tns_source['id']} to the queue for processing")
 
-                tnsrobot_id = data.get("tnsrobot_id")
-                user_id = data.get("user_id")
-                include_photometry = data.get("include_photometry", False)
-                include_spectra = data.get("include_spectra", False)
-                group_ids = data.get("group_ids", None)
-                obj_id = data.get("obj_id", None)
-                start_date = data.get("start_date", None)
-                radius = data.get("radius", None)
-
-                if obj_id is None and start_date is None:
-                    raise ValueError('obj_id or start_date must be specified')
-
-                if obj_id is not None:
-                    tns_retrieval(
-                        obj_id,
-                        tnsrobot_id,
-                        user_id,
-                        group_ids=group_ids,
-                        include_photometry=include_photometry,
-                        include_spectra=include_spectra,
-                        radius=radius,
-                        parent_session=session,
-                    )
-
-                if start_date is not None:
-                    tns_bulk_retrieval(
-                        start_date,
-                        tnsrobot_id,
-                        user_id,
-                        group_ids=group_ids,
-                        include_photometry=include_photometry,
-                        include_spectra=include_spectra,
-                        parent_session=session,
-                    )
-            except Exception as e:
-                log(
-                    f"Error processing TNS request for objects {str(data['obj_ids'])}: {str(e)}"
-                )
+        # we always look at a minimum of 1 hour back in time
+        start_date = datetime.now() - timedelta(hours=1)
+        time.sleep(60 * 4)  # sleep for 4 minutes
 
 
 def api(queue):
+    """Start the internal API that endpoint that receives requests from the main app
+
+    Parameters
+    ----------
+    queue : list
+        The queue to add the sources to, shared across threads
+    """
+
     class QueueHandler(tornado.web.RequestHandler):
         def get(self):
             self.set_header("Content-Type", "application/json")
@@ -452,13 +419,13 @@ def api(queue):
                 self.set_status(400)
                 return self.write({"status": "error", "message": "Malformed JSON data"})
 
-            required_keys = {'tnsrobot_id', 'user_id'}
+            required_keys = {'obj_id', 'user_id'}
             if not required_keys.issubset(set(data.keys())):
                 self.set_status(400)
                 return self.write(
                     {
                         "status": "error",
-                        "message": "TNS requests require tnsrobot_id and user_id",
+                        "message": f"TNS requests requires keys {required_keys}",
                     }
                 )
 
@@ -483,93 +450,15 @@ def api(queue):
     loop.run_forever()
 
 
-def tns_watcher():
-    if (
-        TNS_URL is None
-        or bot_id is None
-        or bot_name is None
-        or api_key is None
-        or look_back_days is None
-    ):
-        log("TNS watcher not configured, skipping")
-        return
-    tns_headers = {
-        "User-Agent": f'tns_marker{{"tns_id": {bot_id},"type": "bot", "name": "{bot_name}"}}',
-    }
-
-    flow = Flow()
-
-    while True:
-        try:
-            tns_objects = get_tns_objects(
-                tns_headers,
-                discovered_period_value=look_back_days,
-                discovered_period_units='days',
-            )
-            if len(tns_objects) > 0:
-                for tns_obj in tns_objects:
-                    tns_ra, tns_dec = radec_str2deg(tns_obj["ra"], tns_obj["dec"])
-                    if Session.registry.has():
-                        session = Session()
-                    else:
-                        session = Session(bind=DBSession.session_factory.kw["bind"])
-                    try:
-                        other = ca.Point(ra=tns_ra, dec=tns_dec)
-                        obj_query = session.scalars(
-                            sa.select(Obj).where(
-                                Obj.within(other, 0.000555556)  # 2 arcseconds
-                            )
-                        ).all()
-                        if len(obj_query) > 0:
-                            for obj in obj_query:
-                                try:
-                                    if obj.tns_name == str(tns_obj["name"]).strip():
-                                        continue
-                                    elif obj.tns_name is None or obj.tns_name == "":
-                                        obj.tns_name = str(tns_obj["name"]).strip()
-                                    # if the current name doesn't have the SN designation but the new name has it, update
-                                    elif not str(
-                                        obj.tns_name
-                                    ).lower().strip().startswith(
-                                        "sn"
-                                    ) and "AT" not in str(
-                                        tns_obj["name"]
-                                    ):
-                                        obj.tns_name = str(tns_obj["name"]).strip()
-                                    else:
-                                        continue
-
-                                    session.commit()
-                                    log(
-                                        f"Updated object {obj.id} with TNS name {tns_obj['name']}"
-                                    )
-                                    flow.push(
-                                        '*',
-                                        'skyportal/REFRESH_SOURCE',
-                                        payload={'obj_key': obj.internal_key},
-                                    )
-                                except Exception as e:
-                                    log(f"Error updating object: {str(e)}")
-                                    session.rollback()
-                    except Exception as e:
-                        log(f"Error adding TNS name to objects: {str(e)}")
-                        session.rollback()
-                    finally:
-                        session.close()
-        except Exception as e:
-            log(f"Error getting TNS objects: {str(e)}")
-        time.sleep(60 * 4)
-
-
 if __name__ == "__main__":
+    """Start the internal API, the TNS watcher, and the TNS retrieval service"""
     try:
         t = Thread(target=service, args=(queue,))
         t2 = Thread(target=api, args=(queue,))
-        t3 = Thread(target=tns_watcher)
+        t3 = Thread(target=tns_watcher, args=(queue,))
         t.start()
         t2.start()
         t3.start()
-
         while True:
             log(f"Current TNS retrieval queue length: {len(queue)}")
             time.sleep(120)
