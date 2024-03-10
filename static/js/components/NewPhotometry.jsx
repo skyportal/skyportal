@@ -109,6 +109,10 @@ const NewPhotometryForm = ({ obj_id }) => {
         type: "integer",
         title: "Exposure time [i.e. 60 or 300]",
       },
+      altdata: {
+        type: "string",
+        title: 'Alternative json data (i.e. {"note": "poor subtraction"}',
+      },
       // add a checkbox called 'coordinates' that is false by default
       // if it is checked, show the ra and dec fields
       coordinates: {
@@ -146,6 +150,15 @@ const NewPhotometryForm = ({ obj_id }) => {
       },
     },
   };
+
+  // vanillaJS
+  function isJSON(str) {
+    try {
+      return JSON.parse(str) && !!str;
+    } catch (e) {
+      return false;
+    }
+  }
 
   const validate = (formData, errors) => {
     if (formData.dateobs && !validateDate(formData.dateobs)) {
@@ -206,6 +219,9 @@ const NewPhotometryForm = ({ obj_id }) => {
         "Please enter a valid RA and Dec when coordinates is checked",
       );
     }
+    if (formData.altdata && !isJSON(formData.altdata)) {
+      errors.altdata.addError("altdata must be JSON");
+    }
     return errors;
   };
 
@@ -224,6 +240,7 @@ const NewPhotometryForm = ({ obj_id }) => {
       filter,
       ra,
       dec,
+      altdata,
     } = data.formData;
     let mjd = null;
     if (validateDate(dateobs)) {
@@ -231,12 +248,19 @@ const NewPhotometryForm = ({ obj_id }) => {
     } else {
       mjd = parseFloat(dateobs);
     }
+    let altdata_json;
+    try {
+      altdata_json = JSON.parse(altdata);
+    } catch (e) {
+      altdata_json = {};
+    }
     const payload = {
       mjd,
       obj_id,
       magsys,
       instrument_id: selectedInstrumentId,
       filter,
+      altdata: altdata_json,
     };
 
     if (!Number.isNaN(mag)) {
@@ -248,8 +272,13 @@ const NewPhotometryForm = ({ obj_id }) => {
     if (!Number.isNaN(limiting_mag)) {
       payload.limiting_mag = limiting_mag;
     }
-    if (!Number.isNaN(nb_exposure) && !Number.isNaN(exposure_time)) {
-      payload.altdata = { exposure: `${nb_exposure}x${exposure_time}` };
+    if (
+      nb_exposure !== undefined &&
+      exposure_time !== undefined &&
+      !Number.isNaN(nb_exposure) &&
+      !Number.isNaN(exposure_time)
+    ) {
+      payload.altdata.exposure = `${nb_exposure}x${exposure_time}`;
     }
 
     if (group_ids) {
