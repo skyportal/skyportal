@@ -183,7 +183,14 @@ const VegaPhotometry = (props) => {
         if ((!photometry || filters.length === 0) && !loading) {
           setLoading(true);
         }
-        if (!photometry && !loading) {
+        // make sure we have the AB photometry
+        if (
+          (!photometry && !loading) ||
+          (photometry &&
+            photometry &&
+            photometry?.length > 0 &&
+            photometry[0]?.magsys !== "ab")
+        ) {
           await dispatch(photometryActions.fetchSourcePhotometry(sourceId));
         }
         if (photometry && photometry?.length > 0 && filters.length === 0) {

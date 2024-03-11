@@ -79,6 +79,7 @@ import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
 import PhotometryPlot from "./PhotometryPlot";
 import SpectraPlot from "./SpectraPlot";
+import PhotometryMagsys from "./PhotometryMagsys";
 
 const CommentList = React.lazy(() => import("./CommentList"));
 const CommentListMobile = React.lazy(() => import("./CommentListMobile"));
@@ -1222,10 +1223,20 @@ const SourceContent = ({ source }) => {
                 <Typography className={classes.accordionHeading}>
                   Photometry
                 </Typography>
-                <DisplayPhotStats
-                  photstats={source.photstats[0]}
-                  display_header={false}
-                />
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexDirection: "row",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <DisplayPhotStats
+                    photstats={source.photstats[0]}
+                    display_header={false}
+                  />
+                  <PhotometryMagsys setMagsys={setMagsys} />
+                </div>
               </div>
             </AccordionSummary>
             <AccordionDetails className={classes.accordionPlot}>
@@ -1261,7 +1272,6 @@ const SourceContent = ({ source }) => {
                           height: rightPanelVisible ? "65vh" : "75vh",
                         }}
                         mode={downMd ? "mobile" : "desktop"}
-                        setMagsys={setMagsys}
                       />
                     </Suspense>
                   )}
@@ -1471,6 +1481,8 @@ const SourceContent = ({ source }) => {
           onClose={() => {
             setShowPhotometry(false);
           }}
+          magsys={magsys}
+          setMagsys={setMagsys}
         />
       </Grid>
     </Grid>

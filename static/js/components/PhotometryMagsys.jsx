@@ -55,7 +55,10 @@ const PhotometryMagsys = ({ setMagsys }) => {
             aria-controls={open ? "basic-menu" : undefined}
             aria-haspopup="true"
             aria-expanded={open ? "true" : undefined}
-            onClick={(e) => setAnchorEl(e.currentTarget)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setAnchorEl(e.currentTarget);
+            }}
             size="small"
             endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             data-testid="photometry_magsysButton"
@@ -67,7 +70,10 @@ const PhotometryMagsys = ({ setMagsys }) => {
             id="finding-chart-menu"
             anchorEl={anchorEl}
             open={open}
-            onClose={() => setAnchorEl(null)}
+            onClose={(e) => {
+              e.stopPropagation();
+              setAnchorEl(null);
+            }}
             MenuListProps={{
               "aria-labelledby": "basic-button",
             }}
@@ -77,7 +83,8 @@ const PhotometryMagsys = ({ setMagsys }) => {
                 className={styles.magsysMenuItem}
                 key={magsys.label}
                 data-testid={`photometry_${ms.magsys}`}
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   switchMagsys(ms);
                   setAnchorEl(null);
                 }}
