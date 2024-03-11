@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { useDispatch } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import makeStyles from "@mui/styles/makeStyles";
 import SaveIcon from "@mui/icons-material/Save";
 import TextField from "@mui/material/TextField";
+import Select from "@mui/material/Select";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
@@ -14,6 +17,12 @@ import FormValidationError from "./FormValidationError";
 import * as photActions from "../ducks/photometry";
 
 const useStyles = makeStyles(() => ({
+  Select: {
+    width: "100%",
+  },
+  SelectItem: {
+    whiteSpace: "break-spaces",
+  },
   saveButton: {
     textAlign: "center",
     margin: "1rem",
@@ -23,15 +32,22 @@ const useStyles = makeStyles(() => ({
 const UpdatePhotometry = ({ phot }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
+
+  const { instrumentList } = useSelector((state) => state.instruments);
+
   const [state, setState] = useState({
     mjd: phot.mjd,
     mag: phot.mag,
     magerr: phot.magerr,
+    limiting_mag: phot.limiting_mag,
+    filter: phot.filter,
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invalid, setInvalid] = useState(true);
+
+  const instrument = instrumentList.find((x) => x.id === phot.instrument_id);
 
   useEffect(() => {
     setInvalid(
@@ -43,12 +59,18 @@ const UpdatePhotometry = ({ phot }) => {
       mag: phot.mag,
       magerr: phot.magerr,
       limiting_mag: phot.limiting_mag,
+      filter: phot.filter,
     });
   }, [phot, setInvalid]);
 
   const handleChange = (e) => {
     const newState = {};
-    newState[e.target.name] = parseFloat(e.target.value);
+    if (Number.isNaN(parseFloat(e.target.value))) {
+      newState[e.target.name] = e.target.value;
+    } else {
+      newState[e.target.name] = parseFloat(e.target.value);
+    }
+
     setState({
       ...state,
       ...newState,
@@ -64,6 +86,7 @@ const UpdatePhotometry = ({ phot }) => {
     newState.mag = subState.mag;
     newState.magerr = subState.magerr;
     newState.limiting_mag = subState.limiting_mag;
+    newState.filter = subState.filter;
 
     // preserved quantities
     newState.obj_id = phot.obj_id;
@@ -71,7 +94,6 @@ const UpdatePhotometry = ({ phot }) => {
     newState.dec = phot.dec;
     newState.ra_unc = phot.ra_unc;
     newState.dec_unc = phot.dec_unc;
-    newState.filter = phot.filter;
     newState.magsys = phot.magsys;
     newState.assignment_id = phot.assignment_id;
     newState.instrument_id = phot.instrument_id;
@@ -117,7 +139,7 @@ const UpdatePhotometry = ({ phot }) => {
             <TextField
               data-testid="updatePhotometryMJDTextfield"
               size="small"
-              label="mjd"
+              label="MJD"
               value={state.mjd}
               name="mjd"
               onChange={handleChange}
@@ -130,7 +152,7 @@ const UpdatePhotometry = ({ phot }) => {
             <TextField
               data-testid="updatePhotometryMagTextfield"
               size="small"
-              label="mag"
+              label="Magnitude"
               value={state.mag}
               name="mag"
               onChange={handleChange}
@@ -143,7 +165,7 @@ const UpdatePhotometry = ({ phot }) => {
             <TextField
               data-testid="updatePhotometryMagerrTextfield"
               size="small"
-              label="magerr"
+              label="Magnitude Error"
               value={state.magerr}
               name="magerr"
               onChange={handleChange}
@@ -156,13 +178,35 @@ const UpdatePhotometry = ({ phot }) => {
             <TextField
               data-testid="updatePhotometryLimitingMagTextfield"
               size="small"
-              label="limiting_mag"
+              label="Limiting Magnitude"
               value={state.limiting_mag}
               name="limiting_mag"
               onChange={handleChange}
               type="number"
               variant="outlined"
             />
+          </div>
+          <div>
+            <InputLabel id="filterSelectLabel">Filter</InputLabel>
+            <Select
+              inputProps={{ MenuProps: { disableScrollLock: true } }}
+              labelId="filterSelectLabel"
+              value={state.filter}
+              onChange={handleChange}
+              name="filter"
+              data-testid="filterSelect"
+              className={classes.Select}
+            >
+              {instrument?.filters?.map((filt) => (
+                <MenuItem
+                  value={filt}
+                  key={filt}
+                  className={classes.SelectItem}
+                >
+                  {filt}
+                </MenuItem>
+              ))}
+            </Select>
           </div>
           <div className={classes.saveButton}>
             <Button
