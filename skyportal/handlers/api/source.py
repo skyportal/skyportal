@@ -44,6 +44,7 @@ from baselayer.log import make_log
 from ...models import (
     Allocation,
     Annotation,
+    Candidate,
     ClassicalAssignment,
     Classification,
     Comment,
@@ -3144,6 +3145,18 @@ class SourceHandler(BaseHandler):
         data = self.get_json()
         data['id'] = obj_id
 
+        if data.get('ra', None) is not None or data.get('dec', None) is not None:
+            # verify that there are no candidates for this object,
+            # in which case we do not allow updating the position
+            with self.Session() as session:
+                existing_candidates = session.scalars(
+                    sa.select(Candidate).where(Candidate.obj_id == obj_id)
+                ).all()
+                if len(existing_candidates) > 0:
+                    return self.error(
+                        'Cannot update the position of an object with candidates/alerts'
+                    )
+
         schema = Obj.__schema__()
         try:
             obj = schema.load(data)
@@ -3158,7 +3171,8 @@ class SourceHandler(BaseHandler):
 
         self.verify_and_commit()
         if data.get('ra', None) is not None or data.get('dec', None) is not None:
-            # delete the old thumbnails (sdss, ls, ps1), the thumbnails queue will regenerate them
+            # if the position of the object is updated, delete the old thumbnails (sdss, ls, ps1)
+            # the thumbnails queue will regenerate new thumbnails for that object
             with self.Session() as session:
                 existing_thumbnails = session.scalars(
                     sa.select(Thumbnail).where(
