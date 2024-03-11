@@ -881,7 +881,7 @@ const CandidateList = () => {
                       <Candidate
                         candidate={candidates[index]}
                         filterGroups={filterGroups}
-                        index={index + 1}
+                        index={index + (pageNumber - 1) * numPerPage + 1}
                         totalMatches={totalMatches}
                       />
                     </div>
