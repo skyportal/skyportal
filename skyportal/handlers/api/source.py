@@ -3157,6 +3157,18 @@ class SourceHandler(BaseHandler):
         update_healpix_if_relevant(data, obj)
 
         self.verify_and_commit()
+        if data.get('ra', None) is not None or data.get('dec', None) is not None:
+            # delete the old thumbnails (sdss, ls, ps1), the thumbnails queue will regenerate them
+            with self.Session() as session:
+                existing_thumbnails = session.scalars(
+                    sa.select(Thumbnail).where(
+                        Thumbnail.obj_id == obj_id,
+                        Thumbnail.type.in_(['ps1', 'sdss', 'ls']),
+                    )
+                )
+                for thumbnail in existing_thumbnails:
+                    session.delete(thumbnail)
+                session.commit()
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
             payload={"obj_key": obj.internal_key},
