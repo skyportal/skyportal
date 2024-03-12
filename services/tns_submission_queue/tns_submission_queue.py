@@ -231,7 +231,11 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
     -------
     reporters : str
         The reporters string.
+    warning : str
+        Any warning (e.g., if the original source saver had no affiliation and was ignored).
     """
+    warning = None
+
     tnsrobot_id = submission_request.tnsrobot_id
     user_id = submission_request.user_id
     obj_id = submission_request.obj_id
@@ -247,7 +251,14 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
             and source.saved_by_id is not None
             and source.saved_by_id != user_id
         ):
-            author_ids.append(source.saved_by_id)
+            # verify that this user has an affiliation
+            source_saver = session.scalar(
+                sa.select(User).where(User.id == source.saved_by_id)
+            )
+            if len(source_saver.affiliations) == 0:
+                warning = f'original source saver {source_saver.username} had no affiliation, ignored as the first author.'
+            else:
+                author_ids.append(source.saved_by_id)
         author_ids.append(user_id)
 
         coauthor_ids = [coauthor.user_id for coauthor in tnsrobot.coauthors]
@@ -289,7 +300,7 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
 
         reporters += f' {str(tnsrobot.acknowledgments).strip()}'
 
-    return reporters
+    return reporters, warning
 
 
 def find_accessible_instrument_ids(submission_request, tnsrobot, user, session):
@@ -654,6 +665,8 @@ def process_submission_request(submission_request, session):
     session : `~sqlalchemy.orm.Session`
         The database session to use.
     """
+    warning = None
+
     obj_id = submission_request.obj_id
     tnsrobot_id = submission_request.tnsrobot_id
     user_id = submission_request.user_id
@@ -687,7 +700,7 @@ def process_submission_request(submission_request, session):
 
         source = find_source_to_submit(submission_request, tnsrobot_groups, session)
 
-        reporters = build_reporters_string(
+        reporters, warning = build_reporters_string(
             submission_request, source, tnsrobot, session
         )
 
@@ -749,7 +762,8 @@ def process_submission_request(submission_request, session):
         status, submission_id, serialized_response = send_at_report(
             submission_request, tnsrobot, report, tns_headers
         )
-
+        if status == 'submitted' and warning not in [None, ""]:
+            status = f'submitted (warning: {warning})'
         submission_request.status = status
         submission_request.submission_id = submission_id
         submission_request.response = serialized_response
