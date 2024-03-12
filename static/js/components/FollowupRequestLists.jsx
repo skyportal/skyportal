@@ -85,8 +85,6 @@ const displayedColumns = [
   "allocation",
   "start_date",
   "end_date",
-  "start date",
-  "end date",
   "mode",
   "request",
   "filter",

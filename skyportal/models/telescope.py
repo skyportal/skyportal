@@ -290,7 +290,10 @@ class Telescope(Base):
             None,
             None,
         )
-        if twilight_morning_astronomical is not None:
+        if (
+            twilight_morning_astronomical is not None
+            and not twilight_morning_astronomical.masked
+        ):
             twilight_morning_astronomical_utc = twilight_morning_astronomical.isot
             twilight_morning_astronomical_unix_ms = (
                 twilight_morning_astronomical.unix * 1000
@@ -300,19 +303,28 @@ class Telescope(Base):
             None,
             None,
         )
-        if twilight_evening_astronomical is not None:
+        if (
+            twilight_evening_astronomical is not None
+            and not twilight_evening_astronomical.masked
+        ):
             twilight_evening_astronomical_utc = twilight_evening_astronomical.isot
             twilight_evening_astronomical_unix_ms = (
                 twilight_evening_astronomical.unix * 1000
             )
 
         twilight_morning_nautical_utc, twilight_morning_nautical_unix_ms = None, None
-        if twilight_morning_nautical is not None:
+        if (
+            twilight_morning_nautical is not None
+            and not twilight_morning_nautical.masked
+        ):
             twilight_morning_nautical_utc = twilight_morning_nautical.isot
             twilight_morning_nautical_unix_ms = twilight_morning_nautical.unix * 1000
 
         twilight_evening_nautical_utc, twilight_evening_nautical_unix_ms = None, None
-        if twilight_evening_nautical is not None:
+        if (
+            twilight_evening_nautical is not None
+            and not twilight_evening_nautical.masked
+        ):
             twilight_evening_nautical_utc = twilight_evening_nautical.isot
             twilight_evening_nautical_unix_ms = twilight_evening_nautical.unix * 1000
 

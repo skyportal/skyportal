@@ -25,7 +25,7 @@ def test_super_user_post_allocation(
     assert data['status'] == 'success'
 
     for key in request_data:
-        assert data['data'][key] == request_data[key]
+        assert data['data']['allocation'][key] == request_data[key]
 
 
 def test_super_user_modify_allocation(sedm, public_group, super_admin_token):
@@ -49,7 +49,7 @@ def test_super_user_modify_allocation(sedm, public_group, super_admin_token):
     assert data['status'] == 'success'
 
     for key in request_data:
-        assert data['data'][key] == request_data[key]
+        assert data['data']['allocation'][key] == request_data[key]
 
     request2_data = {'proposal_id': 'COO-2020A-P02'}
 
@@ -64,7 +64,7 @@ def test_super_user_modify_allocation(sedm, public_group, super_admin_token):
 
     request_data.update(request2_data)
     for key in request_data:
-        assert data['data'][key] == request_data[key]
+        assert data['data']['allocation'][key] == request_data[key]
 
 
 def test_read_only_user_cannot_get_unowned_allocation(
@@ -90,7 +90,7 @@ def test_read_only_user_cannot_get_unowned_allocation(
     assert data['status'] == 'success'
 
     for key in request_data:
-        assert data['data'][key] == request_data[key]
+        assert data['data']['allocation'][key] == request_data[key]
 
     status, data = api('GET', f'allocation/{id}', token=view_only_token)
     assert status == 400
