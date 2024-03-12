@@ -187,7 +187,6 @@ const VegaPhotometry = (props) => {
         if (
           (!photometry && !loading) ||
           (photometry &&
-            photometry &&
             photometry?.length > 0 &&
             photometry[0]?.magsys !== "ab")
         ) {
