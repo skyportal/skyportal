@@ -148,7 +148,7 @@ class ZTFRequest:
         }
 
         ra, dec = None, None
-        position = request.payload.get("position", "Source")
+        position = request.payload.get("position", "Source (object's coordinates)")
         if "Flux weighted centroid" in position:
             # here we query the database to get the all the photometry rows for the object that:
             # 1. belong to an instrument with data stream(s)
@@ -212,7 +212,7 @@ class ZTFRequest:
                     error = "No photometry found that meets the criteria for flux weighted centroid calculation."
                     return target, error
 
-        elif "Source" in position:
+        elif "Source (object's coordinates)" in position:
             ra, dec = request.obj.ra, request.obj.dec
         else:
             error = "Unknown position type."
@@ -715,12 +715,12 @@ class ZTFAPI(FollowUpAPI):
             "position": {
                 "type": "string",
                 "enum": [
-                    "Source",
+                    "Source (object's coordinates)",
                     "Flux weighted centroid",
                     "Flux weighted centroid (alert photometry only)",
                     "Flux weighted centroid (ZTF alert photometry only)",
                 ],
-                "default": "Source",
+                "default": "Source (object's coordinates)",
             },
             "start_date": {
                 "type": "string",
