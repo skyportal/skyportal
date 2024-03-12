@@ -156,6 +156,7 @@ class ZTFRequest:
             # 3. have a non-null flux error value
             # 4. have coordinates (ra and dec)
             # 5. do not have "fp" in the origin column
+            # 6. have abs(snr) = abs(flux/fluxerr) > 3
             with DBSession() as session:
                 photometry = (
                     session.scalars(
@@ -201,6 +202,20 @@ class ZTFRequest:
                     # calculate the weighted centroid based on the object's photometry
                     ras, decs, flux, fluxerr = np.array(photometry).T
                     snr = np.abs(flux / fluxerr)
+
+                    # only keep the ras, decs, flux, and fluxerr where the snr is above 3
+                    snr_cut_indices = np.where(snr > 3)
+                    if len(snr_cut_indices[0]) == 0:
+                        error = "No photometry found that meets the criteria for flux weighted centroid calculation (all snr < 3)."
+                        return target, error
+
+                    ras, decs, flux, fluxerr, snr = (
+                        ras[snr_cut_indices],
+                        decs[snr_cut_indices],
+                        flux[snr_cut_indices],
+                        fluxerr[snr_cut_indices],
+                        snr[snr_cut_indices],
+                    )
                     ra, dec = np.sum(ras * snr) / np.sum(snr), np.sum(
                         decs * snr
                     ) / np.sum(snr)
