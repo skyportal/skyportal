@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import PropTypes from "prop-types";
 
 import Menu from "@mui/material/Menu";
@@ -9,7 +9,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import Button from "./Button";
 
-const magsys = [
+const magsysOptions = [
   { label: "AB", magsys: "ab", tooltip: "Display AB magnitudes" },
   { label: "Vega", magsys: "vega", tooltip: "Display Vega magnitudes" },
 ];
@@ -31,14 +31,14 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const PhotometryMagsys = ({ setMagsys }) => {
-  const [currentMagsys, setCurrentMagsys] = useState(magsys[0]);
+const PhotometryMagsys = ({ magsys, setMagsys }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const open = Boolean(anchorEl);
 
   const switchMagsys = (selectedMagsys) => {
-    const newMagsys = magsys.find((ms) => ms.label === selectedMagsys.label);
-    setCurrentMagsys(newMagsys);
+    const newMagsys = magsysOptions.find(
+      (ms) => ms.label === selectedMagsys.label,
+    );
     setMagsys(newMagsys.magsys);
   };
 
@@ -48,7 +48,7 @@ const PhotometryMagsys = ({ setMagsys }) => {
     <div
       style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
     >
-      {currentMagsys && (
+      {magsys && (
         <div className={styles.magsysSelect}>
           <Button
             variant="contained"
@@ -63,7 +63,7 @@ const PhotometryMagsys = ({ setMagsys }) => {
             endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             data-testid="photometry_magsysButton"
           >
-            {currentMagsys.label}
+            {magsysOptions.find((ms) => ms.magsys === magsys).label}
           </Button>
           <Menu
             transitionDuration={50}
@@ -78,7 +78,7 @@ const PhotometryMagsys = ({ setMagsys }) => {
               "aria-labelledby": "basic-button",
             }}
           >
-            {magsys.map((ms) => (
+            {magsysOptions.map((ms) => (
               <MenuItem
                 className={styles.magsysMenuItem}
                 key={magsys.label}
@@ -100,6 +100,7 @@ const PhotometryMagsys = ({ setMagsys }) => {
 };
 
 PhotometryMagsys.propTypes = {
+  magsys: PropTypes.string.isRequired,
   setMagsys: PropTypes.func.isRequired,
 };
 

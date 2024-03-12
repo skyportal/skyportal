@@ -1235,7 +1235,7 @@ const SourceContent = ({ source }) => {
                     photstats={source.photstats[0]}
                     display_header={false}
                   />
-                  <PhotometryMagsys setMagsys={setMagsys} />
+                  <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
                 </div>
               </div>
             </AccordionSummary>

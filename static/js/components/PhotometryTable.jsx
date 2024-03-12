@@ -439,7 +439,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                       {`Photometry of ${obj_id}`}
                     </Typography>
                     {magsys && typeof setMagsys === "function" && (
-                      <PhotometryMagsys setMagsys={setMagsys} />
+                      <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
                     )}
                   </div>
                 }
