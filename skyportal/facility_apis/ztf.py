@@ -200,7 +200,7 @@ class ZTFRequest:
                 if len(photometry) > 0:
                     # calculate the weighted centroid based on the object's photometry
                     ras, decs, flux, fluxerr = np.array(photometry).T
-                    snr = flux / fluxerr
+                    snr = np.abs(flux / fluxerr)
                     ra, dec = np.sum(ras * snr) / np.sum(snr), np.sum(
                         decs * snr
                     ) / np.sum(snr)
