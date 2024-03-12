@@ -27,6 +27,7 @@ from skyportal.utils.tns import (
     read_tns_spectrum,
     get_recent_TNS,
 )
+from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
 log = make_log('tns_queue')
@@ -46,8 +47,6 @@ bot_id = cfg.get('app.tns.bot_id', None)
 bot_name = cfg.get('app.tns.bot_name', None)
 api_key = cfg.get('app.tns.api_key', None)
 look_back_days = cfg.get('app.tns.look_back_days', 1)
-
-queue = []
 
 
 def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, session):
@@ -101,7 +100,114 @@ def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, se
                 session.rollback()
 
 
-def service(queue):
+def add_tns_photometry(tns_source, tns_name, tns_source_data, public_group_id, session):
+    """Add TNS photometry to a TNS source.
+
+    Parameters
+    ----------
+    tns_source : str
+        The TNS source, excluding the "AT" or "SN" prefix
+    tns_name : str
+        The full TNS name of the source, including the "AT" or "SN" prefix
+    tns_source_data : dict
+        The data retrieved from TNS for the source
+    public_group_id : int
+        The ID of the public group
+    session : `sqlalchemy.orm.session.Session`
+        Database session object
+    """
+
+    user = session.scalar(sa.select(User).where(User.id == USER_ID))
+    if user is None:
+        log(
+            f"Error getting user {USER_ID}, required to add photometry with add_external_photometry()"
+        )
+        return
+
+    photometry = tns_source_data.get('photometry', [])
+    if len(photometry) == 0:
+        log(f"No photometry found on TNS for source {tns_source}")
+        return
+
+    failed_photometry = []
+    failed_photometry_errors = []
+    for phot in photometry:
+        read_photometry = False
+        try:
+            df, instrument_id = read_tns_photometry(phot, session)
+            data_out = {
+                'obj_id': tns_name,
+                'instrument_id': instrument_id,
+                'group_ids': [public_group_id],
+                **df.to_dict(orient='list'),
+            }
+            read_photometry = True
+        except Exception as e:
+            failed_photometry.append(phot)
+            failed_photometry_errors.append(str(e))
+            log(f'Cannot read TNS photometry {str(phot)}: {str(e)}')
+            continue
+        if read_photometry:
+            try:
+                add_external_photometry(data_out, user, parent_session=session)
+            except Exception as e:
+                failed_photometry.append(phot)
+                failed_photometry_errors.append(str(e))
+                continue
+
+    if len(failed_photometry) > 0:
+        log(
+            f'Failed to retrieve {len(failed_photometry)}/{len(photometry)} TNS photometry points from {tns_source}: {str(list(set(failed_photometry_errors)))}'
+        )
+    else:
+        log(
+            f'Successfully retrieved {len(photometry)} TNS photometry points from {tns_source}'
+        )
+
+
+def add_tns_spectra(tns_source, tns_name, tns_source_data, public_group_id, session):
+    """Add TNS spectra to a TNS source.
+
+    Parameters
+    ----------
+    tns_source : str
+        The TNS source, excluding the "AT" or "SN" prefix
+    tns_name : str
+        The full TNS name of the source, including the "AT" or "SN" prefix
+    tns_source_data : dict
+        The data retrieved from TNS for the source
+    public_group_id : int
+        The ID of the public group
+    session : `sqlalchemy.orm.session.Session`
+        Database session object
+    """
+    spectra = tns_source_data.get('spectra', [])
+    if len(spectra) == 0:
+        log(f"No spectra found on TNS for source {tns_source}")
+        return
+
+    failed_spectra = []
+    failed_spectra_errors = []
+
+    for spectrum in spectra:
+        try:
+            data = read_tns_spectrum(spectrum, session)
+        except Exception as e:
+            log(f'Cannot read TNS spectrum {str(spectrum)}: {str(e)}')
+            continue
+        data["obj_id"] = tns_name
+        data["group_ids"] = [public_group_id]
+        post_spectrum(data, USER_ID, session)
+
+    if len(failed_spectra) > 0:
+        log(
+            f'Failed to retrieve {len(failed_spectra)}/{len(spectra)} TNS spectra from {tns_source}: {str(list(set(failed_spectra_errors)))}'
+        )
+    else:
+        log(f'Successfully retrieved {len(spectra)} TNS spectra from {tns_source}')
+
+
+def process_queue(queue):
     """Process the TNS retrieval queue
 
     Parameters
@@ -241,7 +347,12 @@ def service(queue):
                     existing_tns_obj = session.scalar(
                         sa.select(Obj).where(Obj.id == tns_name)
                     )
-                    if existing_tns_obj is None:
+                    if existing_tns_obj is not None:
+                        # TODO: update photometry and spectra and not just skip
+                        log(
+                            f"TNS source {tns_source} already exists in the database, skipping..."
+                        )
+                    else:
                         # we add the TNS source to the database if it doesn't exist yet
                         # with its photometry and spectra
                         new_source_data = {
@@ -253,82 +364,21 @@ def service(queue):
                         }
                         post_source(new_source_data, USER_ID, session)
 
-                        user = session.scalar(sa.select(User).where(User.id == USER_ID))
-                        if user is None:
-                            log(
-                                f"Error getting user {USER_ID}, required to add photometry with add_external_photometry()"
-                            )
-                            continue
+                        add_tns_photometry(
+                            tns_source,
+                            tns_name,
+                            tns_source_data,
+                            public_group_id,
+                            session,
+                        )
 
-                        photometry = tns_source_data.get('photometry', [])
-                        if len(photometry) == 0:
-                            log(f"No photometry found on TNS for source {tns_source}")
-                            continue
-                        failed_photometry = []
-                        failed_photometry_errors = []
-                        for phot in photometry:
-                            read_photometry = False
-                            try:
-                                df, instrument_id = read_tns_photometry(phot, session)
-                                data_out = {
-                                    'obj_id': tns_name,
-                                    'instrument_id': instrument_id,
-                                    'group_ids': [public_group_id],
-                                    **df.to_dict(orient='list'),
-                                }
-                                read_photometry = True
-                            except Exception as e:
-                                failed_photometry.append(phot)
-                                failed_photometry_errors.append(str(e))
-                                log(f'Cannot read TNS photometry {str(phot)}: {str(e)}')
-                                continue
-                            if read_photometry:
-                                try:
-                                    add_external_photometry(
-                                        data_out, user, parent_session=session
-                                    )
-                                except Exception as e:
-                                    failed_photometry.append(phot)
-                                    failed_photometry_errors.append(str(e))
-                                    continue
-
-                        if len(failed_photometry) > 0:
-                            log(
-                                f'Failed to retrieve {len(failed_photometry)}/{len(photometry)} TNS photometry points from {tns_source}: {str(list(set(failed_photometry_errors)))}'
-                            )
-                        else:
-                            log(
-                                f'Successfully retrieved {len(photometry)} TNS photometry points from {tns_source}'
-                            )
-
-                        spectra = tns_source_data.get('spectra', [])
-                        if len(spectra) == 0:
-                            log(f"No spectra found on TNS for source {tns_source}")
-                            continue
-
-                        failed_spectra = []
-                        failed_spectra_errors = []
-
-                        for spectrum in spectra:
-                            try:
-                                data = read_tns_spectrum(spectrum, session)
-                            except Exception as e:
-                                log(
-                                    f'Cannot read TNS spectrum {str(spectrum)}: {str(e)}'
-                                )
-                                continue
-                            data["obj_id"] = tns_name
-                            data["group_ids"] = [public_group_id]
-                            post_spectrum(data, USER_ID, session)
-
-                        if len(failed_spectra) > 0:
-                            log(
-                                f'Failed to retrieve {len(failed_spectra)}/{len(spectra)} TNS spectra from {tns_source}: {str(list(set(failed_spectra_errors)))}'
-                            )
-                        else:
-                            log(
-                                f'Successfully retrieved {len(spectra)} TNS spectra from {tns_source}'
-                            )
+                        add_tns_spectra(
+                            tns_source,
+                            tns_name,
+                            tns_source_data,
+                            public_group_id,
+                            session,
+                        )
         except Exception as e:
             log(f"Error processing TNS source {tns_source}: {e}")
             user_id = task.get("user_id", None)
@@ -450,18 +500,26 @@ def api(queue):
     loop.run_forever()
 
 
+@check_loaded(logger=log)
+def service(*args, **kwargs):
+    """Process the TNS retrieval queue"""
+
+    queue = []
+    t = Thread(target=process_queue, args=(queue,))
+    t2 = Thread(target=api, args=(queue,))
+    t3 = Thread(target=tns_watcher, args=(queue,))
+    t.start()
+    t2.start()
+    t3.start()
+    while True:
+        log(f"Current TNS retrieval queue length: {len(queue)}")
+        time.sleep(120)
+
+
 if __name__ == "__main__":
     """Start the internal API, the TNS watcher, and the TNS retrieval service"""
     try:
-        t = Thread(target=service, args=(queue,))
-        t2 = Thread(target=api, args=(queue,))
-        t3 = Thread(target=tns_watcher, args=(queue,))
-        t.start()
-        t2.start()
-        t3.start()
-        while True:
-            log(f"Current TNS retrieval queue length: {len(queue)}")
-            time.sleep(120)
+        service()
     except Exception as e:
-        log(f"Error starting TNS retrieval queue: {str(e)}")
+        log(f"Error occured with TNS retrieval queue: {str(e)}")
         raise e
