@@ -244,6 +244,8 @@ def test_token_user_update_source(upload_data_token, public_source):
         },
         token=upload_data_token,
     )
+    print(status)
+    print(data)
     assert status == 200
     assert data["status"] == "success"
 
