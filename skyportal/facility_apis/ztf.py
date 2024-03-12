@@ -130,7 +130,12 @@ class ZTFRequest:
         ----------
         payload : json
             payload for requests.
+        error : str
+            error message if the request is invalid.
         """
+        from ..models import Instrument, Photometry, DBSession
+
+        error = None
 
         start_jd = Time(request.payload["start_date"], format='iso').jd
         end_jd = Time(request.payload["end_date"], format='iso').jd
@@ -138,11 +143,85 @@ class ZTFRequest:
         target = {
             'jdstart': start_jd,
             'jdend': end_jd,
-            'ra': request.obj.ra,
-            'dec': request.obj.dec,
+            'ra': None,
+            'dec': None,
         }
 
-        return target
+        ra, dec = None, None
+        position = request.payload.get("position", "Source")
+        if "Flux weighted centroid" in position:
+            # here we query the database to get the all the photometry rows for the object that:
+            # 1. belong to an instrument with data stream(s)
+            # 2. have a non-null flux value
+            # 3. have a non-null flux error value
+            # 4. have coordinates (ra and dec)
+            # 5. do not have "fp" in the origin column
+            with DBSession() as session:
+                photometry = (
+                    session.scalars(
+                        sa.select(Photometry).where(
+                            sa.and_(
+                                Photometry.obj_id == request.obj.id,
+                                ~Photometry.origin.ilike('%fp%'),
+                            )
+                        )
+                    )
+                ).all()
+                additional_constraints = []
+                if "alert photometry only" in position:
+                    additional_constraints.append(lambda p: p and len(p.streams) > 0)
+                if "ZTF alert photometry only" in position:
+                    # grab the id of the ZTF instrument (one of ZTF or CFH12k)
+                    ztf_instrument_id = session.scalar(
+                        sa.select(Instrument.id).where(
+                            sa.or_(
+                                Instrument.name == "ZTF",
+                                Instrument.name == "CFH12k",
+                            )
+                        )
+                    )
+                    if ztf_instrument_id is not None:
+                        additional_constraints.append(
+                            lambda p: p and p.instrument_id == ztf_instrument_id
+                        )
+                    else:
+                        error = "Could not find the ZTF instrument in the database."
+                        return target, error
+                photometry = [
+                    (p.ra, p.dec, p.flux, p.fluxerr)
+                    for p in photometry
+                    if not np.isnan(p.flux)
+                    and not np.isnan(p.fluxerr)
+                    and not np.isnan(p.ra)
+                    and not np.isnan(p.dec)
+                    and len(p.streams) > 0
+                    and all(constraint(p) for constraint in additional_constraints)
+                ]
+                if len(photometry) > 0:
+                    # calculate the weighted centroid based on the object's photometry
+                    ras, decs, flux, fluxerr = np.array(photometry).T
+                    snr = flux / fluxerr
+                    ra, dec = np.sum(ras * snr) / np.sum(snr), np.sum(
+                        decs * snr
+                    ) / np.sum(snr)
+
+                    if np.isnan(ra) or np.isnan(dec):
+                        error = "Could not compute the flux weighted centroid for the object."
+                        return target, error
+                else:
+                    error = "No photometry found that meets the criteria for flux weighted centroid calculation."
+                    return target, error
+
+        elif "Source" in position:
+            ra, dec = request.obj.ra, request.obj.dec
+        else:
+            error = "Unknown position type."
+            return target, error
+
+        target['ra'] = ra
+        target['dec'] = dec
+
+        return target, error
 
     def _build_observation_plan_payload(self, request):
         """Payload json for ZTF observation plan queue requests.
@@ -480,7 +559,9 @@ class ZTFAPI(FollowUpAPI):
             requestgroup = req._build_triggered_payload(request, session)
             url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
         elif request.payload["request_type"] == "forced_photometry":
-            requestgroup = req._build_forced_payload(request)
+            requestgroup, error = req._build_forced_payload(request)
+            if error:
+                raise ValueError(error)
             requestgroup["email"] = altdata["ipac_email"]
             requestgroup["userpass"] = altdata["ipac_userpass"]
             params = urllib.parse.urlencode(requestgroup)
@@ -630,6 +711,16 @@ class ZTFAPI(FollowUpAPI):
                 "type": "string",
                 "enum": ["forced_photometry"],
                 "default": "forced_photometry",
+            },
+            "position": {
+                "type": "string",
+                "enum": [
+                    "Source",
+                    "Flux weighted centroid",
+                    "Flux weighted centroid (alert photometry only)",
+                    "Flux weighted centroid (ZTF alert photometry only)",
+                ],
+                "default": "Source",
             },
             "start_date": {
                 "type": "string",
