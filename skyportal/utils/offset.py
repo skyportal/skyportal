@@ -2,6 +2,7 @@ import io
 import os
 import math
 import datetime
+import urllib
 import warnings
 from functools import wraps
 import re
@@ -44,6 +45,10 @@ log = make_log('finder-chart')
 _, cfg = load_env()
 
 PS1_CUTOUT_TIMEOUT = 15  # seconds
+
+HOST = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
+    f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
+)
 
 
 class GaiaQuery:
@@ -1508,12 +1513,16 @@ def get_finding_chart(
 
     start_text = [-0.45, 0.99]
     origin = "GaiaDR3" if not used_ztfref else "ZTFref"
+    starlist_url = urllib.parse.urljoin(
+        HOST,
+        f"/api/sources/{source_name}/offsets?"
+        f"facility={offset_star_kwargs.get('facility', 'Keck')}",
+    )
     starlist_str = (
         f"# Note: {origin} used for offset star positions\n"
         "# Note: spacing in starlist many not copy/paste correctly in PDF\n"
         + "#       you can get starlist directly from"
-        + f" /api/sources/{source_name}/offsets?"
-        + f"facility={offset_star_kwargs.get('facility', 'Keck')}\n"
+        + f" {starlist_url}\n"
         + "\n".join([x["str"] for x in star_list])
     )
 
