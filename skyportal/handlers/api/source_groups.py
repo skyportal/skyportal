@@ -1,11 +1,20 @@
 import datetime
 
+import sqlalchemy as sa
+
 from baselayer.app.access import permissions
+from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     Obj,
     Source,
+    TNSRobotGroup,
+    TNSRobotGroupAutoreporter,
+    TNSRobotSubmission,
+    GroupUser,
 )
+
+log = make_log('api/source_groups')
 
 
 class SourceGroupsHandler(BaseHandler):
@@ -65,12 +74,14 @@ class SourceGroupsHandler(BaseHandler):
                     "Missing required parameter: one of either unsaveGroupIds or inviteGroupIds must be provided"
                 )
 
+            saved_to_group_ids = []
             for save_or_invite_group_id in save_or_invite_group_ids:
                 if int(save_or_invite_group_id) in [
                     g.id for g in self.current_user.accessible_groups
                 ]:
                     active = True
                     requested = False
+                    saved_to_group_ids.append(save_or_invite_group_id)
                 else:
                     active = False
                     requested = True
@@ -111,6 +122,44 @@ class SourceGroupsHandler(BaseHandler):
                 source.unsaved_at = datetime.datetime.utcnow()
 
             session.commit()
+
+            for group_id in saved_to_group_ids:
+                # see if there is a tnsrobot_group set up for autosubmission
+                # and if the user has autosubmission set up
+                tnsrobot_group_with_autoreporter = session.scalars(
+                    TNSRobotGroup.select(session.user_or_token)
+                    .join(
+                        TNSRobotGroupAutoreporter,
+                        TNSRobotGroup.id == TNSRobotGroupAutoreporter.tnsrobot_group_id,
+                    )
+                    .where(
+                        TNSRobotGroup.group_id == group_id,
+                        TNSRobotGroup.auto_report,
+                        TNSRobotGroupAutoreporter.group_user_id.in_(
+                            sa.select(GroupUser.id).where(
+                                GroupUser.user_id == self.current_user.id,
+                                GroupUser.group_id == group_id,
+                            )
+                        ),
+                    )
+                ).first()
+
+                if tnsrobot_group_with_autoreporter is not None:
+                    # add a request to submit to TNS for only the first group we save to
+                    # that has access to TNSRobot and auto_report is True
+                    submission_request = TNSRobotSubmission(
+                        obj_id=obj.id,
+                        tnsrobot_id=tnsrobot_group_with_autoreporter.tnsrobot_id,
+                        user_id=self.current_user.id,
+                        auto_submission=True,
+                    )
+                    session.add(submission_request)
+                    session.commit()
+                    log(
+                        f"Added TNSRobotSubmission request for obj_id {obj.id} saved to group {group_id} with tnsrobot_id {tnsrobot_group_with_autoreporter.tnsrobot_id} for user_id {self.current_user.id}"
+                    )
+                    break
+
             self.push_all(
                 action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
             )

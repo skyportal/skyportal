@@ -1530,6 +1530,8 @@ class CandidateHandler(BaseHandler):
         """
         data = self.get_json()
 
+        ids = []
+
         with self.Session() as session:
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == data["id"])
@@ -1590,21 +1592,14 @@ class CandidateHandler(BaseHandler):
             session.add_all(candidates)
             try:
                 session.commit()
+                ids = [c.id for c in candidates]
             except IntegrityError as e:
                 session.rollback()
                 return self.error(
                     f"Failed to post candidate for object {obj.id}: {e.args[0]}"
                 )
-            try:
-                existing_thumbnail_types = [thumb.type for thumb in obj.thumbnails]
-                thumbnails = list({"sdss", "ls"} - set(existing_thumbnail_types))
-                if len(thumbnails) > 0:
-                    obj.add_linked_thumbnails(thumbnails, session)
-            except Exception:
-                session.rollback()
-                pass
 
-            return self.success(data={"ids": [c.id for c in candidates]})
+            return self.success(data={"ids": ids})
 
     @permissions(["Upload data"])
     def delete(self, obj_id, filter_id):
