@@ -854,6 +854,8 @@ const TNSRobotsPage = () => {
         default:
           tnsrobotListLookup[tnsrobotToManage]?.acknowledgments ||
           "on behalf of ...",
+        description:
+          "Added at the end of the author list, e.g. 'First Last (University), <insert_acknowledgments_here>'",
       },
       instrument_ids: {
         type: "array",
@@ -1038,6 +1040,20 @@ const TNSRobotsPage = () => {
     );
   };
 
+  const renderAcknowledgments = (dataIndex) => {
+    const tnsrobot = tnsrobotList[dataIndex];
+    return (
+      <Tooltip
+        title={`Added at the end of the author list, e.g. 'First Last (University), ${
+          tnsrobot?.acknowledgments || "<insert_acknowledgments_here>"
+        }`}
+        placement="top"
+      >
+        <Typography variant="body1">{tnsrobot.acknowledgments}</Typography>
+      </Tooltip>
+    );
+  };
+
   const renderGroups = (dataIndex) => {
     let tnsrobot_groups = tnsrobotList[dataIndex]?.groups || [];
     // order alphabetically by group name, then by owner status
@@ -1171,6 +1187,7 @@ const TNSRobotsPage = () => {
       options: {
         filter: false,
         sort: false,
+        customBodyRenderLite: renderAcknowledgments,
       },
     },
     {
