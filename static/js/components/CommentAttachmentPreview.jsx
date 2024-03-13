@@ -153,6 +153,26 @@ const CommentAttachmentPreview = ({
   const isCached = commentId === cachedAttachmentCommentId;
 
   const [open, setOpen] = useState(false);
+
+  const getURLs = () => {
+    const type = filename.includes(".") ? filename.split(".").pop() : "";
+    let baseUrl = "";
+    // The FilePreviewer expects a url ending with .pdf for PDF files
+    if (associatedResourceType === "gcn_event") {
+      baseUrl = `/api/${associatedResourceType}/${gcnEventID}/comments/${commentId}/attachment`;
+    } else if (associatedResourceType === "shift") {
+      baseUrl = `/api/${associatedResourceType}/${shiftID}/comments/${commentId}/attachment`;
+    } else if (associatedResourceType === "earthquake") {
+      baseUrl = `/api/${associatedResourceType}/${earthquakeID}/comments/${commentId}/attachment`;
+    } else {
+      baseUrl = `/api/${associatedResourceType}/${objectID}/comments/${commentId}/attachment`;
+    }
+    return {
+      previewUrl: `${baseUrl}?preview=True`,
+      url: type === "pdf" ? `${baseUrl}.pdf` : baseUrl,
+    };
+  };
+
   const handleClickOpen = () => {
     setOpen(true);
   };
@@ -215,20 +235,7 @@ const CommentAttachmentPreview = ({
       );
     }
   }
-
-  let baseUrl = "";
-  // The FilePreviewer expects a url ending with .pdf for PDF files
-  if (associatedResourceType === "gcn_event") {
-    baseUrl = `/api/${associatedResourceType}/${gcnEventID}/comments/${commentId}/attachment`;
-  } else if (associatedResourceType === "shift") {
-    baseUrl = `/api/${associatedResourceType}/${shiftID}/comments/${commentId}/attachment`;
-  } else if (associatedResourceType === "earthquake") {
-    baseUrl = `/api/${associatedResourceType}/${earthquakeID}/comments/${commentId}/attachment`;
-  } else {
-    baseUrl = `/api/${associatedResourceType}/${objectID}/comments/${commentId}/attachment`;
-  }
-  const previewUrl = `${baseUrl}?preview=True`;
-  const url = fileType === "pdf" ? `${baseUrl}.pdf` : baseUrl;
+  const { previewUrl, url } = getURLs();
 
   return (
     <div>
@@ -250,7 +257,7 @@ const CommentAttachmentPreview = ({
           open={open}
           onClose={handleClose}
           style={{ position: "fixed" }}
-          maxWidth="md"
+          maxWidth="xlg"
         >
           <DialogTitle onClose={handleClose}>Attachment Preview</DialogTitle>
           <DialogContent dividers>
@@ -272,12 +279,28 @@ const CommentAttachmentPreview = ({
                   theme={darkTheme ? "monokai" : "rjv-default"}
                 />
               )}
-              {supportedType && fileType !== "pdf" && fileType !== "json" && (
-                <FilePreviewerThumbnail
-                  file={{ url: previewUrl }}
-                  hideControls
-                />
-              )}
+              {supportedType &&
+                ["jpeg", "jpg", "png", "gif"].includes(fileType) && (
+                  <img
+                    src={previewUrl}
+                    alt={filename}
+                    style={{
+                      maxHeight: "68vh",
+                      maxWidth: "100%",
+                      width: "auto",
+                    }}
+                  />
+                )}
+              {supportedType &&
+                fileType !== "pdf" &&
+                fileType !== "json" &&
+                !["jpeg", "jpg", "png", "gif"].includes(fileType) && (
+                  <FilePreviewerThumbnail
+                    file={{ url: previewUrl }}
+                    style={{ width: "100px", height: "100px" }}
+                    hideControls
+                  />
+                )}
               {!supportedType && (
                 <div className={classes.unsupportedType}>
                   Previews are unavailable for {fileType.toUpperCase()} files.

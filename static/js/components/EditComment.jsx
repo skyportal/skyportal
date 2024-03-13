@@ -19,6 +19,8 @@ const EditComment = ({
   id = null,
   hoverID = null,
   shiftID = null,
+  commentText = "",
+  attachmentName = "",
 }) => {
   const dispatch = useDispatch();
 
@@ -96,7 +98,11 @@ const EditComment = ({
           onClose={closeDialog}
         >
           <DialogContent>
-            <CommentEntry editComment={editComment} />
+            <CommentEntry
+              editComment={editComment}
+              commentText={commentText}
+              attachmentName={attachmentName}
+            />
           </DialogContent>
           <DialogActions>
             <Button secondary autoFocus onClick={closeDialog}>
@@ -117,6 +123,8 @@ EditComment.propTypes = {
   id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   hoverID: PropTypes.number,
   shiftID: PropTypes.number,
+  commentText: PropTypes.string,
+  attachmentName: PropTypes.string,
 };
 
 EditComment.defaultProps = {
@@ -127,6 +135,8 @@ EditComment.defaultProps = {
   id: null,
   hoverID: null,
   shiftID: null,
+  commentText: "",
+  attachmentName: "",
 };
 
 export default EditComment;
