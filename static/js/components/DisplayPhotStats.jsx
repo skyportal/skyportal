@@ -20,7 +20,8 @@ const DisplayPhotStats = ({ photstats, display_header }) => {
         <IconButton
           data-testid="showPhotStatsIcon"
           size="small"
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             setDialogOpen(true);
           }}
           style={{
@@ -34,7 +35,8 @@ const DisplayPhotStats = ({ photstats, display_header }) => {
       </Tooltip>
       <Dialog
         open={dialogOpen}
-        onClose={() => {
+        onClose={(e) => {
+          e.stopPropagation();
           setDialogOpen(false);
         }}
         style={{ position: "fixed" }}

@@ -17,9 +17,12 @@ import {
 import CircularProgress from "@mui/material/CircularProgress";
 import MUIDataTable from "mui-datatables";
 
+import { Typography } from "@mui/material";
 import UpdatePhotometry from "./UpdatePhotometry";
+import PhotometryMagsys from "./PhotometryMagsys";
 import Button from "./Button";
 import * as Actions from "../ducks/photometry";
+import { mjd_to_utc } from "../units";
 
 const useStyles = makeStyles(() => ({
   actionButtons: {
@@ -82,7 +85,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 const isFloat = (x) =>
   typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
 
-const PhotometryTable = ({ obj_id, open, onClose }) => {
+const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
   const photometry = useSelector((state) => state.photometry);
   let bodyContent = null;
 
@@ -156,6 +159,25 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
           display: !defaultHiddenColumns.includes(key),
         },
       }));
+
+      const renderUTC = (dataIndex) => {
+        const phot = data[dataIndex];
+        return (
+          <div>
+            <div className={classes.actionButtons}>
+              <div>{mjd_to_utc(phot.mjd)}</div>
+            </div>
+          </div>
+        );
+      };
+      columns.push({
+        name: "UTC",
+        label: "UTC",
+        options: {
+          customBodyRenderLite: renderUTC,
+          display: false,
+        },
+      });
 
       const renderOwner = (dataIndex) => {
         const phot = data[dataIndex];
@@ -404,7 +426,23 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
               <MUIDataTable
-                title={`Photometry of ${obj_id}`}
+                title={
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      flexDirection: "row",
+                      gap: "1rem",
+                    }}
+                  >
+                    <Typography variant="h6" noWrap>
+                      {`Photometry of ${obj_id}`}
+                    </Typography>
+                    {magsys && typeof setMagsys === "function" && (
+                      <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
+                    )}
+                  </div>
+                }
                 columns={columns}
                 data={data}
                 options={options}
@@ -431,6 +469,13 @@ PhotometryTable.propTypes = {
   obj_id: PropTypes.string.isRequired,
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
+  magsys: PropTypes.string,
+  setMagsys: PropTypes.func,
+};
+
+PhotometryTable.defaultProps = {
+  magsys: null,
+  setMagsys: null,
 };
 
 export default PhotometryTable;
