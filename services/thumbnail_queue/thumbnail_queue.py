@@ -80,7 +80,7 @@ def service(*args, **kwargs):
                 obj, err = fetch_obj(session)
                 if err is not None:
                     log(f"Error fetching object with missing thumbnails: {str(err)}")
-                    time.sleep(5)
+                    time.sleep(1)
                 elif obj is None:
                     log(
                         "No objects with missing thumbnails found, sleeping for 5 seconds."
