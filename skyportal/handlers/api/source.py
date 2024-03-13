@@ -1943,6 +1943,9 @@ def post_source(data, user_id, session, refresh_source=True):
                 auto_submission=True,
             )
             session.add(submission_request)
+            log(
+                f"Added TNSRobotSubmission request for obj_id {obj.id} saved to group {group.id} with tnsrobot_id {tnsrobot_group_with_autoreporter.tnsrobot_id} for user_id {user.id}"
+            )
             break
 
     else:

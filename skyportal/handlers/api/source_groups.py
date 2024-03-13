@@ -3,6 +3,7 @@ import datetime
 import sqlalchemy as sa
 
 from baselayer.app.access import permissions
+from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     Obj,
@@ -12,6 +13,8 @@ from ...models import (
     TNSRobotSubmission,
     GroupUser,
 )
+
+log = make_log('api/source_groups')
 
 
 class SourceGroupsHandler(BaseHandler):
@@ -152,6 +155,9 @@ class SourceGroupsHandler(BaseHandler):
                     )
                     session.add(submission_request)
                     session.commit()
+                    log(
+                        f"Added TNSRobotSubmission request for obj_id {obj.id} saved to group {group_id} with tnsrobot_id {tnsrobot_group_with_autoreporter.tnsrobot_id} for user_id {self.current_user.id}"
+                    )
                     break
 
             self.push_all(

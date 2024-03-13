@@ -1609,6 +1609,9 @@ class ObjTNSHandler(BaseHandler):
             )
             session.add(tnsrobot_submission)
             session.commit()
+            log(
+                f"Added TNSRobotSubmission request for obj_id {obj.id} (manual submission) with tnsrobot_id {tnsrobot.id} for user_id {self.associated_user_object.id}"
+            )
             return self.success()
 
 

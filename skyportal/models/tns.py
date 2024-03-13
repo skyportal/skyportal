@@ -67,7 +67,7 @@ class TNSRobot(Base):
         sa.Boolean,
         nullable=False,
         server_default="false",
-        doc="Whether to still report objects that are already in the TNS, but not reported with this object internal name (i.e., reportedby another survey).",
+        doc="Whether to still report objects that are already in the TNS, but not reported with this object internal name (i.e., reported by another survey).",
     )
 
     testing = sa.Column(

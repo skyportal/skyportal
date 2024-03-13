@@ -3,6 +3,7 @@ from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.log import make_log
 from ..base import BaseHandler
 from .source import get_sources, MAX_SOURCES_PER_PAGE
 
@@ -14,6 +15,8 @@ from ...models import (
     TNSRobotSubmission,
 )
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
+
+log = make_log('api/sources_confirmed_in_gcn')
 
 
 class Validator(Schema):
@@ -798,6 +801,9 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                         archival_comment=archival_comment,
                     )
                     session.add(submission)
+                    log(
+                        f"Added TNSRobotSubmission request for obj_id {obj.id} confirmed in GCN with tnsrobot_id {tnsrobot.id} for user_id {self.associated_user_object.id}"
+                    )
                 session.commit()
 
                 return self.success()
