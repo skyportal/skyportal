@@ -179,7 +179,7 @@ class GENERICAPI(FollowUpAPI):
 
         altdata = (
             request.allocation.altdata
-            if getattr(request.allocation, 'altdata', None) is not None
+            if getattr(request.allocation, 'altdata', None) not in [None, {}]
             else None
         )
 

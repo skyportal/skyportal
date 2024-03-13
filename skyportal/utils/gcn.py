@@ -75,6 +75,8 @@ def get_tags(root):
     """Get source classification tag strings from GCN notice."""
     # Get event stream.
     mission = urlparse(root.attrib['ivorn']).path.lstrip('/')
+    if str(mission).lower().strip() == 'fsc':
+        mission = 'SVOM'
     yield mission
 
     # What type of burst is this: GRB or GW?
@@ -353,6 +355,7 @@ def get_properties(root):
         # Gravitational waves
         "HasNS",
         "HasRemnant",
+        "HasMassGap",
         "FAR",
         "BNS",
         "NSBH",

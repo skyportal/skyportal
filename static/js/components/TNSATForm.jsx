@@ -11,6 +11,7 @@ import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Spinner from "./Spinner";
+import { userLabel } from "./TNSRobotsPage";
 
 import * as sourceActions from "../ducks/source";
 import * as tnsrobotsActions from "../ducks/tnsrobots";
@@ -40,6 +41,7 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.userAccessible);
+  const { users: allUsers } = useSelector((state) => state.users);
   const currentUser = useSelector((state) => state.profile);
   const streams = useSelector((state) => state.streams);
 
@@ -49,6 +51,7 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
 
   const { tnsrobotList } = useSelector((state) => state.tnsrobots);
   const [selectedTNSRobotId, setSelectedTNSRobotId] = useState(null);
+  const [defaultReporterString, setDefaultReporterString] = useState(null);
 
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
@@ -99,11 +102,49 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataFetched, dispatch]);
 
+  useEffect(() => {
+    if (
+      tnsrobotList?.length > 0 &&
+      selectedTNSRobotId &&
+      currentUser &&
+      allUsers?.length > 0
+    ) {
+      const usersLookup = {};
+      if (allUsers?.length > 0) {
+        allUsers.forEach((user) => {
+          usersLookup[user.id] = user;
+        });
+      }
+      let coauthors =
+        tnsrobotList.find((tnsrobot) => tnsrobot.id === selectedTNSRobotId)
+          ?.coauthors || [];
+      // filter out the current user from the coauthors list
+      coauthors = coauthors.filter(
+        (coauthor) => coauthor.user_id !== currentUser.id,
+      );
+      const authorString = userLabel(currentUser);
+      const coauthorsString = coauthors
+        .map((coauthor) => userLabel(usersLookup[coauthor.user_id]))
+        .join(", ");
+      // append the acknowledgments (string) to the coauthors string if it exists
+      const acknowledgments =
+        tnsrobotList.find((tnsrobot) => tnsrobot.id === selectedTNSRobotId)
+          ?.acknowledgments || "on the behalf of ...";
+      let finalString = `${authorString}${
+        coauthorsString?.length > 0 ? "," : ""
+      } ${coauthorsString} ${acknowledgments}`;
+      // remove all the extra spaces (only simple spaces are allowed)
+      finalString = finalString.replace(/\s+/g, " ");
+
+      setDefaultReporterString(finalString);
+    }
+  }, [tnsrobotList, selectedTNSRobotId, currentUser, allUsers]);
+
   // need to check both of these conditions as selectedTNSRobotId is
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if tnsrobotList is not
   // empty.
-  if (tnsrobotList.length === 0 || !selectedTNSRobotId) {
+  if (tnsrobotList.length === 0) {
     return <h3>No TNS robots available...</h3>;
   }
 
@@ -138,27 +179,18 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
     setSelectedTNSRobotId(e.target.value);
   };
 
-  const defaultReporter =
-    (tnsrobotLookUp[selectedTNSRobotId] || {})?.auto_reporters?.length > 0
-      ? tnsrobotLookUp[selectedTNSRobotId].auto_reporters
-      : `${currentUser.first_name} ${currentUser.last_name} on behalf of...`;
-
   const formSchema = {
     type: "object",
     properties: {
       reporters: {
         type: "string",
         title: "Reporters",
-        default: defaultReporter,
+        default: defaultReporterString,
       },
       archival: {
         type: "boolean",
         title: "Archival (no upperlimits)",
         default: false,
-      },
-      archivalComment: {
-        type: "string",
-        title: "Archival Comment",
       },
       instrument_id: {
         type: "integer",
@@ -185,6 +217,31 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         uniqueItems: true,
         default: [],
         title: "Streams (optional)",
+      },
+    },
+    dependencies: {
+      archival: {
+        oneOf: [
+          {
+            properties: {
+              archival: {
+                enum: [false],
+              },
+            },
+          },
+          {
+            properties: {
+              archival: {
+                enum: [true],
+              },
+              archivalComment: {
+                type: "string",
+                title: "Archival Comment",
+              },
+            },
+            required: ["archivalComment"],
+          },
+        ],
       },
     },
   };
@@ -247,14 +304,18 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         ))}
       </Select>
       <div data-testid="tnsrobot-form">
-        <Form
-          schema={formSchema}
-          validator={validator}
-          onSubmit={handleSubmit}
-          disabled={submissionRequestInProcess}
-          customValidate={validate}
-          liveValidate
-        />
+        {defaultReporterString ? (
+          <Form
+            schema={formSchema}
+            validator={validator}
+            onSubmit={handleSubmit}
+            disabled={submissionRequestInProcess}
+            customValidate={validate}
+            liveValidate
+          />
+        ) : (
+          <h3>Loading...</h3>
+        )}
       </div>
     </div>
   );

@@ -79,6 +79,7 @@ import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
 import PhotometryPlot from "./PhotometryPlot";
 import SpectraPlot from "./SpectraPlot";
+import PhotometryMagsys from "./PhotometryMagsys";
 
 const CommentList = React.lazy(() => import("./CommentList"));
 const CommentListMobile = React.lazy(() => import("./CommentListMobile"));
@@ -309,6 +310,7 @@ const SourceContent = ({ source }) => {
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
+  const [magsys, setMagsys] = useState("ab");
 
   const downSm = useMediaQuery((theme) => theme.breakpoints.down("sm"));
   const downMd = useMediaQuery((theme) => theme.breakpoints.down("md"));
@@ -364,10 +366,10 @@ const SourceContent = ({ source }) => {
     .sort((a, b) => new Date(b) - new Date(a));
 
   useEffect(() => {
-    dispatch(photometryActions.fetchSourcePhotometry(source.id));
+    dispatch(photometryActions.fetchSourcePhotometry(source.id, { magsys }));
     dispatch(spectraActions.fetchSourceSpectra(source.id));
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
-  }, [source.id, dispatch]);
+  }, [source.id, magsys, dispatch]);
 
   const setHost = (galaxyName) => {
     dispatch(sourceActions.addHost(source.id, { galaxyName }));
@@ -1221,10 +1223,20 @@ const SourceContent = ({ source }) => {
                 <Typography className={classes.accordionHeading}>
                   Photometry
                 </Typography>
-                <DisplayPhotStats
-                  photstats={source.photstats[0]}
-                  display_header={false}
-                />
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexDirection: "row",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <DisplayPhotStats
+                    photstats={source.photstats[0]}
+                    display_header={false}
+                  />
+                  <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
+                </div>
               </div>
             </AccordionSummary>
             <AccordionDetails className={classes.accordionPlot}>
@@ -1469,6 +1481,8 @@ const SourceContent = ({ source }) => {
           onClose={() => {
             setShowPhotometry(false);
           }}
+          magsys={magsys}
+          setMagsys={setMagsys}
         />
       </Grid>
     </Grid>

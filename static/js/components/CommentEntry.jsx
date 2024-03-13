@@ -28,7 +28,12 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const CommentEntry = ({ addComment, editComment }) => {
+const CommentEntry = ({
+  addComment,
+  editComment,
+  commentText,
+  attachmentName,
+}) => {
   const styles = useStyles();
   const users = useSelector((state) => state.users);
   const { userAccessible: groups } = useSelector((state) => state.groups);
@@ -86,8 +91,11 @@ const CommentEntry = ({ addComment, editComment }) => {
       setTextRequired(true);
     } else if (editComment) {
       setTextRequired(false);
+      if (commentText) {
+        setTextValue(commentText);
+      }
     }
-  }, [addComment, editComment]);
+  }, [addComment, editComment, commentText]);
 
   useEffect(() => {
     reset({
@@ -354,6 +362,17 @@ const CommentEntry = ({ addComment, editComment }) => {
         </label>
       </div>
       <div className={styles.inputDiv}>
+        {editComment && attachmentName && !getValues()?.attachment && (
+          // show a msg that says that the comment being edited has an attachment already
+          // and that it will be replaced if a new attachment is uploaded
+          // should me in parenthesis and italic, and the attachment name should be bold
+          <Typography variant="caption" style={{ fontStyle: "italic" }}>
+            (Current attachment: <strong>{attachmentName}</strong>, will be
+            replaced if a new attachment is uploaded)
+          </Typography>
+        )}
+      </div>
+      <div className={styles.inputDiv}>
         {errors.group_ids && (
           <FormValidationError message="Select at least one group." />
         )}
@@ -405,11 +424,15 @@ const CommentEntry = ({ addComment, editComment }) => {
 CommentEntry.propTypes = {
   addComment: PropTypes.func,
   editComment: PropTypes.func,
+  commentText: PropTypes.string,
+  attachmentName: PropTypes.string,
 };
 
 CommentEntry.defaultProps = {
   addComment: null,
   editComment: null,
+  commentText: "",
+  attachmentName: "",
 };
 
 export default CommentEntry;

@@ -83,7 +83,7 @@ class Stream(Base):
     tnsrobots = relationship(
         "TNSRobot",
         secondary="stream_tnsrobots",
-        back_populates="auto_report_streams",
+        back_populates="streams",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="TNS robots associated with this stream, used for auto-reporting.",

@@ -6,7 +6,8 @@ from pathlib import Path
 import model_util
 
 from baselayer.app.env import load_env
-from baselayer.app.model_util import create_tables, drop_tables, status
+from baselayer.app.model_util import create_tables, drop_tables
+from baselayer.tools.status import status
 from baselayer.app.psa import TornadoStorage
 from skyportal.models import Base, DBSession, User, init_db
 

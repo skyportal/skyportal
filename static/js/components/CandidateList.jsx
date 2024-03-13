@@ -13,9 +13,10 @@ import SortIcon from "@mui/icons-material/Sort";
 import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
 import Paper from "@mui/material/Paper";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { ViewportList } from "react-viewport-list";
 
 import { showNotification } from "baselayer/components/Notifications";
 import ThumbnailList from "./ThumbnailList";
@@ -37,8 +38,7 @@ import { ra_to_hours, dec_to_dms } from "../units";
 
 import * as candidatesActions from "../ducks/candidates";
 
-const numPerPage = 25;
-const numPerPageOffset = 5;
+const numPerPage = 50;
 
 const useStyles = makeStyles((theme) => ({
   listPaper: {
@@ -55,21 +55,23 @@ const useStyles = makeStyles((theme) => ({
   },
   candidatePaper: {
     display: "grid",
-    gridGap: "0.5rem",
     padding: "0.5rem",
     alignItems: "center",
+    gridColumnGap: 0,
+    gridRowGap: "0.5rem",
+    justifyContent: "space-between",
     // we change the order of the children and the layout based on the screen size
     [theme.breakpoints.up("lg")]: {
-      gridTemplateColumns: "5fr 2.5fr 4fr 3fr",
+      gridTemplateColumns: "32% 16% 32% 20%",
       gridTemplateAreas: `"thumbnails info photometry annotations"`,
     },
     [theme.breakpoints.down("lg")]: {
       gridTemplateAreas: `"thumbnails info" "photometry annotations"`,
-      gridTemplateColumns: "5fr 3fr",
+      gridTemplateColumns: "60% 40%",
     },
     [theme.breakpoints.down("sm")]: {
       gridTemplateAreas: `"info" "thumbnails" "photometry" "annotations"`,
-      gridTemplateColumns: "1fr",
+      gridTemplateColumns: "100%",
     },
   },
   thumbnailsGrid: {
@@ -84,6 +86,7 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     justifyContent: "flex-end",
     minWidth: "100%",
+    gap: "1rem",
   },
   groupsList: {
     display: "flex",
@@ -135,6 +138,14 @@ const useStyles = makeStyles((theme) => ({
     textTransform: "none",
     marginBottom: theme.spacing(0.5),
     fontSize: "0.9rem",
+  },
+  scrollContainer: {
+    maxHeight: "calc(100vh - 12.5rem)",
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    overflowX: "hidden",
+    overflowY: "auto",
   },
 }));
 
@@ -608,7 +619,7 @@ const CandidatePhotometry = ({ sourceId }) => (
     <VegaPhotometry
       sourceId={sourceId}
       style={{
-        width: "70%",
+        width: "68%",
         height: "100%",
         minHeight: "18rem",
         maxHeight: "18rem",
@@ -654,81 +665,60 @@ CandidateAutoannotations.defaultProps = {
   filterGroups: [],
 };
 
-const Candidate = React.memo(
-  (props) => {
-    const { candidate, filterGroups, index, totalMatches } = props;
-    const classes = useStyles();
-
-    return (
-      <Paper
-        variant="outlined"
-        className={classes.listPaper}
-        data-testid={`candidate-${index}`}
-      >
-        <div className={classes.candidatePaper}>
-          <div style={{ gridArea: "thumbnails" }}>
-            <CandidateThumbnails
-              id={candidate.id}
-              ra={candidate.ra}
-              dec={candidate.dec}
-              thumbnails={candidate.thumbnails}
-            />
-          </div>
-          <div style={{ gridArea: "info" }}>
-            <CandidateInfo
-              candidateObj={candidate}
-              filterGroups={filterGroups}
-            />
-          </div>
-          <div style={{ gridArea: "photometry" }}>
-            <CandidatePhotometry sourceId={candidate.id} />
-          </div>
+const Candidate = ({ candidate, filterGroups, index, totalMatches }) => {
+  const classes = useStyles();
+  return (
+    <Paper
+      variant="outlined"
+      className={classes.listPaper}
+      data-testid={`candidate-${index}`}
+    >
+      <div className={classes.candidatePaper}>
+        <div style={{ gridArea: "thumbnails" }}>
+          <CandidateThumbnails
+            id={candidate.id}
+            ra={candidate.ra}
+            dec={candidate.dec}
+            thumbnails={candidate.thumbnails}
+          />
+        </div>
+        <div style={{ gridArea: "info", padding: "0 0 0 0.25rem" }}>
+          <CandidateInfo candidateObj={candidate} filterGroups={filterGroups} />
+        </div>
+        <div style={{ gridArea: "photometry" }}>
+          <CandidatePhotometry sourceId={candidate.id} />
+        </div>
+        <div
+          style={{
+            gridArea: "annotations",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minHeight: "100%",
+            paddingLeft: "1rem",
+          }}
+        >
+          <CandidateAutoannotations
+            annotations={candidate.annotations}
+            filterGroups={filterGroups}
+          />
+          {/* here show a counter, saying this is candidate n/m */}
           <div
             style={{
-              gridArea: "annotations",
               display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              minHeight: "100%",
+              justifyContent: "flex-end",
+              paddingTop: "0.5rem",
             }}
           >
-            <CandidateAutoannotations
-              annotations={candidate.annotations}
-              filterGroups={filterGroups}
-            />
-            {/* here show a counter, saying this is candidate n/m */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                paddingTop: "0.5rem",
-              }}
-            >
-              <Typography fontWeight="bold">
-                {`${index}/${totalMatches}`}
-              </Typography>
-            </div>
+            <Typography fontWeight="bold">
+              {`${index}/${totalMatches}`}
+            </Typography>
           </div>
         </div>
-      </Paper>
-    );
-  },
-  (prevProps, nextProps) => {
-    const keys = Object.keys(nextProps);
-    for (let i = 0; i < keys.length; i += 1) {
-      const key = keys[i];
-      if (key === "values") {
-        // we simply compare the length of the values array
-        if (prevProps.values.length !== nextProps.values.length) {
-          return false;
-        }
-      } else if (prevProps[key] !== nextProps[key]) {
-        return false;
-      }
-    }
-    return true;
-  },
-);
+      </div>
+    </Paper>
+  );
+};
 
 Candidate.displayName = "Candidate";
 
@@ -750,7 +740,7 @@ Candidate.defaultProps = {
 };
 
 const CandidateList = () => {
-  const observerTarget = useRef(null);
+  const ref = useRef(null);
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [filterGroups, setFilterGroups] = useState([]);
   const classes = useStyles();
@@ -789,45 +779,6 @@ const CandidateList = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (
-          entries[0].isIntersecting &&
-          candidates.length < totalMatches &&
-          !queryInProgress
-        ) {
-          dispatch(showNotification("Loading more candidates..."));
-          dispatch(
-            candidatesActions.fetchCandidates(
-              {
-                pageNumber: pageNumber + 1,
-                numPerPage,
-                queryID,
-                filterGroups,
-                sortOrder,
-                annotationsInfo: availableAnnotationsInfo,
-                filterFormData,
-              },
-              true,
-            ),
-          );
-        }
-      },
-      { threshold: 1 },
-    );
-
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
-    }
-
-    return () => {
-      if (observerTarget.current) {
-        observer.unobserve(observerTarget.current);
-      }
-    };
-  }, [observerTarget, dispatch, queryInProgress, candidates]);
-
-  useEffect(() => {
     // Grab the available annotation fields for filtering
     if (!availableAnnotationsInfo) {
       dispatch(candidatesActions.fetchAnnotationsInfo());
@@ -851,6 +802,26 @@ const CandidateList = () => {
   filterGroups?.forEach((g) => {
     groupIds.push(g.id);
   });
+
+  const fetchPage = (offset) => {
+    if (!queryInProgress && candidates?.length < totalMatches) {
+      setQueryInProgress(true); // prevent multiple queries
+      dispatch(showNotification("Loading more candidates..."));
+      dispatch(
+        candidatesActions.fetchCandidates({
+          pageNumber: pageNumber + offset,
+          numPerPage,
+          queryID,
+          filterGroups,
+          sortOrder,
+          annotationsInfo: availableAnnotationsInfo,
+          filterFormData,
+        }),
+      ).then(() => {
+        setQueryInProgress(false);
+      });
+    }
+  };
 
   return (
     <div>
@@ -878,7 +849,11 @@ const CandidateList = () => {
             <div>
               <Paper
                 variant="outlined"
-                style={{ display: "flex", justifyContent: "space-between" }}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "1rem",
+                }}
               >
                 <div style={{ padding: "0.5rem 0.5rem 0.5rem 1rem" }}>
                   <Typography variant="h6">
@@ -896,34 +871,50 @@ const CandidateList = () => {
                   />
                 </div>
               </Paper>
-              <List>
-                {(candidates || []).map((candidate, index) => (
-                  <ListItem key={candidate.id} className={classes.listItem}>
-                    <Candidate
-                      candidate={candidate}
-                      filterGroups={filterGroups}
-                      index={index + 1}
-                      totalMatches={totalMatches}
-                    />
-                    {totalMatches > 0 &&
-                      candidates?.length < totalMatches &&
-                      index === candidates?.length - numPerPageOffset - 1 && (
-                        <div
-                          style={{
-                            minWidth: "100%",
-                            height: "1px",
-                          }}
-                          ref={observerTarget}
-                        />
-                      )}
-                  </ListItem>
-                ))}
-              </List>
+              <div className={classes.scrollContainer} ref={ref}>
+                <ViewportList viewportRef={ref} count={candidates?.length || 0}>
+                  {(index) => (
+                    <div
+                      key={candidates[index].id}
+                      className={classes.listItem}
+                    >
+                      <Candidate
+                        candidate={candidates[index]}
+                        filterGroups={filterGroups}
+                        index={index + (pageNumber - 1) * numPerPage + 1}
+                        totalMatches={totalMatches}
+                      />
+                    </div>
+                  )}
+                </ViewportList>
+              </div>
             </div>
           )}
         </Box>
       </div>
       <div className={classes.backToTop}>
+        <Button
+          primary
+          onClick={() => {
+            fetchPage(-1);
+          }}
+          size="small"
+          disabled={pageNumber === 1 || queryInProgress}
+        >
+          <ArrowBackIcon />
+          Previous
+        </Button>
+        <Button
+          primary
+          onClick={() => {
+            fetchPage(1);
+          }}
+          size="small"
+          disabled={pageNumber * numPerPage >= totalMatches || queryInProgress}
+        >
+          Next
+          <ArrowForwardIcon />
+        </Button>
         <Button
           primary
           onClick={() => {

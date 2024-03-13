@@ -13,7 +13,6 @@ import * as topSourcesActions from "./ducks/topSources";
 import * as topSaversActions from "./ducks/topSavers";
 import * as recentSourcesActions from "./ducks/recentSources";
 import * as mmadetectorActions from "./ducks/mmadetector";
-import * as observationPlansActions from "./ducks/observationPlans";
 import * as instrumentsActions from "./ducks/instruments";
 import * as sourceCountsActions from "./ducks/sourceCounts";
 import * as observingRunsActions from "./ducks/observingRuns";
@@ -167,13 +166,6 @@ export default function hydrate(
             hydrationActions.finishedHydrating("allocationsApiClassname"),
           );
         });
-      }
-      if (ducks_to_hydrate.includes("observationPlans")) {
-        dispatch(observationPlansActions.fetchObservationPlanNames()).then(
-          () => {
-            dispatch(hydrationActions.finishedHydrating("observationPlans"));
-          },
-        );
       }
       if (ducks_to_hydrate.includes("analysisServices")) {
         dispatch(analysisServicesActions.fetchAnalysisServices()).then(() => {
