@@ -83,7 +83,7 @@ def validate_obj_id(obj_id, tns_source_group_id):
 
 
 def find_accessible_tnsrobot_groups(submission_request, tnsrobot, user, session):
-    """Verify that the user is allowed to submit to TNS with this robot, and return the TNSRobotGroups that the user is allowed to submit from.
+    """Find the TNSRobotGroups that the user is allowed to submit from.
 
     Parameters
     ----------
