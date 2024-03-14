@@ -49,6 +49,27 @@ api_key = cfg.get('app.tns.api_key', None)
 look_back_days = cfg.get('app.tns.look_back_days', 1)
 
 
+def refresh_obj_on_frontend(obj, user_id='*'):
+    """Refresh an object's source page on the frontend for all users or a specific user.
+
+    Parameters
+    ----------
+    obj : `skyportal.models.Obj`
+        The object to refresh, with an id and internal_key
+    user_id : str, optional
+        The user ID to refresh the object for. If '*', refresh for all users.
+    """
+    try:
+        flow = Flow()
+        flow.push(
+            user_id,
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': obj.internal_key},
+        )
+    except Exception:
+        log(f'Error refreshing object {obj.id} on frontend')
+
+
 def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, session):
     """Add TNS name to existing objects within 2 arcseconds of the TNS position.
 
@@ -89,12 +110,7 @@ def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, se
 
                 session.commit()
                 log(f"Updated object {obj.id} with TNS name {tns_name}")
-                flow = Flow()
-                flow.push(
-                    '*',
-                    'skyportal/REFRESH_SOURCE',
-                    payload={'obj_key': obj.internal_key},
-                )
+                refresh_obj_on_frontend(obj)
             except Exception as e:
                 log(f"Error updating object: {str(e)}")
                 session.rollback()
@@ -341,15 +357,7 @@ def process_queue(queue):
                     existing_obj.tns_name = tns_name
                     existing_obj.tns_info = tns_source_data
                     session.commit()
-                    try:
-                        flow = Flow()
-                        flow.push(
-                            '*',
-                            'skyportal/REFRESH_SOURCE',
-                            payload={'obj_key': existing_obj.internal_key},
-                        )
-                    except Exception:
-                        pass
+                    refresh_obj_on_frontend(existing_obj)
                 else:
                     # otherwise, add the TNS name to all the existing sources within a 2 arcsec radius
                     add_tns_name_to_existing_objs(
@@ -377,15 +385,7 @@ def process_queue(queue):
                         log(
                             f"TNS obj {tns_name} already exists in the database, updated its TNS name."
                         )
-                        try:
-                            flow = Flow()
-                            flow.push(
-                                '*',
-                                'skyportal/REFRESH_SOURCE',
-                                payload={'obj_key': existing_tns_obj.internal_key},
-                            )
-                        except Exception:
-                            pass
+                        refresh_obj_on_frontend(existing_tns_obj)
 
                     # if the obj does not exist or if it exists but is saved to the public group,
                     # we create/save the TNS source to the public group
