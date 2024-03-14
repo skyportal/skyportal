@@ -3139,10 +3139,10 @@ class SourceHandler(BaseHandler):
         data = self.get_json()
         data['id'] = obj_id
 
-        if data.get('ra', None) is not None or data.get('dec', None) is not None:
+        with self.Session() as session:
             # verify that there are no candidates for this object,
             # in which case we do not allow updating the position
-            with self.Session() as session:
+            if data.get('ra', None) is not None or data.get('dec', None) is not None:
                 existing_candidates = session.scalars(
                     sa.select(Candidate).where(Candidate.obj_id == obj_id)
                 ).all()
@@ -3151,38 +3151,48 @@ class SourceHandler(BaseHandler):
                         'Cannot update the position of an object with candidates/alerts'
                     )
 
-        schema = Obj.__schema__()
-        try:
-            obj = schema.load(data)
-        except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
-            )
-        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-        update_summary_history_if_relevant(data, obj, self.associated_user_object)
+                source = session.scalars(sa.select(Obj).where(Obj.id == obj_id)).first()
+                if source is None:
+                    return self.error(f'Cannot find the object with name {obj_id}')
 
-        update_healpix_if_relevant(data, obj)
-
-        self.verify_and_commit()
-        if data.get('ra', None) is not None or data.get('dec', None) is not None:
-            # if the position of the object is updated, delete the old thumbnails (sdss, ls, ps1)
-            # the thumbnails queue will regenerate new thumbnails for that object
-            with self.Session() as session:
-                existing_thumbnails = session.scalars(
-                    sa.select(Thumbnail).where(
-                        Thumbnail.obj_id == obj_id,
-                        Thumbnail.type.in_(['ps1', 'sdss', 'ls']),
+                print(data.get('ra'), source.ra)
+                print(data.get('dec'), source.dec)
+                if not (
+                    np.isclose(data.get('ra'), source.ra)
+                    and np.isclose(data.get('dec'), source.dec)
+                ):
+                    # if the position of the object is updated, delete the old thumbnails (sdss, ls, ps1)
+                    # the thumbnails queue will regenerate new thumbnails for that object
+                    existing_thumbnails = session.scalars(
+                        sa.select(Thumbnail).where(
+                            Thumbnail.obj_id == obj_id,
+                            Thumbnail.type.in_(['ps1', 'sdss', 'ls']),
+                        )
                     )
-                )
-                for thumbnail in existing_thumbnails:
-                    session.delete(thumbnail)
-                session.commit()
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": obj.internal_key},
-        )
+                    for thumbnail in existing_thumbnails:
+                        session.delete(thumbnail)
+                    session.commit()
 
-        return self.success()
+            schema = Obj.__schema__()
+            try:
+                obj = schema.load(data)
+            except ValidationError as e:
+                return self.error(
+                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                )
+            update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+            update_summary_history_if_relevant(data, obj, self.associated_user_object)
+
+            update_healpix_if_relevant(data, obj)
+
+            self.verify_and_commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj.internal_key},
+            )
+
+            return self.success()
 
     @permissions(['Manage sources'])
     def delete(self, obj_id, group_id):
