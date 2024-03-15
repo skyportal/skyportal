@@ -19,6 +19,7 @@ import AddIcon from "@mui/icons-material/Add";
 import Switch from "@mui/material/Switch";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
+import Checkbox from "@mui/material/Checkbox";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -1305,7 +1306,17 @@ const PhotometryPlot = ({
           <div className={classes.switchContainer}>
             <Select
               value={selectedDuplicates}
-              onChange={(e) => setSelectedDuplicates(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value.includes("Select all")) {
+                  if (e.target.value?.length !== duplicates.length + 1) {
+                    setSelectedDuplicates(duplicates.map((d) => d.obj_id));
+                  } else {
+                    setSelectedDuplicates([]);
+                  }
+                } else {
+                  setSelectedDuplicates(e.target.value);
+                }
+              }}
               style={{ minWidth: "100%" }}
               size="small"
               multiple
@@ -1314,22 +1325,12 @@ const PhotometryPlot = ({
                 const duplicatesValue = duplicates.filter((d) =>
                   selected.includes(d.obj_id),
                 );
-                // look if the obj_id of the first duplicate is in the photometry
-
                 return (
                   <div className={classes.chips}>
                     {duplicatesValue.map((d) => (
                       <Chip
                         key={d.obj_id}
-                        label={
-                          photometry &&
-                          Object.prototype.hasOwnProperty.call(
-                            photometry,
-                            d.obj_id,
-                          )
-                            ? `${d.obj_id} (${d.separation.toFixed(2)}")`
-                            : `Loading...`
-                        }
+                        label={`${d.obj_id} (${d.separation.toFixed(2)}")`}
                         className={classes.chip}
                       />
                     ))}
@@ -1337,17 +1338,18 @@ const PhotometryPlot = ({
                 );
               }}
             >
+              {/* if there is more than one menu item, show a "select all" menuitem which on click selects all the sources */}
+              {duplicates.length > 1 && (
+                <MenuItem value="Select all" key="Select all">
+                  <Checkbox
+                    checked={selectedDuplicates.length === duplicates.length}
+                  />
+                  Select all
+                </MenuItem>
+              )}
               {duplicates.map((d) => (
-                <MenuItem
-                  key={d.obj_id}
-                  value={d.obj_id}
-                  disabled={
-                    !(
-                      photometry &&
-                      Object.prototype.hasOwnProperty.call(photometry, d.obj_id)
-                    ) && selectedDuplicates.includes(d.obj_id)
-                  }
-                >
+                <MenuItem key={d.obj_id} value={d.obj_id}>
+                  <Checkbox checked={selectedDuplicates.includes(d.obj_id)} />
                   {d.obj_id} ({d.separation.toFixed(2)} arcsec)
                 </MenuItem>
               ))}
