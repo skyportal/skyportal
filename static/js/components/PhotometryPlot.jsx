@@ -6,15 +6,21 @@ import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
 import Slider from "@mui/material/Slider";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import SaveAsIcon from "@mui/icons-material/SaveAs";
 import IconButton from "@mui/material/IconButton";
+import RemoveIcon from "@mui/icons-material/Remove";
+import Chip from "@mui/material/Chip";
+import AddIcon from "@mui/icons-material/Add";
 import Switch from "@mui/material/Switch";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import makeStyles from "@mui/styles/makeStyles";
+import CircularProgress from "@mui/material/CircularProgress";
 
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -27,6 +33,8 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import { addAnnotation } from "../ducks/source";
+import * as photometryActions from "../ducks/photometry";
+
 import { BASE_LAYOUT, PHOT_ZP, smoothing_func, mjdnow, rgba } from "../utils";
 
 const Plot = createPlotlyComponent(Plotly);
@@ -173,14 +181,23 @@ PeriodAnnotationDialog.propTypes = {
 const PhotometryPlot = ({
   obj_id,
   dm,
-  photometry,
   annotations,
   spectra,
   gcn_events,
+  duplicates,
+  magsys,
   mode,
   plotStyle,
 }) => {
   const classes = useStyles();
+  const dispatch = useDispatch();
+
+  const profile = useSelector((state) => state.profile);
+  const config = useSelector((state) => state.config);
+  const photometry = useSelector((state) => state.photometry);
+
+  const [selectedDuplicates, setSelectedDuplicates] = useState([]);
+
   const [data, setData] = useState(null);
   const [plotData, setPlotData] = useState(null);
 
@@ -194,8 +211,6 @@ const PhotometryPlot = ({
   const [photStats, setPhotStats] = useState(null);
   const [layouts, setLayouts] = useState({});
 
-  const config = useSelector((state) => state.config);
-
   const [filter2color, setFilter2Color] = useState(config?.bandpassesColors);
 
   const [layoutReset, setLayoutReset] = useState(false);
@@ -203,8 +218,6 @@ const PhotometryPlot = ({
   const [showNonDetections, setShowNonDetections] = useState(true);
 
   const [initialized, setInitialized] = useState(false);
-
-  const profile = useSelector((state) => state.profile);
 
   const [defaultVisibleFilters, setDefaultVisibleFilters] = useState(null);
   const [appliedDefaultVisibleFilters, setAppliedDefaultVisibleFilters] =
@@ -338,19 +351,23 @@ const PhotometryPlot = ({
     return [newPhotometryData, stats];
   };
 
-  const groupPhotometry = (photometryData) => {
+  const groupPhotometry = (photometryData, usingDuplicates = false) => {
     // before grouping, we compute the max and min for mag, flux, and days_ago
     // we will use these values to set the range of the plot
 
     const groupedPhotometry = photometryData.reduce((acc, point) => {
       let key = `${point.instrument_name}/${point.filter}`;
+      // if we are using duplicates, put the obj_id at the beginning of the key
+      if (usingDuplicates) {
+        key = `${point.obj_id}/${key}`;
+      }
       if (
         point?.origin !== "None" &&
         point.origin !== "" &&
         point.origin !== null
       ) {
         // the origin is less relevant, so we crop it to not have more than 23 characters + 3 x ...
-        const remaining = 23 - key.length;
+        const remaining = (usingDuplicates ? 33 : 23) - key.length;
         if (remaining < point.origin.length) {
           key += `/${point.origin.substring(0, Math.max(remaining - 3, 3))}...`;
         } else {
@@ -785,6 +802,17 @@ const PhotometryPlot = ({
   }, [config]);
 
   useEffect(() => {
+    // grab the photometry for the selected duplicates from the store
+    if (selectedDuplicates.length > 0) {
+      selectedDuplicates.forEach((dup) => {
+        if (!photometry[dup]) {
+          dispatch(photometryActions.fetchSourcePhotometry(dup, { magsys }));
+        }
+      });
+    }
+  }, [dispatch, selectedDuplicates, magsys, photometry]);
+
+  useEffect(() => {
     if (profile?.id && defaultVisibleFilters === null) {
       setDefaultVisibleFilters(
         profile?.preferences?.automaticallyVisibleFilters || [],
@@ -793,12 +821,28 @@ const PhotometryPlot = ({
   }, [profile]);
 
   useEffect(() => {
-    if (photometry && filter2color && defaultVisibleFilters) {
+    if (
+      photometry &&
+      selectedDuplicates &&
+      filter2color &&
+      defaultVisibleFilters
+    ) {
+      const objPhotometry = photometry[obj_id];
+      if (!objPhotometry) {
+        return;
+      }
+      const duplicatesPhotometry = selectedDuplicates
+        .map((duplicate) => photometry[duplicate] || [])
+        .flat();
+
       const [newPhotometry, newPhotStats] = preparePhotometry(
-        [...photometry],
+        [...objPhotometry, ...duplicatesPhotometry],
         dm,
       );
-      const groupedPhotometry = groupPhotometry(newPhotometry);
+      const groupedPhotometry = groupPhotometry(
+        newPhotometry,
+        selectedDuplicates?.length > 0,
+      );
       setPhotStats(newPhotStats);
       setData(groupedPhotometry);
 
@@ -850,7 +894,7 @@ const PhotometryPlot = ({
       setLayouts(newLayouts);
       setInitialized(true);
     }
-  }, [photometry, dm, filter2color, defaultVisibleFilters]);
+  }, [photometry, selectedDuplicates, defaultVisibleFilters]);
 
   useEffect(() => {
     if (initialized && filter2color) {
@@ -926,6 +970,10 @@ const PhotometryPlot = ({
 
   useEffect(() => {
     if (plotData) {
+      const newMarkerSize = parseInt(markerSize, 10);
+      if (Number.isNaN(newMarkerSize)) {
+        return;
+      }
       const newPlotData = plotData.map((trace) => {
         const newTrace = { ...trace };
         newTrace.marker.size = parseInt(markerSize, 10);
@@ -1044,6 +1092,10 @@ const PhotometryPlot = ({
           }),
         )
     : [];
+
+  if (!(photometry && config && photStats)) {
+    return <CircularProgress color="secondary" />;
+  }
 
   return (
     <div style={{ width: "100%", height: "100%" }} id="photometry-plot">
@@ -1187,7 +1239,7 @@ const PhotometryPlot = ({
         />
       </div>
       <div className={classes.gridContainer}>
-        <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
+        <div className={classes.gridItem} style={{ gridColumn: "span 2" }}>
           <Typography id="photometry-show-hide" noWrap>
             Non-Detections
           </Typography>
@@ -1199,35 +1251,107 @@ const PhotometryPlot = ({
             />
           </div>
         </div>
-        <div className={classes.gridItem} style={{ gridColumn: "span 2" }}>
-          <Typography id="input-slider" noWrap>
-            Marker Size
-          </Typography>
-          <div className={classes.sliderContainer}>
-            <Slider
-              value={markerSize}
-              onChange={(e, newValue) => setMarkerSize(newValue)}
-              aria-labelledby="input-slider"
-              valueLabelDisplay="auto"
-              step={1}
-              min={1}
-              max={20}
-            />
-            {mode === "desktop" && (
+        <div
+          className={classes.gridItem}
+          style={{
+            gridColumn: "span 1",
+            alignItems: "end",
+          }}
+        >
+          <div style={{ alignItems: "center" }}>
+            <Typography id="input-slider" noWrap>
+              Marker Size
+            </Typography>
+            <div style={{ display: "flex", gap: "0.2rem" }}>
+              <IconButton
+                onClick={() =>
+                  setMarkerSize(markerSize - 1 < 1 ? 1 : markerSize - 1)
+                }
+                style={{ padding: 0 }}
+              >
+                <RemoveIcon />
+              </IconButton>
               <TextField
                 value={markerSize}
-                onChange={(e) => setMarkerSize(e.target.value)}
-                margin="dense"
-                type="number"
-                inputProps={{
-                  step: 1,
-                  min: 1,
-                  max: 20,
-                  "aria-labelledby": "input-slider",
+                onChange={(e) => {
+                  const newValue = parseInt(e.target.value, 10);
+                  if (!Number.isNaN(newValue)) {
+                    setMarkerSize(Math.max(Math.min(20, newValue), 1));
+                  } else {
+                    setMarkerSize(e.target.value);
+                  }
                 }}
+                margin="dense"
+                type="text"
                 size="small"
+                inputProps={{
+                  style: { textAlign: "center", padding: "4.5px" },
+                }}
+                style={{ width: "2.4rem", margin: 0 }}
               />
-            )}
+              <IconButton
+                onClick={() =>
+                  setMarkerSize(markerSize + 1 > 20 ? 20 : markerSize + 1)
+                }
+                style={{ padding: 0 }}
+              >
+                <AddIcon />
+              </IconButton>
+            </div>
+          </div>
+        </div>
+        <div className={classes.gridItem} style={{ gridColumn: "span 3" }}>
+          <Typography id="input-slider">Possible Duplicates</Typography>
+          <div className={classes.switchContainer}>
+            <Select
+              value={selectedDuplicates}
+              onChange={(e) => setSelectedDuplicates(e.target.value)}
+              style={{ minWidth: "100%" }}
+              size="small"
+              multiple
+              renderValue={(selected) => {
+                // show chips for each
+                const duplicatesValue = duplicates.filter((d) =>
+                  selected.includes(d.obj_id),
+                );
+                // look if the obj_id of the first duplicate is in the photometry
+
+                return (
+                  <div className={classes.chips}>
+                    {duplicatesValue.map((d) => (
+                      <Chip
+                        key={d.obj_id}
+                        label={
+                          photometry &&
+                          Object.prototype.hasOwnProperty.call(
+                            photometry,
+                            d.obj_id,
+                          )
+                            ? `${d.obj_id} (${d.separation.toFixed(2)}")`
+                            : `Loading...`
+                        }
+                        className={classes.chip}
+                      />
+                    ))}
+                  </div>
+                );
+              }}
+            >
+              {duplicates.map((d) => (
+                <MenuItem
+                  key={d.obj_id}
+                  value={d.obj_id}
+                  disabled={
+                    !(
+                      photometry &&
+                      Object.prototype.hasOwnProperty.call(photometry, d.obj_id)
+                    ) && selectedDuplicates.includes(d.obj_id)
+                  }
+                >
+                  {d.obj_id} ({d.separation.toFixed(2)} arcsec)
+                </MenuItem>
+              ))}
+            </Select>
           </div>
         </div>
         {tabIndex === 2 && (
@@ -1327,17 +1451,6 @@ const PhotometryPlot = ({
 PhotometryPlot.propTypes = {
   obj_id: PropTypes.string.isRequired,
   dm: PropTypes.number,
-  photometry: PropTypes.arrayOf(
-    PropTypes.shape({
-      mjd: PropTypes.number.isRequired,
-      mag: PropTypes.number,
-      magerr: PropTypes.number,
-      limiting_mag: PropTypes.number,
-      filter: PropTypes.string.isRequired,
-      instrument_name: PropTypes.string.isRequired,
-      origin: PropTypes.string,
-    }),
-  ).isRequired,
   annotations: PropTypes.arrayOf(
     PropTypes.shape({
       data: PropTypes.shape({}),
@@ -1355,6 +1468,14 @@ PhotometryPlot.propTypes = {
     }),
   ),
   gcn_events: PropTypes.arrayOf(PropTypes.string),
+  duplicates: PropTypes.arrayOf(
+    PropTypes.shape({
+      obj_id: PropTypes.string.isRequired,
+      ra: PropTypes.number.isRequired,
+      dec: PropTypes.number.isRequired,
+    }),
+  ),
+  magsys: PropTypes.string,
   mode: PropTypes.string,
   plotStyle: PropTypes.shape({
     height: PropTypes.string,
@@ -1366,6 +1487,8 @@ PhotometryPlot.defaultProps = {
   annotations: [],
   gcn_events: [],
   spectra: [],
+  duplicates: [],
+  magsys: "ab",
   mode: "desktop",
   plotStyle: {
     height: "65vh",

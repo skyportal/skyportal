@@ -168,6 +168,76 @@ function moonGeoJSON(d) {
   };
 }
 
+// implement this python method to calculate a great circle distance in javascript:
+// def great_circle_distance(ra1_deg, dec1_deg, ra2_deg, dec2_deg):
+// """
+//     Distance between two points on the sphere
+// :param ra1_deg:
+// :param dec1_deg:
+// :param ra2_deg:
+// :param dec2_deg:
+// :return: distance in degrees
+// """
+// # this is orders of magnitude faster than astropy.coordinates.Skycoord.separation
+// DEGRA = np.pi / 180.0
+// ra1, dec1, ra2, dec2 = (
+//     ra1_deg * DEGRA,
+//     dec1_deg * DEGRA,
+//     ra2_deg * DEGRA,
+//     dec2_deg * DEGRA,
+// )
+// delta_ra = np.abs(ra2 - ra1)
+// distance = np.arctan2(
+//     np.sqrt(
+//         (np.cos(dec2) * np.sin(delta_ra)) ** 2
+//         + (
+//             np.cos(dec1) * np.sin(dec2)
+//             - np.sin(dec1) * np.cos(dec2) * np.cos(delta_ra)
+//         )
+//         ** 2
+//     ),
+//     np.sin(dec1) * np.sin(dec2) + np.cos(dec1) * np.cos(dec2) * np.cos(delta_ra),
+// )
+
+// return distance * 180.0 / np.pi
+
+function greatCircleDistance(
+  ra1_deg,
+  dec1_deg,
+  ra2_deg,
+  dec2_deg,
+  unit = "arcsec",
+) {
+  const ra1 = ra1_deg * rad;
+  const dec1 = dec1_deg * rad;
+  const ra2 = ra2_deg * rad;
+  const dec2 = dec2_deg * rad;
+
+  const delta_ra = Math.abs(ra2 - ra1);
+  const distance = Math.atan2(
+    Math.sqrt(
+      (Math.cos(dec2) * Math.sin(delta_ra)) ** 2 +
+        (Math.cos(dec1) * Math.sin(dec2) -
+          Math.sin(dec1) * Math.cos(dec2) * Math.cos(delta_ra)) **
+          2,
+    ),
+    Math.sin(dec1) * Math.sin(dec2) +
+      Math.cos(dec1) * Math.cos(dec2) * Math.cos(delta_ra),
+  );
+
+  switch (unit) {
+    case "arcsec":
+      return (distance * 180.0 * 3600) / Math.PI;
+    case "deg":
+      return (distance * 180.0) / Math.PI;
+    case "arcmin":
+      return (distance * 180.0 * 60) / Math.PI;
+    case "rad":
+      return distance;
+    default:
+      return (distance * 180.0) / Math.PI;
+  }
+}
 export {
   toJulian,
   fromJulian,
@@ -184,4 +254,5 @@ export {
   moonCoords,
   sunGeoJSON,
   moonGeoJSON,
+  greatCircleDistance,
 };

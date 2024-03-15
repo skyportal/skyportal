@@ -63,7 +63,6 @@ import AnalysisList from "./AnalysisList";
 import AnalysisForm from "./AnalysisForm";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
-import PhotometryDownload from "./PhotometryDownload";
 import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
@@ -284,8 +283,6 @@ const SourceContent = ({ source }) => {
   const groups = (useSelector((state) => state.groups.all) || []).filter(
     (g) => !g.single_user_group,
   );
-
-  const photometry = useSelector((state) => state.photometry[source.id]);
   const spectra = useSelector((state) => state.spectra)[source.id];
   const associatedGCNs = useSelector((state) => state.source.associatedGCNs);
 
@@ -859,7 +856,7 @@ const SourceContent = ({ source }) => {
                   </div>
                 </div>
               )}
-            {source.duplicates && (
+            {source?.duplicates?.length > 0 && (
               <div className={classes.sourceInfo}>
                 <b className={classes.noWrapMargin}>
                   <font color="#457b9d">Possible duplicate of:</font>
@@ -873,21 +870,25 @@ const SourceContent = ({ source }) => {
                     columnGap: "0.25rem",
                   }}
                 >
-                  {source.duplicates.map((dupID) => (
-                    <div key={dupID}>
-                      <Link
-                        to={`/source/${dupID}`}
-                        role="link"
-                        key={dupID}
-                        className={classes.noSpace}
+                  {source.duplicates.map((duplicate) => (
+                    <div key={duplicate.obj_id}>
+                      <Tooltip
+                        title={`${duplicate.separation.toFixed(2)} arcsec`}
                       >
-                        <Button size="small" className={classes.noSpace}>
-                          {dupID}
-                        </Button>
-                      </Link>
+                        <Link
+                          to={`/source/${duplicate.obj_id}`}
+                          role="link"
+                          key={duplicate.obj_id}
+                          className={classes.noSpace}
+                        >
+                          <Button size="small" className={classes.noSpace}>
+                            {duplicate.obj_id}
+                          </Button>
+                        </Link>
+                      </Tooltip>
                       <IconButton
                         size="small"
-                        name={`copySourceButton${dupID}`}
+                        name={`copySourceButton${duplicate.obj_id}`}
                         onClick={() => setCopyPhotometryDialogOpen(true)}
                         className={classes.noSpace}
                       >
@@ -895,7 +896,7 @@ const SourceContent = ({ source }) => {
                       </IconButton>
                       <CopyPhotometryDialog
                         source={source}
-                        duplicate={dupID}
+                        duplicate={duplicate}
                         dialogOpen={copyPhotometryDialogOpen}
                         closeDialog={setCopyPhotometryDialogOpen}
                       />
@@ -1242,38 +1243,26 @@ const SourceContent = ({ source }) => {
             <AccordionDetails className={classes.accordionPlot}>
               <Grid container id="photometry-container">
                 <div className={classes.plotContainer}>
-                  {!source.photometry_exists &&
-                    (!photometry || photometry?.length === 0) && (
-                      <div style={{ marginLeft: "1rem" }}>
-                        {" "}
-                        No photometry exists{" "}
-                      </div>
-                    )}
-                  {source.photometry_exists &&
-                    (!photometry || photometry?.length === 0) && (
-                      <CircularProgress color="secondary" />
-                    )}
-                  {photometry?.length > 0 && (
-                    <Suspense
-                      fallback={
-                        <div>
-                          <CircularProgress color="secondary" />
-                        </div>
-                      }
-                    >
-                      <PhotometryPlot
-                        obj_id={source.id}
-                        dm={source.dm}
-                        photometry={photometry}
-                        annotations={source?.annotations || []}
-                        spectra={spectra || []}
-                        gcn_events={source.gcn_crossmatch || []}
-                        plotStyle={{
-                          height: rightPanelVisible ? "65vh" : "75vh",
-                        }}
-                        mode={downMd ? "mobile" : "desktop"}
-                      />
-                    </Suspense>
+                  {!source.photometry_exists && (
+                    <div style={{ marginLeft: "1rem" }}>
+                      {" "}
+                      No photometry exists{" "}
+                    </div>
+                  )}
+                  {source.photometry_exists && (
+                    <PhotometryPlot
+                      obj_id={source.id}
+                      dm={source.dm}
+                      annotations={source?.annotations || []}
+                      spectra={spectra || []}
+                      gcn_events={source.gcn_crossmatch || []}
+                      duplicates={source.duplicates || []}
+                      magsys={magsys}
+                      plotStyle={{
+                        height: rightPanelVisible ? "65vh" : "75vh",
+                      }}
+                      mode={downMd ? "mobile" : "desktop"}
+                    />
                   )}
                 </div>
                 <div className={classes.buttonContainer}>
@@ -1292,11 +1281,7 @@ const SourceContent = ({ source }) => {
                   <Link to={`/upload_photometry/${source.id}`} role="link">
                     <Button secondary>Upload photometry</Button>
                   </Link>
-                  <PhotometryDownload
-                    obj_id={source.id}
-                    photometry={photometry}
-                  />
-                  {photometry && (
+                  {source?.photometry_exists && (
                     <Link to={`/source/${source.id}/periodogram`} role="link">
                       <Button secondary>Periodogram Analysis</Button>
                     </Link>
@@ -1584,7 +1569,14 @@ SourceContent.propTypes = {
         origin: PropTypes.string,
       }),
     ),
-    duplicates: PropTypes.arrayOf(PropTypes.string),
+    duplicates: PropTypes.arrayOf(
+      PropTypes.shape({
+        obj_id: PropTypes.string,
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        separation: PropTypes.number,
+      }),
+    ),
     alias: PropTypes.arrayOf(PropTypes.string),
     gcn_crossmatch: PropTypes.arrayOf(PropTypes.string),
     photometry_exists: PropTypes.bool,
