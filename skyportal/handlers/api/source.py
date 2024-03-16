@@ -274,7 +274,8 @@ async def get_source(
         dup["separation"] = (
             great_circle_distance(s.ra, s.dec, dup["ra"], dup["dec"]) * 3600
         )  # to arcsec
-    source_info["duplicates"] = duplicates
+    # sort by separation ascending (closest first)
+    source_info["duplicates"] = sorted(duplicates, key=lambda x: x["separation"])
 
     if 'photstats' in source_info:
         photstats = source_info["photstats"]
