@@ -1,15 +1,22 @@
 import asyncio
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
-from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.log import make_log
 from ..base import BaseHandler
 from .source import get_sources, MAX_SOURCES_PER_PAGE
 
-from ...models import GcnEvent, Localization, SourcesConfirmedInGCN, TNSRobot
+from ...models import (
+    GcnEvent,
+    Localization,
+    SourcesConfirmedInGCN,
+    TNSRobot,
+    TNSRobotSubmission,
+)
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
-from ...utils.tns import post_tns
+
+log = make_log('api/sources_confirmed_in_gcn')
 
 
 class Validator(Schema):
@@ -784,18 +791,21 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
 
-                IOLoop.current().run_in_executor(
-                    None,
-                    lambda: post_tns(
-                        obj_ids=[obj.obj_id for obj in sources_in_gcn],
+                for obj in sources_in_gcn:
+                    submission = TNSRobotSubmission(
                         tnsrobot_id=tnsrobot.id,
+                        obj_id=obj.obj_id,
                         user_id=self.associated_user_object.id,
-                        reporters=reporters,
+                        custom_reporting_string=reporters,
                         archival=archival,
                         archival_comment=archival_comment,
-                        timeout=30,
-                    ),
-                )
+                    )
+                    session.add(submission)
+                    log(
+                        f"Added TNSRobotSubmission request for obj_id {obj.id} confirmed in GCN with tnsrobot_id {tnsrobot.id} for user_id {self.associated_user_object.id}"
+                    )
+                session.commit()
+
                 return self.success()
 
             except Exception as e:

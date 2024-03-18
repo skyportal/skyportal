@@ -72,7 +72,7 @@ const CandidatesPreferences = ({
         <Tooltip title="Save and load pre-set search options">
           <div>
             <Button
-              primary
+              secondary
               data-testid="manageScanningProfilesButton"
               onClick={() => {
                 setAddDialogOpen(true);

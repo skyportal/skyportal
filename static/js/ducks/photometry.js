@@ -51,7 +51,7 @@ export function submitPhotometry(photometry) {
 
 export function updatePhotometry(id, photometry) {
   return API.PATCH(
-    `/api/photometry?refresh=true/${id}`,
+    `/api/photometry/${id}?refresh=true`,
     UPDATE_PHOTOMETRY,
     photometry,
   );

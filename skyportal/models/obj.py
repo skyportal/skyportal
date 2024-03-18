@@ -463,6 +463,13 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Sources in a localization.",
     )
 
+    tns_submissions = relationship(
+        "TNSRobotSubmission",
+        back_populates="obj",
+        passive_deletes=True,
+        doc="TNS auto-submissions associated with this obj.",
+    )
+
     def add_linked_thumbnails(self, thumbnails, session=None):
         """Determine the URLs of the SDSS, Legacy Survey DR9, and
         thumbnails of the object,

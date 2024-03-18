@@ -6,7 +6,15 @@ import { useTheme } from "@mui/material/styles";
 
 const mjdNow = Date.now() / 86400000.0 + 40587.0;
 
-const spec = (url, colorScale, titleFontSize, labelFontSize, values) => {
+const spec = (
+  url,
+  colorScale,
+  titleFontSize,
+  labelFontSize,
+  values,
+  hasStyle,
+  style,
+) => {
   const specJSON = {
     $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
     background: "transparent",
@@ -27,7 +35,7 @@ const spec = (url, colorScale, titleFontSize, labelFontSize, values) => {
           type: "point",
           shape: "circle",
           filled: "true",
-          size: 15,
+          size: 24,
         },
         transform: [
           {
@@ -68,6 +76,10 @@ const spec = (url, colorScale, titleFontSize, labelFontSize, values) => {
             field: "filter",
             type: "nominal",
             scale: colorScale,
+            legend: {
+              titleAnchor: "start",
+              offset: 5,
+            },
           },
           tooltip: [
             { field: "magAndErr", title: "mag", type: "nominal" },
@@ -109,6 +121,7 @@ const spec = (url, colorScale, titleFontSize, labelFontSize, values) => {
             scale: {
               zero: false,
               reverse: true,
+              padding: 0,
             },
             axis: {
               title: "days ago",
@@ -208,14 +221,28 @@ const spec = (url, colorScale, titleFontSize, labelFontSize, values) => {
       values,
     };
   }
+  if (hasStyle) {
+    if (style.width || style.maxWidth || style.minWidth) {
+      specJSON.layer[0].width = "container";
+    }
+    if (style.height || style.maxHeight || style.minHeight) {
+      specJSON.layer[0].height = "container";
+    }
+    specJSON.layer[0].autosize = {
+      type: "fit",
+      contains: "padding",
+    };
+  }
   return specJSON;
 };
 
 const VegaPlot = React.memo((props) => {
-  const { dataUrl, colorScale, values } = props;
+  const { dataUrl, colorScale, values, style } = props;
+  const hasStyle = Object.keys(style).length > 0;
   const theme = useTheme();
   return (
     <div
+      style={style || {}}
       ref={(node) => {
         if (node) {
           embed(
@@ -226,6 +253,8 @@ const VegaPlot = React.memo((props) => {
               theme.plotFontSizes.titleFontSize,
               theme.plotFontSizes.labelFontSize,
               values,
+              hasStyle,
+              style,
             ),
             {
               actions: false,
@@ -244,11 +273,13 @@ VegaPlot.propTypes = {
     range: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
   values: PropTypes.arrayOf(PropTypes.object), // eslint-disable-line react/forbid-prop-types
+  style: PropTypes.shape({}),
 };
 
 VegaPlot.defaultProps = {
   dataUrl: null,
   values: null,
+  style: {},
 };
 
 VegaPlot.displayName = "VegaPlot";
