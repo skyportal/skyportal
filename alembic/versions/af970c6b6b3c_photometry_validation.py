@@ -1,7 +1,7 @@
 """Photometry validation migration
 
 Revision ID: af970c6b6b3c
-Revises: 550fbafe6a2c
+Revises: 0322f907b589
 Create Date: 2024-03-02 00:12:53.315651
 
 """
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'af970c6b6b3c'
-down_revision = '550fbafe6a2c'
+down_revision = '0322f907b589'
 branch_labels = None
 depends_on = None
 
