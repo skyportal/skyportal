@@ -76,6 +76,13 @@ SNCOSMO_TO_TNSFILTER = {
 
 TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
 
+# here we store regex patterns, to validate that a source name is in the correct format
+# for a given TNS source group. Used to not submit incorrect sources to TNS.
+TNS_SOURCE_GROUP_NAMING_CONVENTIONS = {
+    48: r"ZTF\d{2}[a-z]{7}",  # ZTF: ZTF + 2 digits + 7 lowercase characters
+    68: r"[ACT]20\d{6}\d{7}[pm]\d{6}",  # DECAM: A or C or T + 20 + 6 digits + 7 digits + p or m + 6 digits
+}
+
 
 def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
     """Query TNS to get IAU name (if exists)

@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import urllib
 
@@ -28,6 +29,7 @@ from skyportal.models import (
 from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
     TNS_INSTRUMENT_IDS,
+    TNS_SOURCE_GROUP_NAMING_CONVENTIONS,
     get_IAUname,
     get_internal_names,
 )
@@ -54,8 +56,34 @@ class TNSReportError(Exception):
     pass
 
 
+def validate_obj_id(obj_id, tns_source_group_id):
+    """Validate that the object ID is valid for submission to TNS with the given TNS source group ID.
+
+    Parameters
+    ----------
+    obj_id : str
+        The object ID to validate.
+    tns_source_group_id : int
+        The TNS source group ID to validate the object ID for.
+
+    Raises
+    ------
+    TNSReportError
+        If the object ID is not valid for submission to TNS with the given TNS source group ID.
+    """
+    if tns_source_group_id not in TNS_SOURCE_GROUP_NAMING_CONVENTIONS:
+        raise TNSReportError(
+            f'Unknown naming convention for TNS source group ID {tns_source_group_id}, cannot validate object ID.'
+        )
+    regex_pattern = TNS_SOURCE_GROUP_NAMING_CONVENTIONS[tns_source_group_id]
+    if not re.match(regex_pattern, obj_id):
+        raise TNSReportError(
+            f"Object ID {obj_id} does not match the expected naming convention for TNS source group ID {tns_source_group_id}."
+        )
+
+
 def find_accessible_tnsrobot_groups(submission_request, tnsrobot, user, session):
-    """Verify that the user is allowed to submit to TNS with this robot, and return the TNSRobotGroups that the user is allowed to submit from.
+    """Find the TNSRobotGroups that the user is allowed to submit from.
 
     Parameters
     ----------
@@ -323,6 +351,15 @@ def find_accessible_instrument_ids(submission_request, tnsrobot, user, session):
         The instrument IDs accessible to the TNSRobot.
     """
     tnsrobot_id = tnsrobot.id
+
+    instrument_ids = [instrument.id for instrument in tnsrobot.instruments]
+
+    # we require instruments to be specified for the TNSRobot when submitting sources to TNS
+    if len(instrument_ids) == 0:
+        raise TNSReportError(
+            f'Must specify instruments for TNSRobot {tnsrobot_id} to submit sources to TNS.'
+        )
+
     # for now we limit it to instruments and filters we have mapped to TNS
     all_tns_instruments = session.scalars(
         Instrument.select(user).where(
@@ -333,8 +370,6 @@ def find_accessible_instrument_ids(submission_request, tnsrobot, user, session):
         raise TNSReportError(
             'No instrument with known TNS IDs available or accessible to this user.'
         )
-
-    instrument_ids = [instrument.id for instrument in tnsrobot.instruments]
 
     # keep the instruments from all_tns_instruments that are in the list of instruments this robot is allowed to use
     # unless no instruments are specified, in which case we use all instruments
@@ -390,6 +425,12 @@ def find_accessible_stream_ids(submission_request, tnsrobot, user, session):
     tnsrobot_id = tnsrobot.id
 
     stream_ids = [stream.id for stream in tnsrobot.streams]
+
+    # if it is an auto_submission, we require streams to be specified for the TNSRobot
+    if len(stream_ids) == 0 and submission_request.auto_submission is True:
+        raise TNSReportError(
+            f'Must specify streams for TNSRobot {tnsrobot_id} when to automatically submit sources to TNS.'
+        )
 
     all_streams = session.scalars(Stream.select(user))
 
@@ -693,6 +734,8 @@ def process_submission_request(submission_request, session):
         tns_headers = {
             'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
         }
+
+        validate_obj_id(obj_id, tnsrobot.source_group_id)
 
         apply_existing_tnsreport_rules(
             tns_headers, tnsrobot, submission_request, session

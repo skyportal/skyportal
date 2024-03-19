@@ -855,7 +855,7 @@ const TNSRobotsPage = () => {
           tnsrobotListLookup[tnsrobotToManage]?.acknowledgments ||
           "on behalf of ...",
         description:
-          "Added at the end of the author list, e.g. 'First Last (University), <insert_acknowledgments_here>'",
+          "Added at the end of the author list, e.g. 'First Last (University) <insert_acknowledgments_here>'",
       },
       instrument_ids: {
         type: "array",
@@ -869,7 +869,7 @@ const TNSRobotsPage = () => {
         },
         uniqueItems: true,
         default: [],
-        title: "Instruments to restrict photometry to (optional)",
+        title: "Instruments to restrict photometry to",
       },
       stream_ids: {
         type: "array",
@@ -900,7 +900,13 @@ const TNSRobotsPage = () => {
           "If disabled, the bot will not send a report to TNS if an object within 2 arcsec is already in the TNS database. If enabled, a report is sent as long as there are no reports with the same internal name.",
       },
     },
-    required: ["bot_name", "bot_id", "source_group_id", "acknowledgments"],
+    required: [
+      "bot_name",
+      "bot_id",
+      "source_group_id",
+      "acknowledgments",
+      "instrument_ids",
+    ],
   };
 
   // the create schema is the same as the edit schema, but with the owner_group_ids field
@@ -1044,7 +1050,7 @@ const TNSRobotsPage = () => {
     const tnsrobot = tnsrobotList[dataIndex];
     return (
       <Tooltip
-        title={`Added at the end of the author list, e.g. 'First Last (University), ${
+        title={`Added at the end of the author list, e.g. 'First Last (University) ${
           tnsrobot?.acknowledgments || "<insert_acknowledgments_here>"
         }`}
         placement="top"
