@@ -1164,6 +1164,13 @@ def get_nearby_offset_stars(
 
         hmsdms = format_hmsdms(c, coord_sep, col_sep)
 
+        # the id_col isn't necessarily source_id, it might be SOURCE_ID, so figure out which one it is:
+        id_col = 'source_id'
+        for k in list(source.keys()):
+            if 'source_id' in str(k).lower().strip():
+                id_col = k
+                break
+
         star_list_format = (
             f"{name:{space}<{maxname_size}}"
             + col_sep
@@ -1175,7 +1182,7 @@ def get_nearby_offset_stars(
             + f"{col_sep if giveoffsets else ''}"
             + f"{commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
             + f"; {dras}, {ddecs} PA={pa:<0.02f} deg"
-            + f" ID={source['source_id']}"
+            + f" ID={source[id_col]}"
         )
 
         star_list.append(
