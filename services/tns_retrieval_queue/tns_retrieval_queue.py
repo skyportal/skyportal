@@ -20,7 +20,7 @@ from baselayer.log import make_log
 from skyportal.handlers.api.photometry import add_external_photometry
 from skyportal.handlers.api.source import post_source
 from skyportal.handlers.api.spectrum import post_spectrum
-from skyportal.models import DBSession, Obj, User, Group
+from skyportal.models import DBSession, Obj, Source, User, Group
 from skyportal.utils.tns import (
     get_IAUname,
     read_tns_photometry,
@@ -47,6 +47,27 @@ bot_id = cfg.get('app.tns.bot_id', None)
 bot_name = cfg.get('app.tns.bot_name', None)
 api_key = cfg.get('app.tns.api_key', None)
 look_back_days = cfg.get('app.tns.look_back_days', 1)
+
+
+def refresh_obj_on_frontend(obj, user_id='*'):
+    """Refresh an object's source page on the frontend for all users or a specific user.
+
+    Parameters
+    ----------
+    obj : `skyportal.models.Obj`
+        The object to refresh, with an id and internal_key
+    user_id : str, optional
+        The user ID to refresh the object for. If '*', refresh for all users.
+    """
+    try:
+        flow = Flow()
+        flow.push(
+            user_id,
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': obj.internal_key},
+        )
+    except Exception:
+        log(f'Error refreshing object {obj.id} on frontend')
 
 
 def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, session):
@@ -89,12 +110,7 @@ def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, se
 
                 session.commit()
                 log(f"Updated object {obj.id} with TNS name {tns_name}")
-                flow = Flow()
-                flow.push(
-                    '*',
-                    'skyportal/REFRESH_SOURCE',
-                    payload={'obj_key': obj.internal_key},
-                )
+                refresh_obj_on_frontend(obj)
             except Exception as e:
                 log(f"Error updating object: {str(e)}")
                 session.rollback()
@@ -268,9 +284,12 @@ def process_queue(queue):
                         dec=existing_obj.dec,
                         radius=float(task.get("radius", DEFAULT_RADIUS)),
                     )
-                    if tns_source is None:
+                    log(
+                        f"Found TNS source {tns_source} for object {existing_obj.id} with prefix {tns_prefix}"
+                    )
+                    if tns_source in [None, "None", ""]:
                         raise ValueError(f'{task.get("obj_id")} not found on TNS.')
-                    tns_name = f"{tns_prefix} {tns_name}"
+                    tns_name = f"{tns_prefix} {tns_source}"
                 elif (
                     task.get("tns_source") is not None
                     and task.get("tns_prefix") is not None
@@ -337,6 +356,8 @@ def process_queue(queue):
                     # simply add the TNS name to the existing object
                     existing_obj.tns_name = tns_name
                     existing_obj.tns_info = tns_source_data
+                    session.commit()
+                    refresh_obj_on_frontend(existing_obj)
                 else:
                     # otherwise, add the TNS name to all the existing sources within a 2 arcsec radius
                     add_tns_name_to_existing_objs(
@@ -345,16 +366,33 @@ def process_queue(queue):
 
                 with DBSession() as session:
                     existing_tns_obj = session.scalar(
-                        sa.select(Obj).where(Obj.id == tns_name)
+                        sa.select(Obj).where(Obj.id == tns_source)
                     )
-                    if existing_tns_obj is not None:
-                        # TODO: update photometry and spectra and not just skip
-                        log(
-                            f"TNS source {tns_name} already exists in the database, skipping..."
+                    existing_tns_public_source = session.scalar(
+                        sa.select(Source).where(
+                            Source.obj_id == tns_source,
+                            Source.group_id == public_group_id,
                         )
-                    else:
-                        # we add the TNS source to the database if it doesn't exist yet
-                        # with its photometry and spectra
+                    )
+                    # if an object already exists for this tns_source, we update its TNS name
+                    if (
+                        existing_tns_obj is not None
+                        and existing_tns_obj.tns_name != tns_name
+                    ):
+                        existing_tns_obj.tns_name = tns_name
+                        existing_tns_obj.tns_info = tns_source_data
+                        session.commit()
+                        log(
+                            f"TNS obj {tns_name} already exists in the database, updated its TNS name."
+                        )
+                        refresh_obj_on_frontend(existing_tns_obj)
+
+                    # if the obj does not exist or if it exists but is saved to the public group,
+                    # we create/save the TNS source to the public group
+                    if existing_tns_public_source is None:
+                        log(
+                            f"Saving TNS source {tns_name} to the database (public group)"
+                        )
                         new_source_data = {
                             "id": tns_source,  # the name without the prefix
                             "ra": ra,
@@ -443,8 +481,11 @@ def tns_watcher(queue):
             )
             log(f"Added TNS source {tns_source['id']} to the queue for processing")
 
-        # we always look at a minimum of 1 hour back in time
-        start_date = datetime.now() - timedelta(hours=1)
+        # if we got any sources, we update the start date to now - 1 hour
+        # otherwise we keep querying TNS starting from same start date
+        if len(tns_sources) > 0:
+            start_date = datetime.now() - timedelta(hours=1)
+
         time.sleep(60 * 4)  # sleep for 4 minutes
 
 
