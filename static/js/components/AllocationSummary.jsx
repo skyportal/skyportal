@@ -414,6 +414,12 @@ const AllocationSummary = ({ route }) => {
       },
     },
     {
+      name: "Comments",
+      options: {
+        filter: true,
+      },
+    },    
+    {
       name: "Finder",
       options: {
         filter: false,
@@ -457,6 +463,7 @@ const AllocationSummary = ({ route }) => {
     request.payload.priority,
     request.rise_time_utc,
     request.set_time_utc,
+    request.comments,
     null,
     null,
   ]);
