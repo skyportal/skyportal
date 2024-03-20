@@ -1233,6 +1233,55 @@ class FollowupRequestHandler(BaseHandler):
                 return self.error(f'Failed to delete follow-up request: {e}')
             return self.success()
 
+class FollowupRequestCommentHandler(BaseHandler):
+    @permissions(["Upload data"])
+    def put(self, followup_request_id):
+        """
+        ---
+        description: Update a follow-up request comment
+        tags:
+          - followup_requests
+        parameters:
+          - in: path
+            name: followup_request_id
+            required: true
+            schema:
+              type: string
+        requestBody:
+          content:
+            application/json:
+              schema: FollowupRequestComment
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        comment = data.get("comments", None)
+        if comment is None:
+            return self.error("Comment is required.")
+        
+        with self.Session() as session:
+            try:
+                stmt = FollowupRequest.select(self.user_or_token, mode="update").where(
+                    FollowupRequest.id == followup_request_id)
+                followup_request = session.scalar(stmt)
+                
+                if followup_request is None:
+                    return self.error(f"Followup request {followup_request_id} not found.")
+                
+                followup_request.comment = comment
+                session.commit()
+                return self.success({"id": followup_request.id})
+            except Exception as e:
+                return self.error(f"Failed to update followup request comment: {e}")
+
 
 class HourAngleConstraint(Constraint):
     """
