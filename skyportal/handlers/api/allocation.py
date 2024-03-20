@@ -196,7 +196,6 @@ class AllocationHandler(BaseHandler):
                     request_data['rise_time_utc'] = request.rise_time().iso
                     if isinstance(request_data['rise_time_utc'], np.ma.MaskedArray):
                         request_data['rise_time_utc'] = None
-                    request_data['comments'] = request.comments
                     requests.append(request_data)         
 
                 allocation_data['requests'] = requests
