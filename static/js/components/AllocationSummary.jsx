@@ -8,9 +8,16 @@ import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Grid from "@mui/material/Grid";
+import Tooltip from "@mui/material/Tooltip";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import BuildIcon from "@mui/icons-material/Build";
+import EditIcon from "@mui/icons-material/Edit";
+import TextField from "@mui/material/TextField";
 
 import Link from "@mui/material/Link";
+import SaveIcon from "@mui/icons-material/Save";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ImageAspectRatioIcon from "@mui/icons-material/ImageAspectRatio";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -31,6 +38,8 @@ import * as Action from "../ducks/allocation";
 import { ra_to_hours, dec_to_dms } from "../units";
 
 import VegaPhotometry from "./VegaPhotometry";
+import Button from "./Button";
+import FormValidationError from "./FormValidationError";
 
 const AirmassPlot = React.lazy(() => import("./AirmassPlot"));
 
@@ -171,6 +180,14 @@ const AllocationSummary = ({ route }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [invalid, setInvalid] = useState(true);
+  const [commentContent, setCommentContent] = useState("");
+
+  useEffect(() => {
+    setInvalid(false);
+  }, [setInvalid]);
 
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
@@ -333,6 +350,76 @@ const AllocationSummary = ({ route }) => {
     return <SimpleMenu request={request} key={`${request.id}_menu`} />;
   };
 
+  const renderComments = (dataIndex) => {
+    const request = requests[dataIndex];
+
+    const handleOpenDialog = () => {
+      setCommentContent(request.comments);
+      setDialogOpen(true);
+    };
+
+    return (
+      <div>
+        {request.comments}
+        <Tooltip title="Update comments">
+          <span>
+            <EditIcon
+              data-testid="updateCommentsIconButton"
+              fontSize="small"
+              className={styles.editIcon}
+              onClick={handleOpenDialog}
+            />
+          </span>
+        </Tooltip>
+        <Dialog
+          open={dialogOpen}
+          fullWidth
+          maxWidth="lg"
+          onClose={() => {
+            setDialogOpen(false);
+          }}
+          style={{ position: "fixed" }}
+        >
+          <DialogTitle>Update comments</DialogTitle>
+          <DialogContent>
+            <div>
+              {invalid && (
+                <FormValidationError message="Please enter a valid comment" />
+              )}
+              <TextField
+                data-testid="updateCommentsTextfield"
+                size="small"
+                label="comments"
+                value={commentContent}
+                name="comments"
+                minRows={2}
+                fullWidth
+                multiline
+                onChange={(e) => setCommentContent(e.target.value)}
+                variant="outlined"
+              />
+            </div>
+            <p />
+            <div className={styles.saveButton}>
+              <Button
+                secondary
+                onClick={() => {
+                  // handleSubmit(state);
+                }}
+                endIcon={<SaveIcon />}
+                size="large"
+                data-testid="updateCommentsSubmitButton"
+                // disabled={isSubmitting || invalid}
+              >
+                Save
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  };
+
   const columns = [
     {
       name: "Target Name",
@@ -417,8 +504,9 @@ const AllocationSummary = ({ route }) => {
       name: "Comments",
       options: {
         filter: true,
+        customBodyRenderLite: renderComments,
       },
-    },    
+    },
     {
       name: "Finder",
       options: {
