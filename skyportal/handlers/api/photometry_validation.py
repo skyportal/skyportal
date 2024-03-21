@@ -10,7 +10,6 @@ from ...models import Photometry, PhotometryValidation
 _, cfg = load_env()
 
 USE_PHOTOMETRY_VALIDATION = cfg.get("misc.photometry_validation", False)
-print(f'USE_PHOTOMETRY_VALIDATION: {USE_PHOTOMETRY_VALIDATION}')
 
 
 class Validator(Schema):
