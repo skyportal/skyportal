@@ -614,6 +614,9 @@ const TNSRobotsPage = () => {
     owner_group_ids: [],
     instrument_ids: [],
     stream_ids: [],
+    report_exceptions: false,
+    first_and_last_detections: true,
+    last_non_detection_before_first_detection: true,
   });
 
   const allowedInstruments = instrumentList.filter((instrument) =>
@@ -682,6 +685,12 @@ const TNSRobotsPage = () => {
       stream_ids: (tnsrobotListLookup[id]?.streams || []).map(
         (stream) => stream.id,
       ),
+      report_existing: tnsrobotListLookup[id]?.report_existing,
+      first_and_last_detections:
+        tnsrobotListLookup[id]?.photometry_options?.first_and_last_detections,
+      last_non_detection_before_first_detection:
+        tnsrobotListLookup[id]?.photometry_options
+          ?.last_non_detection_before_first_detection,
     });
     setEditDialogOpen(true);
     setTnsrobotToManage(id);
@@ -709,6 +718,8 @@ const TNSRobotsPage = () => {
       stream_ids,
       testing,
       report_existing,
+      first_and_last_detections,
+      last_non_detection_before_first_detection,
     } = formData.formData;
 
     if (api_key?.length === 0) {
@@ -734,6 +745,10 @@ const TNSRobotsPage = () => {
       stream_ids,
       testing,
       report_existing,
+      photometry_options: {
+        first_and_last_detections,
+        last_non_detection_before_first_detection,
+      },
     };
 
     dispatch(tnsrobotsActions.addTNSRobot(data)).then((result) => {
@@ -770,6 +785,8 @@ const TNSRobotsPage = () => {
       stream_ids,
       testing,
       report_existing,
+      first_and_last_detections,
+      last_non_detection_before_first_detection,
     } = formData.formData;
 
     const data = {
@@ -781,6 +798,10 @@ const TNSRobotsPage = () => {
       stream_ids,
       testing,
       report_existing,
+      photometry_options: {
+        first_and_last_detections,
+        last_non_detection_before_first_detection,
+      },
     };
 
     if (api_key?.length > 0) {
@@ -899,6 +920,24 @@ const TNSRobotsPage = () => {
         description:
           "If disabled, the bot will not send a report to TNS if an object within 2 arcsec is already in the TNS database. If enabled, a report is sent as long as there are no reports with the same internal name.",
       },
+      first_and_last_detections: {
+        type: "boolean",
+        title: "Mandatory first and last detection",
+        default:
+          tnsrobotListLookup[tnsrobotToManage]?.photometry_options
+            ?.first_and_last_detections || true,
+        description:
+          "If enabled, the bot will not send a report to TNS if there is no first and last detection (at least 2 detections).",
+      },
+      last_non_detection_before_first_detection: {
+        type: "boolean",
+        title: "Mandatory non-detection before first detection",
+        default:
+          tnsrobotListLookup[tnsrobotToManage]?.photometry_options
+            ?.last_non_detection_before_first_detection || true,
+        description:
+          "If enabled, the bot will not send a report to TNS if there is no non-detection before the first detection.",
+      },
     },
     required: [
       "bot_name",
@@ -906,6 +945,8 @@ const TNSRobotsPage = () => {
       "source_group_id",
       "acknowledgments",
       "instrument_ids",
+      "first_and_last_detections",
+      "last_non_detection_before_first_detection",
     ],
   };
 
@@ -1277,6 +1318,10 @@ const TNSRobotsPage = () => {
                   owner_group_ids: [],
                   instrument_ids: [],
                   stream_ids: [],
+                  acknowledgments: "on behalf of ...",
+                  report_existing: false,
+                  first_and_last_detections: true,
+                  last_non_detection_before_first_detection: true,
                 });
                 setOpenNewTNSRobot(true);
               }}

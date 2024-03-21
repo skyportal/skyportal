@@ -2,6 +2,7 @@ import json
 import re
 import time
 import urllib
+import traceback
 
 import astropy
 import requests
@@ -15,6 +16,9 @@ from baselayer.log import make_log
 
 from baselayer.app.flow import Flow
 from skyportal.handlers.api.photometry import serialize
+from skyportal.handlers.api.tns import (
+    validate_photometry_options as _validate_photometry_options,
+)
 from skyportal.models import (
     DBSession,
     Instrument,
@@ -45,7 +49,6 @@ Session = scoped_session(sessionmaker())
 
 TNS_URL = cfg['app.tns.endpoint']
 report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
-print(f"REPORT URL: {report_url}")
 search_frontend_url = urllib.parse.urljoin(TNS_URL, 'search')
 
 
@@ -54,6 +57,35 @@ search_frontend_url = urllib.parse.urljoin(TNS_URL, 'search')
 # and want to set as the status of the TNSRobotSubmission + notify the user
 class TNSReportError(Exception):
     pass
+
+
+def validate_photometry_options(submission_request, tnsrobot):
+    """Validate the photometry options for a TNSRobot.
+
+    Parameters
+    ----------
+    submission_request : `~skyportal.models.TNSRobotSubmission`
+        The submission request's photometry options to validate.
+    tns_robot : `~skyportal.models.TNSRobot`
+        The TNSRobot to validate the photometry options for.
+
+    Returns
+    -------
+    dict
+        The validated photometry options.
+
+    Raises
+    ------
+    TNSReportError
+        If the photometry options are not valid.
+    """
+    try:
+        return _validate_photometry_options(
+            getattr(submission_request, 'photometry_options', {}),
+            getattr(tnsrobot, 'photometry_options', {}),
+        )
+    except ValueError as e:
+        raise TNSReportError(str(e))
 
 
 def validate_obj_id(obj_id, tns_source_group_id):
@@ -352,55 +384,46 @@ def find_accessible_instrument_ids(submission_request, tnsrobot, user, session):
     """
     tnsrobot_id = tnsrobot.id
 
+    # when it comes to instruments, we only want to submit photometry for instruments that
+    # the TNSRobot has access to, so we only consider instruments from the submission that
+    # are a subset of the TNSRobot's instruments
     instrument_ids = [instrument.id for instrument in tnsrobot.instruments]
-
-    # we require instruments to be specified for the TNSRobot when submitting sources to TNS
     if len(instrument_ids) == 0:
         raise TNSReportError(
             f'Must specify instruments for TNSRobot {tnsrobot_id} to submit sources to TNS.'
         )
 
-    # for now we limit it to instruments and filters we have mapped to TNS
-    all_tns_instruments = session.scalars(
+    if len(submission_request.instrument_ids) > 0:
+        # union with the robot's instrument_ids
+        instrument_ids = list(
+            set(submission_request.instrument_ids) & set(instrument_ids)
+        )
+        if len(instrument_ids) == 0:
+            raise TNSReportError(
+                f'None of the instruments specified for the submission request are accessible to TNSRobot {tnsrobot_id}.'
+            )
+
+    # fetch the full list of instruments in the database that we have TNS IDs for
+    tns_instruments = session.scalars(
         Instrument.select(user).where(
             sa.func.lower(Instrument.name).in_(list(TNS_INSTRUMENT_IDS.keys()))
         )
     ).all()
-    if len(all_tns_instruments) == 0:
+    if len(tns_instruments) == 0:
         raise TNSReportError(
             'No instrument with known TNS IDs available or accessible to this user.'
         )
 
-    # keep the instruments from all_tns_instruments that are in the list of instruments this robot is allowed to use
-    # unless no instruments are specified, in which case we use all instruments
-    if len(instrument_ids) > 0:
-        all_tns_instruments = [
-            instrument
-            for instrument in all_tns_instruments
-            if instrument.id in instrument_ids
-        ]
-        if len(all_tns_instruments) == 0:
-            raise TNSReportError(
-                f'No instruments specified for TNSRobot {tnsrobot_id} are accessible.'
-            )
+    # keep the instruments from all_tns_instruments that are in the list of instruments to use for this submission
+    tns_instruments = [
+        instrument for instrument in tns_instruments if instrument.id in instrument_ids
+    ]
+    if len(tns_instruments) == 0:
+        raise TNSReportError(
+            f"None of the instrument(s) for submission {submission_request.id} with TNS robot {tnsrobot.id} have known TNS IDs."
+        )
 
-    # if the submission has a list of instrument_ids to use, we only use those
-    if (
-        submission_request.instrument_ids is not None
-        and len(submission_request.instrument_ids) > 0
-    ):
-        all_tns_instruments = [
-            instrument
-            for instrument in all_tns_instruments
-            if instrument.id in submission_request.instrument_ids
-        ]
-        if len(all_tns_instruments) == 0:
-            raise TNSReportError(
-                f'No instruments specified for submission with TNSRobot {tnsrobot_id} are accessible.'
-            )
-
-    instrument_ids = [instrument.id for instrument in all_tns_instruments]
-    return instrument_ids
+    return [instrument.id for instrument in tns_instruments]
 
 
 def find_accessible_stream_ids(submission_request, tnsrobot, user, session):
@@ -424,6 +447,11 @@ def find_accessible_stream_ids(submission_request, tnsrobot, user, session):
     """
     tnsrobot_id = tnsrobot.id
 
+    # compared to the instruments, we do allow overwriting the TNSRobot's streams
+    # so here, if no streams are specified for the submission, we use all of the TNSRobot's streams
+    # otherwise, we only use the streams specified in the submission
+    #
+    # streams are also optional except for auto-submissions
     stream_ids = [stream.id for stream in tnsrobot.streams]
 
     # if it is an auto_submission, we require streams to be specified for the TNSRobot
@@ -432,36 +460,36 @@ def find_accessible_stream_ids(submission_request, tnsrobot, user, session):
             f'Must specify streams for TNSRobot {tnsrobot_id} when to automatically submit sources to TNS.'
         )
 
-    all_streams = session.scalars(Stream.select(user))
-
-    if len(stream_ids) > 0:
-        all_streams = [stream for stream in all_streams if stream.id in stream_ids]
-        if len(all_streams) == 0:
-            raise TNSReportError(
-                f'No streams specified for TNSRobot {tnsrobot_id} are accessible'
-            )
-
-    # if the submission has a list of stream_ids to use, we only use those
     if (
         submission_request.stream_ids is not None
         and len(submission_request.stream_ids) > 0
     ):
-        all_streams = [
-            stream
-            for stream in all_streams
-            if stream.id in submission_request.stream_ids
-        ]
+        stream_ids = submission_request.stream_ids
+
+    # specifying streams to use being optional, we return None if no streams are specified
+    if len(stream_ids) == 0:
+        return None
+    else:
+        # verify that the streams are accessible to the user that is submitting the request
+        # use the intersection of the stream_ids and the user's accessible streams
+        all_streams = session.scalars(Stream.select(user)).all()
+        all_streams = [stream for stream in all_streams if stream.id in stream_ids]
         if len(all_streams) == 0:
             raise TNSReportError(
-                f'No streams specified for submission with TNSRobot {tnsrobot_id} are accessible.'
+                f'No streams specified for submission {submission_request.id} with TNS robot {tnsrobot_id} are accessible'
             )
 
-    stream_ids = [stream.id for stream in all_streams]
-    return stream_ids
+        return [stream.id for stream in all_streams]
 
 
 def build_at_report(
-    submission_request, tnsrobot, source, reporters, photometry, session
+    submission_request,
+    tnsrobot,
+    source,
+    reporters,
+    photometry,
+    photometry_options,
+    session,
 ):
     """Build the AT report for a TNSRobot submission.
 
@@ -522,9 +550,20 @@ def build_at_report(
     if len(detections) == 0:
         raise TNSReportError(f'Need at least one detection for TNS report of {obj_id}.')
 
-    if len(non_detections) == 0 and not archival:
+    # if we require both first and last detections, we need at least two detections
+    if photometry_options['first_and_last_detections'] is True and len(detections) < 2:
         raise TNSReportError(
-            f'Need at least one non-detection for non-archival TNS report of {obj_id}.'
+            f'TNS robot reporting {obj_id} requires both first and last detections, but only one detection is available.'
+        )
+
+    # if we require a last detection and it's not an archival submission, we need at least one non-detection
+    if (
+        len(non_detections) == 0
+        and photometry_options['last_non_detection_before_first_detection'] is True
+        and not archival
+    ):
+        raise TNSReportError(
+            f'TNS robot reporting {obj_id} requires last detection before first detection for non-archival report of {obj_id}, but none are available.'
         )
 
     # sort each by mjd ascending
@@ -546,14 +585,19 @@ def build_at_report(
     # remove non detections that are after the first detection
     non_detections = [phot for phot in non_detections if phot['mjd'] < time_first]
 
-    if not archival and len(non_detections) == 0:
+    # if we require a last detection and it's not an archival submission, we need at least one non-detection
+    if (
+        not archival
+        and len(non_detections) == 0
+        and photometry_options['last_non_detection_before_first_detection'] is True
+    ):
         raise TNSReportError(
-            f'No non-detections found before first detection for TNS report of {obj_id}.'
+            f'TNS robot reporting {obj_id} requires last detection before first detection for non-archival report of {obj_id}, but none are available.'
         )
 
     # we already filtered the non detections to only those that are before the first detection
-    # so we can just take the last one
-    if not archival:
+    # so we can just take the last one since they are sorted by mjd
+    if not archival and len(non_detections) > 0:
         time_last_nondetection = non_detections[-1]['mjd']
         limmag_last_nondetection = non_detections[-1]['limiting_mag']
         filt_last_nondetection = SNCOSMO_TO_TNSFILTER[non_detections[-1]['filter']]
@@ -566,12 +610,13 @@ def build_at_report(
         "proprietary_period_units": "years",
     }
 
+    non_detection = None
     if archival:
         non_detection = {
             "archiveid": "0",
             "archival_remarks": archival_comment,
         }
-    else:
+    elif len(non_detections) > 0:
         non_detection = {
             "obsdate": astropy.time.Time(time_last_nondetection, format='mjd').jd,
             "limiting_flux": limmag_last_nondetection,
@@ -580,23 +625,37 @@ def build_at_report(
             "instrument_value": instrument_last_nondetection,
         }
 
-    phot_first = {
-        "obsdate": astropy.time.Time(time_first, format='mjd').jd,
-        "flux": mag_first,
-        "flux_err": magerr_first,
-        "flux_units": "1",
-        "filter_value": filt_first,
-        "instrument_value": instrument_first,
-    }
+    phot_first = None
+    phot_last = None
+    # if we have both first and last detections, we can submit them
+    if len(detections) > 1:
+        phot_first = {
+            "obsdate": astropy.time.Time(time_first, format='mjd').jd,
+            "flux": mag_first,
+            "flux_err": magerr_first,
+            "flux_units": "1",
+            "filter_value": filt_first,
+            "instrument_value": instrument_first,
+        }
 
-    phot_last = {
-        "obsdate": astropy.time.Time(time_last, format='mjd').jd,
-        "flux": mag_last,
-        "flux_err": magerr_last,
-        "flux_units": "1",
-        "filter_value": filt_last,
-        "instrument_value": instrument_last,
-    }
+        phot_last = {
+            "obsdate": astropy.time.Time(time_last, format='mjd').jd,
+            "flux": mag_last,
+            "flux_err": magerr_last,
+            "flux_units": "1",
+            "filter_value": filt_last,
+            "instrument_value": instrument_last,
+        }
+    # else we only submit one (the first detection)
+    else:
+        phot_first = {
+            "obsdate": astropy.time.Time(time_first, format='mjd').jd,
+            "flux": mag_first,
+            "flux_err": magerr_first,
+            "flux_units": "1",
+            "filter_value": filt_first,
+            "instrument_value": instrument_first,
+        }
 
     at_report = {
         "ra": {"value": source.obj.ra},
@@ -619,6 +678,14 @@ def build_at_report(
         "non_detection": non_detection,
         "photometry": {"photometry_group": {"0": phot_first, "1": phot_last}},
     }
+
+    # pop out the last detection if it is None
+    if phot_last is None:
+        at_report['photometry'].pop("1")
+
+    # pop out the non_detection if it is None
+    if at_report['non_detection'] is None:
+        at_report.pop('non_detection')
 
     report = {"at_report": {"0": at_report}}
 
@@ -735,6 +802,8 @@ def process_submission_request(submission_request, session):
             'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
         }
 
+        photometry_options = validate_photometry_options(submission_request, tnsrobot)
+
         validate_obj_id(obj_id, tnsrobot.source_group_id)
 
         apply_existing_tnsreport_rules(
@@ -778,7 +847,7 @@ def process_submission_request(submission_request, session):
             )
 
         # FILTER THE PHOTOMETRY BY STREAMS
-        if len(stream_ids) > 0:
+        if stream_ids is not None and len(stream_ids) > 0:
             phot_to_keep = []
             for phot in photometry:
                 for stream in phot.streams:
@@ -796,7 +865,13 @@ def process_submission_request(submission_request, session):
 
         # MAKE THE AT REPORT
         report = build_at_report(
-            submission_request, tnsrobot, source, reporters, photometry, session
+            submission_request,
+            tnsrobot,
+            source,
+            reporters,
+            photometry,
+            photometry_options,
+            session,
         )
 
         submission_request.payload = json.dumps(report)
@@ -862,6 +937,7 @@ def service(*args, **kwargs):
                     log(f"Error rolling back session: {str(e)}")
                 else:
                     try:
+                        traceback.print_exc()
                         log(
                             f"Error processing TNS request {submission_request_id}: {str(e)}"
                         )

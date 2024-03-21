@@ -68,17 +68,20 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
 
   let allowedInstruments = [];
 
-  if (selectedTNSRobotId) {
+  if (
+    selectedTNSRobotId &&
+    tnsrobotList.find((tnsrobot) => tnsrobot.id === selectedTNSRobotId)
+      ?.instruments?.length > 0
+  ) {
+    const tnsRobotInstruments = tnsrobotList.find(
+      (tnsrobot) => tnsrobot.id === selectedTNSRobotId,
+    )?.instruments;
     // only keep the intersection of the instruments and the tns robot's instruments
-    allowedInstruments = instrumentList.filter((instrument) => {
-      const tnsRobotInstruments = tnsrobotList.find(
-        (tnsrobot) => tnsrobot.id === selectedTNSRobotId,
-      )?.instruments;
-      // match by id
-      return tnsRobotInstruments?.find(
+    allowedInstruments = instrumentList.filter((instrument) =>
+      tnsRobotInstruments?.find(
         (tnsRobotInstrument) => tnsRobotInstrument.id === instrument.id,
-      );
-    });
+      ),
+    );
   } else {
     allowedInstruments = instrumentList;
   }
@@ -231,9 +234,27 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         default: [],
         title: "Streams (optional)",
       },
+      first_and_last_detections: {
+        type: "boolean",
+        title: "Mandatory first and last detection",
+        default:
+          tnsrobotLookUp[selectedTNSRobotId]?.photometry_options
+            ?.first_and_last_detections || true,
+        description:
+          "If enabled, the bot will not send a report to TNS if there is no first and last detection (at least 2 detections).",
+      },
+      last_non_detection_before_first_detection: {
+        type: "boolean",
+        title: "Mandatory non-detection before first detection",
+        default:
+          tnsrobotLookUp[selectedTNSRobotId]?.photometry_options
+            ?.last_non_detection_before_first_detection || true,
+        description:
+          "If enabled, the bot will not send a report to TNS if there is no non-detection before the first detection.",
+      },
       archival: {
         type: "boolean",
-        title: "Archival (no upperlimits)",
+        title: "Archival (no upperlimits + archival comment)",
         default: false,
       },
     },
@@ -262,6 +283,7 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         ],
       },
     },
+    required: ["reporters", "instrument_id"],
   };
 
   const validate = (formData, errors) => {
