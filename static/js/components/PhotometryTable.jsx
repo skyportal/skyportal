@@ -35,6 +35,12 @@ const useStyles = makeStyles(() => ({
     flexFlow: "row wrap",
     gap: "0.2rem",
   },
+  manage: {
+    display: "flex",
+    flexDirection: "row",
+    gap: "0.2rem",
+    marginRight: "0.4rem",
+  },
 }));
 
 const getMuiTheme = (theme) =>
@@ -334,31 +340,14 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         });
       }
 
-      const renderEdit = (dataIndex) => {
+      const renderManage = (dataIndex) => {
         const phot = data[dataIndex];
         return (
           <div>
-            <div className={classes.actionButtons}>
+            <div className={classes.manage}>
               <div>
                 <UpdatePhotometry phot={phot} />
               </div>
-            </div>
-          </div>
-        );
-      };
-      columns.push({
-        name: "edit",
-        label: "Edit",
-        options: {
-          customBodyRenderLite: renderEdit,
-        },
-      });
-
-      const renderDelete = (dataIndex) => {
-        const phot = data[dataIndex];
-        return (
-          <div>
-            <div className={classes.actionButtons}>
               {isDeleting === phot.id ? (
                 <div>
                   <CircularProgress />
@@ -383,10 +372,10 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         );
       };
       columns.push({
-        name: "delete",
-        label: "Delete",
+        name: "manage",
+        label: " ",
         options: {
-          customBodyRenderLite: renderDelete,
+          customBodyRenderLite: renderManage,
         },
       });
 
@@ -438,8 +427,8 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                   x.data[14],
                   x.data[15],
                   x.data[16],
-                  renderOwnerDownload(x.data[18]),
-                  renderStreamsDownload(x.data[19]),
+                  renderOwnerDownload(x.data[17]),
+                  renderStreamsDownload(x.data[18]),
                 ].join(","),
               )
               .join("\n");
