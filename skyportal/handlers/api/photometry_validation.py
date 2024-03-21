@@ -1,10 +1,15 @@
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
 
+from baselayer.app.env import load_env
 from baselayer.app.access import permissions
 from ..base import BaseHandler
 
 from ...models import Photometry, PhotometryValidation
+
+_, cfg = load_env()
+
+USE_PHOTOMETRY_VALIDATION = cfg.get("misc.photometry_validation", False)
 
 
 class Validator(Schema):
@@ -78,6 +83,9 @@ class PhotometryValidationHandler(BaseHandler):
                 schema: Error
 
         """
+        if not USE_PHOTOMETRY_VALIDATION:
+            return self.error('Photometry validation is not enabled.')
+
         data = self.get_json()
 
         validated = data.get('validated')
@@ -200,6 +208,9 @@ class PhotometryValidationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        if not USE_PHOTOMETRY_VALIDATION:
+            return self.error('Photometry validation is not enabled.')
+
         data = self.get_json()
         validated = data.get('validated')
         explanation = data.get('explanation')
@@ -283,6 +294,8 @@ class PhotometryValidationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        if not USE_PHOTOMETRY_VALIDATION:
+            return self.error('Photometry validation is not enabled.')
 
         validator_instance = Validator()
         params_to_be_validated = {

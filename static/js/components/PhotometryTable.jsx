@@ -91,6 +91,7 @@ const isFloat = (x) =>
   typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
 
 const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
+  const { usePhotometryValidation } = useSelector((state) => state.config);
   const photometry = useSelector((state) => state.photometry);
   let bodyContent = null;
 
@@ -220,116 +221,118 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         );
       };
 
-      columns.push({
-        name: "streams",
-        label: "streams",
-        options: {
-          customBodyRenderLite: renderStreams,
-          display: false,
-        },
-      });
+      if (usePhotometryValidation) {
+        columns.push({
+          name: "streams",
+          label: "streams",
+          options: {
+            customBodyRenderLite: renderStreams,
+            display: false,
+          },
+        });
 
-      const renderValidationStatus = (dataIndex) => {
-        const phot = data[dataIndex];
-        let statusIcon = null;
-        if (phot?.validations.length === 0) {
-          statusIcon = <PriorityHigh size="small" color="primary" />;
-        } else if (phot?.validations[0]?.validated === true) {
-          statusIcon = <CheckIcon size="small" color="green" />;
-        } else if (phot?.validations[0]?.validated === false) {
-          statusIcon = <ClearIcon size="small" color="secondary" />;
-        } else {
-          statusIcon = <QuestionMarkIcon size="small" color="primary" />;
-        }
+        const renderValidationStatus = (dataIndex) => {
+          const phot = data[dataIndex];
+          let statusIcon = null;
+          if (phot?.validations.length === 0) {
+            statusIcon = <PriorityHigh size="small" color="primary" />;
+          } else if (phot?.validations[0]?.validated === true) {
+            statusIcon = <CheckIcon size="small" color="green" />;
+          } else if (phot?.validations[0]?.validated === false) {
+            statusIcon = <ClearIcon size="small" color="secondary" />;
+          } else {
+            statusIcon = <QuestionMarkIcon size="small" color="primary" />;
+          }
 
-        return (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-            name={`${phot.id}_validation_status`}
-          >
-            {statusIcon}
-            <PhotometryValidation phot={phot} />
-          </div>
-        );
-      };
+          return (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              name={`${phot.id}_validation_status`}
+            >
+              {statusIcon}
+              <PhotometryValidation phot={phot} />
+            </div>
+          );
+        };
 
-      columns.push({
-        name: "validation_status",
-        label: "Validation",
-        options: {
-          customBodyRenderLite: renderValidationStatus,
-          display: false,
-        },
-      });
+        columns.push({
+          name: "validation_status",
+          label: "Validation",
+          options: {
+            customBodyRenderLite: renderValidationStatus,
+            display: true,
+          },
+        });
 
-      const renderValidationExplanation = (dataIndex) => {
-        const phot = data[dataIndex];
-        let validationExplanation = null;
-        if (phot?.validations.length === 0) {
-          validationExplanation = "";
-        } else {
-          validationExplanation = phot?.validations[0]?.explanation;
-        }
-        return (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-            name={`${phot.id}_validation_explanation`}
-          >
-            {validationExplanation}
-          </div>
-        );
-      };
+        const renderValidationExplanation = (dataIndex) => {
+          const phot = data[dataIndex];
+          let validationExplanation = null;
+          if (phot?.validations.length === 0) {
+            validationExplanation = "";
+          } else {
+            validationExplanation = phot?.validations[0]?.explanation;
+          }
+          return (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              name={`${phot.id}_validation_explanation`}
+            >
+              {validationExplanation}
+            </div>
+          );
+        };
 
-      columns.push({
-        name: "validation_explanation",
-        label: "Explanation",
-        options: {
-          customBodyRenderLite: renderValidationExplanation,
-          display: false,
-        },
-      });
+        columns.push({
+          name: "validation_explanation",
+          label: "Explanation",
+          options: {
+            customBodyRenderLite: renderValidationExplanation,
+            display: true,
+          },
+        });
 
-      const renderValidationNotes = (dataIndex) => {
-        const phot = data[dataIndex];
-        let notes = null;
-        if (phot?.validations.length === 0) {
-          notes = "";
-        } else {
-          notes = phot?.validations[0]?.notes;
-        }
-        return (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-            name={`${phot.id}_validation_notes`}
-          >
-            {notes}
-          </div>
-        );
-      };
+        const renderValidationNotes = (dataIndex) => {
+          const phot = data[dataIndex];
+          let notes = null;
+          if (phot?.validations.length === 0) {
+            notes = "";
+          } else {
+            notes = phot?.validations[0]?.notes;
+          }
+          return (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              name={`${phot.id}_validation_notes`}
+            >
+              {notes}
+            </div>
+          );
+        };
 
-      columns.push({
-        name: "validation_notes",
-        label: "Notes",
-        options: {
-          customBodyRenderLite: renderValidationNotes,
-          display: false,
-        },
-      });
+        columns.push({
+          name: "validation_notes",
+          label: "Notes",
+          options: {
+            customBodyRenderLite: renderValidationNotes,
+            display: true,
+          },
+        });
+      }
 
       const renderEdit = (dataIndex) => {
         const phot = data[dataIndex];

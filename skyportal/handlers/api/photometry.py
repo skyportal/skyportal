@@ -49,6 +49,7 @@ from ...models.schema import (
     PhotometryRangeQuery,
 )
 from ...enum_types import ALLOWED_MAGSYSTEMS, ALLOWED_BANDPASSES
+from .photometry_validation import USE_PHOTOMETRY_VALIDATION
 
 _, cfg = load_env()
 
@@ -269,7 +270,7 @@ def serialize(
         return_value['owner'] = phot.owner.to_dict()
     if stream:
         return_value['streams'] = [stream.to_dict() for stream in phot.streams]
-    if validation:
+    if USE_PHOTOMETRY_VALIDATION and validation:
         return_value['validations'] = [
             validation.to_dict() for validation in phot.validations
         ]
