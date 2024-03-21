@@ -196,7 +196,7 @@ class AllocationHandler(BaseHandler):
                     request_data['rise_time_utc'] = request.rise_time().iso
                     if isinstance(request_data['rise_time_utc'], np.ma.MaskedArray):
                         request_data['rise_time_utc'] = None
-                    requests.append(request_data)         
+                    requests.append(request_data)
 
                 allocation_data['requests'] = requests
                 allocation_data[
@@ -315,7 +315,7 @@ class AllocationHandler(BaseHandler):
                 return self.error(
                     f'Error parsing posted allocation: "{e.normalized_messages()}"'
                 )
-            
+
             group = session.scalars(
                 Group.select(session.user_or_token).where(
                     Group.id == allocation.group_id

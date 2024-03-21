@@ -1233,6 +1233,7 @@ class FollowupRequestHandler(BaseHandler):
                 return self.error(f'Failed to delete follow-up request: {e}')
             return self.success()
 
+
 class FollowupRequestCommentHandler(BaseHandler):
     @permissions(["Upload data"])
     def put(self, followup_request_id):
@@ -1266,16 +1267,19 @@ class FollowupRequestCommentHandler(BaseHandler):
         comment = data.get("comments", None)
         if comment is None:
             return self.error("Comment is required.")
-        
+
         with self.Session() as session:
             try:
                 stmt = FollowupRequest.select(self.user_or_token, mode="update").where(
-                    FollowupRequest.id == followup_request_id)
+                    FollowupRequest.id == followup_request_id
+                )
                 followup_request = session.scalar(stmt)
-                
+
                 if followup_request is None:
-                    return self.error(f"Followup request {followup_request_id} not found.")
-                
+                    return self.error(
+                        f"Followup request {followup_request_id} not found."
+                    )
+
                 followup_request.comment = comment
                 session.commit()
                 return self.success({"id": followup_request.id})
