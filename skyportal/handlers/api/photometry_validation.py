@@ -10,6 +10,7 @@ from ...models import Photometry, PhotometryValidation
 _, cfg = load_env()
 
 USE_PHOTOMETRY_VALIDATION = cfg.get("misc.photometry_validation", False)
+print(f'USE_PHOTOMETRY_VALIDATION: {USE_PHOTOMETRY_VALIDATION}')
 
 
 class Validator(Schema):
@@ -95,9 +96,10 @@ class PhotometryValidationHandler(BaseHandler):
         validator_instance = Validator()
         params_to_be_validated = {
             'method': 'POST',
-            'validated': validated,
             'photometry_id': photometry_id,
         }
+        if validated is not None:
+            params_to_be_validated["validated"] = validated
 
         if explanation is not None:
             params_to_be_validated["explanation"] = explanation
@@ -109,7 +111,7 @@ class PhotometryValidationHandler(BaseHandler):
         except ValidationError as e:
             return self.error(f'Error parsing query params: {e.args[0]}.')
 
-        validated = validator['validated']
+        validated = validator.get('validated', None)
         with self.Session() as session:
             phot = session.scalars(
                 Photometry.select(session.user_or_token).where(
