@@ -112,31 +112,31 @@ def create_tns_robot(
         tnsrobot.groups.append(owner_group)
 
     # TNS AUTO-REPORTING INSTRUMENTS: ADD/MODIFY/DELETE
-    if len(instrument_ids) > 0:
-        try:
+    if len(instrument_ids) == 0:
+        raise ValueError('At least one instrument must be specified for TNS reporting')
+
+    try:
+        instrument_ids = [int(x) for x in instrument_ids]
+        if isinstance(instrument_ids, str):
+            instrument_ids = [int(x) for x in instrument_ids.split(",")]
+        else:
             instrument_ids = [int(x) for x in instrument_ids]
-            if isinstance(instrument_ids, str):
-                instrument_ids = [int(x) for x in instrument_ids.split(",")]
-            else:
-                instrument_ids = [int(x) for x in instrument_ids]
-        except ValueError:
+    except ValueError:
+        raise ValueError('instrument_ids must be a comma-separated list of integers')
+    instrument_ids = list(set(instrument_ids))
+    instruments = session.scalars(
+        Instrument.select(session.user_or_token).where(
+            Instrument.id.in_(instrument_ids)
+        )
+    ).all()
+    if len(instruments) != len(instrument_ids):
+        raise ValueError(f'One or more instruments not found: {instrument_ids}')
+    for instrument in instruments:
+        if instrument.name.lower() not in TNS_INSTRUMENT_IDS:
             raise ValueError(
-                'instrument_ids must be a comma-separated list of integers'
+                f'Instrument {instrument.name} not supported for TNS reporting'
             )
-        instrument_ids = list(set(instrument_ids))
-        instruments = session.scalars(
-            Instrument.select(session.user_or_token).where(
-                Instrument.id.in_(instrument_ids)
-            )
-        ).all()
-        if len(instruments) != len(instrument_ids):
-            raise ValueError(f'One or more instruments not found: {instrument_ids}')
-        for instrument in instruments:
-            if instrument.name.lower() not in TNS_INSTRUMENT_IDS:
-                raise ValueError(
-                    f'Instrument {instrument.name} not supported for TNS reporting'
-                )
-        tnsrobot.instruments = instruments
+    tnsrobot.instruments = instruments
 
     # TNS AUTO-REPORTING STREAMS: ADD/MODIFY/DELETE
     if len(stream_ids) > 0:
