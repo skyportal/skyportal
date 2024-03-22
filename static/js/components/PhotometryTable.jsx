@@ -6,6 +6,10 @@ import DialogContent from "@mui/material/DialogContent";
 import Slide from "@mui/material/Slide";
 import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
+import CheckIcon from "@mui/icons-material/Check";
+import ClearIcon from "@mui/icons-material/Clear";
+import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
+import PriorityHigh from "@mui/icons-material/PriorityHigh";
 import Tooltip from "@mui/material/Tooltip";
 import makeStyles from "@mui/styles/makeStyles";
 import {
@@ -19,6 +23,7 @@ import MUIDataTable from "mui-datatables";
 
 import { Typography } from "@mui/material";
 import UpdatePhotometry from "./UpdatePhotometry";
+import PhotometryValidation from "./PhotometryValidation";
 import PhotometryMagsys from "./PhotometryMagsys";
 import Button from "./Button";
 import * as Actions from "../ducks/photometry";
@@ -29,6 +34,12 @@ const useStyles = makeStyles(() => ({
     display: "flex",
     flexFlow: "row wrap",
     gap: "0.2rem",
+  },
+  manage: {
+    display: "flex",
+    flexDirection: "row",
+    gap: "0.2rem",
+    marginRight: "0.4rem",
   },
 }));
 
@@ -86,6 +97,7 @@ const isFloat = (x) =>
   typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
 
 const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
+  const { usePhotometryValidation } = useSelector((state) => state.config);
   const photometry = useSelector((state) => state.photometry);
   let bodyContent = null;
 
@@ -133,7 +145,14 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
       Object.keys(data[0]).forEach((key) => {
         if (
           !keys.includes(key) &&
-          !["groups", "owner", "obj_id", "id", "streams"].includes(key)
+          ![
+            "groups",
+            "owner",
+            "obj_id",
+            "id",
+            "streams",
+            "validations",
+          ].includes(key)
         ) {
           keys.push(key);
         }
@@ -208,40 +227,127 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         );
       };
 
-      columns.push({
-        name: "streams",
-        label: "streams",
-        options: {
-          customBodyRenderLite: renderStreams,
-          display: false,
-        },
-      });
+      if (usePhotometryValidation) {
+        columns.push({
+          name: "streams",
+          label: "streams",
+          options: {
+            customBodyRenderLite: renderStreams,
+            display: false,
+          },
+        });
 
-      const renderEdit = (dataIndex) => {
+        const renderValidationStatus = (dataIndex) => {
+          const phot = data[dataIndex];
+          let statusIcon = null;
+          if (phot?.validations.length === 0) {
+            statusIcon = <PriorityHigh size="small" color="primary" />;
+          } else if (phot?.validations[0]?.validated === true) {
+            statusIcon = <CheckIcon size="small" color="green" />;
+          } else if (phot?.validations[0]?.validated === false) {
+            statusIcon = <ClearIcon size="small" color="secondary" />;
+          } else {
+            statusIcon = <QuestionMarkIcon size="small" color="primary" />;
+          }
+
+          return (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              name={`${phot.id}_validation_status`}
+            >
+              {statusIcon}
+              <PhotometryValidation phot={phot} />
+            </div>
+          );
+        };
+
+        columns.push({
+          name: "validation_status",
+          label: "Validation",
+          options: {
+            customBodyRenderLite: renderValidationStatus,
+            display: true,
+          },
+        });
+
+        const renderValidationExplanation = (dataIndex) => {
+          const phot = data[dataIndex];
+          let validationExplanation = null;
+          if (phot?.validations.length === 0) {
+            validationExplanation = "";
+          } else {
+            validationExplanation = phot?.validations[0]?.explanation;
+          }
+          return (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              name={`${phot.id}_validation_explanation`}
+            >
+              {validationExplanation}
+            </div>
+          );
+        };
+
+        columns.push({
+          name: "validation_explanation",
+          label: "Explanation",
+          options: {
+            customBodyRenderLite: renderValidationExplanation,
+            display: true,
+          },
+        });
+
+        const renderValidationNotes = (dataIndex) => {
+          const phot = data[dataIndex];
+          let notes = null;
+          if (phot?.validations.length === 0) {
+            notes = "";
+          } else {
+            notes = phot?.validations[0]?.notes;
+          }
+          return (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              name={`${phot.id}_validation_notes`}
+            >
+              {notes}
+            </div>
+          );
+        };
+
+        columns.push({
+          name: "validation_notes",
+          label: "Notes",
+          options: {
+            customBodyRenderLite: renderValidationNotes,
+            display: true,
+          },
+        });
+      }
+
+      const renderManage = (dataIndex) => {
         const phot = data[dataIndex];
         return (
           <div>
-            <div className={classes.actionButtons}>
+            <div className={classes.manage}>
               <div>
                 <UpdatePhotometry phot={phot} />
               </div>
-            </div>
-          </div>
-        );
-      };
-      columns.push({
-        name: "edit",
-        label: "Edit",
-        options: {
-          customBodyRenderLite: renderEdit,
-        },
-      });
-
-      const renderDelete = (dataIndex) => {
-        const phot = data[dataIndex];
-        return (
-          <div>
-            <div className={classes.actionButtons}>
               {isDeleting === phot.id ? (
                 <div>
                   <CircularProgress />
@@ -266,10 +372,10 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         );
       };
       columns.push({
-        name: "delete",
-        label: "Delete",
+        name: "manage",
+        label: " ",
         options: {
-          customBodyRenderLite: renderDelete,
+          customBodyRenderLite: renderManage,
         },
       });
 
@@ -321,8 +427,8 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                   x.data[14],
                   x.data[15],
                   x.data[16],
-                  renderOwnerDownload(x.data[18]),
-                  renderStreamsDownload(x.data[19]),
+                  renderOwnerDownload(x.data[17]),
+                  renderStreamsDownload(x.data[18]),
                 ].join(","),
               )
               .join("\n");
