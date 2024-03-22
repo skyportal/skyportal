@@ -338,33 +338,66 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
             raise TNSReportError(
                 f'No authors found for tnsrobot {tnsrobot_id} and source {obj_id}, cannot report to TNS.'
             )
+
+        # if any of the users are missing first/last names, we don't submit
+        authors_with_missing_names = [
+            author
+            for author in authors
+            if author.first_name in [None, ""] or author.last_name in [None, ""]
+        ]
+        if len(authors_with_missing_names) > 0:
+            raise TNSReportError(
+                f'One or more authors are missing a first or last name: {", ".join([author.username for author in authors_with_missing_names])}, cannot report {obj_id} to TNS.'
+            )
         # if any of the users are missing an affiliation, we don't submit
         authors_with_missing_affiliations = [
-            author for author in authors if len(author.affiliations) == 0
+            author
+            for author in authors
+            if len(author.affiliations) == 0
+            or all([affiliation in [None, ""] for affiliation in author.affiliations])
         ]
         if len(authors_with_missing_affiliations) > 0:
             raise TNSReportError(
                 f'One or more authors are missing an affiliation: {", ".join([author.username for author in authors_with_missing_affiliations])}, cannot report {obj_id} to TNS.'
             )
 
-        reporters = ', '.join(
-            [
-                f'{author.first_name} {author.last_name} ({author.affiliations[0]})'
-                for author in authors
+        reporters = []
+        for author in authors:
+            # filter out empty affiliations
+            affiliations = [
+                affiliation
+                for affiliation in author.affiliations
+                if affiliation not in [None, ""]
             ]
-        )
-        if tnsrobot.acknowledgments in [None, ""]:
-            raise TNSReportError(
-                f'No acknowledgments found for tnsrobot {tnsrobot_id}, cannot report {obj_id} to TNS.'
-            )
+            # we already verified that there is at least one affiliation earlier, so no need to check here
+            #
+            # capitalize the first letter of each affiliation
+            affiliations = [
+                affiliation[0].upper() + affiliation[1:]
+                if len(affiliation) > 1
+                else affiliation[0].upper()
+                for affiliation in affiliations
+            ]
 
-        reporters += f' {str(tnsrobot.acknowledgments).strip()}'
+            # sort alphabetically (A -> Z) to ensure consistent ordering
+            affiliations = sorted(affiliations)
+
+            affiliations = ", ".join(affiliations)
+            reporters.append(f'{author.first_name} {author.last_name} ({affiliations})')
+
+        reporters = ", ".join(reporters)
+
+        # acknowledgments are added to the end of the reporters string if they exist (optional)
+        if tnsrobot.acknowledgments not in [None, ""]:
+            reporters += f' {str(tnsrobot.acknowledgments).strip()}'
+
+        reporters = reporters.strip()
 
     return reporters, warning
 
 
 def find_accessible_instrument_ids(submission_request, tnsrobot, user, session):
-    """Find the instrument IDs accessible to the TNSRobot whem submitting photometry.
+    """Find the instrument IDs to use when querying for photometry to submit to TNS.
 
     Parameters
     ----------
@@ -393,7 +426,10 @@ def find_accessible_instrument_ids(submission_request, tnsrobot, user, session):
             f'Must specify instruments for TNSRobot {tnsrobot_id} to submit sources to TNS.'
         )
 
-    if len(submission_request.instrument_ids) > 0:
+    if (
+        submission_request.instrument_ids is not None
+        and len(submission_request.instrument_ids) > 0
+    ):
         # union with the robot's instrument_ids
         instrument_ids = list(
             set(submission_request.instrument_ids) & set(instrument_ids)
@@ -427,7 +463,7 @@ def find_accessible_instrument_ids(submission_request, tnsrobot, user, session):
 
 
 def find_accessible_stream_ids(submission_request, tnsrobot, user, session):
-    """Find the stream IDs accessible to the TNSRobot when submitting photometry.
+    """Find the stream IDs to use when querying for photometry to submit to TNS.
 
     Parameters
     ----------
@@ -476,7 +512,7 @@ def find_accessible_stream_ids(submission_request, tnsrobot, user, session):
         all_streams = [stream for stream in all_streams if stream.id in stream_ids]
         if len(all_streams) == 0:
             raise TNSReportError(
-                f'No streams specified for submission {submission_request.id} with TNS robot {tnsrobot_id} are accessible'
+                f'No streams specified for submission {submission_request.id} with TNS robot {tnsrobot_id} are accessible to this user'
             )
 
         return [stream.id for stream in all_streams]
@@ -548,22 +584,20 @@ def build_at_report(
             detections.append(phot)
 
     if len(detections) == 0:
-        raise TNSReportError(f'Need at least one detection for TNS report of {obj_id}.')
+        raise TNSReportError(
+            f'Need at least one detection to report with TNS robot {tnsrobot.id}.'
+        )
 
     # if we require both first and last detections, we need at least two detections
     if photometry_options['first_and_last_detections'] is True and len(detections) < 2:
         raise TNSReportError(
-            f'TNS robot reporting {obj_id} requires both first and last detections, but only one detection is available.'
+            f'TNS robot {tnsrobot.id} requires both first and last detections, but only one detection is available.'
         )
 
     # if we require a last detection and it's not an archival submission, we need at least one non-detection
-    if (
-        len(non_detections) == 0
-        and photometry_options['last_non_detection_before_first_detection'] is True
-        and not archival
-    ):
+    if len(non_detections) == 0 and not archival:
         raise TNSReportError(
-            f'TNS robot reporting {obj_id} requires last detection before first detection for non-archival report of {obj_id}, but none are available.'
+            f'TNS robot {tnsrobot.id} cannot send a non-archival report to TNS without any non-detections before the first detection.'
         )
 
     # sort each by mjd ascending
@@ -586,18 +620,14 @@ def build_at_report(
     non_detections = [phot for phot in non_detections if phot['mjd'] < time_first]
 
     # if we require a last detection and it's not an archival submission, we need at least one non-detection
-    if (
-        not archival
-        and len(non_detections) == 0
-        and photometry_options['last_non_detection_before_first_detection'] is True
-    ):
+    if len(non_detections) == 0 and not archival:
         raise TNSReportError(
-            f'TNS robot reporting {obj_id} requires last detection before first detection for non-archival report of {obj_id}, but none are available.'
+            f'TNS robot {tnsrobot.id} cannot send a non-archival report to TNS without any non-detections before the first detection.'
         )
 
     # we already filtered the non detections to only those that are before the first detection
     # so we can just take the last one since they are sorted by mjd
-    if not archival and len(non_detections) > 0:
+    if not archival:
         time_last_nondetection = non_detections[-1]['mjd']
         limmag_last_nondetection = non_detections[-1]['limiting_mag']
         filt_last_nondetection = SNCOSMO_TO_TNSFILTER[non_detections[-1]['filter']]
@@ -605,24 +635,17 @@ def build_at_report(
             non_detections[-1]['instrument_name'].lower()
         ]
 
-    proprietary_period = {
-        "proprietary_period_value": 0,
-        "proprietary_period_units": "years",
-    }
-
-    non_detection = None
-    if archival:
-        non_detection = {
-            "archiveid": "0",
-            "archival_remarks": archival_comment,
-        }
-    elif len(non_detections) > 0:
         non_detection = {
             "obsdate": astropy.time.Time(time_last_nondetection, format='mjd').jd,
             "limiting_flux": limmag_last_nondetection,
             "flux_units": "1",
             "filter_value": filt_last_nondetection,
             "instrument_value": instrument_last_nondetection,
+        }
+    else:
+        non_detection = {
+            "archiveid": "0",
+            "archival_remarks": archival_comment,
         }
 
     phot_first = None
@@ -657,6 +680,11 @@ def build_at_report(
             "instrument_value": instrument_first,
         }
 
+    proprietary_period = {
+        "proprietary_period_value": 0,
+        "proprietary_period_units": "years",
+    }
+
     at_report = {
         "ra": {"value": source.obj.ra},
         "dec": {"value": source.obj.dec},
@@ -681,15 +709,9 @@ def build_at_report(
 
     # pop out the last detection if it is None
     if phot_last is None:
-        at_report['photometry'].pop("1")
+        at_report['photometry']['photometry_group'].pop('1')
 
-    # pop out the non_detection if it is None
-    if at_report['non_detection'] is None:
-        at_report.pop('non_detection')
-
-    report = {"at_report": {"0": at_report}}
-
-    return report
+    return {"at_report": {"0": at_report}}
 
 
 def send_at_report(submission_request, tnsrobot, report, tns_headers):
@@ -833,11 +855,13 @@ def process_submission_request(submission_request, session):
             submission_request, tnsrobot, user, session
         )
 
-        # FETCH THE PHOTOMETRY (FILTERED BY INSTRUMENTS)
+        # FETCH THE PHOTOMETRY (FILTERED BY INSTRUMENTS, NO FP)
         photometry = session.scalars(
             Photometry.select(user).where(
                 Photometry.obj_id == obj_id,
                 Photometry.instrument_id.in_(instrument_ids),
+                # make sure that the origin does not contain 'fp' (for forced photometry)
+                ~Photometry.origin.ilike('%fp%'),
             )
         ).all()
 
@@ -880,12 +904,35 @@ def process_submission_request(submission_request, session):
         status, submission_id, serialized_response = send_at_report(
             submission_request, tnsrobot, report, tns_headers
         )
-        if status == 'submitted' and warning not in [None, ""]:
-            status = f'submitted (warning: {warning})'
+        if status in [
+            'submitted',
+            'testing mode, not submitted to TNS',
+        ] and warning not in [None, ""]:
+            status = f'{status} (warning: {warning})'
         submission_request.status = status
         submission_request.submission_id = submission_id
         submission_request.response = serialized_response
         session.commit()
+
+        # if the submission was successful, send a notification
+        if status in ['submitted', 'testing mode, not submitted to TNS']:
+            note = f"Successfully submitted {submission_request.obj_id} to TNS."
+            if status == 'testing mode, not submitted to TNS':
+                note = f"Successfully created report for {submission_request.obj_id} (testing mode, not sent to TNS)."
+            if warning not in [None, ""]:
+                note += f'\nWarning: {warning}'
+            try:
+                flow = Flow()
+                flow.push(
+                    user_id=submission_request.user_id,
+                    action_type='baselayer/SHOW_NOTIFICATION',
+                    payload={
+                        'note': note,
+                        'type': 'info',
+                    },
+                )
+            except Exception:
+                pass
 
     except TNSReportError as e:
         log(str(e))

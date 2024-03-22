@@ -53,6 +53,8 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
   const { tnsrobotList } = useSelector((state) => state.tnsrobots);
   const [selectedTNSRobotId, setSelectedTNSRobotId] = useState(null);
   const [defaultReporterString, setDefaultReporterString] = useState(null);
+  const [defaultInstrumentIds, setDefaultInstrumentIds] = useState([]);
+  const [defaultStreamIds, setDefaultStreamIds] = useState([]);
 
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
@@ -161,6 +163,26 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
     }
   }, [tnsrobotList, selectedTNSRobotId, currentUser, allUsers]);
 
+  useEffect(() => {
+    if (tnsrobotList?.length > 0 && selectedTNSRobotId) {
+      if (instrumentList?.length > 0) {
+        const tnsRobotInstruments = tnsrobotList.find(
+          (tnsrobot) => tnsrobot.id === selectedTNSRobotId,
+        )?.instruments;
+        const instrumentIds = tnsRobotInstruments?.map(
+          (instrument) => instrument.id,
+        );
+        setDefaultInstrumentIds(instrumentIds);
+      }
+      if (streams?.length > 0) {
+        const tnsRobotStreams = tnsrobotList.find(
+          (tnsrobot) => tnsrobot.id === selectedTNSRobotId,
+        )?.streams;
+        const streamIds = tnsRobotStreams?.map((stream) => stream.id);
+        setDefaultStreamIds(streamIds);
+      }
+    }
+  }, [tnsrobotList, selectedTNSRobotId, instrumentList, streams]);
   // need to check both of these conditions as selectedTNSRobotId is
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if tnsrobotList is not
@@ -176,6 +198,10 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
   const handleSubmit = async ({ formData }) => {
     setSubmissionRequestInProcess(true);
     formData.tnsrobotID = selectedTNSRobotId;
+    formData.photometry_options = {
+      first_and_last_detections: formData.first_and_last_detections,
+    };
+    delete formData.first_and_last_detections;
     const result = await dispatch(sourceActions.addSourceTNS(obj_id, formData));
     setSubmissionRequestInProcess(false);
     if (result.status === "success") {
@@ -208,17 +234,23 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         title: "Reporters",
         default: defaultReporterString,
       },
-      instrument_id: {
-        type: "integer",
-        oneOf: allowedInstruments.map((instrument) => ({
-          enum: [instrument.id],
-          title: `${
-            telescopeList.find(
-              (telescope) => telescope.id === instrument.telescope_id,
-            )?.name
-          } / ${instrument.name}`,
-        })),
-        title: "Instrument",
+      instrument_ids: {
+        type: "array",
+        items: {
+          type: "integer",
+          anyOf: allowedInstruments.map((instrument) => ({
+            enum: [instrument.id],
+            type: "integer",
+            title: `${
+              telescopeList.find(
+                (telescope) => telescope.id === instrument.telescope_id,
+              )?.name
+            } / ${instrument.name}`,
+          })),
+        },
+        uniqueItems: true,
+        default: defaultInstrumentIds,
+        title: "Instrument(s)",
       },
       stream_ids: {
         type: "array",
@@ -231,7 +263,7 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
           })),
         },
         uniqueItems: true,
-        default: [],
+        default: defaultStreamIds,
         title: "Streams (optional)",
       },
       first_and_last_detections: {
@@ -239,22 +271,16 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         title: "Mandatory first and last detection",
         default:
           tnsrobotLookUp[selectedTNSRobotId]?.photometry_options
-            ?.first_and_last_detections || true,
+            ?.first_and_last_detections !== undefined
+            ? tnsrobotLookUp[selectedTNSRobotId]?.photometry_options
+                ?.first_and_last_detections
+            : true,
         description:
           "If enabled, the bot will not send a report to TNS if there is no first and last detection (at least 2 detections).",
       },
-      last_non_detection_before_first_detection: {
-        type: "boolean",
-        title: "Mandatory non-detection before first detection",
-        default:
-          tnsrobotLookUp[selectedTNSRobotId]?.photometry_options
-            ?.last_non_detection_before_first_detection || true,
-        description:
-          "If enabled, the bot will not send a report to TNS if there is no non-detection before the first detection.",
-      },
       archival: {
         type: "boolean",
-        title: "Archival (no upperlimits + archival comment)",
+        title: "Archival (no upperlimits needed + mandatory archival comment)",
         default: false,
       },
     },
@@ -283,7 +309,7 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         ],
       },
     },
-    required: ["reporters", "instrument_id"],
+    required: ["reporters", "instrument_ids"],
   };
 
   const validate = (formData, errors) => {
@@ -321,6 +347,12 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
     }
     return errors;
   };
+
+  if (!currentUser?.affiliations?.length > 0) {
+    return (
+      <FormValidationError message="Warning: You have no affiliation(s), you should set your affiliation(s) in your profile before submitting to TNS" />
+    );
+  }
 
   return (
     <div className={classes.container}>

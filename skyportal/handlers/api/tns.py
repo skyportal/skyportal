@@ -48,7 +48,6 @@ log = make_log('api/tns')
 
 PHOTOMETRY_OPTIONS = {
     'first_and_last_detections': bool,
-    'last_non_detection_before_first_detection': bool,
 }
 
 
@@ -91,8 +90,6 @@ def validate_photometry_options(photometry_options, existing_photometry_options=
     for key in PHOTOMETRY_OPTIONS:
         if key not in photometry_options:
             photometry_options[key] = True
-
-    print('photometry_options:', photometry_options)
 
     return photometry_options
 
@@ -1580,6 +1577,7 @@ class ObjTNSHandler(BaseHandler):
             archival_comment = data.get('archivalComment', '')
             instrument_ids = data.get('instrument_ids', [])
             stream_ids = data.get('stream_ids', [])
+            photometry_options = data.get('photometry_options', {})
 
             if tnsrobotID is None:
                 return self.error('tnsrobotID is required')
@@ -1654,6 +1652,10 @@ class ObjTNSHandler(BaseHandler):
             if 'api_key' not in altdata:
                 return self.error('Missing TNS API key.')
 
+            photometry_options = validate_photometry_options(
+                photometry_options, tnsrobot.photometry_options
+            )
+
             # create a TNSRobotSubmission entry with that information
             tnsrobot_submission = TNSRobotSubmission(
                 tnsrobot_id=tnsrobot.id,
@@ -1664,6 +1666,7 @@ class ObjTNSHandler(BaseHandler):
                 archival_comment=archival_comment,
                 instrument_ids=instrument_ids,
                 stream_ids=stream_ids,
+                photometry_options=photometry_options,
             )
             session.add(tnsrobot_submission)
             session.commit()

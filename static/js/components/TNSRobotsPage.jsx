@@ -59,8 +59,29 @@ const userLabel = (user) => {
     }`;
   }
   if (user.first_name && user.last_name) {
-    return `${user.first_name} ${user.last_name}${
-      user.affiliations?.length > 0 ? ` (${user.affiliations[0]})` : ""
+    // capitalize the first letter of first and last name
+    const first_name =
+      user?.first_name?.length > 1
+        ? user.first_name.charAt(0).toUpperCase() + user.first_name.slice(1)
+        : user?.first_name?.toUpperCase();
+    const last_name =
+      user?.last_name?.length > 1
+        ? user.last_name.charAt(0).toUpperCase() + user.last_name.slice(1)
+        : user?.last_name?.toUpperCase();
+
+    // 1. remove affiliations that are empty strings or null
+    // 2. capitalize the first letter of each affiliation
+    // 3. sort the affiliations alphabetically (A-Z)
+    let affiliations = (user?.affiliations || []).filter((aff) => aff);
+    affiliations = affiliations.map((aff) =>
+      aff?.length > 1
+        ? aff.charAt(0).toUpperCase() + aff.slice(1)
+        : aff.toUpperCase(),
+    );
+    affiliations.sort();
+
+    return `${first_name} ${last_name}${
+      affiliations?.length > 0 ? ` (${affiliations.join(", ")})` : ""
     }`;
   }
   return "loading...";
@@ -616,7 +637,6 @@ const TNSRobotsPage = () => {
     stream_ids: [],
     report_exceptions: false,
     first_and_last_detections: true,
-    last_non_detection_before_first_detection: true,
   });
 
   const allowedInstruments = instrumentList.filter((instrument) =>
@@ -688,9 +708,6 @@ const TNSRobotsPage = () => {
       report_existing: tnsrobotListLookup[id]?.report_existing,
       first_and_last_detections:
         tnsrobotListLookup[id]?.photometry_options?.first_and_last_detections,
-      last_non_detection_before_first_detection:
-        tnsrobotListLookup[id]?.photometry_options
-          ?.last_non_detection_before_first_detection,
     });
     setEditDialogOpen(true);
     setTnsrobotToManage(id);
@@ -719,7 +736,6 @@ const TNSRobotsPage = () => {
       testing,
       report_existing,
       first_and_last_detections,
-      last_non_detection_before_first_detection,
     } = formData.formData;
 
     if (api_key?.length === 0) {
@@ -747,7 +763,6 @@ const TNSRobotsPage = () => {
       report_existing,
       photometry_options: {
         first_and_last_detections,
-        last_non_detection_before_first_detection,
       },
     };
 
@@ -786,7 +801,6 @@ const TNSRobotsPage = () => {
       testing,
       report_existing,
       first_and_last_detections,
-      last_non_detection_before_first_detection,
     } = formData.formData;
 
     const data = {
@@ -800,7 +814,6 @@ const TNSRobotsPage = () => {
       report_existing,
       photometry_options: {
         first_and_last_detections,
-        last_non_detection_before_first_detection,
       },
     };
 
@@ -876,7 +889,7 @@ const TNSRobotsPage = () => {
           tnsrobotListLookup[tnsrobotToManage]?.acknowledgments ||
           "on behalf of ...",
         description:
-          "Added at the end of the author list, e.g. 'First Last (University) <insert_acknowledgments_here>'",
+          "Added at the end of the author list, e.g. 'First Last (Affiliation(s)) <insert_acknowledgments_here>'",
       },
       instrument_ids: {
         type: "array",
@@ -927,16 +940,7 @@ const TNSRobotsPage = () => {
           tnsrobotListLookup[tnsrobotToManage]?.photometry_options
             ?.first_and_last_detections || true,
         description:
-          "If enabled, the bot will not send a report to TNS if there is no first and last detection (at least 2 detections).",
-      },
-      last_non_detection_before_first_detection: {
-        type: "boolean",
-        title: "Mandatory non-detection before first detection",
-        default:
-          tnsrobotListLookup[tnsrobotToManage]?.photometry_options
-            ?.last_non_detection_before_first_detection || true,
-        description:
-          "If enabled, the bot will not send a report to TNS if there is no non-detection before the first detection.",
+          "If enabled, the bot will not send a report to TNS if there is not both first and last detection (at least 2 detections required).",
       },
     },
     required: [
@@ -946,7 +950,6 @@ const TNSRobotsPage = () => {
       "acknowledgments",
       "instrument_ids",
       "first_and_last_detections",
-      "last_non_detection_before_first_detection",
     ],
   };
 
@@ -1091,7 +1094,7 @@ const TNSRobotsPage = () => {
     const tnsrobot = tnsrobotList[dataIndex];
     return (
       <Tooltip
-        title={`Added at the end of the author list, e.g. 'First Last (University) ${
+        title={`Added at the end of the author list, e.g. 'First Last (Affiliations) ${
           tnsrobot?.acknowledgments || "<insert_acknowledgments_here>"
         }`}
         placement="top"
@@ -1239,7 +1242,7 @@ const TNSRobotsPage = () => {
     },
     {
       name: "instruments",
-      label: "Instrument (optional)",
+      label: "Instruments",
       options: {
         filter: false,
         sort: true,
@@ -1321,7 +1324,6 @@ const TNSRobotsPage = () => {
                   acknowledgments: "on behalf of ...",
                   report_existing: false,
                   first_and_last_detections: true,
-                  last_non_detection_before_first_detection: true,
                 });
                 setOpenNewTNSRobot(true);
               }}
