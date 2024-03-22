@@ -534,9 +534,8 @@ misc:
   # consider a photometry point as a detection
   photometry_detection_threshold_nsigma: 3.0
 
-  # whether or not the frontend requests for validation information
-  # when fetching photometry, adn shows the validation status in the
-  # photometry table
+  # whether or not the frontend show photometry validation information
+  # and if the backend allows adding/editing/deleting it
   photometry_validation: True
 
   # The airmass value below which to track hours for when plotting
