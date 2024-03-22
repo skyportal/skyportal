@@ -59,8 +59,29 @@ const userLabel = (user) => {
     }`;
   }
   if (user.first_name && user.last_name) {
-    return `${user.first_name} ${user.last_name}${
-      user.affiliations?.length > 0 ? ` (${user.affiliations[0]})` : ""
+    // capitalize the first letter of first and last name
+    const first_name =
+      user?.first_name?.length > 1
+        ? user.first_name.charAt(0).toUpperCase() + user.first_name.slice(1)
+        : user?.first_name?.toUpperCase();
+    const last_name =
+      user?.last_name?.length > 1
+        ? user.last_name.charAt(0).toUpperCase() + user.last_name.slice(1)
+        : user?.last_name?.toUpperCase();
+
+    // 1. remove affiliations that are empty strings or null
+    // 2. capitalize the first letter of each affiliation
+    // 3. sort the affiliations alphabetically (A-Z)
+    let affiliations = (user?.affiliations || []).filter((aff) => aff);
+    affiliations = affiliations.map((aff) =>
+      aff?.length > 1
+        ? aff.charAt(0).toUpperCase() + aff.slice(1)
+        : aff.toUpperCase(),
+    );
+    affiliations.sort();
+
+    return `${first_name} ${last_name}${
+      affiliations?.length > 0 ? ` (${affiliations.join(", ")})` : ""
     }`;
   }
   return "loading...";
@@ -614,6 +635,8 @@ const TNSRobotsPage = () => {
     owner_group_ids: [],
     instrument_ids: [],
     stream_ids: [],
+    report_exceptions: false,
+    first_and_last_detections: true,
   });
 
   const allowedInstruments = instrumentList.filter((instrument) =>
@@ -682,6 +705,9 @@ const TNSRobotsPage = () => {
       stream_ids: (tnsrobotListLookup[id]?.streams || []).map(
         (stream) => stream.id,
       ),
+      report_existing: tnsrobotListLookup[id]?.report_existing,
+      first_and_last_detections:
+        tnsrobotListLookup[id]?.photometry_options?.first_and_last_detections,
     });
     setEditDialogOpen(true);
     setTnsrobotToManage(id);
@@ -709,6 +735,7 @@ const TNSRobotsPage = () => {
       stream_ids,
       testing,
       report_existing,
+      first_and_last_detections,
     } = formData.formData;
 
     if (api_key?.length === 0) {
@@ -734,6 +761,9 @@ const TNSRobotsPage = () => {
       stream_ids,
       testing,
       report_existing,
+      photometry_options: {
+        first_and_last_detections,
+      },
     };
 
     dispatch(tnsrobotsActions.addTNSRobot(data)).then((result) => {
@@ -770,6 +800,7 @@ const TNSRobotsPage = () => {
       stream_ids,
       testing,
       report_existing,
+      first_and_last_detections,
     } = formData.formData;
 
     const data = {
@@ -781,6 +812,9 @@ const TNSRobotsPage = () => {
       stream_ids,
       testing,
       report_existing,
+      photometry_options: {
+        first_and_last_detections,
+      },
     };
 
     if (api_key?.length > 0) {
@@ -855,7 +889,7 @@ const TNSRobotsPage = () => {
           tnsrobotListLookup[tnsrobotToManage]?.acknowledgments ||
           "on behalf of ...",
         description:
-          "Added at the end of the author list, e.g. 'First Last (University) <insert_acknowledgments_here>'",
+          "Added at the end of the author list, e.g. 'First Last (Affiliation(s)) <insert_acknowledgments_here>'",
       },
       instrument_ids: {
         type: "array",
@@ -899,6 +933,15 @@ const TNSRobotsPage = () => {
         description:
           "If disabled, the bot will not send a report to TNS if an object within 2 arcsec is already in the TNS database. If enabled, a report is sent as long as there are no reports with the same internal name.",
       },
+      first_and_last_detections: {
+        type: "boolean",
+        title: "Mandatory first and last detection",
+        default:
+          tnsrobotListLookup[tnsrobotToManage]?.photometry_options
+            ?.first_and_last_detections || true,
+        description:
+          "If enabled, the bot will not send a report to TNS if there is not both first and last detection (at least 2 detections required).",
+      },
     },
     required: [
       "bot_name",
@@ -906,6 +949,7 @@ const TNSRobotsPage = () => {
       "source_group_id",
       "acknowledgments",
       "instrument_ids",
+      "first_and_last_detections",
     ],
   };
 
@@ -1050,7 +1094,7 @@ const TNSRobotsPage = () => {
     const tnsrobot = tnsrobotList[dataIndex];
     return (
       <Tooltip
-        title={`Added at the end of the author list, e.g. 'First Last (University) ${
+        title={`Added at the end of the author list, e.g. 'First Last (Affiliation(s)) ${
           tnsrobot?.acknowledgments || "<insert_acknowledgments_here>"
         }`}
         placement="top"
@@ -1198,7 +1242,7 @@ const TNSRobotsPage = () => {
     },
     {
       name: "instruments",
-      label: "Instrument (optional)",
+      label: "Instruments",
       options: {
         filter: false,
         sort: true,
@@ -1277,6 +1321,9 @@ const TNSRobotsPage = () => {
                   owner_group_ids: [],
                   instrument_ids: [],
                   stream_ids: [],
+                  acknowledgments: "on behalf of ...",
+                  report_existing: false,
+                  first_and_last_detections: true,
                 });
                 setOpenNewTNSRobot(true);
               }}

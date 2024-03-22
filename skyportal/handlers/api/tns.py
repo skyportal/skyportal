@@ -46,6 +46,53 @@ report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
 
 log = make_log('api/tns')
 
+PHOTOMETRY_OPTIONS = {
+    'first_and_last_detections': bool,
+}
+
+
+def validate_photometry_options(photometry_options, existing_photometry_options=None):
+    """Validate the photometry options and their values
+
+    Parameters
+    ----------
+    photometry_options : dict
+        Dictionary containing the photometry options
+    existing_photometry_options : dict, optional
+        Dictionary containing the existing photometry options, by default None
+
+    Returns
+    -------
+    dict
+        Dictionary containing the validated photometry options
+    """
+    if photometry_options is None:
+        photometry_options = {}
+    if not isinstance(photometry_options, dict):
+        raise ValueError('photometry_options must be a dictionary')
+
+    # if existing_photometry_options is provided, add missing keys with the existing values
+    if existing_photometry_options is not None and isinstance(
+        existing_photometry_options, dict
+    ):
+        for key in PHOTOMETRY_OPTIONS:
+            if key not in photometry_options and key in existing_photometry_options:
+                photometry_options[key] = existing_photometry_options[key]
+
+    # validate the photometry options and their values
+    for key, value in photometry_options.items():
+        if key not in PHOTOMETRY_OPTIONS:
+            raise ValueError(f'Invalid photometry option: {key}')
+        if not isinstance(value, PHOTOMETRY_OPTIONS[key]):
+            raise ValueError(f'Invalid value for photometry option {key}: {value}')
+
+    # add the missing keys with default values (default to True if not specified)
+    for key in PHOTOMETRY_OPTIONS:
+        if key not in photometry_options:
+            photometry_options[key] = True
+
+    return photometry_options
+
 
 def create_tns_robot(
     data,
@@ -90,6 +137,10 @@ def create_tns_robot(
     else:
         testing = True
     data['testing'] = testing
+
+    data['photometry_options'] = validate_photometry_options(
+        data.get('photometry_options', {})
+    )
 
     try:
         tnsrobot = TNSRobot.__schema__().load(data=data)
@@ -225,6 +276,10 @@ def update_tns_robot(
         testing = False
     if testing is not None:
         tnsrobot.testing = testing
+
+    tnsrobot.photometry_options = validate_photometry_options(
+        data.get('photometry_options', {}), tnsrobot.photometry_options
+    )
 
     # TNS AUTO-REPORTING INSTRUMENTS: ADD/MODIFY/DELETE
     if len(instrument_ids) > 0:
@@ -1522,6 +1577,7 @@ class ObjTNSHandler(BaseHandler):
             archival_comment = data.get('archivalComment', '')
             instrument_ids = data.get('instrument_ids', [])
             stream_ids = data.get('stream_ids', [])
+            photometry_options = data.get('photometry_options', {})
 
             if tnsrobotID is None:
                 return self.error('tnsrobotID is required')
@@ -1596,6 +1652,10 @@ class ObjTNSHandler(BaseHandler):
             if 'api_key' not in altdata:
                 return self.error('Missing TNS API key.')
 
+            photometry_options = validate_photometry_options(
+                photometry_options, tnsrobot.photometry_options
+            )
+
             # create a TNSRobotSubmission entry with that information
             tnsrobot_submission = TNSRobotSubmission(
                 tnsrobot_id=tnsrobot.id,
@@ -1606,6 +1666,7 @@ class ObjTNSHandler(BaseHandler):
                 archival_comment=archival_comment,
                 instrument_ids=instrument_ids,
                 stream_ids=stream_ids,
+                photometry_options=photometry_options,
             )
             session.add(tnsrobot_submission)
             session.commit()
