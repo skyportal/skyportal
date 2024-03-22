@@ -39,7 +39,6 @@ import { ra_to_hours, dec_to_dms } from "../units";
 
 import VegaPhotometry from "./VegaPhotometry";
 import Button from "./Button";
-import FormValidationError from "./FormValidationError";
 
 const AirmassPlot = React.lazy(() => import("./AirmassPlot"));
 
@@ -181,14 +180,9 @@ const AllocationSummary = ({ route }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [invalid, setInvalid] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [commentContent, setCommentContent] = useState("");
-
-  useEffect(() => {
-    setInvalid(false);
-  }, [setInvalid]);
 
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
@@ -351,37 +345,35 @@ const AllocationSummary = ({ route }) => {
     return <SimpleMenu request={request} key={`${request.id}_menu`} />;
   };
 
-  const renderComments = (dataIndex) => {
+  const renderComment = (dataIndex) => {
     const request = requests[dataIndex];
 
     const handleOpenDialog = () => {
-      setCommentContent(request.comments);
-      setDialogOpen(true);
+      setCommentContent(request.comment);
+      setDialogOpen(request.id);
     };
 
     const handleChange = (e) => {
       setCommentContent(e.target.value);
-      const value = String(e.target.value).trim();
-      setInvalid(!value);
     };
 
     const handleSubmit = async () => {
       setIsSubmitting(true);
       const json = {
-        comments: commentContent,
+        comment: commentContent,
       };
-      dispatch(SourceAction.editFollowupRequestComments(json, request.id));
-      setDialogOpen(false);
+      dispatch(SourceAction.editFollowupRequestComment(json, dialogOpen));
+      setDialogOpen(null);
       setIsSubmitting(false);
     };
 
     return (
       <div>
-        {request.comments}
-        <Tooltip title="Update comments">
+        {request.comment}
+        <Tooltip title="Update comment">
           <span>
             <EditIcon
-              data-testid="updateCommentsIconButton"
+              data-testid="updateCommentIconButton"
               fontSize="small"
               className={styles.editIcon}
               onClick={handleOpenDialog}
@@ -389,26 +381,23 @@ const AllocationSummary = ({ route }) => {
           </span>
         </Tooltip>
         <Dialog
-          open={dialogOpen}
+          open={dialogOpen != null}
           fullWidth
           maxWidth="lg"
           onClose={() => {
-            setDialogOpen(false);
+            setDialogOpen(null);
           }}
           style={{ position: "fixed" }}
         >
-          <DialogTitle>Update comments</DialogTitle>
+          <DialogTitle>Update comment</DialogTitle>
           <DialogContent>
             <div>
-              {invalid && (
-                <FormValidationError message="Please enter a valid comment" />
-              )}
               <TextField
-                data-testid="updateCommentsTextfield"
+                data-testid="updateCommentTextfield"
                 size="small"
-                label="comments"
-                value={commentContent}
-                name="comments"
+                label="comment"
+                value={commentContent || ""}
+                name="comment"
                 minRows={2}
                 fullWidth
                 multiline
@@ -423,8 +412,8 @@ const AllocationSummary = ({ route }) => {
                 onClick={handleSubmit}
                 endIcon={<SaveIcon />}
                 size="large"
-                data-testid="updateCommentsSubmitButton"
-                disabled={isSubmitting || invalid}
+                data-testid="updateCommentSubmitButton"
+                disabled={isSubmitting}
               >
                 Save
               </Button>
@@ -516,10 +505,10 @@ const AllocationSummary = ({ route }) => {
       },
     },
     {
-      name: "Comments",
+      name: "Comment",
       options: {
         filter: true,
-        customBodyRenderLite: renderComments,
+        customBodyRenderLite: renderComment,
       },
     },
     {
@@ -566,7 +555,7 @@ const AllocationSummary = ({ route }) => {
     request.payload.priority,
     request.rise_time_utc,
     request.set_time_utc,
-    request.comments,
+    request.comment,
     null,
     null,
   ]);
