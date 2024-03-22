@@ -358,6 +358,12 @@ const AllocationSummary = ({ route }) => {
       setDialogOpen(true);
     };
 
+    const handleChange = (e) => {
+      setCommentContent(e.target.value);
+      const value = String(e.target.value).trim();
+      setInvalid(!value);
+    };
+
     return (
       <div>
         {request.comments}
@@ -395,7 +401,7 @@ const AllocationSummary = ({ route }) => {
                 minRows={2}
                 fullWidth
                 multiline
-                onChange={(e) => setCommentContent(e.target.value)}
+                onChange={(e) => handleChange(e)}
                 variant="outlined"
               />
             </div>
