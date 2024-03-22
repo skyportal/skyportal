@@ -183,6 +183,7 @@ const AllocationSummary = ({ route }) => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [invalid, setInvalid] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [commentContent, setCommentContent] = useState("");
 
   useEffect(() => {
@@ -364,6 +365,16 @@ const AllocationSummary = ({ route }) => {
       setInvalid(!value);
     };
 
+    const handleSubmit = async () => {
+      setIsSubmitting(true);
+      const json = {
+        comments: commentContent,
+      };
+      dispatch(SourceAction.editFollowupRequestComments(json, request.id));
+      setDialogOpen(false);
+      setIsSubmitting(false);
+    };
+
     return (
       <div>
         {request.comments}
@@ -409,13 +420,11 @@ const AllocationSummary = ({ route }) => {
             <div className={styles.saveButton}>
               <Button
                 secondary
-                onClick={() => {
-                  // handleSubmit(state);
-                }}
+                onClick={handleSubmit}
                 endIcon={<SaveIcon />}
                 size="large"
                 data-testid="updateCommentsSubmitButton"
-                // disabled={isSubmitting || invalid}
+                disabled={isSubmitting || invalid}
               >
                 Save
               </Button>
