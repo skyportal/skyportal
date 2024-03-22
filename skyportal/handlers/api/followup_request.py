@@ -1248,10 +1248,6 @@ class FollowupRequestCommentHandler(BaseHandler):
             required: true
             schema:
               type: string
-        requestBody:
-          content:
-            application/json:
-              schema: FollowupRequestComment
         responses:
           200:
             content:
@@ -1264,15 +1260,16 @@ class FollowupRequestCommentHandler(BaseHandler):
         """
 
         data = self.get_json()
-        comment = data.get("comments", None)
-        if comment is None:
-            return self.error("Comment is required.")
+        comment = str(data.get("comment")).strip()
+
+        if comment in ["", "None"]:
+            comment = None
 
         with self.Session() as session:
             try:
-                stmt = FollowupRequest.select(self.user_or_token, mode="update").where(
-                    FollowupRequest.id == followup_request_id
-                )
+                stmt = FollowupRequest.select(
+                    session.user_or_token, mode="update"
+                ).where(FollowupRequest.id == followup_request_id)
                 followup_request = session.scalar(stmt)
 
                 if followup_request is None:
@@ -1284,6 +1281,7 @@ class FollowupRequestCommentHandler(BaseHandler):
                 session.commit()
                 return self.success({"id": followup_request.id})
             except Exception as e:
+                session.rollback()
                 return self.error(f"Failed to update followup request comment: {e}")
 
 

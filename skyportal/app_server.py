@@ -272,7 +272,7 @@ skyportal_handlers = [
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
     (
-        r'/api/followup_request/([0-9A-Za-z-_\.\+]+)/comments',
+        r'/api/followup_request/([0-9A-Za-z-_\.\+]+)/comment',
         FollowupRequestCommentHandler,
     ),
     (r'/api/followup_request/watch(/[0-9]+)', FollowupRequestWatcherHandler),
