@@ -923,7 +923,7 @@ def process_submission_request(submission_request, session):
             if status == 'testing mode, not submitted to TNS':
                 note = f"Successfully created report for {submission_request.obj_id} (testing mode, not sent to TNS)."
             if warning not in [None, ""]:
-                note += f'\nWarning: {warning}'
+                note += f'; Warning: {warning}'
             try:
                 flow = Flow()
                 flow.push(
