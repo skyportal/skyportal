@@ -62,8 +62,7 @@ const SUBMIT_FOLLOWUP_REQUEST = "skyportal/SUBMIT_FOLLOWUP_REQUEST";
 
 const EDIT_FOLLOWUP_REQUEST = "skyportal/EDIT_FOLLOWUP_REQUEST";
 
-const EDIT_FOLLOWUP_REQUEST_COMMENTS =
-  "skyportal/EDIT_FOLLOWUP_REQUEST_COMMENTS";
+const EDIT_FOLLOWUP_REQUEST_COMMENT = "skyportal/EDIT_FOLLOWUP_REQUEST_COMMENT";
 
 const SUBMIT_ASSIGNMENT = "skyportal/SUBMIT_ASSIGNMENT";
 
@@ -471,10 +470,10 @@ export const editFollowupRequest = (params, requestID) => {
   );
 };
 
-export const editFollowupRequestComments = (params, id) =>
+export const editFollowupRequestComment = (params, id) =>
   API.PUT(
-    `/api/followup_request/${id}/comments`,
-    EDIT_FOLLOWUP_REQUEST_COMMENTS,
+    `/api/followup_request/${id}/comment`,
+    EDIT_FOLLOWUP_REQUEST_COMMENT,
     params,
   );
 
