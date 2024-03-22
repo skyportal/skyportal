@@ -1094,7 +1094,7 @@ const TNSRobotsPage = () => {
     const tnsrobot = tnsrobotList[dataIndex];
     return (
       <Tooltip
-        title={`Added at the end of the author list, e.g. 'First Last (Affiliations) ${
+        title={`Added at the end of the author list, e.g. 'First Last (Affiliation(s)) ${
           tnsrobot?.acknowledgments || "<insert_acknowledgments_here>"
         }`}
         placement="top"

@@ -861,6 +861,9 @@ def process_submission_request(submission_request, session):
                 Photometry.obj_id == obj_id,
                 Photometry.instrument_id.in_(instrument_ids),
                 # make sure that the origin does not contain 'fp' (for forced photometry)
+                # as we only want to submit alert-based photometry for surveys
+                # like ZTF that also provide a forced photometry service,
+                # which detections might have lower SNR and be less reliable or not real
                 ~Photometry.origin.ilike('%fp%'),
             )
         ).all()
