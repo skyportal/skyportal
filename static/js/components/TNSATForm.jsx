@@ -12,6 +12,7 @@ import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
 import Spinner from "./Spinner";
 import { userLabel } from "./TNSRobotsPage";
+import FormValidationError from "./FormValidationError";
 
 import * as sourceActions from "../ducks/source";
 import * as tnsrobotsActions from "../ducks/tnsrobots";
@@ -65,7 +66,24 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
     groupIDToName[g.id] = g.name;
   });
 
-  const allowedInstruments = instrumentList.filter((instrument) =>
+  let allowedInstruments = [];
+
+  if (selectedTNSRobotId) {
+    // only keep the intersection of the instruments and the tns robot's instruments
+    allowedInstruments = instrumentList.filter((instrument) => {
+      const tnsRobotInstruments = tnsrobotList.find(
+        (tnsrobot) => tnsrobot.id === selectedTNSRobotId,
+      )?.instruments;
+      // match by id
+      return tnsRobotInstruments?.find(
+        (tnsRobotInstrument) => tnsRobotInstrument.id === instrument.id,
+      );
+    });
+  } else {
+    allowedInstruments = instrumentList;
+  }
+
+  instrumentList.filter((instrument) =>
     (tnsAllowedInstruments || []).includes(instrument.name?.toLowerCase()),
   );
 
@@ -187,11 +205,6 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         title: "Reporters",
         default: defaultReporterString,
       },
-      archival: {
-        type: "boolean",
-        title: "Archival (no upperlimits)",
-        default: false,
-      },
       instrument_id: {
         type: "integer",
         oneOf: allowedInstruments.map((instrument) => ({
@@ -217,6 +230,11 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         uniqueItems: true,
         default: [],
         title: "Streams (optional)",
+      },
+      archival: {
+        type: "boolean",
+        title: "Archival (no upperlimits)",
+        default: false,
       },
     },
     dependencies: {
@@ -303,20 +321,24 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
           </MenuItem>
         ))}
       </Select>
-      <div data-testid="tnsrobot-form">
-        {defaultReporterString ? (
-          <Form
-            schema={formSchema}
-            validator={validator}
-            onSubmit={handleSubmit}
-            disabled={submissionRequestInProcess}
-            customValidate={validate}
-            liveValidate
-          />
-        ) : (
-          <h3>Loading...</h3>
-        )}
-      </div>
+      {allowedInstruments.length === 0 ? (
+        <FormValidationError message="This TNS robot has no allowed instruments, edit the TNS robot before submitting" />
+      ) : (
+        <div data-testid="tnsrobot-form">
+          {defaultReporterString ? (
+            <Form
+              schema={formSchema}
+              validator={validator}
+              onSubmit={handleSubmit}
+              disabled={submissionRequestInProcess}
+              customValidate={validate}
+              liveValidate
+            />
+          ) : (
+            <h3>Loading...</h3>
+          )}
+        </div>
+      )}
     </div>
   );
 };

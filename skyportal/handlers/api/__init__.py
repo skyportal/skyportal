@@ -138,6 +138,7 @@ from .photometry import (
     PhotometryRangeHandler,
     PhotometryOriginHandler,
 )
+from .photometry_validation import PhotometryValidationHandler
 from .photometric_series import PhotometricSeriesHandler
 from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
 from .color_mag import ObjColorMagHandler

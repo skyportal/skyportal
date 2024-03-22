@@ -1116,6 +1116,7 @@ const PhotometryPlot = ({
             // scrollZoom: true, // this is not working properly, creating issues when we are around the default zooming level. TOFIX
             responsive: true,
             displaylogo: false,
+            showAxisDragHandles: false,
             // the native autoScale2d and resetScale2d buttons are not working
             // as they are not resetting to the specified ranges
             // so, we remove them and add our own
