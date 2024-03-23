@@ -164,6 +164,17 @@ const TNSRobotSubmissionsPage = () => {
       },
     },
     {
+      name: "archival",
+      label: "Archival",
+      options: {
+        display: false,
+        filter: false,
+        sort: true,
+        customBodyRenderLite: (dataIndex) =>
+          tnsrobot_submissions[dataIndex].archival.toString(),
+      },
+    },
+    {
       name: "status",
       label: "Status",
       options: {
