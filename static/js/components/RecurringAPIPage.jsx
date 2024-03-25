@@ -1,54 +1,16 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import Typography from "@mui/material/Typography";
-import Paper from "@mui/material/Paper";
-import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
-import PropTypes from "prop-types";
 // import { showNotification } from "baselayer/components/Notifications";
-import CircularProgress from "@mui/material/CircularProgress";
+// import CircularProgress from "@mui/material/CircularProgress";
 import MUIDataTable from "mui-datatables";
-import {
-  createTheme,
-  ThemeProvider,
-  StyledEngineProvider,
-  useTheme,
-} from "@mui/material/styles";
+import IconButton from "@mui/material/IconButton";
+import AddIcon from "@mui/icons-material/Add";
+
+import { DialogContent, Dialog, DialogTitle } from "@mui/material";
 import NewRecurringAPI from "./NewRecurringAPI";
 
 import * as recurringAPIsActions from "../ducks/recurring_apis";
-
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -73,69 +35,141 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-// const textStyles = makeStyles(() => ({
-//   primary: {
-//     fontWeight: "bold",
-//     fontSize: "110%",
-//   },
-// }));
+// export function recurringAPITitle(recurringAPI) {
+//   if (!recurringAPI?.endpoint) {
+//     return (
+//       <div>
+//         <CircularProgress color="secondary" />
+//       </div>
+//     );
+//   }
 
-export function recurringAPITitle(recurringAPI) {
-  if (!recurringAPI?.endpoint) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+//   const result = `${recurringAPI?.endpoint} / ${recurringAPI?.method}`;
 
-  const result = `${recurringAPI?.endpoint} / ${recurringAPI?.method}`;
+//   return result;
+// }
 
-  return result;
-}
+// export function recurringAPIInfo(recurringAPI) {
+//   if (!recurringAPI?.next_call) {
+//     return (
+//       <div>
+//         <CircularProgress color="secondary" />
+//       </div>
+//     );
+//   }
 
-export function recurringAPIInfo(recurringAPI) {
-  if (!recurringAPI?.next_call) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+//   const result = `Next call: ${recurringAPI.next_call} / Delay [days]: ${recurringAPI.call_delay} / Active: ${recurringAPI.active}`;
 
-  const result = `Next call: ${recurringAPI.next_call} / Delay [days]: ${recurringAPI.call_delay} / Active: ${recurringAPI.active}`;
+//   return result;
+// }
 
-  return result;
-}
+// const RecurringAPIList = ({ recurringAPIs, options }) => {
+// const dispatch = useDispatch();
+// const classes = useStyles();
+// const theme = useTheme();
 
-const RecurringAPIList = ({ recurringAPIs }) => {
-  // const dispatch = useDispatch();
+// const [recurringAPIToDelete, setRecurringAPIToDelete] = useState(null);
+
+// const textClasses = textStyles();
+// const groups = useSelector((state) => state.groups.all);
+// const [dialogOpen, setDialogOpen] = useState(false);
+// const openDialog = (id) => {
+//   setDialogOpen(true);
+//   setRecurringAPIToDelete(id);
+// };
+// const closeDialog = () => {
+//   setDialogOpen(false);
+//   setRecurringAPIToDelete(null);
+// };
+
+// const renderDelete = () => {
+//   dispatch(
+//     recurringAPIsActions.deleteRecurringAPI(recurringAPIToDelete),
+//   ).then((result) => {
+//     if (result.status === "success") {
+//       dispatch(showNotification("RecurringAPI deleted"));
+//       closeDialog();
+//     }
+//   });
+// };
+
+//   return (
+//     <div>
+//       <MUIDataTable
+//         title=""
+//         data={recurringAPIs}
+//         columns={columns}
+//         options={options}
+//       />
+//     </div>
+//   );
+// };
+
+//   return (
+//     <div className={classes.root}>
+//       <List component="nav">
+//         {recurringAPIs?.map((recurringAPI) => (
+//           <ListItem button key={recurringAPI.id}>
+//             <ListItemText
+//               primary={recurringAPITitle(recurringAPI)}
+//               secondary={recurringAPIInfo(recurringAPI, groups)}
+//               classes={textClasses}
+//             />
+//             <Button
+//               key={recurringAPI.id}
+//               id="delete_button"
+//               classes={{
+//                 root: classes.recurringAPIDelete,
+//                 disabled: classes.recurringAPIDeleteDisabled,
+//               }}
+//               onClick={() => openDialog(recurringAPI.id)}
+//               disabled={!deletePermission}
+//             >
+//               <DeleteIcon />
+//             </Button>
+//             <ConfirmDeletionDialog
+//               deleteFunction={deleteRecurringAPI}
+//               dialogOpen={dialogOpen}
+//               closeDialog={closeDialog}
+//               resourceName="recurring API"
+//             />
+//           </ListItem>
+//         ))}
+//       </List>
+//     </div>
+//   );
+// };
+
+const RecurringAPIPage = () => {
+  const { recurringAPIList } = useSelector((state) => state.recurring_apis);
+  const [openNewForm, setOpenNewForm] = useState(false);
+
+  console.log("recurringAPIs");
+  console.log(recurringAPIList);
+
+  // const currentUser = useSelector((state) => state.profile);
   const classes = useStyles();
-  const theme = useTheme();
-  // const [recurringAPIToDelete, setRecurringAPIToDelete] = useState(null);
+  const dispatch = useDispatch();
 
-  // const textClasses = textStyles();
-  // const groups = useSelector((state) => state.groups.all);
-  // const [dialogOpen, setDialogOpen] = useState(false);
-  // const openDialog = (id) => {
-  //   setDialogOpen(true);
-  //   setRecurringAPIToDelete(id);
-  // };
-  // const closeDialog = () => {
-  //   setDialogOpen(false);
-  //   setRecurringAPIToDelete(null);
-  // };
+  // const permission =
+  //   currentUser.permissions?.includes("System admin") ||
+  //   currentUser.permissions?.includes("Manage Recurring APIs");
 
-  // const renderDelete = () => {
-  //   dispatch(
-  //     recurringAPIsActions.deleteRecurringAPI(recurringAPIToDelete),
-  //   ).then((result) => {
-  //     if (result.status === "success") {
-  //       dispatch(showNotification("RecurringAPI deleted"));
-  //       closeDialog();
-  //     }
-  //   });
-  // };
+  useEffect(() => {
+    const getRecurringAPIs = async () => {
+      await dispatch(recurringAPIsActions.fetchRecurringAPIs());
+    };
+
+    getRecurringAPIs();
+  }, [dispatch]);
+
+  // if (!recurringAPIs) {
+  //   return (
+  //     <div>
+  //       <CircularProgress color="secondary" />
+  //     </div>
+  //   );
+  // }
 
   const columns = [
     {
@@ -154,7 +188,7 @@ const RecurringAPIList = ({ recurringAPIs }) => {
         filter: true,
         sort: true,
         customBodyRenderLite: (dataIndex) => {
-          const api = recurringAPIs[dataIndex];
+          const api = recurringAPIList[dataIndex];
           return api.owner.username || "Unknown";
         },
       },
@@ -193,6 +227,10 @@ const RecurringAPIList = ({ recurringAPIs }) => {
         filter: true,
         sort: true,
         sortThirdClickReset: true,
+        customBodyRenderLite: (dataIndex) => {
+          const api = recurringAPIList[dataIndex];
+          return JSON.stringify(api.payload) || "Unknown";
+        },
       },
     },
     {
@@ -239,125 +277,77 @@ const RecurringAPIList = ({ recurringAPIs }) => {
     filterType: "dropdown",
     responsive: "standard",
     selectableRows: "none",
+    customToolbar: () => (
+      <IconButton
+        name="new_recurring_api_form"
+        onClick={() => {
+          setOpenNewForm(true);
+        }}
+      >
+        <AddIcon />
+      </IconButton>
+    ),
   };
 
   return (
-    <div>
-      {RecurringAPIList ? (
-        <Paper component={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title=""
-                data={recurringAPIs}
-                columns={columns}
-                options={options}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-        </Paper>
-      ) : (
-        <CircularProgress />
-      )}
+    <div className={classes.paperContent}>
+      <MUIDataTable
+        title="Recurring APIs"
+        data={recurringAPIList}
+        columns={columns}
+        options={options}
+      />
+      <Dialog
+        open={openNewForm}
+        onClose={() => {
+          setOpenNewForm(false);
+        }}
+        aria-labelledby="form-dialog-title"
+      >
+        <DialogTitle id="form-dialog-title">
+          Add a New Recurring API
+        </DialogTitle>
+        <DialogContent>
+          <NewRecurringAPI />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
 //   return (
-//     <div className={classes.root}>
-//       <List component="nav">
-//         {recurringAPIs?.map((recurringAPI) => (
-//           <ListItem button key={recurringAPI.id}>
-//             <ListItemText
-//               primary={recurringAPITitle(recurringAPI)}
-//               secondary={recurringAPIInfo(recurringAPI, groups)}
-//               classes={textClasses}
+//     <Grid container spacing={3}>
+//       <Grid item md={6} sm={12}>
+//         <Paper elevation={1}>
+//           <div className={classes.paperContent}>
+//             <Typography variant="h6">List of Recurring APIs</Typography>
+//             <RecurringAPIList
+//               recurringAPIs={recurringAPIList}
+//               // deletePermission={permission}
 //             />
-//             <Button
-//               key={recurringAPI.id}
-//               id="delete_button"
-//               classes={{
-//                 root: classes.recurringAPIDelete,
-//                 disabled: classes.recurringAPIDeleteDisabled,
-//               }}
-//               onClick={() => openDialog(recurringAPI.id)}
-//               disabled={!deletePermission}
-//             >
-//               <DeleteIcon />
-//             </Button>
-//             <ConfirmDeletionDialog
-//               deleteFunction={deleteRecurringAPI}
-//               dialogOpen={dialogOpen}
-//               closeDialog={closeDialog}
-//               resourceName="recurring API"
-//             />
-//           </ListItem>
-//         ))}
-//       </List>
-//     </div>
+//           </div>
+//         </Paper>
+//       </Grid>
+//       {permission && (
+//         <>
+//           <Grid item md={6} sm={12}>
+//             <Paper>
+//               <div className={classes.paperContent}>
+//                 <Typography variant="h6">Add a New Recurring API</Typography>
+//                 <NewRecurringAPI />
+//               </div>
+//             </Paper>
+//           </Grid>
+//         </>
+//       )}
+//     </Grid>
 //   );
 // };
 
-const RecurringAPIPage = () => {
-  const { recurringAPIList } = useSelector((state) => state.recurring_apis);
-
-  const currentUser = useSelector((state) => state.profile);
-  const classes = useStyles();
-  const dispatch = useDispatch();
-
-  const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage Recurring APIs");
-
-  useEffect(() => {
-    const getRecurringAPIs = async () => {
-      await dispatch(recurringAPIsActions.fetchRecurringAPIs());
-    };
-
-    getRecurringAPIs();
-  }, [dispatch]);
-
-  if (!recurringAPIList) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  return (
-    <Grid container spacing={3}>
-      <Grid item md={6} sm={12}>
-        <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">List of Recurring APIs</Typography>
-            <RecurringAPIList
-              recurringAPIs={recurringAPIList}
-              // deletePermission={permission}
-            />
-          </div>
-        </Paper>
-      </Grid>
-      {permission && (
-        <>
-          <Grid item md={6} sm={12}>
-            <Paper>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">Add a New Recurring API</Typography>
-                <NewRecurringAPI />
-              </div>
-            </Paper>
-          </Grid>
-        </>
-      )}
-    </Grid>
-  );
-};
-
-RecurringAPIList.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
-  recurringAPIs: PropTypes.arrayOf(PropTypes.any).isRequired,
-  //  deletePermission: PropTypes.bool.isRequired,
-};
+// RecurringAPIList.propTypes = {
+//   // eslint-disable-next-line react/forbid-prop-types
+//   recurringAPIs: PropTypes.arrayOf(PropTypes.any).isRequired,
+//   //  deletePermission: PropTypes.bool.isRequired,
+// };
 
 export default RecurringAPIPage;
