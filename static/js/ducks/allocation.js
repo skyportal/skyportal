@@ -14,11 +14,20 @@ const DELETE_ALLOCATION = "skyportal/DELETE_ALLOCATION";
 
 const MODIFY_ALLOCATION = "skyportal/MODIFY_ALLOCATION";
 
+const EDIT_FOLLOWUP_REQUEST_COMMENT = "skyportal/EDIT_FOLLOWUP_REQUEST_COMMENT";
+
 export const fetchAllocation = (id, params = {}) =>
   API.GET(`/api/allocation/${id}`, FETCH_ALLOCATION, params);
 
 export const modifyAllocation = (id, run) =>
   API.PUT(`/api/allocation/${id}`, MODIFY_ALLOCATION, run);
+
+export const editFollowupRequestComment = (params, id) =>
+  API.PUT(
+    `/api/followup_request/${id}/comment`,
+    EDIT_FOLLOWUP_REQUEST_COMMENT,
+    params,
+  );
 
 export const submitAllocation = (run) =>
   API.POST(`/api/allocation`, SUBMIT_ALLOCATION, run);
