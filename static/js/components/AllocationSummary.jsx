@@ -345,27 +345,27 @@ const AllocationSummary = ({ route }) => {
     return <SimpleMenu request={request} key={`${request.id}_menu`} />;
   };
 
+  const handleOpenDialog = (id, comment) => {
+    setCommentContent(comment);
+    setDialogOpen(id);
+  };
+
+  const handleChange = (e) => {
+    setCommentContent(e.target.value);
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    const json = {
+      comment: commentContent,
+    };
+    dispatch(Action.editFollowupRequestComment(json, dialogOpen));
+    setDialogOpen(null);
+    setIsSubmitting(false);
+  };
+
   const renderComment = (dataIndex) => {
     const request = requests[dataIndex];
-
-    const handleOpenDialog = () => {
-      setCommentContent(request.comment);
-      setDialogOpen(request.id);
-    };
-
-    const handleChange = (e) => {
-      setCommentContent(e.target.value);
-    };
-
-    const handleSubmit = async () => {
-      setIsSubmitting(true);
-      const json = {
-        comment: commentContent,
-      };
-      dispatch(Action.editFollowupRequestComment(json, dialogOpen));
-      setDialogOpen(null);
-      setIsSubmitting(false);
-    };
 
     return (
       <div>
@@ -376,7 +376,9 @@ const AllocationSummary = ({ route }) => {
               data-testid="updateCommentIconButton"
               fontSize="small"
               className={styles.editIcon}
-              onClick={handleOpenDialog}
+              onClick={() => {
+                handleOpenDialog(request.id, request.comment);
+              }}
             />
           </span>
         </Tooltip>
