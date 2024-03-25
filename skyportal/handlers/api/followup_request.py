@@ -1279,6 +1279,14 @@ class FollowupRequestCommentHandler(BaseHandler):
 
                 followup_request.comment = comment
                 session.commit()
+                self.push_all(
+                    action='skyportal/REFRESH_ALLOCATION_REQUEST_COMMENT',
+                    payload={
+                        'allocation_id': followup_request.allocation_id,
+                        'followupRequest_id': followup_request.id,
+                        'followupRequest_comment': followup_request.comment,
+                    },
+                )
                 return self.success({"id": followup_request.id})
             except Exception as e:
                 session.rollback()

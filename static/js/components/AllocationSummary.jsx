@@ -1,6 +1,6 @@
-import React, { useEffect, useState, Suspense } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
@@ -35,7 +35,7 @@ import withRouter from "./withRouter";
 
 import * as SourceAction from "../ducks/source";
 import * as Action from "../ducks/allocation";
-import { ra_to_hours, dec_to_dms } from "../units";
+import { dec_to_dms, ra_to_hours } from "../units";
 
 import VegaPhotometry from "./VegaPhotometry";
 import Button from "./Button";
@@ -362,7 +362,7 @@ const AllocationSummary = ({ route }) => {
       const json = {
         comment: commentContent,
       };
-      dispatch(SourceAction.editFollowupRequestComment(json, dialogOpen));
+      dispatch(Action.editFollowupRequestComment(json, dialogOpen));
       setDialogOpen(null);
       setIsSubmitting(false);
     };

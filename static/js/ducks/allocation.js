@@ -14,6 +14,9 @@ const DELETE_ALLOCATION = "skyportal/DELETE_ALLOCATION";
 
 const MODIFY_ALLOCATION = "skyportal/MODIFY_ALLOCATION";
 
+const REFRESH_ALLOCATION_REQUEST_COMMENT =
+  "skyportal/REFRESH_ALLOCATION_REQUEST_COMMENT";
+
 const EDIT_FOLLOWUP_REQUEST_COMMENT = "skyportal/EDIT_FOLLOWUP_REQUEST_COMMENT";
 
 export const fetchAllocation = (id, params = {}) =>
@@ -44,6 +47,8 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     if (allocation_id === allocation?.id) {
       dispatch(fetchAllocation(allocation_id));
     }
+  } else if (actionType === REFRESH_ALLOCATION_REQUEST_COMMENT) {
+    dispatch({ type: actionType, payload });
   }
 });
 
@@ -55,6 +60,20 @@ const reducer = (state = { assignments: [] }, action) => {
         ...state,
         allocation,
         totalMatches,
+      };
+    }
+    case REFRESH_ALLOCATION_REQUEST_COMMENT: {
+      const { followupRequest_id, followupRequest_comment } = action.payload;
+      if (followupRequest_id) {
+        const requestToUpdate = (state?.allocation?.requests || []).find(
+          (request) => request?.id === followupRequest_id,
+        );
+        if (requestToUpdate) {
+          requestToUpdate.comment = followupRequest_comment;
+        }
+      }
+      return {
+        ...state,
       };
     }
     default:
