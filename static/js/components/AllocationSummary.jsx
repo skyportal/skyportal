@@ -382,46 +382,6 @@ const AllocationSummary = ({ route }) => {
             />
           </span>
         </Tooltip>
-        <Dialog
-          open={dialogOpen != null}
-          fullWidth
-          maxWidth="lg"
-          onClose={() => {
-            setDialogOpen(null);
-          }}
-          style={{ position: "fixed" }}
-        >
-          <DialogTitle>Update comment</DialogTitle>
-          <DialogContent>
-            <div>
-              <TextField
-                data-testid="updateCommentTextfield"
-                size="small"
-                label="comment"
-                value={commentContent || ""}
-                name="comment"
-                minRows={2}
-                fullWidth
-                multiline
-                onChange={(e) => handleChange(e)}
-                variant="outlined"
-              />
-            </div>
-            <p />
-            <div className={styles.saveButton}>
-              <Button
-                secondary
-                onClick={handleSubmit}
-                endIcon={<SaveIcon />}
-                size="large"
-                data-testid="updateCommentSubmitButton"
-                disabled={isSubmitting}
-              >
-                Save
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     );
   };
@@ -576,6 +536,46 @@ const AllocationSummary = ({ route }) => {
         data={data}
         options={options}
       />
+      <Dialog
+        open={dialogOpen != null}
+        fullWidth
+        maxWidth="lg"
+        onClose={() => {
+          setDialogOpen(null);
+        }}
+        style={{ position: "fixed" }}
+      >
+        <DialogTitle>Update comment</DialogTitle>
+        <DialogContent>
+          <div>
+            <TextField
+              data-testid="updateCommentTextfield"
+              size="small"
+              label="comment"
+              value={commentContent || ""}
+              name="comment"
+              minRows={2}
+              fullWidth
+              multiline
+              onChange={(e) => handleChange(e)}
+              variant="outlined"
+            />
+          </div>
+          <p />
+          <div className={styles.saveButton}>
+            <Button
+              secondary
+              onClick={handleSubmit}
+              endIcon={<SaveIcon />}
+              size="large"
+              data-testid="updateCommentSubmitButton"
+              disabled={isSubmitting}
+            >
+              Save
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
