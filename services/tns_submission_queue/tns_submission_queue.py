@@ -820,8 +820,12 @@ def process_submission_request(submission_request, session):
             submission_request, tnsrobot, user, session
         )
 
+        bot_name = tnsrobot.bot_name
+        # if there is testing or Testing, will not report in the bot name (in parentheses), remove it
+        if "(Testing, will not report)" in bot_name.lower().strip():
+            bot_name = bot_name.split("(Testing, will not report)")[0].strip()
         tns_headers = {
-            'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
+            'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{bot_name}"}}'
         }
 
         photometry_options = validate_photometry_options(submission_request, tnsrobot)
