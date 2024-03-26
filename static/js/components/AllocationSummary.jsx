@@ -53,6 +53,10 @@ const useStyles = makeStyles((theme) => ({
     margin: "auto",
     padding: "0.625rem",
   },
+  editIcon: {
+    cursor: "pointer",
+    marginLeft: "0.2rem",
+  },
 }));
 
 const SimpleMenu = ({ request }) => {
