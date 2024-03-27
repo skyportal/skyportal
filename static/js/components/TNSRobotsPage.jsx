@@ -843,9 +843,6 @@ const TNSRobotsPage = () => {
         <IconButton
           key={tnsrobot.id}
           id="delete_button"
-          classes={{
-            root: classes.tnsrobotDelete,
-          }}
           onClick={() => openDeleteDialog(tnsrobot.id)}
         >
           <DeleteIcon />

@@ -2,6 +2,7 @@ from skyportal.tests import api
 from datetime import timedelta, datetime
 import uuid
 import time
+import json
 
 
 def test_post_and_verify_recurring_api(
@@ -15,14 +16,27 @@ def test_post_and_verify_recurring_api(
         "call_delay": 0.001,
         "method": "POST",
         "endpoint": "sources",
-        "payload": {
+        "payload": "{Test incorrect payload}",
+    }
+
+    status, data = api(
+        'POST',
+        "recurring_api",
+        data=request_data,
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert data["message"] == "payload must be a valid JSON string"
+
+    request_data["payload"] = json.dumps(
+        {
             "id": obj_id,
             "ra": 234.22,
             "dec": -22.33,
             "redshift": 3,
             "group_ids": [public_group.id],
-        },
-    }
+        }
+    )
 
     endpoint = "recurring_api"
     status, data = api(
