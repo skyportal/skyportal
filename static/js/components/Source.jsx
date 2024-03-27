@@ -298,6 +298,8 @@ const SourceContent = ({ source }) => {
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
     useState(false);
   const [tnsDialogOpen, setTNSDialogOpen] = useState(false);
+  const [isPublished, setIsPublished] = useState(false);
+  const [publishedDialogOpen, setPublishedDialogOpen] = useState(false);
 
   // Needed for buttons that open popover menus, indicates where the popover should be anchored
   // (where it will appear on the screen)
@@ -370,6 +372,18 @@ const SourceContent = ({ source }) => {
     dispatch(spectraActions.fetchSourceSpectra(source.id));
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
   }, [source.id, magsys, dispatch]);
+
+  const publishThisSource = () => {
+    const payload = {};
+    setPublishedDialogOpen(false);
+    dispatch(sourceActions.publishSource(source.id, payload));
+    setIsPublished(true);
+  };
+
+  const unpublishThisSource = () => {
+    dispatch(sourceActions.unpublishSource(source.id));
+    setIsPublished(false);
+  };
 
   const setHost = (galaxyName) => {
     dispatch(sourceActions.addHost(source.id, { galaxyName }));
@@ -1038,6 +1052,56 @@ const SourceContent = ({ source }) => {
                   />
                 </div>
               ) : null}
+              <div className={classes.infoButton}>
+                <Button
+                  secondary
+                  size="small"
+                  data-testid="publishThisSourceButton"
+                  onClick={() => {
+                    isPublished
+                      ? unpublishThisSource()
+                      : setPublishedDialogOpen(true);
+                  }}
+                >
+                  {isPublished ? "Unpublish" : "Publish"}
+                </Button>
+                <Dialog
+                  open={publishedDialogOpen}
+                  onClose={() => setPublishedDialogOpen(false)}
+                  style={{ position: "fixed" }}
+                >
+                  <DialogTitle>Publish this source</DialogTitle>
+                  <DialogContent>
+                    <div style={{ marginBottom: "1.5rem" }}>
+                      You are about to publish this source page. This
+                      information will be available to everyone on the Internet.
+                      Are you sure you want to do this ?
+                    </div>
+                    <div className={classes.container}>
+                      <Button
+                        secondary
+                        size="small"
+                        data-testid="areYouSurPublishButton"
+                        onClick={() => {
+                          publishThisSource();
+                        }}
+                      >
+                        Yes
+                      </Button>
+                      <Button
+                        secondary
+                        size="small"
+                        data-testid="areYouSurCancelPublishButton"
+                        onClick={() => {
+                          setPublishedDialogOpen(false);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
