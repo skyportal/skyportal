@@ -109,9 +109,10 @@ class TNSRobot(Base):
     )
 
 
-# we want a unique constraint on the bot_name, bot_id, source_group_id columns
+# we want a unique constraint on the bot_name, bot_id, source_group_id, testing columns
+# this way you can't have the same bot twice, except for testing
 TNSRobot.__table_args__ = (
-    sa.UniqueConstraint('bot_name', 'bot_id', 'source_group_id'),
+    sa.UniqueConstraint('bot_name', 'bot_id', 'source_group_id', 'testing'),
 )
 
 

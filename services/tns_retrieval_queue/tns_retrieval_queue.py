@@ -468,8 +468,12 @@ def tns_watcher(queue):
     start_date = datetime.now() - timedelta(days=look_back_days)
     while True:
         # convert start date to isot format
-        start_date = start_date.strftime("%Y-%m-%dT%H:%M:%S")
-        tns_sources = get_recent_TNS(api_key, tns_headers, start_date, get_data=False)
+        tns_sources = get_recent_TNS(
+            api_key,
+            tns_headers,
+            start_date.strftime("%Y-%m-%dT%H:%M:%S"),
+            get_data=False,
+        )
         for tns_source in tns_sources:
             # add the tns_source to the queue
             queue.append(
