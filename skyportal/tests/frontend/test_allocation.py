@@ -2,10 +2,24 @@ from selenium.webdriver.common.by import By
 from skyportal.tests import api
 
 
-# Test that one comment, update on one request, is well displayed
 def one_request_comment_process(
     driver, request_comment_xpath, actual_comment, comment_to_put
 ):
+    """Test that one comment, update on one request, is well displayed
+    Parameters
+    ----------
+    driver: 'selenium.webdriver.chrome.webdriver.WebDriver'
+        The selenium webdriver
+    request_comment_xpath: 'str'
+        The xpath of the comment div of the request
+    actual_comment: 'str'
+        The actual comment
+    comment_to_put: 'str'
+        The comment to put
+    Returns
+    -------
+    None
+    """
     # Add a comment to the first request by clicking the edit button
     driver.wait_for_xpath(request_comment_xpath + '//span').click()
     # Check that the comment in the pop-up is empty
