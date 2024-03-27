@@ -2,6 +2,7 @@ from selenium.webdriver.common.by import By
 from skyportal.tests import api
 
 
+# Test that one comment, update on one request, is well displayed
 def one_request_comment_process(
     driver, request_comment_xpath, actual_comment, comment_to_put
 ):
@@ -95,10 +96,13 @@ def test_allocation_comment_display(
     assert request1_div_comment.text == ''
     assert request2_div_comment.text == ''
 
+    # Add a comment to the first request by clicking the edit button
     one_request_comment_process(driver, request1_comment_xpath, '', 'comment number 1')
 
+    # Add a comment to the second request by clicking the edit button
     one_request_comment_process(driver, request2_comment_xpath, '', 'comment number 2')
 
+    # Delete the comment of the first request by clicking the edit button and clearing the text field
     one_request_comment_process(driver, request1_comment_xpath, 'comment number 1', '')
 
     driver.get(f'/allocation/{allocation_id}')
