@@ -1282,9 +1282,8 @@ class FollowupRequestCommentHandler(BaseHandler):
                 self.push_all(
                     action='skyportal/REFRESH_ALLOCATION_REQUEST_COMMENT',
                     payload={
-                        'allocation_id': followup_request.allocation_id,
-                        'followupRequest_id': followup_request.id,
-                        'followupRequest_comment': followup_request.comment,
+                        'followup_request_id': followup_request.id,
+                        'followup_request_comment': followup_request.comment,
                     },
                 )
                 return self.success({"id": followup_request.id})

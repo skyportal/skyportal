@@ -63,13 +63,13 @@ const reducer = (state = { assignments: [] }, action) => {
       };
     }
     case REFRESH_ALLOCATION_REQUEST_COMMENT: {
-      const { followupRequest_id, followupRequest_comment } = action.payload;
-      if (followupRequest_id) {
+      const { followup_request_id, followup_request_comment } = action.payload;
+      if (followup_request_id) {
         const requestToUpdate = (state?.allocation?.requests || []).find(
-          (request) => request?.id === followupRequest_id,
+          (request) => request?.id === followup_request_id,
         );
         if (requestToUpdate) {
-          requestToUpdate.comment = followupRequest_comment;
+          requestToUpdate.comment = followup_request_comment;
         }
       }
       return {
