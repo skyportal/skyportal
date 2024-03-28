@@ -160,6 +160,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
 const defaultPrefs = {
   maxNumSources: "5",
   includeSitewideSources: false,
+  displayTNS: true,
 };
 
 function containsSpecialCharacters(str) {
@@ -258,7 +259,12 @@ const RecentSourcesSearchbar = ({ styles }) => {
   );
 };
 
-const RecentSourcesList = ({ sources, styles, search = false }) => {
+const RecentSourcesList = ({
+  sources,
+  styles,
+  search = false,
+  displayTNS = true,
+}) => {
   const [thumbnailIdxs, setThumbnailIdxs] = useState({});
 
   useEffect(() => {
@@ -374,10 +380,9 @@ const RecentSourcesList = ({ sources, styles, search = false }) => {
                       <span style={{ textAlign: "right" }}>
                         {dayjs().to(dayjs.utc(`${source.created_at}Z`))}
                       </span>
-                      {source?.tns_name?.length > 0 && (
+                      {displayTNS && source?.tns_name?.length > 0 && (
                         <div
                           style={{
-                            minHeight: "3rem",
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "flex-end",
@@ -451,11 +456,13 @@ RecentSourcesList.propTypes = {
   ),
   styles: PropTypes.shape(Object).isRequired,
   search: PropTypes.bool,
+  displayTNS: PropTypes.bool,
 };
 
 RecentSourcesList.defaultProps = {
   sources: undefined,
   search: false,
+  displayTNS: true,
 };
 
 const RecentSources = ({ classes }) => {
@@ -465,9 +472,13 @@ const RecentSources = ({ classes }) => {
   const styles = useSourceListStyles({ invertThumbnails });
 
   const { recentSources } = useSelector((state) => state.recentSources);
-  const recentSourcesPrefs =
+  const prefs =
     useSelector((state) => state.profile.preferences.recentSources) ||
     defaultPrefs;
+
+  const recentSourcesPrefs = prefs
+    ? { ...defaultPrefs, ...prefs }
+    : defaultPrefs;
 
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
@@ -486,7 +497,11 @@ const RecentSources = ({ classes }) => {
             />
           </div>
         </div>
-        <RecentSourcesList sources={recentSources} styles={styles} />
+        <RecentSourcesList
+          sources={recentSources}
+          styles={styles}
+          displayTNS={recentSourcesPrefs?.displayTNS !== false}
+        />
       </div>
     </Paper>
   );
