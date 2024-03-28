@@ -12,16 +12,16 @@ import Paper from "@mui/material/Paper";
 import makeStyles from "@mui/styles/makeStyles";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import CircularProgress from "@mui/material/CircularProgress";
-
+import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 import SearchIcon from "@mui/icons-material/Search";
 import InputAdornment from "@mui/material/InputAdornment";
+
 import { showNotification } from "baselayer/components/Notifications";
 import { ra_to_hours, dec_to_dms } from "../units";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
-import SourceQuickView from "./SourceQuickView";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -106,17 +106,12 @@ export const useSourceListStyles = makeStyles((theme) => ({
   link: {
     color: theme.palette.warning.main,
   },
-  quickViewContainer: {
+  bottomContainer: {
     display: "flex",
     flexDirection: "column",
-    width: "45%",
+    width: "100%",
     alignItems: "flex-end",
     justifyContent: "space-between",
-  },
-  quickViewButton: {
-    visibility: "hidden",
-    textAlign: "center",
-    display: "none",
   },
   sourceItemWithButton: {
     display: "flex",
@@ -127,10 +122,6 @@ export const useSourceListStyles = makeStyles((theme) => ({
     "&:hover": {
       backgroundColor:
         theme.palette.mode === "light" ? theme.palette.secondary.light : null,
-    },
-    "&:hover $quickViewButton": {
-      visibility: "visible",
-      display: "block",
     },
   },
   root: {
@@ -378,23 +369,43 @@ const RecentSourcesList = ({ sources, styles, search = false }) => {
                       </div>
                       {source.resaved && <span>(Source was re-saved)</span>}
                     </div>
-                    <div className={styles.quickViewContainer}>
+                    <div className={styles.bottomContainer}>
                       <span style={{ textAlign: "right" }}>
                         {dayjs().to(dayjs.utc(`${source.created_at}Z`))}
                       </span>
-                      <div
-                        style={{
-                          minHeight: "3rem",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "flex-end",
-                        }}
-                      >
-                        <SourceQuickView
-                          sourceId={source.obj_id}
-                          className={styles.quickViewButton}
-                        />
-                      </div>
+                      {source?.tns_name?.length > 0 && (
+                        <div
+                          style={{
+                            minHeight: "3rem",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-end",
+                          }}
+                        >
+                          <Chip
+                            label={source.tns_name}
+                            color={
+                              source.tns_name.includes("SN")
+                                ? "primary"
+                                : "default"
+                            }
+                            size="small"
+                            style={{
+                              fontWeight: "bold",
+                            }}
+                            onClick={() => {
+                              window.open(
+                                `https://www.wis-tns.org/object/${
+                                  source.tns_name.trim().includes(" ")
+                                    ? source.tns_name.split(" ")[1]
+                                    : source.tns_name
+                                }`,
+                                "_blank",
+                              );
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

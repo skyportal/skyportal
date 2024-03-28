@@ -8,17 +8,17 @@ import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-
+import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+
 import Button from "./Button";
 
 import { ra_to_hours, dec_to_dms } from "../units";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useSourceListStyles } from "./RecentSources";
-import SourceQuickView from "./SourceQuickView";
 
 const useStyles = makeStyles((theme) => ({
   header: {},
@@ -82,17 +82,12 @@ const useStyles = makeStyles((theme) => ({
         ? theme.palette.secondary.main
         : theme.palette.primary.main,
   },
-  quickViewContainer: {
+  bottomContainer: {
     display: "flex",
     flexDirection: "column",
-    width: "45%",
+    width: "100%",
     alignItems: "flex-end",
     justifyContent: "space-between",
-  },
-  quickViewButton: {
-    visibility: "hidden",
-    textAlign: "center",
-    display: "none",
   },
 }));
 
@@ -217,23 +212,43 @@ const TopSourcesList = ({ sources, styles }) => {
                         </span>
                       </div>
                     </div>
-                    <div className={styles.quickViewContainer}>
+                    <div className={styles.bottomContainer}>
                       <span style={{ textAlign: "right" }}>
                         <em>{`${source.views} view(s)`}</em>
                       </span>
-                      <div
-                        style={{
-                          minHeight: "3rem",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "flex-end",
-                        }}
-                      >
-                        <SourceQuickView
-                          sourceId={source.obj_id}
-                          className={styles.quickViewButton}
-                        />
-                      </div>
+                      {source?.tns_name?.length > 0 && (
+                        <div
+                          style={{
+                            minHeight: "3rem",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-end",
+                          }}
+                        >
+                          <Chip
+                            label={source.tns_name}
+                            color={
+                              source.tns_name.includes("SN")
+                                ? "primary"
+                                : "default"
+                            }
+                            size="small"
+                            style={{
+                              fontWeight: "bold",
+                            }}
+                            onClick={() => {
+                              window.open(
+                                `https://www.wis-tns.org/object/${
+                                  source.tns_name.trim().includes(" ")
+                                    ? source.tns_name.split(" ")[1]
+                                    : source.tns_name
+                                }`,
+                                "_blank",
+                              );
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

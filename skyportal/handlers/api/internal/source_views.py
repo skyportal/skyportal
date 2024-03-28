@@ -66,6 +66,7 @@ class SourceViewsHandler(BaseHandler):
                             for t in sorted(s.thumbnails, key=lambda t: t_index(t.type))
                         ],
                         'classifications': s.classifications,
+                        'tns_name': s.tns_name,
                     }
                 )
 
