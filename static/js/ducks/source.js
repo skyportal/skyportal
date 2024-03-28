@@ -423,8 +423,8 @@ export function addSourceView(id) {
   return API.POST(`/api/internal/source_views/${id}`, ADD_SOURCE_VIEW);
 }
 
-export const publishSource = (id, payload) =>
-  API.POST(`/api/sources/${id}/publish`, PUBLISH_SOURCE, payload);
+export const publishSource = (sourceId, payload) =>
+  API.POST(`/api/sources/${sourceId}/publish`, PUBLISH_SOURCE, payload);
 
 export const unpublishSource = (id) =>
   API.POST(`/api/sources/${id}/unpublish`, UNPUBLISH_SOURCE);
