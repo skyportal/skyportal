@@ -359,7 +359,10 @@ def process_queue(queue):
                     log(f"Error getting TNS data for {tns_name}: {r.text}")
                     continue
 
-                tns_source_data = r.json().get("data", dict()).get("reply", dict())
+                try:
+                    tns_source_data = r.json().get("data", dict()).get("reply", dict())
+                except Exception:
+                    tns_source_data = None
                 if tns_source_data is None:
                     log(f"Error getting TNS data for {tns_name}: no reply in data")
                     continue
@@ -488,28 +491,31 @@ def tns_watcher(queue):
     # useful if the app has been down for a while
     start_date = datetime.now() - timedelta(days=look_back_days)
     while True:
-        # convert start date to isot format
-        tns_sources = get_recent_TNS(
-            api_key,
-            tns_headers,
-            start_date.strftime("%Y-%m-%dT%H:%M:%S"),
-            get_data=False,
-        )
-        for tns_source in tns_sources:
-            # add the tns_source to the queue
-            queue.append(
-                {
-                    "tns_prefix": tns_source['prefix'],
-                    "tns_source": tns_source['id'],
-                    "obj_id": None,
-                }
+        try:
+            # convert start date to isot format
+            tns_sources = get_recent_TNS(
+                api_key,
+                tns_headers,
+                start_date.strftime("%Y-%m-%dT%H:%M:%S"),
+                get_data=False,
             )
-            log(f"Added TNS source {tns_source['id']} to the queue for processing")
+            for tns_source in tns_sources:
+                # add the tns_source to the queue
+                queue.append(
+                    {
+                        "tns_prefix": tns_source['prefix'],
+                        "tns_source": tns_source['id'],
+                        "obj_id": None,
+                    }
+                )
+                log(f"Added TNS source {tns_source['id']} to the queue for processing")
 
-        # if we got any sources, we update the start date to now - 1 hour
-        # otherwise we keep querying TNS starting from same start date
-        if len(tns_sources) > 0:
-            start_date = datetime.now() - timedelta(hours=1)
+            # if we got any sources, we update the start date to now - 1 hour
+            # otherwise we keep querying TNS starting from same start date
+            if len(tns_sources) > 0:
+                start_date = datetime.now() - timedelta(hours=1)
+        except Exception as e:
+            log(f"Error getting TNS sources: {e}, retrying in 4 minutes")
 
         time.sleep(60 * 4)  # sleep for 4 minutes
 
