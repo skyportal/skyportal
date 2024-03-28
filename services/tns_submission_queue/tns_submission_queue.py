@@ -530,6 +530,7 @@ def build_at_report(
     reporters,
     photometry,
     photometry_options,
+    stream_ids,
     session,
 ):
     """Build the AT report for a TNSRobot submission.
@@ -546,6 +547,10 @@ def build_at_report(
         The reporters to use for the submission.
     photometry : list of `~skyportal.models.Photosometry`
         The photometry to submit.
+    photometry_options : dict
+        The photometry options to use.
+    stream_ids : list of int
+        The stream IDs that were used to query for the photometry.
     session : `~sqlalchemy.orm.Session`
         The database session to use.
 
@@ -599,12 +604,6 @@ def build_at_report(
             f'TNS robot {tnsrobot.id} requires both first and last detections, but only one detection is available.'
         )
 
-    # if we require a last detection and it's not an archival submission, we need at least one non-detection
-    if len(non_detections) == 0 and not archival:
-        raise TNSReportWarning(
-            f'TNS robot {tnsrobot.id} cannot send a non-archival report to TNS without any non-detections before the first detection.'
-        )
-
     # sort each by mjd ascending
     non_detections = sorted(non_detections, key=lambda k: k['mjd'])
     detections = sorted(detections, key=lambda k: k['mjd'])
@@ -623,6 +622,25 @@ def build_at_report(
 
     # remove non detections that are after the first detection
     non_detections = [phot for phot in non_detections if phot['mjd'] < time_first]
+
+    # if we have no non-detection but it's an autosubmission which photometry_options allow
+    # switching to archival, we can still submit the source as archival
+    if (
+        len(non_detections) == 0
+        and submission_request.auto_submission is True
+        and photometry_options['autoreport_allow_archival'] is True
+    ):
+        archival = True
+        # write an archival comment like: "No non-detections prior to first detection in <streams comma separated> alert stream"
+        # if no streams are specified, we just write "No non-detections prior to first detection"
+        if stream_ids is not None and len(stream_ids) > 0:
+            stream_names = session.scalars(
+                sa.select(Stream.name).where(Stream.id.in_(stream_ids))
+            ).all()
+            stream_names = list(set(stream_names))
+            archival_comment = f'No non-detections prior to first detection in {", ".join(stream_names)} alert stream{"" if len(stream_names) == 1 else "s"}'
+        else:
+            archival_comment = 'No non-detections prior to first detection'
 
     # if we require a last detection and it's not an archival submission, we need at least one non-detection
     if len(non_detections) == 0 and not archival:
@@ -903,6 +921,7 @@ def process_submission_request(submission_request, session):
             reporters,
             photometry,
             photometry_options,
+            stream_ids,
             session,
         )
 
@@ -953,6 +972,7 @@ def process_submission_request(submission_request, session):
                 payload={
                     'note': str(e),
                     'type': 'error' if 'already posted' not in str(e) else 'warning',
+                    'duration': 6000,  # in ms
                 },
             )
         except Exception:
@@ -969,6 +989,7 @@ def process_submission_request(submission_request, session):
                 payload={
                     'note': str(e),
                     'type': 'warning',
+                    'duration': 6000,  # in ms
                 },
             )
         except Exception:

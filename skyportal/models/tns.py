@@ -80,7 +80,7 @@ class TNSRobot(Base):
     photometry_options = sa.Column(
         psql.JSONB,
         nullable=True,
-        doc="Photometry options to use for this robot, to make some data optional or mandatory.",
+        doc="Photometry options to use for this robot, to make some data optional or mandatory for manual and auto-reporting.",
     )
 
     @property
