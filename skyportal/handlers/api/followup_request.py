@@ -1248,6 +1248,12 @@ class FollowupRequestCommentHandler(BaseHandler):
             required: true
             schema:
               type: string
+          - in: query
+            name: comment
+            nullable: true
+            schema:
+                type: string
+            description: Comment to add to the follow-up request
         responses:
           200:
             content:
