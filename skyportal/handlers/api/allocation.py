@@ -197,6 +197,7 @@ class AllocationHandler(BaseHandler):
                     if isinstance(request_data['rise_time_utc'], np.ma.MaskedArray):
                         request_data['rise_time_utc'] = None
                     requests.append(request_data)
+
                 allocation_data['requests'] = requests
                 allocation_data[
                     'ephemeris'

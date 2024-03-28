@@ -1234,6 +1234,70 @@ class FollowupRequestHandler(BaseHandler):
             return self.success()
 
 
+class FollowupRequestCommentHandler(BaseHandler):
+    @permissions(["Upload data"])
+    def put(self, followup_request_id):
+        """
+        ---
+        description: Update a follow-up request comment
+        tags:
+          - followup_requests
+        parameters:
+          - in: path
+            name: followup_request_id
+            required: true
+            schema:
+              type: string
+          - in: query
+            name: comment
+            nullable: true
+            schema:
+                type: string
+            description: Comment to add to the follow-up request
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        comment = str(data.get("comment")).strip()
+
+        if comment in ["", "None"]:
+            comment = None
+
+        with self.Session() as session:
+            try:
+                stmt = FollowupRequest.select(
+                    session.user_or_token, mode="update"
+                ).where(FollowupRequest.id == followup_request_id)
+                followup_request = session.scalar(stmt)
+
+                if followup_request is None:
+                    return self.error(
+                        f"Followup request {followup_request_id} not found."
+                    )
+
+                followup_request.comment = comment
+                session.commit()
+                self.push_all(
+                    action='skyportal/REFRESH_ALLOCATION_REQUEST_COMMENT',
+                    payload={
+                        'followup_request_id': followup_request.id,
+                        'followup_request_comment': followup_request.comment,
+                    },
+                )
+                return self.success({"id": followup_request.id})
+            except Exception as e:
+                session.rollback()
+                return self.error(f"Failed to update followup request comment: {e}")
+
+
 class HourAngleConstraint(Constraint):
     """
     Constrain the hour angle of a target.

@@ -206,6 +206,13 @@ class FollowupRequest(Base):
     allocation_id = sa.Column(
         sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
     )
+
+    comment = sa.Column(
+        sa.String(),
+        nullable=True,
+        doc="Comment on the follow-up request.",
+    )
+
     allocation = relationship('Allocation', back_populates='requests')
 
     transactions = relationship(

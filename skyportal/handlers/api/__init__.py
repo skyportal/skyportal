@@ -41,6 +41,7 @@ from .filter import FilterHandler
 from .followup_request import (
     DefaultFollowupRequestHandler,
     FollowupRequestHandler,
+    FollowupRequestCommentHandler,
     FollowupRequestWatcherHandler,
     FollowupRequestPrioritizationHandler,
     FollowupRequestSchedulerHandler,

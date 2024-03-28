@@ -1,6 +1,6 @@
-import React, { useEffect, useState, Suspense } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
@@ -8,9 +8,16 @@ import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Grid from "@mui/material/Grid";
+import Tooltip from "@mui/material/Tooltip";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import BuildIcon from "@mui/icons-material/Build";
+import EditIcon from "@mui/icons-material/Edit";
+import TextField from "@mui/material/TextField";
 
 import Link from "@mui/material/Link";
+import SaveIcon from "@mui/icons-material/Save";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ImageAspectRatioIcon from "@mui/icons-material/ImageAspectRatio";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -28,9 +35,10 @@ import withRouter from "./withRouter";
 
 import * as SourceAction from "../ducks/source";
 import * as Action from "../ducks/allocation";
-import { ra_to_hours, dec_to_dms } from "../units";
+import { dec_to_dms, ra_to_hours } from "../units";
 
 import VegaPhotometry from "./VegaPhotometry";
+import Button from "./Button";
 
 const AirmassPlot = React.lazy(() => import("./AirmassPlot"));
 
@@ -44,6 +52,10 @@ const useStyles = makeStyles((theme) => ({
   center: {
     margin: "auto",
     padding: "0.625rem",
+  },
+  editIcon: {
+    cursor: "pointer",
+    marginLeft: "0.2rem",
   },
 }));
 
@@ -171,6 +183,10 @@ const AllocationSummary = ({ route }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
+
+  const [dialogOpen, setDialogOpen] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [commentContent, setCommentContent] = useState("");
 
   const [fetchParams, setFetchParams] = useState({
     pageNumber: 1,
@@ -333,6 +349,47 @@ const AllocationSummary = ({ route }) => {
     return <SimpleMenu request={request} key={`${request.id}_menu`} />;
   };
 
+  const handleOpenDialog = (id, comment) => {
+    setCommentContent(comment);
+    setDialogOpen(id);
+  };
+
+  const handleChange = (e) => {
+    setCommentContent(e.target.value);
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    const json = {
+      comment: commentContent,
+    };
+    dispatch(Action.editFollowupRequestComment(json, dialogOpen));
+    setDialogOpen(null);
+    setIsSubmitting(false);
+  };
+
+  const renderComment = (dataIndex) => {
+    const request = requests[dataIndex];
+
+    return (
+      <div>
+        {request.comment}
+        <Tooltip title="Update comment">
+          <span>
+            <EditIcon
+              data-testid="updateCommentIconButton"
+              fontSize="small"
+              className={styles.editIcon}
+              onClick={() => {
+                handleOpenDialog(request.id, request.comment);
+              }}
+            />
+          </span>
+        </Tooltip>
+      </div>
+    );
+  };
+
   const columns = [
     {
       name: "Target Name",
@@ -414,6 +471,13 @@ const AllocationSummary = ({ route }) => {
       },
     },
     {
+      name: "Comment",
+      options: {
+        filter: true,
+        customBodyRenderLite: renderComment,
+      },
+    },
+    {
       name: "Finder",
       options: {
         filter: false,
@@ -457,6 +521,7 @@ const AllocationSummary = ({ route }) => {
     request.payload.priority,
     request.rise_time_utc,
     request.set_time_utc,
+    request.comment,
     null,
     null,
   ]);
@@ -475,6 +540,46 @@ const AllocationSummary = ({ route }) => {
         data={data}
         options={options}
       />
+      <Dialog
+        open={dialogOpen != null}
+        fullWidth
+        maxWidth="lg"
+        onClose={() => {
+          setDialogOpen(null);
+        }}
+        style={{ position: "fixed" }}
+      >
+        <DialogTitle>Update comment</DialogTitle>
+        <DialogContent>
+          <div>
+            <TextField
+              data-testid="updateCommentTextfield"
+              size="small"
+              label="comment"
+              value={commentContent || ""}
+              name="comment"
+              minRows={2}
+              fullWidth
+              multiline
+              onChange={(e) => handleChange(e)}
+              variant="outlined"
+            />
+          </div>
+          <p />
+          <div className={styles.saveButton}>
+            <Button
+              secondary
+              onClick={handleSubmit}
+              endIcon={<SaveIcon />}
+              size="large"
+              data-testid="updateCommentSubmitButton"
+              disabled={isSubmitting}
+            >
+              Save
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
