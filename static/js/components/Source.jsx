@@ -1271,6 +1271,7 @@ const SourceContent = ({ source }) => {
                           height: rightPanelVisible ? "65vh" : "75vh",
                         }}
                         mode={downMd ? "mobile" : "desktop"}
+                        magsys={magsys}
                       />
                     </Suspense>
                   )}
