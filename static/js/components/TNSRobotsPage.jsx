@@ -637,6 +637,7 @@ const TNSRobotsPage = () => {
     stream_ids: [],
     report_exceptions: false,
     first_and_last_detections: true,
+    autoreport_allow_archival: false,
   });
 
   const allowedInstruments = instrumentList.filter((instrument) =>
@@ -708,6 +709,8 @@ const TNSRobotsPage = () => {
       report_existing: tnsrobotListLookup[id]?.report_existing,
       first_and_last_detections:
         tnsrobotListLookup[id]?.photometry_options?.first_and_last_detections,
+      autoreport_allow_archival:
+        tnsrobotListLookup[id]?.photometry_options?.autoreport_allow_archival,
     });
     setEditDialogOpen(true);
     setTnsrobotToManage(id);
@@ -736,6 +739,7 @@ const TNSRobotsPage = () => {
       testing,
       report_existing,
       first_and_last_detections,
+      autoreport_allow_archival,
     } = formData.formData;
 
     if (api_key?.length === 0) {
@@ -763,6 +767,7 @@ const TNSRobotsPage = () => {
       report_existing,
       photometry_options: {
         first_and_last_detections,
+        autoreport_allow_archival,
       },
     };
 
@@ -801,6 +806,7 @@ const TNSRobotsPage = () => {
       testing,
       report_existing,
       first_and_last_detections,
+      autoreport_allow_archival,
     } = formData.formData;
 
     const data = {
@@ -814,6 +820,7 @@ const TNSRobotsPage = () => {
       report_existing,
       photometry_options: {
         first_and_last_detections,
+        autoreport_allow_archival,
       },
     };
 
@@ -942,6 +949,15 @@ const TNSRobotsPage = () => {
         description:
           "If enabled, the bot will not send a report to TNS if there is not both first and last detection (at least 2 detections required).",
       },
+      autoreport_allow_archival: {
+        type: "boolean",
+        title: "Allow archival auto-reports",
+        default:
+          tnsrobotListLookup[tnsrobotToManage]?.photometry_options
+            ?.autoreport_allow_archival || false,
+        description:
+          "If enabled, the bot will submit auto-reports as archival if there is no non-detection prior to the first detection that can be reported.",
+      },
     },
     required: [
       "bot_name",
@@ -1045,7 +1061,13 @@ const TNSRobotsPage = () => {
       <div style={{ display: "flex", alignItems: "center" }}>
         {tnsrobot.testing === true && (
           <Tooltip
-            title="This bot is in testing mode and won't submit to TNS but only store the payload in the database (useful for debugging). Click on the edit button to change this."
+            title={
+              <h2>
+                This bot is in testing mode and will not submit to TNS but only
+                store the payload in the database (useful for debugging). Click
+                on the edit button to change this.
+              </h2>
+            }
             placement="right"
           >
             <BugReportIcon style={{ color: "orange" }} />

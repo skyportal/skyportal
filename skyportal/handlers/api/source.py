@@ -5,6 +5,7 @@ import operator  # noqa: F401
 import time
 from json.decoder import JSONDecodeError
 
+import re
 import arrow
 import astropy
 import astropy.units as u
@@ -1770,6 +1771,13 @@ def post_source(data, user_id, session, refresh_source=True):
 
     if ' ' in data["id"]:
         raise AttributeError("No spaces allowed in source ID")
+
+    # only allow letters, numbers, underscores, dashes, semicolons, and colons
+    # do not allow any characters that could be used for a URL's in path arguments
+    if not re.match(r"^[a-zA-Z0-9_\-;:+]+$", data["id"]):
+        raise AttributeError(
+            "Only letters, numbers, underscores, semicolons, colons, +, and - are allowed in source ID"
+        )
 
     obj = session.scalars(Obj.select(user).where(Obj.id == data["id"])).first()
     if obj is None:

@@ -100,6 +100,7 @@ class RecentSourcesHandler(BaseHandler):
                         ],
                         'classifications': s.classifications,
                         'recency_index': recency_index,
+                        'tns_name': s.tns_name,
                     }
                 )
 

@@ -6,6 +6,7 @@ from threading import Thread
 from datetime import datetime, timedelta
 
 import requests
+from skyportal.utils.calculations import great_circle_distance
 import sqlalchemy as sa
 import tornado.escape
 import tornado.ioloop
@@ -98,6 +99,25 @@ def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, se
                 elif obj.tns_name is None or obj.tns_name == "":
                     obj.tns_name = tns_name
                     obj.tns_info = tns_source_data
+                # if the obj has tns_info that contains radeg and decdeg,
+                # check if the new TNS source is closer to the obj than the existing TNS source
+                elif (
+                    isinstance(obj.tns_info, dict)
+                    and "radeg" in obj.tns_info
+                    and "decdeg" in obj.tns_info
+                ):
+                    existing_tns_dist = great_circle_distance(
+                        obj.ra,
+                        obj.dec,
+                        float(obj.tns_info["radeg"]),
+                        float(obj.tns_info["decdeg"]),
+                    )
+                    new_tns_dist = great_circle_distance(
+                        obj.ra, obj.dec, float(tns_ra), float(tns_dec)
+                    )
+                    if new_tns_dist < existing_tns_dist:
+                        obj.tns_name = tns_name
+                        obj.tns_info = tns_source_data
                 # if the current name doesn't have the SN designation but the new name has it, update
                 elif not str(obj.tns_name).lower().strip().startswith(
                     "sn"

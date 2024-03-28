@@ -48,6 +48,7 @@ log = make_log('api/tns')
 
 PHOTOMETRY_OPTIONS = {
     'first_and_last_detections': bool,
+    'autoreport_allow_archival': bool,
 }
 
 
