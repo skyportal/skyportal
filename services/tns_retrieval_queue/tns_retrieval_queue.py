@@ -42,7 +42,6 @@ DEFAULT_RADIUS = 2.0 / 3600  # 2 arcsec in degrees
 
 TNS_URL = cfg['app.tns.endpoint']
 object_url = urllib.parse.urljoin(TNS_URL, 'api/get/object')
-search_frontend_url = urllib.parse.urljoin(TNS_URL, 'search')
 
 bot_id = cfg.get('app.tns.bot_id', None)
 bot_name = cfg.get('app.tns.bot_name', None)
@@ -303,6 +302,7 @@ def process_queue(queue):
                         ra=existing_obj.ra,
                         dec=existing_obj.dec,
                         radius=float(task.get("radius", DEFAULT_RADIUS)),
+                        closest=True,  # get the closest object to the input coordinates as the TNS source
                     )
                     log(
                         f"Found TNS source {tns_source} for object {existing_obj.id} with prefix {tns_prefix}"
@@ -419,6 +419,7 @@ def process_queue(queue):
                             "dec": dec,
                             "tns_name": tns_name,  # the name with the prefix (AT, SN, etc.)
                             "tns_info": tns_source_data,
+                            "group_ids": [public_group_id],
                         }
                         post_source(new_source_data, USER_ID, session)
 

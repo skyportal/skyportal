@@ -28,6 +28,7 @@ import PhotometryMagsys from "./PhotometryMagsys";
 import Button from "./Button";
 import * as Actions from "../ducks/photometry";
 import { mjd_to_utc } from "../units";
+import { PHOT_ZP } from "../utils";
 
 const useStyles = makeStyles(() => ({
   actionButtons: {
@@ -408,8 +409,25 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           // if there is no data, cancel download
           if (data?.length > 0) {
             const body = tableData
-              .map((x) =>
-                [
+              .map((x) => {
+                // 19 is the flux column
+                // 20 is the flux error column
+                // 21 is the SNR column
+                if (x.data[2] !== null) {
+                  // it's a detection, we have both flux and flux error
+                  x.data[19] = 10 ** (-0.4 * (x.data[2] - PHOT_ZP));
+                  x.data[20] = (x.data[3] / (2.5 / Math.log(10))) * x.data[19];
+                  x.data[21] = x.data[19] / x.data[20];
+                  if (x.data[21] < 0 || x.data[21] === Infinity) {
+                    x.data[21] = null;
+                  }
+                } else {
+                  // it's an upper limit, we only have fluxerr
+                  x.data[19] = null;
+                  x.data[20] = 10 ** (-0.4 * (x.data[4] - PHOT_ZP));
+                  x.data[21] = null;
+                }
+                return [
                   x.data[0],
                   x.data[1],
                   x.data[2],
@@ -418,7 +436,6 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                   x.data[5],
                   x.data[6],
                   x.data[7],
-                  x.data[8],
                   x.data[9],
                   x.data[10],
                   x.data[11],
@@ -429,8 +446,11 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                   x.data[16],
                   renderOwnerDownload(x.data[17]),
                   renderStreamsDownload(x.data[18]),
-                ].join(","),
-              )
+                  x.data[19],
+                  x.data[20],
+                  x.data[21],
+                ].join(",");
+              })
               .join("\n");
 
             const result =
@@ -465,10 +485,6 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                 },
                 {
                   name: "instrument_id",
-                  download: true,
-                },
-                {
-                  name: "snr",
                   download: true,
                 },
                 {
@@ -509,6 +525,18 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                 },
                 {
                   name: "owner",
+                  download: true,
+                },
+                {
+                  name: "flux",
+                  download: true,
+                },
+                {
+                  name: "fluxerr",
+                  download: true,
+                },
+                {
+                  name: "snr",
                   download: true,
                 },
               ]) + body;

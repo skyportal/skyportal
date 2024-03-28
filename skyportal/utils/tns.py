@@ -198,7 +198,9 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
     return sources
 
 
-def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=2.0):
+def get_IAUname(
+    api_key, headers, obj_id=None, ra=None, dec=None, radius=2.0, closest=False
+):
     """Query TNS to get IAU name (if exists)
     Parameters
     ----------
@@ -273,11 +275,59 @@ def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=2.0):
         raise ValueError('TNS request failed: request rate exceeded.')
 
     reply = r.json().get("data", dict()).get("reply", [])
+
     if len(reply) > 0:
-        # it should be ordered from oldest to newest, so we take the last one
-        # which should be the most recent existing source within the radius
-        # ideally we want to use the closest, but this TNS endpont doesn't return position or distances
-        return reply[-1]['prefix'], reply[-1]['objname']
+        prefix, objname = reply[-1]['prefix'], reply[-1]['objname']
+        if closest and len(reply) > 1:
+            closest_separation = float(radius)
+            for obj in reply:
+                data = {
+                    'api_key': api_key,
+                    'data': json.dumps(
+                        {
+                            "objname": obj["objname"],
+                        }
+                    ),
+                }
+                status_code = 429
+                n_retries = 0
+                r = None
+                while (
+                    status_code == 429 and n_retries < 24
+                ):  # 6 * 4 * 10 seconds = 4 minutes of retries
+                    r = requests.post(
+                        object_url,
+                        headers=headers,
+                        data=data,
+                        allow_redirects=True,
+                        stream=True,
+                        timeout=10,
+                    )
+                    status_code = r.status_code
+                    if status_code == 429:
+                        n_retries += 1
+                        time.sleep(10)
+                    else:
+                        break
+
+                if status_code != 200 or r is None:
+                    # ignore this object
+                    continue
+
+                source_data = r.json().get("data", dict()).get("reply", dict())
+                if source_data:
+                    tns_ra, tns_dec = source_data['radeg'], source_data['decdeg']
+                    from skyportal.utils.calculations import great_circle_distance
+
+                    separation = (
+                        great_circle_distance(ra, dec, tns_ra, tns_dec) * 3600
+                    )  # arcsec
+                    if separation < closest_separation:
+                        closest_separation = separation
+                        prefix, objname = obj["prefix"], obj["objname"]
+
+        return prefix, objname
+
     else:
         return None, None
 

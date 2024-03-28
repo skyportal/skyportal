@@ -159,6 +159,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
 
 const defaultPrefs = {
   maxNumSources: "5",
+  includeSitewideSources: false,
 };
 
 function containsSpecialCharacters(str) {
