@@ -80,7 +80,7 @@ class TNSRobot(Base):
     photometry_options = sa.Column(
         psql.JSONB,
         nullable=True,
-        doc="Photometry options to use for this robot, to make some data optional or mandatory.",
+        doc="Photometry options to use for this robot, to make some data optional or mandatory for manual and auto-reporting.",
     )
 
     @property
@@ -109,9 +109,10 @@ class TNSRobot(Base):
     )
 
 
-# we want a unique constraint on the bot_name, bot_id, source_group_id columns
+# we want a unique constraint on the bot_name, bot_id, source_group_id, testing columns
+# this way you can't have the same bot twice, except for testing
 TNSRobot.__table_args__ = (
-    sa.UniqueConstraint('bot_name', 'bot_id', 'source_group_id'),
+    sa.UniqueConstraint('bot_name', 'bot_id', 'source_group_id', 'testing'),
 )
 
 

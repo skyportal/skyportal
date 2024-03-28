@@ -59,6 +59,11 @@ class TNSReportError(Exception):
     pass
 
 
+# same thing but for warnings, to avoid showing these messages as errors to the user
+class TNSReportWarning(Exception):
+    pass
+
+
 def validate_photometry_options(submission_request, tnsrobot):
     """Validate the photometry options for a TNSRobot.
 
@@ -212,7 +217,7 @@ def apply_existing_tnsreport_rules(tns_headers, tnsrobot, submission_request, se
     _, existing_tns_name = get_IAUname(altdata['api_key'], tns_headers, obj_id=obj_id)
     if existing_tns_name is not None:
         if not tnsrobot.report_existing:
-            raise TNSReportError(
+            raise TNSReportWarning(
                 f'{obj_id} already posted to TNS as {existing_tns_name}.'
             )
         else:
@@ -221,7 +226,7 @@ def apply_existing_tnsreport_rules(tns_headers, tnsrobot, submission_request, se
                 altdata['api_key'], tns_headers, tns_name=existing_tns_name
             )
             if len(internal_names) > 0 and obj_id in internal_names:
-                raise TNSReportError(
+                raise TNSReportWarning(
                     f'{obj_id} already posted to TNS with the same internal source name.'
                 )
 
@@ -346,7 +351,7 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
             if author.first_name in [None, ""] or author.last_name in [None, ""]
         ]
         if len(authors_with_missing_names) > 0:
-            raise TNSReportError(
+            raise TNSReportWarning(
                 f'One or more authors are missing a first or last name: {", ".join([author.username for author in authors_with_missing_names])}, cannot report {obj_id} to TNS.'
             )
         # if any of the users are missing an affiliation, we don't submit
@@ -357,7 +362,7 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
             or all([affiliation in [None, ""] for affiliation in author.affiliations])
         ]
         if len(authors_with_missing_affiliations) > 0:
-            raise TNSReportError(
+            raise TNSReportWarning(
                 f'One or more authors are missing an affiliation: {", ".join([author.username for author in authors_with_missing_affiliations])}, cannot report {obj_id} to TNS.'
             )
 
@@ -525,6 +530,7 @@ def build_at_report(
     reporters,
     photometry,
     photometry_options,
+    stream_ids,
     session,
 ):
     """Build the AT report for a TNSRobot submission.
@@ -541,6 +547,10 @@ def build_at_report(
         The reporters to use for the submission.
     photometry : list of `~skyportal.models.Photosometry`
         The photometry to submit.
+    photometry_options : dict
+        The photometry options to use.
+    stream_ids : list of int
+        The stream IDs that were used to query for the photometry.
     session : `~sqlalchemy.orm.Session`
         The database session to use.
 
@@ -584,20 +594,14 @@ def build_at_report(
             detections.append(phot)
 
     if len(detections) == 0:
-        raise TNSReportError(
+        raise TNSReportWarning(
             f'Need at least one detection to report with TNS robot {tnsrobot.id}.'
         )
 
     # if we require both first and last detections, we need at least two detections
     if photometry_options['first_and_last_detections'] is True and len(detections) < 2:
-        raise TNSReportError(
+        raise TNSReportWarning(
             f'TNS robot {tnsrobot.id} requires both first and last detections, but only one detection is available.'
-        )
-
-    # if we require a last detection and it's not an archival submission, we need at least one non-detection
-    if len(non_detections) == 0 and not archival:
-        raise TNSReportError(
-            f'TNS robot {tnsrobot.id} cannot send a non-archival report to TNS without any non-detections before the first detection.'
         )
 
     # sort each by mjd ascending
@@ -619,9 +623,28 @@ def build_at_report(
     # remove non detections that are after the first detection
     non_detections = [phot for phot in non_detections if phot['mjd'] < time_first]
 
+    # if we have no non-detection but it's an autosubmission which photometry_options allow
+    # switching to archival, we can still submit the source as archival
+    if (
+        len(non_detections) == 0
+        and submission_request.auto_submission is True
+        and photometry_options['autoreport_allow_archival'] is True
+    ):
+        archival = True
+        # write an archival comment like: "No non-detections prior to first detection in <streams comma separated> alert stream"
+        # if no streams are specified, we just write "No non-detections prior to first detection"
+        if stream_ids is not None and len(stream_ids) > 0:
+            stream_names = session.scalars(
+                sa.select(Stream.name).where(Stream.id.in_(stream_ids))
+            ).all()
+            stream_names = list(set(stream_names))
+            archival_comment = f'No non-detections prior to first detection in {", ".join(stream_names)} alert stream{"" if len(stream_names) == 1 else "s"}'
+        else:
+            archival_comment = 'No non-detections prior to first detection'
+
     # if we require a last detection and it's not an archival submission, we need at least one non-detection
     if len(non_detections) == 0 and not archival:
-        raise TNSReportError(
+        raise TNSReportWarning(
             f'TNS robot {tnsrobot.id} cannot send a non-archival report to TNS without any non-detections before the first detection.'
         )
 
@@ -898,6 +921,7 @@ def process_submission_request(submission_request, session):
             reporters,
             photometry,
             photometry_options,
+            stream_ids,
             session,
         )
 
@@ -938,7 +962,6 @@ def process_submission_request(submission_request, session):
                 pass
 
     except TNSReportError as e:
-        log(str(e))
         submission_request.status = f'error: {str(e)}'
         session.commit()
         try:
@@ -947,8 +970,26 @@ def process_submission_request(submission_request, session):
                 user_id=submission_request.user_id,
                 action_type='baselayer/SHOW_NOTIFICATION',
                 payload={
-                    'note': f"Error submitting {submission_request.obj_id} to TNS: {str(e)}",
+                    'note': str(e),
                     'type': 'error' if 'already posted' not in str(e) else 'warning',
+                    'duration': 6000,  # in ms
+                },
+            )
+        except Exception:
+            pass
+    except TNSReportWarning as e:
+        # it is still a submission error, but we want to show it as a warning to the user
+        submission_request.status = f'error: {str(e)}'
+        session.commit()
+        try:
+            flow = Flow()
+            flow.push(
+                user_id=submission_request.user_id,
+                action_type='baselayer/SHOW_NOTIFICATION',
+                payload={
+                    'note': str(e),
+                    'type': 'warning',
+                    'duration': 6000,  # in ms
                 },
             )
         except Exception:
