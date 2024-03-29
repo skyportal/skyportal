@@ -1102,6 +1102,15 @@ const SourceContent = ({ source }) => {
                   </DialogContent>
                 </Dialog>
               </div>
+              <div className={classes.infoButton}>
+                <a
+                    href={`/public/sources/src/${source.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                  Public page
+                </a>
+              </div>
             </div>
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
