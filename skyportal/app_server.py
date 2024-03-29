@@ -207,7 +207,10 @@ from skyportal.handlers.api.internal import (
     RecentGcnEventsHandler,
     FilterWavelengthHandler,
 )
-from skyportal.handlers.public import ReportHandler
+from skyportal.handlers.public import (
+    ReportHandler,
+    SourcePageHandler,
+)
 
 from . import model_util, openapi
 from .models import init_db
@@ -577,6 +580,7 @@ skyportal_handlers = [
     (r'/api/.*', InvalidEndpointHandler),
     # Public pages.
     (r'/public/reports/(gcn)(/[0-9]+)?(/.*)?', ReportHandler),
+    (r'/public/(source)(/[0-9A-Za-z-_\.\+]+)?', SourcePageHandler),
     (r'/public/.*', InvalidEndpointHandler),
     # Debug and logout pages.
     (r'/become_user(/.*)?', BecomeUserHandler),
