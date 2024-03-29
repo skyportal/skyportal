@@ -176,6 +176,7 @@ from .survey_efficiency import (
     SurveyEfficiencyForObservationPlanHandler,
     SurveyEfficiencyForObservationsHandler,
 )
+from .source_accessibility import SourceAccessibilityHandler
 from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler
 from .config_handler import ConfigHandler
