@@ -1657,6 +1657,29 @@ class ObjTNSHandler(BaseHandler):
                 photometry_options, tnsrobot.photometry_options
             )
 
+            # verify that there isn't already a TNSRobotSubmission for this object
+            # and TNSRobot, that is:
+            # 1. pending
+            # 2. processing
+            # 3. submitted
+            # 4. complete
+            # if so, do not add another request
+            existing_submission_request = session.scalars(
+                TNSRobotSubmission.select(session.user_or_token).where(
+                    TNSRobotSubmission.obj_id == obj.id,
+                    TNSRobotSubmission.tnsrobot_id == tnsrobot.id,
+                    sa.or_(
+                        TNSRobotSubmission.status == "pending",
+                        TNSRobotSubmission.status == "processing",
+                        TNSRobotSubmission.status.like("submitted%"),
+                        TNSRobotSubmission.status.like("complete%"),
+                    ),
+                )
+            ).first()
+            if existing_submission_request is not None:
+                return self.error(
+                    f'TNSRobotSubmission request for obj_id {obj.id} and tnsrobot_id {tnsrobot.id} already exists and is in status {existing_submission_request.status}'
+                )
             # create a TNSRobotSubmission entry with that information
             tnsrobot_submission = TNSRobotSubmission(
                 tnsrobot_id=tnsrobot.id,
@@ -1668,6 +1691,7 @@ class ObjTNSHandler(BaseHandler):
                 instrument_ids=instrument_ids,
                 stream_ids=stream_ids,
                 photometry_options=photometry_options,
+                auto_submission=False,
             )
             session.add(tnsrobot_submission)
             session.commit()
