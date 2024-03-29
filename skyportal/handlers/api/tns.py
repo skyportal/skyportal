@@ -1678,7 +1678,7 @@ class ObjTNSHandler(BaseHandler):
             ).first()
             if existing_submission_request is not None:
                 return self.error(
-                    f'TNSRobotSubmission request for obj_id {obj.id} and tnsrobot_id {tnsrobot.id} already exists and is in status {existing_submission_request.status}'
+                    f'TNSRobotSubmission request for obj_id {obj.id} and tnsrobot_id {tnsrobot.id} already exists and is: {existing_submission_request.status}'
                 )
             # create a TNSRobotSubmission entry with that information
             tnsrobot_submission = TNSRobotSubmission(
