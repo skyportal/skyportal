@@ -373,6 +373,7 @@ def process_queue(queue):
                     continue
 
                 try:
+                    # '110' is the TNS code we get when an object is not found
                     msg = (
                         tns_source_data.get("name", {})
                         .get("110", {})
