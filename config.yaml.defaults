@@ -27,6 +27,7 @@ app:
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://minar.caltech.edu/add_fritz
   sedmv2_endpoint:
+  trt_endpoint: https://trt.narit.or.th/hub/api
 
   lt_host: 161.72.57.3
   lt_port: 8080
