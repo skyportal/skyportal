@@ -219,18 +219,15 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
       first_and_last_detections: formData.first_and_last_detections,
     };
     delete formData.first_and_last_detections;
-    const result = await dispatch(sourceActions.addSourceTNS(obj_id, formData));
-    setSubmissionRequestInProcess(false);
-    if (result.status === "success") {
-      dispatch(showNotification("added to TNS submission queue"));
-    } else {
-      dispatch(
-        showNotification("Failed to add object to TNS submission queue"),
-      );
-    }
-    if (submitCallback) {
-      submitCallback();
-    }
+    dispatch(sourceActions.addSourceTNS(obj_id, formData)).then((result) => {
+      setSubmissionRequestInProcess(false);
+      if (result.status === "success") {
+        dispatch(showNotification("added to TNS submission queue"));
+      }
+      if (submitCallback) {
+        submitCallback();
+      }
+    });
   };
 
   const tnsrobotLookUp = {};

@@ -12,7 +12,7 @@ default_prefs = {'maxNumSources': 10, 'sinceDaysAgo': 7}
 
 class SourceViewsHandler(BaseHandler):
     @classmethod
-    def get_top_source_views_and_ids(self, current_user, session):
+    def get_top_source_views_and_ids(cls, current_user, session):
         user_prefs = getattr(current_user, 'preferences', None) or {}
         top_sources_prefs = user_prefs.get('topSources', {})
         top_sources_prefs = {**default_prefs, **top_sources_prefs}
@@ -31,7 +31,10 @@ class SourceViewsHandler(BaseHandler):
                 ],
             )
             .group_by(SourceView.obj_id)
-            .filter(SourceView.created_at >= cutoff_day)
+            .filter(
+                SourceView.created_at >= cutoff_day,
+                SourceView.is_token.is_(False),
+            )
             .order_by(desc('views'))
             .limit(max_num_sources)
         ).all()
