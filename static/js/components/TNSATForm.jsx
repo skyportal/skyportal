@@ -223,10 +223,6 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
     setSubmissionRequestInProcess(false);
     if (result.status === "success") {
       dispatch(showNotification("added to TNS submission queue"));
-    } else {
-      dispatch(
-        showNotification("Failed to add object to TNS submission queue"),
-      );
     }
     if (submitCallback) {
       submitCallback();
