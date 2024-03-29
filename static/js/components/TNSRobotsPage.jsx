@@ -926,7 +926,7 @@ const TNSRobotsPage = () => {
       testing: {
         type: "boolean",
         title: "Testing Mode",
-        default: tnsrobotListLookup[tnsrobotToManage]?.testing || true,
+        default: tnsrobotListLookup[tnsrobotToManage]?.testing,
         description:
           "If enabled, the bot will not submit to TNS but only store the payload in the DB (useful for debugging).",
       },
@@ -983,6 +983,8 @@ const TNSRobotsPage = () => {
     title: "Owner Group(s)",
   };
   createSchema.required.push("owner_group_ids");
+  // change the default of testing to be true
+  createSchema.properties.testing.default = true;
 
   const validate = (formData, errors) => {
     const { source_group_id } = formData;
