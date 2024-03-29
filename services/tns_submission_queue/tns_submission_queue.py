@@ -910,8 +910,35 @@ def process_submission_request(submission_request, session):
                         phot_to_keep.append(phot)
                         break
             if len(phot_to_keep) == 0:
+                # get the stream names to include in the error message
+                stream_names = (
+                    session.scalars(
+                        sa.select(Stream.name).where(Stream.id.in_(stream_ids))
+                    )
+                    .unique()
+                    .all()
+                )
                 raise TNSReportError(
-                    f'No photometry with streams {stream_ids} available for {obj_id}.'
+                    f"No photometry for {obj_id} with streams {', '.join(stream_names)}, cannot report to TNS."
+                )
+            # if we only have non-detections available with these streams, raise an error
+            if len(
+                [
+                    phot.mag
+                    for phot in phot_to_keep
+                    if phot.mag in [None, '', 'None', 'nan']
+                ]
+            ) == len(phot_to_keep):
+                # get the stream names to include in the error message
+                stream_names = (
+                    session.scalars(
+                        sa.select(Stream.name).where(Stream.id.in_(stream_ids))
+                    )
+                    .unique()
+                    .all()
+                )
+                raise TNSReportError(
+                    f"No detections for {obj_id} with streams {', '.join(stream_names)}, cannot report to TNS."
                 )
             photometry = phot_to_keep
 
