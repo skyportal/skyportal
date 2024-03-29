@@ -1006,7 +1006,7 @@ def check_at_report(submission_id, tnsrobot, tns_headers):
 
     Parameters
     ----------
-     submission_id : int
+    submission_id : int
         The ID of the submission request to check on TNS.
     tnsrobot : `~skyportal.models.TNSRobot`
         The TNSRobot instance to use for the check.
