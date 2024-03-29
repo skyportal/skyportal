@@ -252,6 +252,7 @@ def service(*args, **kwargs):
 
                     for plan_request in plan_requests:
                         plan_request.status = 'complete'
+                        session.merge(plan_request)
                     session.commit()
 
                 log(f"Generated plans: {plan_ids}")
