@@ -426,8 +426,8 @@ export function addSourceView(id) {
 export const publishSource = (sourceId, payload) =>
   API.POST(`/api/sources/${sourceId}/publish`, PUBLISH_SOURCE, payload);
 
-export const unpublishSource = (id) =>
-  API.POST(`/api/sources/${id}/unpublish`, UNPUBLISH_SOURCE);
+export const unpublishSource = (sourceId) =>
+  API.POST(`/api/sources/${sourceId}/unpublish`, UNPUBLISH_SOURCE);
 
 export function addSourceLabels(id, data) {
   return API.POST(`/api/sources/${id}/labels`, ADD_SOURCE_LABEL, data);
