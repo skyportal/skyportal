@@ -517,6 +517,7 @@ misc:
   minutes_to_keep_annotations_info_query_cache: 360
   minutes_to_keep_localization_instrument_query_cache: 1440
   max_items_in_localization_instrument_query_cache: 100
+  minutes_to_keep_public_source_pages_cache: 1440
   minutes_to_keep_reports_cache: 1440
   public_group_name: "Sitewide Group"
   # Use a named cosmology from `astropy.cosmology.parameters.available` cosmologies
