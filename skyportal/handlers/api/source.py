@@ -1944,18 +1944,44 @@ def post_source(data, user_id, session, refresh_source=True):
         if tnsrobot_group_with_autoreporter is not None:
             # add a request to submit to TNS for only the first group we save to
             # that has access to TNSRobot and auto_report is True
-            submission_request = TNSRobotSubmission(
-                obj_id=obj.id,
-                tnsrobot_id=tnsrobot_group_with_autoreporter.tnsrobot_id,
-                user_id=user.id,
-                auto_submission=True,
-            )
-            session.add(submission_request)
-            session.commit()
-            log(
-                f"Added TNSRobotSubmission request for obj_id {obj.id} saved to group {group.id} with tnsrobot_id {tnsrobot_group_with_autoreporter.tnsrobot_id} for user_id {user.id}"
-            )
-            break
+            #
+            # but first, check if there is already a submission request
+            # for this object and tnsrobot that is:
+            # 1. pending
+            # 2. processing
+            # 3. submitted
+            # 4. complete
+            # if so, do not add another request
+            existing_submission_request = session.scalars(
+                TNSRobotSubmission.select(session.user_or_token).where(
+                    TNSRobotSubmission.obj_id == obj.id,
+                    TNSRobotSubmission.tnsrobot_id
+                    == tnsrobot_group_with_autoreporter.tnsrobot_id,
+                    sa.or_(
+                        TNSRobotSubmission.status == "pending",
+                        TNSRobotSubmission.status == "processing",
+                        TNSRobotSubmission.status.like("submitted%"),
+                        TNSRobotSubmission.status.like("complete%"),
+                    ),
+                )
+            ).first()
+            if existing_submission_request is not None:
+                log(
+                    f"Submission request already exists for obj_id {obj.id} and tnsrobot_id {tnsrobot_group_with_autoreporter.tnsrobot_id}"
+                )
+            else:
+                submission_request = TNSRobotSubmission(
+                    obj_id=obj.id,
+                    tnsrobot_id=tnsrobot_group_with_autoreporter.tnsrobot_id,
+                    user_id=user.id,
+                    auto_submission=True,
+                )
+                session.add(submission_request)
+                session.commit()
+                log(
+                    f"Added TNSRobotSubmission request for obj_id {obj.id} saved to group {group.id} with tnsrobot_id {tnsrobot_group_with_autoreporter.tnsrobot_id} for user_id {user.id}"
+                )
+                break
 
     else:
         if refresh_source:

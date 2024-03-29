@@ -310,13 +310,18 @@ def process_queue(queue):
                     if tns_source in [None, "None", ""]:
                         raise ValueError(f'{task.get("obj_id")} not found on TNS.')
                     tns_name = f"{tns_prefix} {tns_source}"
-                elif (
-                    task.get("tns_source") is not None
-                    and task.get("tns_prefix") is not None
-                ):
+                elif task.get("tns_source") is not None:
                     # here we just want to create a TNS source
                     tns_source = task.get("tns_source")
-                    tns_name = f"{task.get('tns_prefix')} {task.get('tns_source')}"
+                    tns_prefix = task.get("tns_prefix")
+
+                    # providing the prefix is not mandatory, just nice for logging if we already have it
+                    # we will retrieve if anyway if it's not provided when fetching the object from TNS
+                    if tns_prefix is not None:
+                        tns_name = f"{tns_prefix} {tns_source}"
+                    else:
+                        tns_name = tns_source
+                    log(f"Processing TNS source {tns_name}")
                 else:
                     log("No obj_id or tns_name provided, skipping")
                     continue
@@ -366,6 +371,25 @@ def process_queue(queue):
                 if tns_source_data is None:
                     log(f"Error getting TNS data for {tns_name}: no reply in data")
                     continue
+
+                try:
+                    msg = (
+                        tns_source_data.get("name", {})
+                        .get("110", {})
+                        .get("message", None)
+                    )
+                    if msg == 'No results found.':
+                        log(f"Could not find {tns_name} on TNS at {TNS_URL}")
+                        continue
+                except Exception:
+                    pass
+
+                tns_prefix = tns_source_data.get("name_prefix", None)
+                if tns_prefix is None:
+                    log(f"Error processing TNS source {tns_name}: obj has no prefix")
+                    continue
+
+                tns_name = f"{tns_prefix} {tns_source}"
 
                 ra, dec = tns_source_data.get("radeg", None), tns_source_data.get(
                     "decdeg", None
@@ -540,6 +564,17 @@ def api(queue):
             except json.JSONDecodeError:
                 self.set_status(400)
                 return self.write({"status": "error", "message": "Malformed JSON data"})
+
+            if 'tns_source' in data:
+                queue.append({"tns_source": data['tns_source']})
+                self.set_status(200)
+                return self.write(
+                    {
+                        "status": "success",
+                        "message": "TNS request accepted into queue",
+                        "data": {"queue_length": len(queue)},
+                    }
+                )
 
             required_keys = {'obj_id', 'user_id'}
             if not required_keys.issubset(set(data.keys())):
