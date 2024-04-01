@@ -43,7 +43,7 @@ class SourcePageHandler(BaseHandler):
         """
 
         if source_id is None:
-            self.error("Source ID required")
+            return self.error("Source ID required")
 
         cache_key = f"source_{source_id}"
         cached = cache[cache_key]

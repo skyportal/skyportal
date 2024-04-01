@@ -49,20 +49,19 @@ class SourceAccessibility(Base):
         self.generate_public_source_page()
 
     def unpublish(self):
-        self.is_public = private
-        # TODO: This method does not necessarily need to delete the cache
         """Set the accessibility of a source to private."""
+        self.is_public = private
         cache_key = f"source_{self.source_id}"
         cached = cache[cache_key]
         if cached is not None:
             data = np.load(cached, allow_pickle=True)
             data = data.item()
             cache[cache_key] = dict_to_bytes(
-                {"published": False, "html": data["html"]}
+                {"public": False, "html": data["html"]}
             )
         else:
             cache[cache_key] = dict_to_bytes(
-                {"published": False, "html": None}
+                {"public": False, "html": None}
             )
 
     def generate_html(self):

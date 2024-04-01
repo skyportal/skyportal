@@ -30,6 +30,15 @@ class SourceAccessibilityHandler(BaseHandler):
                 type: string
                 required: true
                 description: The ID of the source from which to create accessibility information
+          requestBody:
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    publish:
+                      type: boolean
+                      description: Whether to make the source public or not
           responses:
             200:
               content:
@@ -50,18 +59,22 @@ class SourceAccessibilityHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        payload = self.get_json()
+        data = self.get_json()
+        if data is None or data == {}:
+            return self.error("No data provided")
         if source_id is None:
             return self.error("Source ID is required")
-        if payload.get('publish') is None:
-            return self.error("Publish field is required")
+        publish = data.get("publish")
+        if publish is None or not isinstance(publish, bool):
+            return self.error("An invalid value was provided for publish")
+
         with self.Session() as session:
             source_accessibility = SourceAccessibility(
                 source_id=source_id,
                 data={"status": ""},
                 is_public=False,
             )
-            if payload.get('publish'):
+            if publish:
                 source_accessibility.publish()
             session.add(source_accessibility)
             session.commit()
@@ -95,7 +108,7 @@ class SourceAccessibilityHandler(BaseHandler):
         if source_id is None:
             return self.error("Source ID is required")
         with self.Session() as session:
-            stmt = SourceAccessibility.select(mode="read").where(
+            stmt = SourceAccessibility.select(session.user_or_token, mode="read").where(
                 SourceAccessibility.source_id == source_id
             )
             source_accessibility = session.scalars(stmt).first()
@@ -123,8 +136,9 @@ class SourceAccessibilityHandler(BaseHandler):
               schema:
                 type: object
                 properties:
-                  data:
-                    type: object
+                  publish:
+                    type: boolean
+                    description: Whether to make the source public or not
         responses:
           200:
             content:
@@ -141,27 +155,23 @@ class SourceAccessibilityHandler(BaseHandler):
         if source_id is None:
             return self.error("Source ID is required")
         publish = data.get("publish")
-        if publish is not None and isinstance(publish, bool):
+        if publish is None or not isinstance(publish, bool):
             return self.error("An invalid value was provided for publish")
 
         with self.Session() as session:
-            stmt = SourceAccessibility.select(mode="read").where(
-                SourceAccessibility.source_id == source_id,
-                SourceAccessibility.isSourcePublic != publish,
-            )
-            source_accessibility = session.scalars(stmt).first()
-            if source_accessibility is None:
-                return self.error("Accessibility information from this source not found", status=404)
-            source_accessibility.publish() if publish else source_accessibility.unpublish()
-            session.commit()
+            source_accessibility = session.scalars(
+                SourceAccessibility.select(session.user_or_token, mode="update")
+                .where(SourceAccessibility.source_id == source_id)
+            ).first()
+            if source_accessibility and source_accessibility.is_public != publish:
+                # If source_accessibility exists and the publish value is different, update it
+                source_accessibility.publish() if publish else source_accessibility.unpublish()
+                session.commit()
+                return self.success(data=source_accessibility)
 
-            # TODO: This should refresh the public source page with the new data
-            # self.push_all(
-            #     action="skyportal/REFRESH_PUBLIC_SOURCE_PAGE",
-            #     payload={"source_id": source_id},
-            # )
-
-            return self.success(data=source_accessibility)
+        # If source_accessibility does not yet exist for this source, create one
+        if source_accessibility is None:
+            await self.post(source_id)
 
     @auth_or_token
     def delete(self, source_id):
@@ -192,7 +202,7 @@ class SourceAccessibilityHandler(BaseHandler):
             return self.error("Source ID is required")
 
         with self.Session() as session:
-            stmt = SourceAccessibility.select(mode="delete").where(
+            stmt = SourceAccessibility.select(session.user_or_token, mode="delete").where(
                 SourceAccessibility.source_id == source_id,
             )
             source_accessibility = session.scalars(stmt).first()
