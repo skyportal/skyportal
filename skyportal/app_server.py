@@ -580,7 +580,7 @@ skyportal_handlers = [
     (r'/api/.*', InvalidEndpointHandler),
     # Public pages.
     (r'/public/reports/(gcn)(/[0-9]+)?(/.*)?', ReportHandler),
-    (r'/public/(source)(/[0-9A-Za-z-_\.\+]+)?', SourcePageHandler),
+    (r'/public/sources(/[0-9A-Za-z-_\.\+]+)?', SourcePageHandler),
     (r'/public/.*', InvalidEndpointHandler),
     # Debug and logout pages.
     (r'/become_user(/.*)?', BecomeUserHandler),

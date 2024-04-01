@@ -1,10 +1,8 @@
 import numpy as np
-import sqlalchemy as sa
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from baselayer.app.env import load_env
 
-from ...models import DBSession, SourceAccessibility
 from ...utils.cache import Cache
 from ..base import BaseHandler
 
@@ -18,16 +16,21 @@ cache = Cache(
     max_age=cfg["misc.minutes_to_keep_public_source_pages_cache"] * 60,
 )
 
-ALLOWED_PAGE_TYPES = ["source"]
-
 
 class SourcePageHandler(BaseHandler):
-    def get(self, page_type, page_id):
+    def get(self, source_id):
         """
         ---
-        description: Retrieve all public source pages
+        description: Display a public source page
         tags:
-          - public_source_pages
+          - public_source_page
+        parameters:
+            - in: path
+              name: source_id
+              required: true
+              schema:
+                type: integer
+              description: The ID of the source to display
         responses:
           200:
             content:
@@ -39,18 +42,13 @@ class SourcePageHandler(BaseHandler):
                 schema: Error
         """
 
-        if page_type not in ALLOWED_PAGE_TYPES:
-            return self.error(
-                f"Invalid report type {page_type}, must be one of {ALLOWED_PAGE_TYPES}"
-            )
+        if source_id is None:
+            self.error("Source ID required")
 
-        if page_id is None:
-            return self.error(f"Page ID is required")
-
-        cache_key = f"{page_type}_{page_id}"
+        cache_key = f"source_{source_id}"
         cached = cache[cache_key]
         if cached is None:
-            return self.error(f"Page {page_id} not in cache")
+            self.error("Page not found", status=404)
             # if Session.registry.has():
             #     session = Session()
             # else:
@@ -73,4 +71,4 @@ class SourcePageHandler(BaseHandler):
             self.set_header("Content-Type", "text/html; charset=utf-8")
             return self.write(data['html'])
         else:
-            return self.error(f"This page is not available")
+            return self.error("This page is not available")

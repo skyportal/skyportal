@@ -52,7 +52,7 @@ class SourceAccessibility(Base):
         self.is_public = private
         # TODO: This method does not necessarily need to delete the cache
         """Set the accessibility of a source to private."""
-        cache_key = f"src_{self.source_id}"
+        cache_key = f"source_{self.source_id}"
         cached = cache[cache_key]
         if cached is not None:
             data = np.load(cached, allow_pickle=True)
@@ -95,7 +95,7 @@ class SourceAccessibility(Base):
         # Set the data status to pending to indicate that the page is being generated
         self.data.update({"status": "pending"})
 
-        cache_key = f"src_{self.source_id}"
+        cache_key = f"source_{self.source_id}"
         public_source_page = self.generate_html()
         cache[cache_key] = dict_to_bytes({"public": True, "html": public_source_page})
         self.data.update({"status": "success"})
