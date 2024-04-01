@@ -63,6 +63,7 @@ from ...models import (
     Photometry,
     PhotStat,
     Source,
+    SourceAccessibility,
     SourceLabel,
     SourceNotification,
     SourcesConfirmedInGCN,
@@ -172,6 +173,7 @@ async def get_source(
     include_requested=False,
     requested_only=False,
     include_color_mag=False,
+    include_accessibility=False,
     include_gcn_crossmatches=False,
 ):
     """Query source from database.
@@ -516,6 +518,13 @@ async def get_source(
     if include_color_mag:
         source_info["color_magnitude"] = get_color_mag(annotations)
 
+    # Retrieve source accessibility information
+    if include_accessibility:
+        source_info["is_public"] = session.scalar(
+            sa.select(SourceAccessibility.is_public)
+            .where(SourceAccessibility.source_id == str(source_info["id"]))
+        ) or None
+        
     source_info = recursive_to_dict(source_info)
     return source_info
 
@@ -2273,6 +2282,13 @@ class SourceHandler(BaseHandler):
               If no data is available, returns an empty array.
               Defaults to false (do not search for nor include this info).
           - in: query
+            name: includeAccessibility
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+                Boolean indicating whether to include the accessibility of the source. 
+          - in: query
             name: includeRequested
             nullable: true
             schema:
@@ -2714,6 +2730,7 @@ class SourceHandler(BaseHandler):
         include_photometry = self.get_query_argument("includePhotometry", False)
         deduplicate_photometry = self.get_query_argument("deduplicatePhotometry", False)
         include_color_mag = self.get_query_argument("includeColorMagnitude", False)
+        include_accessibility = self.get_query_argument("includeAccessibility", False)
         include_requested = self.get_query_argument("includeRequested", False)
         include_thumbnails = self.get_query_argument("includeThumbnails", False)
         requested_only = self.get_query_argument("pendingOnly", False)
@@ -2931,6 +2948,7 @@ class SourceHandler(BaseHandler):
                         include_requested=include_requested,
                         requested_only=requested_only,
                         include_color_mag=include_color_mag,
+                        include_accessibility=include_accessibility,
                         include_gcn_crossmatches=include_gcn_crossmatches,
                     )
                 except Exception as e:

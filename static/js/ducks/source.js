@@ -400,6 +400,7 @@ export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
     includeLabellers: true,
     includeDetectionStats: true,
     includeGCNCrossmatches: true,
+    includeAccessibility: true,
   };
   const queryString = new URLSearchParams(urlParams).toString();
   return API.GET(`/api/sources/${id}?${queryString}`, actionType);

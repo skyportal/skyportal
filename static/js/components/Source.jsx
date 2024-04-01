@@ -300,7 +300,7 @@ const SourceContent = ({ source }) => {
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
     useState(false);
   const [tnsDialogOpen, setTNSDialogOpen] = useState(false);
-  const [isPublished, setIsPublished] = useState(false);
+  const [isPublished, setIsPublished] = useState(source.is_public);
   const [publishedDialogOpen, setPublishedDialogOpen] = useState(false);
 
   // Needed for buttons that open popover menus, indicates where the popover should be anchored
