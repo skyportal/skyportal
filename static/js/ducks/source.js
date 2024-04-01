@@ -52,10 +52,6 @@ const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW =
 const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK =
   "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK";
 
-const PUBLISH_SOURCE = "skyportal/PUBLISH_SOURCE";
-
-const UNPUBLISH_SOURCE = "skyportal/UNPUBLISH_SOURCE";
-
 const ADD_SOURCE_VIEW = "skyportal/ADD_SOURCE_VIEW";
 
 const ADD_SOURCE_LABEL = "skyportal/ADD_SOURCE_LABEL";
@@ -422,12 +418,6 @@ export function checkSource(id, params, actionType = CHECK_SOURCE) {
 export function addSourceView(id) {
   return API.POST(`/api/internal/source_views/${id}`, ADD_SOURCE_VIEW);
 }
-
-export const publishSource = (sourceId, payload) =>
-  API.POST(`/api/sources/${sourceId}/publish`, PUBLISH_SOURCE, payload);
-
-export const unpublishSource = (sourceId) =>
-  API.POST(`/api/sources/${sourceId}/unpublish`, UNPUBLISH_SOURCE);
 
 export function addSourceLabels(id, data) {
   return API.POST(`/api/sources/${id}/labels`, ADD_SOURCE_LABEL, data);

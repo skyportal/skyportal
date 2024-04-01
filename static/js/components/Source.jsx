@@ -74,9 +74,11 @@ import Button from "./Button";
 
 import SourcePlugins from "./SourcePlugins";
 
+import * as accessibilityActions from "../ducks/source_accessibility";
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
+
 import PhotometryPlot from "./PhotometryPlot";
 import SpectraPlot from "./SpectraPlot";
 import PhotometryMagsys from "./PhotometryMagsys";
@@ -374,14 +376,15 @@ const SourceContent = ({ source }) => {
   }, [source.id, magsys, dispatch]);
 
   const publishThisSource = () => {
-    const payload = {};
+    const payload = {publish: true};
+    dispatch(accessibilityActions.updateSourceAccessibility(source.id, payload));
     setPublishedDialogOpen(false);
-    dispatch(sourceActions.publishSource(source.id, payload));
     setIsPublished(true);
   };
 
   const unpublishThisSource = () => {
-    dispatch(sourceActions.unpublishSource(source.id));
+    const payload = {publish: false};
+    dispatch(accessibilityActions.updateSourceAccessibility(source.id, payload));
     setIsPublished(false);
   };
 
@@ -1104,7 +1107,7 @@ const SourceContent = ({ source }) => {
               </div>
               <div className={classes.infoButton}>
                 <a
-                    href={`/public/sources/src/${source.id}`}
+                    href={`/public/sources/${source.id}`}
                     target="_blank"
                     rel="noreferrer"
                 >

@@ -48,7 +48,7 @@ class SourcePageHandler(BaseHandler):
         cache_key = f"source_{source_id}"
         cached = cache[cache_key]
         if cached is None:
-            self.error("Page not found", status=404)
+            return self.error("Page not found", status=404)
             # if Session.registry.has():
             #     session = Session()
             # else:

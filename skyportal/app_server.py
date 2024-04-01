@@ -452,7 +452,7 @@ skyportal_handlers = [
     (r'/api/recurring_api(/.*)?', RecurringAPIHandler),
     (r'/api/roles', RoleHandler),
     (r'/api/skymap_trigger(/[0-9]+)?', SkymapTriggerAPIHandler),
-    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/(publish|unpublish)', SourceAccessibilityHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/accessibility', SourceAccessibilityHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/copy_photometry', SourceCopyPhotometryHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/photometry', ObjPhotometryHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/spectra', ObjSpectraHandler),

@@ -17,12 +17,12 @@ Session = scoped_session(sessionmaker())
 
 class SourceAccessibilityHandler(BaseHandler):
     @auth_or_token
-    async def post(self, source_id, action):
+    async def post(self, source_id):
         """
         ---
           description: Create accessibility information for a source
           tags:
-            - sourceaccessibility
+            - source_accessibility
           parameters:
             - in: path
               name: source_id
@@ -50,17 +50,18 @@ class SourceAccessibilityHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        payload = self.get_json()
         if source_id is None:
             return self.error("Source ID is required")
-        if action is None:
-            return self.error("Invalid action")
+        if payload.get('publish') is None:
+            return self.error("Publish field is required")
         with self.Session() as session:
             source_accessibility = SourceAccessibility(
                 source_id=source_id,
                 data={"status": ""},
                 is_public=False,
             )
-            if action == 'publish':
+            if payload.get('publish'):
                 source_accessibility.publish()
             session.add(source_accessibility)
             session.commit()
