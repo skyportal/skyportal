@@ -1,4 +1,7 @@
 import os
+import time
+
+import numpy as np
 
 from skyportal.tests import api
 
@@ -15,6 +18,39 @@ def test_add_and_retrieve_comment_on_gcn(
     assert status == 200
     assert data['status'] == 'success'
     gcnevent_id = data['data']['gcnevent_id']
+
+    # wait for event to load
+    n_times = 0
+    for n_times in range(26):
+        status, data = api(
+            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
+        )
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+    assert n_times < 25
+
+    # wait for the localization to load
+    params = {"include2DMap": True}
+
+    n_times_2 = 0
+    for n_times_2 in range(26):
+        status, data = api(
+            'GET',
+            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
+            token=super_admin_token,
+            params=params,
+        )
+
+        if data['status'] == 'success':
+            data = data["data"]
+            assert data["dateobs"] == "2019-08-14T21:10:39"
+            assert data["localization_name"] == "LALInference.v1.fits.gz"
+            assert np.isclose(np.sum(data["flat_2d"]), 1)
+            break
+        else:
+            time.sleep(2)
+    assert n_times_2 < 25
 
     status, data = api(
         'POST',
