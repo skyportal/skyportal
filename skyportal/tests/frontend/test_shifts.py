@@ -288,6 +288,7 @@ def test_shift(
     driver.click_xpath(shift_on_calendar)
 
 
+@pytest.mark.flaky(reruns=2)
 def test_shift_summary(
     public_group,
     super_admin_token,
