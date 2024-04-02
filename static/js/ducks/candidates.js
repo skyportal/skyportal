@@ -10,6 +10,10 @@ const FETCH_CANDIDATES_OK = "skyportal/FETCH_CANDIDATES_OK";
 const FETCH_CANDIDATE_AND_MERGE = "skyportal/FETCH_CANDIDATE_AND_MERGE";
 const FETCH_CANDIDATE_AND_MERGE_OK = "skyportal/FETCH_CANDIDATE_AND_MERGE_OK";
 
+const FETCH_CANDIDATES_AND_APPEND = "skyportal/FETCH_CANDIDATES_AND_APPEND";
+const FETCH_CANDIDATES_AND_APPEND_OK =
+  "skyportal/FETCH_CANDIDATES_AND_APPEND_OK";
+
 const REFRESH_CANDIDATE = "skyportal/REFRESH_CANDIDATE";
 
 const SET_CANDIDATES_ANNOTATION_SORT_OPTIONS =
@@ -24,11 +28,15 @@ const SET_CANDIDATES_FILTER_FORM_DATA =
 const GENERATE_PS1_THUMBNAIL = "skyportal/GENERATE_PS1_THUMBNAIL";
 const GENERATE_PS1_THUMBNAILS = "skyportal/GENERATE_PS1_THUMBNAILS";
 
-export const fetchCandidates = (filterParams = {}) => {
+export const fetchCandidates = (filterParams = {}, append = false) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
   }
-  return API.GET("/api/candidates", FETCH_CANDIDATES, filterParams);
+  return API.GET(
+    "/api/candidates",
+    append === false ? FETCH_CANDIDATES : FETCH_CANDIDATES_AND_APPEND,
+    filterParams,
+  );
 };
 
 export const generateSurveyThumbnail = (objID) =>
@@ -104,6 +112,16 @@ const reducer = (state = initialState, action) => {
         candidate.id !== action.data.id ? candidate : action.data,
       );
       return { ...state, candidates };
+    }
+    case FETCH_CANDIDATES_AND_APPEND_OK: {
+      const { candidates, pageNumber, totalMatches, queryID } = action.data;
+      return {
+        ...state,
+        candidates: state.candidates.concat(candidates),
+        pageNumber,
+        totalMatches,
+        queryID,
+      };
     }
     case SET_CANDIDATES_ANNOTATION_SORT_OPTIONS: {
       return { ...state, selectedAnnotationSortOptions: action.item };

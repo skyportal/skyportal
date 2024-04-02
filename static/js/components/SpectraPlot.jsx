@@ -369,7 +369,12 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     return [];
   };
 
-  const createLayouts = (spectrumType, specStats_value, redshift_value) => {
+  const createLayouts = (
+    spectrumType,
+    specStats_value,
+    redshift_value,
+    vexp_value,
+  ) => {
     const newLayouts = {
       xaxis: {
         title: "Wavelength (Å)",
@@ -391,7 +396,8 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         overlaying: "x",
         showgrid: false,
         range: specStats_value[spectrumType].wavelength.range.map(
-          (w) => w / (1 + (redshift_value || 0)),
+          (w) =>
+            (w / (1 + (redshift_value || 0))) * (1 + (vexp_value || 0) / C),
         ),
         tickformat: ".6~f",
         zeroline: false,
@@ -423,11 +429,33 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         setPlotData(traces);
       }
       if (plotData === null) {
-        const newLayouts = createLayouts(types[tabIndex], specStats, redshift);
+        const newLayouts = createLayouts(
+          types[tabIndex],
+          specStats,
+          redshiftInput || redshift,
+          vExpInput,
+        );
         setLayouts(newLayouts);
       }
     }
   }, [data, types, specStats, layoutReset, redshift, smoothingInput]);
+
+  useEffect(() => {
+    if (
+      data !== null &&
+      types?.length > 0 &&
+      specStats !== null &&
+      plotData !== null
+    ) {
+      const newLayouts = createLayouts(
+        types[tabIndex],
+        specStats,
+        redshiftInput,
+        vExpInput,
+      );
+      setLayouts(newLayouts);
+    }
+  }, [redshiftInput, vExpInput]);
 
   useEffect(() => {
     if (
@@ -444,7 +472,12 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         plotData,
       );
       setPlotData(traces);
-      const newLayouts = createLayouts(types[tabIndex], specStats, redshift);
+      const newLayouts = createLayouts(
+        types[tabIndex],
+        specStats,
+        redshiftInput,
+        vExpInput,
+      );
       setLayouts(newLayouts);
     }
   }, [tabIndex]);
@@ -457,7 +490,12 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
       plotData !== null &&
       layoutReset
     ) {
-      const newLayouts = createLayouts(types[tabIndex], specStats, redshift);
+      const newLayouts = createLayouts(
+        types[tabIndex],
+        specStats,
+        redshiftInput,
+        vExpInput,
+      );
       setLayouts(newLayouts);
       setLayoutReset(false);
     }
@@ -492,9 +530,9 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
             color: line.color,
             width: 1,
           },
-          hovertemplate: `Name: ${line.name}<br>Wavelength: ${x.toFixed(
+          hovertemplate: `Name: ${line.name}<br>Rest Wavelength: ${x.toFixed(
             3,
-          )}<extra></extra>`,
+          )} Å<br>Wavelength: ${shiftedX.toFixed(3)} Å<extra></extra>`,
           name: line.name,
           legendgroup: line.name,
           showlegend: false,
@@ -613,6 +651,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
             // the native autoScale2d and resetScale2d buttons are not working
             // as they are not resetting to the specified ranges
             // so, we remove them and add our own
+            showAxisDragHandles: false,
             modeBarButtonsToRemove: [
               "autoScale2d",
               "resetScale2d",

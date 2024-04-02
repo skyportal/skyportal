@@ -2,6 +2,7 @@ import asyncio
 import functools
 import io
 import json
+import os
 import random
 import re
 import tempfile
@@ -1208,21 +1209,66 @@ class ObservationPlanNameHandler(BaseHandler):
     def get(self):
         """
         ---
-        description: Get all Observation Plan names
-        tags:
-          - observation_plans
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
+        multiple:
+            description: Get all Observation Plan names
+            tags:
+              - observation_plans
+            responses:
+              200:
+                content:
+                  application/json:
+                    schema: Success
+              400:
+                content:
+                  application/json:
+                    schema: Error
+        single:
+            description: Verify that an Observation Plan name exists
+            tags:
+              - observation_plans
+            parameters:
+              - in: query
+                name: name
+                required: false
+                schema:
+                  type: string
+                description: The name of the Observation Plan
+            responses:
+              200:
+                content:
+                  application/json:
+                    schema: Success
+              400:
+                content:
+                  application/json:
+                    schema: Error
+
+
         """
+        name = self.get_query_argument("name", None)
 
         with self.Session() as session:
+            if name:
+                plan = session.scalar(
+                    sa.select(EventObservationPlan.id).where(
+                        EventObservationPlan.plan_name == name
+                    )
+                )
+                if plan:
+                    return self.success(data={"exists": True})
+
+                # look into the observation plan requests
+                # these don't have a plan name, but they have a queue_name in their JSONB payload
+                plan = session.scalar(
+                    sa.select(ObservationPlanRequest.id).where(
+                        ObservationPlanRequest.payload["queue_name"].astext == name
+                    )
+                )
+                if plan:
+                    return self.success(data={"exists": True})
+
+                return self.success(data={"exists": False})
+
             plan_names = (
                 session.scalars(sa.select(EventObservationPlan.plan_name).distinct())
                 .unique()
@@ -2693,6 +2739,8 @@ def observation_simsurvey(
             mjd_range=(trigger_time.jd, trigger_time.jd),
             transientprop=transientprop,
             skymap=map_struct,
+            sfd98_dir=os.path.join(cfg['misc.dustmap_folder'], "sfd"),
+            apply_mwebv=True,
         )
 
         survey = simsurvey.SimulSurvey(

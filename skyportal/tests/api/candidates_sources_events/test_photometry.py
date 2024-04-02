@@ -537,7 +537,7 @@ def test_post_multiple_photometry_scalar_altdata(
 
 
 def test_token_user_post_put_photometry_data(
-    upload_data_token, public_source, public_group, ztf_camera
+    super_admin_token, upload_data_token, public_source, public_group, ztf_camera
 ):
     status, data = api(
         'POST',
@@ -613,6 +613,84 @@ def test_token_user_post_put_photometry_data(
     new_ids = data["data"]["ids"]
     assert len(new_ids) == 3
     assert len(set(new_ids).intersection(set(ids))) == 1
+
+    # next we test the duplicate_ignore_flux + overwrite_flux arguments.
+    # When duplicate_ignore_flux is True, the flux and fluxerr are not used when looking for existing
+    # duplicates of the new datapoint we are trying to add.
+    #
+    # If overwrite_flux is also true, we do not just ignore the new datapoint
+    # as we usually do, but we update the existing duplicate's flux and fluxerr.
+    # This should ONLY work if the new datapoint and the existing duplicates have an origin specified.
+
+    # so we send:
+    # - same first point with different flux, should not be updated because the existing point does NOT have an origin
+    # - same second point with different flux, should be updated because the existing poitn has an origin
+    # - different third point, should be added as usual.
+    ids = new_ids
+    input_data = {
+        'obj_id': str(public_source.id),
+        'instrument_id': ztf_camera.id,
+        "mjd": [59400, 59401, 59403],
+        "mag": [20.2, 20.3, np.random.uniform(18, 19)],
+        "magerr": [0.05, 0.1, np.random.uniform(0.01, 0.1)],
+        "limiting_mag": [21.0, 20.1, 20.2],
+        "magsys": ["ab", "ab", "ab"],
+        "filter": ["ztfr", "ztfg", "ztfr"],
+        "ra": [42.01, 42.01, 42.02],
+        "dec": [42.02, 42.01, 42.03],
+        "origin": [None, "omg", "lol"],
+        'group_ids': [public_group.id],
+    }
+
+    # this feature is reserved to super admin, so this should fail
+    status, data = api(
+        'PUT',
+        'photometry?duplicate_ignore_flux=True&overwrite_flux=True',
+        data=input_data,
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert (
+        "Ignoring flux/fluxerr when checking for duplicates is reserved to super admin users only"
+        in data["message"]
+    )
+
+    # try with the super admin token now
+    status, data = api(
+        'PUT',
+        'photometry?duplicate_ignore_flux=True&overwrite_flux=True',
+        data=input_data,
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    new_ids = data["data"]["ids"]
+    assert len(new_ids) == 3
+    # we should have 1 same + 1 updated - 1 new = 2 identical ids
+    assert len(set(new_ids).intersection(set(ids))) == 2
+
+    # GET the photometry
+    # First point should be identical
+    status, data = api(
+        'GET', f'photometry/{ids[0]}?format=mag', token=upload_data_token
+    )
+    assert status == 200
+    assert "data" in data
+    data = data["data"]
+    assert data["mjd"] == 59400
+    assert data["mag"] == 19.2
+    assert data["magerr"] == 0.05
+
+    # second point should be updated
+    status, data = api(
+        'GET', f'photometry/{ids[1]}?format=mag', token=upload_data_token
+    )
+    assert status == 200
+    assert "data" in data
+    data = data["data"]
+    assert data["mjd"] == 59401
+    assert data["mag"] == 20.3
+    assert data["magerr"] == 0.1
 
 
 def test_token_user_post_put_get_photometry_data(
@@ -2941,3 +3019,129 @@ def test_token_user_delete_object_photometry(
     assert status == 200
     assert data['status'] == 'success'
     assert len(data['data']) == 0
+
+
+def test_photometry_validation(
+    super_admin_token, upload_data_token, view_only_token, ztf_camera, public_group
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'mag': None,
+            'magerr': None,
+            'limiting_mag': 22.3,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    photometry_id = data['data']['ids'][0]
+
+    # insufficient access, should fail
+    status, data = api(
+        'POST',
+        f'photometry/{photometry_id}/validation',
+        data={
+            'validated': True,
+            'explanation': 'GOOD SUBTRACTION',
+            'notes': 'beautiful image',
+        },
+        token=view_only_token,
+    )
+    assert status == 401
+    assert data['status'] == 'error'
+
+    status, data = api(
+        'POST',
+        f'photometry/{photometry_id}/validation',
+        data={
+            'validated': True,
+            'explanation': 'GOOD SUBTRACTION',
+            'notes': 'beautiful image',
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET',
+        f'sources/{obj_id}/photometry',
+        token=view_only_token,
+        params={'includeValidationInfo': True},
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) > 0
+    assert len(data['data'][0]['validations']) > 0
+    assert data['data'][0]['validations'][0]['explanation'] == 'GOOD SUBTRACTION'
+    assert data['data'][0]['validations'][0]['notes'] == 'beautiful image'
+    assert data['data'][0]['validations'][0]['validated'] is True
+
+    status, data = api(
+        'PATCH',
+        f'photometry/{photometry_id}/validation',
+        data={
+            'validated': False,
+            'explanation': 'BAD SUBTRACTION',
+            'notes': 'ugly image',
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET',
+        f'sources/{obj_id}/photometry',
+        token=view_only_token,
+        params={'includeValidationInfo': True},
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) > 0
+    assert len(data['data'][0]['validations']) > 0
+    assert data['data'][0]['validations'][0]['explanation'] == 'BAD SUBTRACTION'
+    assert data['data'][0]['validations'][0]['notes'] == 'ugly image'
+    assert data['data'][0]['validations'][0]['validated'] is False
+
+    status, data = api(
+        'DELETE',
+        f'photometry/{photometry_id}/validation',
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET',
+        f'sources/{obj_id}/photometry',
+        token=view_only_token,
+        params={'includeValidationInfo': True},
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) > 0
+    assert len(data['data'][0]['validations']) == 0

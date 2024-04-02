@@ -63,7 +63,6 @@ import AnalysisList from "./AnalysisList";
 import AnalysisForm from "./AnalysisForm";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
-import PhotometryDownload from "./PhotometryDownload";
 import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
@@ -79,6 +78,7 @@ import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
 import PhotometryPlot from "./PhotometryPlot";
 import SpectraPlot from "./SpectraPlot";
+import PhotometryMagsys from "./PhotometryMagsys";
 
 const CommentList = React.lazy(() => import("./CommentList"));
 const CommentListMobile = React.lazy(() => import("./CommentListMobile"));
@@ -287,7 +287,6 @@ const SourceContent = ({ source }) => {
   const photometry = useSelector((state) => state.photometry[source.id]);
   const spectra = useSelector((state) => state.spectra)[source.id];
   const associatedGCNs = useSelector((state) => state.source.associatedGCNs);
-  const image_analysis = useSelector((state) => state.config.image_analysis);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments,
@@ -310,6 +309,7 @@ const SourceContent = ({ source }) => {
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
+  const [magsys, setMagsys] = useState("ab");
 
   const downSm = useMediaQuery((theme) => theme.breakpoints.down("sm"));
   const downMd = useMediaQuery((theme) => theme.breakpoints.down("md"));
@@ -355,11 +355,20 @@ const SourceContent = ({ source }) => {
     ":",
   )}`;
 
+  // associatedGCNs is an array of dateobs
+  // source.gcn_crossmatch is an array of objects with dateobs
+  // we want to combine these two arrays into one array of dateobs deduplicated
+  // and sorted by date in descending order
+  const gcn_crossmatches = (associatedGCNs || [])
+    .concat((source.gcn_crossmatch || []).map((gcn) => gcn.dateobs))
+    .filter((gcn, index, self) => self.indexOf(gcn) === index)
+    .sort((a, b) => new Date(b) - new Date(a));
+
   useEffect(() => {
-    dispatch(photometryActions.fetchSourcePhotometry(source.id));
+    dispatch(photometryActions.fetchSourcePhotometry(source.id, { magsys }));
     dispatch(spectraActions.fetchSourceSpectra(source.id));
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
-  }, [source.id, dispatch]);
+  }, [source.id, magsys, dispatch]);
 
   const setHost = (galaxyName) => {
     dispatch(sourceActions.addHost(source.id, { galaxyName }));
@@ -776,16 +785,7 @@ const SourceContent = ({ source }) => {
                 <b>GCN Crossmatches: &nbsp;</b>
                 {source.gcn_crossmatch?.length > 0 && (
                   <SourceGCNCrossmatchList
-                    gcn_crossmatches={
-                      (associatedGCNs || [])
-                        .map(
-                          (dateobs) =>
-                            ({
-                              dateobs,
-                            }) || [],
-                        )
-                        .concat(source.gcn_crossmatch) || []
-                    }
+                    gcn_crossmatches={gcn_crossmatches}
                   />
                 )}
                 {hovering === "gcn" && (
@@ -1022,11 +1022,8 @@ const SourceContent = ({ source }) => {
                   <DialogTitle>Submit to TNS</DialogTitle>
                   <DialogContent>
                     <TNSATForm
-                      sourceID={source.id}
-                      ra={source.ra}
-                      dec={source.dec}
-                      tns_info={source.tns_info}
-                      tnsSubmitCallback={() => setTNSDialogOpen(false)}
+                      obj_id={source.id}
+                      submitCallback={() => setTNSDialogOpen(false)}
                     />
                   </DialogContent>
                 </Dialog>
@@ -1225,10 +1222,20 @@ const SourceContent = ({ source }) => {
                 <Typography className={classes.accordionHeading}>
                   Photometry
                 </Typography>
-                <DisplayPhotStats
-                  photstats={source.photstats[0]}
-                  display_header={false}
-                />
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexDirection: "row",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <DisplayPhotStats
+                    photstats={source.photstats[0]}
+                    display_header={false}
+                  />
+                  <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
+                </div>
               </div>
             </AccordionSummary>
             <AccordionDetails className={classes.accordionPlot}>
@@ -1264,6 +1271,7 @@ const SourceContent = ({ source }) => {
                           height: rightPanelVisible ? "65vh" : "75vh",
                         }}
                         mode={downMd ? "mobile" : "desktop"}
+                        magsys={magsys}
                       />
                     </Suspense>
                   )}
@@ -1284,24 +1292,11 @@ const SourceContent = ({ source }) => {
                   <Link to={`/upload_photometry/${source.id}`} role="link">
                     <Button secondary>Upload photometry</Button>
                   </Link>
-                  <PhotometryDownload
-                    obj_id={source.id}
-                    photometry={photometry}
-                  />
                   {photometry && (
                     <Link to={`/source/${source.id}/periodogram`} role="link">
                       <Button secondary>Periodogram Analysis</Button>
                     </Link>
                   )}
-                  {currentUser?.permissions?.includes("Upload data") &&
-                    image_analysis && (
-                      <Link
-                        to={`/source/${source.id}/image_analysis`}
-                        role="link"
-                      >
-                        <Button variant="contained">Image Analysis</Button>
-                      </Link>
-                    )}
                 </div>
               </Grid>
             </AccordionDetails>
@@ -1482,6 +1477,8 @@ const SourceContent = ({ source }) => {
           onClose={() => {
             setShowPhotometry(false);
           }}
+          magsys={magsys}
+          setMagsys={setMagsys}
         />
       </Grid>
     </Grid>

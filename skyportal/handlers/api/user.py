@@ -352,6 +352,12 @@ class UserHandler(BaseHandler):
                 stmt = stmt.limit(n_per_page).offset((page_number - 1) * n_per_page)
             info = {}
             return_values = []
+            user_accessible_group_ids = {
+                g.id
+                for g in self.current_user.accessible_groups
+                if not g.single_user_group
+            }
+
             for user in session.scalars(stmt).all():
                 return_values.append(user.to_dict())
                 return_values[-1]["permissions"] = sorted(user.permissions)
@@ -360,10 +366,15 @@ class UserHandler(BaseHandler):
                 if user.contact_phone:
                     return_values[-1]["contact_phone"] = user.contact_phone.e164
                 return_values[-1]["contact_email"] = user.contact_email
-                # Only Sys admins can see other users' group memberships
+                # Only Sys admins can see other users' group memberships for all groups and stream access
+                # if not sys admin, restrict to only the groups the current user is a member of
                 if self.current_user.is_system_admin:
                     return_values[-1]["groups"] = user.groups
                     return_values[-1]["streams"] = user.streams
+                else:
+                    return_values[-1]["groups"] = [
+                        g for g in user.groups if g.id in user_accessible_group_ids
+                    ]
 
             info["users"] = return_values
             info["totalMatches"] = int(total_matches)

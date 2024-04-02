@@ -27,6 +27,7 @@ app:
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://minar.caltech.edu/add_fritz
   sedmv2_endpoint:
+  trt_endpoint: https://trt.narit.or.th/hub/api
 
   lt_host: 161.72.57.3
   lt_port: 8080
@@ -154,8 +155,6 @@ app:
       component: FindingChart
     - path: "/source/:id/periodogram"
       component: Periodogram
-    # - path: "/source/:id/image_analysis"
-      # component: ImageAnalysisPage
     - path: "/db_stats"
       component: DBStats
     - path: "/gcn_events"
@@ -182,6 +181,10 @@ app:
       component: SummarySearch
     - path: "/taxonomies"
       component: TaxonomyPage
+    - path: "/tns_robots"
+      component: TNSRobotsPage
+    - path: "/tns_robot/:id/submissions"
+      component: TNSRobotSubmissionsPage
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -253,6 +256,10 @@ app:
         - name: Observations
           icon: ZoomInOutlined
           url: /observations
+
+        - name: TNS Robots
+          icon: Assignment
+          url: /tns_robots
 
         - name: Earthquakes
           icon: PieChart
@@ -528,6 +535,10 @@ misc:
   # consider a photometry point as a detection
   photometry_detection_threshold_nsigma: 3.0
 
+  # whether or not the frontend show photometry validation information
+  # and if the backend allows adding/editing/deleting it
+  photometry_validation: True
+
   # The airmass value below which to track hours for when plotting
   # on an object's observability page
   hours_below_airmass_threshold: 2.9
@@ -732,11 +743,13 @@ analysis_services:
     embeddings_store:
       summary:
         location: pinecone
-        environment: us-east1-gcp
         api_key:
         index_name: openai-skyportal-summary
         index_size: 1536
         model: text-embedding-ada-002
+        environment: gcp-starter
+        pod_type: p1.x1
+
 
 
 comments_folder: persistentdata/comments

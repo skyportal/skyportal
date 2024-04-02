@@ -278,6 +278,7 @@ class Obj(Base, conesearch_alchemy.Point):
     tns_name = sa.Column(
         sa.String,
         doc="Transient Name Server name.",
+        index=True,
     )
     tns_info = sa.Column(
         JSONB,
@@ -460,6 +461,13 @@ class Obj(Base, conesearch_alchemy.Point):
         back_populates="obj",
         passive_deletes=True,
         doc="Sources in a localization.",
+    )
+
+    tns_submissions = relationship(
+        "TNSRobotSubmission",
+        back_populates="obj",
+        passive_deletes=True,
+        doc="TNS auto-submissions associated with this obj.",
     )
 
     def add_linked_thumbnails(self, thumbnails, session=None):

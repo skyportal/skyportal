@@ -1,11 +1,9 @@
 import os
-import sqlalchemy as sa
 import re
 import time
 import uuid
 import base64
 from skyportal.tests import api, assert_api
-from skyportal.models import DBSession, Obj, Thumbnail
 
 
 def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_camera):
@@ -30,19 +28,23 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     # wait for the thumbnails to populate
     nretries = 0
     thumbnails_loaded = False
+    thumbnails = []
 
-    while not thumbnails_loaded and nretries < 5:
-        thumbnails = (
-            DBSession()
-            .scalars(sa.select(Obj).where(Obj.id == obj_id))
-            .first()
-            .thumbnails
+    # wait for the thumbnails to populate, get the source
+    while nretries < 5:
+        # we put the sleep first, knowing that we will have to wait before the first try could be successful anyway
+        time.sleep(2)
+        status, data = api(
+            'GET', f'sources/{obj_id}?includeThumbnails=true', token=upload_data_token
         )
-        if len(thumbnails) > 0:
+        thumbnails = data.get('data', {}).get('thumbnails', [])
+        if isinstance(thumbnails, list) and len(thumbnails) == 3:
             thumbnails_loaded = True
-        else:
-            nretries = nretries + 1
-            time.sleep(3)
+            break
+        nretries += 1
+
+    assert thumbnails_loaded
+
     orig_source_thumbnail_count = len(thumbnails)
     data = base64.b64encode(
         open(os.path.abspath('skyportal/tests/data/14gqr_new.png'), 'rb').read()
@@ -64,13 +66,22 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     assert data['status'] == 'success'
     assert data['data']['type'] == 'new'
 
-    assert (
-        DBSession.query(Thumbnail).filter(Thumbnail.id == thumbnail_id).first().obj.id
-    ) == obj_id
-    assert (
-        len(DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails)
-        == orig_source_thumbnail_count + 1
-    )
+    # wait for the thumbnails to populate, get the source
+    while nretries < 5:
+        status, data = api(
+            'GET', f'sources/{obj_id}?includeThumbnails=true', token=upload_data_token
+        )
+        thumbnails = data.get('data', {}).get('thumbnails', [])
+        if (
+            isinstance(thumbnails, list)
+            and len(thumbnails) == orig_source_thumbnail_count + 1
+        ):
+            thumbnails_loaded = True
+            break
+        nretries += 1
+        time.sleep(2)
+
+    assert thumbnails_loaded
 
 
 def test_cannot_post_thumbnail_invalid_ttype(
@@ -258,9 +269,25 @@ def test_delete_thumbnail_deletes_file_on_disk(
     assert data['status'] == 'success'
     assert data['data']['type'] == ttype
 
-    thumbnail = DBSession.query(Thumbnail).filter(Thumbnail.id == thumbnail_id).first()
-    assert thumbnail.obj_id == obj_id
-    fpath = thumbnail.file_uri
+    nretries = 0
+    thumbnail = None
+    # look for the newly created thumbnail
+    while nretries < 5:
+        status, data = api(
+            'GET', f'sources/{obj_id}?includeThumbnails=true', token=upload_data_token
+        )
+        thumbnails = data.get('data', {}).get('thumbnails', [])
+        if isinstance(thumbnails, list) and any(
+            [t['id'] == thumbnail_id for t in thumbnails]
+        ):
+            thumbnail = next((t for t in thumbnails if t['id'] == thumbnail_id), None)
+            break
+        nretries += 1
+        time.sleep(2)
+
+    assert thumbnail is not None
+
+    fpath = thumbnail['file_uri']
     assert os.path.exists(fpath)
 
     status, data = api('DELETE', f'thumbnail/{thumbnail_id}', token=super_admin_token)

@@ -283,7 +283,7 @@ const UpdateProfileForm = () => {
             </Grid>
             <br />
             <Button
-              secondary
+              primary
               type="submit"
               id="updateProfileButton"
               disabled={isSubmitting}

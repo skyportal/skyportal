@@ -512,7 +512,19 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
 
         # make sure the file does not exist:
         if os.path.isfile(full_name):
-            raise ValueError(f'File already exists: {full_name}')
+            # check if there are any entries in the DB that point to this file:
+            existing_ps = session.scalars(
+                sa.select(PhotometricSeries).where(
+                    PhotometricSeries.filename == full_name
+                )
+            ).first()
+            if existing_ps is not None:
+                raise ValueError(
+                    f'PhotometricSeries with filename {full_name} already exists'
+                )
+            else:
+                # if the file exists but is not in the DB, we can overwrite it
+                os.remove(full_name)
 
         # make sure this file is not already saved using the hash:
         existing_ps = session.scalars(

@@ -76,6 +76,13 @@ SNCOSMO_TO_TNSFILTER = {
 
 TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
 
+# here we store regex patterns, to validate that a source name is in the correct format
+# for a given TNS source group. Used to not submit incorrect sources to TNS.
+TNS_SOURCE_GROUP_NAMING_CONVENTIONS = {
+    48: r"ZTF\d{2}[a-z]{7}",  # ZTF: ZTF + 2 digits + 7 lowercase characters
+    68: r"[ACT]20\d{6}\d{7}[pm]\d{6}",  # DECAM: A or C or T + 20 + 6 digits + 7 digits + p or m + 6 digits
+}
+
 
 def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
     """Query TNS to get IAU name (if exists)
@@ -105,9 +112,46 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
     }
 
     data = {'api_key': api_key, 'data': json.dumps(req_data)}
-    r = requests.post(search_url, headers=headers, data=data)
-    json_response = json.loads(r.text)
-    reply = json_response['data']['reply']
+    status_code = 429
+    n_retries = 0
+    r = None
+    while status_code == 429 and n_retries < 24:
+        r = requests.post(search_url, headers=headers, data=data)
+        status_code = r.status_code
+        if status_code == 429:
+            try:
+                content = r.json()
+            except Exception:
+                content = r.text
+            log(
+                f'TNS request rate limited: {str(content)}.  Waiting 30 seconds to try again.'
+            )
+            time.sleep(30)
+            n_retries += 1
+        elif status_code != 200:
+            try:
+                content = r.json()
+            except Exception:
+                content = r.text
+            log(f'TNS request failed: {str(content)}.')
+            return []
+
+    if r is None:
+        log('TNS request failed: no response.')
+        return []
+    if status_code != 200:
+        try:
+            content = r.json()
+        except Exception:
+            content = r.text
+        log(f'TNS request failed: {str(content)}.')
+        return []
+    try:
+        json_response = json.loads(r.text)
+        reply = json_response['data']['reply']
+    except Exception as e:
+        log(f'TNS request failed: {str(e)}.')
+        return []
 
     sources = []
     log(f'Found {len(reply)} recent sources from TNS since {str(public_timestamp)}')
@@ -134,8 +178,12 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
             count = 0
             count_limit = 5
             while r.status_code == 429 and count < count_limit:
+                try:
+                    content = r.json()
+                except Exception:
+                    content = r.text
                 log(
-                    f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
+                    f'TNS request rate limited: {str(content)}.  Waiting 30 seconds to try again.'
                 )
                 time.sleep(30)
                 r = requests.post(object_url, headers=headers, data=data)
@@ -145,7 +193,11 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
                 raise ValueError('TNS request failed: request rate exceeded.')
 
             if r.status_code == 200:
-                source_data = r.json().get("data", dict()).get("reply", dict())
+                try:
+                    source_data = r.json().get("data", dict()).get("reply", dict())
+                except Exception as e:
+                    log(f'Failed to parse TNS response: {str(e)}')
+                    source_data = None
                 if source_data:
                     sources.append(
                         {
@@ -159,13 +211,16 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
         else:
             sources.append(
                 {
-                    'id': obj["objname"],
+                    'id': obj['objname'],
+                    'prefix': obj['prefix'],
                 }
             )
     return sources
 
 
-def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=5):
+def get_IAUname(
+    api_key, headers, obj_id=None, ra=None, dec=None, radius=2.0, closest=False
+):
     """Query TNS to get IAU name (if exists)
     Parameters
     ----------
@@ -221,77 +276,209 @@ def get_IAUname(api_key, headers, obj_id=None, ra=None, dec=None, radius=5):
     r = requests.post(search_url, headers=headers, data=data)
 
     count = 0
-    count_limit = 5
+    count_limit = 24  # 6 * 4 * 10 = 4 minutes of retries
     while r.status_code == 429 and count < count_limit:
+        try:
+            content = r.json()
+        except Exception:
+            content = r.text
         log(
-            f'TNS request rate limited: {str(r.json())}.  Waiting 30 seconds to try again.'
+            f'TNS request rate limited: {str(content)}.  Waiting 10 seconds to try again.'
         )
-        time.sleep(30)
+        time.sleep(10)
         r = requests.post(search_url, headers=headers, data=data)
         count += 1
+
+    if r.status_code not in [200, 429, 401]:
+        try:
+            content = r.json()
+        except Exception:
+            content = r.text
+        raise ValueError(f'TNS request failed: {str(content)}.')
+
+    if r.status_code == 401:
+        raise ValueError('TNS request failed: invalid TNSRobot API key.')
 
     if count == count_limit:
         raise ValueError('TNS request failed: request rate exceeded.')
 
-    reply = r.json().get("data", dict()).get("reply", [])
+    try:
+        reply = r.json().get("data", dict()).get("reply", [])
+    except Exception as e:
+        log(f'Failed to parse TNS response: {str(e)}')
+        reply = []
+
     if len(reply) > 0:
-        return reply[0]['prefix'], reply[0]['objname']
+        prefix, objname = reply[-1]['prefix'], reply[-1]['objname']
+        if closest and len(reply) > 1:
+            closest_separation = float(radius)
+            for obj in reply:
+                data = {
+                    'api_key': api_key,
+                    'data': json.dumps(
+                        {
+                            "objname": obj["objname"],
+                        }
+                    ),
+                }
+                status_code = 429
+                n_retries = 0
+                r = None
+                while (
+                    status_code == 429 and n_retries < 24
+                ):  # 6 * 4 * 10 seconds = 4 minutes of retries
+                    r = requests.post(
+                        object_url,
+                        headers=headers,
+                        data=data,
+                        allow_redirects=True,
+                        stream=True,
+                        timeout=10,
+                    )
+                    status_code = r.status_code
+                    if status_code == 429:
+                        n_retries += 1
+                        time.sleep(10)
+                    else:
+                        break
+
+                if status_code != 200 or r is None:
+                    # ignore this object
+                    continue
+
+                try:
+                    source_data = r.json().get("data", dict()).get("reply", dict())
+                except Exception:
+                    source_data = None
+                if source_data:
+                    tns_ra, tns_dec = source_data['radeg'], source_data['decdeg']
+                    from skyportal.utils.calculations import great_circle_distance
+
+                    separation = (
+                        great_circle_distance(ra, dec, tns_ra, tns_dec) * 3600
+                    )  # arcsec
+                    if separation < closest_separation:
+                        closest_separation = separation
+                        prefix, objname = obj["prefix"], obj["objname"]
+
+        return prefix, objname
+
     else:
         return None, None
 
 
-def post_tns(
-    obj_ids,
-    tnsrobot_id,
-    user_id,
-    reporters="",
-    archival=False,
-    archival_comment="",
-    instrument_ids=[],
-    stream_ids=[],
-    timeout=2,
-):
-    request_body = {
-        'obj_ids': obj_ids,
-        'tnsrobot_id': tnsrobot_id,
-        'user_id': user_id,
-        'reporters': reporters,
-        'archival': archival,
-        'archival_comment': archival_comment,
-        'instrument_ids': instrument_ids,
-        'stream_ids': stream_ids,
+def get_internal_names(api_key, headers, tns_name=None):
+    """Query TNS to get internal names of an object
+
+    Parameters
+    ----------
+    api_key : str
+        TNS api key
+    headers : str
+        TNS query headers
+    tns_name : str
+        Name of the object to query TNS for
+
+    Returns
+    -------
+    list
+        Internal names of the object
+    """
+    data = {
+        'api_key': api_key,
+        'data': json.dumps(
+            {
+                "objname": tns_name,
+            }
+        ),
     }
 
-    tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_submission_queue"]}'
-
-    resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
-    if resp.status_code != 200:
-        log(
-            f'TNS request failed for {str(request_body["obj_ids"])} by user ID {request_body["user_id"]}: {resp.content}'
+    status_code = 429
+    n_retries = 0
+    r = None
+    while n_retries < 24:  # 6 * 4 * 10 = 4 minutes of retries
+        r = requests.post(
+            object_url,
+            headers=headers,
+            data=data,
+            allow_redirects=True,
+            stream=True,
+            timeout=10,
         )
+        status_code = r.status_code
+        if status_code == 429:
+            n_retries += 1
+            try:
+                content = r.json()
+            except Exception:
+                content = r.text
+            log(
+                f'TNS request rate limited: {str(content)}.  Waiting 10 seconds to try again.'
+            )
+            time.sleep(10)
+        else:
+            break
+
+    if not isinstance(r, requests.Response):
+        raise ValueError('TNS request failed: no response received.')
+
+    if r.status_code not in [200, 429, 401]:
+        try:
+            content = r.json()
+        except Exception:
+            content = r.text
+        raise ValueError(f'TNS request failed: {str(content)}.')
+
+    if status_code == 401:
+        raise ValueError('TNS request failed: invalid TNSRobot API key.')
+
+    if n_retries == 24:
+        raise ValueError('TNS request failed: request rate exceeded.')
+
+    internal_names = []
+    try:
+        reply = json.loads(r.text)
+        internal_names = reply["data"]["reply"]["internal_names"]
+        # comma separated list of internal names, starting with a comma (so we fiter out the first empty string after splitting)
+        internal_names = list(filter(None, map(str.strip, internal_names.split(","))))
+    except Exception as e:
+        raise ValueError(
+            f'Failed to parse TNS response to retrieve internal names: {str(e)}'
+        )
+
+    return internal_names
 
 
 def get_tns(
-    tnsrobot_id,
-    user_id,
-    include_photometry=False,
-    include_spectra=False,
-    timeout=2,
     obj_id=None,
-    start_date=None,
-    group_ids=None,
+    radius=2.0,
+    user_id=None,
+    timeout=2,
 ):
-    if obj_id is None and start_date is None:
-        raise ValueError('obj_id or start_date must be specified')
+    """Get TNS data for an object
+
+    Parameters
+    ----------
+    obj_id : str, optional
+        TNS object id, by default None
+    radius : float, optional
+        Radius to search around the object, by default 2.0
+    user_id : str, optional
+        User ID, by default None
+    timeout : int, optional
+        Timeout for the request, by default 2
+    Returns
+    -------
+    dict
+        TNS data
+    """
+    if obj_id is None:
+        raise ValueError('obj_id')
 
     request_body = {
         'obj_id': obj_id,
-        'start_date': start_date,
-        'tnsrobot_id': tnsrobot_id,
+        'radius': radius,
         'user_id': user_id,
-        'group_ids': group_ids,
-        'include_photometry': include_photometry,
-        'include_spectra': include_spectra,
     }
 
     tns_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_retrieval_queue"]}'
@@ -299,11 +486,25 @@ def get_tns(
     resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
     if resp.status_code != 200:
         log(
-            f'TNS request failed for {str(request_body["obj_id"])}/{str(request_body["start_date"])} by user ID {request_body["user_id"]}: {resp.content}'
+            f'TNS request failed for {str(request_body["obj_id"])} by user ID {request_body["user_id"]}: {resp.content}'
         )
 
 
 def read_tns_photometry(photometry, session):
+    """Read TNS photometry data
+
+    Parameters
+    ----------
+    photometry : dict
+        TNS photometry data
+    session : Session
+        Database session
+
+    Returns
+    -------
+    dict
+        Formatted photometry data
+    """
     tns_instrument_id = photometry["instrument"]["id"]
     inst_name = None
     for key, value in TNS_INSTRUMENT_IDS.items():
@@ -361,6 +562,20 @@ def read_tns_photometry(photometry, session):
 
 
 def read_tns_spectrum(spectrum, session):
+    """Read TNS spectrum data
+
+    Parameters
+    ----------
+    spectrum : dict
+        TNS spectrum data
+    session : Session
+        Database session
+
+    Returns
+    -------
+    dict
+        Formatted spectrum data
+    """
     try:
         tab = Table.read(spectrum["asciifile"], format="ascii")
         tab.rename_column(tab.columns[0].name, 'wavelengths')
@@ -397,6 +612,18 @@ def read_tns_spectrum(spectrum, session):
 
 
 def get_objects_from_soup(soup):
+    """Get objects from a TNS search result page
+
+    Parameters
+    ----------
+    soup : BeautifulSoup
+        The soup of a TNS search result page
+
+    Returns
+    -------
+    list
+        A list of dictionaries with the keys 'name', 'ra', and 'dec'
+    """
     objects = []
     try:
         table = soup.find('table', attrs={'class': 'results-table'})
@@ -424,6 +651,24 @@ def get_objects_from_soup(soup):
 def get_objects_from_page(
     headers, page=1, discovered_period_value=5, discovered_period_units='days'
 ):
+    """Get objects from a TNS search result page
+
+    Parameters
+    ----------
+    headers : dict
+        Headers to use for the request
+    page : int, optional
+        Page number, by default 1
+    discovered_period_value : int, optional
+        Discovered period value, by default 5
+    discovered_period_units : str, optional
+        Discovered period units, by default 'days'
+
+    Returns
+    -------
+    list
+        A list of dictionaries with the keys 'name', 'ra', and 'dec'
+    """
     url = (
         search_frontend_url
         + f"?discovered_period_value={discovered_period_value}&discovered_period_units={discovered_period_units}&page={page}"
@@ -463,6 +708,22 @@ def get_objects_from_page(
 
 
 def get_tns_objects(headers, discovered_period_value=5, discovered_period_units='days'):
+    """Get all objects from TNS
+
+    Parameters
+    ----------
+    headers : dict
+        Headers to use for the request
+    discovered_period_value : int, optional
+        Discovered period value, by default 5
+    discovered_period_units : str, optional
+        Discovered period units, by default 'days'
+
+    Returns
+    -------
+    list
+        A list of dictionaries with the keys 'name', 'ra', and 'dec'
+    """
     all_objects = []
     page = 0
     next_page = True
