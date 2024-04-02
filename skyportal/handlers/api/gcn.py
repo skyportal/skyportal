@@ -153,6 +153,9 @@ def post_gcnevent_from_xml(
     dateobs = get_dateobs(root)
     trigger_id = get_trigger(root)
     notice_type = gcn.get_notice_type(root)
+    if notice_type not in list(gcn.NoticeType):
+        notice_type = gcn.NoticeType.TEST_COORDS
+
     aliases = get_notice_aliases(
         root, notice_type
     )  # we try to get the aliases from the notice if possible

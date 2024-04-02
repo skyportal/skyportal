@@ -405,7 +405,7 @@ class Group(Base):
         doc="User requests to join this group.",
     )
     tnsrobots = relationship(
-        'TNSRobot',
+        'TNSRobotGroup',
         back_populates="group",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,

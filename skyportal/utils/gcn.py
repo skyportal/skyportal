@@ -42,17 +42,29 @@ def get_trigger(root):
 def get_dateobs(root):
     """Get the UTC event time from a GCN notice, rounded to the nearest second,
     as a datetime.datetime object."""
-    dateobs = Time(
-        root.find(
+
+    t0 = root.find(
+        "./WhereWhen/{*}ObsDataLocation"
+        "/{*}ObservationLocation"
+        "/{*}AstroCoords"
+        "[@coord_system_id='UTC-FK5-GEO']"
+        "/Time/TimeInstant/ISOTime"
+    )
+    if t0 is None:
+        t0 = root.find(
             "./WhereWhen/{*}ObsDataLocation"
             "/{*}ObservationLocation"
             "/{*}AstroCoords"
-            "[@coord_system_id='UTC-FK5-GEO']"
+            "[@coord_system_id='UTC-ICRS-GEO']"
             "/Time/TimeInstant/ISOTime"
-        ).text,
+        )
+    if t0 is None:
+        return None
+
+    dateobs = Time(
+        t0.text,
         precision=0,
     )
-
     # FIXME: https://github.com/astropy/astropy/issues/7179
     dateobs = Time(dateobs.iso)
 
@@ -63,6 +75,8 @@ def get_tags(root):
     """Get source classification tag strings from GCN notice."""
     # Get event stream.
     mission = urlparse(root.attrib['ivorn']).path.lstrip('/')
+    if str(mission).lower().strip() == 'fsc':
+        mission = 'SVOM'
     yield mission
 
     # What type of burst is this: GRB or GW?
@@ -172,6 +186,18 @@ def get_tags(root):
             yield "Significant"
         else:
             yield "Subthreshold"
+
+    # Check for Swift losing tracking
+    try:
+        lost_lock = root.find(
+            "./What/Group[@name='Solution_Status']/Param[@name='StarTrack_Lost_Lock']"
+        ).attrib['value']
+    except AttributeError:
+        pass
+    else:
+        if lost_lock is not None:
+            if lost_lock == "true":
+                yield "StarTrack_Lost_Lock"
 
 
 def get_notice_aliases(root, notice_type):
@@ -329,6 +355,7 @@ def get_properties(root):
         # Gravitational waves
         "HasNS",
         "HasRemnant",
+        "HasMassGap",
         "FAR",
         "BNS",
         "NSBH",

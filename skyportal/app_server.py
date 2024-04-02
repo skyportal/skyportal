@@ -1,5 +1,4 @@
 import tornado.web
-import shutil
 
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app.model_util import create_tables
@@ -18,6 +17,7 @@ from skyportal.handlers.api import (
     AssignmentHandler,
     BulkTNSHandler,
     CandidateHandler,
+    CandidateFilterHandler,
     CatalogQueryHandler,
     ClassificationHandler,
     ClassificationVotesHandler,
@@ -42,6 +42,7 @@ from skyportal.handlers.api import (
     DefaultSurveyEfficiencyRequestHandler,
     FilterHandler,
     FollowupRequestHandler,
+    FollowupRequestCommentHandler,
     FollowupRequestWatcherHandler,
     FollowupRequestSchedulerHandler,
     FollowupRequestPrioritizationHandler,
@@ -105,6 +106,7 @@ from skyportal.handlers.api import (
     ObservationPlanFieldsHandler,
     ObservationPlanManualRequestHandler,
     PhotometryHandler,
+    PhotometryValidationHandler,
     PhotStatHandler,
     PhotStatUpdateHandler,
     BulkDeletePhotometryHandler,
@@ -170,6 +172,10 @@ from skyportal.handlers.api import (
     ThumbnailHandler,
     ThumbnailPathHandler,
     TNSRobotHandler,
+    TNSRobotCoauthorHandler,
+    TNSRobotGroupHandler,
+    TNSRobotGroupAutoreporterHandler,
+    TNSRobotSubmissionHandler,
     UserHandler,
     UnsourcedFinderHandler,
     WeatherHandler,
@@ -238,6 +244,7 @@ skyportal_handlers = [
         AnalysisProductsHandler,
     ),
     (r'/api/assignment(/.*)?', AssignmentHandler),
+    (r'/api/candidates_filter', CandidateFilterHandler),
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/catalogs/swift_lsxps', SwiftLSXPSQueryHandler),
@@ -265,6 +272,10 @@ skyportal_handlers = [
     ),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
+    (
+        r'/api/followup_request/([0-9A-Za-z-_\.\+]+)/comment',
+        FollowupRequestCommentHandler,
+    ),
     (r'/api/followup_request/watch(/[0-9]+)', FollowupRequestWatcherHandler),
     (r'/api/followup_request/schedule(/[0-9]+)', FollowupRequestSchedulerHandler),
     (
@@ -429,6 +440,7 @@ skyportal_handlers = [
     ),
     (r'/api/objs(/[0-9A-Za-z-_\.\+]+)', ObjHandler),
     (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
+    (r'/api/photometry(/[0-9]+)/validation', PhotometryValidationHandler),
     (r'/api/photometric_series(/[0-9]+)?', PhotometricSeriesHandler),
     (r'/api/summary_query', SummaryQueryHandler),
     (r'/api/sharing', SharingHandler),
@@ -520,7 +532,14 @@ skyportal_handlers = [
     (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
     (r'/api/thumbnailPath', ThumbnailPathHandler),
     (r'/api/tns_bulk(/.*)?', BulkTNSHandler),
-    (r'/api/tns_robot(/.*)?', TNSRobotHandler),
+    (
+        r'/api/tns_robot(/[0-9]+)/group(/[0-9]+)/autoreporter(/[0-9]+)?',
+        TNSRobotGroupAutoreporterHandler,
+    ),
+    (r'/api/tns_robot(/[0-9]+)/group(/[0-9]+)?', TNSRobotGroupHandler),
+    (r'/api/tns_robot(/[0-9]+)/submissions(/[0-9]+)?', TNSRobotSubmissionHandler),
+    (r'/api/tns_robot(/[0-9]+)/coauthor(/[0-9]+)?', TNSRobotCoauthorHandler),
+    (r'/api/tns_robot(/[0-9]+)?', TNSRobotHandler),
     (r'/api/unsourced_finder', UnsourcedFinderHandler),
     (r'/api/user(/[0-9]+)/acls(/.*)?', UserACLHandler),
     (r'/api/user(/[0-9]+)/roles(/.*)?', UserRoleHandler),
@@ -599,32 +618,6 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         print('  Your server is insecure. Please update the secret string ')
         print('  in the configuration file!')
         print('!' * 80)
-
-    if 'image_analysis' in cfg:
-        missing_bins = []
-        for exe in ['scamp', 'psfex']:
-            bin = shutil.which(exe)
-            if bin is None:
-                missing_bins.append(exe)
-
-        if len(missing_bins) > 0:
-            log('!' * 80)
-            log(
-                f"  Can't run image analysis. Missing dependencies: {', '.join(missing_bins)}"
-            )
-            log('!' * 80)
-            return
-
-        # ignore the flake8 error due to the import being before in this file
-
-        from skyportal.handlers.api.internal import ImageAnalysisHandler
-
-        baselayer_handlers = baselayer_handlers + [
-            (
-                r'/api/internal/sources(/[0-9A-Za-z-_\.\+]+)/image_analysis',
-                ImageAnalysisHandler,
-            ),
-        ]
 
     handlers = baselayer_handlers + skyportal_handlers
 

@@ -30,3 +30,5 @@ export {
   sunGeoJSON,
   moonGeoJSON,
 } from "./positions";
+
+export { not, intersection, union } from "./sets";

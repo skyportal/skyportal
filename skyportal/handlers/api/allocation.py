@@ -8,7 +8,6 @@ import sqlalchemy as sa
 from astroplan.moon import moon_phase_angle
 from marshmallow.exceptions import ValidationError
 from sqlalchemy import func
-from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
 
@@ -21,6 +20,8 @@ from ...models import (
     User,
 )
 from ..base import BaseHandler
+
+MAX_FOLLOWUP_REQUESTS = 1000
 
 
 class AllocationHandler(BaseHandler):
@@ -38,6 +39,19 @@ class AllocationHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: numPerPage
+              nullable: true
+              schema:
+                type: integer
+              description: |
+                Number of followup requests to return per paginated request. Defaults to 10. Can be no larger than {MAX_FOLLOWUP_REQUESTS}.
+            - in: query
+              name: pageNumber
+              nullable: true
+              schema:
+                type: integer
+              description: Page number for paginated query results. Defaults to 1
           responses:
             200:
                content:
@@ -79,18 +93,96 @@ class AllocationHandler(BaseHandler):
                     allocation_id = int(allocation_id)
                 except ValueError:
                     return self.error("Allocation ID must be an integer.")
-                allocations = Allocation.select(
-                    self.current_user, options=[joinedload(Allocation.requests)]
-                )
 
-                allocations = allocations.where(Allocation.id == allocation_id)
+                page_number = self.get_query_argument("pageNumber", 1)
+                n_per_page = self.get_query_argument("numPerPage", 50)
+
+                sortBy = self.get_query_argument("sortBy", "created_at")
+                sortOrder = self.get_query_argument("sortOrder", "asc")
+
+                if sortBy not in ["created_at", "modified", "status", 'obj']:
+                    return self.error("Invalid sortBy value.")
+                if sortOrder not in ["asc", "desc"]:
+                    return self.error("Invalid sortOrder value.")
+
+                try:
+                    page_number = int(page_number)
+                except ValueError:
+                    return self.error("Invalid page number value.")
+
+                try:
+                    n_per_page = int(n_per_page)
+                except (ValueError, TypeError) as e:
+                    return self.error(f"Invalid numPerPage value: {str(e)}")
+
+                if n_per_page > MAX_FOLLOWUP_REQUESTS:
+                    return self.error(
+                        f'numPerPage should be no larger than {MAX_FOLLOWUP_REQUESTS}.'
+                    )
+
+                allocations = Allocation.select(self.current_user).where(
+                    Allocation.id == allocation_id
+                )
                 allocation = session.scalars(allocations).first()
                 if allocation is None:
                     return self.error("Could not retrieve allocation.")
 
                 allocation_data = allocation.to_dict()
+
+                followup_requests = FollowupRequest.select(self.current_user).where(
+                    FollowupRequest.allocation_id == allocation.id
+                )
+
+                count_stmt = sa.select(func.count()).select_from(followup_requests)
+                total_matches = session.execute(count_stmt).scalar()
+
+                # sort by created_at ascending\
+                if sortBy == "created_at":
+                    if sortOrder == "asc":
+                        followup_requests = followup_requests.order_by(
+                            FollowupRequest.created_at.asc()
+                        )
+                    else:
+                        followup_requests = followup_requests.order_by(
+                            FollowupRequest.created_at.desc()
+                        )
+                elif sortBy == "modified":
+                    if sortOrder == "asc":
+                        followup_requests = followup_requests.order_by(
+                            FollowupRequest.modified.asc()
+                        )
+                    else:
+                        followup_requests = followup_requests.order_by(
+                            FollowupRequest.modified.desc()
+                        )
+                elif sortBy == "status":
+                    if sortOrder == "asc":
+                        followup_requests = followup_requests.order_by(
+                            FollowupRequest.status.asc()
+                        )
+                    else:
+                        followup_requests = followup_requests.order_by(
+                            FollowupRequest.status.desc()
+                        )
+                elif sortBy == "obj":
+                    if sortOrder == "asc":
+                        followup_requests = followup_requests.order_by(
+                            FollowupRequest.obj_id.asc()
+                        )
+                    else:
+                        followup_requests = followup_requests.order_by(
+                            FollowupRequest.obj_id.desc()
+                        )
+                if n_per_page is not None:
+                    followup_requests = (
+                        followup_requests.distinct()
+                        .limit(n_per_page)
+                        .offset((page_number - 1) * n_per_page)
+                    )
+                followup_requests = session.scalars(followup_requests).unique().all()
+
                 requests = []
-                for request in allocation_data['requests']:
+                for request in followup_requests:
                     request_data = request.to_dict()
                     if request.requester is not None:
                         request_data['requester'] = request.requester.to_dict()
@@ -105,12 +197,18 @@ class AllocationHandler(BaseHandler):
                     if isinstance(request_data['rise_time_utc'], np.ma.MaskedArray):
                         request_data['rise_time_utc'] = None
                     requests.append(request_data)
+
                 allocation_data['requests'] = requests
                 allocation_data[
                     'ephemeris'
                 ] = allocation.instrument.telescope.ephemeris(astropy.time.Time.now())
                 allocation_data['telescope'] = allocation.instrument.telescope.to_dict()
-                return self.success(data=allocation_data)
+                return self.success(
+                    data={
+                        'allocation': allocation_data,
+                        "totalMatches": int(total_matches),
+                    }
+                )
 
             allocations = Allocation.select(self.current_user)
             instrument_id = self.get_query_argument('instrument_id', None)

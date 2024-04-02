@@ -2,10 +2,6 @@ FROM ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# lines to comment if you do not want to use the image analysis feature
-RUN apt-get update && \
-    apt-get install -y sextractor scamp psfex
-
 RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common ca-certificates gnupg && \
     mkdir -p /etc/apt/keyrings && \
@@ -22,7 +18,7 @@ RUN apt-get update && \
 # we install nginx with brotli support from ppa:ondrej/nginx-mainline
 RUN add-apt-repository ppa:ondrej/nginx-mainline -y && \
 	apt update -y && \
-	apt install -y nginx libnginx-mod-brotli
+	apt install -y nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter
 
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
@@ -33,17 +29,9 @@ RUN python3 -m venv /skyportal_env && \
     bash -c "source /skyportal_env/bin/activate && \
     pip install --upgrade pip==22.2.2 wheel numpy"
 
-
-# lines to uncomment if you do not want to use the image analysis feature
+# install snid
 RUN git clone https://github.com/Theodlz/snid-install-ubuntu.git && \
     cd snid-install-ubuntu && chmod +x install.sh && bash ./install.sh
-
-# lines to uncomment if you do not want to use the image analysis feature
-RUN python3 -m venv /skyportal_env && \
-    bash -c "source /skyportal_env/bin/activate && \
-    git clone https://github.com/karpov-sv/stdpipe.git && \
-    cd stdpipe && pip install -e . && \
-    pip install astroscrappy"
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8

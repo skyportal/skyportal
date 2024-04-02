@@ -20,6 +20,7 @@ export function fetchSourcePhotometry(id, params = {}) {
   return API.GET(`/api/sources/${id}/photometry`, FETCH_SOURCE_PHOTOMETRY, {
     includeOwnerInfo: true,
     includeStreamInfo: true,
+    includeValidationInfo: true,
     ...params,
   });
 }
@@ -50,7 +51,7 @@ export function submitPhotometry(photometry) {
 
 export function updatePhotometry(id, photometry) {
   return API.PATCH(
-    `/api/photometry?refresh=true/${id}`,
+    `/api/photometry/${id}?refresh=true`,
     UPDATE_PHOTOMETRY,
     photometry,
   );

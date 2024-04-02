@@ -1,15 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import EditIcon from "@mui/icons-material/Edit";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
-import InputLabel from "@mui/material/InputLabel";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import makeStyles from "@mui/styles/makeStyles";
@@ -19,7 +16,6 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as sourceActions from "../ducks/source";
-import * as tnsrobotsActions from "../ducks/tnsrobots";
 
 dayjs.extend(utc);
 
@@ -43,45 +39,8 @@ const UpdateSourceTNS = ({ source }) => {
   const dispatch = useDispatch();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const groups = useSelector((state) => state.groups.userAccessible);
-
-  const { tnsrobotList } = useSelector((state) => state.tnsrobots);
-  const [selectedTNSRobotId, setSelectedTNSRobotId] = useState(null);
-
-  const groupIDToName = {};
-  groups?.forEach((g) => {
-    groupIDToName[g.id] = g.name;
-  });
-
-  useEffect(() => {
-    const getTNSRobots = async () => {
-      // Wait for the TNS robots to update before setting
-      // the new default form fields, so that the TNS robots list can
-      // update
-
-      const result = await dispatch(tnsrobotsActions.fetchTNSRobots());
-
-      const { data } = result;
-      setSelectedTNSRobotId(data[0]?.id);
-    };
-    if (tnsrobotList?.length === 0 && !tnsrobotList) {
-      getTNSRobots();
-    } else if (tnsrobotList?.length > 0 && !selectedTNSRobotId) {
-      setSelectedTNSRobotId(tnsrobotList[0]?.id);
-    }
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedTNSRobotId, tnsrobotList]);
-
-  // need to check both of these conditions as selectedTNSRobotId is
-  // initialized to be null and useEffect is not called on the first
-  // render to update it, so it can be null even if tnsrobotList is not
-  // empty.
 
   const handleSubmit = async ({ formData }) => {
-    formData.tnsrobotID = selectedTNSRobotId;
     dispatch(sourceActions.addTNS(source.id, formData)).then((response) => {
       if (response.status === "success") {
         dispatch(showNotification("Successfully queried TNS"));
@@ -91,16 +50,6 @@ const UpdateSourceTNS = ({ source }) => {
     });
   };
 
-  const tnsrobotLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
-  tnsrobotList?.forEach((tnsrobot) => {
-    tnsrobotLookUp[tnsrobot.id] = tnsrobot;
-  });
-
-  const handleSelectedTNSRobotChange = (e) => {
-    setSelectedTNSRobotId(e.target.value);
-  };
-
   const tnsFormSchema = {
     type: "object",
     properties: {
@@ -108,16 +57,6 @@ const UpdateSourceTNS = ({ source }) => {
         type: "number",
         title: "Search radius [arcsec]",
         default: 2.0,
-      },
-      includePhotometry: {
-        type: "boolean",
-        title: "Include photometry?",
-        default: false,
-      },
-      includeSpectra: {
-        type: "boolean",
-        title: "Include spectra?",
-        default: false,
       },
     },
   };
@@ -129,7 +68,6 @@ const UpdateSourceTNS = ({ source }) => {
         onClick={() => {
           setDialogOpen(true);
         }}
-        disabled={tnsrobotList.length === 0 || !selectedTNSRobotId}
         size="small"
       >
         <EditIcon size="small" className={classes.editIcon} />
@@ -141,37 +79,14 @@ const UpdateSourceTNS = ({ source }) => {
         }}
         style={{ position: "fixed" }}
       >
-        <DialogTitle>Query TNS</DialogTitle>
+        <DialogTitle>{`Query TNS for an object's name`}</DialogTitle>
         <DialogContent>
           <div>
-            <div>
-              <InputLabel id="tnsrobotSelectLabel">TNS Robot</InputLabel>
-              <Select
-                inputProps={{ MenuProps: { disableScrollLock: true } }}
-                labelId="tnsrobotSelectLabel"
-                value={selectedTNSRobotId}
-                onChange={handleSelectedTNSRobotChange}
-                name="tnsrobotSelect"
-                className={classes.tnsrobotSelect}
-              >
-                {tnsrobotList?.map((tnsrobot) => (
-                  <MenuItem
-                    value={tnsrobot.id}
-                    key={tnsrobot.id}
-                    className={classes.tnsrobotSelectItem}
-                  >
-                    {`${tnsrobot.bot_name}`}
-                  </MenuItem>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <Form
-                schema={tnsFormSchema}
-                validator={validator}
-                onSubmit={handleSubmit}
-              />
-            </div>
+            <Form
+              schema={tnsFormSchema}
+              validator={validator}
+              onSubmit={handleSubmit}
+            />
           </div>
         </DialogContent>
       </Dialog>

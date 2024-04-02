@@ -1717,3 +1717,14 @@ def test_candidate_savers(
     assert len(data["data"]) == 2
     assert data["data"][0]["saves"] == 2
     assert data["data"][1]["saves"] == 1
+
+
+def test_candidate_filter_list(view_only_token, public_candidate):
+    status, data = api("GET", "candidates_filter", token=view_only_token)
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["candidates"]) >= 1
+    assert "totalMatches" in data["data"]
+    assert isinstance(data["data"]["totalMatches"], int)
+    assert "passing_alert_id" in data["data"]["candidates"][0]
+    assert "obj_id" in data["data"]["candidates"][0]

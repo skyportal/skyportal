@@ -107,6 +107,7 @@ User Guide
    analysis
    image_analysis
    extensions
+   pages
 
 Contributing
 ------------

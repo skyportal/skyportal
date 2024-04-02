@@ -93,7 +93,16 @@ const RegularCommentList = ({
               </Tooltip>
             </span>
           </div>
-          <div className={styles.defaultCommentEdit}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              gap: "0.25rem",
+              width: "30%",
+            }}
+          >
             <EditComment
               associatedResourceType={associatedResourceType}
               objID={objID}
@@ -103,9 +112,9 @@ const RegularCommentList = ({
               shiftID={shiftID}
               hoverID={hoverID}
               id={id}
+              commentText={text}
+              attachmentName={attachment_name}
             />
-          </div>
-          <div className={styles.defaultCommentDelete}>
             <DeleteComment
               associatedResourceType={associatedResourceType}
               objID={objID}
