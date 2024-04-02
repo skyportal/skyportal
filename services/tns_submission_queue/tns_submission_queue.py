@@ -9,28 +9,12 @@ import astropy
 import requests
 from skyportal.models.stream import Stream
 import sqlalchemy as sa
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
 from baselayer.log import make_log
 
 from baselayer.app.flow import Flow
-from skyportal.handlers.api.photometry import serialize
-from skyportal.handlers.api.tns import (
-    validate_photometry_options as _validate_photometry_options,
-)
-from skyportal.models import (
-    DBSession,
-    Instrument,
-    Photometry,
-    TNSRobot,
-    TNSRobotGroupAutoreporter,
-    TNSRobotSubmission,
-    User,
-    Source,
-    GroupUser,
-)
 from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
     TNS_INSTRUMENT_IDS,
@@ -45,8 +29,6 @@ env, cfg = load_env()
 log = make_log('tns_queue')
 
 init_db(**cfg['database'])
-
-Session = scoped_session(sessionmaker())
 
 TNS_URL = cfg['app.tns.endpoint']
 report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
@@ -87,6 +69,10 @@ def validate_photometry_options(submission_request, tnsrobot):
     TNSReportError
         If the photometry options are not valid.
     """
+    from skyportal.handlers.api.tns import (
+        validate_photometry_options as _validate_photometry_options,
+    )
+
     try:
         return _validate_photometry_options(
             getattr(submission_request, 'photometry_options', {}),
@@ -141,6 +127,8 @@ def find_accessible_tnsrobot_groups(submission_request, tnsrobot, user, session)
     tnsrobot_groups : list of `~skyportal.models.TNSRobotGroup`
         The TNSRobotGroups that the user is allowed to submit to with this robot.
     """
+    from skyportal.models import GroupUser, TNSRobotGroupAutoreporter
+
     tnsrobot_id = tnsrobot.id
     user_id = user.id
 
@@ -253,6 +241,8 @@ def find_source_to_submit(submission_request, tnsrobot_groups, session):
     source : `~skyportal.models.Source`
         The source to submit.
     """
+    from skyportal.models import Source
+
     # Get the sources saved to the groups that have access to this TNS robot,
     # this is so if a user that has access to this robot saved the obj as a source before,
     # he is the first author when another user auto-submits the source
@@ -304,6 +294,8 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
     warning : str
         Any warning (e.g., if the original source saver had no affiliation and was ignored).
     """
+    from skyportal.models import User
+
     warning = None
 
     tnsrobot_id = submission_request.tnsrobot_id
@@ -425,6 +417,8 @@ def find_accessible_instrument_ids(submission_request, tnsrobot, user, session):
     instrument_ids : list of int
         The instrument IDs accessible to the TNSRobot.
     """
+    from skyportal.models import Instrument
+
     tnsrobot_id = tnsrobot.id
 
     # when it comes to instruments, we only want to submit photometry for instruments that
@@ -823,6 +817,9 @@ def process_submission_request(submission_request, session):
     session : `~sqlalchemy.orm.Session`
         The database session to use.
     """
+    from skyportal.models import User, TNSRobot, Photometry
+    from skyportal.handlers.api.photometry import serialize
+
     warning = None
 
     obj_id = submission_request.obj_id
@@ -1109,6 +1106,8 @@ def check_at_report(submission_id, tnsrobot, tns_headers):
                 raise TNSReportError(
                     "Object found and report posted but no name found."
                 )
+    except TNSReportError as e:
+        raise e
     except Exception as e:
         raise TNSReportError(f"Error checking report: {str(e)}")
 
@@ -1118,6 +1117,11 @@ def check_at_report(submission_id, tnsrobot, tns_headers):
 
 def process_submission_requests():
     """Service to submit AT reports for sources to TNS, processing the TNSRobotSubmission table."""
+    from skyportal.models import (
+        DBSession,
+        TNSRobotSubmission,
+    )
+
     while True:
         with DBSession() as session:
             try:
@@ -1164,6 +1168,11 @@ def process_submission_requests():
 
 def validate_submission_requests():
     """Service to query TNS for the status of submitted AT reports and update the TNSRobotSubmission table."""
+    from skyportal.models import (
+        DBSession,
+        TNSRobotSubmission,
+        TNSRobot,
+    )
 
     while True:
         time.sleep(5)
@@ -1178,6 +1187,9 @@ def validate_submission_requests():
                     .where(
                         TNSRobotSubmission.status.like('submitted'),
                         TNSRobotSubmission.submission_id.isnot(None),
+                        TNSRobotSubmission.tnsrobot_id.notin_(
+                            sa.select(TNSRobot.id).where(TNSRobot.testing.is_(True))
+                        ),
                     )
                     .order_by(TNSRobotSubmission.created_at.asc())
                 )
@@ -1188,15 +1200,13 @@ def validate_submission_requests():
 
                 submission_id = submission_request.submission_id
 
-                user = session.scalar(
-                    sa.select(User).where(User.id == submission_request.user_id)
+                tnsrobot = session.scalar(
+                    sa.select(TNSRobot).where(
+                        TNSRobot.id == submission_request.tnsrobot_id
+                    )
                 )
-                if user is None:
-                    log("No user found for TNS submission request.")
-                    continue
-                tnsrobot = session.scalar(TNSRobot.select(user))
                 if tnsrobot is None:
-                    log("No TNSRobot found for user.")
+                    log("Could not find TNSRobot for submission request")
                     continue
 
                 tns_headers = {
@@ -1253,11 +1263,13 @@ def validate_submission_requests():
                     log(f"Error checking TNS report: {err}")
             except TNSReportError as e:
                 session.rollback()
-                log(f"Error checking TNS report: {str(e)}")
+                traceback.print_exc()
+                log(e)
                 continue
             except Exception as e:
                 session.rollback()
-                log(f"Error checking TNS report: {str(e)}")
+                traceback.print_exc()
+                log(f"Unexpected error checking TNS report: {str(e)}")
                 continue
 
 

@@ -1349,6 +1349,10 @@ class TNSRobotSubmissionHandler(BaseHandler):
                     return self.error(
                         f'Submission {id} not found for TNSRobot {tnsrobot_id}'
                     )
+                submission = {
+                    "tns_name": submission.obj.tns_name,
+                    **submission.to_dict(),
+                }
                 return self.success(data=submission)
             else:
                 stmt = TNSRobotSubmission.select(session.user_or_token).where(
@@ -1379,7 +1383,10 @@ class TNSRobotSubmissionHandler(BaseHandler):
                 return self.success(
                     data={
                         'tnsrobot_id': tnsrobot.id,
-                        'submissions': [s.to_dict() for s in submissions],
+                        'submissions': [
+                            {"tns_name": s.obj.tns_name, **s.to_dict()}
+                            for s in submissions
+                        ],
                         'pageNumber': page_number,
                         'numPerPage': page_size,
                         'totalMatches': total_matches,
