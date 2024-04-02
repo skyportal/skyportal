@@ -8,8 +8,6 @@ from tdtax import __version__, taxonomy
 
 from skyportal.tests import api
 
-from .test_profile import test_add_classification_shortcut
-
 
 @pytest.mark.flaky(reruns=2)
 def test_candidate_group_filtering(
@@ -738,6 +736,8 @@ def test_user_without_save_access_cannot_save(
 def test_add_classification_on_scanning_page(
     driver, user, public_group, taxonomy_token, public_filter, upload_data_token
 ):
+    from ..test_profile import test_add_classification_shortcut
+
     shortcut_name = test_add_classification_shortcut(
         driver, user, public_group, taxonomy_token
     )

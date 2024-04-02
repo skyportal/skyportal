@@ -76,7 +76,7 @@ def post_and_verify_reminder(endpoint, token):
     return reminder_text
 
 
-def post_and_verify_reminder_frontend(driver, reminder_text):
+def post_and_verify_reminder_frontend(driver, reminder_text, resource_id):
     search_button_xpath = driver.wait_for_xpath(
         '//*[@data-testid="Reminders"]//button[@aria-label="Search"]'
     )
@@ -88,7 +88,7 @@ def post_and_verify_reminder_frontend(driver, reminder_text):
     search_bar.clear()
 
     driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//*[@data-testid="AddIcon"]')
+        driver.wait_for_xpath(f'//button[@name="new_reminder_{resource_id}"]')
     )
     reminder_text_2 = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_text"]').send_keys(reminder_text_2)
@@ -153,7 +153,7 @@ def test_reminder_on_shift(
     driver.wait_for_xpath(f'//*[@href="/shifts/{shift_id}"]')
     driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
 
-    post_and_verify_reminder_frontend(driver, reminder_text)
+    post_and_verify_reminder_frontend(driver, reminder_text, shift_id)
 
 
 def test_reminder_on_source(driver, super_admin_user, super_admin_token):
@@ -186,7 +186,7 @@ def test_reminder_on_source(driver, super_admin_user, super_admin_token):
     driver.wait_for_xpath(f'//*[@href="/source/{obj_id}"]')
     driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
 
-    post_and_verify_reminder_frontend(driver, reminder_text)
+    post_and_verify_reminder_frontend(driver, reminder_text, obj_id)
 
 
 # frontend for the reminders on spectra is not implemented yet
