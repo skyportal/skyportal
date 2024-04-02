@@ -126,6 +126,35 @@ const TNSRobotSubmissionsPage = () => {
       },
     },
     {
+      name: "tns_name",
+      label: "TNS",
+      options: {
+        filter: false,
+        sort: true,
+        customBodyRenderLite: (dataIndex) => {
+          const { tns_name } = tnsrobot_submissions[dataIndex];
+          if (tns_name) {
+            return (
+              <a
+                key={tns_name}
+                href={`https://www.wis-tns.org/object/${
+                  tns_name.trim().includes(" ")
+                    ? tns_name.split(" ")[1]
+                    : tns_name
+                }`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ whiteSpace: "nowrap" }}
+              >
+                {`${tns_name} `}
+              </a>
+            );
+          }
+          return null;
+        },
+      },
+    },
+    {
       name: "reporter",
       label: "Reporter",
       options: {
