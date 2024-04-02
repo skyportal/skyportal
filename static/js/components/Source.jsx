@@ -1066,7 +1066,13 @@ const SourceContent = ({ source }) => {
                       : setPublishedDialogOpen(true);
                   }}
                 >
-                  {isPublished ? "Unpublish" : "Publish"}
+                  <Tooltip title={isPublished ?
+                      "Click here if you want to make this source private" :
+                      "Click here if you want to make this source public"}>
+                      <span>
+                        {isPublished ? "Unpublish" : "Publish"}
+                      </span>
+                  </Tooltip>
                 </Button>
                 <Dialog
                   open={publishedDialogOpen}
@@ -1105,15 +1111,16 @@ const SourceContent = ({ source }) => {
                   </DialogContent>
                 </Dialog>
               </div>
-              <div className={classes.infoButton}>
-                <a
-                    href={`/public/sources/${source.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                  Public page
-                </a>
-              </div>
+            </div>
+            {/* Link to the source public page */}
+            <div style={{display: "flex", alignItems: "center", margin: "0.25rem 0"}}>
+              <a
+                  href={`/public/sources/${source.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+              >
+                See public page
+              </a>
             </div>
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
