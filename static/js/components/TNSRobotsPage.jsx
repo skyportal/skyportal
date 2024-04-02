@@ -128,9 +128,15 @@ const TNSRobotGroup = ({ tnsrobot_group, groupsLookup, usersLookup }) => {
         ),
       );
       // we create an entry with only the user id and the label
-      setLeft(newLeft.map((user) => ({ id: user.id, label: userLabel(user) })));
+      setLeft(
+        newLeft
+          .map((user) => ({ id: user.id, label: userLabel(user) }))
+          .sort((a, b) => a?.label?.localeCompare(b?.label)),
+      );
       setRight(
-        newRight.map((user) => ({ id: user.id, label: userLabel(user) })),
+        newRight
+          .map((user) => ({ id: user.id, label: userLabel(user) }))
+          .sort((a, b) => a?.label?.localeCompare(b?.label)),
       );
 
       if (!initialized) {
@@ -408,15 +414,17 @@ const NewTNSRobotGroup = ({ tnsrobot, groupsLookup }) => {
               onChange={(e) => setGroup(e.target.value)}
               style={{ minWidth: "20vw" }}
             >
-              {groupOptions.map(
-                (
-                  group, // eslint-disable-line no-shadow
-                ) => (
-                  <MenuItem key={group.id} value={group.id}>
-                    {group.name || "loading..."}
-                  </MenuItem>
-                ),
-              )}
+              {groupOptions
+                .sort((a, b) => a?.name?.localeCompare(b?.name))
+                .map(
+                  (
+                    group, // eslint-disable-line no-shadow
+                  ) => (
+                    <MenuItem key={group.id} value={group.id}>
+                      {group.name || "loading..."}
+                    </MenuItem>
+                  ),
+                )}
             </Select>
           </div>
           <div>
@@ -563,15 +571,17 @@ const NewTNSRobotCoauthor = ({ tnsrobot, usersLookup }) => {
               onChange={(e) => setUser(e.target.value)}
               style={{ minWidth: "20vw" }}
             >
-              {userOptions.map(
-                (
-                  user, // eslint-disable-line no-shadow
-                ) => (
-                  <MenuItem key={user.id} value={user.id}>
-                    {userLabel(user)}
-                  </MenuItem>
-                ),
-              )}
+              {userOptions
+                .sort((a, b) => userLabel(a).localeCompare(userLabel(b)))
+                .map(
+                  (
+                    user, // eslint-disable-line no-shadow
+                  ) => (
+                    <MenuItem key={user.id} value={user.id}>
+                      {userLabel(user)}
+                    </MenuItem>
+                  ),
+                )}
             </Select>
           </div>
           <div
@@ -926,7 +936,7 @@ const TNSRobotsPage = () => {
       testing: {
         type: "boolean",
         title: "Testing Mode",
-        default: tnsrobotListLookup[tnsrobotToManage]?.testing || true,
+        default: tnsrobotListLookup[tnsrobotToManage]?.testing,
         description:
           "If enabled, the bot will not submit to TNS but only store the payload in the DB (useful for debugging).",
       },
@@ -972,17 +982,21 @@ const TNSRobotsPage = () => {
     type: "array",
     items: {
       type: "integer",
-      anyOf: (groups || []).map((group) => ({
-        enum: [group.id],
-        type: "integer",
-        title: group.name,
-      })),
+      anyOf: (groups || [])
+        .sort((a, b) => a?.name?.localeCompare(b?.name))
+        .map((group) => ({
+          enum: [group.id],
+          type: "integer",
+          title: group.name,
+        })),
     },
     uniqueItems: true,
     default: tnsrobotListLookup[tnsrobotToManage]?.owner_group_ids || [],
     title: "Owner Group(s)",
   };
   createSchema.required.push("owner_group_ids");
+  // change the default of testing to be true
+  createSchema.properties.testing.default = true;
 
   const validate = (formData, errors) => {
     const { source_group_id } = formData;
@@ -1318,7 +1332,9 @@ const TNSRobotsPage = () => {
       <MUIDataTable
         className={classes.tnsrobots}
         title="TNS Robots"
-        data={tnsrobotList.sort((a, b) => a.bot_name.localeCompare(b.bot_name))}
+        data={tnsrobotList.sort((a, b) =>
+          a?.bot_name?.localeCompare(b?.bot_name),
+        )}
         columns={columns}
         options={{
           selectableRows: "none",

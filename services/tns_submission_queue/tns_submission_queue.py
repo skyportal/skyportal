@@ -3,6 +3,7 @@ import re
 import time
 import urllib
 import traceback
+from threading import Thread
 
 import astropy
 import requests
@@ -49,7 +50,9 @@ Session = scoped_session(sessionmaker())
 
 TNS_URL = cfg['app.tns.endpoint']
 report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
+report_reply_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report-reply')
 search_frontend_url = urllib.parse.urljoin(TNS_URL, 'search')
+tns_retrieval_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_retrieval_queue"]}'
 
 
 # we create a custom exception to be able to catch it and log the error message
@@ -214,7 +217,9 @@ def apply_existing_tnsreport_rules(tns_headers, tnsrobot, submission_request, se
     altdata = tnsrobot.altdata
     obj_id = submission_request.obj_id
 
-    _, existing_tns_name = get_IAUname(altdata['api_key'], tns_headers, obj_id=obj_id)
+    _, existing_tns_name = get_IAUname(
+        altdata['api_key'], tns_headers, obj_id=obj_id, closest=True
+    )
     if existing_tns_name is not None:
         if not tnsrobot.report_existing:
             raise TNSReportWarning(
@@ -905,8 +910,35 @@ def process_submission_request(submission_request, session):
                         phot_to_keep.append(phot)
                         break
             if len(phot_to_keep) == 0:
+                # get the stream names to include in the error message
+                stream_names = (
+                    session.scalars(
+                        sa.select(Stream.name).where(Stream.id.in_(stream_ids))
+                    )
+                    .unique()
+                    .all()
+                )
                 raise TNSReportError(
-                    f'No photometry with streams {stream_ids} available for {obj_id}.'
+                    f"No photometry for {obj_id} with streams {', '.join(stream_names)}, cannot report to TNS."
+                )
+            # if we only have non-detections available with these streams, raise an error
+            if len(
+                [
+                    phot.mag
+                    for phot in phot_to_keep
+                    if phot.mag in [None, '', 'None', 'nan']
+                ]
+            ) == len(phot_to_keep):
+                # get the stream names to include in the error message
+                stream_names = (
+                    session.scalars(
+                        sa.select(Stream.name).where(Stream.id.in_(stream_ids))
+                    )
+                    .unique()
+                    .all()
+                )
+                raise TNSReportError(
+                    f"No detections for {obj_id} with streams {', '.join(stream_names)}, cannot report to TNS."
                 )
             photometry = phot_to_keep
 
@@ -996,8 +1028,95 @@ def process_submission_request(submission_request, session):
             pass
 
 
-@check_loaded(logger=log)
-def service(*args, **kwargs):
+def check_at_report(submission_id, tnsrobot, tns_headers):
+    """Check the status of a report submission to TNS, verifying that the submission was successful (or not).
+
+    Parameters
+    ----------
+    submission_id : int
+        The ID of the submission request to check on TNS.
+    tnsrobot : `~skyportal.models.TNSRobot`
+        The TNSRobot instance to use for the check.
+    tns_headers : dict
+        The headers to use for the check.
+
+    Returns
+    -------
+    obj_name : str
+        The TNS name of the object for which the report was submitted.
+    response : dict
+        The response from TNS, serialized as a dictionary.
+    err : str
+        An error message, if the submission failed.
+
+    Raises
+    ------
+    TNSReportError
+        If looking up the report fails.
+    """
+
+    obj_name, response = None, None
+
+    data = {
+        'api_key': tnsrobot.altdata['api_key'],
+        'report_id': submission_id,
+    }
+    status_code = 429
+    n_retries = 0
+    r = None
+    while (
+        status_code == 429 and n_retries < 24
+    ):  # 6 * 4 * 10 seconds = 4 minutes of retries
+        r = requests.post(report_reply_url, headers=tns_headers, data=data)
+        status_code = r.status_code
+        if status_code == 429:
+            n_retries += 1
+            time.sleep(10)
+        else:
+            break
+
+    if r is None:
+        raise TNSReportError("Error checking report, no response")
+    if r.status_code != 200:
+        raise TNSReportError(f"Error checking report: {r.text}")
+
+    try:
+        response = serialize_requests_response(r)
+    except Exception as e:
+        raise TNSReportError(f"Error serializing response: {str(e)}")
+
+    try:
+        at_report = r.json().get('data', {}).get('feedback', {}).get('at_report', [])
+        if not isinstance(at_report, list) or len(at_report) == 0:
+            raise TNSReportError("No AT report found in response.")
+        at_report = at_report[0]
+        # the at_report is a dict with keys 'status code' and 'at_rep'
+        keys = list(at_report.keys())
+        keys = list(set(keys) - {'at_rep'})
+        if len(keys) < 1:
+            raise TNSReportError("Report has been received but not yet processed.")
+        if '100' in keys:
+            # an object has been created along with the report
+            obj_name = at_report['100']['objname']
+            if obj_name is None:
+                raise TNSReportError(
+                    "Object created and report posted but no name found."
+                )
+        elif '101' in keys:
+            # object already exists, no new object created but report processed
+            obj_name = at_report['101']['objname']
+            if obj_name is None:
+                raise TNSReportError(
+                    "Object found and report posted but no name found."
+                )
+    except Exception as e:
+        raise TNSReportError(f"Error checking report: {str(e)}")
+
+    # for now catching errors from TNS is not implemented, so we just return None for the error
+    return obj_name, response, None
+
+
+def process_submission_requests():
     """Service to submit AT reports for sources to TNS, processing the TNSRobotSubmission table."""
     while True:
         with DBSession() as session:
@@ -1041,6 +1160,116 @@ def service(*args, **kwargs):
                         session.commit()
                     except Exception as e:
                         log(f"Error updating TNS request status: {str(e)}")
+
+
+def validate_submission_requests():
+    """Service to query TNS for the status of submitted AT reports and update the TNSRobotSubmission table."""
+
+    while True:
+        time.sleep(5)
+        with DBSession() as session:
+            try:
+                # for now we are just testing this, so we'll start with a known submission ID
+                # we have in production: 157099
+                # so query TNS's endpoint to check for submission status
+                # grab the first TNS robot submission request that has a submission ID that's not null
+                submission_request = session.scalar(
+                    sa.select(TNSRobotSubmission)
+                    .where(
+                        TNSRobotSubmission.status.like('submitted'),
+                        TNSRobotSubmission.submission_id.isnot(None),
+                    )
+                    .order_by(TNSRobotSubmission.created_at.asc())
+                )
+                if submission_request is None:
+                    # here we add an extra sleep to avoid hammering the TNS API
+                    time.sleep(25)
+                    continue
+
+                submission_id = submission_request.submission_id
+
+                user = session.scalar(
+                    sa.select(User).where(User.id == submission_request.user_id)
+                )
+                if user is None:
+                    log("No user found for TNS submission request.")
+                    continue
+                tnsrobot = session.scalar(TNSRobot.select(user))
+                if tnsrobot is None:
+                    log("No TNSRobot found for user.")
+                    continue
+
+                tns_headers = {
+                    'User-Agent': f'tns_marker{{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}}'
+                }
+
+                tns_source, serialized_response, err = check_at_report(
+                    submission_id, tnsrobot, tns_headers
+                )
+                if (
+                    err is None
+                    and tns_source is not None
+                    and serialized_response is not None
+                ):
+                    # we may have warnings after the "submitted" status, so we keep them in the "complete" status
+                    existing_status = str(submission_request.status).strip().split(" ")
+                    if len(existing_status) > 1 and existing_status[0] == "submitted":
+                        submission_request.status = (
+                            f"complete {' '.join(existing_status[1:])}"
+                        )
+                    else:
+                        submission_request.status = "complete"
+                    submission_request.response = serialized_response
+                    session.merge(submission_request)
+                    session.commit()
+                    log(
+                        f"AT report of {submission_request.obj_id} submitted to TNS as {tns_source}"
+                    )
+                    try:
+                        requests.post(
+                            tns_retrieval_microservice_url,
+                            json={"tns_source": tns_source},
+                        )
+                    except Exception as e:
+                        log(f"Error submitting TNS name to retrieval queue: {str(e)}")
+                    try:
+                        flow = Flow()
+                        flow.push(
+                            user_id=submission_request.user_id,
+                            action_type='baselayer/SHOW_NOTIFICATION',
+                            payload={
+                                'note': f"AT report of {submission_request.obj_id} posted to TNS on {tns_source}",
+                                'type': 'info',
+                                'duration': 4000,  # in ms
+                            },
+                        )
+                    except Exception:
+                        pass
+                elif err is not None and serialized_response is not None:
+                    submission_request.status = f'error: {err}'
+                    submission_request.response = serialized_response
+                    session.merge(submission_request)
+                    session.commit()
+                    log(f"Error checking TNS report: {err}")
+            except TNSReportError as e:
+                session.rollback()
+                log(f"Error checking TNS report: {str(e)}")
+                continue
+            except Exception as e:
+                session.rollback()
+                log(f"Error checking TNS report: {str(e)}")
+                continue
+
+
+@check_loaded(logger=log)
+def service(*args, **kwargs):
+    t = Thread(target=process_submission_requests)
+    t2 = Thread(target=validate_submission_requests)
+    t.start()
+    t2.start()
+    while True:
+        log("TNS submission queue heartbeat")
+        time.sleep(120)
 
 
 if __name__ == "__main__":

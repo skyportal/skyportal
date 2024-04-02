@@ -228,16 +228,16 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         );
       };
 
-      if (usePhotometryValidation) {
-        columns.push({
-          name: "streams",
-          label: "streams",
-          options: {
-            customBodyRenderLite: renderStreams,
-            display: false,
-          },
-        });
+      columns.push({
+        name: "streams",
+        label: "streams",
+        options: {
+          customBodyRenderLite: renderStreams,
+          display: false,
+        },
+      });
 
+      if (usePhotometryValidation) {
         const renderValidationStatus = (dataIndex) => {
           const phot = data[dataIndex];
           let statusIcon = null;
