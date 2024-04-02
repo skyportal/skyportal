@@ -1269,7 +1269,7 @@ def validate_submission_requests():
             except Exception as e:
                 session.rollback()
                 traceback.print_exc()
-                log(f"Error checking TNS report: {str(e)}")
+                log(f"Unexpected error checking TNS report: {str(e)}")
                 continue
 
 
