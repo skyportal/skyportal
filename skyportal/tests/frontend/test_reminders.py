@@ -8,7 +8,7 @@ from selenium.webdriver.common.keys import Keys
 
 def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
-    next_reminder = datetime.utcnow() + timedelta(seconds=1)
+    next_reminder = datetime.utcnow() + timedelta(seconds=2)
     reminder_delay = 1
     number_of_reminders = 1
     request_data = {
@@ -112,7 +112,7 @@ def post_and_verify_reminder_frontend(driver, reminder_text, resource_id):
     driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(next_reminder_day)
     for n in str(next_reminder_year).split():
         driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(str(n))
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(Keys.TAB)
+    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(Keys.ARROW_RIGHT)
     driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys('01')
     driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys('01')
     driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys('P')
