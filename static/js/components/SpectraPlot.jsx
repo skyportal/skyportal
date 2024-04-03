@@ -96,7 +96,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
 
   const [specStats, setSpecStats] = useState(null);
 
-  const [layoutReset, setLayoutReset] = useState(-1);
+  const [layoutReset, setLayoutReset] = useState(0);
 
   const { preferences } = useSelector((state) => state.profile);
 
@@ -418,7 +418,6 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     const [newSpectra, newSpecStats] = prepareSpectra(spectra, spectrumTypes);
     setSpecStats(newSpecStats);
     setData(newSpectra);
-    setLayoutReset((prev) => prev + 1);
   }, [spectra]);
 
   useEffect(() => {
@@ -432,7 +431,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
       );
       setPlotData(traces);
     }
-  }, [data, types, specStats, redshift, smoothingInput]);
+  }, [data, types, specStats, smoothingInput]);
 
   useEffect(() => {
     if (
