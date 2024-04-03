@@ -95,9 +95,8 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
   const [customWavelengthInput, setCustomWavelengthInput] = useState(0);
 
   const [specStats, setSpecStats] = useState(null);
-  const [layouts, setLayouts] = useState({});
 
-  const [layoutReset, setLayoutReset] = useState(false);
+  const [layoutReset, setLayoutReset] = useState(-1);
 
   const { preferences } = useSelector((state) => state.profile);
 
@@ -375,6 +374,11 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     redshift_value,
     vexp_value,
   ) => {
+    // we don't use layout_reset, but we need that variable to be passed here to trigger a rerender
+    // when clicking the reset button
+    if (!specStats_value || !spectrumType) {
+      return {};
+    }
     const newLayouts = {
       xaxis: {
         title: "Wavelength (Å)",
@@ -418,44 +422,16 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
 
   useEffect(() => {
     if (data !== null && types?.length > 0 && specStats !== null) {
-      if (!layoutReset) {
-        const traces = createTraces(
-          data,
-          types,
-          tabIndex,
-          smoothingInput,
-          plotData,
-        );
-        setPlotData(traces);
-      }
-      if (plotData === null) {
-        const newLayouts = createLayouts(
-          types[tabIndex],
-          specStats,
-          redshiftInput || redshift,
-          vExpInput,
-        );
-        setLayouts(newLayouts);
-      }
-    }
-  }, [data, types, specStats, layoutReset, redshift, smoothingInput]);
-
-  useEffect(() => {
-    if (
-      data !== null &&
-      types?.length > 0 &&
-      specStats !== null &&
-      plotData !== null
-    ) {
-      const newLayouts = createLayouts(
-        types[tabIndex],
-        specStats,
-        redshiftInput,
-        vExpInput,
+      const traces = createTraces(
+        data,
+        types,
+        tabIndex,
+        smoothingInput,
+        plotData,
       );
-      setLayouts(newLayouts);
+      setPlotData(traces);
     }
-  }, [redshiftInput, vExpInput]);
+  }, [data, types, specStats, redshift, smoothingInput]);
 
   useEffect(() => {
     if (
@@ -472,34 +448,9 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         plotData,
       );
       setPlotData(traces);
-      const newLayouts = createLayouts(
-        types[tabIndex],
-        specStats,
-        redshiftInput,
-        vExpInput,
-      );
-      setLayouts(newLayouts);
+      setLayoutReset((prev) => prev + 1);
     }
   }, [tabIndex]);
-
-  useEffect(() => {
-    if (
-      data !== null &&
-      types?.length > 0 &&
-      specStats !== null &&
-      plotData !== null &&
-      layoutReset
-    ) {
-      const newLayouts = createLayouts(
-        types[tabIndex],
-        specStats,
-        redshiftInput,
-        vExpInput,
-      );
-      setLayouts(newLayouts);
-      setLayoutReset(false);
-    }
-  }, [layoutReset]);
 
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
@@ -610,7 +561,13 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         <Plot
           data={(plotData || []).concat(lineTraces || [])}
           layout={{
-            ...layouts,
+            uirevision: layoutReset,
+            ...createLayouts(
+              types[tabIndex],
+              specStats,
+              redshiftInput,
+              vExpInput,
+            ),
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
@@ -663,14 +620,14 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
                 name: "Reset",
                 icon: Plotly.Icons.home,
                 click: () => {
-                  setLayoutReset(true);
+                  setLayoutReset((prev) => prev + 1);
                 },
               },
             ],
           }}
           useResizeHandler
           style={{ width: "100%", height: "100%" }}
-          onDoubleClick={() => setLayoutReset(true)}
+          onDoubleClick={() => setLayoutReset((prev) => prev + 1)}
           onLegendDoubleClick={(e) => {
             // e contains a curveNumber and a data object (plotting data)
             // we customize the legend double click behavior

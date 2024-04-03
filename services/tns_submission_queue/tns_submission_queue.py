@@ -1,9 +1,9 @@
 import json
 import re
 import time
-import urllib
 import traceback
 from threading import Thread
+from urllib.parse import urljoin
 
 import astropy
 import requests
@@ -31,9 +31,9 @@ log = make_log('tns_queue')
 init_db(**cfg['database'])
 
 TNS_URL = cfg['app.tns.endpoint']
-report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
-report_reply_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report-reply')
-search_frontend_url = urllib.parse.urljoin(TNS_URL, 'search')
+report_url = urljoin(TNS_URL, 'api/bulk-report')
+report_reply_url = urljoin(TNS_URL, 'api/bulk-report-reply')
+search_frontend_url = urljoin(TNS_URL, 'search')
 tns_retrieval_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_retrieval_queue"]}'
 
 
@@ -294,7 +294,7 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
     warning : str
         Any warning (e.g., if the original source saver had no affiliation and was ignored).
     """
-    from skyportal.models import User
+    from skyportal.models import User, TNSRobotCoauthor
 
     warning = None
 
@@ -323,7 +323,11 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
                 author_ids.append(source.saved_by_id)
         author_ids.append(user_id)
 
-        coauthor_ids = [coauthor.user_id for coauthor in tnsrobot.coauthors]
+        coauthor_ids = session.scalars(
+            sa.select(TNSRobotCoauthor.user_id).where(
+                TNSRobotCoauthor.tnsrobot_id == tnsrobot_id
+            )
+        ).all()
         for coauthor_id in coauthor_ids:
             if coauthor_id not in author_ids:
                 author_ids.append(coauthor_id)
@@ -417,14 +421,18 @@ def find_accessible_instrument_ids(submission_request, tnsrobot, user, session):
     instrument_ids : list of int
         The instrument IDs accessible to the TNSRobot.
     """
-    from skyportal.models import Instrument
+    from skyportal.models import Instrument, InstrumentTNSRobot
 
     tnsrobot_id = tnsrobot.id
 
     # when it comes to instruments, we only want to submit photometry for instruments that
     # the TNSRobot has access to, so we only consider instruments from the submission that
     # are a subset of the TNSRobot's instruments
-    instrument_ids = [instrument.id for instrument in tnsrobot.instruments]
+    instrument_ids = session.scalars(
+        sa.select(InstrumentTNSRobot.instrument_id).where(
+            InstrumentTNSRobot.tnsrobot_id == tnsrobot_id
+        )
+    ).all()
     if len(instrument_ids) == 0:
         raise TNSReportError(
             f'Must specify instruments for TNSRobot {tnsrobot_id} to submit sources to TNS.'
@@ -485,6 +493,8 @@ def find_accessible_stream_ids(submission_request, tnsrobot, user, session):
     stream_ids : list of int
         The stream IDs accessible to the TNSRobot.
     """
+    from skyportal.models import StreamTNSRobot
+
     tnsrobot_id = tnsrobot.id
 
     # compared to the instruments, we do allow overwriting the TNSRobot's streams
@@ -492,7 +502,11 @@ def find_accessible_stream_ids(submission_request, tnsrobot, user, session):
     # otherwise, we only use the streams specified in the submission
     #
     # streams are also optional except for auto-submissions
-    stream_ids = [stream.id for stream in tnsrobot.streams]
+    stream_ids = session.scalars(
+        sa.select(StreamTNSRobot.stream_id).where(
+            StreamTNSRobot.tnsrobot_id == tnsrobot_id
+        )
+    ).all()
 
     # if it is an auto_submission, we require streams to be specified for the TNSRobot
     if len(stream_ids) == 0 and submission_request.auto_submission is True:
@@ -525,7 +539,6 @@ def find_accessible_stream_ids(submission_request, tnsrobot, user, session):
 def build_at_report(
     submission_request,
     tnsrobot,
-    source,
     reporters,
     photometry,
     photometry_options,
@@ -540,8 +553,6 @@ def build_at_report(
         The submission request.
     tnsrobot : `~skyportal.models.TNSRobot`
         The TNSRobot to submit with.
-    source : `~skyportal.models.Source`
-        The source to submit.
     reporters : str
         The reporters to use for the submission.
     photometry : list of `~skyportal.models.Photosometry`
@@ -558,6 +569,8 @@ def build_at_report(
     at_report : dict
         The AT report to submit.
     """
+    from skyportal.models import Obj
+
     obj_id = submission_request.obj_id
     archival = submission_request.archival
     archival_comment = submission_request.archival_comment
@@ -707,9 +720,11 @@ def build_at_report(
         "proprietary_period_units": "years",
     }
 
+    obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+
     at_report = {
-        "ra": {"value": source.obj.ra},
-        "dec": {"value": source.obj.dec},
+        "ra": {"value": obj.ra},
+        "dec": {"value": obj.dec},
         "reporting_group_id": tnsrobot.source_group_id,
         "discovery_data_source_id": tnsrobot.source_group_id,
         "internal_name_format": {
@@ -946,7 +961,6 @@ def process_submission_request(submission_request, session):
         report = build_at_report(
             submission_request,
             tnsrobot,
-            source,
             reporters,
             photometry,
             photometry_options,
