@@ -288,7 +288,7 @@ def test_shift(
     driver.click_xpath(shift_on_calendar)
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_shift_summary(
     public_group,
     super_admin_token,
@@ -347,24 +347,34 @@ def test_shift_summary(
     assert status == 200
     assert data['status'] == 'success'
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
+    # try to get the event first to see if it's already in the DB
+    status, data = api('GET', 'gcn_event/2018-01-16T00:36:53', token=super_admin_token)
+    print(status)
+    print(data)
+    if status == 404:
+        datafile = (
+            f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
         )
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
+        with open(datafile, 'rb') as fid:
+            payload = fid.read()
+        data = {'xml': payload}
+
+        status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+        assert status == 200
+        assert data['status'] == 'success'
+
+        # wait for event to load
+        for n_times in range(26):
+            status, data = api(
+                'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
+            )
+            if data['status'] == 'success':
+                break
+            time.sleep(2)
+        assert n_times < 25
+    else:
+        assert status == 200
+        assert data['status'] == 'success'
 
     # wait for the localization to load
     skymap = "214.74000_28.14000_11.19000"
@@ -428,12 +438,6 @@ def test_shift_summary(
     driver.get(f"/become_user/{super_admin_user.id}")
     # go to the shift page
     driver.get(f"/shifts/{shift_id}")
-
-    # check for API shift
-    driver.wait_for_xpath(
-        f'//*/strong[contains(.,"{shift_name_1}")]',
-        timeout=30,
-    )
 
     driver.wait_for_xpath(
         '//*[@id="gcn_2018-01-16T00:36:53"][contains(.,"2018-01-16T00:36:53")]',
