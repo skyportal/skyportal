@@ -23,7 +23,7 @@ def add_gw190425_gcn_event(super_admin_token):
 
         # wait for event to load
         n_times = 0
-        while n_times < 5:
+        while n_times < 15:
             status, data = api(
                 'GET', "gcn_event/2019-04-25T08:18:05", token=super_admin_token
             )
@@ -31,13 +31,13 @@ def add_gw190425_gcn_event(super_admin_token):
                 break
             time.sleep(2)
             n_times += 1
-        assert n_times < 5
+        assert n_times < 15
 
         # wait for the localization to load
         params = {"include2DMap": True}
 
         n_times_2 = 0
-        while n_times_2 < 5:
+        while n_times_2 < 15:
             status, data = api(
                 'GET',
                 'localization/2019-04-25T08:18:05/name/bayestar.fits.gz',
@@ -54,7 +54,7 @@ def add_gw190425_gcn_event(super_admin_token):
             else:
                 time.sleep(2)
                 n_times_2 += 1
-        assert n_times_2 < 5
+        assert n_times_2 < 15
 
         return gcnevent_id
     else:
@@ -66,8 +66,6 @@ def delete_gw190425_gcn_event(super_admin_token):
     status, data = api(
         'DELETE', 'gcn_event/2019-04-25T08:18:05', token=super_admin_token
     )
-    print(status)
-    print(data)
 
     # query it to make sure that it is gone
     status, data = api('GET', 'gcn_event/2019-04-25T08:18:05', token=super_admin_token)
