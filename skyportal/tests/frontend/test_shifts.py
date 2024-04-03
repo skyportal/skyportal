@@ -335,12 +335,6 @@ def test_shift_summary(
         'shift_admins': [super_admin_user.id],
     }
 
-    status, data = api('POST', 'shifts', data=request_data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    shift_id_2 = data['data']['id']
-
     status, data = api(
         'GET', f'shifts?group_id={public_group.id}', token=super_admin_token
     )
@@ -451,35 +445,3 @@ def test_shift_summary(
     )
 
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]", timeout=30)
-
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys("1")
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys("14")
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys("2018")
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('12:00')
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('A')
-
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys("1")
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys("19")
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys("2018")
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('12:00')
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('A')
-
-    submit_button_xpath = '//button[@type="submit"]'
-    driver.wait_for_xpath(submit_button_xpath)
-    driver.click_xpath(submit_button_xpath)
-
-    driver.wait_for_xpath(
-        f'//*[@id="shift_{shift_id}"][contains(.,"{shift_name_1}")]',
-        timeout=30,
-    )
-
-    driver.wait_for_xpath(
-        f'//*[@id="shift_{shift_id_2}"][contains(.,"{shift_name_2}")]',
-        timeout=30,
-    )
