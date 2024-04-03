@@ -90,23 +90,31 @@ def post_and_verify_reminder_frontend(driver, reminder_text, resource_id):
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath(f'//button[@name="new_reminder_{resource_id}"]')
     )
+
+    # timeout to let the form load with default values
+    time.sleep(2)
+
     reminder_text_2 = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_text"]').send_keys(reminder_text_2)
     first_of_the_month = int((datetime.now() + timedelta(days=1)).strftime("%d")) == 1
     if first_of_the_month:
-        next_reminder = (datetime.now() + timedelta(days=14)).strftime(
-            "%m/%d/%YT%I:%M %p"
-        )
+        next_reminder_year = (datetime.now() + timedelta(days=14)).strftime("%Y")
+        next_reminder_month = (datetime.now() + timedelta(days=14)).strftime("%m")
+        next_reminder_day = (datetime.now() + timedelta(days=14)).strftime("%d")
     else:
-        next_reminder = (datetime.now() + timedelta(days=1)).strftime(
-            "%m/%d/%YT%I:%M %p"
-        )
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').clear()
+        next_reminder_year = (datetime.now() + timedelta(days=1)).strftime("%Y")
+        next_reminder_month = (datetime.now() + timedelta(days=1)).strftime("%m")
+        next_reminder_day = (datetime.now() + timedelta(days=1)).strftime("%d")
+
     driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(
-        next_reminder[0:11]
+        next_reminder_month
     )
+    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(next_reminder_day)
+    for n in str(next_reminder_year).split():
+        driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(str(n))
     driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys('01:01')
+    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys('01')
+    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys('01')
     driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys('P')
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//form[@id="reminder-form"]/*/*[@type="submit"]')
