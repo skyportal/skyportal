@@ -418,6 +418,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     const [newSpectra, newSpecStats] = prepareSpectra(spectra, spectrumTypes);
     setSpecStats(newSpecStats);
     setData(newSpectra);
+    setLayoutReset((prev) => prev + 1);
   }, [spectra]);
 
   useEffect(() => {
