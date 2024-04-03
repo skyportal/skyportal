@@ -35,7 +35,6 @@ import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
 import ShowClassification from "./ShowClassification";
 import ShowSummaries from "./ShowSummaries";
-import ThumbnailList from "./ThumbnailList";
 import SurveyLinkList from "./SurveyLinkList";
 import StarList from "./StarList";
 import { ra_to_hours, dec_to_dms } from "../units";
@@ -209,74 +208,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     },
   },
 }));
-
-const SourcePageThumbnails = ({
-  ra,
-  dec,
-  thumbnails,
-  rightPanelVisible,
-  downSmall,
-  downLarge,
-}) => {
-  if (!rightPanelVisible && !downLarge) {
-    return (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
-          gap: "0.5rem",
-          gridAutoFlow: "row",
-        }}
-      >
-        <ThumbnailList
-          ra={ra}
-          dec={dec}
-          thumbnails={thumbnails}
-          size="100%"
-          minSize="10rem"
-          maxSize="20rem"
-          useGrid={false}
-          noMargin
-        />
-      </div>
-    );
-  }
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr 1fr",
-        gap: "0.5rem",
-        gridAutoFlow: "row",
-        alignItems: "center",
-        maxWidth: "fit-content",
-      }}
-    >
-      <ThumbnailList
-        ra={ra}
-        dec={dec}
-        thumbnails={thumbnails}
-        size="100%"
-        minSize="6rem"
-        maxSize="13rem"
-        titleSize={
-          !downSmall || (rightPanelVisible && !downLarge) ? "0.8rem" : "0.55em"
-        }
-        useGrid={false}
-        noMargin
-      />
-    </div>
-  );
-};
-
-SourcePageThumbnails.propTypes = {
-  ra: PropTypes.number.isRequired,
-  dec: PropTypes.number.isRequired,
-  thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired, // eslint-disable-line react/forbid-prop-types
-  rightPanelVisible: PropTypes.bool.isRequired,
-  downSmall: PropTypes.bool.isRequired,
-  downLarge: PropTypes.bool.isRequired,
-};
 
 const SourceContent = ({ source }) => {
   const dispatch = useDispatch();
@@ -1253,7 +1184,7 @@ const SourceContent = ({ source }) => {
               </div>
             )}
             <div style={{ paddingTop: "0.25rem" }}>
-              <SourcePageThumbnails
+              <ThumbnailsOnPage
                 ra={source.ra}
                 dec={source.dec}
                 thumbnails={source.thumbnails}

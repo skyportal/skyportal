@@ -48,7 +48,7 @@ import Button from "./Button";
 import DisplayPhotStats from "./DisplayPhotStats";
 
 import { ra_to_hours, dec_to_dms, mjd_to_utc } from "../units";
-import ThumbnailList from "./ThumbnailList";
+import ThumbnailList from "./thumbnail/ThumbnailList";
 import ShowClassification from "./ShowClassification";
 import ShowSummaries from "./ShowSummaries";
 import ShowSummaryHistory from "./ShowSummaryHistory";

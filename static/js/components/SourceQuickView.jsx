@@ -19,7 +19,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { grey } from "@mui/material/colors";
 import Button from "./Button";
 
-import ThumbnailList from "./ThumbnailList";
+import ThumbnailList from "./thumbnail/ThumbnailList";
 import ShowClassification from "./ShowClassification";
 import * as Action from "../ducks/source";
 import { ra_to_hours, dec_to_dms } from "../units";

@@ -23,7 +23,7 @@ import Paper from "@mui/material/Paper";
 import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
-import ThumbnailList from "./ThumbnailList";
+import ThumbnailList from "./thumbnail/ThumbnailList";
 import { observingRunTitle } from "./AssignmentForm";
 import { ObservingRunStarList } from "./StarList";
 import withRouter from "./withRouter";

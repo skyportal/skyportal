@@ -22,7 +22,7 @@ import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
-import ThumbnailList from "./ThumbnailList";
+import ThumbnailList from "./thumbnail/ThumbnailList";
 import { allocationTitle } from "./AllocationPage";
 import withRouter from "./withRouter";
 

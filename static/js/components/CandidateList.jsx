@@ -19,7 +19,7 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { ViewportList } from "react-viewport-list";
 
 import { showNotification } from "baselayer/components/Notifications";
-import ThumbnailList from "./ThumbnailList";
+import ThumbnailList from "./thumbnail/ThumbnailList";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
 import ScanningPageCandidateAnnotations, {
