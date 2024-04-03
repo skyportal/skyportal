@@ -7,6 +7,9 @@ import InputLabel from "@mui/material/InputLabel";
 import makeStyles from "@mui/styles/makeStyles";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
+import BugReportIcon from "@mui/icons-material/BugReport";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -53,6 +56,7 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
   const { tnsrobotList } = useSelector((state) => state.tnsrobots);
   const [selectedTNSRobotId, setSelectedTNSRobotId] = useState(null);
   const [defaultReporterString, setDefaultReporterString] = useState(null);
+  const [defaultArchivalComment, setDefaultArchivalComment] = useState(null);
   const [defaultInstrumentIds, setDefaultInstrumentIds] = useState([]);
   const [defaultStreamIds, setDefaultStreamIds] = useState([]);
 
@@ -165,6 +169,7 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
 
   useEffect(() => {
     if (tnsrobotList?.length > 0 && selectedTNSRobotId) {
+      let archivalComment = "No non-detections prior to first detection";
       if (instrumentList?.length > 0) {
         const tnsRobotInstruments = tnsrobotList.find(
           (tnsrobot) => tnsrobot.id === selectedTNSRobotId,
@@ -178,9 +183,21 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         const tnsRobotStreams = tnsrobotList.find(
           (tnsrobot) => tnsrobot.id === selectedTNSRobotId,
         )?.streams;
-        const streamIds = tnsRobotStreams?.map((stream) => stream.id);
+        let streamIds = tnsRobotStreams?.map((stream) => stream.id);
+        // order the streamIds from lowest to highest
+        streamIds = streamIds.sort((a, b) => a - b);
         setDefaultStreamIds(streamIds);
+        // set the default archival comment to be:
+        // No non-detections prior to first detection in <streams> alert stream(s)
+        // where streams are comma separated stream names
+        archivalComment = `${archivalComment} in ${streamIds
+          .map(
+            (streamId) =>
+              streams.find((stream) => stream.id === streamId)?.name,
+          )
+          .join(", ")} alert stream${streamIds?.length > 1 ? "s" : ""}`;
       }
+      setDefaultArchivalComment(archivalComment);
     }
   }, [tnsrobotList, selectedTNSRobotId, instrumentList, streams]);
   // need to check both of these conditions as selectedTNSRobotId is
@@ -202,18 +219,15 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
       first_and_last_detections: formData.first_and_last_detections,
     };
     delete formData.first_and_last_detections;
-    const result = await dispatch(sourceActions.addSourceTNS(obj_id, formData));
-    setSubmissionRequestInProcess(false);
-    if (result.status === "success") {
-      dispatch(showNotification("added to TNS submission queue"));
-    } else {
-      dispatch(
-        showNotification("Failed to add object to TNS submission queue"),
-      );
-    }
-    if (submitCallback) {
-      submitCallback();
-    }
+    dispatch(sourceActions.addSourceTNS(obj_id, formData)).then((result) => {
+      setSubmissionRequestInProcess(false);
+      if (result.status === "success") {
+        dispatch(showNotification("added to TNS submission queue"));
+      }
+      if (submitCallback) {
+        submitCallback();
+      }
+    });
   };
 
   const tnsrobotLookUp = {};
@@ -280,7 +294,9 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
       },
       archival: {
         type: "boolean",
-        title: "Archival (no upperlimits needed + mandatory archival comment)",
+        title: "Archival report",
+        description:
+          "TNS reports require non-detections by default. However, reports can be sent as 'archival', excluding non-detections and requiring a comment. You can use this option after a normal report failed because non-detections were missing.",
         default: false,
       },
     },
@@ -302,6 +318,7 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
               archivalComment: {
                 type: "string",
                 title: "Archival Comment",
+                default: defaultArchivalComment,
               },
             },
             required: ["archivalComment"],
@@ -341,7 +358,7 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
         formData.archivalComment === undefined
       ) {
         errors.archival.addError(
-          "Archival comment must be defined if archive is true",
+          "Archival comment must be defined if archival is true",
         );
       }
     }
@@ -371,7 +388,25 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
             key={tnsrobot.id}
             className={classes.tnsrobotSelectItem}
           >
-            {`${tnsrobot.bot_name}`}
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {tnsrobot.testing === true && (
+                <Tooltip
+                  title={
+                    <h2>
+                      This bot is in testing mode and will not submit to TNS but
+                      only store the payload in the database (useful for
+                      debugging). Can be removed from the TNS robots page.
+                    </h2>
+                  }
+                  placement="right"
+                >
+                  <BugReportIcon style={{ color: "orange" }} />
+                </Tooltip>
+              )}
+              <Typography variant="body1" style={{ marginLeft: "0.5rem" }}>
+                {tnsrobot.bot_name}
+              </Typography>
+            </div>
           </MenuItem>
         ))}
       </Select>

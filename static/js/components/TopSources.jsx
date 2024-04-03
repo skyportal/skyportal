@@ -8,17 +8,17 @@ import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-
+import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+
 import Button from "./Button";
 
 import { ra_to_hours, dec_to_dms } from "../units";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useSourceListStyles } from "./RecentSources";
-import SourceQuickView from "./SourceQuickView";
 
 const useStyles = makeStyles((theme) => ({
   header: {},
@@ -82,17 +82,12 @@ const useStyles = makeStyles((theme) => ({
         ? theme.palette.secondary.main
         : theme.palette.primary.main,
   },
-  quickViewContainer: {
+  bottomContainer: {
     display: "flex",
     flexDirection: "column",
-    width: "45%",
+    width: "100%",
     alignItems: "flex-end",
     justifyContent: "space-between",
-  },
-  quickViewButton: {
-    visibility: "hidden",
-    textAlign: "center",
-    display: "none",
   },
 }));
 
@@ -107,9 +102,10 @@ const timespans = [
 const defaultPrefs = {
   maxNumSources: "10",
   sinceDaysAgo: "7",
+  displayTNS: true,
 };
 
-const TopSourcesList = ({ sources, styles }) => {
+const TopSourcesList = ({ sources, styles, displayTNS = true }) => {
   const [thumbnailIdxs, setThumbnailIdxs] = useState({});
 
   useEffect(() => {
@@ -217,23 +213,42 @@ const TopSourcesList = ({ sources, styles }) => {
                         </span>
                       </div>
                     </div>
-                    <div className={styles.quickViewContainer}>
+                    <div className={styles.bottomContainer}>
                       <span style={{ textAlign: "right" }}>
                         <em>{`${source.views} view(s)`}</em>
                       </span>
-                      <div
-                        style={{
-                          minHeight: "3rem",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "flex-end",
-                        }}
-                      >
-                        <SourceQuickView
-                          sourceId={source.obj_id}
-                          className={styles.quickViewButton}
-                        />
-                      </div>
+                      {displayTNS && source?.tns_name?.length > 0 && (
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-end",
+                          }}
+                        >
+                          <Chip
+                            label={source.tns_name}
+                            color={
+                              source.tns_name.includes("SN")
+                                ? "primary"
+                                : "default"
+                            }
+                            size="small"
+                            style={{
+                              fontWeight: "bold",
+                            }}
+                            onClick={() => {
+                              window.open(
+                                `https://www.wis-tns.org/object/${
+                                  source.tns_name.trim().includes(" ")
+                                    ? source.tns_name.split(" ")[1]
+                                    : source.tns_name
+                                }`,
+                                "_blank",
+                              );
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -276,10 +291,12 @@ TopSourcesList.propTypes = {
     }),
   ),
   styles: PropTypes.shape(Object).isRequired,
+  displayTNS: PropTypes.bool,
 };
 
 TopSourcesList.defaultProps = {
   sources: undefined,
+  displayTNS: true,
 };
 
 const TopSources = ({ classes }) => {
@@ -292,16 +309,11 @@ const TopSources = ({ classes }) => {
   const sourceListStyles = useSourceListStyles({ invertThumbnails });
 
   const { sourceViews } = useSelector((state) => state.topSources);
-  const topSourcesPrefs =
+  const prefs =
     useSelector((state) => state.profile.preferences.topSources) ||
     defaultPrefs;
 
-  if (!Object.keys(topSourcesPrefs).includes("maxNumSources")) {
-    topSourcesPrefs.maxNumSources = defaultPrefs.maxNumSources;
-  }
-  if (!Object.keys(topSourcesPrefs).includes("sinceDaysAgo")) {
-    topSourcesPrefs.sinceDaysAgo = defaultPrefs.sinceDaysAgo;
-  }
+  const topSourcesPrefs = prefs ? { ...defaultPrefs, ...prefs } : defaultPrefs;
 
   const [currentTimespan, setCurrentTimespan] = useState(
     timespans.find(
@@ -379,14 +391,21 @@ const TopSources = ({ classes }) => {
           <div className={classes.widgetIcon}>
             <WidgetPrefsDialog
               // Only expose num sources
-              initialValues={{ maxNumSources: topSourcesPrefs.maxNumSources }}
+              initialValues={{
+                maxNumSources: topSourcesPrefs.maxNumSources,
+                displayTNS: topSourcesPrefs.displayTNS,
+              }}
               stateBranchName="topSources"
               title="Top Sources Preferences"
               onSubmit={profileActions.updateUserPreferences}
             />
           </div>
         </div>
-        <TopSourcesList sources={sourceViews} styles={sourceListStyles} />
+        <TopSourcesList
+          sources={sourceViews}
+          styles={sourceListStyles}
+          displayTNS={topSourcesPrefs?.displayTNS !== false}
+        />
       </div>
     </Paper>
   );

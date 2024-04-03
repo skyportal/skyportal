@@ -30,10 +30,7 @@ def validate_request_to_sedmv2(request):
     Parameters
     ----------
     request: skyportal.models.FollowupRequest
-        The request to send to SEDM.
-
-    method_value: 'new', 'edit', 'delete'
-        The desired SEDMv2 queue action.
+        The request to send to SEDMv2.
     """
 
     for param in [
