@@ -75,11 +75,10 @@ class SourceAccessibilityHandler(BaseHandler):
                 is_public=False,
             )
             if publish:
-                source_accessibility.publish()
-            session.add(source_accessibility)
-            session.commit()
-
-            return self.success({"Source id": source_id})
+                source_accessibility.publish(data.get("data_to_display"))
+                session.add(source_accessibility)
+                session.commit()
+                return self.success({"Source id": source_id})
 
     @auth_or_token
     def get(self, source_id):
@@ -164,8 +163,11 @@ class SourceAccessibilityHandler(BaseHandler):
                 .where(SourceAccessibility.source_id == source_id)
             ).first()
             if source_accessibility and source_accessibility.is_public != publish:
-                # If source_accessibility exists and the publish value is different, update it
-                source_accessibility.publish() if publish else source_accessibility.unpublish()
+                if publish:
+                    source_accessibility.publish(data.get("data_to_display"))
+                else:
+                    source_accessibility.unpublish()
+
                 session.commit()
                 return self.success(data=source_accessibility)
 

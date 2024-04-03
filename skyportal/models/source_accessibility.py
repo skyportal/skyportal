@@ -43,10 +43,11 @@ class SourceAccessibility(Base):
         doc='Whether source is public or not.',
     )
 
-    def publish(self):
-        """Set the accessibility of a source to public."""
+    def publish(self, data_to_display):
+        """Set the accessibility of a source to public,
+        create a public source page and add it to the cache."""
         self.is_public = public
-        self.generate_public_source_page()
+        self.generate_public_source_page(data_to_display)
 
     def unpublish(self):
         """Set the accessibility of a source to private."""
@@ -64,22 +65,21 @@ class SourceAccessibility(Base):
                 {"public": False, "html": None}
             )
 
-    def generate_html(self):
+    def generate_html(self, data_to_display):
         """Generate HTML for a public source page."""
-        data = self.data
-        if isinstance(data, str):
-            data = json.loads(data)
+        if isinstance(data_to_display, str):
+            data_to_display = json.loads(data_to_display)
 
         environment = jinja2.Environment(loader=jinja2.FileSystemLoader("./static/public_pages/sources"))
         environment.policies['json.dumps_function'] = to_json
         template = environment.get_template("template.html")
         html = template.render(
             source_id=self.source_id,
-            data=data,
+            data=data_to_display,
         )
         return html
 
-    def generate_public_source_page(self):
+    def generate_public_source_page(self, data_to_display):
         """Generate public source page and cache it."""
         data = self.data
         if isinstance(data, str):
@@ -95,6 +95,6 @@ class SourceAccessibility(Base):
         self.data.update({"status": "pending"})
 
         cache_key = f"source_{self.source_id}"
-        public_source_page = self.generate_html()
+        public_source_page = self.generate_html(data_to_display)
         cache[cache_key] = dict_to_bytes({"public": True, "html": public_source_page})
         self.data.update({"status": "success"})

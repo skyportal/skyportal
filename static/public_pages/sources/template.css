@@ -1,125 +1,83 @@
 body {
-  font-family: "Roboto", Helvetica, Ariel, sans-serif;
-  padding: 1rem;
-  padding-top: 0;
+    font-family: "Roboto", Helvetica, Ariel, sans-serif;
+    margin: 0;
 }
 
-a {
-  text-decoration: none;
-  color: #457b9d;
+header {
+    background-color: rgb(29, 53, 87);
+    align-items: center;
+    padding-left: 1.5rem;
+    min-height: 64px;
+    display: flex;
+
+    .websiteName {
+        font-size: 1.6rem;
+        margin-left: 1rem;
+        color: white;
+        font-weight: bold;
+        text-decoration: none;
+    }
 }
 
-.logo {
-  height: 60px;
-  padding: 0 0.5em;
+h1{
+    margin: 0;
+    color: #457b9d;
+    font-size: 2rem;
+    font-weight: bold;
 }
 
-@media (prefers-color-scheme: light) {
-  /* set the color of the logo to #457B9D; */
-  .logo {
-    filter: invert(0.5);
-  }
+h2{
+    font-family: "Roboto", Helvetica, Ariel, sans-serif;
+    color: rgba(0, 0, 0, 0.87);
+    line-height: 1.5rem;
+    font-weight: bold;
+    font-size: 1rem;
+    margin: 0;
+
+    span{
+        font-weight: normal;
+        white-space: nowrap;
+    }
 }
 
-.table {
-  display: table;
-  text-align: left;
-  text-indent: initial;
-  margin-bottom: 0 !important;
-  border-width: 2px;
-  border-bottom-width: 0;
-  border-style: solid;
-  border-color: #dddddd;
-  padding: 0;
-  margin: 0;
-}
-
-.table > thead > tr > th {
-  border-left-width: 2px;
-  border-left-style: solid;
-  border-left-color: #dddddd;
-  border-bottom-width: 2px;
-  border-bottom-style: solid;
-  border-bottom-color: #dddddd;
-  text-align: center;
-  vertical-align: middle;
-  padding: 4px;
-  margin: 0;
-}
-
-.table > tbody > tr {
-  display: table-row;
-}
-
-.table > tbody > tr > td {
-  border-left-width: 2px;
-  border-left-style: solid;
-  border-left-color: #dddddd;
-  border-bottom-width: 2px;
-  border-bottom-style: solid;
-  border-bottom-color: #dddddd;
-  text-align: center;
-  vertical-align: middle;
-  padding: 4px;
-  margin: 0;
-}
-
-.tag {
-  /* here we want some sort of rounded chip */
-  border-radius: 12px;
-  background-color: #dddddd;
-  padding: 4px;
-  padding-left: 8px;
-  padding-right: 8px;
-  margin-right: 4px;
-  font-size: 0.8em;
-}
-
-.section {
-  display: flex;
-  flex-direction: row;
-  max-width: 100%;
-}
-
-.container {
-  display: flex;
-  flex-direction: column;
-  max-width: 50%;
-  width: 50%;
-  overflow: auto;
-  overflow-x: scroll;
-}
-
-.divider {
-  width: 1px;
-  background-color: #000000;
-  margin-left: 10px;
-  margin-right: 10px;
-}
-
-.plot {
-  max-width: 50vw;
-  object-fit: cover;
-}
-
-/* if the screen is smaller than 1200px, we want to make the container full width */
-@media (max-width: 1000px) {
-  .section {
-    flex-direction: column;
-  }
-  .container {
-    max-width: 100%;
-    width: 100%;
-  }
-  .divider {
-    height: 1px;
-    width: 100%;
-    margin-top: 30px;
-    margin-bottom: 30px;
-    margin-left: 0;
-    margin-right: 0;
-  }
-  .plot {
-    max-width: 90vw;
-  }
+.content{
+    background-color: #f0f2f5;
+    position: relative;
+    display: flex;
+    padding: 1rem;
+    .title{
+        margin-bottom: 0.5rem;
+    }
+    .images{
+        margin-top: 2rem;
+        display: flex;
+        flex-wrap: wrap;
+        column-gap: 1rem;
+        .imageAndTitle{
+            .title{
+                letter-spacing: 0.009em;
+                font-size: 0.8rem;
+                font-weight: bold;
+                margin: 0.25rem 0.15rem;
+                a{
+                    text-decoration: none;
+                    color: gray;
+                }
+            }
+            .image{
+                position: relative;
+                img{
+                    width: 13rem;
+                    height: auto;
+                }
+                .crosshair{
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 13rem;
+                    padding-bottom: 0.2em;
+                }
+            }
+        }
+    }
 }

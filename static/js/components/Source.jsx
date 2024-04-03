@@ -30,6 +30,7 @@ import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import withRouter from "./withRouter";
 
+import { getThumbnailAltAndLink } from "./thumbnail/Thumbnail";
 import ThumbnailsOnPage from "./thumbnail/ThumbnailsOnPage";
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "./ClassificationList";
@@ -305,18 +306,47 @@ const SourceContent = ({ source }) => {
     dispatch(spectraActions.fetchSourceSpectra(source.id));
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
   }, [source.id, magsys, dispatch]);
+  
+  const dataToDisplay = () => {
+    if(!source)
+      return {};
 
+    let thumbnails = source.thumbnails
+    thumbnails.forEach( thumbnail => {
+      const { alt, link} = getThumbnailAltAndLink(thumbnail.type, source.ra, source.dec);
+      thumbnail.alt = alt;
+      thumbnail.link = link;
+    })
+    
+    return {
+      radec_hhmmss: radec_hhmmss,
+      ra: source.ra,
+      dec: source.dec,
+      gal_lon: source.gal_lon?.toFixed(6),
+      gal_lat: source.gal_lat?.toFixed(6),
+      ebv: source.ebv?.toFixed(2),
+      redshift: source.redshift?.toFixed(z_round),
+      dm: source.dm?.toFixed(3),
+      dl: source.luminosity_distance?.toFixed(2),
+      thumbnails: source.thumbnails
+    }
+  }
+    
   const publishThisSource = () => {
-    const payload = {publish: true};
-    dispatch(accessibilityActions.updateSourceAccessibility(source.id, payload));
+    const payload = { 
+      publish: true, data_to_display: dataToDisplay(source)
+    };
+    dispatch(accessibilityActions.updateSourceAccessibility(source.id, payload)).then(() => {
+      setIsPublished(true);
+    });
     setPublishedDialogOpen(false);
-    setIsPublished(true);
   };
 
   const unpublishThisSource = () => {
     const payload = {publish: false};
-    dispatch(accessibilityActions.updateSourceAccessibility(source.id, payload));
-    setIsPublished(false);
+    dispatch(accessibilityActions.updateSourceAccessibility(source.id, payload)).then(() => {
+      setIsPublished(false);
+    });
   };
 
   const setHost = (galaxyName) => {

@@ -1,25 +1,113 @@
-<!doctype html>
-<html lang="en-US">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="robots" content="noindex" />
-    <title>Source</title>
-    <link rel="stylesheet" type="text/css" href="/static/public_pages/sources/template.css" />
-  </head>
-  <body>
-    <div
-      style="
-        display: flex;
-        flex-direction: row;
-        max-width: 100%;
-        justify-content: space-between;
-      "
-    >
-      <div>
-        <h1 style="margin-bottom: 0">
-          Test1
-        </h1>
-      </div>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <meta name="robots" content="noindex">
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>SkyPortal</title>
+    <link rel="icon" type="image/png" href="/favicon.png"/>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet">
+    <link
+            rel="stylesheet" type="text/css"
+            href="/static/public_pages/sources/template.css"
+    />
+</head>
+<body>
+<header>
+    <!--Logos-->
+    <div>
+        <img
+                src="/static/images/skyportal_logo_dark.png"
+                alt="Logo de croissance"
+                width=41
+                height=40
+        />
     </div>
-  </body>
+    <!--Site title-->
+    <div>
+        <a class=websiteName href="/">
+            SkyPortal
+        </a>
+    </div>
+</header>
+<!--Page content-->
+<div class="content">
+    <div>
+        <div class="title">
+            <h1>
+                TIC_114807149
+            </h1>
+        </div>
+        <div class="subtitle">
+            <h2>
+                {{ data['radec_hhmmss'] }}
+                <span>
+                    (&alpha;,&delta;= {{ data['ra'] }}, &nbsp{{ data['dec'] }})
+                </span>
+                <span>
+                    (<i>l</i>,<i>b</i>={{ data['gal_lon'] }}, &nbsp;{{ data['gal_lat'] }})
+                </span>
+                <span>
+                    {% if ebv %}
+                        E(B-V): {{ data['ebv'] }}
+                    {% endif %}
+                </span>
+            </h2>
+            <h2>
+                Redshift:&nbsp;
+                <span>
+                    {{ data['redshift'] }}
+                </span>
+                {% if data.get('dm') %}
+                &nbsp;DM:&nbsp;
+                <span>
+                        {{ data['dm'] }} mag
+                    </span>
+                {% endif %}
+                {% if data.get('dl') %}
+                &nbsp;<i>D</i><sub>L</sub>:&nbsp;
+                <span>
+                        {{ data['dl'] }} Mpc
+                    </span>
+                {% endif %}
+            </h2>
+        </div>
+        <div class="images">
+            {% for thumbnail in data['thumbnails'] %}
+            <div class="imageAndTitle">
+                <div class="title">
+                    <a href="{{ thumbnail['link'] }}" target="_blank" rel="noreferrer">
+                        {{ thumbnail['type'] }}
+                    </a>
+                </div>
+                <div class="image">
+                    <a href="{{ thumbnail['link'] }}" target="_blank" rel="noreferrer">
+                        <img
+                                src="{{ thumbnail['public_url'] }}"
+                                alt="{{ thumbnail['alt'] }}"
+                                title="{{ thumbnail['alt'] }}"
+                                loading="lazy"
+                                onerror="
+                        {% if thumbnail.get('public_url') != '#' %}
+                            if (thumbnail.get('type') === 'ls') 
+                                { this.src = '/static/images/outside_survey.png'; } 
+                            else 
+                                { this.src = '/static/images/currently_unavailable.png'; }
+                        {% endif %}"
+                        />
+                    </a>
+                    {% if thumbnail.get('type') != "sdss" %}
+                    <img
+                            class="crosshair"
+                            src="/static/images/crosshairs.png"
+                            alt="crosshair"
+                    />
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+</body>
 </html>
