@@ -179,6 +179,7 @@ const PhotometryPlot = ({
   gcn_events,
   mode,
   plotStyle,
+  magsys,
 }) => {
   const classes = useStyles();
   const [data, setData] = useState(null);
@@ -749,7 +750,7 @@ const PhotometryPlot = ({
 
     if (plotType === "mag" || plotType === "period") {
       newLayouts.yaxis = {
-        title: "AB Mag",
+        title: magsys.toUpperCase().concat(" Mag"),
         range: [...photStats_value.mag.range],
         zeroline: false,
         ...BASE_LAYOUT,
@@ -1360,6 +1361,7 @@ PhotometryPlot.propTypes = {
   plotStyle: PropTypes.shape({
     height: PropTypes.string,
   }),
+  magsys: PropTypes.string,
 };
 
 PhotometryPlot.defaultProps = {
@@ -1371,6 +1373,7 @@ PhotometryPlot.defaultProps = {
   plotStyle: {
     height: "65vh",
   },
+  magsys: "ab",
 };
 
 export default PhotometryPlot;

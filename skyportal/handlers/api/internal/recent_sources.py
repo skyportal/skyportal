@@ -1,33 +1,54 @@
+from collections import defaultdict
+
+import sqlalchemy as sa
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
-from collections import defaultdict
+
 from baselayer.app.access import auth_or_token
+from baselayer.app.env import load_env
 from baselayer.log import make_log
+
+from skyportal.models.group import Group
 from ...base import BaseHandler
 from ....models import Obj, Source
 from .source_views import t_index
 
 
-default_prefs = {'maxNumSources': 5}
+# maxNumSources is the maximum number of sources to return
+# includeSitewide is a boolean that determines whether to include
+# sources that are only in the sitewide group
+default_prefs = {'maxNumSources': 5, 'includeSitewideSources': False}
 
+env, cfg = load_env()
 log = make_log('api/recent_sources')
 
 
 class RecentSourcesHandler(BaseHandler):
     @classmethod
-    def get_recent_source_ids(self, current_user, session):
+    def get_recent_source_ids(cls, current_user, session):
         user_prefs = getattr(current_user, 'preferences', None) or {}
         recent_sources_prefs = user_prefs.get('recentSources', {})
         recent_sources_prefs = {**default_prefs, **recent_sources_prefs}
 
         max_num_sources = int(recent_sources_prefs['maxNumSources'])
-        query_results = session.scalars(
+        include_sitewide = recent_sources_prefs.get('includeSitewideSources', False)
+
+        stmt = (
             Source.select(session.user_or_token)
             .where(Source.active.is_(True))
             .order_by(desc(Source.created_at))
             .distinct(Source.obj_id, Source.created_at)
-            .limit(max_num_sources)
-        ).all()
+        )
+        if not include_sitewide:
+            public_group_id = session.scalar(
+                sa.select(Group.id).where(Group.name == cfg["misc.public_group_name"])
+            )
+            if public_group_id is None:
+                raise ValueError(
+                    f"Could not find public group with name {cfg['misc.public_group_name']}"
+                )
+            stmt = stmt.where(Source.group_id != public_group_id)
+        query_results = session.scalars(stmt.limit(max_num_sources)).all()
         ids = map(lambda src: src.obj_id, query_results)
         return ids
 
@@ -79,6 +100,7 @@ class RecentSourcesHandler(BaseHandler):
                         ],
                         'classifications': s.classifications,
                         'recency_index': recency_index,
+                        'tns_name': s.tns_name,
                     }
                 )
 

@@ -63,7 +63,6 @@ import AnalysisList from "./AnalysisList";
 import AnalysisForm from "./AnalysisForm";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
-import PhotometryDownload from "./PhotometryDownload";
 import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
@@ -1355,6 +1354,7 @@ const SourceContent = ({ source }) => {
                           height: rightPanelVisible ? "65vh" : "75vh",
                         }}
                         mode={downMd ? "mobile" : "desktop"}
+                        magsys={magsys}
                       />
                     </Suspense>
                   )}
@@ -1375,10 +1375,6 @@ const SourceContent = ({ source }) => {
                   <Link to={`/upload_photometry/${source.id}`} role="link">
                     <Button secondary>Upload photometry</Button>
                   </Link>
-                  <PhotometryDownload
-                    obj_id={source.id}
-                    photometry={photometry}
-                  />
                   {photometry && (
                     <Link to={`/source/${source.id}/periodogram`} role="link">
                       <Button secondary>Periodogram Analysis</Button>

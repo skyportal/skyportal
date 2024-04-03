@@ -128,9 +128,15 @@ const TNSRobotGroup = ({ tnsrobot_group, groupsLookup, usersLookup }) => {
         ),
       );
       // we create an entry with only the user id and the label
-      setLeft(newLeft.map((user) => ({ id: user.id, label: userLabel(user) })));
+      setLeft(
+        newLeft
+          .map((user) => ({ id: user.id, label: userLabel(user) }))
+          .sort((a, b) => a?.label?.localeCompare(b?.label)),
+      );
       setRight(
-        newRight.map((user) => ({ id: user.id, label: userLabel(user) })),
+        newRight
+          .map((user) => ({ id: user.id, label: userLabel(user) }))
+          .sort((a, b) => a?.label?.localeCompare(b?.label)),
       );
 
       if (!initialized) {
@@ -408,15 +414,17 @@ const NewTNSRobotGroup = ({ tnsrobot, groupsLookup }) => {
               onChange={(e) => setGroup(e.target.value)}
               style={{ minWidth: "20vw" }}
             >
-              {groupOptions.map(
-                (
-                  group, // eslint-disable-line no-shadow
-                ) => (
-                  <MenuItem key={group.id} value={group.id}>
-                    {group.name || "loading..."}
-                  </MenuItem>
-                ),
-              )}
+              {groupOptions
+                .sort((a, b) => a?.name?.localeCompare(b?.name))
+                .map(
+                  (
+                    group, // eslint-disable-line no-shadow
+                  ) => (
+                    <MenuItem key={group.id} value={group.id}>
+                      {group.name || "loading..."}
+                    </MenuItem>
+                  ),
+                )}
             </Select>
           </div>
           <div>
@@ -563,15 +571,17 @@ const NewTNSRobotCoauthor = ({ tnsrobot, usersLookup }) => {
               onChange={(e) => setUser(e.target.value)}
               style={{ minWidth: "20vw" }}
             >
-              {userOptions.map(
-                (
-                  user, // eslint-disable-line no-shadow
-                ) => (
-                  <MenuItem key={user.id} value={user.id}>
-                    {userLabel(user)}
-                  </MenuItem>
-                ),
-              )}
+              {userOptions
+                .sort((a, b) => userLabel(a).localeCompare(userLabel(b)))
+                .map(
+                  (
+                    user, // eslint-disable-line no-shadow
+                  ) => (
+                    <MenuItem key={user.id} value={user.id}>
+                      {userLabel(user)}
+                    </MenuItem>
+                  ),
+                )}
             </Select>
           </div>
           <div
@@ -637,6 +647,7 @@ const TNSRobotsPage = () => {
     stream_ids: [],
     report_exceptions: false,
     first_and_last_detections: true,
+    autoreport_allow_archival: false,
   });
 
   const allowedInstruments = instrumentList.filter((instrument) =>
@@ -708,6 +719,8 @@ const TNSRobotsPage = () => {
       report_existing: tnsrobotListLookup[id]?.report_existing,
       first_and_last_detections:
         tnsrobotListLookup[id]?.photometry_options?.first_and_last_detections,
+      autoreport_allow_archival:
+        tnsrobotListLookup[id]?.photometry_options?.autoreport_allow_archival,
     });
     setEditDialogOpen(true);
     setTnsrobotToManage(id);
@@ -736,6 +749,7 @@ const TNSRobotsPage = () => {
       testing,
       report_existing,
       first_and_last_detections,
+      autoreport_allow_archival,
     } = formData.formData;
 
     if (api_key?.length === 0) {
@@ -763,6 +777,7 @@ const TNSRobotsPage = () => {
       report_existing,
       photometry_options: {
         first_and_last_detections,
+        autoreport_allow_archival,
       },
     };
 
@@ -801,6 +816,7 @@ const TNSRobotsPage = () => {
       testing,
       report_existing,
       first_and_last_detections,
+      autoreport_allow_archival,
     } = formData.formData;
 
     const data = {
@@ -814,6 +830,7 @@ const TNSRobotsPage = () => {
       report_existing,
       photometry_options: {
         first_and_last_detections,
+        autoreport_allow_archival,
       },
     };
 
@@ -843,9 +860,6 @@ const TNSRobotsPage = () => {
         <IconButton
           key={tnsrobot.id}
           id="delete_button"
-          classes={{
-            root: classes.tnsrobotDelete,
-          }}
           onClick={() => openDeleteDialog(tnsrobot.id)}
         >
           <DeleteIcon />
@@ -922,7 +936,7 @@ const TNSRobotsPage = () => {
       testing: {
         type: "boolean",
         title: "Testing Mode",
-        default: tnsrobotListLookup[tnsrobotToManage]?.testing || true,
+        default: tnsrobotListLookup[tnsrobotToManage]?.testing,
         description:
           "If enabled, the bot will not submit to TNS but only store the payload in the DB (useful for debugging).",
       },
@@ -942,6 +956,15 @@ const TNSRobotsPage = () => {
         description:
           "If enabled, the bot will not send a report to TNS if there is not both first and last detection (at least 2 detections required).",
       },
+      autoreport_allow_archival: {
+        type: "boolean",
+        title: "Allow archival auto-reports",
+        default:
+          tnsrobotListLookup[tnsrobotToManage]?.photometry_options
+            ?.autoreport_allow_archival || false,
+        description:
+          "If enabled, the bot will submit auto-reports as archival if there is no non-detection prior to the first detection that can be reported.",
+      },
     },
     required: [
       "bot_name",
@@ -959,17 +982,21 @@ const TNSRobotsPage = () => {
     type: "array",
     items: {
       type: "integer",
-      anyOf: (groups || []).map((group) => ({
-        enum: [group.id],
-        type: "integer",
-        title: group.name,
-      })),
+      anyOf: (groups || [])
+        .sort((a, b) => a?.name?.localeCompare(b?.name))
+        .map((group) => ({
+          enum: [group.id],
+          type: "integer",
+          title: group.name,
+        })),
     },
     uniqueItems: true,
     default: tnsrobotListLookup[tnsrobotToManage]?.owner_group_ids || [],
     title: "Owner Group(s)",
   };
   createSchema.required.push("owner_group_ids");
+  // change the default of testing to be true
+  createSchema.properties.testing.default = true;
 
   const validate = (formData, errors) => {
     const { source_group_id } = formData;
@@ -1045,7 +1072,13 @@ const TNSRobotsPage = () => {
       <div style={{ display: "flex", alignItems: "center" }}>
         {tnsrobot.testing === true && (
           <Tooltip
-            title="This bot is in testing mode and won't submit to TNS but only store the payload in the database (useful for debugging). Click on the edit button to change this."
+            title={
+              <h2>
+                This bot is in testing mode and will not submit to TNS but only
+                store the payload in the database (useful for debugging). Click
+                on the edit button to change this.
+              </h2>
+            }
             placement="right"
           >
             <BugReportIcon style={{ color: "orange" }} />
@@ -1299,7 +1332,9 @@ const TNSRobotsPage = () => {
       <MUIDataTable
         className={classes.tnsrobots}
         title="TNS Robots"
-        data={tnsrobotList.sort((a, b) => a.bot_name.localeCompare(b.bot_name))}
+        data={tnsrobotList.sort((a, b) =>
+          a?.bot_name?.localeCompare(b?.bot_name),
+        )}
         columns={columns}
         options={{
           selectableRows: "none",

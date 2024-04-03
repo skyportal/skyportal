@@ -1,4 +1,5 @@
 import asyncio
+import sqlalchemy as sa
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
 
@@ -791,7 +792,32 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
 
+                obj_with_requests = []
                 for obj in sources_in_gcn:
+                    # verify that there isn't already a TNSRobotSubmission for this object
+                    # and TNSRobot, that is:
+                    # 1. pending
+                    # 2. processing
+                    # 3. submitted
+                    # 4. complete
+                    # if so, do not add another request
+                    existing_submission_request = session.scalars(
+                        TNSRobotSubmission.select(session.user_or_token).where(
+                            TNSRobotSubmission.obj_id == obj.id,
+                            TNSRobotSubmission.tnsrobot_id == tnsrobot.id,
+                            sa.or_(
+                                TNSRobotSubmission.status == "pending",
+                                TNSRobotSubmission.status == "processing",
+                                TNSRobotSubmission.status.like("submitted%"),
+                                TNSRobotSubmission.status.like("complete%"),
+                            ),
+                        )
+                    ).first()
+                    if existing_submission_request is not None:
+                        log(
+                            f"Skipping TNSRobotSubmission request for obj_id {obj.id} with tnsrobot_id {tnsrobot.id} for user_id {self.associated_user_object.id} as there is already a submission request with status {existing_submission_request.status}"
+                        )
+                        continue
                     submission = TNSRobotSubmission(
                         tnsrobot_id=tnsrobot.id,
                         obj_id=obj.obj_id,
@@ -799,19 +825,19 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                         custom_reporting_string=reporters,
                         archival=archival,
                         archival_comment=archival_comment,
+                        auto_submission=False,
                     )
                     session.add(submission)
                     log(
                         f"Added TNSRobotSubmission request for obj_id {obj.id} confirmed in GCN with tnsrobot_id {tnsrobot.id} for user_id {self.associated_user_object.id}"
                     )
+                    obj_with_requests.append(obj.obj_id)
                 session.commit()
 
-                return self.success()
+                return self.success(data={'obj_ids': obj_with_requests})
 
             except Exception as e:
                 return self.error(str(e))
-
-        return self.success(data=sources_in_gcn)
 
 
 class GCNsAssociatedWithSourceHandler(BaseHandler):
