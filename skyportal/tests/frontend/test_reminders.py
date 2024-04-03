@@ -3,12 +3,11 @@ import time
 
 from skyportal.tests import api
 from datetime import date, timedelta, datetime
-from selenium.webdriver.common.keys import Keys
 
 
 def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
-    next_reminder = datetime.utcnow() + timedelta(seconds=2)
+    next_reminder = datetime.utcnow() + timedelta(seconds=1)
     reminder_delay = 1
     number_of_reminders = 1
     request_data = {
@@ -96,26 +95,7 @@ def post_and_verify_reminder_frontend(driver, reminder_text, resource_id):
 
     reminder_text_2 = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_text"]').send_keys(reminder_text_2)
-    first_of_the_month = int((datetime.now() + timedelta(days=1)).strftime("%d")) == 1
-    if first_of_the_month:
-        next_reminder_year = (datetime.now() + timedelta(days=14)).strftime("%Y")
-        next_reminder_month = (datetime.now() + timedelta(days=14)).strftime("%m")
-        next_reminder_day = (datetime.now() + timedelta(days=14)).strftime("%d")
-    else:
-        next_reminder_year = (datetime.now() + timedelta(days=1)).strftime("%Y")
-        next_reminder_month = (datetime.now() + timedelta(days=1)).strftime("%m")
-        next_reminder_day = (datetime.now() + timedelta(days=1)).strftime("%d")
 
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(
-        next_reminder_month
-    )
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(next_reminder_day)
-    for n in str(next_reminder_year).split():
-        driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(str(n))
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(Keys.ARROW_RIGHT)
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys('01')
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys('01')
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys('P')
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//form[@id="reminder-form"]/*/*[@type="submit"]')
     )
