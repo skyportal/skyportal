@@ -96,7 +96,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
 
   const [specStats, setSpecStats] = useState(null);
 
-  const [layoutReset, setLayoutReset] = useState(0);
+  const [layoutReset, setLayoutReset] = useState(1);
 
   const { preferences } = useSelector((state) => state.profile);
 
@@ -379,6 +379,8 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     if (!specStats_value || !spectrumType) {
       return {};
     }
+    redshift_value = parseFloat(redshift_value, 10);
+    vexp_value = parseFloat(vexp_value, 10);
     const newLayouts = {
       xaxis: {
         title: "Wavelength (Å)",
