@@ -438,10 +438,24 @@ def test_shift_summary(
         timeout=30,
     )
 
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath(
-            '//*[@id="gcn_list_item_2018-01-16T00:36:53"]', timeout=30
-        )
+    item_list = driver.wait_for_xpath(
+        '//*[@id="gcn_list_item_2018-01-16T00:36:53"]', timeout=30
     )
+
+    # scroll to the element and click it
+    # sometimes the element moves out of the view, so we try a few times
+    n_retries = 0
+    while n_retries < 5:
+        try:
+            driver.scroll_to_element_and_click(item_list)
+        except Exception:
+            time.sleep(1)
+            n_retries += 1
+            continue
+        break
+
+    assert (
+        n_retries < 5
+    )  # failed to click on the GCN event to open it (to see the list of sources)
 
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]", timeout=30)
