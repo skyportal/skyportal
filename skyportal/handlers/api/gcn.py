@@ -1619,7 +1619,7 @@ class GcnEventHandler(BaseHandler):
 
             return self.success(data=query_results)
 
-    @auth_or_token
+    @permissions(["System admin"])
     def delete(self, dateobs):
         """
         ---
@@ -1651,6 +1651,35 @@ class GcnEventHandler(BaseHandler):
                 ).first()
                 if event is None:
                     return self.error("GCN event not found", status=404)
+
+                # get all of the skymaps on that event
+                localizations = session.scalars(
+                    Localization.select(session.user_or_token, mode="delete").where(
+                        Localization.dateobs == dateobs
+                    )
+                ).all()
+                for localization in localizations:
+                    session.delete(localization)
+                session.commit()
+
+                # get all of the notices of the event, and delete them
+                notices = session.scalars(
+                    GcnNotice.select(session.user_or_token, mode="delete").where(
+                        GcnNotice.dateobs == dateobs
+                    )
+                ).all()
+                for notice in notices:
+                    session.delete(notice)
+
+                # delete all GCN tags
+                tags = session.scalars(
+                    GcnTag.select(session.user_or_token, mode="delete").where(
+                        GcnTag.dateobs == dateobs
+                    )
+                ).all()
+                for tag in tags:
+                    session.delete(tag)
+                session.commit()
 
                 session.delete(event)
                 session.commit()

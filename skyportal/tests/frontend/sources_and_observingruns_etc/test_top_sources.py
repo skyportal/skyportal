@@ -53,12 +53,13 @@ def test_top_sources(driver, user, public_source, public_group, upload_data_toke
     driver.get("/")
     driver.wait_for_xpath("//*[contains(.,'1 view(s)')]")
 
-    # Test that token requests are registered as source views
+    # Test that token requests (which register source views) do not increment the view count in the UI
+    # (we used to show token views, but periodic scripts ran by users with tokens would artificially inflate the view count)
     status, data = api('GET', f'sources/{obj_id}', token=upload_data_token)
     time.sleep(1)
     assert status == 200
     driver.refresh()
-    driver.wait_for_xpath("//*[contains(.,'2 view(s)')]")
+    driver.wait_for_xpath("//*[contains(.,'1 view(s)')]")
 
 
 @pytest.mark.flaky(reruns=2)
@@ -87,7 +88,7 @@ def test_top_source_prefs(driver, user, public_group, upload_data_token):
     sv = SourceView(
         obj_id=obj_id,
         username_or_token_id=upload_data_token,
-        is_token=True,
+        is_token=False,  # token views are not shown on the frontend
         created_at=twenty_days_ago,
     )
     DBSession().add(sv)
