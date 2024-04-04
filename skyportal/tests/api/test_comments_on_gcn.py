@@ -6,7 +6,7 @@ import numpy as np
 from skyportal.tests import api
 
 
-def add_gw190425_gcn_event(super_admin_token):
+def add_gw190425_gcn_event(super_admin_token, require_localization=True):
     dateobs = "2019-04-25T08:18:05"
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
 
@@ -54,7 +54,11 @@ def add_gw190425_gcn_event(super_admin_token):
             else:
                 time.sleep(2)
                 n_times_2 += 1
-        assert n_times_2 < 15
+
+        # if we don't require the localization, we still give it some time to load
+        # but we don't fail if it doesn't
+        if require_localization:
+            assert n_times_2 < 15
 
         return gcnevent_id
     else:
@@ -75,7 +79,7 @@ def delete_gw190425_gcn_event(super_admin_token):
 def test_add_and_retrieve_comment_on_gcn(
     comment_token, upload_data_token, public_group, super_admin_token
 ):
-    gcnevent_id = add_gw190425_gcn_event(super_admin_token)
+    gcnevent_id = add_gw190425_gcn_event(super_admin_token, require_localization=False)
 
     status, data = api(
         'POST',
@@ -101,7 +105,7 @@ def test_add_and_retrieve_comment_on_gcn(
 
 
 def test_delete_comment_on_gcn(comment_token, public_group, super_admin_token):
-    gcnevent_id = add_gw190425_gcn_event(super_admin_token)
+    gcnevent_id = add_gw190425_gcn_event(super_admin_token, require_localization=False)
 
     status, data = api(
         'POST',

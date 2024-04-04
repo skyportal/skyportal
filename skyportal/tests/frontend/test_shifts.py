@@ -343,8 +343,7 @@ def test_shift_summary(
 
     # try to get the event first to see if it's already in the DB
     status, data = api('GET', 'gcn_event/2018-01-16T00:36:53', token=super_admin_token)
-    print(status)
-    print(data)
+
     if status == 404:
         datafile = (
             f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
