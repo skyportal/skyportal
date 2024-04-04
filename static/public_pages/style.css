@@ -1,0 +1,74 @@
+html{
+}
+
+body {
+    font-family: "Roboto", Helvetica, Ariel, sans-serif;
+    color: rgba(0, 0, 0, 0.87);
+    background-color: #f0f2f5;
+    height: 100%;
+    margin: 0;
+}
+
+header {
+    background-color: rgb(29, 53, 87);
+    align-items: center;
+    padding-left: 1.5rem;
+    min-height: 64px;
+    display: flex;
+    position: relative;
+    z-index: 150;
+    box-shadow: 
+            0 2px 4px -1px rgba(0,0,0,0.2),
+            0 4px 5px 0 rgba(0,0,0,0.14),
+            0 1px 10px 0 rgba(0,0,0,0.12);
+
+    .websiteName {
+        font-size: 1.6rem;
+        margin-left: 1rem;
+        color: white;
+        font-weight: bold;
+        text-decoration: none;
+    }
+}
+
+h1{
+    margin: 0;
+    color: #457b9d;
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+h2{
+    line-height: 1.5rem;
+    font-weight: bold;
+    font-size: 1rem;
+    margin: 0;
+
+    span{
+        font-weight: normal;
+        white-space: nowrap;
+    }
+}
+
+h3{
+    line-height: 1.5rem;
+    font-size: 1.25rem;
+    font-weight: normal;
+    margin: 0;
+}
+
+a{
+    text-decoration: none;
+    color: inherit;
+}
+
+.card{
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin: 0.5rem 1rem 0.5rem 1rem;
+    box-shadow: 
+            0 2px 1px -1px rgba(0,0,0,0.2),
+            0 1px 1px 0 rgba(0,0,0,0.14),
+            0 1px 3px 0 rgba(0,0,0,0.12);
+}
