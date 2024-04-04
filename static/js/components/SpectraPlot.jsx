@@ -368,19 +368,13 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
     return [];
   };
 
-  const createLayouts = (
-    spectrumType,
-    specStats_value,
-    redshift_value,
-    vexp_value,
-  ) => {
+  const createLayouts = (spectrumType, specStats_value, redshift_value) => {
     // we don't use layout_reset, but we need that variable to be passed here to trigger a rerender
     // when clicking the reset button
     if (!specStats_value || !spectrumType) {
       return {};
     }
     redshift_value = parseFloat(redshift_value, 10);
-    vexp_value = parseFloat(vexp_value, 10);
     const newLayouts = {
       xaxis: {
         title: "Wavelength (Å)",
@@ -402,8 +396,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         overlaying: "x",
         showgrid: false,
         range: specStats_value[spectrumType].wavelength.range.map(
-          (w) =>
-            (w / (1 + (redshift_value || 0))) * (1 + (vexp_value || 0) / C),
+          (w) => w / (1 + redshift_value || 0),
         ),
         tickformat: ".6~f",
         zeroline: false,
@@ -464,11 +457,12 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         (l) => l.name === line_name,
       );
       return line.x.map((x) => {
+        const redshiftedX =
+          line?.fixed === true ? x : x * (1 + parseFloat(redshiftInput, 10));
         const shiftedX =
           line?.fixed === true
             ? x
-            : (x * (1 + parseFloat(redshiftInput, 10))) /
-              (1 + parseFloat(vExpInput, 10) / C);
+            : redshiftedX / (1 + parseFloat(vExpInput, 10) / C);
         return {
           type: "scatter",
           mode: "lines",
@@ -485,7 +479,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           },
           hovertemplate: `Name: ${line.name}<br>Rest Wavelength: ${x.toFixed(
             3,
-          )} Å<br>Wavelength: ${shiftedX.toFixed(3)} Å<extra></extra>`,
+          )} Å<br>Wavelength: ${redshiftedX.toFixed(3)} Å<extra></extra>`,
           name: line.name,
           legendgroup: line.name,
           showlegend: false,
@@ -564,12 +558,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
           data={(plotData || []).concat(lineTraces || [])}
           layout={{
             uirevision: layoutReset,
-            ...createLayouts(
-              types[tabIndex],
-              specStats,
-              redshiftInput,
-              vExpInput,
-            ),
+            ...createLayouts(types[tabIndex], specStats, redshiftInput),
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
