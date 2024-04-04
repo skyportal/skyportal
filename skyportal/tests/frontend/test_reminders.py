@@ -3,12 +3,11 @@ import time
 
 from skyportal.tests import api
 from datetime import date, timedelta, datetime
-from selenium.webdriver.common.keys import Keys
 
 
 def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
-    next_reminder = datetime.utcnow() + timedelta(seconds=1)
+    next_reminder = datetime.utcnow() + timedelta(seconds=5)
     reminder_delay = 1
     number_of_reminders = 1
     request_data = {
@@ -76,7 +75,7 @@ def post_and_verify_reminder(endpoint, token):
     return reminder_text
 
 
-def post_and_verify_reminder_frontend(driver, reminder_text):
+def post_and_verify_reminder_frontend(driver, reminder_text, resource_id):
     search_button_xpath = driver.wait_for_xpath(
         '//*[@data-testid="Reminders"]//button[@aria-label="Search"]'
     )
@@ -88,26 +87,15 @@ def post_and_verify_reminder_frontend(driver, reminder_text):
     search_bar.clear()
 
     driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//*[@data-testid="AddIcon"]')
+        driver.wait_for_xpath(f'//button[@name="new_reminder_{resource_id}"]')
     )
+
+    # timeout to let the form load with default values
+    time.sleep(2)
+
     reminder_text_2 = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_text"]').send_keys(reminder_text_2)
-    first_of_the_month = int((datetime.now() + timedelta(days=1)).strftime("%d")) == 1
-    if first_of_the_month:
-        next_reminder = (datetime.now() + timedelta(days=14)).strftime(
-            "%m/%d/%YT%I:%M %p"
-        )
-    else:
-        next_reminder = (datetime.now() + timedelta(days=1)).strftime(
-            "%m/%d/%YT%I:%M %p"
-        )
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').clear()
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(
-        next_reminder[0:11]
-    )
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys('01:01')
-    driver.wait_for_xpath('//*[@id="root_next_reminder"]').send_keys('P')
+
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath('//form[@id="reminder-form"]/*/*[@type="submit"]')
     )
@@ -153,7 +141,7 @@ def test_reminder_on_shift(
     driver.wait_for_xpath(f'//*[@href="/shifts/{shift_id}"]')
     driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
 
-    post_and_verify_reminder_frontend(driver, reminder_text)
+    post_and_verify_reminder_frontend(driver, reminder_text, shift_id)
 
 
 def test_reminder_on_source(driver, super_admin_user, super_admin_token):
@@ -186,7 +174,7 @@ def test_reminder_on_source(driver, super_admin_user, super_admin_token):
     driver.wait_for_xpath(f'//*[@href="/source/{obj_id}"]')
     driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
 
-    post_and_verify_reminder_frontend(driver, reminder_text)
+    post_and_verify_reminder_frontend(driver, reminder_text, obj_id)
 
 
 # frontend for the reminders on spectra is not implemented yet
