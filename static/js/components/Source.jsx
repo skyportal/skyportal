@@ -30,7 +30,7 @@ import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import withRouter from "./withRouter";
 
-import { getThumbnailAltAndLink } from "./thumbnail/Thumbnail";
+import { getThumbnailAltAndLink, getThumbnailHeader } from "./thumbnail/Thumbnail";
 import ThumbnailsOnPage from "./thumbnail/ThumbnailsOnPage";
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "./ClassificationList";
@@ -307,17 +307,20 @@ const SourceContent = ({ source }) => {
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
   }, [source.id, magsys, dispatch]);
   
-  const dataToDisplay = () => {
-    if(!source)
-      return {};
-
+  const thumbnailsData = () => {
+    /* TODO: Is the source.thumbnails update by this code ? */
     let thumbnails = source.thumbnails
     thumbnails.forEach( thumbnail => {
       const { alt, link} = getThumbnailAltAndLink(thumbnail.type, source.ra, source.dec);
       thumbnail.alt = alt;
       thumbnail.link = link;
+      thumbnail.header = getThumbnailHeader(thumbnail.type);
     })
-    
+    return thumbnails
+  }
+  
+  const publicData = () => {
+    if(!source) return null;
     return {
       radec_hhmmss: radec_hhmmss,
       ra: source.ra,
@@ -328,13 +331,14 @@ const SourceContent = ({ source }) => {
       redshift: source.redshift?.toFixed(z_round),
       dm: source.dm?.toFixed(3),
       dl: source.luminosity_distance?.toFixed(2),
-      thumbnails: source.thumbnails
+      thumbnails: thumbnailsData(),
+      photometry: (source.photometry_exists && photometry?.length)? photometry:null,
     }
   }
     
   const publishThisSource = () => {
     const payload = { 
-      publish: true, data_to_display: dataToDisplay(source)
+      publish: true, public_data: publicData()
     };
     dispatch(accessibilityActions.updateSourceAccessibility(source.id, payload)).then(() => {
       setIsPublished(true);

@@ -75,7 +75,7 @@ class SourceAccessibilityHandler(BaseHandler):
                 is_public=False,
             )
             if publish:
-                source_accessibility.publish(data.get("data_to_display"))
+                source_accessibility.publish(data.get("public_data"))
                 session.add(source_accessibility)
                 session.commit()
                 return self.success({"Source id": source_id})
@@ -164,7 +164,7 @@ class SourceAccessibilityHandler(BaseHandler):
             ).first()
             if source_accessibility and source_accessibility.is_public != publish:
                 if publish:
-                    source_accessibility.publish(data.get("data_to_display"))
+                    source_accessibility.publish(data.get("public_data"))
                 else:
                     source_accessibility.unpublish()
 
