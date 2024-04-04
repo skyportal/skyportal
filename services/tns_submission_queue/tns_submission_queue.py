@@ -690,7 +690,7 @@ def build_at_report(
         phot_first = {
             "obsdate": astropy.time.Time(time_first, format='mjd').jd,
             "flux": mag_first,
-            "flux_err": magerr_first,
+            "flux_error": magerr_first,
             "flux_units": "1",
             "filter_value": filt_first,
             "instrument_value": instrument_first,
@@ -699,7 +699,7 @@ def build_at_report(
         phot_last = {
             "obsdate": astropy.time.Time(time_last, format='mjd').jd,
             "flux": mag_last,
-            "flux_err": magerr_last,
+            "flux_error": magerr_last,
             "flux_units": "1",
             "filter_value": filt_last,
             "instrument_value": instrument_last,
@@ -709,7 +709,7 @@ def build_at_report(
         phot_first = {
             "obsdate": astropy.time.Time(time_first, format='mjd').jd,
             "flux": mag_first,
-            "flux_err": magerr_first,
+            "flux_error": magerr_first,
             "flux_units": "1",
             "filter_value": filt_first,
             "instrument_value": instrument_first,
