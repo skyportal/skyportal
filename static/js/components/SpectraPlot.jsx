@@ -458,11 +458,13 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
       );
       return line.x.map((x) => {
         const redshiftedX =
-          line?.fixed === true ? x : x * (1 + parseFloat(redshiftInput, 10));
+          line?.fixed === true
+            ? x
+            : x * (1 + (parseFloat(redshiftInput, 10) || 0));
         const shiftedX =
           line?.fixed === true
             ? x
-            : redshiftedX / (1 + parseFloat(vExpInput, 10) / C);
+            : redshiftedX / (1 + (parseFloat(vExpInput, 10) || 0) / C);
         return {
           type: "scatter",
           mode: "lines",
@@ -500,8 +502,8 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
                   i, // eslint-disable-line no-unused-vars
                 ) =>
                   (parseFloat(customWavelengthInput, 10) *
-                    (1 + parseFloat(redshiftInput, 10))) /
-                  (1 + parseFloat(vExpInput, 10) / C),
+                    (1 + (parseFloat(redshiftInput, 10) || 0))) /
+                  (1 + (parseFloat(vExpInput, 10) || 0) / C),
               ),
               y: [...Array(100).keys()].map(
                 (i) =>
