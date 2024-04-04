@@ -59,8 +59,29 @@ const userLabel = (user) => {
     }`;
   }
   if (user.first_name && user.last_name) {
-    return `${user.first_name} ${user.last_name}${
-      user.affiliations?.length > 0 ? ` (${user.affiliations[0]})` : ""
+    // capitalize the first letter of first and last name
+    const first_name =
+      user?.first_name?.length > 1
+        ? user.first_name.charAt(0).toUpperCase() + user.first_name.slice(1)
+        : user?.first_name?.toUpperCase();
+    const last_name =
+      user?.last_name?.length > 1
+        ? user.last_name.charAt(0).toUpperCase() + user.last_name.slice(1)
+        : user?.last_name?.toUpperCase();
+
+    // 1. remove affiliations that are empty strings or null
+    // 2. capitalize the first letter of each affiliation
+    // 3. sort the affiliations alphabetically (A-Z)
+    let affiliations = (user?.affiliations || []).filter((aff) => aff);
+    affiliations = affiliations.map((aff) =>
+      aff?.length > 1
+        ? aff.charAt(0).toUpperCase() + aff.slice(1)
+        : aff.toUpperCase(),
+    );
+    affiliations.sort();
+
+    return `${first_name} ${last_name}${
+      affiliations?.length > 0 ? ` (${affiliations.join(", ")})` : ""
     }`;
   }
   return "loading...";
@@ -107,9 +128,15 @@ const TNSRobotGroup = ({ tnsrobot_group, groupsLookup, usersLookup }) => {
         ),
       );
       // we create an entry with only the user id and the label
-      setLeft(newLeft.map((user) => ({ id: user.id, label: userLabel(user) })));
+      setLeft(
+        newLeft
+          .map((user) => ({ id: user.id, label: userLabel(user) }))
+          .sort((a, b) => a?.label?.localeCompare(b?.label)),
+      );
       setRight(
-        newRight.map((user) => ({ id: user.id, label: userLabel(user) })),
+        newRight
+          .map((user) => ({ id: user.id, label: userLabel(user) }))
+          .sort((a, b) => a?.label?.localeCompare(b?.label)),
       );
 
       if (!initialized) {
@@ -387,15 +414,17 @@ const NewTNSRobotGroup = ({ tnsrobot, groupsLookup }) => {
               onChange={(e) => setGroup(e.target.value)}
               style={{ minWidth: "20vw" }}
             >
-              {groupOptions.map(
-                (
-                  group, // eslint-disable-line no-shadow
-                ) => (
-                  <MenuItem key={group.id} value={group.id}>
-                    {group.name || "loading..."}
-                  </MenuItem>
-                ),
-              )}
+              {groupOptions
+                .sort((a, b) => a?.name?.localeCompare(b?.name))
+                .map(
+                  (
+                    group, // eslint-disable-line no-shadow
+                  ) => (
+                    <MenuItem key={group.id} value={group.id}>
+                      {group.name || "loading..."}
+                    </MenuItem>
+                  ),
+                )}
             </Select>
           </div>
           <div>
@@ -542,15 +571,17 @@ const NewTNSRobotCoauthor = ({ tnsrobot, usersLookup }) => {
               onChange={(e) => setUser(e.target.value)}
               style={{ minWidth: "20vw" }}
             >
-              {userOptions.map(
-                (
-                  user, // eslint-disable-line no-shadow
-                ) => (
-                  <MenuItem key={user.id} value={user.id}>
-                    {userLabel(user)}
-                  </MenuItem>
-                ),
-              )}
+              {userOptions
+                .sort((a, b) => userLabel(a).localeCompare(userLabel(b)))
+                .map(
+                  (
+                    user, // eslint-disable-line no-shadow
+                  ) => (
+                    <MenuItem key={user.id} value={user.id}>
+                      {userLabel(user)}
+                    </MenuItem>
+                  ),
+                )}
             </Select>
           </div>
           <div
@@ -614,6 +645,9 @@ const TNSRobotsPage = () => {
     owner_group_ids: [],
     instrument_ids: [],
     stream_ids: [],
+    report_exceptions: false,
+    first_and_last_detections: true,
+    autoreport_allow_archival: false,
   });
 
   const allowedInstruments = instrumentList.filter((instrument) =>
@@ -682,6 +716,11 @@ const TNSRobotsPage = () => {
       stream_ids: (tnsrobotListLookup[id]?.streams || []).map(
         (stream) => stream.id,
       ),
+      report_existing: tnsrobotListLookup[id]?.report_existing,
+      first_and_last_detections:
+        tnsrobotListLookup[id]?.photometry_options?.first_and_last_detections,
+      autoreport_allow_archival:
+        tnsrobotListLookup[id]?.photometry_options?.autoreport_allow_archival,
     });
     setEditDialogOpen(true);
     setTnsrobotToManage(id);
@@ -709,6 +748,8 @@ const TNSRobotsPage = () => {
       stream_ids,
       testing,
       report_existing,
+      first_and_last_detections,
+      autoreport_allow_archival,
     } = formData.formData;
 
     if (api_key?.length === 0) {
@@ -734,6 +775,10 @@ const TNSRobotsPage = () => {
       stream_ids,
       testing,
       report_existing,
+      photometry_options: {
+        first_and_last_detections,
+        autoreport_allow_archival,
+      },
     };
 
     dispatch(tnsrobotsActions.addTNSRobot(data)).then((result) => {
@@ -770,6 +815,8 @@ const TNSRobotsPage = () => {
       stream_ids,
       testing,
       report_existing,
+      first_and_last_detections,
+      autoreport_allow_archival,
     } = formData.formData;
 
     const data = {
@@ -781,6 +828,10 @@ const TNSRobotsPage = () => {
       stream_ids,
       testing,
       report_existing,
+      photometry_options: {
+        first_and_last_detections,
+        autoreport_allow_archival,
+      },
     };
 
     if (api_key?.length > 0) {
@@ -809,9 +860,6 @@ const TNSRobotsPage = () => {
         <IconButton
           key={tnsrobot.id}
           id="delete_button"
-          classes={{
-            root: classes.tnsrobotDelete,
-          }}
           onClick={() => openDeleteDialog(tnsrobot.id)}
         >
           <DeleteIcon />
@@ -855,7 +903,7 @@ const TNSRobotsPage = () => {
           tnsrobotListLookup[tnsrobotToManage]?.acknowledgments ||
           "on behalf of ...",
         description:
-          "Added at the end of the author list, e.g. 'First Last (University), <insert_acknowledgments_here>'",
+          "Added at the end of the author list, e.g. 'First Last (Affiliation(s)) <insert_acknowledgments_here>'",
       },
       instrument_ids: {
         type: "array",
@@ -869,7 +917,7 @@ const TNSRobotsPage = () => {
         },
         uniqueItems: true,
         default: [],
-        title: "Instruments to restrict photometry to (optional)",
+        title: "Instruments to restrict photometry to",
       },
       stream_ids: {
         type: "array",
@@ -888,7 +936,7 @@ const TNSRobotsPage = () => {
       testing: {
         type: "boolean",
         title: "Testing Mode",
-        default: tnsrobotListLookup[tnsrobotToManage]?.testing || true,
+        default: tnsrobotListLookup[tnsrobotToManage]?.testing,
         description:
           "If enabled, the bot will not submit to TNS but only store the payload in the DB (useful for debugging).",
       },
@@ -899,8 +947,33 @@ const TNSRobotsPage = () => {
         description:
           "If disabled, the bot will not send a report to TNS if an object within 2 arcsec is already in the TNS database. If enabled, a report is sent as long as there are no reports with the same internal name.",
       },
+      first_and_last_detections: {
+        type: "boolean",
+        title: "Mandatory first and last detection",
+        default:
+          tnsrobotListLookup[tnsrobotToManage]?.photometry_options
+            ?.first_and_last_detections || true,
+        description:
+          "If enabled, the bot will not send a report to TNS if there is not both first and last detection (at least 2 detections required).",
+      },
+      autoreport_allow_archival: {
+        type: "boolean",
+        title: "Allow archival auto-reports",
+        default:
+          tnsrobotListLookup[tnsrobotToManage]?.photometry_options
+            ?.autoreport_allow_archival || false,
+        description:
+          "If enabled, the bot will submit auto-reports as archival if there is no non-detection prior to the first detection that can be reported.",
+      },
     },
-    required: ["bot_name", "bot_id", "source_group_id", "acknowledgments"],
+    required: [
+      "bot_name",
+      "bot_id",
+      "source_group_id",
+      "acknowledgments",
+      "instrument_ids",
+      "first_and_last_detections",
+    ],
   };
 
   // the create schema is the same as the edit schema, but with the owner_group_ids field
@@ -909,17 +982,21 @@ const TNSRobotsPage = () => {
     type: "array",
     items: {
       type: "integer",
-      anyOf: (groups || []).map((group) => ({
-        enum: [group.id],
-        type: "integer",
-        title: group.name,
-      })),
+      anyOf: (groups || [])
+        .sort((a, b) => a?.name?.localeCompare(b?.name))
+        .map((group) => ({
+          enum: [group.id],
+          type: "integer",
+          title: group.name,
+        })),
     },
     uniqueItems: true,
     default: tnsrobotListLookup[tnsrobotToManage]?.owner_group_ids || [],
     title: "Owner Group(s)",
   };
   createSchema.required.push("owner_group_ids");
+  // change the default of testing to be true
+  createSchema.properties.testing.default = true;
 
   const validate = (formData, errors) => {
     const { source_group_id } = formData;
@@ -995,7 +1072,13 @@ const TNSRobotsPage = () => {
       <div style={{ display: "flex", alignItems: "center" }}>
         {tnsrobot.testing === true && (
           <Tooltip
-            title="This bot is in testing mode and won't submit to TNS but only store the payload in the database (useful for debugging). Click on the edit button to change this."
+            title={
+              <h2>
+                This bot is in testing mode and will not submit to TNS but only
+                store the payload in the database (useful for debugging). Click
+                on the edit button to change this.
+              </h2>
+            }
             placement="right"
           >
             <BugReportIcon style={{ color: "orange" }} />
@@ -1044,7 +1127,7 @@ const TNSRobotsPage = () => {
     const tnsrobot = tnsrobotList[dataIndex];
     return (
       <Tooltip
-        title={`Added at the end of the author list, e.g. 'First Last (University), ${
+        title={`Added at the end of the author list, e.g. 'First Last (Affiliation(s)) ${
           tnsrobot?.acknowledgments || "<insert_acknowledgments_here>"
         }`}
         placement="top"
@@ -1192,7 +1275,7 @@ const TNSRobotsPage = () => {
     },
     {
       name: "instruments",
-      label: "Instrument (optional)",
+      label: "Instruments",
       options: {
         filter: false,
         sort: true,
@@ -1249,7 +1332,9 @@ const TNSRobotsPage = () => {
       <MUIDataTable
         className={classes.tnsrobots}
         title="TNS Robots"
-        data={tnsrobotList.sort((a, b) => a.bot_name.localeCompare(b.bot_name))}
+        data={tnsrobotList.sort((a, b) =>
+          a?.bot_name?.localeCompare(b?.bot_name),
+        )}
         columns={columns}
         options={{
           selectableRows: "none",
@@ -1271,6 +1356,9 @@ const TNSRobotsPage = () => {
                   owner_group_ids: [],
                   instrument_ids: [],
                   stream_ids: [],
+                  acknowledgments: "on behalf of ...",
+                  report_existing: false,
+                  first_and_last_detections: true,
                 });
                 setOpenNewTNSRobot(true);
               }}

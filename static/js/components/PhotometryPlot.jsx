@@ -179,6 +179,7 @@ const PhotometryPlot = ({
   gcn_events,
   mode,
   plotStyle,
+  magsys,
 }) => {
   const classes = useStyles();
   const [data, setData] = useState(null);
@@ -749,7 +750,7 @@ const PhotometryPlot = ({
 
     if (plotType === "mag" || plotType === "period") {
       newLayouts.yaxis = {
-        title: "AB Mag",
+        title: magsys.toUpperCase().concat(" Mag"),
         range: [...photStats_value.mag.range],
         zeroline: false,
         ...BASE_LAYOUT,
@@ -1116,6 +1117,7 @@ const PhotometryPlot = ({
             // scrollZoom: true, // this is not working properly, creating issues when we are around the default zooming level. TOFIX
             responsive: true,
             displaylogo: false,
+            showAxisDragHandles: false,
             // the native autoScale2d and resetScale2d buttons are not working
             // as they are not resetting to the specified ranges
             // so, we remove them and add our own
@@ -1359,6 +1361,7 @@ PhotometryPlot.propTypes = {
   plotStyle: PropTypes.shape({
     height: PropTypes.string,
   }),
+  magsys: PropTypes.string,
 };
 
 PhotometryPlot.defaultProps = {
@@ -1370,6 +1373,7 @@ PhotometryPlot.defaultProps = {
   plotStyle: {
     height: "65vh",
   },
+  magsys: "ab",
 };
 
 export default PhotometryPlot;

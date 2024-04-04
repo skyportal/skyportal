@@ -1,4 +1,10 @@
-__all__ = ['Instrument', 'InstrumentField', 'InstrumentFieldTile', 'InstrumentLog']
+__all__ = [
+    'Instrument',
+    'InstrumentField',
+    'InstrumentFieldTile',
+    'InstrumentLog',
+    'InstrumentTNSRobot',
+]
 
 import re
 

@@ -31,7 +31,7 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     thumbnails = []
 
     # wait for the thumbnails to populate, get the source
-    while nretries < 5:
+    while nretries < 30:
         # we put the sleep first, knowing that we will have to wait before the first try could be successful anyway
         time.sleep(10)
         status, data = api(

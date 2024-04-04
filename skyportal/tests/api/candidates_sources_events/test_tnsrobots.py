@@ -10,6 +10,7 @@ def test_post_and_delete_tns_robot(
     super_admin_user,
     view_only_user,
     public_source,
+    ztf_camera,
 ):
     # GET ALL TNS ROBOTS
     status, data = api('GET', 'tns_robot', token=super_admin_token)
@@ -33,7 +34,36 @@ def test_post_and_delete_tns_robot(
         '_altdata': '{"api_key": "test_key"}',
     }
 
-    # ADD A TNS ROBOT
+    # ADD A TNS ROBOT WITHOUT SPECIFYING ANY INSTRUMENTS (SHOULD FAIL)
+    status, data = api('PUT', 'tns_robot', data=request_data, token=super_admin_token)
+    assert status == 400
+    assert (
+        "At least one instrument must be specified for TNS reporting" in data['message']
+    )
+
+    # ADD A TNS ROBOT WITH INSTRUMENTS BUT THAT ARE NOT ON TNS (SHOULD FAIL)
+    request_data['instrument_ids'] = [ztf_camera.id]
+    status, data = api('PUT', 'tns_robot', data=request_data, token=super_admin_token)
+    assert status == 400
+    assert (
+        f"Instrument {ztf_camera.name} not supported for TNS reporting"
+        in data['message']
+    )
+
+    # POST AN INSTRUMENT WHICH NAME IS SUPPORTED BY TNS, like ZTF
+    status, data = api(
+        'POST',
+        'instrument',
+        data={'name': 'ZTF', 'telescope_id': ztf_camera.telescope_id, "type": "imager"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert 'data' in data
+    assert 'id' in data['data']
+    ztf_instrument_id = data['data']['id']
+
+    # ADD A TNS ROBOT WITH INSTRUMENTS
+    request_data['instrument_ids'] = [ztf_instrument_id]
     status, data = api('PUT', 'tns_robot', data=request_data, token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
@@ -53,6 +83,12 @@ def test_post_and_delete_tns_robot(
 
     for key in request_data:
         if key == '_altdata':
+            continue
+        if key == 'instrument_ids':
+            for instrument_id in request_data[key]:
+                assert any(
+                    [i['id'] == instrument_id for i in data['data']['instruments']]
+                )
             continue
         assert data['data'][key] == request_data[key]
 

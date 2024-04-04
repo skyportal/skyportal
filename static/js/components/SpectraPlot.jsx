@@ -95,9 +95,8 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
   const [customWavelengthInput, setCustomWavelengthInput] = useState(0);
 
   const [specStats, setSpecStats] = useState(null);
-  const [layouts, setLayouts] = useState({});
 
-  const [layoutReset, setLayoutReset] = useState(false);
+  const [layoutReset, setLayoutReset] = useState(1);
 
   const { preferences } = useSelector((state) => state.profile);
 
@@ -370,6 +369,12 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
   };
 
   const createLayouts = (spectrumType, specStats_value, redshift_value) => {
+    // we don't use layout_reset, but we need that variable to be passed here to trigger a rerender
+    // when clicking the reset button
+    if (!specStats_value || !spectrumType) {
+      return {};
+    }
+    redshift_value = parseFloat(redshift_value, 10);
     const newLayouts = {
       xaxis: {
         title: "Wavelength (Å)",
@@ -391,7 +396,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         overlaying: "x",
         showgrid: false,
         range: specStats_value[spectrumType].wavelength.range.map(
-          (w) => w / (1 + (redshift_value || 0)),
+          (w) => w / (1 + redshift_value || 0),
         ),
         tickformat: ".6~f",
         zeroline: false,
@@ -412,22 +417,16 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
 
   useEffect(() => {
     if (data !== null && types?.length > 0 && specStats !== null) {
-      if (!layoutReset) {
-        const traces = createTraces(
-          data,
-          types,
-          tabIndex,
-          smoothingInput,
-          plotData,
-        );
-        setPlotData(traces);
-      }
-      if (plotData === null) {
-        const newLayouts = createLayouts(types[tabIndex], specStats, redshift);
-        setLayouts(newLayouts);
-      }
+      const traces = createTraces(
+        data,
+        types,
+        tabIndex,
+        smoothingInput,
+        plotData,
+      );
+      setPlotData(traces);
     }
-  }, [data, types, specStats, layoutReset, redshift, smoothingInput]);
+  }, [data, types, specStats, smoothingInput]);
 
   useEffect(() => {
     if (
@@ -444,24 +443,9 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         plotData,
       );
       setPlotData(traces);
-      const newLayouts = createLayouts(types[tabIndex], specStats, redshift);
-      setLayouts(newLayouts);
+      setLayoutReset((prev) => prev + 1);
     }
   }, [tabIndex]);
-
-  useEffect(() => {
-    if (
-      data !== null &&
-      types?.length > 0 &&
-      specStats !== null &&
-      plotData !== null &&
-      layoutReset
-    ) {
-      const newLayouts = createLayouts(types[tabIndex], specStats, redshift);
-      setLayouts(newLayouts);
-      setLayoutReset(false);
-    }
-  }, [layoutReset]);
 
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
@@ -473,11 +457,14 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         (l) => l.name === line_name,
       );
       return line.x.map((x) => {
+        const redshiftedX =
+          line?.fixed === true
+            ? x
+            : x * (1 + (parseFloat(redshiftInput, 10) || 0));
         const shiftedX =
           line?.fixed === true
             ? x
-            : (x * (1 + parseFloat(redshiftInput, 10))) /
-              (1 + parseFloat(vExpInput, 10) / C);
+            : redshiftedX / (1 + (parseFloat(vExpInput, 10) || 0) / C);
         return {
           type: "scatter",
           mode: "lines",
@@ -492,9 +479,9 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
             color: line.color,
             width: 1,
           },
-          hovertemplate: `Name: ${line.name}<br>Wavelength: ${x.toFixed(
+          hovertemplate: `Name: ${line.name}<br>Rest Wavelength: ${x.toFixed(
             3,
-          )}<extra></extra>`,
+          )} Å<br>Wavelength: ${redshiftedX.toFixed(3)} Å<extra></extra>`,
           name: line.name,
           legendgroup: line.name,
           showlegend: false,
@@ -515,8 +502,8 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
                   i, // eslint-disable-line no-unused-vars
                 ) =>
                   (parseFloat(customWavelengthInput, 10) *
-                    (1 + parseFloat(redshiftInput, 10))) /
-                  (1 + parseFloat(vExpInput, 10) / C),
+                    (1 + (parseFloat(redshiftInput, 10) || 0))) /
+                  (1 + (parseFloat(vExpInput, 10) || 0) / C),
               ),
               y: [...Array(100).keys()].map(
                 (i) =>
@@ -572,7 +559,8 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
         <Plot
           data={(plotData || []).concat(lineTraces || [])}
           layout={{
-            ...layouts,
+            uirevision: layoutReset,
+            ...createLayouts(types[tabIndex], specStats, redshiftInput),
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
@@ -613,6 +601,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
             // the native autoScale2d and resetScale2d buttons are not working
             // as they are not resetting to the specified ranges
             // so, we remove them and add our own
+            showAxisDragHandles: false,
             modeBarButtonsToRemove: [
               "autoScale2d",
               "resetScale2d",
@@ -624,14 +613,14 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
                 name: "Reset",
                 icon: Plotly.Icons.home,
                 click: () => {
-                  setLayoutReset(true);
+                  setLayoutReset((prev) => prev + 1);
                 },
               },
             ],
           }}
           useResizeHandler
           style={{ width: "100%", height: "100%" }}
-          onDoubleClick={() => setLayoutReset(true)}
+          onDoubleClick={() => setLayoutReset((prev) => prev + 1)}
           onLegendDoubleClick={(e) => {
             // e contains a curveNumber and a data object (plotting data)
             // we customize the legend double click behavior
