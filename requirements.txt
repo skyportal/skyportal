@@ -37,7 +37,7 @@ jsonpath_ng==1.5.3
 pytest-rerunfailures==13.0
 tables==3.9.2
 timezonefinder==6.2.0
-astroplan==0.8
+astroplan==0.10
 py3-validate-email==1.0.5.post1
 alembic==1.13.1
 marshmallow-jsonschema==0.13.0
