@@ -120,10 +120,10 @@
         <h3 class="title">
             Photometry
         </h3>
-        <div class="photometryType">
-            <p>MAG</p>
-        </div>
         {% if data.get('photometry') %}
+            <div class="photometryType">
+                <p>MAG</p>
+            </div>
             <div class="photometryPlot" id="photometryPlot"></div>
             <script>
                 plot_lc(`{{ data.get("photometry") | tojson | safe }}`);

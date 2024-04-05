@@ -27,7 +27,7 @@
                 letter-spacing: 0.009em;
                 font-size: 0.8rem;
                 font-weight: bold;
-                margin: 0.25rem 0.25rem;
+                margin: 0.5rem 0.5rem;
                 color: gray;
                 @media screen and (max-width: 600px) {
                     font-size: 0.55rem;
@@ -56,7 +56,8 @@
         padding-left: 0;
         padding-right: 0;
         .title{
-            padding-left: 0.5rem;
+            padding-left: 1rem;
+            padding-top: 0.5rem;
         }
         .photometryType {
             display: flex;
