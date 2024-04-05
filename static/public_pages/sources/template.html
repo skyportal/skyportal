@@ -12,8 +12,8 @@
     <!-- CSS for source page -->
     <link rel="stylesheet" type="text/css" href="/static/public_pages/sources/template.css">
     {% if data.get('photometry') %}
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="/static/public_pages/photometry-plot.js" type="text/javascript"></script>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        <script src="/static/public_pages/photometry-plot.js" type="text/javascript"></script>
     {% endif %}
 </head>
 <body>
@@ -51,68 +51,68 @@
                 <span>
                     (<i>l</i>,<i>b</i>={{ data['gal_lon'] }}, &nbsp;{{ data['gal_lat'] }})
                 </span>
-                <span>
-                    {% if ebv %}
+                {% if data.get('ebv') %}
+                    <span>
                         E(B-V): {{ data['ebv'] }}
-                    {% endif %}
-                </span>
+                    </span>
+                {% endif %}
             </h2>
             <h2>
-                Redshift:&nbsp;
+                Redshift:
                 <span>
                     {{ data['redshift'] }}
                 </span>
                 {% if data.get('dm') %}
-                &nbsp;DM:&nbsp;
-                <span>
+                    DM:
+                    <span>
                         {{ data['dm'] }} mag
                     </span>
                 {% endif %}
                 {% if data.get('dl') %}
-                &nbsp;<i>D</i><sub>L</sub>:&nbsp;
-                <span>
+                    <i>D</i><sub>L</sub>:
+                    <span>
                         {{ data['dl'] }} Mpc
                     </span>
                 {% endif %}
             </h2>
         </div>
         <div class="images">
-            {% for thumbnail in data['thumbnails'] %}
-            <div class="imageAndTitle">
-                <div class="title">
-                    {% if thumbnail.get('link') %}
-                    <a href="{{ thumbnail['link'] }}" target="_blank" rel="noreferrer">
-                        {{ thumbnail['header'] }}
-                    </a>
-                    {% else %}
-                    {{ thumbnail['header'] }}
-                    {% endif %}
+            {% for thumbnail in data.get('thumbnails') %}
+                <div class="imageAndTitle">
+                    <div class="title">
+                        {% if thumbnail.get('link') %}
+                            <a href="{{ thumbnail['link'] }}" target="_blank" rel="noreferrer">
+                            {{ thumbnail['header'] }}
+                            </a>
+                        {% else %}
+                            {{ thumbnail['header'] }}
+                        {% endif %}
+                    </div>
+                    <div class="image">
+                        <a href="{{ thumbnail['link'] }}" target="_blank" rel="noreferrer">
+                            <img
+                                    src="{{ thumbnail['public_url'] }}"
+                                    alt="{{ thumbnail['alt'] }}"
+                                    title="{{ thumbnail['alt'] }}"
+                                    loading="lazy"
+                                    onerror="
+                                        {% if thumbnail.get('public_url') != '#' %}
+                                            if (thumbnail.get('type') === 'ls') 
+                                                { this.src = '/static/images/outside_survey.png'; } 
+                                            else 
+                                                { this.src = '/static/images/currently_unavailable.png'; }
+                                        {% endif %}"
+                            />
+                        </a>
+                        {% if thumbnail.get('type') != "sdss" %}
+                            <img
+                                    class="crosshair"
+                                    src="/static/images/crosshairs.png"
+                                    alt="crosshair"
+                            />
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="image">
-                    <a href="{{ thumbnail['link'] }}" target="_blank" rel="noreferrer">
-                        <img
-                                src="{{ thumbnail['public_url'] }}"
-                                alt="{{ thumbnail['alt'] }}"
-                                title="{{ thumbnail['alt'] }}"
-                                loading="lazy"
-                                onerror="
-                        {% if thumbnail.get('public_url') != '#' %}
-                            if (thumbnail.get('type') === 'ls') 
-                                { this.src = '/static/images/outside_survey.png'; } 
-                            else 
-                                { this.src = '/static/images/currently_unavailable.png'; }
-                        {% endif %}"
-                        />
-                    </a>
-                    {% if thumbnail.get('type') != "sdss" %}
-                    <img
-                            class="crosshair"
-                            src="/static/images/crosshairs.png"
-                            alt="crosshair"
-                    />
-                    {% endif %}
-                </div>
-            </div>
             {% endfor %}
         </div>
     </div>
