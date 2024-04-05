@@ -6,7 +6,7 @@ import calendar from "dayjs/plugin/calendar";
 
 import Grid from "@mui/material/Grid";
 
-import Thumbnail from "./Thumbnail";
+import Thumbnail, {getThumbnailHeader} from "./Thumbnail";
 
 dayjs.extend(calendar);
 
@@ -42,17 +42,11 @@ const ThumbnailList = ({
     ?.map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
     ?.filter((thumbnail) => thumbnail !== undefined);
 
-  const thumbnail_order = ["new", "ref", "sub", "sdss", "ls", "ps1"];
-  // Sort thumbnails by order of appearance in `thumbnail_order`
+  const thumbnailOrder = ["new", "ref", "sub", "sdss", "ls", "ps1"];
+  // Sort thumbnails by order of appearance in `thumbnailOrder`
   latestThumbnails?.sort((a, b) =>
-    thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1,
+    thumbnailOrder.indexOf(a.type) < thumbnailOrder.indexOf(b.type) ? -1 : 1,
   );
-
-  const thumbnail_display = Object.fromEntries(
-    thumbnail_order.map((x) => [x, x]),
-  );
-  thumbnail_display.ls = "Legacy Survey DR9";
-  thumbnail_display.ps1 = "PanSTARRS DR2";
 
   if (useGrid) {
     return (
@@ -69,7 +63,7 @@ const ThumbnailList = ({
               minSize={minSize === null ? size : minSize}
               maxSize={maxSize === null ? size : maxSize}
               grayscale={t.is_grayscale}
-              header={thumbnail_display[t.type]}
+              header={getThumbnailHeader(t.type)}
               titleSize={titleSize}
             />
           </Grid>
@@ -110,7 +104,7 @@ const ThumbnailList = ({
             maxSize={maxSize === null ? size : maxSize}
             noMargin={noMargin}
             grayscale={t.is_grayscale}
-            header={thumbnail_display[t.type]}
+            header={getThumbnailHeader(t.type)}
             titleSize={titleSize}
           />
         </Grid>

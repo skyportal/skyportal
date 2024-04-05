@@ -308,15 +308,14 @@ const SourceContent = ({ source }) => {
   }, [source.id, magsys, dispatch]);
   
   const thumbnailsData = () => {
-    /* TODO: Is the source.thumbnails update by this code ? */
-    let thumbnails = source.thumbnails
+    let thumbnails = source.thumbnails;
     thumbnails.forEach( thumbnail => {
       const { alt, link} = getThumbnailAltAndLink(thumbnail.type, source.ra, source.dec);
       thumbnail.alt = alt;
       thumbnail.link = link;
       thumbnail.header = getThumbnailHeader(thumbnail.type);
     })
-    return thumbnails
+    return thumbnails;
   }
   
   const publicData = () => {

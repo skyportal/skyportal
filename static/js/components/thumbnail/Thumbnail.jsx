@@ -79,18 +79,13 @@ export const getThumbnailAltAndLink = (name, ra, dec) => {
   return {"alt": alt, "link": link};
 }
 
-/* TODO: Delete this to add the real mechanism use in the Thumbnail component */
 export const getThumbnailHeader = (type) => {
   switch (type) {
-    case "ls" : 
-      return "Legacy Survey DR9".toUpperCase();
-    case "ps1" :
-      return "PanSTARRS DR2".toUpperCase();
-    default:
-      return type.toUpperCase();
+    case "ls" : return "LEGACY SURVEY DR9";
+    case "ps1" : return "PANSTARRS DR2";
+    default: return type.toUpperCase();
   }
 }
-
 
 const Thumbnail = ({
                      ra,
