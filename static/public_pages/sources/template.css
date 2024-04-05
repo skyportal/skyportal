@@ -55,9 +55,17 @@
     .photometryCard {
         padding-left: 0;
         padding-right: 0;
-        .title{
-            padding-left: 1rem;
-            padding-top: 0.5rem;
+        .titleAndDownload{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            .title{
+                padding-left: 1rem;
+                padding-top: 0.5rem;
+            }
+            .download{
+                margin-right: 1rem;
+            }
         }
         .photometryType {
             display: flex;
