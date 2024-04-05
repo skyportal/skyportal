@@ -94,7 +94,7 @@
     "redux": "4.2.1",
     "redux-logger": "3.0.6",
     "redux-state-sync": "3.1.4",
-    "redux-thunk": "2.4.2",
+    "redux-thunk": "3.1.0",
     "regl": "2.1.0",
     "rjsf": "1.4.4",
     "semver": "7.5.3",
