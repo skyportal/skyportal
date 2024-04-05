@@ -321,6 +321,7 @@ const SourceContent = ({ source }) => {
   const publicData = () => {
     if(!source) return null;
     return {
+      source_id: source.id,
       radec_hhmmss: radec_hhmmss,
       ra: source.ra,
       dec: source.dec,
