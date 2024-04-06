@@ -8,8 +8,6 @@ from tdtax import __version__, taxonomy
 
 from skyportal.tests import api
 
-from .test_profile import test_add_classification_shortcut
-
 
 @pytest.mark.flaky(reruns=2)
 def test_candidate_group_filtering(
@@ -58,16 +56,19 @@ def test_candidate_group_filtering(
     driver.scroll_to_element_and_click(group_checkbox)
     submit_button = driver.wait_for_xpath('//button[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(5):  # data-testid
-        driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]')
+
+    driver.wait_for_xpath(
+        '//*[contains(., "Found 6 candidates.")]'
+    )  # the 5 candidates we added and the public candidate
+
     driver.scroll_to_element_and_click(group_checkbox)
     driver.click_xpath(
         f'//*[@data-testid="filteringFormGroupCheckbox-{new_group_id}"]',
         wait_clickable=False,
     )
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(5):
-        driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}_{i}"]')
+
+    driver.wait_for_xpath('//*[contains(., "Found 0 candidates.")]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -131,15 +132,19 @@ def test_candidate_saved_status_filtering(
         "//li[@data-value='notSavedToAnyAccessible']", scroll_parent=True
     )
     driver.click_xpath('//button[text()="Search"]')
-    for i in range(5):
-        driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}_{i}"]')
+
+    driver.wait_for_xpath(
+        '//*[contains(., "Found 1 candidates.")]'
+    )  # the public candidate
 
     # Set to candidates is saved to any accessibe groups and submit again
     driver.click_xpath("//*[@data-testid='savedStatusSelect']")
     driver.click_xpath("//li[@data-value='savedToAnyAccessible']", scroll_parent=True)
     driver.click_xpath('//button[text()="Search"]')
-    for i in range(5):
-        driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]')
+
+    driver.wait_for_xpath(
+        '//*[contains(., "Found 5 candidates.")]'
+    )  # the 5 candidates we added
 
 
 @pytest.mark.flaky(reruns=2)
@@ -246,7 +251,7 @@ def test_save_candidate_no_groups_error_message(
     driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_submit_annotations_sorting(
     driver,
     view_only_user,
@@ -279,8 +284,8 @@ def test_submit_annotations_sorting(
     )
     assert status == 200
 
-    # origins are cached, so we wait for the cache to invalidate (2 seconds in test config)
-    time.sleep(2)
+    # origins are cached, so we wait for the cache to invalidate (5 seconds in test config)
+    time.sleep(3)
 
     driver.get(f"/become_user/{view_only_user.id}")
     driver.get("/candidates")
@@ -289,11 +294,11 @@ def test_submit_annotations_sorting(
         wait_clickable=False,
     )
 
-    driver.click_xpath('//div[@aria-labelledby="annotationSortingOriginSelect"]')
+    driver.click_xpath('//input[@id="annotationSortingOriginSelect"]')
     driver.click_xpath(f'//li[text()="{origin}"]')
-    driver.click_xpath('//div[@aria-labelledby="annotationSortingKeySelect"]')
+    driver.click_xpath('//input[@id="annotationSortingKeySelect"]')
     driver.click_xpath('//li[text()="numeric_field"]')
-    driver.click_xpath('//div[@aria-labelledby="annotationSortingOrderSelect"]')
+    driver.click_xpath('//input[@id="annotationSortingOrderSelect"]')
     driver.click_xpath('//li[text()="Ascending"]')
 
     driver.click_xpath('//button[text()="Search"]')
@@ -610,8 +615,8 @@ def test_add_scanning_profile(
         f'//span[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
     )
     # driver.wait_for_xpath('//div[text()="kowalski"]')
-    driver.wait_for_xpath('//div[text()="offset_from_host_galaxy"]')
-    driver.wait_for_xpath('//div[text()="Descending"]')
+    driver.wait_for_xpath('//input[@value="offset_from_host_galaxy"]')
+    driver.wait_for_xpath('//input[@value="Descending"]')
 
 
 def test_delete_scanning_profile(driver, user, public_group):
@@ -731,6 +736,8 @@ def test_user_without_save_access_cannot_save(
 def test_add_classification_on_scanning_page(
     driver, user, public_group, taxonomy_token, public_filter, upload_data_token
 ):
+    from ..test_profile import test_add_classification_shortcut
+
     shortcut_name = test_add_classification_shortcut(
         driver, user, public_group, taxonomy_token
     )

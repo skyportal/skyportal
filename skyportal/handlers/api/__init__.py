@@ -41,6 +41,7 @@ from .filter import FilterHandler
 from .followup_request import (
     DefaultFollowupRequestHandler,
     FollowupRequestHandler,
+    FollowupRequestCommentHandler,
     FollowupRequestWatcherHandler,
     FollowupRequestPrioritizationHandler,
     FollowupRequestSchedulerHandler,
@@ -137,6 +138,7 @@ from .photometry import (
     PhotometryRangeHandler,
     PhotometryOriginHandler,
 )
+from .photometry_validation import PhotometryValidationHandler
 from .photometric_series import PhotometricSeriesHandler
 from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
 from .color_mag import ObjColorMagHandler
@@ -180,7 +182,16 @@ from .sysinfo import SysInfoHandler
 from .config_handler import ConfigHandler
 from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
-from .tns import ObjTNSHandler, BulkTNSHandler, SpectrumTNSHandler, TNSRobotHandler
+from .tns import (
+    ObjTNSHandler,
+    BulkTNSHandler,
+    SpectrumTNSHandler,
+    TNSRobotHandler,
+    TNSRobotCoauthorHandler,
+    TNSRobotGroupHandler,
+    TNSRobotGroupAutoreporterHandler,
+    TNSRobotSubmissionHandler,
+)
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .user import (
     UserHandler,

@@ -409,6 +409,13 @@ User.sources_in_gcn = relationship(
     doc="SourcesConfirmedInGCN this User has created.",
     foreign_keys="SourcesConfirmedInGCN.confirmer_id",
 )
+User.photometryvalidations = relationship(
+    'PhotometryValidation',
+    cascade='save-update, merge, refresh-expire, expunge',
+    passive_deletes=True,
+    doc="PhotometryValidation this User has created.",
+    foreign_keys="PhotometryValidation.validator_id",
+)
 User.source_notifications = relationship(
     'SourceNotification',
     back_populates='sent_by',
@@ -423,6 +430,14 @@ User.sources = relationship(
     doc='The Sources accessible to this User.',
     viewonly=True,
 )
+
+User.tns_submissions = relationship(
+    'TNSRobotSubmission',
+    back_populates='user',
+    passive_deletes=True,
+    doc='The TNSRobotSubmission this user has made (manual or automatic).',
+)
+
 
 User.update = User.delete = CustomUserAccessControl(user_update_delete_logic)
 

@@ -1,4 +1,10 @@
-__all__ = ['Instrument', 'InstrumentField', 'InstrumentFieldTile', 'InstrumentLog']
+__all__ = [
+    'Instrument',
+    'InstrumentField',
+    'InstrumentFieldTile',
+    'InstrumentLog',
+    'InstrumentTNSRobot',
+]
 
 import re
 
@@ -488,7 +494,7 @@ class Instrument(Base):
     tnsrobots = relationship(
         "TNSRobot",
         secondary="instrument_tnsrobots",
-        back_populates="auto_report_instruments",
+        back_populates="instruments",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="TNS robots associated with this instrument, used for auto-reporting.",

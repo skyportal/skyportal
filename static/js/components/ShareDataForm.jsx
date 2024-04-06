@@ -26,7 +26,6 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import FormValidationError from "./FormValidationError";
-import TNSSpectraForm from "./TNSSpectraForm";
 import CommentList from "./CommentList";
 import AnnotationsTable from "./AnnotationsTable";
 import SyntheticPhotometryForm from "./SyntheticPhotometryForm";
@@ -200,12 +199,6 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
             <Paper style={{ padding: "0.5rem" }}>
               <Typography variant="h6">Annotations</Typography>
               <AnnotationsTable annotations={annotations} />
-            </Paper>
-          </Grid>
-          <Grid item sm={6}>
-            <Paper style={{ padding: "0.5rem" }}>
-              <Typography variant="h6">TNS</Typography>
-              <TNSSpectraForm obj_id={route.id} spectrum_id={rowData[0]} />
             </Paper>
           </Grid>
           <Grid item sm={6}>
