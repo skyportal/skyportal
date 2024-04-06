@@ -1,12 +1,6 @@
-import MUIDataTable from "mui-datatables";
-import IconButton from "@mui/material/IconButton";
-
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
@@ -14,6 +8,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
 import CircularProgress from "@mui/material/CircularProgress";
+import MUIDataTable from "mui-datatables";
 import Button from "./Button";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 import NewAnalysisService from "./NewAnalysisService";
@@ -23,7 +18,6 @@ import * as analysisServicesActions from "../ducks/analysis_services";
 const useStyles = makeStyles((theme) => ({
   root: {
     width: "100%",
-    maxWidth: "22.5rem",
     backgroundColor: theme.palette.background.paper,
     whiteSpace: "pre-line",
   },
@@ -93,13 +87,14 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
   const textClasses = textStyles();
-  const groups = useSelector((state) => state.groups.all);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [analysisServiceToDelete, setAnalysisServiceToDelete] = useState(null);
+
   const openDialog = (id) => {
     setDialogOpen(true);
     setAnalysisServiceToDelete(id);
   };
+
   const closeDialog = () => {
     setDialogOpen(false);
     setAnalysisServiceToDelete(null);
@@ -110,43 +105,72 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
       analysisServicesActions.deleteAnalysisService(analysisServiceToDelete),
     ).then((result) => {
       if (result.status === "success") {
-        dispatch(showNotification("AnalysisService deleted"));
+        dispatch(showNotification("Analysis Service deleted"));
         closeDialog();
       }
     });
   };
 
-  return (
-    <div className={classes.root}>
-      <List component="nav">
-        {analysisServices?.map((analysisService) => (
-          <ListItem button key={analysisService.id}>
-            <ListItemText
-              primary={analysisServiceTitle(analysisService)}
-              secondary={analysisServiceInfo(analysisService, groups)}
-              classes={textClasses}
-            />
+  const columns = [
+    {
+      name: "display_name",
+      label: "Service Name",
+      options: {
+        customBodyRenderLite: (dataIndex) => {
+          const service = analysisServices[dataIndex];
+          return (
+            <div className={textClasses.primary}>{service.display_name}</div>
+          );
+        },
+      },
+    },
+    {
+      name: "description",
+      label: "Description",
+    },
+    {
+      name: "id",
+      label: "Actions",
+      options: {
+        customBodyRenderLite: (dataIndex) => {
+          const service = analysisServices[dataIndex];
+          return deletePermission ? (
             <Button
-              key={analysisService.id}
+              key={service.id}
               id="delete_button"
-              classes={{
-                root: classes.analysisServiceDelete,
-                disabled: classes.analysisServiceDeleteDisabled,
-              }}
-              onClick={() => openDialog(analysisService.id)}
+              onClick={() => openDialog(service.id)}
+              style={{ cursor: "pointer" }}
               disabled={!deletePermission}
             >
               <DeleteIcon />
             </Button>
-            <ConfirmDeletionDialog
-              deleteFunction={deleteAnalysisService}
-              dialogOpen={dialogOpen}
-              closeDialog={closeDialog}
-              resourceName="analysis service"
-            />
-          </ListItem>
-        ))}
-      </List>
+          ) : null;
+        },
+        sort: false,
+      },
+    },
+  ];
+
+  const options = {
+    filterType: "checkbox",
+    responsive: "standard",
+    selectableRows: "none",
+  };
+
+  return (
+    <div className={classes.root}>
+      <MUIDataTable
+        title="Analysis Services"
+        data={analysisServices}
+        columns={columns}
+        options={options}
+      />
+      <ConfirmDeletionDialog
+        deleteFunction={deleteAnalysisService}
+        dialogOpen={dialogOpen}
+        closeDialog={closeDialog}
+        resourceName="analysis service"
+      />
     </div>
   );
 };
@@ -157,9 +181,6 @@ const AnalysisServicePage = () => {
   );
 
   const currentUser = useSelector((state) => state.profile);
-  const analysisServices = useSelector(
-    (state) => state.analysis_services.analysisServiceList,
-  );
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -187,68 +208,15 @@ const AnalysisServicePage = () => {
     );
   }
 
-  const handleDeleteClick = (serviceId) => {
-    dispatch(analysisServicesActions.deleteAnalysisService(serviceId)).then(
-      (result) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Analysis service deleted successfully"));
-          dispatch(analysisServicesActions.fetchAnalysisServices()); // Refetch the services to update the list
-        } else {
-          dispatch(
-            showNotification("Failed to delete analysis service", "error"),
-          );
-        }
-      },
-    );
-  };
-
-  const columns = [
-    {
-      name: "display_name",
-      label: "Service Name",
-    },
-    {
-      name: "description",
-      label: "Description",
-    },
-    {
-      name: "url",
-      label: "URL",
-    },
-    {
-      name: "Actions",
-      options: {
-        customBodyRenderLite: (dataIndex) => {
-          const service = analysisServices[dataIndex];
-          return (
-            <IconButton
-              className={classes.actions}
-              onClick={() => handleDeleteClick(service.id)}
-            >
-              <DeleteIcon />
-            </IconButton>
-          );
-        },
-      },
-    },
-  ];
-
-  const options = {
-    selectableRows: "none",
-    responsive: "standard",
-  };
-
   return (
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Typography variant="h6">List of Analysis Services</Typography>
-            <MUIDataTable
-              title="Analysis Services"
-              data={analysisServices}
-              columns={columns}
-              options={options}
+            <AnalysisServiceList
+              analysisServices={analysisServiceList}
+              deletePermission={permission}
             />
           </div>
         </Paper>
