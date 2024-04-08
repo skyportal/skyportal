@@ -5,6 +5,23 @@
     <meta name="robots" content="noindex" />
     <title>GCN Reports</title>
     <link rel="stylesheet" type="text/css" href="/static/reports/reports.css" />
+    <script src="/static/js/utils/csv.js" type="text/javascript"></script>
+    {% if data.get("sources", [])|length > 0 %}
+    <script src="/static/js/utils/photometry.js" type="text/javascript"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js" type="text/javascript"></script>
+    <script type="text/javascript">
+          function toggleVisibility(id) {
+            let x = document.getElementById("lc_box_" + id);
+            if (x.style.display === "none") {
+              x.style.display = "table-row";
+              x.style.visibility = "visible";
+            } else {
+              x.style.display = "none";
+              x.style.visibility = "hidden";
+            }
+          }
+      </script>
+    {% endif %}
   </head>
   <body>
     <div
@@ -188,7 +205,7 @@
             <td style="border-left-width: 0">
               <button
                 type="button"
-                onclick="toggleVisibility('{{ source['id'] }}')"
+                onclick="toggleVisibility(`{{ source['id'] }}`,`{{ source['photometry'] }}`)"
                 style="max-height: 30px"
               >
                 +
@@ -213,6 +230,10 @@
             id="lc_box_{{source['id']}}"
             style="display: none; visibility: hidden"
           >
+            {% if source.get('photometry') %}
+              {% set photometry = source['photometry'] | tojson | safe %}
+              {% set photometry_div_id = 'lc_' ~ source['id'] %}
+            {% endif %}
             <td colspan="10">
               <div
                 style="
@@ -221,15 +242,24 @@
                   align-items: flex-end;
                 "
               >
+                <script>
+                  function downloadPhotometryCsv() {
+                    photometryToCsv(`{{ photometry }}`, `{{ source['id'] }}`);
+                  }
+                </script>
                 <button
                   type="button"
-                  onclick="photometryToCsv('{{ source['id'] }}')"
+                  onclick="downloadPhotometryCsv()"
                   style="max-height: 30px"
                 >
                   Download Photometry as CSV
                 </button>
               </div>
-              <div id="lc_{{source['id']}}" style="height: 400px"></div>
+              <script>
+                plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`);
+              </script>
+              <div id="{{ photometry_div_id }}" style="height: 400px">
+              </div>
             </td>
           </tr>
           {% endfor %}
