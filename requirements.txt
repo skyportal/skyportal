@@ -9,7 +9,7 @@ joblib==1.3.1
 seaborn==0.13.2
 pytest-randomly==3.15.0
 factory-boy==3.3.0
-astropy==5.2.1
+astropy==6.0.1
 distributed==2023.4.1
 dustmaps==1.0.13
 reproject==0.11.0
@@ -31,13 +31,13 @@ healpix-alchemy==1.0.2
 mocpy==0.13.1
 obspy==1.4.0
 conesearch-alchemy==1.0.0
-regions==0.7
+regions==0.8
 jsonschema==4.21.1
 jsonpath_ng==1.5.3
 pytest-rerunfailures==13.0
 tables==3.9.2
 timezonefinder==6.2.0
-astroplan==0.8
+astroplan==0.10
 py3-validate-email==1.0.5.post1
 alembic==1.13.1
 marshmallow-jsonschema==0.13.0

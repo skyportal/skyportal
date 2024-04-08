@@ -509,36 +509,31 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
     try:
         # make sure we can get the file name:
         full_name, path = ps.make_full_name()
+    except Exception:
+        raise ValueError(f'Errors when making file name: {traceback.format_exc()}')
 
-        # make sure the file does not exist:
-        if os.path.isfile(full_name):
-            # check if there are any entries in the DB that point to this file:
-            existing_ps = session.scalars(
-                sa.select(PhotometricSeries).where(
-                    PhotometricSeries.filename == full_name
-                )
-            ).first()
-            if existing_ps is not None:
-                raise ValueError(
-                    f'PhotometricSeries with filename {full_name} already exists'
-                )
-            else:
-                # if the file exists but is not in the DB, we can overwrite it
-                os.remove(full_name)
-
-        # make sure this file is not already saved using the hash:
+    # make sure the file does not exist:
+    if os.path.isfile(full_name):
+        # check if there are any entries in the DB that point to this file:
         existing_ps = session.scalars(
-            sa.select(PhotometricSeries).where(PhotometricSeries.hash == ps.hash)
+            sa.select(PhotometricSeries).where(PhotometricSeries.filename == full_name)
         ).first()
         if existing_ps is not None:
             raise ValueError(
-                'A PhotometricSeries with the same hash already exists, '
-                f'with filename: {existing_ps.make_full_name()[0]}'
+                f'PhotometricSeries with filename {full_name} already exists'
             )
+        else:
+            # if the file exists but is not in the DB, we can overwrite it
+            os.remove(full_name)
 
-    except Exception:
+    # make sure this file is not already saved using the hash:
+    existing_ps = session.scalars(
+        sa.select(PhotometricSeries).where(PhotometricSeries.hash == ps.hash)
+    ).first()
+    if existing_ps is not None:
         raise ValueError(
-            f'Errors when making file name or hash: {traceback.format_exc()}'
+            'A PhotometricSeries with the same hash already exists, '
+            f'with filename: {existing_ps.make_full_name()[0]}'
         )
 
     try:
@@ -552,8 +547,6 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
         session.rollback()
         ps.delete_data()  # make sure not to leave files behind
         raise ValueError(f'Could not save photometric series: {traceback.format_exc()}')
-
-        return None
 
 
 def update_photometric_series(ps, json_data, data, attributes_metadata, user, session):
@@ -651,28 +644,26 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
     try:
         # make sure we can get the file name:
         full_name, path = ps.make_full_name()
-
-        # make sure the file does not exist:
-        if prev_filename != full_name and os.path.isfile(full_name):
-            raise ValueError(f'New filename already exists: {full_name}')
-
-        # make sure this file is not already saved using the hash:
-        # this includes only objects different from the one being updated
-        existing_ps = session.scalars(
-            sa.select(PhotometricSeries).where(
-                PhotometricSeries.hash == ps.hash, PhotometricSeries.id != ps.id
-            )
-        ).first()
-        if existing_ps is not None:
-            raise ValueError(
-                'Another PhotometricSeries with the same hash already exists, '
-                f'with filename: {existing_ps.make_full_name()[0]}'
-            )
-
     except Exception:
-        raise ValueError(
-            f'Errors when making file name or hash: {traceback.format_exc()}'
+        raise ValueError(f'Errors when making file name: {traceback.format_exc()}')
+
+    # make sure the file does not exist:
+    if prev_filename != full_name and os.path.isfile(full_name):
+        raise ValueError(f'New filename already exists: {full_name}')
+
+    # make sure this file is not already saved using the hash:
+    # this includes only objects different from the one being updated
+    existing_ps = session.scalars(
+        sa.select(PhotometricSeries).where(
+            PhotometricSeries.hash == ps.hash, PhotometricSeries.id != ps.id
         )
+    ).first()
+    if existing_ps is not None:
+        raise ValueError(
+            'Another PhotometricSeries with the same hash already exists, '
+            f'with filename: {existing_ps.make_full_name()[0]}'
+        )
+
     try:
         # save the new data as temporary file:
         ps.save_data(temp=True)

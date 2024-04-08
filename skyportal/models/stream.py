@@ -4,6 +4,7 @@ __all__ = [
     'StreamPhotometry',
     'StreamPhotometricSeries',
     'StreamInvitation',
+    'StreamTNSRobot',
 ]
 
 import sqlalchemy as sa

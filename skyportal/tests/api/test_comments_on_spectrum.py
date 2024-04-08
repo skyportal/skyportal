@@ -6,7 +6,7 @@ import base64
 from skyportal.tests import api, assert_api, assert_api_fail
 
 
-def test_add_and_retrieve_comment_group_id(
+def test_add_and_retrieve_comment_on_spectrum_group_id(
     comment_token, upload_data_token, public_source, public_group, lris
 ):
     status, data = api(
@@ -45,7 +45,7 @@ def test_add_and_retrieve_comment_group_id(
     assert data['data']['text'] == 'Comment text'
 
 
-def test_add_and_retrieve_comment_group_access(
+def test_add_and_retrieve_comment_on_spectrum_group_access(
     comment_token_two_groups,
     upload_data_token_two_groups,
     public_source_two_groups,
@@ -180,7 +180,7 @@ def test_add_and_retrieve_comment_group_access(
     assert data['data']['text'] == 'New comment text'
 
 
-def test_cannot_add_comment_without_permission(
+def test_cannot_add_comment_on_spectrum_without_permission(
     view_only_token, upload_data_token, public_source, lris
 ):
     status, data = api(
@@ -213,7 +213,9 @@ def test_cannot_add_comment_without_permission(
     assert data['status'] == 'error'
 
 
-def test_delete_comment(comment_token, upload_data_token, public_source, lris):
+def test_delete_comment_on_spectrum(
+    comment_token, upload_data_token, public_source, lris
+):
     status, data = api(
         'POST',
         'spectrum',
@@ -270,7 +272,9 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
     assert_api_fail(status, data, 403)
 
 
-def test_post_comment_attachment(super_admin_token, public_source, lris, public_group):
+def test_post_comment_on_spectrum_attachment(
+    super_admin_token, public_source, lris, public_group
+):
     status, data = api(
         'POST',
         'spectrum',
@@ -328,7 +332,7 @@ def test_post_comment_attachment(super_admin_token, public_source, lris, public_
     assert data == json.loads(base64.b64decode(payload['body']).decode())
 
 
-def test_fetch_all_comments_on_obj(
+def test_fetch_all_comments_on_spectrum(
     upload_data_token, comment_token, public_source, lris
 ):
     status, data = api(
