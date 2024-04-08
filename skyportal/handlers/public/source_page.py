@@ -47,23 +47,9 @@ class SourcePageHandler(BaseHandler):
 
         cache_key = f"source_{source_id}"
         cached = cache[cache_key]
+        # TODO: Implement cache management
         if cached is None:
             return self.error("Page not found", status=404)
-            # if Session.registry.has():
-            #     session = Session()
-            # else:
-            #     session = Session(bind=DBSession.session_factory.kw["bind"])
-
-            # source_page = session.scalar(
-            #     sa.select(SourceAccessibility).where(
-            #         SourceAccessibility.source_id == page_id
-            # )
-            # if report is None:
-            #     return self.error(f"Could not load GCN report {report_id}")
-            # if not report.published:
-            #     return self.error(f"GCN report {report_id} not yet published")
-            # report.generate_report()
-            # cached = cache[cache_key]
 
         data = np.load(cached, allow_pickle=True)
         data = data.item()

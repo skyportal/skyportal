@@ -92,7 +92,7 @@ class SourceAccessibility(Base):
 
         environment = jinja2.Environment(loader=jinja2.FileSystemLoader("./static/public_pages/sources"))
         environment.policies['json.dumps_function'] = to_json
-        template = environment.get_template("template.html")
+        template = environment.get_template("source_template.html")
         html = template.render(
             source_id=self.source_id,
             data=public_data,

@@ -50,7 +50,7 @@ host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
     f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
 )
 
-cache_dir = "cache/reports"
+cache_dir = "cache/public_pages/reports"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_reports_cache"] * 60,
@@ -270,10 +270,10 @@ class GcnReport(Base):
         if isinstance(data, str):
             data = json.loads(data)
 
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader("./static/reports"))
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader("./static/public_pages/reports"))
         env.policies['json.dumps_function'] = to_json
 
-        template = env.get_template("gcn_report.html")
+        template = env.get_template("gcn_report_template.html")
         html = template.render(
             host=host,
             dateobs=str(self.dateobs).replace(" ", "T"),

@@ -10,7 +10,7 @@
     <!-- CSS generic -->
     <link rel="stylesheet" type="text/css" href="/static/public_pages/style.css">
     <!-- CSS for source page -->
-    <link rel="stylesheet" type="text/css" href="/static/public_pages/sources/template.css">
+    <link rel="stylesheet" type="text/css" href="/static/public_pages/sources/source_template.css">
     {% if data.get('photometry') %}
     {% set photometry = data.get('photometry') | tojson | safe %}
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -143,10 +143,12 @@
             <div class="photometryType">
                 <p>MAG</p>
             </div>
-            <div class="photometryPlot" id="photometryPlot"></div>
+            {% set photometry_div_id = 'photometryPlot' %}
             <script>
-                plot_lc(`{{ data.get("photometry") | tojson | safe }}`);
+                plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`);
             </script>
+            <div class="photometryPlot" id="{{ photometry_div_id }}">
+            </div>
         {% else %}
             <h3 class="noPhotometryPlot">No photometry available</h3>
         {% endif %}
