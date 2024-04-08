@@ -124,12 +124,12 @@
                 Photometry
             </h3>
             {% if photometry %}
-                <script>
-                    function downloadCsv() {
-                        photometryToCsv(`{{ photometry }}`, `{{ data['source_id'] }}`);
-                    }
-                </script>
                 <div class="download">
+                    <script>
+                        function downloadCsv() {
+                            photometryToCsv(`{{ photometry }}`, `{{ data['source_id'] }}`);
+                        }
+                    </script>
                     <button
                             type="button"
                             onclick="downloadCsv()"
@@ -144,10 +144,10 @@
                 <p>MAG</p>
             </div>
             {% set photometry_div_id = 'photometryPlot' %}
-            <script>
-                plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`);
-            </script>
             <div class="photometryPlot" id="{{ photometry_div_id }}">
+                <script>
+                    plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`);
+                </script>
             </div>
         {% else %}
             <h3 class="noPhotometryPlot">No photometry available</h3>

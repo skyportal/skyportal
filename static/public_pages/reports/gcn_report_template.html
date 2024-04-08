@@ -255,10 +255,10 @@
                   Download Photometry as CSV
                 </button>
               </div>
-              <script>
-                plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`);
-              </script>
               <div id="{{ photometry_div_id }}" style="height: 400px">
+                <script>
+                  plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`);
+                </script>
               </div>
             </td>
           </tr>
