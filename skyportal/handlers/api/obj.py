@@ -1,5 +1,7 @@
+import dustmaps.sfd
 import numpy as np
 import sqlalchemy as sa
+from astropy import coordinates as ap_coord
 from sqlalchemy import func
 
 from baselayer.app.access import auth_or_token
@@ -16,6 +18,7 @@ from ...models import (
     SourcesConfirmedInGCN,
 )
 from ...utils.offset import _calculate_best_position_for_offset_stars
+from ...utils.calculations import great_circle_distance
 
 _, cfg = load_env()
 
@@ -286,7 +289,19 @@ class ObjPositionHandler(BaseHandler):
                     fallback=(obj.ra, obj.dec),
                     how=method,
                 )
-                return self.success(data={"ra": ra, "dec": dec})
+                skycoord = ap_coord.SkyCoord(obj.ra, obj.dec, unit="deg")
+                return self.success(
+                    data={
+                        "ra": ra,
+                        "dec": dec,
+                        "gal_lon": skycoord.galactic.l.deg,
+                        "gal_lat": skycoord.galactic.b.deg,
+                        "ebv": float(dustmaps.sfd.SFDQuery()(skycoord)),
+                        "separation": float(
+                            great_circle_distance(ra, dec, obj.ra, obj.dec) * 3600
+                        ),
+                    }
+                )
             except Exception as e:
                 return self.error(
                     f"An error occurred while calculating the object's position: {e}"
