@@ -68,7 +68,7 @@ const useStyles = makeStyles((theme) => ({
 const getMuiTheme = (theme) =>
   createTheme({
     palette: theme.palette,
-    overrides: {
+    components: {
       MUIDataTablePagination: {
         toolbar: {
           flexFlow: "row wrap",
