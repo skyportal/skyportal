@@ -1148,16 +1148,8 @@ def process_submission_requests():
                 submission_request = session.scalar(
                     sa.select(TNSRobotSubmission)
                     .where(
-                        sa.or_(
-                            TNSRobotSubmission.status.in_(['pending', 'processing']),
-                            # where the status contains 'error: Parent instance' in it
-                            TNSRobotSubmission.status.op('LIKE')(
-                                '%error: Parent instance%'
-                            ),
-                            TNSRobotSubmission.status.op('LIKE')(
-                                '%error: type object%'
-                            ),
-                        )
+                      TNSRobotSubmission.status.in_(['pending', 'processing']),
+                      TNSRobotSubmission.submission_status.is_(None)
                     )
                     .order_by(TNSRobotSubmission.created_at.asc())
                 )
@@ -1172,11 +1164,6 @@ def process_submission_requests():
                 continue
 
             submission_request_id = submission_request.id
-
-            if 'error: Parent instance not found' in submission_request.status:
-                log(f"Reprocessing TNS request {submission_request_id}")
-            else:
-                log(f"Processing TNS request {submission_request_id}")
 
             try:
                 process_submission_request(submission_request, session)
