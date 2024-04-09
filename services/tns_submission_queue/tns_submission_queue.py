@@ -832,7 +832,7 @@ def process_submission_request(submission_request, session):
     session : `~sqlalchemy.orm.Session`
         The database session to use.
     """
-    from skyportal.models import User, TNSRobot, Photometry, StreamPhotometry
+    from skyportal.models import User, TNSRobot, Photometry
     from skyportal.handlers.api.photometry import serialize
 
     warning = None
@@ -917,14 +917,8 @@ def process_submission_request(submission_request, session):
         if stream_ids is not None and len(stream_ids) > 0:
             phot_to_keep = []
             for phot in photometry:
-                phot_stream_ids = session.scalars(
-                    sa.select(StreamPhotometry.stream_id).where(
-                        StreamPhotometry.photometry_id == phot.id
-                    )
-                ).all()
-
-                for phot_stream_id in phot_stream_ids:
-                    if phot_stream_id in stream_ids:
+                for stream in phot.streams:
+                    if stream.id in stream_ids:
                         phot_to_keep.append(phot)
                         break
             if len(phot_to_keep) == 0:
@@ -1147,10 +1141,7 @@ def process_submission_requests():
             try:
                 submission_request = session.scalar(
                     sa.select(TNSRobotSubmission)
-                    .where(
-                      TNSRobotSubmission.status.in_(['pending', 'processing']),
-                      TNSRobotSubmission.submission_status.is_(None)
-                    )
+                    .where(TNSRobotSubmission.status.in_(['pending', 'processing']))
                     .order_by(TNSRobotSubmission.created_at.asc())
                 )
                 if submission_request is None:
