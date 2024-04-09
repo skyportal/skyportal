@@ -302,9 +302,9 @@ const GcnEvents = () => {
     <ul>
       {events[dataIndex]?.gcn_notices?.map((gcnNotice) => (
         <li key={gcnNotice.id}>
-          {["date", "ivorn", "dateobs", "stream"].map((attr) => (
+          {["date", "ivorn", "stream"].map((attr) => (
             <p key={attr}>
-              {attr}: {gcnNotice[attr]}
+              {gcnNotice[attr]}
             </p>
           ))}
         </li>
@@ -316,11 +316,7 @@ const GcnEvents = () => {
     <ul>
       {events[dataIndex]?.localizations?.map((loc) => (
         <li key={loc.id}>
-          {["localization_name", "dateobs"].map((attr) => (
-            <p key={attr}>
-              {attr}: {loc[attr]}
-            </p>
-          ))}
+          {loc["localization_name"]}
         </li>
       ))}
     </ul>
