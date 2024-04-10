@@ -119,6 +119,14 @@ const ADD_MPC = "skyportal/ADD_MPC";
 
 const ADD_GCN_CROSSMATCH = "skyportal/ADD_GCN_CROSSMATCH";
 
+const FETCH_LOADED_SOURCE_POSITION = "skyportal/FETCH_LOADED_SOURCE_POSITION";
+const FETCH_LOADED_SOURCE_POSITION_OK =
+  "skyportal/FETCH_LOADED_SOURCE_POSITION_OK";
+
+export function fetchPosition(id) {
+  return API.GET(`/api/sources/${id}/position`, FETCH_LOADED_SOURCE_POSITION);
+}
+
 export function addGCNCrossmatch(id, formData) {
   return API.POST(`/api/sources/${id}/gcn_event`, ADD_GCN_CROSSMATCH, formData);
 }
@@ -614,6 +622,20 @@ const reducer = (
       return {
         ...state,
         analyses: data,
+      };
+    }
+    case FETCH_LOADED_SOURCE_POSITION_OK: {
+      const { ra, dec, gal_lon, gal_lat, ebv, separation } = action.data;
+      return {
+        ...state,
+        adjusted_position: {
+          ra,
+          dec,
+          gal_lon,
+          gal_lat,
+          ebv,
+          separation,
+        },
       };
     }
     default:
