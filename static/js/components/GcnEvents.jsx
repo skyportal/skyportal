@@ -25,6 +25,7 @@ import MUIDataTable from "mui-datatables";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import MuiDialogTitle from "@mui/material/DialogTitle";
+import Tooltip from "@mui/material/Tooltip";
 import Button from "./Button";
 
 import { filterOutEmptyValues } from "../API";
@@ -41,15 +42,15 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     overflow: "scroll",
   },
-  eventTags: {
-    marginLeft: "0.5rem",
+  tags: {
+    margin: "0 1px 1px 0",
     "& > div": {
       margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
+    }
   },
   gcnEventLink: {
+    marginLeft: theme.spacing(-1.5), 
+    paddingLeft: theme.spacing(1.5),
     color:
       theme.palette.mode === "dark"
         ? theme.palette.secondary.main
@@ -62,6 +63,21 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "flex-start",
     marginTop: "1rem",
   },
+  list: {
+    listStyleType: "none",
+    paddingLeft: 0,
+    "& li": {
+      "&:not(:last-child)": {
+        borderBottom: "1px solid lightGray",
+      },
+      "& p": {
+        margin: 0,
+      },
+    },
+  },
+  smallText: {
+    fontSize:  "0.7rem"
+  }
 }));
 
 // Tweak responsive styling
@@ -69,6 +85,34 @@ const getMuiTheme = (theme) =>
   createTheme({
     palette: theme.palette,
     components: {
+      MUIDataTableToolbar: {
+        styleOverrides: {
+          root: {
+            maxHeight: "2rem",
+            padding: "0 0.75rem",
+            margin: 0,
+          }
+        },
+      },
+      MUIDataTableHeadCell: {
+        styleOverrides: {
+          root: {
+            padding: `${theme.spacing(1)} ${theme.spacing(1.5)}`
+          },
+        },
+      },
+      MUIDataTableBodyCell: {
+        styleOverrides: {
+          stackedParent: {
+            padding: `${theme.spacing(1)} ${theme.spacing(1.5)}`
+          },
+        },
+      },
+      MuiIconButton: {
+        root: {
+          padding: "0.5rem",
+        },
+      },
       MUIDataTablePagination: {
         toolbar: {
           flexFlow: "row wrap",
@@ -270,11 +314,12 @@ const GcnEvents = () => {
         size="small"
         key={tag}
         label={tag}
+        className={classes.tags}
         style={{
           backgroundColor:
-            gcn_tags_classes && tag in gcn_tags_classes
-              ? gcn_tags_classes[tag]
-              : "#999999",
+              gcn_tags_classes && tag in gcn_tags_classes
+                  ? gcn_tags_classes[tag]
+                  : "#999999"
         }}
       />
     ));
@@ -292,31 +337,29 @@ const GcnEvents = () => {
       });
     });
     const localizationTagsUnique = [...new Set(localizationTags)];
-
     return localizationTagsUnique.map((tag) => (
-      <Chip size="small" key={tag} label={tag} className={classes.eventTags} />
+      <Chip size="small" key={tag} label={tag} className={classes.tags}/>
     ));
   };
 
   const renderGcnNotices = (dataIndex) => (
-    <ul>
+    <ul className={classes.list}>
       {events[dataIndex]?.gcn_notices?.map((gcnNotice) => (
-        <li key={gcnNotice.id}>
-          {["date", "ivorn", "stream"].map((attr) => (
-            <p key={attr}>
-              {gcnNotice[attr]}
-            </p>
-          ))}
-        </li>
+          <li key={gcnNotice.id}>
+            <Tooltip title={gcnNotice["ivorn"]}>
+              <p>{gcnNotice["stream"]}</p>
+            </Tooltip>
+            <p className={classes.smallText}>{gcnNotice["date"]}</p>
+          </li>
       ))}
     </ul>
   );
 
   const renderLocalizations = (dataIndex) => (
-    <ul>
+    <ul className={classes.list}>
       {events[dataIndex]?.localizations?.map((loc) => (
         <li key={loc.id}>
-          {loc["localization_name"]}
+          <p>{loc["localization_name"]}</p>
         </li>
       ))}
     </ul>
