@@ -35,11 +35,14 @@ const useStyles = makeStyles(() => ({
   gridContainer: {
     display: "grid",
     gridAutoFlow: "row",
-    gridTemplateColumns: "repeat(3, 1fr)",
+    gridTemplateColumns: "repeat(4, 1fr)",
     rowGap: "0.5rem",
     columnGap: "2rem",
     width: "100%",
     padding: "0.5rem 1rem 0 1rem",
+    "@media (max-width: 650px)": {
+      gridTemplateColumns: "repeat(2, 1fr)",
+    },
   },
   gridItem: {
     display: "flex",
@@ -202,6 +205,7 @@ const PhotometryPlot = ({
   const [layoutReset, setLayoutReset] = useState(false);
 
   const [showNonDetections, setShowNonDetections] = useState(true);
+  const [showUpperLimits, setshowUpperLimits] = useState(true);
 
   const [initialized, setInitialized] = useState(false);
 
@@ -961,6 +965,22 @@ const PhotometryPlot = ({
     }
   }, [showNonDetections]);
 
+  useEffect(() => {
+    if (!initialized || !plotData) return;
+
+    const updatedPlotData = plotData.map((trace) => {
+      const updatedTrace = { ...trace };
+
+      if (trace.dataType === "upperLimits") {
+        updatedTrace.visible = showUpperLimits;
+      }
+
+      return updatedTrace;
+    });
+
+    setPlotData(updatedPlotData);
+  }, [showUpperLimits]);
+
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
   };
@@ -1197,6 +1217,18 @@ const PhotometryPlot = ({
             <Switch
               checked={showNonDetections}
               onChange={() => setShowNonDetections(!showNonDetections)}
+              inputProps={{ "aria-label": "controlled" }}
+            />
+          </div>
+        </div>
+        <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
+          <Typography id="photometry-show-hide" noWrap>
+            Upper limits
+          </Typography>
+          <div className={classes.switchContainer}>
+            <Switch
+              checked={showUpperLimits}
+              onChange={() => setshowUpperLimits(!showUpperLimits)}
               inputProps={{ "aria-label": "controlled" }}
             />
           </div>
