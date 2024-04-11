@@ -370,9 +370,9 @@ const GcnEvents = () => {
             </li>
         ))}
         {events[dataIndex]?.localizations?.length > 3 && (
-            <div onClick={() => setShowLocalizations(showLocalizations === false ? dataIndex : false)}
+            <div onClick={() => setShowLocalizations(showLocalizations === dataIndex ? false : dataIndex)}
                  style={{display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer'}}>
-              {showLocalizations === false ? <MoreHorizIcon /> : <ExpandLess />}
+              {showLocalizations === dataIndex ? <ExpandLess /> : <MoreHorizIcon />}
             </div>
         )}
       </ul>
@@ -391,9 +391,9 @@ const GcnEvents = () => {
           </li>
       ))}
       {events[dataIndex]?.gcn_notices?.length > 2 && (
-          <div onClick={() => setShowNotices(showNotices === false ? dataIndex : false)}
+          <div onClick={() => setShowNotices(showNotices === dataIndex ? false : dataIndex)}
                style={{display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer'}}>
-            {showNotices === false ? <MoreHorizIcon /> : <ExpandLess />}
+            {showNotices === dataIndex ? <ExpandLess /> : <MoreHorizIcon />}
           </div>
       )}
     </ul>
