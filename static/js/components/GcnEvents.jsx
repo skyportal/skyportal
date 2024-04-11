@@ -26,6 +26,8 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import MuiDialogTitle from "@mui/material/DialogTitle";
 import Tooltip from "@mui/material/Tooltip";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import ExpandLess from "@mui/icons-material/ExpandLess";
 import Button from "./Button";
 
 import { filterOutEmptyValues } from "../API";
@@ -36,8 +38,6 @@ import NewGcnEvent from "./NewGcnEvent";
 import DefaultGcnTagPage from "./DefaultGcnTagPage";
 import Crossmatch from "./CrossmatchGcnEvents";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
-import ExpandLess from "@mui/icons-material/ExpandLess";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -48,7 +48,7 @@ const useStyles = makeStyles((theme) => ({
     margin: "0 1px 1px 0",
     "& > div": {
       margin: "0.25rem",
-    }
+    },
   },
   gcnEventLink: {
     padding: 0,
@@ -81,9 +81,17 @@ const useStyles = makeStyles((theme) => ({
         height: "1px",
       },
     },
+    "& div": {
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      "& a": {
+        cursor: "pointer",
+      },
+    },
   },
   smallText: {
-    fontSize:  "0.7rem"
+    fontSize: "0.7rem",
   },
 }));
 
@@ -95,11 +103,11 @@ const getMuiTheme = (theme) =>
       MUIDataTable: {
         styleOverrides: {
           root: {
-            '& p': {
-              margin: 0
+            "& p": {
+              margin: 0,
             },
-          }
-        }
+          },
+        },
       },
       MUIDataTableToolbar: {
         styleOverrides: {
@@ -107,20 +115,24 @@ const getMuiTheme = (theme) =>
             maxHeight: "2rem",
             padding: "0 0.75rem",
             margin: 0,
-          }
+          },
         },
       },
       MUIDataTableHeadCell: {
         styleOverrides: {
           root: {
-            padding: `${theme.spacing(1)} ${theme.spacing(2.5)} ${theme.spacing(1)} ${theme.spacing(1.5)}`,
+            padding: `${theme.spacing(1)} ${theme.spacing(2.5)} ${theme.spacing(
+              1,
+            )} ${theme.spacing(1.5)}`,
           },
         },
       },
       MUIDataTableBodyCell: {
         styleOverrides: {
           stackedParent: {
-            padding: `${theme.spacing(1)} ${theme.spacing(2.5)} ${theme.spacing(1)} ${theme.spacing(1.5)}`,
+            padding: `${theme.spacing(1)} ${theme.spacing(2.5)} ${theme.spacing(
+              1,
+            )} ${theme.spacing(1.5)}`,
             verticalAlign: "top",
           },
         },
@@ -202,8 +214,8 @@ const GcnEvents = () => {
   const gcn_tags_classes = useSelector((state) => state.config.gcnTagsClasses);
 
   const [openNew, setOpenNew] = useState(false);
-  const [showNotices, setShowNotices] = useState(false);
-  const [showLocalizations, setShowLocalizations] = useState(false);
+  const [showAllLocalizations, setShowAllLocalizations] = useState(false);
+  const [showAllNotices, setShowAllNotices] = useState(false);
   const [openCrossmatch, setOpenCrossmatch] = useState(false);
   const [openDefaultTag, setOpenDefaultTag] = useState(false);
 
@@ -336,9 +348,9 @@ const GcnEvents = () => {
         className={classes.tags}
         style={{
           backgroundColor:
-              gcn_tags_classes && tag in gcn_tags_classes
-                  ? gcn_tags_classes[tag]
-                  : "#999999"
+            gcn_tags_classes && tag in gcn_tags_classes
+              ? gcn_tags_classes[tag]
+              : "#999999",
         }}
       />
     ));
@@ -357,45 +369,61 @@ const GcnEvents = () => {
     });
     const localizationTagsUnique = [...new Set(localizationTags)];
     return localizationTagsUnique.map((tag) => (
-      <Chip size="small" key={tag} label={tag} className={classes.tags}/>
+      <Chip size="small" key={tag} label={tag} className={classes.tags} />
     ));
   };
 
+  const expandButton = (setShowAll, showAll, cellToProcess) => (
+    <div className={classes.expandButton}>
+      <IconButton
+        aria-label="expandButton"
+        onClick={() =>
+          setShowAll(showAll === cellToProcess ? false : cellToProcess)
+        }
+        size="small"
+      >
+        {showAll === cellToProcess ? <ExpandLess /> : <MoreHorizIcon />}
+      </IconButton>
+    </div>
+  );
+
   const renderLocalizations = (dataIndex) => (
-      <ul className={classes.list}>
-        {events[dataIndex]?.localizations?.map((loc, index) => (
-            <li key={loc.id}
-                style={ (showLocalizations !== dataIndex) && index > 2 ? { display: 'none' } : {}}>
-              <p>{loc["localization_name"]}</p>
-            </li>
-        ))}
-        {events[dataIndex]?.localizations?.length > 3 && (
-            <div onClick={() => setShowLocalizations(showLocalizations === dataIndex ? false : dataIndex)}
-                 style={{display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer'}}>
-              {showLocalizations === dataIndex ? <ExpandLess /> : <MoreHorizIcon />}
-            </div>
-        )}
-      </ul>
+    <ul className={classes.list}>
+      {events[dataIndex]?.localizations?.map((loc, index) => (
+        <li
+          key={loc.id}
+          style={
+            showAllLocalizations !== dataIndex && index > 2
+              ? { display: "none" }
+              : {}
+          }
+        >
+          <p>{loc.localization_name}</p>
+        </li>
+      ))}
+      {events[dataIndex]?.localizations?.length > 3 &&
+        expandButton(setShowAllLocalizations, showAllLocalizations, dataIndex)}
+    </ul>
   );
 
   const renderGcnNotices = (dataIndex) => (
     <ul className={classes.list}>
-      {events[dataIndex]?.gcn_notices?.map(( gcnNotice, index ) => (
-          <li key={gcnNotice.id}
-              style={(showNotices !== dataIndex) && index > 1 ? {display: 'none'} : {}}>
-            <Tooltip title={gcnNotice["ivorn"]} placement="left">
-              <p>{gcnNotice["stream"]}</p>
-            </Tooltip>
-            <p className={classes.smallText}>{gcnNotice["notice_type"]}</p>
-            <p className={classes.smallText}>{gcnNotice["date"]}</p>
-          </li>
+      {events[dataIndex]?.gcn_notices?.map((gcnNotice, index) => (
+        <li
+          key={gcnNotice.id}
+          style={
+            showAllNotices !== dataIndex && index > 1 ? { display: "none" } : {}
+          }
+        >
+          <Tooltip title={gcnNotice.ivorn} placement="left">
+            <p>{gcnNotice.stream}</p>
+          </Tooltip>
+          <p className={classes.smallText}>{gcnNotice.notice_type}</p>
+          <p className={classes.smallText}>{gcnNotice.date}</p>
+        </li>
       ))}
-      {events[dataIndex]?.gcn_notices?.length > 2 && (
-          <div onClick={() => setShowNotices(showNotices === dataIndex ? false : dataIndex)}
-               style={{display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer'}}>
-            {showNotices === dataIndex ? <ExpandLess /> : <MoreHorizIcon />}
-          </div>
-      )}
+      {events[dataIndex]?.gcn_notices?.length > 2 &&
+        expandButton(setShowAllNotices, showAllNotices, dataIndex)}
     </ul>
   );
 
