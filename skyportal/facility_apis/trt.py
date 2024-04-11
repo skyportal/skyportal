@@ -207,14 +207,14 @@ class TRTAPI(FollowUpAPI):
             content = json.loads(content)
             uid = content[0]
 
-            payload = json.dumps({"obs_id": uid})
+            payload = json.dumps({"obs_id": [uid]})
 
             headers = {
                 'Content-Type': 'application/json',
                 'TRT': altdata['token'],
             }
-
             r = requests.request("POST", url, headers=headers, data=payload)
+
             r.raise_for_status()
             request.status = "deleted"
 
