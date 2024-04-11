@@ -1601,18 +1601,18 @@ class GcnEventHandler(BaseHandler):
 
             events = []
             for event in session.scalars(query).unique().all():
-                event_info = {**event.to_dict(), "tags": list(set(event.tags))}
-                event_info["localizations"] = sorted(
-                    (
+                for notice in event.gcn_notices:
+                    notice.notice_type = gcn.NoticeType(notice.notice_type).name
+                event_info = {
+                    **event.to_dict(), 
+                    "tags": list(set(event.tags)), 
+                    "localizations": sorted((
                         {
-                            **loc.to_dict(),
-                            "tags": [tag.to_dict() for tag in loc.tags],
-                        }
-                        for loc in event.localizations
-                    ),
-                    key=lambda x: x["created_at"],
-                    reverse=True,
-                )
+                            **loc.to_dict(), "tags": [tag.to_dict() for tag in loc.tags],
+                        } for loc in event.localizations ),
+                        key=lambda x: x["created_at"],
+                        reverse=True)
+                }
                 events.append(event_info)
 
             query_results = {"events": events, "totalMatches": int(total_matches)}
