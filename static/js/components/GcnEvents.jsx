@@ -467,6 +467,7 @@ const GcnEvents = () => {
       options: {
         customBodyRenderLite: renderAliases,
         filter: false,
+        sort: false,
       },
     },
     {
@@ -475,6 +476,7 @@ const GcnEvents = () => {
       options: {
         customBodyRenderLite: renderGcnTags,
         filter: false,
+        sort: false,
       },
     },
     {
@@ -483,6 +485,7 @@ const GcnEvents = () => {
       options: {
         customBodyRenderLite: renderAllocationTriggers,
         filter: false,
+        sort: false,
       },
     },
     {
@@ -491,6 +494,7 @@ const GcnEvents = () => {
       options: {
         customBodyRenderLite: renderLocalizationTags,
         filter: false,
+        sort: false,
       },
     },
     {
@@ -499,6 +503,7 @@ const GcnEvents = () => {
       options: {
         customBodyRenderLite: renderLocalizations,
         filter: false,
+        sort: false,
       },
     },
     {
@@ -507,6 +512,7 @@ const GcnEvents = () => {
       options: {
         customBodyRenderLite: renderGcnNotices,
         filter: false,
+        sort: false,
       },
     },
   ];
