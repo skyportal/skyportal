@@ -37,7 +37,7 @@ import DefaultGcnTagPage from "./DefaultGcnTagPage";
 import Crossmatch from "./CrossmatchGcnEvents";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
-import {ExpandLess} from "@mui/icons-material";
+import ExpandLess from "@mui/icons-material/ExpandLess";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -95,7 +95,6 @@ const getMuiTheme = (theme) =>
       MUIDataTable: {
         styleOverrides: {
           root: {
-            marginRight: "2rem",
             '& p': {
               margin: 0
             },
@@ -124,7 +123,6 @@ const getMuiTheme = (theme) =>
             padding: `${theme.spacing(1)} ${theme.spacing(2.5)} ${theme.spacing(1)} ${theme.spacing(1.5)}`,
             verticalAlign: "top",
           },
-          
         },
       },
       MuiIconButton: {
