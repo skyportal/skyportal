@@ -333,6 +333,7 @@ const SourceContent = ({ source }) => {
       dl: source.luminosity_distance?.toFixed(2),
       thumbnails: thumbnailsData(),
       photometry: (source.photometry_exists && photometry?.length)? photometry:null,
+      classifications: source.classifications,
     }
   }
     

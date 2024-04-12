@@ -1,3 +1,9 @@
+:root {
+    --card-shadow: 0 2px 1px -1px rgba(0,0,0,0.2),
+    0 1px 1px 0 rgba(0,0,0,0.14),
+    0 1px 3px 0 rgba(0,0,0,0.12);
+}
+
 html{
 }
 
@@ -5,6 +11,7 @@ body {
     font-family: "Roboto", Helvetica, Ariel, sans-serif;
     color: rgba(0, 0, 0, 0.87);
     background-color: #f0f2f5;
+    font-size: 1rem;
     height: 100%;
     margin: 0;
 }
@@ -32,29 +39,24 @@ header {
 }
 
 h1{
-    margin: 0;
     color: #457b9d;
     font-size: 2rem;
     font-weight: bold;
+    margin: 0;
 }
 
 h2{
-    line-height: 1.5rem;
-    font-weight: bold;
-    font-size: 1rem;
-    margin: 0;
 
-    span{
-        font-weight: normal;
-        white-space: nowrap;
-        margin-right: 0.5rem;
-    }
-}
-
-h3{
     line-height: 1.5rem;
     font-size: 1.25rem;
     font-weight: normal;
+    margin: 0 0 1rem 0;
+}
+
+h3{
+    line-height: 1.2rem;
+    font-weight: bold;
+    font-size: 1rem;
     margin: 0;
 }
 
@@ -63,13 +65,24 @@ a{
     color: inherit;
 }
 
+p{
+    margin: 0;
+}
+
 .card{
     border: 1px solid rgba(0, 0, 0, 0.12);
     border-radius: 4px;
-    padding: 0.5rem;
+    padding: 1rem;
     margin: 0.5rem 1rem 0.5rem 1rem;
-    box-shadow: 
-            0 2px 1px -1px rgba(0,0,0,0.2),
-            0 1px 1px 0 rgba(0,0,0,0.14),
-            0 1px 3px 0 rgba(0,0,0,0.12);
+    box-shadow: var(--card-shadow);
+
+    .noDataMessage{
+        display: flex;
+        justify-content: center;
+        margin: 2rem 0;
+    }
+}
+
+.boxShadow{
+    box-shadow: var(--card-shadow);
 }

@@ -17,6 +17,11 @@
     <script src="/static/js/utils/csv.js" type="text/javascript"></script>
     <script src="/static/js/utils/photometry.js" type="text/javascript"></script>
     {% endif %}
+    {% if data.get('classifications') %}
+        {% set classifications = data['classifications'] | tojson | safe %}
+    {% else %}
+        {% set classifications = None %}
+    {% endif %}
 </head>
 <body>
 <header>
@@ -38,14 +43,24 @@
 </header>
 <!--Page content-->
 <div class="content">
-    <div class="card">
+    <div class="card resumeCard">
         <div class="title">
             <h1>
                 {{ data['source_id'] }}
             </h1>
         </div>
+        {% if classifications %}
+            <div class="classificationsTag">
+                {% for classification in data['classifications'] %}
+                <div class="classificationTag">
+                    {{ "ML: " if classification.ml }}
+                    {{ classification.classification }}
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
         <div class="subtitle">
-            <h2>
+            <h3>
                 {{ data['radec_hhmmss'] }}
                 <span>
                     (&alpha;,&delta;= {{ data['ra'] }}, &nbsp{{ data['dec'] }})
@@ -58,8 +73,8 @@
                         E(B-V): {{ data['ebv'] }}
                     </span>
                 {% endif %}
-            </h2>
-            <h2>
+            </h3>
+            <h3>
                 Redshift:
                 <span>
                     {{ data['redshift'] }}
@@ -71,12 +86,12 @@
                     </span>
                 {% endif %}
                 {% if data.get('dl') %}
-                    <i>D</i><sub>L</sub>:
+                <b><i>D</i><sub>L</sub>:</b>
                     <span>
                         {{ data['dl'] }} Mpc
                     </span>
                 {% endif %}
-            </h2>
+            </h3>
         </div>
         <div class="images">
             {% for thumbnail in data.get('thumbnails') %}
@@ -120,9 +135,9 @@
     </div>
     <div class="card photometryCard">
         <div class="titleAndDownload">
-            <h3 class="title">
+            <h2>
                 Photometry
-            </h3>
+            </h2>
             {% if photometry %}
                 <div class="download">
                     <script>
@@ -150,7 +165,35 @@
                 </script>
             </div>
         {% else %}
-            <h3 class="noPhotometryPlot">No photometry available</h3>
+            <h2 class="noDataMessage">No photometry available</h2>
+        {% endif %}
+    </div>
+    <div class="card classificationsCard">
+        <h2>
+            Classifications
+        </h2>
+        {% if classifications %}
+            <div class="classifications">
+                {% for classification in data['classifications'] %}
+                    <div class="classification boxShadow">
+                        <div class="author">
+                            {{ classification.author_name }}
+                        </div>
+                        <div class="nameAndProbability">
+                            <p class="name">
+                                {{ "ML: " if classification.ml }}
+                                {{ classification.classification }}</p>
+                            <p class="probability">
+                                (P={{ classification.probability }})</p>
+                        </div>
+                        <div class="taxname">
+                            <i>{{ classification.taxname }}</i>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <h2 class="noDataMessage">No classifications available</h2>
         {% endif %}
     </div>
 </div>
