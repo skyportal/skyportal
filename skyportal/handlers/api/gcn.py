@@ -1601,6 +1601,7 @@ class GcnEventHandler(BaseHandler):
 
             events = []
             for event in session.scalars(query).unique().all():
+                event.gcn_notices = sorted(event.gcn_notices, key=lambda notice: notice.date, reverse=True)
                 for notice in event.gcn_notices:
                     notice.notice_type = gcn.NoticeType(notice.notice_type).name
                 event_info = {
