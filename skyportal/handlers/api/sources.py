@@ -1389,10 +1389,15 @@ async def get_sources(
                 comments_filter = [c.strip() for c in comments_filter.split(",")]
             elif isinstance(comments_filter, str):
                 comments_filter = [comments_filter]
-            query_params['comments_filter'] = bindparam(
-                'comments_filter', value=comments_filter, type_=sa.ARRAY(sa.String)
+            elif isinstance(comments_filter, list):
+                comments_filter = [str(c) for c in comments_filter]
+            for i, c in enumerate(comments_filter):
+                query_params.append(
+                    bindparam(f'comments_filter_{i}', value=c, type_=sa.String)
+                )
+            comments_query.append(
+                f"""comments.text ilike any(array[:{', :'.join([f'comments_filter_{i}' for i in range(len(comments_filter))])}])"""
             )
-            comments_query.append("""comments.text LIKE ANY (:comments_filter)""")
         if comments_filter_before is not None:
             try:
                 query_params.append(
@@ -1917,53 +1922,62 @@ async def get_sources(
             if verbose:
                 log_verbose(f'3. Sources Query took {endTime - startTime} seconds.')
 
-            # REFORMAT SOURCES (SAVE INFO)
-            start = time.time()
-            source_group_ids, source_user_ids = [], []
-            for source in sources:
-                source_group_ids.append(source['group_id']), source_user_ids.append(
-                    source['saved_by_id']
+            log(str(sources))
+
+            if not remove_nested:
+                # REFORMAT SOURCES (SAVE INFO)
+                start = time.time()
+                source_group_ids, source_user_ids = [], []
+                for source in sources:
+                    source_group_ids.append(source['group_id']), source_user_ids.append(
+                        source['saved_by_id']
+                    )
+
+                source_group_ids, source_user_ids = set(source_group_ids), set(
+                    source_user_ids
                 )
 
-            source_group_ids, source_user_ids = set(source_group_ids), set(
-                source_user_ids
-            )
-
-            groups = (
-                session.query(Group)
-                .filter(Group.id.in_(source_group_ids))
-                .distinct()
-                .all()
-            )
-            groups = {group.id: group.to_dict() for group in groups}
-
-            users = (
-                session.query(User)
-                .filter(User.id.in_(source_user_ids))
-                .distinct()
-                .all()
-            )
-            users = {user.id: user.to_dict() for user in users}
-
-            # for each obj, add a 'groups' key with the groups tho which it has been saved as a source
-            for source in sources:
-                obj = next((obj for obj in objs if obj['id'] == source['obj_id']), None)
-                obj['groups'].append(
-                    {
-                        **groups[source['group_id']],
-                        "active": source['active'],
-                        "requested": source['requested'],
-                        "saved_at": source['saved_at'],
-                        "saved_by": users[source['saved_by_id']],
-                    }
+                groups = (
+                    session.query(Group)
+                    .filter(Group.id.in_(source_group_ids))
+                    .distinct()
+                    .all()
                 )
+                groups = {group.id: group.to_dict() for group in groups}
 
-            endTime = time.time()
-            if verbose:
-                log_verbose(
-                    f'4. Sources Refomatting took {endTime - startTime} seconds.'
+                users = (
+                    session.query(User)
+                    .filter(User.id.in_(source_user_ids))
+                    .distinct()
+                    .all()
                 )
+                users = {user.id: user.to_dict() for user in users}
 
+                # for each obj, add a 'groups' key with the groups tho which it has been saved as a source
+                for source in sources:
+                    obj = next(
+                        (obj for obj in objs if obj['id'] == source['obj_id']), None
+                    )
+                    obj['groups'].append(
+                        {
+                            **groups[source['group_id']],
+                            "active": source['active'],
+                            "requested": source['requested'],
+                            "saved_at": source['saved_at'],
+                            "saved_by": users.get(source['saved_by_id'], None),
+                        }
+                    )
+
+                endTime = time.time()
+                if verbose:
+                    log_verbose(
+                        f'4. Sources Refomatting took {endTime - startTime} seconds.'
+                    )
+
+            else:
+                # remove the groups key from the objs
+                for obj in objs:
+                    obj.pop('groups', None)
             startTime = time.time()
             obj_coords = np.array([[obj['ra'], obj['dec']] for obj in objs])
             obj_coords_gal = radec2lb(obj_coords[:, 0], obj_coords[:, 1])

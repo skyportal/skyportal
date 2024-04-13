@@ -3,6 +3,7 @@ import functools
 import io
 import operator  # noqa: F401
 import time
+import traceback
 from json.decoder import JSONDecodeError
 
 import re
@@ -2970,6 +2971,7 @@ class SourceHandler(BaseHandler):
                         include_gcn_crossmatches=include_gcn_crossmatches,
                     )
                 except Exception as e:
+                    traceback.print_exc()
                     return self.error(f'Cannot retrieve source: {str(e)}')
 
                 query_size = sizeof(source_info)
@@ -3064,9 +3066,10 @@ class SourceHandler(BaseHandler):
                     includeGeoJSON=includeGeoJSON,
                     use_cache=use_cache,
                     query_id=query_id,
-                    verbose=True,
+                    verbose=False,
                 )
             except Exception as e:
+                traceback.print_exc()
                 return self.error(f'Cannot retrieve sources: {str(e)}')
 
             query_size = sizeof(query_results)
