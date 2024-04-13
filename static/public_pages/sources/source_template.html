@@ -106,28 +106,49 @@
                         {% endif %}
                     </div>
                     <div class="image">
+                        <script>
+                            function handleImageLoad(image) {
+                                image.onload=null;
+                                disableLoader(image)
+                                if (image.getAttribute('data-thumbnail-type') !== 'sdss') {
+                                    image.parentElement.getElementsByClassName('crosshair')[0].style.display = 'block';
+                                }
+                            }
+                            function handleImageError(image) {
+                                image.onload=null;
+                                image.onerror=null;
+                                disableLoader(image)
+                                if(image.getAttribute('data-thumbnail-public-url') !== '#'){
+                                    const imgName = image.getAttribute('data-thumbnail-type') === 'ls' ? 'outside_survey.png' : 'currently_unavailable.png';
+                                    image.src = `/static/images/${imgName}`;
+                                }
+                            }
+                            function disableLoader(image) {
+                                image.closest('div[class="imageAndTitle"]').getElementsByClassName('loader')[0].style.display = 'none';
+                            }
+                        </script>
                         <a href="{{ thumbnail['link'] }}" target="_blank" rel="noreferrer">
+                            {% set errorImg = 'outside_survey.png' if thumbnail['type'] == 'ls' else 'currently_unavailable.png' %}
                             <img
                                     src="{{ thumbnail['public_url'] }}"
                                     alt="{{ thumbnail['alt'] }}"
                                     title="{{ thumbnail['alt'] }}"
                                     loading="lazy"
-                                    onerror="
-                                        {% if thumbnail.get('public_url') != '#' %}
-                                            if (thumbnail.get('type') === 'ls') 
-                                                { this.src = '/static/images/outside_survey.png'; } 
-                                            else 
-                                                { this.src = '/static/images/currently_unavailable.png'; }
-                                        {% endif %}"
+                                    onload="handleImageLoad(this)"
+                                    onerror="handleImageError(this)"
+                                    data-thumbnail-type="{{ thumbnail.get('type') }}"
+                                    data-thumbnail-public-url="{{ thumbnail.get('public_url') }}"
                             />
-                        </a>
-                        {% if thumbnail.get('type') != "sdss" %}
                             <img
                                     class="crosshair"
                                     src="/static/images/crosshairs.png"
                                     alt="crosshair"
+                                    style="display: none;"
                             />
-                        {% endif %}
+                        </a>
+                    </div>
+                    <div class="loader">
+                        <span></span>
                     </div>
                 </div>
             {% endfor %}

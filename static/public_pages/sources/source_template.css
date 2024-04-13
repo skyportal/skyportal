@@ -36,24 +36,21 @@
         .images {
             margin-top: 1rem;
             display: flex;
-            flex-wrap: wrap;
             gap: 0.5rem 0.5rem;
 
             .imageAndTitle {
                 border: 1px solid rgba(0, 0, 0, 0.12);
+                position: relative;
                 border-radius: 4px;
-                width: 100%;
-                height: 100%;
-                margin: 0;
                 max-height: 31rem;
                 max-width: 13rem;
-                min-width: 6rem;
+                width: 100%;
 
                 .title {
                     letter-spacing: 0.009em;
                     font-size: 0.8rem;
                     font-weight: bold;
-                    margin: 0.5rem 0.5rem;
+                    margin: 0.5rem;
                     color: gray;
                     @media screen and (max-width: 600px) {
                         font-size: 0.55rem;
