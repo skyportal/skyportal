@@ -15,8 +15,10 @@
             margin-bottom: 0.5rem;
             .classificationTag{
                 padding: 0.1rem 0.5rem;
-                background-color: grey;
+                background-color: #e0e0e0;
                 border-radius: 1rem;
+                font-weight: bold;
+                font-size: inherit;
             }
         }
 
@@ -114,6 +116,9 @@
                 padding: 0.5rem 2rem 0.5rem 0.5rem;
                 border: 1px solid grey;
                 border-radius: 4px;
+                &.active {
+                    animation: backgroundFade 3s forwards;
+                }
                 .author{
                     font-size: 0.9rem;
                 }

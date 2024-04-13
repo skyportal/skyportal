@@ -1,4 +1,4 @@
-function photometryToCsv(photometry_data, source_id) {
+function downloadPhotometryToCsv(photometry_data, source_id) {
     const photometry = JSON.parse(photometry_data);
     let csv_data = [];
     let csv_row = [];
@@ -27,7 +27,7 @@ function photometryToCsv(photometry_data, source_id) {
     downloadCSVFile(csv_data, source_id);
 }
 
-function tableToCSV(type) {
+function downloadTableToCSV(type) {
     let csv_data = [];
     let table = document.getElementById(type);
     let rows = table.querySelectorAll("tr");

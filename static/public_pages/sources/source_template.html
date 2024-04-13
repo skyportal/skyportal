@@ -11,6 +11,8 @@
     <link rel="stylesheet" type="text/css" href="/static/public_pages/style.css">
     <!-- CSS for source page -->
     <link rel="stylesheet" type="text/css" href="/static/public_pages/sources/source_template.css">
+    <!-- JS for source page -->
+    <script src="/static/public_pages/sources/source_template.js" type="text/javascript"></script>
     {% if data.get('photometry') %}
     {% set photometry = data.get('photometry') | tojson | safe %}
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -52,10 +54,13 @@
         {% if classifications %}
             <div class="classificationsTag">
                 {% for classification in data['classifications'] %}
-                <div class="classificationTag">
+                <button 
+                        type="button"
+                        class="classificationTag" 
+                        onclick="handleClassificationTag(`{{classification.classification}}`)">
                     {{ "ML: " if classification.ml }}
                     {{ classification.classification }}
-                </div>
+                </button>
                 {% endfor %}
             </div>
         {% endif %}
@@ -106,29 +111,7 @@
                         {% endif %}
                     </div>
                     <div class="image">
-                        <script>
-                            function handleImageLoad(image) {
-                                image.onload=null;
-                                disableLoader(image)
-                                if (image.getAttribute('data-thumbnail-type') !== 'sdss') {
-                                    image.parentElement.getElementsByClassName('crosshair')[0].style.display = 'block';
-                                }
-                            }
-                            function handleImageError(image) {
-                                image.onload=null;
-                                image.onerror=null;
-                                disableLoader(image)
-                                if(image.getAttribute('data-thumbnail-public-url') !== '#'){
-                                    const imgName = image.getAttribute('data-thumbnail-type') === 'ls' ? 'outside_survey.png' : 'currently_unavailable.png';
-                                    image.src = `/static/images/${imgName}`;
-                                }
-                            }
-                            function disableLoader(image) {
-                                image.closest('div[class="imageAndTitle"]').getElementsByClassName('loader')[0].style.display = 'none';
-                            }
-                        </script>
                         <a href="{{ thumbnail['link'] }}" target="_blank" rel="noreferrer">
-                            {% set errorImg = 'outside_survey.png' if thumbnail['type'] == 'ls' else 'currently_unavailable.png' %}
                             <img
                                     src="{{ thumbnail['public_url'] }}"
                                     alt="{{ thumbnail['alt'] }}"
@@ -161,15 +144,9 @@
             </h2>
             {% if photometry %}
                 <div class="download">
-                    <script>
-                        function downloadCsv() {
-                            photometryToCsv(`{{ photometry }}`, `{{ data['source_id'] }}`);
-                        }
-                    </script>
                     <button
                             type="button"
-                            onclick="downloadCsv()"
-                    >
+                            onclick='downloadPhotometryToCsv(`{{ photometry }}`, `{{ data["source_id"] }}`)'>
                         Download
                     </button>
                 </div>
@@ -196,7 +173,7 @@
         {% if classifications %}
             <div class="classifications">
                 {% for classification in data['classifications'] %}
-                    <div class="classification boxShadow">
+                    <div id="{{ classification.classification }}" class="classification boxShadow">
                         <div class="author">
                             {{ classification.author_name }}
                         </div>

@@ -110,3 +110,12 @@ p{
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+@keyframes backgroundFade {
+    /* from blue to inherit */
+    from {background: rgba(69, 123, 157, 0.5);}
+    to {background: inherit;}
+}
+
+button{
+    cursor: pointer;
+}
