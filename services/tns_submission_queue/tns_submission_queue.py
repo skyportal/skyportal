@@ -2,6 +2,7 @@ import json
 import re
 import time
 import traceback
+import uuid
 from threading import Thread
 from urllib.parse import urljoin
 
@@ -11,7 +12,7 @@ from skyportal.models.stream import Stream
 import sqlalchemy as sa
 
 from baselayer.app.env import load_env
-from baselayer.app.models import init_db
+from baselayer.app.models import init_db, session_context_id
 from baselayer.log import make_log
 
 from baselayer.app.flow import Flow
@@ -832,7 +833,7 @@ def process_submission_request(submission_request, session):
     session : `~sqlalchemy.orm.Session`
         The database session to use.
     """
-    from skyportal.models import User, TNSRobot, Photometry
+    from skyportal.models import User, TNSRobot, Photometry, StreamPhotometry
     from skyportal.handlers.api.photometry import serialize
 
     warning = None
@@ -917,8 +918,14 @@ def process_submission_request(submission_request, session):
         if stream_ids is not None and len(stream_ids) > 0:
             phot_to_keep = []
             for phot in photometry:
-                for stream in phot.streams:
-                    if stream.id in stream_ids:
+                phot_stream_ids = session.scalars(
+                    sa.select(StreamPhotometry.stream_id).where(
+                        StreamPhotometry.photometr_id == phot.id
+                    )
+                ).all()
+
+                for phot_stream_id in phot_stream_ids:
+                    if phot_stream_id in stream_ids:
                         phot_to_keep.append(phot)
                         break
             if len(phot_to_keep) == 0:
@@ -1005,6 +1012,7 @@ def process_submission_request(submission_request, session):
                 pass
 
     except TNSReportError as e:
+        log(f"TNSReportError: {str(e)}")
         submission_request.status = f'error: {str(e)}'
         session.commit()
         try:
@@ -1021,6 +1029,7 @@ def process_submission_request(submission_request, session):
         except Exception:
             pass
     except TNSReportWarning as e:
+        log(f"TNSReportWarning: {str(e)}")
         # it is still a submission error, but we want to show it as a warning to the user
         submission_request.status = f'error: {str(e)}'
         session.commit()
@@ -1088,7 +1097,7 @@ def check_at_report(submission_id, tnsrobot, tns_headers):
 
     if r is None:
         raise TNSReportError("Error checking report, no response")
-    if r.status_code != 200:
+    if r.status_code not in [200, 400]:
         raise TNSReportError(f"Error checking report: {r.text}")
 
     try:
@@ -1100,6 +1109,10 @@ def check_at_report(submission_id, tnsrobot, tns_headers):
         at_report = r.json().get('data', {}).get('feedback', {}).get('at_report', [])
         if not isinstance(at_report, list) or len(at_report) == 0:
             raise TNSReportError("No AT report found in response.")
+        if 'An identical AT report' in str(
+            at_report
+        ):  # 'An identical AT report (sender, RA\/DEC, discovery date) already exists.'
+            return None, response, None
         at_report = at_report[0]
         # the at_report is a dict with keys 'status code' and 'at_rep'
         keys = list(at_report.keys())
@@ -1123,6 +1136,7 @@ def check_at_report(submission_id, tnsrobot, tns_headers):
     except TNSReportError as e:
         raise e
     except Exception as e:
+        log(f"Error checking report: {str(e)}")
         raise TNSReportError(f"Error checking report: {str(e)}")
 
     # for now catching errors from TNS is not implemented, so we just return None for the error
@@ -1131,6 +1145,7 @@ def check_at_report(submission_id, tnsrobot, tns_headers):
 
 def process_submission_requests():
     """Service to submit AT reports for sources to TNS, processing the TNSRobotSubmission table."""
+    session_context_id.set(uuid.uuid4().hex)
     from skyportal.models import (
         DBSession,
         TNSRobotSubmission,
@@ -1141,7 +1156,10 @@ def process_submission_requests():
             try:
                 submission_request = session.scalar(
                     sa.select(TNSRobotSubmission)
-                    .where(TNSRobotSubmission.status.in_(['pending', 'processing']))
+                    .where(
+                        TNSRobotSubmission.status.in_(['pending', 'processing']),
+                        TNSRobotSubmission.submission_id.is_(None),
+                    )
                     .order_by(TNSRobotSubmission.created_at.asc())
                 )
                 if submission_request is None:
@@ -1182,6 +1200,7 @@ def process_submission_requests():
 
 def validate_submission_requests():
     """Service to query TNS for the status of submitted AT reports and update the TNSRobotSubmission table."""
+    session_context_id.set(uuid.uuid4().hex)
     from skyportal.models import (
         DBSession,
         TNSRobotSubmission,
@@ -1232,6 +1251,20 @@ def validate_submission_requests():
                 )
                 if (
                     err is None
+                    and tns_source is None
+                    and serialized_response is not None
+                    and 'An identical AT report' in str(serialized_response)
+                ):
+                    # we mark as complete
+                    submission_request.status = 'complete'
+                    submission_request.response = serialized_response
+                    session.merge(submission_request)
+                    session.commit()
+                    log(
+                        f"AT report of {submission_request.obj_id} already exists on TNS"
+                    )
+                elif (
+                    err is None
                     and tns_source is not None
                     and serialized_response is not None
                 ):
@@ -1276,9 +1309,9 @@ def validate_submission_requests():
                     session.commit()
                     log(f"Error checking TNS report: {err}")
             except TNSReportError as e:
+                log(f"TNSReportError: {str(e)}")
                 session.rollback()
                 traceback.print_exc()
-                log(e)
                 continue
             except Exception as e:
                 session.rollback()
