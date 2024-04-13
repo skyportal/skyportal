@@ -205,7 +205,7 @@ const PhotometryPlot = ({
   const [layoutReset, setLayoutReset] = useState(false);
 
   const [showNonDetections, setShowNonDetections] = useState(true);
-  const [showUpperLimits, setshowUpperLimits] = useState(true);
+  const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
 
   const [initialized, setInitialized] = useState(false);
 
@@ -430,6 +430,9 @@ const PhotometryPlot = ({
 
           const upperLimitsTrace = {
             dataType: "upperLimits",
+            isForcedPhotometry:
+              upperLimits?.length > 0 &&
+              ["fp", "fp_alert"].includes(upperLimits[0].origin),
             x: upperLimits.map((point) => point.mjd),
             y: upperLimits.map((point) =>
               plotType === "mag" ? point.limiting_mag : point.flux,
@@ -463,6 +466,9 @@ const PhotometryPlot = ({
 
           const detectionsTrace = {
             dataType: "detections",
+            isForcedPhotometry:
+              detections?.length > 0 &&
+              ["fp", "fp_alert"].includes(detections[0].origin),
             x: detections.map((point) => point.mjd),
             y: detections.map((point) =>
               plotType === "mag" ? point.mag : point.flux,
@@ -966,20 +972,20 @@ const PhotometryPlot = ({
   }, [showNonDetections]);
 
   useEffect(() => {
-    if (!initialized || !plotData) return;
+    if (plotData) {
+      const updatedPlotData = plotData.map((trace) => {
+        const updatedTrace = { ...trace };
 
-    const updatedPlotData = plotData.map((trace) => {
-      const updatedTrace = { ...trace };
+        if (updatedTrace.isForcedPhotometry) {
+          updatedTrace.visible = showForcedPhotometry;
+        }
 
-      if (trace.dataType === "upperLimits") {
-        updatedTrace.visible = showUpperLimits;
-      }
+        return updatedTrace;
+      });
 
-      return updatedTrace;
-    });
-
-    setPlotData(updatedPlotData);
-  }, [showUpperLimits]);
+      setPlotData(updatedPlotData);
+    }
+  }, [showForcedPhotometry]);
 
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
@@ -1197,6 +1203,8 @@ const PhotometryPlot = ({
               ) {
                 // if we already isolated a single trace and we double click on it, or if there are no traces visible, show all
                 trace.visible = true;
+              } else if (!showForcedPhotometry && trace.isForcedPhotometry) {
+                trace.visible = false;
               } else {
                 // otherwise, hide all
                 trace.visible = "legendonly";
@@ -1223,12 +1231,12 @@ const PhotometryPlot = ({
         </div>
         <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
           <Typography id="photometry-show-hide" noWrap>
-            Upper limits
+            Forced Photometry
           </Typography>
           <div className={classes.switchContainer}>
             <Switch
-              checked={showUpperLimits}
-              onChange={() => setshowUpperLimits(!showUpperLimits)}
+              checked={showForcedPhotometry}
+              onChange={() => setshowForcedPhotometry(!showForcedPhotometry)}
               inputProps={{ "aria-label": "controlled" }}
             />
           </div>
