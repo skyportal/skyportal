@@ -1922,8 +1922,6 @@ async def get_sources(
             if verbose:
                 log_verbose(f'3. Sources Query took {endTime - startTime} seconds.')
 
-            log(str(sources))
-
             if not remove_nested:
                 # REFORMAT SOURCES (SAVE INFO)
                 start = time.time()
