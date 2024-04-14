@@ -25,6 +25,9 @@ import MUIDataTable from "mui-datatables";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import MuiDialogTitle from "@mui/material/DialogTitle";
+import Tooltip from "@mui/material/Tooltip";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import ExpandLess from "@mui/icons-material/ExpandLess";
 import Button from "./Button";
 
 import { filterOutEmptyValues } from "../API";
@@ -41,15 +44,14 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     overflow: "scroll",
   },
-  eventTags: {
-    marginLeft: "0.5rem",
+  tags: {
+    margin: "0 1px 1px 0",
     "& > div": {
       margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
     },
   },
   gcnEventLink: {
+    padding: 0,
     color:
       theme.palette.mode === "dark"
         ? theme.palette.secondary.main
@@ -62,13 +64,84 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "flex-start",
     marginTop: "1rem",
   },
+  list: {
+    listStyleType: "none",
+    paddingLeft: 0,
+    margin: 0,
+    "& li:not(:first-child)": {
+      position: "relative",
+      marginTop: theme.spacing(2),
+      "&:before": {
+        content: `""`,
+        backgroundColor: theme.palette.grey[400],
+        position: "absolute",
+        top: theme.spacing(-1),
+        left: "0",
+        width: "20%",
+        height: "1px",
+      },
+    },
+    "& div": {
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      "& a": {
+        cursor: "pointer",
+      },
+    },
+  },
+  smallText: {
+    fontSize: "0.7rem",
+  },
 }));
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
   createTheme({
     palette: theme.palette,
-    overrides: {
+    components: {
+      MUIDataTable: {
+        styleOverrides: {
+          root: {
+            "& p": {
+              margin: 0,
+            },
+          },
+        },
+      },
+      MUIDataTableToolbar: {
+        styleOverrides: {
+          root: {
+            maxHeight: "2rem",
+            padding: "0 0.75rem",
+            margin: 0,
+          },
+        },
+      },
+      MUIDataTableHeadCell: {
+        styleOverrides: {
+          root: {
+            padding: `${theme.spacing(1)} ${theme.spacing(2.5)} ${theme.spacing(
+              1,
+            )} ${theme.spacing(1.5)}`,
+          },
+        },
+      },
+      MUIDataTableBodyCell: {
+        styleOverrides: {
+          stackedParent: {
+            padding: `${theme.spacing(1)} ${theme.spacing(2.5)} ${theme.spacing(
+              1,
+            )} ${theme.spacing(1.5)}`,
+            verticalAlign: "top",
+          },
+        },
+      },
+      MuiIconButton: {
+        root: {
+          padding: "0.5rem",
+        },
+      },
       MUIDataTablePagination: {
         toolbar: {
           flexFlow: "row wrap",
@@ -141,6 +214,8 @@ const GcnEvents = () => {
   const gcn_tags_classes = useSelector((state) => state.config.gcnTagsClasses);
 
   const [openNew, setOpenNew] = useState(false);
+  const [showAllLocalizations, setShowAllLocalizations] = useState(false);
+  const [showAllNotices, setShowAllNotices] = useState(false);
   const [openCrossmatch, setOpenCrossmatch] = useState(false);
   const [openDefaultTag, setOpenDefaultTag] = useState(false);
 
@@ -270,6 +345,7 @@ const GcnEvents = () => {
         size="small"
         key={tag}
         label={tag}
+        className={classes.tags}
         style={{
           backgroundColor:
             gcn_tags_classes && tag in gcn_tags_classes
@@ -292,37 +368,62 @@ const GcnEvents = () => {
       });
     });
     const localizationTagsUnique = [...new Set(localizationTags)];
-
     return localizationTagsUnique.map((tag) => (
-      <Chip size="small" key={tag} label={tag} className={classes.eventTags} />
+      <Chip size="small" key={tag} label={tag} className={classes.tags} />
     ));
   };
 
-  const renderGcnNotices = (dataIndex) => (
-    <ul>
-      {events[dataIndex]?.gcn_notices?.map((gcnNotice) => (
-        <li key={gcnNotice.id}>
-          {["date", "ivorn", "dateobs", "stream"].map((attr) => (
-            <p key={attr}>
-              {attr}: {gcnNotice[attr]}
-            </p>
-          ))}
-        </li>
-      ))}
-    </ul>
+  const expandButton = (setShowAll, showAll, cellToProcess) => (
+    <div className={classes.expandButton}>
+      <IconButton
+        aria-label="expandButton"
+        onClick={() =>
+          setShowAll(showAll === cellToProcess ? false : cellToProcess)
+        }
+        size="small"
+      >
+        {showAll === cellToProcess ? <ExpandLess /> : <MoreHorizIcon />}
+      </IconButton>
+    </div>
   );
 
   const renderLocalizations = (dataIndex) => (
-    <ul>
-      {events[dataIndex]?.localizations?.map((loc) => (
-        <li key={loc.id}>
-          {["localization_name", "dateobs"].map((attr) => (
-            <p key={attr}>
-              {attr}: {loc[attr]}
-            </p>
-          ))}
+    <ul className={classes.list}>
+      {events[dataIndex]?.localizations?.map((loc, index) => (
+        <li
+          key={loc.id}
+          style={
+            showAllLocalizations !== dataIndex && index > 2
+              ? { display: "none" }
+              : {}
+          }
+        >
+          <p>{loc.localization_name}</p>
         </li>
       ))}
+      {events[dataIndex]?.localizations?.length > 3 &&
+        expandButton(setShowAllLocalizations, showAllLocalizations, dataIndex)}
+    </ul>
+  );
+
+  const renderGcnNotices = (dataIndex) => (
+    <ul className={classes.list}>
+      {events[dataIndex]?.gcn_notices?.map((gcnNotice, index) => (
+        <li
+          key={gcnNotice.id}
+          style={
+            showAllNotices !== dataIndex && index > 1 ? { display: "none" } : {}
+          }
+        >
+          <Tooltip title={gcnNotice.ivorn} placement="left">
+            <p>{gcnNotice.stream}</p>
+          </Tooltip>
+          <p className={classes.smallText}>{gcnNotice.notice_type}</p>
+          <p className={classes.smallText}>{gcnNotice.date}</p>
+        </li>
+      ))}
+      {events[dataIndex]?.gcn_notices?.length > 2 &&
+        expandButton(setShowAllNotices, showAllNotices, dataIndex)}
     </ul>
   );
 
@@ -366,6 +467,7 @@ const GcnEvents = () => {
       options: {
         customBodyRenderLite: renderAliases,
         filter: false,
+        sort: false,
       },
     },
     {
@@ -374,6 +476,7 @@ const GcnEvents = () => {
       options: {
         customBodyRenderLite: renderGcnTags,
         filter: false,
+        sort: false,
       },
     },
     {
@@ -382,6 +485,7 @@ const GcnEvents = () => {
       options: {
         customBodyRenderLite: renderAllocationTriggers,
         filter: false,
+        sort: false,
       },
     },
     {
@@ -390,6 +494,7 @@ const GcnEvents = () => {
       options: {
         customBodyRenderLite: renderLocalizationTags,
         filter: false,
+        sort: false,
       },
     },
     {
@@ -398,6 +503,7 @@ const GcnEvents = () => {
       options: {
         customBodyRenderLite: renderLocalizations,
         filter: false,
+        sort: false,
       },
     },
     {
@@ -406,6 +512,7 @@ const GcnEvents = () => {
       options: {
         customBodyRenderLite: renderGcnNotices,
         filter: false,
+        sort: false,
       },
     },
   ];
