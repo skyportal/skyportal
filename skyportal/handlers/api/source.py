@@ -3193,8 +3193,6 @@ class SourceHandler(BaseHandler):
                 if source is None:
                     return self.error(f'Cannot find the object with name {obj_id}')
 
-                print(data.get('ra'), source.ra)
-                print(data.get('dec'), source.dec)
                 if not (
                     np.isclose(data.get('ra'), source.ra)
                     and np.isclose(data.get('dec'), source.dec)
