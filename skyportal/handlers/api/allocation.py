@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sqlalchemy as sa
 from astroplan.moon import moon_phase_angle
+from astropy.utils.masked import MaskedNDArray
 from marshmallow.exceptions import ValidationError
 from sqlalchemy import func
 
@@ -191,10 +192,15 @@ class AllocationHandler(BaseHandler):
                         thumbnail.to_dict() for thumbnail in request.obj.thumbnails
                     ]
                     request_data['set_time_utc'] = request.set_time().iso
-                    if isinstance(request_data['set_time_utc'], np.ma.MaskedArray):
+                    if isinstance(
+                        request_data['set_time_utc'], (np.ma.MaskedArray, MaskedNDArray)
+                    ):
                         request_data['set_time_utc'] = None
                     request_data['rise_time_utc'] = request.rise_time().iso
-                    if isinstance(request_data['rise_time_utc'], np.ma.MaskedArray):
+                    if isinstance(
+                        request_data['rise_time_utc'],
+                        (np.ma.MaskedArray, MaskedNDArray),
+                    ):
                         request_data['rise_time_utc'] = None
                     requests.append(request_data)
 
