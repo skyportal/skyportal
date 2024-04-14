@@ -113,6 +113,19 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
     setIsDeleting(null);
   };
 
+  const objectWithFalseValues = defaultHiddenColumns.reduce((acc, curr) => {
+    acc[curr] = false;
+    return acc;
+  }, {});
+
+  const [openColumns, setOpenColumns] = useState(objectWithFalseValues);
+  const handleColumnViewChange = (columnName, action) => {
+    setOpenColumns((prevOpenColumns) => ({
+      ...prevOpenColumns,
+      [columnName]: action === "add",
+    }));
+  };
+
   if (!Object.keys(photometry).includes(obj_id)) {
     bodyContent = (
       <div>
@@ -176,7 +189,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
             }
             return value;
           },
-          display: !defaultHiddenColumns.includes(key),
+          display: openColumns[key] === false ? "false" : "true",
         },
       }));
 
@@ -195,7 +208,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         label: "UTC",
         options: {
           customBodyRenderLite: renderUTC,
-          display: false,
+          display: openColumns.UTC === false ? "false" : "true",
         },
       });
 
@@ -214,6 +227,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         label: "owner",
         options: {
           customBodyRenderLite: renderOwner,
+          display: openColumns.owner === false ? "false" : "true",
         },
       });
 
@@ -233,7 +247,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         label: "streams",
         options: {
           customBodyRenderLite: renderStreams,
-          display: false,
+          display: openColumns.streams === false ? "false" : "true",
         },
       });
 
@@ -272,7 +286,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           label: "Validation",
           options: {
             customBodyRenderLite: renderValidationStatus,
-            display: true,
+            display: openColumns.validation_status === false ? "false" : "true",
           },
         });
 
@@ -304,7 +318,8 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           label: "Explanation",
           options: {
             customBodyRenderLite: renderValidationExplanation,
-            display: true,
+            display:
+              openColumns.validation_explanation === false ? "false" : "true",
           },
         });
 
@@ -336,7 +351,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           label: "Notes",
           options: {
             customBodyRenderLite: renderValidationNotes,
-            display: true,
+            display: openColumns.validation_notes === false ? "false" : "true",
           },
         });
       }
@@ -347,7 +362,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           <div>
             <div className={classes.manage}>
               <div>
-                <UpdatePhotometry phot={phot} />
+                <UpdatePhotometry phot={phot} magsys={magsys} />
               </div>
               {isDeleting === phot.id ? (
                 <div>
@@ -374,10 +389,11 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
       };
       columns.push({
         name: "manage",
-        label: " ",
+        label: "Manage",
         options: {
           customBodyRenderLite: renderManage,
         },
+        display: openColumns.manage === false ? "false" : "true",
       });
 
       const customToolbarFunc = () => (
@@ -401,6 +417,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         customToolbar: customToolbarFunc,
         filter: false,
         download: true,
+        onColumnViewChange: handleColumnViewChange,
         onDownload: (buildHead, buildBody, cols, tableData) => {
           const renderStreamsDownload = (streams) =>
             streams ? streams.map((stream) => stream.name).join(";") : "";
@@ -427,6 +444,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                   x.data[20] = 10 ** (-0.4 * (x.data[4] - PHOT_ZP));
                   x.data[21] = null;
                 }
+                x.data[22] = mjd_to_utc(x.data[1]);
                 return [
                   x.data[0],
                   x.data[1],
@@ -449,6 +467,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                   x.data[19],
                   x.data[20],
                   x.data[21],
+                  x.data[22],
                 ].join(",");
               })
               .join("\n");
@@ -537,6 +556,10 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                 },
                 {
                   name: "snr",
+                  download: true,
+                },
+                {
+                  name: "UTC",
                   download: true,
                 },
               ]) + body;
