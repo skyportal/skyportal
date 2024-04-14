@@ -234,18 +234,16 @@ class ObjPositionHandler(BaseHandler):
             )
 
         with self.Session() as session:
-            # try:
-            if True:
+            try:
                 obj = session.scalar(
                     Obj.select(session.user_or_token).where(Obj.id == obj_id)
                 )
                 if obj is None:
                     return self.error(f"Could not load object with ID {obj_id}")
-            # except Exception:
-            #    return self.error(f"Could not load object with ID {obj_id}")
+            except Exception:
+                return self.error(f"Could not load object with ID {obj_id}")
 
-            # try:
-            if True:
+            try:
                 # DATABASE QUERY AND FILTERING
                 query_constraints = [
                     Photometry.obj_id == obj_id,
@@ -306,7 +304,7 @@ class ObjPositionHandler(BaseHandler):
                         ),
                     }
                 )
-            # except Exception as e:
-            #    return self.error(
-            #        f"An error occurred while calculating the object's position: {e}"
-            #    )
+            except Exception as e:
+                return self.error(
+                    f"An error occurred while calculating the object's position: {e}"
+                )
