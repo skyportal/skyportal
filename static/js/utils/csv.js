@@ -9,19 +9,30 @@ function downloadCSVFile(csv_data, file_name) {
   document.body.removeChild(temp_link);
 }
 
+/* eslint-disable no-unused-vars */
 function downloadPhotometryToCsv(photometry_data, source_id) {
   const photometry = JSON.parse(photometry_data);
 
-  const headers = ["mjd", "mag", "magerr", "filter", "limiting_mag", "instrument_id", "instrument_name", "origin"];
+  const headers = [
+    "mjd",
+    "mag",
+    "magerr",
+    "filter",
+    "limiting_mag",
+    "instrument_id",
+    "instrument_name",
+    "origin",
+  ];
   const csv_data = [
     headers.join(","),
-    ...photometry.map(element =>
-        headers.map(header => element[header]).join(",")
-    )
+    ...photometry.map((element) =>
+      headers.map((header) => element[header]).join(","),
+    ),
   ].join("\n");
   downloadCSVFile(csv_data, source_id);
 }
 
+/* eslint-disable no-unused-vars */
 function downloadTableToCSV(type) {
   let csv_data = [];
   const table = document.getElementById(type);

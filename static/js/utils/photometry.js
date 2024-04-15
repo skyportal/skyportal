@@ -1,3 +1,5 @@
+/* global Plotly */
+
 const filter_mapper = {
   ztfg: "green",
   ztfr: "red",
@@ -16,6 +18,7 @@ function ModifiedJulianDateNow() {
   return ModifiedJulianDateFromUnixTime(new Date().getTime());
 }
 
+/* eslint-disable no-unused-vars */
 function plot_lc(photometry_data, div_id) {
   const photometry = JSON.parse(photometry_data);
   const now = ModifiedJulianDateNow();

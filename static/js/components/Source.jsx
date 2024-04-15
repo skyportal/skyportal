@@ -1091,9 +1091,11 @@ const SourceContent = ({ source }) => {
                   secondary
                   size="small"
                   data-testid="publishThisSourceButton"
-                  onClick={() => isPublished
+                  onClick={() =>
+                    isPublished
                       ? unpublishThisSource()
-                      : setPublishedDialogOpen(true)}
+                      : setPublishedDialogOpen(true)
+                  }
                 >
                   <Tooltip
                     title={
