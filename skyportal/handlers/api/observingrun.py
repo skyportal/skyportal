@@ -182,7 +182,7 @@ class ObservingRunHandler(BaseHandler):
 
                     for d, rt, st in zip(data["assignments"], rise_times, set_times):
                         d["rise_time_utc"] = (
-                            rt.item()  # 0-dimentional array (basically a scalar)
+                            rt.item()  # 0-dimensional array (basically a scalar)
                             if not rt.mask.any()  # check that the value isn't masked (not rising at date)
                             else ''
                         )
