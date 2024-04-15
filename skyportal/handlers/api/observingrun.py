@@ -1,5 +1,3 @@
-import numpy as np
-from astropy.utils.masked import MaskedNDArray
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
@@ -184,13 +182,13 @@ class ObservingRunHandler(BaseHandler):
 
                     for d, rt, st in zip(data["assignments"], rise_times, set_times):
                         d["rise_time_utc"] = (
-                            rt
-                            if not isinstance(rt, (np.ma.MaskedArray, MaskedNDArray))
+                            rt.item()  # 0-dimentional array (basically a scalar)
+                            if not rt.mask.any()  # check that the value isn't masked (not rising at date)
                             else ''
                         )
                         d["set_time_utc"] = (
-                            st
-                            if not isinstance(st, (np.ma.MaskedArray, MaskedNDArray))
+                            st.item()
+                            if not st.mask.any()  # check that the value isn't masked (not setting at date)
                             else ''
                         )
 
