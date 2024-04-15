@@ -2,6 +2,9 @@ name: API & frontend
 
 on:
   push:
+    branches:
+      - main
+      - issue_4819_GCN_events_too_much_white_space
   pull_request:
 
 jobs:
