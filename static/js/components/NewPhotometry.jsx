@@ -19,7 +19,9 @@ const validateDate = (date) => {
 
 const UTCToMJD = (utc) => {
   // convert utc to MJD
-  const utcDate = new Date(utc);
+  // if the date has anything after the seconds, remove it
+  // and instead, add the .000Z to the end
+  const utcDate = new Date(`${utc.split(".")[0]}.000Z`);
   const mjd = utcDate / 86400000 + 40587;
   return mjd;
 };

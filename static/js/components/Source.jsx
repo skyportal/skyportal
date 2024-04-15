@@ -213,6 +213,87 @@ export const useSourceStyles = makeStyles((theme) => ({
   },
 }));
 
+const SourceCoordinates = ({ source, downMd = false }) => {
+  const classes = useSourceStyles();
+
+  const ra = source?.adjusted_position?.ra || source.ra;
+  const dec = source?.adjusted_position?.dec || source.dec;
+  const gal_lon = source?.adjusted_position?.gal_lon || source.gal_lon;
+  const gal_lat = source?.adjusted_position?.gal_lat || source.gal_lat;
+  const ebv = source?.adjusted_position?.ebv || source.ebv;
+
+  const radec_hhmmss = `${ra_to_hours(ra, ":")} ${dec_to_dms(dec, ":")}`;
+
+  const title =
+    source?.adjusted_position?.separation > 0
+      ? `The coordinates displayed here have been re-computed using the object's photometry (${source.adjusted_position.separation.toFixed(
+          2,
+        )}" from the original)`
+      : "The coordinates displayed here are the original coordinates of the object";
+
+  return (
+    <Tooltip title={title} placement="top">
+      <div
+        className={classes.infoLine}
+        style={{
+          gap: 0,
+          columnGap: "0.5rem",
+        }}
+      >
+        <div className={classes.sourceInfo}>
+          <span
+            style={{
+              fontWeight: "bold",
+              fontSize: downMd ? "1rem" : "110%",
+            }}
+          >
+            {radec_hhmmss}
+          </span>
+        </div>
+        <div className={classes.sourceInfo}>
+          (&alpha;,&delta;= {ra.toFixed(6)}, &nbsp;
+          {dec.toFixed(6)})
+        </div>
+        <div className={classes.sourceInfo}>
+          (<i>l</i>,<i>b</i>={gal_lon.toFixed(6)}, &nbsp;
+          {gal_lat.toFixed(6)})
+        </div>
+        {ebv && (
+          <div className={classes.sourceInfo}>{`E(B-V): ${ebv.toFixed(
+            2,
+          )}`}</div>
+        )}
+        <div className={classes.sourceInfo}>
+          <UpdateSourceCoordinates source={source} />
+        </div>
+      </div>
+    </Tooltip>
+  );
+};
+
+SourceCoordinates.propTypes = {
+  source: PropTypes.shape({
+    ra: PropTypes.number,
+    dec: PropTypes.number,
+    gal_lat: PropTypes.number,
+    gal_lon: PropTypes.number,
+    ebv: PropTypes.number,
+    adjusted_position: PropTypes.shape({
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+      gal_lat: PropTypes.number,
+      gal_lon: PropTypes.number,
+      ebv: PropTypes.number,
+      separation: PropTypes.number,
+    }),
+  }).isRequired,
+  downMd: PropTypes.bool,
+};
+
+SourceCoordinates.defaultProps = {
+  downMd: false,
+};
+
 const SourceContent = ({ source }) => {
   const dispatch = useDispatch();
   const classes = useSourceStyles();
@@ -307,6 +388,7 @@ const SourceContent = ({ source }) => {
   useEffect(() => {
     dispatch(photometryActions.fetchSourcePhotometry(source.id, { magsys }));
     dispatch(spectraActions.fetchSourceSpectra(source.id));
+    dispatch(sourceActions.fetchPosition(source.id));
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
   }, [source.id, magsys, dispatch]);
 
@@ -658,37 +740,7 @@ const SourceContent = ({ source }) => {
                 shortened
               />
             </div>
-            <div
-              className={classes.infoLine}
-              style={{ gap: 0, columnGap: "0.5rem" }}
-            >
-              <div className={classes.sourceInfo}>
-                <span
-                  style={{
-                    fontWeight: "bold",
-                    fontSize: downMd ? "1rem" : "110%",
-                  }}
-                >
-                  {radec_hhmmss}
-                </span>
-              </div>
-              <div className={classes.sourceInfo}>
-                (&alpha;,&delta;= {source.ra}, &nbsp;
-                {source.dec})
-              </div>
-              <div className={classes.sourceInfo}>
-                (<i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
-                {source.gal_lat.toFixed(6)})
-              </div>
-              {source.ebv && (
-                <div className={classes.sourceInfo}>
-                  {`E(B-V): ${source.ebv.toFixed(2)}`}
-                </div>
-              )}
-              <div className={classes.sourceInfo}>
-                <UpdateSourceCoordinates source={source} />
-              </div>
-            </div>
+            <SourceCoordinates source={source} downMd={downMd} />
             <div
               className={classes.flexRow}
               style={{

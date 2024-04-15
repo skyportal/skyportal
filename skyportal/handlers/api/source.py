@@ -3,6 +3,7 @@ import functools
 import io
 import operator  # noqa: F401
 import time
+import traceback
 from json.decoder import JSONDecodeError
 
 import re
@@ -45,6 +46,7 @@ from baselayer.log import make_log
 from ...models import (
     Allocation,
     Annotation,
+    Candidate,
     ClassicalAssignment,
     Classification,
     Comment,
@@ -2955,7 +2957,7 @@ class SourceHandler(BaseHandler):
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
 
-        use_experimental = self.get_query_argument('useExperimentalSources', False)
+        use_experimental = self.get_query_argument('useExperimentalSources', True)
 
         method_get_sources = (
             get_sources_experimental if use_experimental else get_sources
@@ -2991,6 +2993,7 @@ class SourceHandler(BaseHandler):
                         include_gcn_crossmatches=include_gcn_crossmatches,
                     )
                 except Exception as e:
+                    traceback.print_exc()
                     return self.error(f'Cannot retrieve source: {str(e)}')
 
                 query_size = sizeof(source_info)
@@ -3085,9 +3088,10 @@ class SourceHandler(BaseHandler):
                     includeGeoJSON=includeGeoJSON,
                     use_cache=use_cache,
                     query_id=query_id,
-                    verbose=True,
+                    verbose=False,
                 )
             except Exception as e:
+                traceback.print_exc()
                 return self.error(f'Cannot retrieve sources: {str(e)}')
 
             query_size = sizeof(query_results)
@@ -3195,25 +3199,58 @@ class SourceHandler(BaseHandler):
         data = self.get_json()
         data['id'] = obj_id
 
-        schema = Obj.__schema__()
-        try:
-            obj = schema.load(data)
-        except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+        with self.Session() as session:
+            # verify that there are no candidates for this object,
+            # in which case we do not allow updating the position
+            if data.get('ra', None) is not None or data.get('dec', None) is not None:
+                existing_candidates = session.scalars(
+                    sa.select(Candidate).where(Candidate.obj_id == obj_id)
+                ).all()
+                if len(existing_candidates) > 0:
+                    return self.error(
+                        'Cannot update the position of an object with candidates/alerts'
+                    )
+
+                source = session.scalars(sa.select(Obj).where(Obj.id == obj_id)).first()
+                if source is None:
+                    return self.error(f'Cannot find the object with name {obj_id}')
+
+                if not (
+                    np.isclose(data.get('ra'), source.ra)
+                    and np.isclose(data.get('dec'), source.dec)
+                ):
+                    # if the position of the object is updated, delete the old thumbnails (sdss, ls, ps1)
+                    # the thumbnails queue will regenerate new thumbnails for that object
+                    existing_thumbnails = session.scalars(
+                        sa.select(Thumbnail).where(
+                            Thumbnail.obj_id == obj_id,
+                            Thumbnail.type.in_(['ps1', 'sdss', 'ls']),
+                        )
+                    )
+                    for thumbnail in existing_thumbnails:
+                        session.delete(thumbnail)
+                    session.commit()
+
+            schema = Obj.__schema__()
+            try:
+                obj = schema.load(data)
+            except ValidationError as e:
+                return self.error(
+                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                )
+            update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+            update_summary_history_if_relevant(data, obj, self.associated_user_object)
+
+            update_healpix_if_relevant(data, obj)
+
+            self.verify_and_commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj.internal_key},
             )
-        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-        update_summary_history_if_relevant(data, obj, self.associated_user_object)
 
-        update_healpix_if_relevant(data, obj)
-
-        self.verify_and_commit()
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": obj.internal_key},
-        )
-
-        return self.success()
+            return self.success()
 
     @permissions(['Manage sources'])
     def delete(self, obj_id, group_id):
