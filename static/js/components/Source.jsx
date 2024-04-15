@@ -30,7 +30,10 @@ import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import withRouter from "./withRouter";
 
-import { getThumbnailAltAndLink, getThumbnailHeader } from "./thumbnail/Thumbnail";
+import {
+  getThumbnailAltAndLink,
+  getThumbnailHeader,
+} from "./thumbnail/Thumbnail";
 import ThumbnailsOnPage from "./thumbnail/ThumbnailsOnPage";
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "./ClassificationList";
@@ -306,23 +309,27 @@ const SourceContent = ({ source }) => {
     dispatch(spectraActions.fetchSourceSpectra(source.id));
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
   }, [source.id, magsys, dispatch]);
-  
+
   const thumbnailsData = () => {
-    let thumbnails = source.thumbnails;
-    thumbnails.forEach( thumbnail => {
-      const { alt, link} = getThumbnailAltAndLink(thumbnail.type, source.ra, source.dec);
+    const { thumbnails } = source;
+    thumbnails.forEach((thumbnail) => {
+      const { alt, link } = getThumbnailAltAndLink(
+        thumbnail.type,
+        source.ra,
+        source.dec,
+      );
       thumbnail.alt = alt;
       thumbnail.link = link;
       thumbnail.header = getThumbnailHeader(thumbnail.type);
-    })
+    });
     return thumbnails;
-  }
-  
+  };
+
   const publicData = () => {
-    if(!source) return null;
+    if (!source) return null;
     return {
       source_id: source.id,
-      radec_hhmmss: radec_hhmmss,
+      radec_hhmmss,
       ra: source.ra,
       dec: source.dec,
       gal_lon: source.gal_lon?.toFixed(6),
@@ -332,24 +339,30 @@ const SourceContent = ({ source }) => {
       dm: source.dm?.toFixed(3),
       dl: source.luminosity_distance?.toFixed(2),
       thumbnails: thumbnailsData(),
-      photometry: (source.photometry_exists && photometry?.length)? photometry:null,
+      photometry:
+        source.photometry_exists && photometry?.length ? photometry : null,
       classifications: source.classifications,
-    }
-  }
-    
-  const publishThisSource = () => {
-    const payload = { 
-      publish: true, public_data: publicData()
     };
-    dispatch(accessibilityActions.updateSourceAccessibility(source.id, payload)).then(() => {
+  };
+
+  const publishThisSource = () => {
+    const payload = {
+      publish: true,
+      public_data: publicData(),
+    };
+    dispatch(
+      accessibilityActions.updateSourceAccessibility(source.id, payload),
+    ).then(() => {
       setIsPublished(true);
     });
     setPublishedDialogOpen(false);
   };
 
   const unpublishThisSource = () => {
-    const payload = {publish: false};
-    dispatch(accessibilityActions.updateSourceAccessibility(source.id, payload)).then(() => {
+    const payload = { publish: false };
+    dispatch(
+      accessibilityActions.updateSourceAccessibility(source.id, payload),
+    ).then(() => {
       setIsPublished(false);
     });
   };
@@ -1026,18 +1039,18 @@ const SourceContent = ({ source }) => {
                   secondary
                   size="small"
                   data-testid="publishThisSourceButton"
-                  onClick={() => {
-                    isPublished
+                  onClick={() => isPublished
                       ? unpublishThisSource()
-                      : setPublishedDialogOpen(true);
-                  }}
+                      : setPublishedDialogOpen(true)}
                 >
-                  <Tooltip title={isPublished ?
-                      "Click here if you want to make this source private" :
-                      "Click here if you want to make this source public"}>
-                      <span>
-                        {isPublished ? "Unpublish" : "Publish"}
-                      </span>
+                  <Tooltip
+                    title={
+                      isPublished
+                        ? "Click here if you want to make this source private"
+                        : "Click here if you want to make this source public"
+                    }
+                  >
+                    <span>{isPublished ? "Unpublish" : "Publish"}</span>
                   </Tooltip>
                 </Button>
                 <Dialog
@@ -1079,11 +1092,17 @@ const SourceContent = ({ source }) => {
               </div>
             </div>
             {/* Link to the source public page */}
-            <div style={{display: "flex", alignItems: "center", margin: "0.25rem 0"}}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                margin: "0.25rem 0",
+              }}
+            >
               <a
-                  href={`/public/sources/${source.id}`}
-                  target="_blank"
-                  rel="noreferrer"
+                href={`/public/sources/${source.id}`}
+                target="_blank"
+                rel="noreferrer"
               >
                 See public page
               </a>
@@ -1565,6 +1584,7 @@ SourceContent.propTypes = {
         data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
       }),
     ),
+    is_public: PropTypes.bool,
     host: PropTypes.shape({
       catalog_name: PropTypes.string,
       name: PropTypes.string,

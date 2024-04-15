@@ -32,9 +32,12 @@ private = False
 
 class SourceAccessibility(Base):
     """Accessibility information of a source."""
+
     source_id = sa.Column(sa.String, nullable=False)
 
-    data = deferred(sa.Column(JSONB, nullable=False, doc="Source data accessible on public page"))
+    data = deferred(
+        sa.Column(JSONB, nullable=False, doc="Source data accessible on public page")
+    )
 
     is_public = sa.Column(
         sa.Boolean,
@@ -57,13 +60,9 @@ class SourceAccessibility(Base):
         if cached is not None:
             data = np.load(cached, allow_pickle=True)
             data = data.item()
-            cache[cache_key] = dict_to_bytes(
-                {"public": False, "html": data["html"]}
-            )
+            cache[cache_key] = dict_to_bytes({"public": False, "html": data["html"]})
         else:
-            cache[cache_key] = dict_to_bytes(
-                {"public": False, "html": None}
-            )
+            cache[cache_key] = dict_to_bytes({"public": False, "html": None})
 
     def generate_public_source_page(self, public_data):
         """Generate public source page and cache it."""
@@ -90,7 +89,9 @@ class SourceAccessibility(Base):
         if isinstance(public_data, str):
             public_data = json.loads(public_data)
 
-        environment = jinja2.Environment(loader=jinja2.FileSystemLoader("./static/public_pages/sources"))
+        environment = jinja2.Environment(
+            loader=jinja2.FileSystemLoader("./static/public_pages/sources")
+        )
         environment.policies['json.dumps_function'] = to_json
         template = environment.get_template("source_template.html")
         html = template.render(

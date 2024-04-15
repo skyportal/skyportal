@@ -521,11 +521,15 @@ async def get_source(
 
     # Retrieve source accessibility information
     if include_accessibility:
-        source_info["is_public"] = session.scalar(
-            sa.select(SourceAccessibility.is_public)
-            .where(SourceAccessibility.source_id == str(source_info["id"]))
-        ) or None
-        
+        source_info["is_public"] = (
+            session.scalar(
+                sa.select(SourceAccessibility.is_public).where(
+                    SourceAccessibility.source_id == str(source_info["id"])
+                )
+            )
+            or None
+        )
+
     source_info = recursive_to_dict(source_info)
     return source_info
 
@@ -2322,7 +2326,7 @@ class SourceHandler(BaseHandler):
             schema:
               type: boolean
             description: |
-                Boolean indicating whether to include the accessibility of the source. 
+                Boolean indicating whether to include the accessibility of the source.
           - in: query
             name: includeRequested
             nullable: true

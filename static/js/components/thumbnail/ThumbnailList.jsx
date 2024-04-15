@@ -6,7 +6,7 @@ import calendar from "dayjs/plugin/calendar";
 
 import Grid from "@mui/material/Grid";
 
-import Thumbnail, {getThumbnailHeader} from "./Thumbnail";
+import Thumbnail, { getThumbnailHeader } from "./Thumbnail";
 
 dayjs.extend(calendar);
 

@@ -1,199 +1,205 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-    <meta charset="utf-8"/>
-    <meta name="robots" content="noindex">
-    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>SkyPortal</title>
-    <link rel="icon" type="image/png" href="/favicon.png"/>
-    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+      rel="stylesheet"
+    />
     <!-- CSS generic -->
-    <link rel="stylesheet" type="text/css" href="/static/public_pages/style.css">
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/static/public_pages/style.css"
+    />
     <!-- CSS for source page -->
-    <link rel="stylesheet" type="text/css" href="/static/public_pages/sources/source_template.css">
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/static/public_pages/sources/source_template.css"
+    />
     <!-- JS for source page -->
-    <script src="/static/public_pages/sources/source_template.js" type="text/javascript"></script>
-    {% if data.get('photometry') %}
-    {% set photometry = data.get('photometry') | tojson | safe %}
+    <script
+      src="/static/public_pages/sources/source_template.js"
+      type="text/javascript"
+    ></script>
+    {% if data.get('photometry') %} {% set photometry = data.get('photometry') |
+    tojson | safe %}
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="/static/js/utils/csv.js" type="text/javascript"></script>
-    <script src="/static/js/utils/photometry.js" type="text/javascript"></script>
-    {% endif %}
-    {% if data.get('classifications') %}
-        {% set classifications = data['classifications'] | tojson | safe %}
-    {% else %}
-        {% set classifications = None %}
-    {% endif %}
-</head>
-<body>
-<header>
-    <!--Logos-->
-    <div>
+    <script
+      src="/static/js/utils/photometry.js"
+      type="text/javascript"
+    ></script>
+    {% endif %} {% if data.get('classifications') %} {% set classifications =
+    data['classifications'] | tojson | safe %} {% else %} {% set classifications
+    = None %} {% endif %}
+  </head>
+  <body>
+    <header>
+      <!--Logos-->
+      <div>
         <img
-                src="/static/images/skyportal_logo_dark.png"
-                alt="Logo de croissance"
-                width=41
-                height=40
+          src="/static/images/skyportal_logo_dark.png"
+          alt="Logo de croissance"
+          width="41"
+          height="40"
         />
-    </div>
-    <!--Site title-->
-    <div>
-        <a class=websiteName href="/">
-            SkyPortal
-        </a>
-    </div>
-</header>
-<!--Page content-->
-<div class="content">
-    <div class="card resumeCard">
+      </div>
+      <!--Site title-->
+      <div>
+        <a class="websiteName" href="/"> SkyPortal </a>
+      </div>
+    </header>
+    <!--Page content-->
+    <div class="content">
+      <div class="card resumeCard">
         <div class="title">
-            <h1>
-                {{ data['source_id'] }}
-            </h1>
+          <h1>{{ data['source_id'] }}</h1>
         </div>
         {% if classifications %}
-            <div class="classificationsTag">
-                {% for classification in data['classifications'] %}
-                <button 
-                        type="button"
-                        class="classificationTag" 
-                        onclick="handleClassificationTag(`{{classification.classification}}`)">
-                    {{ "ML: " if classification.ml }}
-                    {{ classification.classification }}
-                </button>
-                {% endfor %}
-            </div>
+        <div class="classificationsTag">
+          {% for classification in data['classifications'] %}
+          <button
+            type="button"
+            class="classificationTag"
+            onclick="handleClassificationTag(`{{classification.classification}}`)"
+          >
+            {{ "ML: " if classification.ml }} {{ classification.classification
+            }}
+          </button>
+          {% endfor %}
+        </div>
         {% endif %}
         <div class="subtitle">
-            <h3>
-                {{ data['radec_hhmmss'] }}
-                <span>
-                    (&alpha;,&delta;= {{ data['ra'] }}, &nbsp{{ data['dec'] }})
-                </span>
-                <span>
-                    (<i>l</i>,<i>b</i>={{ data['gal_lon'] }}, &nbsp;{{ data['gal_lat'] }})
-                </span>
-                {% if data.get('ebv') %}
-                <span>
-                        E(B-V): {{ data['ebv'] }}
-                    </span>
-                {% endif %}
-            </h3>
-            <h3>
-                Redshift:
-                <span>
-                    {{ data['redshift'] }}
-                </span>
-                {% if data.get('dm') %}
-                DM:
-                <span>
-                        {{ data['dm'] }} mag
-                    </span>
-                {% endif %}
-                {% if data.get('dl') %}
-                <b><i>D</i><sub>L</sub>:</b>
-                    <span>
-                        {{ data['dl'] }} Mpc
-                    </span>
-                {% endif %}
-            </h3>
+          <h3>
+            {{ data['radec_hhmmss'] }}
+            <span>
+              (&alpha;,&delta;= {{ data['ra'] }}, &nbsp{{ data['dec'] }})
+            </span>
+            <span>
+              (<i>l</i>,<i>b</i>={{ data['gal_lon'] }}, &nbsp;{{ data['gal_lat']
+              }})
+            </span>
+            {% if data.get('ebv') %}
+            <span> E(B-V): {{ data['ebv'] }} </span>
+            {% endif %}
+          </h3>
+          <h3>
+            Redshift:
+            <span> {{ data['redshift'] }} </span>
+            {% if data.get('dm') %} DM:
+            <span> {{ data['dm'] }} mag </span>
+            {% endif %} {% if data.get('dl') %}
+            <b><i>D</i><sub>L</sub>:</b>
+            <span> {{ data['dl'] }} Mpc </span>
+            {% endif %}
+          </h3>
         </div>
         <div class="images">
-            {% for thumbnail in data.get('thumbnails') %}
-                <div class="imageAndTitle">
-                    <div class="title">
-                        {% if thumbnail.get('link') %}
-                            <a href="{{ thumbnail['link'] }}" target="_blank" rel="noreferrer">
-                            {{ thumbnail['header'] }}
-                            </a>
-                        {% else %}
-                            {{ thumbnail['header'] }}
-                        {% endif %}
-                    </div>
-                    <div class="image">
-                        <a href="{{ thumbnail['link'] }}" target="_blank" rel="noreferrer">
-                            <img
-                                    src="{{ thumbnail['public_url'] }}"
-                                    alt="{{ thumbnail['alt'] }}"
-                                    title="{{ thumbnail['alt'] }}"
-                                    loading="lazy"
-                                    onload="handleImageLoad(this)"
-                                    onerror="handleImageError(this)"
-                                    data-thumbnail-type="{{ thumbnail.get('type') }}"
-                                    data-thumbnail-public-url="{{ thumbnail.get('public_url') }}"
-                            />
-                            <img
-                                    class="crosshair"
-                                    src="/static/images/crosshairs.png"
-                                    alt="crosshair"
-                                    style="display: none;"
-                            />
-                        </a>
-                    </div>
-                    <div class="loader">
-                        <span></span>
-                    </div>
-                </div>
-            {% endfor %}
+          {% for thumbnail in data.get('thumbnails') %}
+          <div class="imageAndTitle">
+            <div class="title">
+              {% if thumbnail.get('link') %}
+              <a
+                href="{{ thumbnail['link'] }}"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {{ thumbnail['header'] }}
+              </a>
+              {% else %} {{ thumbnail['header'] }} {% endif %}
+            </div>
+            <div class="image">
+              <a
+                href="{{ thumbnail['link'] }}"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <img
+                  src="{{ thumbnail['public_url'] }}"
+                  alt="{{ thumbnail['alt'] }}"
+                  title="{{ thumbnail['alt'] }}"
+                  loading="lazy"
+                  onload="handleImageLoad(this)"
+                  onerror="handleImageError(this)"
+                  data-thumbnail-type="{{ thumbnail.get('type') }}"
+                  data-thumbnail-public-url="{{ thumbnail.get('public_url') }}"
+                />
+                <img
+                  class="crosshair"
+                  src="/static/images/crosshairs.png"
+                  alt="crosshair"
+                  style="display: none"
+                />
+              </a>
+            </div>
+            <div class="loader">
+              <span></span>
+            </div>
+          </div>
+          {% endfor %}
         </div>
-    </div>
-    <div class="card photometryCard">
+      </div>
+      <div class="card photometryCard">
         <div class="titleAndDownload">
-            <h2>
-                Photometry
-            </h2>
-            {% if photometry %}
-                <div class="download">
-                    <button
-                            type="button"
-                            onclick='downloadPhotometryToCsv(`{{ photometry }}`, `{{ data["source_id"] }}`)'>
-                        Download
-                    </button>
-                </div>
-            {% endif %}
+          <h2>Photometry</h2>
+          {% if photometry %}
+          <div class="download">
+            <button
+              type="button"
+              onclick='downloadPhotometryToCsv(`{{ photometry }}`, `{{ data["source_id"] }}`)'
+            >
+              Download
+            </button>
+          </div>
+          {% endif %}
         </div>
         {% if photometry %}
-            <div class="photometryType">
-                <p>MAG</p>
-            </div>
-            {% set photometry_div_id = 'photometryPlot' %}
-            <div class="photometryPlot" id="{{ photometry_div_id }}">
-                <script>
-                    plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`);
-                </script>
-            </div>
+        <div class="photometryType">
+          <p>MAG</p>
+        </div>
+        {% set photometry_div_id = 'photometryPlot' %}
+        <div class="photometryPlot" id="{{ photometry_div_id }}">
+          <script>
+            plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`);
+          </script>
+        </div>
         {% else %}
-            <h2 class="noDataMessage">No photometry available</h2>
+        <h2 class="noDataMessage">No photometry available</h2>
         {% endif %}
-    </div>
-    <div class="card classificationsCard">
-        <h2>
-            Classifications
-        </h2>
+      </div>
+      <div class="card classificationsCard">
+        <h2>Classifications</h2>
         {% if classifications %}
-            <div class="classifications">
-                {% for classification in data['classifications'] %}
-                    <div id="{{ classification.classification }}" class="classification boxShadow">
-                        <div class="author">
-                            {{ classification.author_name }}
-                        </div>
-                        <div class="nameAndProbability">
-                            <p class="name">
-                                {{ "ML: " if classification.ml }}
-                                {{ classification.classification }}</p>
-                            <p class="probability">
-                                (P={{ classification.probability }})</p>
-                        </div>
-                        <div class="taxname">
-                            <i>{{ classification.taxname }}</i>
-                        </div>
-                    </div>
-                {% endfor %}
+        <div class="classifications">
+          {% for classification in data['classifications'] %}
+          <div
+            id="{{ classification.classification }}"
+            class="classification boxShadow"
+          >
+            <div class="author">{{ classification.author_name }}</div>
+            <div class="nameAndProbability">
+              <p class="name">
+                {{ "ML: " if classification.ml }} {{
+                classification.classification }}
+              </p>
+              <p class="probability">(P={{ classification.probability }})</p>
             </div>
+            <div class="taxname">
+              <i>{{ classification.taxname }}</i>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
         {% else %}
-            <h2 class="noDataMessage">No classifications available</h2>
+        <h2 class="noDataMessage">No classifications available</h2>
         {% endif %}
+      </div>
     </div>
-</div>
-</body>
+  </body>
 </html>

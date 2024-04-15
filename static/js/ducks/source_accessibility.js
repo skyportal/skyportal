@@ -5,7 +5,11 @@ const UPDATE_ACCESSIBILITY = "skyportal/UPDATE_ACCESSIBILITY";
 const FETCH_ACCESSIBILITY = "skyportal/FETCH_ACCESSIBILITY";
 
 export const updateSourceAccessibility = (sourceId, payload) =>
-    API.PATCH(`/api/sources/${sourceId}/accessibility`, UPDATE_ACCESSIBILITY, payload);
+  API.PATCH(
+    `/api/sources/${sourceId}/accessibility`,
+    UPDATE_ACCESSIBILITY,
+    payload,
+  );
 
 export const fetchSourceAccessibility = (sourceId) =>
-    API.GET(`/api/sources/${sourceId}/accessibility`, FETCH_ACCESSIBILITY);
+  API.GET(`/api/sources/${sourceId}/accessibility`, FETCH_ACCESSIBILITY);

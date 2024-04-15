@@ -1,4 +1,4 @@
-import {useSelector} from "react-redux";
+import { useSelector } from "react-redux";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
@@ -18,7 +18,7 @@ const useStyles = makeStyles((theme) => ({
   }),
   cardTitle: {
     padding: `${theme.spacing(0.75)} ${theme.spacing(1)} ${theme.spacing(
-        0.75,
+      0.75,
     )} ${theme.spacing(1)}`,
   },
   title: ({ titleSize }) => ({
@@ -76,35 +76,38 @@ export const getThumbnailAltAndLink = (name, ra, dec) => {
       break;
     default:
   }
-  return {"alt": alt, "link": link};
-}
+  return { alt, link };
+};
 
 export const getThumbnailHeader = (type) => {
   switch (type) {
-    case "ls" : return "LEGACY SURVEY DR9";
-    case "ps1" : return "PANSTARRS DR2";
-    default: return type.toUpperCase();
+    case "ls":
+      return "LEGACY SURVEY DR9";
+    case "ps1":
+      return "PANSTARRS DR2";
+    default:
+      return type.toUpperCase();
   }
-}
+};
 
 const Thumbnail = ({
-                     ra,
-                     dec,
-                     name,
-                     url,
-                     size,
-                     minSize,
-                     maxSize,
-                     titleSize,
-                     grayscale,
-                     header,
-                     noMargin,
-                   }) => {
+  ra,
+  dec,
+  name,
+  url,
+  size,
+  minSize,
+  maxSize,
+  titleSize,
+  grayscale,
+  header,
+  noMargin,
+}) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
 
   const invertThumbnails = useSelector(
-      (state) => state.profile.preferences.invertThumbnails,
+    (state) => state.profile.preferences.invertThumbnails,
   );
 
   const classes = useStyles({
@@ -116,49 +119,49 @@ const Thumbnail = ({
     noMargin,
   });
 
-  let { alt, link } = getThumbnailAltAndLink(name, ra, dec);
+  const { alt, link } = getThumbnailAltAndLink(name, ra, dec);
   const imgClasses = grayscale
-      ? `${classes.media} ${classes.inverted}`
-      : `${classes.media}`;
+    ? `${classes.media} ${classes.inverted}`
+    : `${classes.media}`;
 
   return (
-      <Card className={classes.root} variant="outlined">
-        <CardContent className={classes.cardTitle}>
-          <Typography className={classes.title} color="textSecondary">
-            <a href={link} target="_blank" rel="noreferrer">
-              {header.toUpperCase()}
-            </a>
-          </Typography>
-        </CardContent>
-        <div className={classes.mediaDiv}>
+    <Card className={classes.root} variant="outlined">
+      <CardContent className={classes.cardTitle}>
+        <Typography className={classes.title} color="textSecondary">
           <a href={link} target="_blank" rel="noreferrer">
-            <img
-                src={url}
-                alt={alt}
-                className={imgClasses}
-                title={alt}
-                loading="lazy"
-                onError={(e) => {
-                  if (url !== "#") {
-                    e.target.onerror = null;
-                    if (name === "ls") {
-                      e.target.src = "/static/images/outside_survey.png";
-                    } else {
-                      e.target.src = "/static/images/currently_unavailable.png";
-                    }
-                  }
-                }}
-            />
+            {header.toUpperCase()}
           </a>
-          {name !== "sdss" && (
-              <img
-                  className={classes.crosshair}
-                  src="/static/images/crosshairs.png"
-                  alt=""
-              />
-          )}
-        </div>
-      </Card>
+        </Typography>
+      </CardContent>
+      <div className={classes.mediaDiv}>
+        <a href={link} target="_blank" rel="noreferrer">
+          <img
+            src={url}
+            alt={alt}
+            className={imgClasses}
+            title={alt}
+            loading="lazy"
+            onError={(e) => {
+              if (url !== "#") {
+                e.target.onerror = null;
+                if (name === "ls") {
+                  e.target.src = "/static/images/outside_survey.png";
+                } else {
+                  e.target.src = "/static/images/currently_unavailable.png";
+                }
+              }
+            }}
+          />
+        </a>
+        {name !== "sdss" && (
+          <img
+            className={classes.crosshair}
+            src="/static/images/crosshairs.png"
+            alt=""
+          />
+        )}
+      </div>
+    </Card>
   );
 };
 

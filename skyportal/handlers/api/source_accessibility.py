@@ -112,7 +112,9 @@ class SourceAccessibilityHandler(BaseHandler):
             )
             source_accessibility = session.scalars(stmt).first()
             if source_accessibility is None:
-                return self.error("Accessibility information from this source not found", status=404)
+                return self.error(
+                    "Accessibility information from this source not found", status=404
+                )
             return self.success(data=source_accessibility)
 
     @auth_or_token
@@ -159,8 +161,9 @@ class SourceAccessibilityHandler(BaseHandler):
 
         with self.Session() as session:
             source_accessibility = session.scalars(
-                SourceAccessibility.select(session.user_or_token, mode="update")
-                .where(SourceAccessibility.source_id == source_id)
+                SourceAccessibility.select(session.user_or_token, mode="update").where(
+                    SourceAccessibility.source_id == source_id
+                )
             ).first()
             if source_accessibility and source_accessibility.is_public != publish:
                 if publish:
@@ -204,12 +207,16 @@ class SourceAccessibilityHandler(BaseHandler):
             return self.error("Source ID is required")
 
         with self.Session() as session:
-            stmt = SourceAccessibility.select(session.user_or_token, mode="delete").where(
+            stmt = SourceAccessibility.select(
+                session.user_or_token, mode="delete"
+            ).where(
                 SourceAccessibility.source_id == source_id,
             )
             source_accessibility = session.scalars(stmt).first()
             if source_accessibility is None:
-                return self.error("Accessibility information from this source not found", status=404)
+                return self.error(
+                    "Accessibility information from this source not found", status=404
+                )
 
             source_accessibility.unpublish()
             session.delete(source_accessibility)
