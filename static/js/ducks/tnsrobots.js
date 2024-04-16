@@ -91,7 +91,7 @@ export const deleteTNSRobotCoauthor = (tnsrobot_id, user_id) =>
 
 export const fetchTNSRobotSubmissions = (tnsrobot_id, params) =>
   API.GET(
-    `/api/tns_robot/${tnsrobot_id}/submissions?`,
+    `/api/tns_robot/${tnsrobot_id}/submissions`,
     FETCH_TNSROBOT_SUBMISSIONS,
     {
       ...params,
