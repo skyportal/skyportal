@@ -181,16 +181,26 @@ class ObservingRunHandler(BaseHandler):
                     set_times = run.set_time(targets).isot
 
                     for d, rt, st in zip(data["assignments"], rise_times, set_times):
-                        d["rise_time_utc"] = (
-                            rt.item()  # 0-dimensional array (basically a scalar)
-                            if not rt.mask.any()  # check that the value isn't masked (not rising at date)
-                            else ''
-                        )
-                        d["set_time_utc"] = (
-                            st.item()
-                            if not st.mask.any()  # check that the value isn't masked (not setting at date)
-                            else ''
-                        )
+                        # we can an attribute error in the case where rt and st are not arrays
+                        # this can happen if the observing run's date is missing or incorrect
+                        # in the case of unit tests for example, or a "dubious" year for time-based packages
+                        # (which is often anything before 1900, or after 2100)
+                        try:
+                            d["rise_time_utc"] = (
+                                rt.item()  # 0-dimensional array (basically a scalar)
+                                if not rt.mask.any()  # check that the value isn't masked (not rising at date)
+                                else ''
+                            )
+                        except AttributeError:
+                            d["rise_time_utc"] = ''
+                        try:
+                            d["set_time_utc"] = (
+                                st.item()
+                                if not st.mask.any()  # check that the value isn't masked (not setting at date)
+                                else ''
+                            )
+                        except AttributeError:
+                            d["set_time_utc"] = ''
 
                 data = recursive_to_dict(data)
                 return self.success(data=data)
