@@ -28,14 +28,8 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Checkbox from "@mui/material/Checkbox";
 import withRouter from "../withRouter";
 
-import {
-  getThumbnailAltAndLink,
-  getThumbnailHeader,
-} from "../thumbnail/Thumbnail";
 import ThumbnailsOnPage from "../thumbnail/ThumbnailsOnPage";
 import CopyPhotometryDialog from "../CopyPhotometryDialog";
 import ClassificationList from "../classification/ClassificationList";
@@ -54,7 +48,6 @@ import DisplayPhotStats from "../DisplayPhotStats";
 import DisplayTNSInfo from "../DisplayTNSInfo";
 import EditSourceGroups from "../EditSourceGroups";
 import SimilarSources from "../SimilarSources";
-import UpdateSourceCoordinates from "../UpdateSourceCoordinates";
 import UpdateSourceGCNCrossmatch from "../UpdateSourceGCNCrossmatch";
 import UpdateSourceMPC from "../UpdateSourceMPC";
 import UpdateSourceRedshift from "../UpdateSourceRedshift";
@@ -79,7 +72,6 @@ import Button from "../Button";
 
 import SourcePlugins from "./SourcePlugins";
 
-import * as accessibilityActions from "../../ducks/source_accessibility";
 import * as photometryActions from "../../ducks/photometry";
 import * as spectraActions from "../../ducks/spectra";
 import * as sourceActions from "../../ducks/source";
@@ -87,6 +79,8 @@ import * as sourceActions from "../../ducks/source";
 import PhotometryPlot from "../photometry/PhotometryPlot";
 import SpectraPlot from "../SpectraPlot";
 import PhotometryMagsys from "../photometry/PhotometryMagsys";
+import SourcePublish from "./SourcePublish";
+import SourceCoordinates from "./SourceCoordinates";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
 const CommentListMobile = React.lazy(
@@ -191,16 +185,6 @@ export const useSourceStyles = makeStyles((theme) => ({
     alignItems: "center",
     gap: "0.25rem",
   },
-  dataToPublishForm: {
-    display: "flex",
-    flexDirection: "column",
-    marginBottom: "2rem",
-    paddingLeft: "2rem",
-  },
-  buttons: {
-    display: "flex",
-    justifyContent: "space-around",
-  },
   sourceInfo: {
     display: "flex",
     flexFlow: "row wrap",
@@ -227,87 +211,6 @@ export const useSourceStyles = makeStyles((theme) => ({
   },
 }));
 
-const SourceCoordinates = ({ source, downMd = false }) => {
-  const classes = useSourceStyles();
-
-  const ra = source?.adjusted_position?.ra || source.ra;
-  const dec = source?.adjusted_position?.dec || source.dec;
-  const gal_lon = source?.adjusted_position?.gal_lon || source.gal_lon;
-  const gal_lat = source?.adjusted_position?.gal_lat || source.gal_lat;
-  const ebv = source?.adjusted_position?.ebv || source.ebv;
-
-  const radec_hhmmss = `${ra_to_hours(ra, ":")} ${dec_to_dms(dec, ":")}`;
-
-  const title =
-    source?.adjusted_position?.separation > 0
-      ? `The coordinates displayed here have been re-computed using the object's photometry (${source.adjusted_position.separation.toFixed(
-          2,
-        )}" from the original)`
-      : "The coordinates displayed here are the original coordinates of the object";
-
-  return (
-    <Tooltip title={title} placement="top">
-      <div
-        className={classes.infoLine}
-        style={{
-          gap: 0,
-          columnGap: "0.5rem",
-        }}
-      >
-        <div className={classes.sourceInfo}>
-          <span
-            style={{
-              fontWeight: "bold",
-              fontSize: downMd ? "1rem" : "110%",
-            }}
-          >
-            {radec_hhmmss}
-          </span>
-        </div>
-        <div className={classes.sourceInfo}>
-          (&alpha;,&delta;= {ra.toFixed(6)}, &nbsp;
-          {dec.toFixed(6)})
-        </div>
-        <div className={classes.sourceInfo}>
-          (<i>l</i>,<i>b</i>={gal_lon.toFixed(6)}, &nbsp;
-          {gal_lat.toFixed(6)})
-        </div>
-        {ebv && (
-          <div className={classes.sourceInfo}>{`E(B-V): ${ebv.toFixed(
-            2,
-          )}`}</div>
-        )}
-        <div className={classes.sourceInfo}>
-          <UpdateSourceCoordinates source={source} />
-        </div>
-      </div>
-    </Tooltip>
-  );
-};
-
-SourceCoordinates.propTypes = {
-  source: PropTypes.shape({
-    ra: PropTypes.number,
-    dec: PropTypes.number,
-    gal_lat: PropTypes.number,
-    gal_lon: PropTypes.number,
-    ebv: PropTypes.number,
-    adjusted_position: PropTypes.shape({
-      ra: PropTypes.number,
-      dec: PropTypes.number,
-      gal_lat: PropTypes.number,
-      gal_lon: PropTypes.number,
-      ebv: PropTypes.number,
-      separation: PropTypes.number,
-    }),
-  }).isRequired,
-  downMd: PropTypes.bool,
-};
-
-SourceCoordinates.defaultProps = {
-  downMd: false,
-};
-
 const SourceContent = ({ source }) => {
   const dispatch = useDispatch();
   const classes = useSourceStyles();
@@ -330,10 +233,6 @@ const SourceContent = ({ source }) => {
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
     useState(false);
   const [tnsDialogOpen, setTNSDialogOpen] = useState(false);
-  const [isPublished, setIsPublished] = useState(source.is_public);
-  const [publishedDialogOpen, setPublishedDialogOpen] = useState(false);
-  const [includePhotometry, setIncludePhotometry] = useState(false);
-  const [includeClassifications, setIncludeClassifications] = useState(false);
 
   // Needed for buttons that open popover menus, indicates where the popover should be anchored
   // (where it will appear on the screen)
@@ -364,10 +263,6 @@ const SourceContent = ({ source }) => {
     });
   }
 
-  const z_round = source.redshift_error
-    ? ceil(abs(log10(source.redshift_error)))
-    : 4;
-
   const noSummary =
     source.summary_history?.length < 1 ||
     !source.summary_history ||
@@ -387,11 +282,6 @@ const SourceContent = ({ source }) => {
         summary.is_bot === false,
     )?.length < 1;
 
-  const radec_hhmmss = `${ra_to_hours(source.ra, ":")} ${dec_to_dms(
-    source.dec,
-    ":",
-  )}`;
-
   // associatedGCNs is an array of dateobs
   // source.gcn_crossmatch is an array of objects with dateobs
   // we want to combine these two arrays into one array of dateobs deduplicated
@@ -408,64 +298,15 @@ const SourceContent = ({ source }) => {
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
   }, [source.id, magsys, dispatch]);
 
-  const thumbnailsData = () => {
-    const { thumbnails } = source;
-    thumbnails.forEach((thumbnail) => {
-      const { alt, link } = getThumbnailAltAndLink(
-        thumbnail.type,
-        source.ra,
-        source.dec,
-      );
-      thumbnail.alt = alt;
-      thumbnail.link = link;
-      thumbnail.header = getThumbnailHeader(thumbnail.type);
-    });
-    return thumbnails;
-  };
-
-  const publicData = () => {
-    if (!source) return null;
-    return {
-      source_id: source.id,
-      radec_hhmmss,
-      ra: source.ra,
-      dec: source.dec,
-      gal_lon: source.gal_lon?.toFixed(6),
-      gal_lat: source.gal_lat?.toFixed(6),
-      ebv: source.ebv?.toFixed(2),
-      redshift: source.redshift?.toFixed(z_round),
-      dm: source.dm?.toFixed(3),
-      dl: source.luminosity_distance?.toFixed(2),
-      thumbnails: thumbnailsData(),
-      photometry:
-        includePhotometry && source.photometry_exists && photometry?.length
-          ? photometry
-          : null,
-      classifications: includeClassifications ? source.classifications : null,
-    };
-  };
-
-  const publishThisSource = () => {
-    const payload = {
-      publish: true,
-      public_data: publicData(),
-    };
-    dispatch(
-      accessibilityActions.updateSourceAccessibility(source.id, payload),
-    ).then(() => {
-      setIsPublished(true);
-    });
-    setPublishedDialogOpen(false);
-  };
-
-  const unpublishThisSource = () => {
-    const payload = { publish: false };
-    dispatch(
-      accessibilityActions.updateSourceAccessibility(source.id, payload),
-    ).then(() => {
-      setIsPublished(false);
-    });
-  };
+  useEffect(() => {
+    source.radec_hhmmss = `${ra_to_hours(source.ra, ":")} ${dec_to_dms(
+      source.dec,
+      ":",
+    )}`;
+    source.z_round = source.redshift_error
+      ? ceil(abs(log10(source.redshift_error)))
+      : 4;
+  }, [source]);
 
   const setHost = (galaxyName) => {
     dispatch(sourceActions.addHost(source.id, { galaxyName }));
@@ -758,7 +599,7 @@ const SourceContent = ({ source }) => {
                 shortened
               />
             </div>
-            <SourceCoordinates source={source} downMd={downMd} />
+            <SourceCoordinates classes={classes} source={source} />
             <div
               className={classes.flexRow}
               style={{
@@ -769,10 +610,10 @@ const SourceContent = ({ source }) => {
             >
               <div>
                 <b>Redshift: &nbsp;</b>
-                {source.redshift && source.redshift.toFixed(z_round)}
+                {source.redshift && source.redshift.toFixed(source.z_round)}
                 {source.redshift_error && <b>&nbsp; &plusmn; &nbsp;</b>}
                 {source.redshift_error &&
-                  source.redshift_error.toFixed(z_round)}
+                  source.redshift_error.toFixed(source.z_round)}
                 <UpdateSourceRedshift source={source} />
                 <SourceRedshiftHistory
                   redshiftHistory={source.redshift_history}
@@ -1104,111 +945,12 @@ const SourceContent = ({ source }) => {
                   />
                 </div>
               ) : null}
-              <div className={classes.infoButton}>
-                <Button
-                  secondary
-                  size="small"
-                  data-testid="publishThisSourceButton"
-                  onClick={() =>
-                    isPublished
-                      ? unpublishThisSource()
-                      : setPublishedDialogOpen(true)
-                  }
-                >
-                  <Tooltip
-                    title={
-                      isPublished
-                        ? "Click here if you want to make this source private"
-                        : "Click here if you want to make this source public"
-                    }
-                  >
-                    <span>{isPublished ? "Unpublish" : "Publish"}</span>
-                  </Tooltip>
-                </Button>
-                <Dialog
-                  open={publishedDialogOpen}
-                  onClose={() => setPublishedDialogOpen(false)}
-                  style={{ position: "fixed" }}
-                >
-                  <DialogTitle>Publish this source</DialogTitle>
-                  <DialogContent>
-                    <div style={{ marginBottom: "1rem" }}>
-                      You are about to publish this source page. This
-                      information will be available to everyone on the Internet.
-                      Are you sure you want to do this ?
-                    </div>
-                    <div className={classes.buttons}>
-                      <Button
-                        secondary
-                        size="small"
-                        data-testid="areYouSurPublishButton"
-                        onClick={() => {
-                          publishThisSource();
-                        }}
-                      >
-                        Yes
-                      </Button>
-                      <Button
-                        secondary
-                        size="small"
-                        data-testid="areYouSurCancelPublishButton"
-                        onClick={() => {
-                          setPublishedDialogOpen(false);
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                    <div className={classes.dataToPublishForm}>
-                      <FormControlLabel
-                        label="Include photometry?"
-                        control={
-                          <Checkbox
-                            color="primary"
-                            title="Include photometry?"
-                            type="checkbox"
-                            onChange={(event) =>
-                              setIncludePhotometry(event.target.checked)
-                            }
-                            checked={includePhotometry || true}
-                          />
-                        }
-                      />
-                      <FormControlLabel
-                        label="Include classifications?"
-                        control={
-                          <Checkbox
-                            color="primary"
-                            title="Include classifications?"
-                            type="checkbox"
-                            onChange={(event) =>
-                              setIncludeClassifications(event.target.checked)
-                            }
-                            checked={includeClassifications || true}
-                          />
-                        }
-                      />
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
             </div>
-            {/* Link to the source public page */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                margin: "0.25rem 0",
-              }}
-            >
-              <a
-                href={`/public/sources/${source.id}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                See public page
-              </a>
-            </div>
+            <SourcePublish
+              classes={classes}
+              source={source}
+              photometry={photometry}
+            />
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
               currentUser?.preferences?.hideSourceSummary !== true && (
@@ -1665,6 +1407,8 @@ SourceContent.propTypes = {
     thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
     redshift: PropTypes.number,
     redshift_error: PropTypes.number,
+    z_round: PropTypes.number,
+    radec_hhmmss: PropTypes.string,
     is_public: PropTypes.bool,
     summary_history: PropTypes.arrayOf(
       PropTypes.shape({
