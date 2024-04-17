@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 
@@ -17,11 +17,11 @@ import Button from "./Button";
 import {
   BASE_LAYOUT,
   C,
-  LINES,
-  median,
-  mean,
-  smoothing_func,
   colorScaleRainbow,
+  LINES,
+  mean,
+  median,
+  smoothing_func,
 } from "../utils";
 
 const Plot = createPlotlyComponent(Plotly);

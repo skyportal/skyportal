@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -10,14 +10,14 @@ import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
-import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
-import GcnTagsSelect from "./GcnTagsSelect";
-import LocalizationTagsSelect from "./LocalizationTagsSelect";
+import GcnNoticeTypesSelect from "./gcn/GcnNoticeTypesSelect";
+import GcnTagsSelect from "./gcn/GcnTagsSelect";
+import LocalizationTagsSelect from "./localization/LocalizationTagsSelect";
 
 import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
 import * as allocationActions from "../ducks/allocations";
 import * as instrumentsActions from "../ducks/instruments";
-import GroupShareSelect from "./GroupShareSelect";
+import GroupShareSelect from "./group/GroupShareSelect";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 

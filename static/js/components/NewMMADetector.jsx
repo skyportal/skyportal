@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
-import { submitMMADetector, fetchMMADetectors } from "../ducks/mmadetector";
+import { fetchMMADetectors, submitMMADetector } from "../ducks/mmadetector";
 
 const NewMMADetector = () => {
   const { mmadetectorList } = useSelector((state) => state.mmadetectors);

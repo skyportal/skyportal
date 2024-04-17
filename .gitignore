@@ -27,11 +27,11 @@ skyportal_image_cache
 .vscode
 
 # Templated files
-static/js/components/Main.jsx
-static/js/components/SidebarAndHeader.jsx
-static/js/components/HeaderContent.jsx
-static/js/components/HomePage.jsx
-static/js/components/HoursBelowAirmassPlot.jsx
+static/js/components/template/Main.jsx
+static/js/components/template/SidebarAndHeader.jsx
+static/js/components/template/HeaderContent.jsx
+static/js/components/template/HomePage.jsx
+static/js/components/template/HoursBelowAirmassPlot.jsx
 static/login.html
 static/loginerror.html
 static/index.html

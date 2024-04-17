@@ -91,100 +91,123 @@ app:
 
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
-  routes:
-    - path: "/"
-      component: HomePage
-      exact: True
-    - path: "/source/:id"
-      component: Source
-    - path: "/favorites"
-      component: FavoritesPage
-    - path: "/gcn_events/:dateobs"
-      component: GcnEventPage
-    - path: "/groups"
-      component: Groups
-    - path: "/group/:id"
-      component: Group
-    - path: "/profile"
-      component: Profile
-    - path: "/candidates"
-      component: CandidateList
-    - path: "/sources"
-      component: SourceList
-    - path: "/user/:id"
-      component: UserInfo
-    - path: "/upload_photometry/:id"
-      component: UploadPhotometry
-    - path: "/about"
-      component: About
-    - path: "/run/:id"
-      component: RunSummary
-    - path: "/source/:obj_id/analysis/:analysis_id"
-      component: SourceAnalysisPage
-    - path: "/share_data/:id"
-      component: ShareDataForm
-    - path: "/filter/:fid"
-      component: Filter
-    - path: "/runs"
-      component: ObservingRunPage
-    - path: "/allocations"
-      component: AllocationPage
-    - path: "/allocation/:id"
-      component: AllocationSummary
-    - path: "/instrument/:id"
-      component: InstrumentSummary
-    - path: "/telescope/:id"
-      component: TelescopeSummary
-    - path: "/observations"
-      component: ObservationPage
-    - path: "/galaxies"
-      component: GalaxyPage
-    - path: "/spatial_catalogs"
-      component: SpatialCatalogPage
-    - path: "/followup_requests"
-      component: FollowupRequestPage
-    - path: "/group_sources/:id"
-      component: GroupSources
-    - path: "/user_management"
-      component: UserManagement
-    - path: "/upload_spectrum/:id"
-      component: UploadSpectrum
-    - path: "/observability/:id"
-      component: Observability
-    - path: "/source/:id/finder"
-      component: FindingChart
-    - path: "/source/:id/periodogram"
-      component: Periodogram
-    - path: "/db_stats"
-      component: DBStats
-    - path: "/gcn_events"
-      component: GcnEvents
-    - path: "/telescopes"
-      component: TelescopePage
-    - path: "/instruments"
-      component: InstrumentPage
-    - path: "/mmadetectors"
-      component: MMADetectorPage
-    - path: "/earthquakes"
-      component: EarthquakesPage
-    - path: "/earthquakes/:event_id"
-      component: EarthquakePage
-    - path: "/services"
-      component: AnalysisServicePage
-    - path: "/recurring_apis"
-      component: RecurringAPIPage
-    - path: "/shifts"
-      component: ShiftNoId
-    - path: "/shifts/:id"
-      component: ShiftWithId
-    - path: "/summary_search"
-      component: SummarySearch
-    - path: "/taxonomies"
-      component: TaxonomyPage
-    - path: "/tns_robots"
-      component: TNSRobotsPage
-    - path: "/tns_robot/:id/submissions"
-      component: TNSRobotSubmissionsPage
+    routes:
+      - path: "/"
+        component: HomePage
+        exact: True
+        directory: "template"
+      - path: "/source/:id"
+        component: Source
+        directory: "source"
+      - path: "/favorites"
+        component: FavoritesPage
+      - path: "/gcn_events/:dateobs"
+        component: GcnEventPage
+        directory: "gcn"
+      - path: "/groups"
+        component: Groups
+        directory: "group"
+      - path: "/group/:id"
+        component: Group
+        directory: "group"
+      - path: "/profile"
+        component: Profile
+      - path: "/candidates"
+        component: CandidateList
+        directory: "candidate"
+      - path: "/sources"
+        component: SourceList
+        directory: "source"
+      - path: "/user/:id"
+        component: UserInfo
+        directory: "user"
+      - path: "/upload_photometry/:id"
+        component: UploadPhotometry
+      - path: "/about"
+        component: About
+      - path: "/run/:id"
+        component: RunSummary
+      - path: "/source/:obj_id/analysis/:analysis_id"
+        component: SourceAnalysisPage
+        directory: "source"
+      - path: "/share_data/:id"
+        component: ShareDataForm
+      - path: "/filter/:fid"
+        component: Filter
+      - path: "/runs"
+        component: ObservingRunPage
+      - path: "/allocations"
+        component: AllocationPage
+        directory: "allocation"
+      - path: "/allocation/:id"
+        component: AllocationSummary
+        directory: "allocation"
+      - path: "/instrument/:id"
+        component: InstrumentSummary
+      - path: "/telescope/:id"
+        component: TelescopeSummary
+        directory: "telescope"
+      - path: "/observations"
+        component: ObservationPage
+      - path: "/galaxies"
+        component: GalaxyPage
+      - path: "/spatial_catalogs"
+        component: SpatialCatalogPage
+      - path: "/followup_requests"
+        component: FollowupRequestPage
+        directory: "followup_request"
+      - path: "/group_sources/:id"
+        component: GroupSources
+        directory: "group"
+      - path: "/user_management"
+        component: UserManagement
+        directory: "user"
+      - path: "/upload_spectrum/:id"
+        component: UploadSpectrum
+      - path: "/observability/:id"
+        component: Observability
+      - path: "/source/:id/finder"
+        component: FindingChart
+      - path: "/source/:id/periodogram"
+        component: Periodogram
+      - path: "/db_stats"
+        component: DBStats
+      - path: "/gcn_events"
+        component: GcnEvents
+        directory: "gcn"
+      - path: "/telescopes"
+        component: TelescopePage
+        directory: "telescope"
+      - path: "/instruments"
+        component: InstrumentPage
+      - path: "/mmadetectors"
+        component: MMADetectorPage
+        directory: "mma_detector"
+      - path: "/earthquakes"
+        component: EarthquakesPage
+        directory: "earthquake"
+      - path: "/earthquakes/:event_id"
+        component: EarthquakePage
+        directory: "earthquake"
+      - path: "/services"
+        component: AnalysisServicePage
+        directory: "analysis"
+      - path: "/recurring_apis"
+        component: RecurringAPIPage
+      - path: "/shifts"
+        component: ShiftNoId
+      - path: "/shifts/:id"
+        component: ShiftWithId
+      - path: "/summary_search"
+        component: SummarySearch
+      - path: "/taxonomies"
+        component: TaxonomyPage
+      - path: "/tns_robots"
+        component: TNSRobotsPage
+        directory: "tns"
+      - path: "/tns_robot/:id/submissions"
+        component: TNSRobotSubmissionsPage
+        directory: "tns"
 
   sidebar:
     # See https://material-ui.com/components/material-icons/

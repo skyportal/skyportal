@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { makeStyles } from "@mui/styles";
 import { useForm } from "react-hook-form";
 import TextField from "@mui/material/TextField";
 import Chip from "@mui/material/Chip";
 import Button from "./Button";
-import UserPreferencesHeader from "./UserPreferencesHeader";
+import UserPreferencesHeader from "./user/UserPreferencesHeader";
 import SpectroscopyColorSelect from "./SpectroscopyColorSelect";
 
 import * as profileActions from "../ducks/profile";

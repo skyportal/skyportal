@@ -3,8 +3,8 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import {
   createTheme,
-  ThemeProvider,
   StyledEngineProvider,
+  ThemeProvider,
   useTheme,
 } from "@mui/material/styles";
 import InfoIcon from "@mui/icons-material/Info";

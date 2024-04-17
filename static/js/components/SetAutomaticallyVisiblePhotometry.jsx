@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { makeStyles } from "@mui/styles";
 import FilterSelect from "./FilterSelect";
 import OriginSelect from "./OriginSelect";
-import UserPreferencesHeader from "./UserPreferencesHeader";
+import UserPreferencesHeader from "./user/UserPreferencesHeader";
 import * as profileActions from "../ducks/profile";
 
 const useStyles = makeStyles(() => ({

@@ -9,7 +9,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { submitShift, fetchShift } from "../ducks/shift";
+import { fetchShift, submitShift } from "../ducks/shift";
 
 dayjs.extend(utc);
 

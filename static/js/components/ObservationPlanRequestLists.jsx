@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -12,8 +12,8 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import {
   createTheme,
-  ThemeProvider,
   StyledEngineProvider,
+  ThemeProvider,
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
@@ -23,7 +23,7 @@ import Button from "./Button";
 import * as Actions from "../ducks/gcnEvent";
 import { GET } from "../API";
 
-import LocalizationPlot from "./LocalizationPlot";
+import LocalizationPlot from "./localization/LocalizationPlot";
 import AddSurveyEfficiencyObservationPlanPage from "./AddSurveyEfficiencyObservationPlanPage";
 import AddRunFromObservationPlanPage from "./AddRunFromObservationPlanPage";
 

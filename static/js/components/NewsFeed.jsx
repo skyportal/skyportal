@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
-import { Paper, Avatar, Tooltip } from "@mui/material";
+import { Avatar, Paper, Tooltip } from "@mui/material";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import makeStyles from "@mui/styles/makeStyles";
@@ -15,7 +15,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import emoji from "emoji-dictionary";
 
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
-import UserAvatar from "./UserAvatar";
+import UserAvatar from "./user/UserAvatar";
 import * as profileActions from "../ducks/profile";
 
 dayjs.extend(relativeTime);

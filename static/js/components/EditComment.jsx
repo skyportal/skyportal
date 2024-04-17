@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import { Dialog, DialogContent, DialogActions } from "@mui/material";
+import { Dialog, DialogActions, DialogContent } from "@mui/material";
 
 import EditIcon from "@mui/icons-material/Edit";
 import Button from "./Button";
-import CommentEntry from "./CommentEntry";
+import CommentEntry from "./comment/CommentEntry";
 
 import * as sourceActions from "../ducks/source";
 import * as gcnEventActions from "../ducks/gcnEvent";

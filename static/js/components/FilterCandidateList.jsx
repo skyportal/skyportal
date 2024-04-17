@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import PropTypes from "prop-types";
 
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -30,10 +30,10 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import * as candidatesActions from "../ducks/candidates";
-import CandidatesPreferences from "./CandidatesPreferences";
+import CandidatesPreferences from "./candidate/CandidatesPreferences";
 import FormValidationError from "./FormValidationError";
-import { allowedClasses } from "./ClassificationForm";
-import ClassificationSelect from "./ClassificationSelect";
+import { allowedClasses } from "./classification/ClassificationForm";
+import ClassificationSelect from "./classification/ClassificationSelect";
 import Button from "./Button";
 
 import * as gcnEventsActions from "../ducks/gcnEvents";

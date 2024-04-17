@@ -1,26 +1,26 @@
 import React, { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import {
-  Paper,
   Collapse,
   Divider,
-  Tooltip,
   List,
   ListItem,
+  Paper,
+  Tooltip,
 } from "@mui/material";
 import { showNotification } from "baselayer/components/Notifications";
 import {
-  HelpOutlineOutlined,
-  ExpandMore,
   ExpandLess,
+  ExpandMore,
+  HelpOutlineOutlined,
 } from "@mui/icons-material";
 import * as shiftActions from "../ducks/shift";
-import SourceTable from "./SourceTable";
+import SourceTable from "./source/SourceTable";
 import * as sourcesActions from "../ducks/sources";
 
 const useStyles = makeStyles((theme) => ({

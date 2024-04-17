@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
 import {
+  Chip,
   FormControl,
   InputLabel,
-  Select,
   MenuItem,
+  Select,
   useTheme,
-  Chip,
 } from "@mui/material";
 
 const useStyles = makeStyles(() => ({

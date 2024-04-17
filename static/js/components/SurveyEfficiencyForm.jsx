@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
@@ -18,7 +18,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import * as surveyEfficiencyObservationsActions from "../ducks/survey_efficiency_observations";
 import * as surveyEfficiencyObservationPlansActions from "../ducks/survey_efficiency_observation_plans";
 import * as instrumentsActions from "../ducks/instruments";
-import GroupShareSelect from "./GroupShareSelect";
+import GroupShareSelect from "./group/GroupShareSelect";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
