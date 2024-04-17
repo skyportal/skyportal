@@ -167,12 +167,18 @@ class SourceAccessibilityHandler(BaseHandler):
             ).first()
             if source_accessibility and source_accessibility.is_public != publish:
                 if publish:
+                    if data.get("public_data") is None:
+                        return self.error("No data provided to display publicly")
                     source_accessibility.publish(data.get("public_data"))
                 else:
                     source_accessibility.unpublish()
 
                 session.commit()
                 return self.success(data=source_accessibility)
+            elif source_accessibility is None and publish is False:
+                return self.error(
+                    "Accessibility information from this source not found", status=404
+                )
 
         # If source_accessibility does not yet exist for this source, create one
         if source_accessibility is None:

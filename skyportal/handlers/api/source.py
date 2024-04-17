@@ -529,7 +529,7 @@ async def get_source(
                     SourceAccessibility.source_id == str(source_info["id"])
                 )
             )
-            or None
+            or False
         )
 
     source_info = recursive_to_dict(source_info)
