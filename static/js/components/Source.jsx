@@ -59,6 +59,7 @@ import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ShowSummaryHistory from "./ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
+import GCNNotesTable from "./GCNNotesTable";
 import AnalysisList from "./AnalysisList";
 import AnalysisForm from "./AnalysisForm";
 import SourceSaveHistory from "./SourceSaveHistory";
@@ -534,6 +535,31 @@ const SourceContent = ({ source }) => {
                 />
               )}
             </Suspense>
+          </AccordionDetails>
+        </Accordion>
+      </Grid>
+      <Grid item xs={12} lg={6} order={{ md: 4, lg: 3 }}>
+        <Accordion
+          defaultExpanded
+          disableGutters
+          className={classes.flexColumn}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnNotes-content"
+            id="gcnNotes-header"
+          >
+            <Typography className={classes.accordionHeading}>
+              GCN Notes
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails
+            style={{
+              padding: 0,
+              minHeight: !(downLarge || isRightPanelVisible) ? "60vh" : "52vh",
+            }}
+          >
+            <GCNNotesTable gcnNotes={source.gcn_notes} />
           </AccordionDetails>
         </Accordion>
       </Grid>
@@ -1630,6 +1656,13 @@ SourceContent.propTypes = {
     duplicates: PropTypes.arrayOf(PropTypes.string),
     alias: PropTypes.arrayOf(PropTypes.string),
     gcn_crossmatch: PropTypes.arrayOf(PropTypes.string),
+    gcn_notes: PropTypes.arrayOf(
+      PropTypes.shape({
+        dateobs: PropTypes.string,
+        explanation: PropTypes.string,
+        notes: PropTypes.string,
+      }),
+    ),
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
     photstats: PropTypes.arrayOf(PropTypes.shape(Object)),
