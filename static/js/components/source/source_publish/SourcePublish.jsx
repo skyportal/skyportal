@@ -233,7 +233,6 @@ SourcePublish.propTypes = {
     luminosity_distance: PropTypes.number,
     thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
     photometry_exists: PropTypes.bool,
-    photometry: PropTypes.arrayOf(PropTypes.shape({})),
     classifications: PropTypes.arrayOf(PropTypes.shape({})),
     is_public: PropTypes.bool,
   }).isRequired,
