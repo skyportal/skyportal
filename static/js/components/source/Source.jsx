@@ -79,7 +79,7 @@ import * as sourceActions from "../../ducks/source";
 import PhotometryPlot from "../photometry/PhotometryPlot";
 import SpectraPlot from "../SpectraPlot";
 import PhotometryMagsys from "../photometry/PhotometryMagsys";
-import SourcePublish from "./SourcePublish";
+import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
@@ -945,12 +945,8 @@ const SourceContent = ({ source }) => {
                   />
                 </div>
               ) : null}
+              <SourcePublish source={source} photometry={photometry} />
             </div>
-            <SourcePublish
-              classes={classes}
-              source={source}
-              photometry={photometry}
-            />
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
               currentUser?.preferences?.hideSourceSummary !== true && (
