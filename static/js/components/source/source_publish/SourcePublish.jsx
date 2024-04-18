@@ -41,7 +41,7 @@ const SourcePublish = ({ source, photometry = null }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const [isPublished, setIsPublished] = useState(source.is_public);
-  const [accessibilityDialogOpen, setAccessibilityDialogOpen] = useState(true);
+  const [accessibilityDialogOpen, setAccessibilityDialogOpen] = useState(false);
   const [accessibilityOptionsOpen, setAccessibilityOptionsOpen] =
     useState(false);
   const [accessibilityHistoryOpen, setAccessibilityHistoryOpen] =
@@ -208,7 +208,7 @@ const SourcePublish = ({ source, photometry = null }) => {
               }
             >
               Version history
-              {accessibilityOptionsOpen ? <ExpandLess /> : <ExpandMore />}
+              {accessibilityHistoryOpen ? <ExpandLess /> : <ExpandMore />}
             </Button>
             {accessibilityHistoryOpen && <SourcePublishHistory />}
           </div>
