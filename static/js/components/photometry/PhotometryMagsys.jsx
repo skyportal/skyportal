@@ -81,7 +81,7 @@ const PhotometryMagsys = ({ magsys, setMagsys }) => {
             {magsysOptions.map((ms) => (
               <MenuItem
                 className={styles.magsysMenuItem}
-                key={magsys.label}
+                key={ms.label}
                 data-testid={`photometry_${ms.magsys}`}
                 onClick={(e) => {
                   e.stopPropagation();

@@ -180,8 +180,8 @@ const ClassificationList = () => {
         isGroupAdmin ||
         userProfile.username === author_name;
       return (
-        <>
-          <ListItem key={id} className={styles.classification}>
+        <React.Fragment key={`classification_${id}`}>
+          <ListItem className={styles.classification}>
             <div className={styles.classificationHeader}>
               <span className={styles.classificationUser}>
                 <span>{author_name}</span>
@@ -294,7 +294,7 @@ const ClassificationList = () => {
             </div>
           </ListItem>
           <Divider style={{ height: "1px" }} />
-        </>
+        </React.Fragment>
       );
     },
   );

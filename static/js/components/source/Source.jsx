@@ -958,7 +958,7 @@ const SourceContent = ({ source }) => {
                       ? "0.5rem 0 0.5rem 0.5rem"
                       : "0.25rem 0.25rem 0 0.25rem",
                   }}
-                  variant="outlined"
+                  variant={noSummary ? "contained" : "outlined"}
                   elevation={noSummary ? 1 : 0}
                 >
                   <ShowSummaries

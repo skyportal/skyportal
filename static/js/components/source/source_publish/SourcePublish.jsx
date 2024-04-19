@@ -145,7 +145,7 @@ const SourcePublish = ({ source, photometry = null }) => {
         onClick={() => setAccessibilityDialogOpen(true)}
       >
         <Tooltip title="Click here if you want to see the accessibility information">
-          Accessibility
+          <span>Accessibility</span>
         </Tooltip>
       </Button>
       <Dialog
