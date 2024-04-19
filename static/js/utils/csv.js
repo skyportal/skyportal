@@ -42,9 +42,9 @@ function downloadTableToCSV(type) {
     const csv_row = [];
     cols.forEach((col) => {
       if (col.querySelector("a")) {
-        csv_row.push(col.querySelector("a").text);
+        csv_row.push(col.querySelector("a").text.trim());
       } else if (!col.querySelector("button")) {
-        csv_row.push(col.innerHTML);
+        csv_row.push(col.innerHTML.trim());
       }
     });
     csv_data.push(csv_row.join(","));
