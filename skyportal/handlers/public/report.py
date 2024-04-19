@@ -97,4 +97,6 @@ class ReportHandler(BaseHandler):
                     }
                     for report in reports
                 ]
-                return self.render("reports/gcn_reports.html", reports=reports)
+                return self.render(
+                    "public_pages/reports/gcn_reports_template.html", reports=reports
+                )
