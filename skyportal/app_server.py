@@ -142,7 +142,6 @@ from skyportal.handlers.api import (
     SourceOffsetsHandler,
     SourceFinderHandler,
     SourceNotificationHandler,
-    SourceAccessibilityHandler,
     ObjGroupsHandler,
     SourceGroupsHandler,
     ObjColorMagHandler,
@@ -186,6 +185,7 @@ from skyportal.handlers.api import (
     SourcesConfirmedInGCNHandler,
     SourcesConfirmedInGCNTNSHandler,
     GCNsAssociatedWithSourceHandler,
+    PublicSourcePageHandler,
 )
 from skyportal.handlers.api.internal import (
     SourceViewsHandler,
@@ -458,7 +458,6 @@ skyportal_handlers = [
     (r'/api/recurring_api(/.*)?', RecurringAPIHandler),
     (r'/api/roles', RoleHandler),
     (r'/api/skymap_trigger(/[0-9]+)?', SkymapTriggerAPIHandler),
-    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/accessibility', SourceAccessibilityHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/copy_photometry', SourceCopyPhotometryHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/photometry', ObjPhotometryHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/spectra', ObjSpectraHandler),
@@ -557,6 +556,9 @@ skyportal_handlers = [
         r'/api/webhook/(obj)_analysis/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?',
         AnalysisWebhookHandler,
     ),
+    # Public pages managed by the API.
+    (r'/api/public_pages/source(/[0-9A-Za-z-_\.\+]+)', PublicSourcePageHandler),
+    # Internal API endpoints
     (r'/api/internal/tokens(/[0-9A-Za-z-]+)?', TokenHandler),
     (r"/api/internal/profile(/[0-9]+)?", ProfileHandler),
     (r'/api/internal/dbinfo', DBInfoHandler),

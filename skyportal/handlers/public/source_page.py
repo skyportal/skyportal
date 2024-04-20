@@ -21,7 +21,7 @@ class SourcePageHandler(BaseHandler):
     def get(self, source_id):
         """
         ---
-        description: Display a public source page
+        description: Display the public page for a given source
         tags:
           - public_source_page
         parameters:
@@ -30,16 +30,18 @@ class SourcePageHandler(BaseHandler):
               required: true
               schema:
                 type: integer
-              description: The ID of the source to display
+              description: The ID of the source for which to display the public page
         responses:
-          200:
-            content:
-              application/json:
-                schema: SourceAccessibility
-          400:
-            content:
-              application/json:
-                schema: Error
+            200:
+              content:
+                text/html:
+                  schema:
+                    type: string
+                    description: The HTML content of the public source page
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
 
         if source_id is None:

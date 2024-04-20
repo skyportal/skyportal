@@ -1,5 +1,5 @@
 __all__ = [
-    'SourceAccessibility',
+    'PublicSourcePage',
 ]
 
 import json
@@ -16,7 +16,7 @@ from baselayer.app.models import (
     Base,
 )
 
-from ..utils.cache import Cache, dict_to_bytes
+from ...utils.cache import Cache, dict_to_bytes
 
 env, cfg = load_env()
 
@@ -30,30 +30,38 @@ public = True
 private = False
 
 
-class SourceAccessibility(Base):
-    """Accessibility information of a source."""
+class PublicSourcePage(Base):
+    """Public page of a source on a given date."""
 
-    source_id = sa.Column(sa.String, nullable=False)
+    id = sa.Column(sa.Integer, primary_key=True)
+
+    date_created = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        server_default=sa.func.now(),
+        doc="UTC timestamp representing when this page was created.",
+    )
+
+    source_id = sa.Column(sa.String, nullable=False, doc="ID of the source")
 
     data = deferred(
-        sa.Column(JSONB, nullable=False, doc="Source data accessible on public page")
+        sa.Column(JSONB, nullable=False, doc="Source data accessible on the page")
     )
 
     is_public = sa.Column(
         sa.Boolean,
         nullable=False,
         server_default='false',
-        doc='Whether source is public or not.',
+        doc='Whether the page is accessible to the public.',
     )
 
-    def publish(self, public_data):
-        """Set the accessibility of a source to public,
-        create a public source page and add it to the cache."""
+    def publish(self):
+        """Set the page to public and create the public source page."""
         self.is_public = public
-        self.generate_public_source_page(public_data)
+        self.generate_public_source_page(self.data)
 
     def unpublish(self):
-        """Set the accessibility of a source to private."""
+        """Set the page to private and remove it from the cache."""
         self.is_public = private
         cache_key = f"source_{self.source_id}"
         cached = cache[cache_key]
@@ -65,7 +73,7 @@ class SourceAccessibility(Base):
             cache[cache_key] = dict_to_bytes({"public": False, "html": None})
 
     def generate_public_source_page(self, public_data):
-        """Generate public source page and cache it."""
+        """Generate a public page of the source and cache it."""
         data = self.data
         if isinstance(data, str):
             try:
@@ -85,7 +93,7 @@ class SourceAccessibility(Base):
         self.data.update({"status": "success"})
 
     def generate_html(self, public_data):
-        """Generate HTML for a public source page."""
+        """Generate HTML for the public page of the source."""
         if isinstance(public_data, str):
             public_data = json.loads(public_data)
 

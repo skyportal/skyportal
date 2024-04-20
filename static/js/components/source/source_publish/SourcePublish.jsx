@@ -4,14 +4,11 @@ import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-import FormControlLabel from "@mui/material/FormControlLabel";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
-import Switch from "@mui/material/Switch";
-import Link from "@mui/material/Link";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
-import * as accessibilityActions from "../../../ducks/source_accessibility";
+import * as publicSourcePageActions from "../../../ducks/public_pages/public_source_page";
 import Button from "../../Button";
 import {
   getThumbnailAltAndLink,
@@ -40,7 +37,6 @@ const useStyles = makeStyles(() => ({
 const SourcePublish = ({ source, photometry = null }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
-  const [isPublished, setIsPublished] = useState(source.is_public);
   const [accessibilityDialogOpen, setAccessibilityDialogOpen] = useState(false);
   const [accessibilityOptionsOpen, setAccessibilityOptionsOpen] =
     useState(false);
@@ -117,23 +113,11 @@ const SourcePublish = ({ source, photometry = null }) => {
 
   const publish = () => {
     const payload = {
-      publish: true,
       public_data: publicData(),
     };
     dispatch(
-      accessibilityActions.updateSourceAccessibility(source.id, payload),
-    ).then(() => {
-      setIsPublished(true);
-    });
-  };
-
-  const unpublish = () => {
-    const payload = { publish: false };
-    dispatch(
-      accessibilityActions.updateSourceAccessibility(source.id, payload),
-    ).then(() => {
-      setIsPublished(false);
-    });
+      publicSourcePageActions.generatePublicSourcePage(source.id, payload),
+    );
   };
 
   return (
@@ -159,29 +143,9 @@ const SourcePublish = ({ source, photometry = null }) => {
             page. This information will be available to everyone on the
             internet. Are you sure you want to do this ?
           </div>
-          <FormControlLabel
-            style={{ marginBottom: "1rem" }}
-            control={
-              <Switch
-                value="Dark Mode"
-                checked={isPublished}
-                onChange={() => (isPublished ? unpublish() : publish())}
-              />
-            }
-            label={
-              isPublished ? (
-                <span>
-                  This source is public and available{" "}
-                  <Link href={`/public/sources/${source.id}`} target="_blank">
-                    here
-                  </Link>
-                  .
-                </span>
-              ) : (
-                "This source is not public."
-              )
-            }
-          />
+          <Button onClick={publish} color="primary">
+            Publish
+          </Button>
           <div>
             <Button
               className={styles.expandButton}

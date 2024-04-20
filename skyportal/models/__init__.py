@@ -38,7 +38,6 @@ from .source_label import *
 from .source_view import *
 from .source_notification import *
 from .spatial_catalog import *
-from .source_accessibility import *
 from .spectrum import *
 from .survey_efficiency import *
 from .stream import *
@@ -51,6 +50,7 @@ from .user_token import *
 from .weather import *
 from .webhook import *
 from .sources_confirmed_in_gcn import *
+from .public_pages.public_source_page import *
 
 # Cosmology
 from .cosmo import cosmo
