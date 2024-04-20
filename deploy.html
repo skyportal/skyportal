@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Data loader" href="data_loader.html" /><link rel="prev" title="Developer notes" href="dev.html" />
 
-    <!-- Generated with Sphinx 7.2.6 and Furo 2024.01.29 -->
+    <!-- Generated with Sphinx 7.3.7 and Furo 2024.01.29 -->
         <title>Deployment - skyportal 0.9.dev0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
@@ -217,7 +217,7 @@
         </div>
         <article role="main">
           <section id="deployment">
-<h1>Deployment<a class="headerlink" href="#deployment" title="Link to this heading">#</a></h1>
+<h1>Deployment<a class="headerlink" href="#deployment" title="Link to this heading">¶</a></h1>
 <p>SkyPortal can be deployed either with or without using Docker.
 Without Docker, all services (such as the database) need to be running
 locally, as described in <a class="reference internal" href="setup.html"><span class="doc">setup</span></a>.</p>
@@ -227,7 +227,7 @@ discuss how to deploy via
 same information applies when using Kubernetes, for which we have an
 <a class="reference external" href="https://github.com/skyportal/deploy">example deployment</a>.</p>
 <section id="building-the-docker-images">
-<h2>Building the Docker images<a class="headerlink" href="#building-the-docker-images" title="Link to this heading">#</a></h2>
+<h2>Building the Docker images<a class="headerlink" href="#building-the-docker-images" title="Link to this heading">¶</a></h2>
 <p>The first step is to obtain the images to launch. We deploy
 <a class="reference external" href="https://hub.docker.com/r/skyportal/web">SkyPortal images</a> to Docker
 Hub from time to time, which you can fetch using:</p>
@@ -240,7 +240,7 @@ Hub from time to time, which you can fetch using:</p>
 </div>
 </section>
 <section id="starting-containers">
-<h2>Starting containers<a class="headerlink" href="#starting-containers" title="Link to this heading">#</a></h2>
+<h2>Starting containers<a class="headerlink" href="#starting-containers" title="Link to this heading">¶</a></h2>
 <p>Next, we deploy two containers: <code class="docutils literal notranslate"><span class="pre">web</span></code> (the SkyPortal application) and
 <code class="docutils literal notranslate"><span class="pre">db</span></code> (the PostgreSQL server). The database is stored and persisted in a local
 docker volume called <code class="docutils literal notranslate"><span class="pre">skyportal_dbdata</span></code> (see <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">volume</span> <span class="pre">ls</span></code>).</p>
@@ -250,7 +250,7 @@ docker volume called <code class="docutils literal notranslate"><span class="pre
 <p>Once both services are up and running, you may browse to SkyPortal at <code class="docutils literal notranslate"><span class="pre">http://localhost:9000</span></code>.</p>
 </section>
 <section id="handling-problems">
-<h2>Handling problems<a class="headerlink" href="#handling-problems" title="Link to this heading">#</a></h2>
+<h2>Handling problems<a class="headerlink" href="#handling-problems" title="Link to this heading">¶</a></h2>
 <p>You can see which containers are running with <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">ps</span></code>.</p>
 <p>Inspect the logs for the running containers using:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span><span class="o">-</span><span class="n">compose</span> <span class="n">logs</span> <span class="n">web</span>
@@ -260,7 +260,7 @@ docker volume called <code class="docutils literal notranslate"><span class="pre
 <p>(Or, follow the logs with <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">logs</span> <span class="pre">-f</span> <span class="pre">db</span></code>.)</p>
 </section>
 <section id="adding-test-data">
-<h2>Adding test data<a class="headerlink" href="#adding-test-data" title="Link to this heading">#</a></h2>
+<h2>Adding test data<a class="headerlink" href="#adding-test-data" title="Link to this heading">¶</a></h2>
 <p>Note that by default, the SkyPortal image will run the application in production (<code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run_production</span></code>).</p>
 <p>The key behavior to note when running production mode is that the application will not create any database tables automatically (to avoid messing with production data). This means that the very first time you spin up SkyPortal using containers, the <code class="docutils literal notranslate"><span class="pre">skyportal_dbdata</span></code> volume will only have an empty database. You will need to set up the database tables manually. The easiest way to do this would be to run:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">exec</span> <span class="n">skyportal_web_1</span> <span class="n">bash</span> <span class="o">-</span><span class="n">c</span> <span class="s1">&#39;source /skyportal_env/bin/activate &amp;&amp; FLAGS=&quot;--create_tables --config=config.yaml&quot; make load_demo_data&#39;</span>
@@ -269,7 +269,7 @@ docker volume called <code class="docutils literal notranslate"><span class="pre
 <p>This will also load in some test data to play with.</p>
 </section>
 <section id="stopping-the-deployment">
-<h2>Stopping the deployment<a class="headerlink" href="#stopping-the-deployment" title="Link to this heading">#</a></h2>
+<h2>Stopping the deployment<a class="headerlink" href="#stopping-the-deployment" title="Link to this heading">¶</a></h2>
 <p>You may stop both containers using:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span><span class="o">-</span><span class="n">compose</span> <span class="n">stop</span>
 </pre></div>
@@ -355,7 +355,7 @@ docker volume called <code class="docutils literal notranslate"><span class="pre
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=efa42bf3"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>

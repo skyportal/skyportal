@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Advanced usage" href="advanced_usage.html" /><link rel="prev" title="Periodic Timeseries Features" href="period.html" />
 
-    <!-- Generated with Sphinx 7.2.6 and Furo 2024.01.29 -->
+    <!-- Generated with Sphinx 7.3.7 and Furo 2024.01.29 -->
         <title>Spatial Catalogs - skyportal 0.9.dev0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
@@ -217,11 +217,11 @@
         </div>
         <article role="main">
           <section id="spatial-catalogs">
-<h1>Spatial Catalogs<a class="headerlink" href="#spatial-catalogs" title="Link to this heading">#</a></h1>
+<h1>Spatial Catalogs<a class="headerlink" href="#spatial-catalogs" title="Link to this heading">¶</a></h1>
 <p>For catalogs where source location uncertainties are large enough that the Source class is insufficient, SkyPortal has the concept of <code class="docutils literal notranslate"><span class="pre">SpatialCatalog</span></code>s. These catalogs enable cross-matching between sources and objects with spatial extent, such as gamma-ray source catalogs.</p>
 <p>Catalogs can be uploaded through the API or on the Source Catalogs web page. Files must have the columns name, ra, dec, where name is the source catalog entry (must be unique), ra and dec are right ascension and declination in degrees. They must also either contain (i) for an ellipse, amaj, amin, and phi, where amaj, amin, and phi are the major and minor ellipse elements with phi the corresponding angle or (ii) for a cone, radius, where radius is the radius of the cone in degrees.</p>
 <section id="creating-a-spatial-catalog-file">
-<h2>Creating a spatial catalog file<a class="headerlink" href="#creating-a-spatial-catalog-file" title="Link to this heading">#</a></h2>
+<h2>Creating a spatial catalog file<a class="headerlink" href="#creating-a-spatial-catalog-file" title="Link to this heading">¶</a></h2>
 <p>Taking the <a class="reference external" href="https://fermi.gsfc.nasa.gov/ssc/data/access/lat/10yr_catalog/gll_psc_v27.fit">Fermi 4FGL DR2 catalog</a> as an example, we can prepare the file as follows:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="c1"># Load modules</span>
     <span class="kn">from</span> <span class="nn">astropy.io</span> <span class="kn">import</span> <span class="n">fits</span>
@@ -367,7 +367,7 @@
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=efa42bf3"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>

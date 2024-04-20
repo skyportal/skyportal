@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Follow-up triggering" href="followup.html" /><link rel="prev" title="Access controls" href="permissions.html" />
 
-    <!-- Generated with Sphinx 7.2.6 and Furo 2024.01.29 -->
+    <!-- Generated with Sphinx 7.3.7 and Furo 2024.01.29 -->
         <title>Slack Integration - skyportal 0.9.dev0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
@@ -217,16 +217,16 @@
         </div>
         <article role="main">
           <section id="slack-integration">
-<h1>Slack Integration<a class="headerlink" href="#slack-integration" title="Link to this heading">#</a></h1>
+<h1>Slack Integration<a class="headerlink" href="#slack-integration" title="Link to this heading">¶</a></h1>
 <p>While the SkyPortal frontend already has real-time notifications for comment mentions and source updates in the browser, users may also wish to see these in Slack.</p>
 <p>The Slack integration allows notifications for a given user to be mirrored to a Slack channel of choice. To set this up, the Slack workspace administrator generates a webhook URL (one per user/channel combination), and the user then adds that URL to their <strong>Profile</strong> page.</p>
 <section id="slack-app-manage">
-<h2>Slack App: Manage<a class="headerlink" href="#slack-app-manage" title="Link to this heading">#</a></h2>
+<h2>Slack App: Manage<a class="headerlink" href="#slack-app-manage" title="Link to this heading">¶</a></h2>
 <p>To manage an existing integration as a Slack workspace admin (e.g., add a new SkyPortal user or delete a webhook) you can jump to <a class="reference external" href="https://api.slack.com/apps">https://api.slack.com/apps</a>, then choose the app from the “Your Apps” list, then click “Incoming Webhooks.”</p>
 <p>Otherwise to create a new Slack App, see the following section.</p>
 </section>
 <section id="slack-app-creation-one-time-admin-set-up">
-<h2>Slack App Creation: One-time Admin Set Up<a class="headerlink" href="#slack-app-creation-one-time-admin-set-up" title="Link to this heading">#</a></h2>
+<h2>Slack App Creation: One-time Admin Set Up<a class="headerlink" href="#slack-app-creation-one-time-admin-set-up" title="Link to this heading">¶</a></h2>
 <p>We first need to create a “Slack App” that acts as a conduit from SkyPortal to Slack. A logged in Slack Admin for a workspace should navigate to:</p>
 <p><a class="reference external" href="https://api.slack.com/apps?new_app=1">https://api.slack.com/apps?new_app=1</a></p>
 <p>Then click on the “From Scratch” section to start the App building process:</p>
@@ -237,9 +237,9 @@
 <p><img alt="Slack Integration Webhook Enable" src="_images/slack_integration_7.png" /></p>
 </section>
 <section id="connecting-skyportal-users-to-slack">
-<h2>Connecting SkyPortal Users to Slack<a class="headerlink" href="#connecting-skyportal-users-to-slack" title="Link to this heading">#</a></h2>
+<h2>Connecting SkyPortal Users to Slack<a class="headerlink" href="#connecting-skyportal-users-to-slack" title="Link to this heading">¶</a></h2>
 <section id="slack-admin-steps">
-<h3>Slack Admin Steps<a class="headerlink" href="#slack-admin-steps" title="Link to this heading">#</a></h3>
+<h3>Slack Admin Steps<a class="headerlink" href="#slack-admin-steps" title="Link to this heading">¶</a></h3>
 <p>For each user in Slack who wishes to connect to their SkyPortal notifications, the Slack admin will return to the <code class="docutils literal notranslate"><span class="pre">Incoming</span> <span class="pre">Webhooks</span></code> portion of the Slack app and then click on <code class="docutils literal notranslate"><span class="pre">Add</span> <span class="pre">New</span> <span class="pre">Webhook</span> <span class="pre">to</span> <span class="pre">Workspace</span></code>:</p>
 <p><img alt="Slack Integration Webhook Generate" src="_images/slack_integration_8.png" /></p>
 <p>In the popup dialog choose the Slack direct messages channel for that user and copy the new Webhook URL:</p>
@@ -247,7 +247,7 @@
 <p>Anyone with this webhook URL will be able to post messages into the specified Channel (in the example above, <code class="docutils literal notranslate"><span class="pre">#Josh</span></code>). Provide this URL to the user.</p>
 </section>
 <section id="skyportal-user-steps">
-<h3>SkyPortal User Steps<a class="headerlink" href="#skyportal-user-steps" title="Link to this heading">#</a></h3>
+<h3>SkyPortal User Steps<a class="headerlink" href="#skyportal-user-steps" title="Link to this heading">¶</a></h3>
 <p>The SkyPortal user then navigates to their <strong>Profile</strong> page and enables Slack Notifications. They enter the unique Webhook URL generated by the Slack admin into the Slack Integration URL form (circled in blue below):</p>
 <p><img alt="SP Integration" src="_images/slack_integration_10.png" /></p>
 <p>If the <code class="docutils literal notranslate"><span class="pre">&#64;</span> <span class="pre">mentions</span></code> toggle is activated, then all mentions of this user on SkyPortal will be sent to the Slack channel associated with the webhook. Likewise, if <code class="docutils literal notranslate"><span class="pre">Also</span> <span class="pre">Push</span> <span class="pre">to</span> <span class="pre">Slack</span></code> is enabled, then all enabled Favorite Source Activity types for the Browser will also be sent to Slack:</p>
@@ -256,11 +256,11 @@
 </section>
 </section>
 <section id="use-as-an-instrument-triggering-api">
-<h2>Use as an instrument triggering API<a class="headerlink" href="#use-as-an-instrument-triggering-api" title="Link to this heading">#</a></h2>
+<h2>Use as an instrument triggering API<a class="headerlink" href="#use-as-an-instrument-triggering-api" title="Link to this heading">¶</a></h2>
 <p>We have enabled the use of Slack for instrument “triggering,” enabling a push of a transient follow-up request similar to done for other instruments. To enable this, an instrument needs <code class="docutils literal notranslate"><span class="pre">SLACKAPI</span></code> added as its triggering API, and in the instrument allocation, <code class="docutils literal notranslate"><span class="pre">_altdata</span></code> should look like <code class="docutils literal notranslate"><span class="pre">{&quot;slack_workspace&quot;:</span> <span class="pre">&quot;XXX&quot;,</span> <span class="pre">&quot;slack_channel&quot;:</span> <span class="pre">&quot;YYY&quot;,</span> <span class="pre">&quot;slack_token&quot;:</span> <span class="pre">&quot;ZZZ&quot;}</span></code> with the appropriate values. The Slack endpoint will be POSTed to <code class="docutils literal notranslate"><span class="pre">{SLACK_URL}/{altdata['slack_workspace']}/{altdata['slack_channel']}/{altdata['slack_token']}</span></code></p>
 </section>
 <section id="notes-on-reliability-and-security">
-<h2>Notes on Reliability and Security<a class="headerlink" href="#notes-on-reliability-and-security" title="Link to this heading">#</a></h2>
+<h2>Notes on Reliability and Security<a class="headerlink" href="#notes-on-reliability-and-security" title="Link to this heading">¶</a></h2>
 <p>Unlike a fault-tolerant pub-sub mechanism like XMPP Jabber, Slack notifications are not guaranteed to be delivered. If any part of the communication fails (e.g., Slack downtime or SkyPortal errors), the Slack messaging will not work. Users should not rely upon receiving Slack messages to perform mission critical work.</p>
 <p>The Slack Admin is trusted to verify that the SkyPortal user they send a Webhook URL to is the same person (or entity) represented in their Slack Workspace.  For most use cases this is a reasonable measure to keep SkyPortal data secure. In addition, while the names and URLs of sources are shown in Slack, no other information (such as comments or classification results) is transmitted. So even if identities are mismatched or channels are compromised, a Slack user with unauthorized access will not be able to access substantive information in SkyPortal.</p>
 <p>The Slack admin may delete the Slack App for their workspace at any time, invalidating all webhooks.</p>
@@ -344,7 +344,7 @@
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=efa42bf3"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>

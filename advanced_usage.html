@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="How to work with photometric series" href="photometric_series.html" /><link rel="prev" title="Spatial Catalogs" href="spatial_catalog.html" />
 
-    <!-- Generated with Sphinx 7.2.6 and Furo 2024.01.29 -->
+    <!-- Generated with Sphinx 7.3.7 and Furo 2024.01.29 -->
         <title>Advanced usage - skyportal 0.9.dev0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
@@ -217,9 +217,9 @@
         </div>
         <article role="main">
           <section id="advanced-usage">
-<h1>Advanced usage<a class="headerlink" href="#advanced-usage" title="Link to this heading">#</a></h1>
+<h1>Advanced usage<a class="headerlink" href="#advanced-usage" title="Link to this heading">¶</a></h1>
 <section id="posting-color-magnitude-data-to-generate-an-hr-diagram">
-<h2>Posting color-magnitude data to generate an HR diagram<a class="headerlink" href="#posting-color-magnitude-data-to-generate-an-hr-diagram" title="Link to this heading">#</a></h2>
+<h2>Posting color-magnitude data to generate an HR diagram<a class="headerlink" href="#posting-color-magnitude-data-to-generate-an-hr-diagram" title="Link to this heading">¶</a></h2>
 <p>For stellar targets we are interested in showing the HR diagram
 based on the color-magnitude data from a cross match to, e.g., the Gaia catalog.
 Currently we support only Gaia inputs on the front-end,
@@ -301,11 +301,11 @@ If the posting was unsuccessful,
 the status would be 400.</p>
 </section>
 <section id="managing-taxonomies">
-<h2>Managing Taxonomies<a class="headerlink" href="#managing-taxonomies" title="Link to this heading">#</a></h2>
+<h2>Managing Taxonomies<a class="headerlink" href="#managing-taxonomies" title="Link to this heading">¶</a></h2>
 <p>Taxonomies are used for classification. There is typically a sitewide taxonomy that all users of SkyPortal can see. By default, we seed a new SP database with the latest taxonomy from the <a class="reference external" href="https://github.com/profjsb/timedomain-taxonomy">Time-domain Astronomy Taxonomy
 (Github)</a> (<code class="docutils literal notranslate"><span class="pre">tdtax</span></code>). From time to time, the latest taxonomy may be upgraded as new subclasses of sources are discovered and SP admins may need to push a new version of the taxonomy to the live application.</p>
 <section id="upgrading-the-sitewide-taxonomy">
-<h3>Upgrading the Sitewide Taxonomy<a class="headerlink" href="#upgrading-the-sitewide-taxonomy" title="Link to this heading">#</a></h3>
+<h3>Upgrading the Sitewide Taxonomy<a class="headerlink" href="#upgrading-the-sitewide-taxonomy" title="Link to this heading">¶</a></h3>
 <p>To upgrade to the latest <code class="docutils literal notranslate"><span class="pre">tdtax</span></code>, as an admin, you will need to generate a token with a “Post taxonomy” ACL. Next install the latest <code class="docutils literal notranslate"><span class="pre">tdtax</span></code> on your system:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="o">-</span><span class="n">U</span> <span class="n">tdtax</span>
 </pre></div>
@@ -342,18 +342,18 @@ the status would be 400.</p>
 <p>If the <code class="docutils literal notranslate"><span class="pre">name</span></code> of the taxonomy is exactly the same as a taxonomy already in the system, this new taxonomy will supercede that taxonomy. That is, by default it will be set to be the latest version (<code class="docutils literal notranslate"><span class="pre">IsLatest</span> <span class="pre">=</span> <span class="pre">True</span></code>) and shown to end users in the dropdown menu on the Source page. Older classifications will be still associated with the <code class="docutils literal notranslate"><span class="pre">taxonomy_id</span></code> they were originally connected to.</p>
 </section>
 <section id="posting-a-new-taxonomy">
-<h3>Posting a New Taxonomy<a class="headerlink" href="#posting-a-new-taxonomy" title="Link to this heading">#</a></h3>
+<h3>Posting a New Taxonomy<a class="headerlink" href="#posting-a-new-taxonomy" title="Link to this heading">¶</a></h3>
 <p>You may wish to post a new custom taxonomy, for example to enable classifications that are outside the scope of the sitewide taxonomy. When posting a new taxonomy, it is usually preferable to limit its availability to specific, relevant groups. In this way, you can assign your own classifications where needed without extending them across the entire site.</p>
 <p>To post a new taxonomy to specific groups, follow the instructions above, but add the <code class="docutils literal notranslate"><span class="pre">group_ids</span></code> parameter (containing the array of group ids to receive the taxonomy) to <code class="docutils literal notranslate"><span class="pre">tax_obj</span></code>. Ensure your new taxonomy is in a nested JSON format.</p>
 <p>Once the taxonomy is posted, users who are members of the specified groups will be able to see and use the new classifications. To add the taxonomy to another group, perform another <code class="docutils literal notranslate"><span class="pre">POST</span></code> request containing the desired group id.</p>
 </section>
 <section id="note-deleting-a-taxonomy">
-<h3>NOTE: Deleting a Taxonomy<a class="headerlink" href="#note-deleting-a-taxonomy" title="Link to this heading">#</a></h3>
+<h3>NOTE: Deleting a Taxonomy<a class="headerlink" href="#note-deleting-a-taxonomy" title="Link to this heading">¶</a></h3>
 <p>In very rare cases you may wish to delete a taxonomy (e.g., if you made a typo when loading it). This should be done with extreme care: if anyone has classifications associated with that taxonomy their classifications will be lost upon delete.</p>
 </section>
 </section>
 <section id="spectroscopic-lines">
-<h2>Spectroscopic lines<a class="headerlink" href="#spectroscopic-lines" title="Link to this heading">#</a></h2>
+<h2>Spectroscopic lines<a class="headerlink" href="#spectroscopic-lines" title="Link to this heading">¶</a></h2>
 <p>The selection of element and galaxy lines on SkyPortal were derived from the NIST atomic database (<a class="reference external" href="https://www.nist.gov/pml/atomic-spectra-database">https://www.nist.gov/pml/atomic-spectra-database</a>) , using the methods of Gal-Yam (2019) (<a class="reference external" href="https://ui.adsabs.harvard.edu/abs/2019ApJ...882..102G/abstract">https://ui.adsabs.harvard.edu/abs/2019ApJ…882..102G/abstract</a>). Telluric and Skylines were migrated from the ZTF Marshal.
 Element lines and galaxy lines move according to the set redshift or expansion velocity. Tellurics and skylines remain static.</p>
 </section>
@@ -435,7 +435,7 @@ Element lines and galaxy lines move according to the set redshift or expansion v
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=efa42bf3"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>

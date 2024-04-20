@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Analysis" href="analysis.html" /><link rel="prev" title="Advanced usage" href="advanced_usage.html" />
 
-    <!-- Generated with Sphinx 7.2.6 and Furo 2024.01.29 -->
+    <!-- Generated with Sphinx 7.3.7 and Furo 2024.01.29 -->
         <title>How to work with photometric series - skyportal 0.9.dev0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
@@ -217,7 +217,7 @@
         </div>
         <article role="main">
           <section id="how-to-work-with-photometric-series">
-<h1>How to work with photometric series<a class="headerlink" href="#how-to-work-with-photometric-series" title="Link to this heading">#</a></h1>
+<h1>How to work with photometric series<a class="headerlink" href="#how-to-work-with-photometric-series" title="Link to this heading">¶</a></h1>
 <p>A photometric series is a set of photometry points taken for a single source,
 with a single filter, and usually in a single observing season.
 There are some advantages to using a series instead of single photometry points:</p>
@@ -229,7 +229,7 @@ There are some advantages to using a series instead of single photometry points:
 <p>This format is particularly useful for high-cadence observations,
 where multiple images are taken in the same pointing.</p>
 <section id="posting-data">
-<h2>Posting data<a class="headerlink" href="#posting-data" title="Link to this heading">#</a></h2>
+<h2>Posting data<a class="headerlink" href="#posting-data" title="Link to this heading">¶</a></h2>
 <p>To upload a photometric series use the <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/photometric_series</span></code> endpoint.
 The request body must contain a <code class="docutils literal notranslate"><span class="pre">data</span></code> field,
 that can contain either a JSON representation of the photometric series,
@@ -286,7 +286,7 @@ This can be one of the following values: “middle”, “start”, “end”.</
 as metadata inside the photometry HDF5 file.</p>
 </section>
 <section id="creating-a-binary-file">
-<h2>Creating a binary file<a class="headerlink" href="#creating-a-binary-file" title="Link to this heading">#</a></h2>
+<h2>Creating a binary file<a class="headerlink" href="#creating-a-binary-file" title="Link to this heading">¶</a></h2>
 <p>To generate an HDF5 file for upload as a photometric series,
 first load the data into a pandas DataFrame.
 This dataframe must contain an “mjd” column,
@@ -370,7 +370,7 @@ If sending a JSON style dictionary, there is no way to include
 metadata, and that must be sent as request body parameters.</p>
 </section>
 <section id="downloading-photometric-series">
-<h2>Downloading photometric series<a class="headerlink" href="#downloading-photometric-series" title="Link to this heading">#</a></h2>
+<h2>Downloading photometric series<a class="headerlink" href="#downloading-photometric-series" title="Link to this heading">¶</a></h2>
 <p>To download a photometric series, use the <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/photometric_series</span></code> endpoint.
 By changing the <code class="docutils literal notranslate"><span class="pre">dataFormat</span></code> query argument,
 the data would be returned as either a JSON style dictionary (<code class="docutils literal notranslate"><span class="pre">json</span></code>),
@@ -477,7 +477,7 @@ To get the data without saving it to disk, use the following code
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=efa42bf3"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>

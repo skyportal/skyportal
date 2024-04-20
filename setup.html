@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Usage" href="usage.html" /><link rel="prev" title="System Architecture" href="design.html" />
 
-    <!-- Generated with Sphinx 7.2.6 and Furo 2024.01.29 -->
+    <!-- Generated with Sphinx 7.3.7 and Furo 2024.01.29 -->
         <title>Setup - skyportal 0.9.dev0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
@@ -217,9 +217,9 @@
         </div>
         <article role="main">
           <section id="setup">
-<h1>Setup<a class="headerlink" href="#setup" title="Link to this heading">#</a></h1>
+<h1>Setup<a class="headerlink" href="#setup" title="Link to this heading">¶</a></h1>
 <section id="dependencies">
-<h2>Dependencies<a class="headerlink" href="#dependencies" title="Link to this heading">#</a></h2>
+<h2>Dependencies<a class="headerlink" href="#dependencies" title="Link to this heading">¶</a></h2>
 <p>SkyPortal requires the following software to be installed.  We show
 how to install them on MacOS and Debian-based systems below.</p>
 <ul class="simple">
@@ -236,7 +236,7 @@ how to install them on MacOS and Debian-based systems below.</p>
 </ul>
 </section>
 <section id="source-download-python-environment">
-<h2>Source download, Python environment<a class="headerlink" href="#source-download-python-environment" title="Link to this heading">#</a></h2>
+<h2>Source download, Python environment<a class="headerlink" href="#source-download-python-environment" title="Link to this heading">¶</a></h2>
 <p>Clone the <a class="reference external" href="https://github.com/skyportal/skyportal">SkyPortal repository</a> and start a new
 virtual environment.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">skyportal</span><span class="o">/</span><span class="n">skyportal</span><span class="o">.</span><span class="n">git</span>
@@ -258,7 +258,7 @@ virtual environment.</p>
 <p>If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image’s <code class="docutils literal notranslate"><span class="pre">localhost</span></code> network.</p>
 </section>
 <section id="installation-macos">
-<h2>Installation: MacOS<a class="headerlink" href="#installation-macos" title="Link to this heading">#</a></h2>
+<h2>Installation: MacOS<a class="headerlink" href="#installation-macos" title="Link to this heading">¶</a></h2>
 <p>These instructions assume that you have <a class="reference external" href="http://brew.sh/">Homebrew</a> installed.</p>
 <ol class="simple">
 <li><p>Install project dependencies</p></li>
@@ -318,16 +318,16 @@ virtual environment.</p>
 </ol>
 <p><a name="configure-shell-mac"></a></p>
 <section id="configuring-shell-environment-for-development">
-<h3>Configuring Shell Environment for Development<a class="headerlink" href="#configuring-shell-environment-for-development" title="Link to this heading">#</a></h3>
+<h3>Configuring Shell Environment for Development<a class="headerlink" href="#configuring-shell-environment-for-development" title="Link to this heading">¶</a></h3>
 <p>When developing with SkyPortal on mac, you may  also need to configure your shell enviroment. Here is how you can do that by editing your <code class="docutils literal notranslate"><span class="pre">.zshrc</span></code> file.</p>
 <section id="open-your-zshrc-file-in-a-text-editor">
-<h4>Open your <code class="docutils literal notranslate"><span class="pre">.zshrc</span></code> file in a text editor:<a class="headerlink" href="#open-your-zshrc-file-in-a-text-editor" title="Link to this heading">#</a></h4>
+<h4>Open your <code class="docutils literal notranslate"><span class="pre">.zshrc</span></code> file in a text editor:<a class="headerlink" href="#open-your-zshrc-file-in-a-text-editor" title="Link to this heading">¶</a></h4>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">nano</span> <span class="o">~/.</span><span class="n">zshrc</span>
 </pre></div>
 </div>
 </section>
 <section id="set-enviroment-variables-to-their-installation-paths">
-<h4>Set enviroment variables to their installation paths<a class="headerlink" href="#set-enviroment-variables-to-their-installation-paths" title="Link to this heading">#</a></h4>
+<h4>Set enviroment variables to their installation paths<a class="headerlink" href="#set-enviroment-variables-to-their-installation-paths" title="Link to this heading">¶</a></h4>
 <p>After installing the libraries with Homebrew, you’ll need to set environment variables to their installation paths. Replace the placeholder text <code class="docutils literal notranslate"><span class="pre">&lt;path-to-library&gt;</span></code> with the actual path that Homebrew provides upon sucessful installation.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">HDF5_DIR</span><span class="o">=</span><span class="s2">&quot;&lt;path-to-hdf5&gt;&quot;</span>
 <span class="n">export</span> <span class="n">BLOSC_DIR</span><span class="o">=</span><span class="s2">&quot;&lt;path-to-c-blosc&gt;&quot;</span>
@@ -341,7 +341,7 @@ virtual environment.</p>
 </div>
 </section>
 <section id="alias-pip3-and-python3">
-<h4>Alias pip3 and python3<a class="headerlink" href="#alias-pip3-and-python3" title="Link to this heading">#</a></h4>
+<h4>Alias pip3 and python3<a class="headerlink" href="#alias-pip3-and-python3" title="Link to this heading">¶</a></h4>
 <p>Depending on your system setup, the <code class="docutils literal notranslate"><span class="pre">python</span></code> and <code class="docutils literal notranslate"><span class="pre">pip</span></code> commands might point to Python 2 rather than Python 3. To ensure that you’re using Python 3 and its corresponding pip version, you may need to set aliases in your <code class="docutils literal notranslate"><span class="pre">.zshrc</span></code> file:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">alias</span> <span class="n">pip</span><span class="o">=</span><span class="s1">&#39;pip3&#39;</span>
 <span class="n">alias</span> <span class="n">python</span><span class="o">=</span><span class="s1">&#39;python3&#39;</span>
@@ -349,14 +349,14 @@ virtual environment.</p>
 </div>
 </section>
 <section id="to-activate-the-changes-source-your-zshrc-file">
-<h4>To activate the changes, source your .zshrc file:<a class="headerlink" href="#to-activate-the-changes-source-your-zshrc-file" title="Link to this heading">#</a></h4>
+<h4>To activate the changes, source your .zshrc file:<a class="headerlink" href="#to-activate-the-changes-source-your-zshrc-file" title="Link to this heading">¶</a></h4>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">source</span> <span class="o">~/.</span><span class="n">zshrc</span>
 </pre></div>
 </div>
 </section>
 </section>
 <section id="checking-for-port-availability">
-<h3>Checking for Port Availability<a class="headerlink" href="#checking-for-port-availability" title="Link to this heading">#</a></h3>
+<h3>Checking for Port Availability<a class="headerlink" href="#checking-for-port-availability" title="Link to this heading">¶</a></h3>
 <p>SkyPortal defaults to using port 5000. However, this port may already be in use by MacPorts or other services. To verify if port 5000 is available, use the <code class="docutils literal notranslate"><span class="pre">lsof</span></code> command in the terminal.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">lsof</span> <span class="o">-</span><span class="n">i</span> <span class="p">:</span><span class="mi">5000</span>
 </pre></div>
@@ -365,7 +365,7 @@ virtual environment.</p>
 </section>
 </section>
 <section id="installation-debian-based-linux-and-wsl">
-<h2>Installation: Debian-based Linux and WSL<a class="headerlink" href="#installation-debian-based-linux-and-wsl" title="Link to this heading">#</a></h2>
+<h2>Installation: Debian-based Linux and WSL<a class="headerlink" href="#installation-debian-based-linux-and-wsl" title="Link to this heading">¶</a></h2>
 <ol>
 <li><p>Install dependencies</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span> <span class="n">install</span> <span class="n">supervisor</span> <span class="n">postgresql</span> \
@@ -422,7 +422,7 @@ virtual environment.</p>
 </ol>
 </section>
 <section id="launch">
-<h2>Launch<a class="headerlink" href="#launch" title="Link to this heading">#</a></h2>
+<h2>Launch<a class="headerlink" href="#launch" title="Link to this heading">¶</a></h2>
 <ol class="simple">
 <li><p>Make sure you are in the skyportal env: <code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">activate</span> <span class="pre">skyportal_env</span></code></p></li>
 <li><p>Initialize the database with <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">db_init</span></code> (this only needs to
@@ -436,7 +436,7 @@ Different users have different privileges and can see more or less of the demo d
 </ol>
 </section>
 <section id="troubleshooting">
-<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h2>
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">¶</a></h2>
 <p>If you have trouble getting the demo data try doing</p>
 <p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">db_clear</span> <span class="pre">&amp;&amp;</span> <span class="pre">make</span> <span class="pre">db_init</span> <span class="pre">&amp;&amp;</span> <span class="pre">make</span> <span class="pre">run</span></code></p>
 <p>and then, from a different window, do <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">load_demo_data</span></code>.</p>
@@ -444,7 +444,7 @@ Different users have different privileges and can see more or less of the demo d
 <p>Mac users may need to disable Airplay Receiver in System Preferences to free up port 5000 and avoid a 403 Forbidden error.</p>
 </section>
 <section id="additional-configuration">
-<h2>Additional Configuration<a class="headerlink" href="#additional-configuration" title="Link to this heading">#</a></h2>
+<h2>Additional Configuration<a class="headerlink" href="#additional-configuration" title="Link to this heading">¶</a></h2>
 <p>The configuration file lives in <code class="docutils literal notranslate"><span class="pre">config.yaml</span></code>, and is meant to be
 self-documenting.  Please modify as you see fit.</p>
 <p><strong>Before deploying this on a public server</strong> change <code class="docutils literal notranslate"><span class="pre">app:secret-key</span></code>
@@ -455,7 +455,7 @@ of the SkyPortal commands with the FLAGS environment variable set:</p>
 </pre></div>
 </div>
 <section id="authentication">
-<h3>Authentication<a class="headerlink" href="#authentication" title="Link to this heading">#</a></h3>
+<h3>Authentication<a class="headerlink" href="#authentication" title="Link to this heading">¶</a></h3>
 <p>By default, the server allows anyone to log in (even if it presents a
 login screen).  If you are running a public-facing instance of
 SkyPortal, you should enable multi-user login by adding Google
@@ -463,7 +463,7 @@ credentials to the <code class="docutils literal notranslate"><span class="pre">
 setting <code class="docutils literal notranslate"><span class="pre">debug_login</span></code> to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
 </section>
 <section id="creating-an-administrative-user">
-<h3>Creating an administrative user<a class="headerlink" href="#creating-an-administrative-user" title="Link to this heading">#</a></h3>
+<h3>Creating an administrative user<a class="headerlink" href="#creating-an-administrative-user" title="Link to this heading">¶</a></h3>
 <p>By default, no user has permission to perform system administration.
 You can give this and other permissions to an existing user by running the following from your terminal in the <code class="docutils literal notranslate"><span class="pre">skyportal</span></code> directory:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">PYTHONPATH</span><span class="o">=.</span> <span class="n">python</span> <span class="n">tools</span><span class="o">/</span><span class="n">set_user_role</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">username</span><span class="o">=</span><span class="s2">&quot;&lt;username&gt;&quot;</span> <span class="o">--</span><span class="n">role</span><span class="o">=</span><span class="s2">&quot;&lt;role&gt;&quot;</span>
@@ -476,7 +476,7 @@ You can give this and other permissions to an existing user by running the follo
 </div>
 </section>
 <section id="test-data">
-<h3>Test data<a class="headerlink" href="#test-data" title="Link to this heading">#</a></h3>
+<h3>Test data<a class="headerlink" href="#test-data" title="Link to this heading">¶</a></h3>
 <p>By default, SkyPortal contains no data.  You can ingest some sample light curves by running</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">load_demo_data</span>
 </pre></div>
@@ -484,7 +484,7 @@ You can give this and other permissions to an existing user by running the follo
 <p>This also adds <code class="docutils literal notranslate"><span class="pre">testuser&#64;cesium-ml.org</span></code> as an administrator.</p>
 </section>
 <section id="deploying-secure-http-ssl-certificate">
-<h3>Deploying secure HTTP / SSL certificate<a class="headerlink" href="#deploying-secure-http-ssl-certificate" title="Link to this heading">#</a></h3>
+<h3>Deploying secure HTTP / SSL certificate<a class="headerlink" href="#deploying-secure-http-ssl-certificate" title="Link to this heading">¶</a></h3>
 <p>When running a public server, you will likely want to deploy an SSL certificate (i.e., serve <code class="docutils literal notranslate"><span class="pre">https://your.url</span></code> instead of <code class="docutils literal notranslate"><span class="pre">http://your.url</span></code>). Certificates can be obtained for free from services such as Let’s Encrypt (https://letsencrypt.org/).</p>
 <p><a class="reference external" href="https://certbot.eff.org/">certbot</a> is software for helping you obtain a new SSL certificate from Let’s Encrypt.
 To do so, it first verifies that your server is running (without SSL) at the specified domain.</p>
@@ -605,7 +605,7 @@ sudo certbot renew</p>
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=efa42bf3"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>

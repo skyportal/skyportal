@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Deployment" href="deploy.html" /><link rel="prev" title="API" href="api.html" />
 
-    <!-- Generated with Sphinx 7.2.6 and Furo 2024.01.29 -->
+    <!-- Generated with Sphinx 7.3.7 and Furo 2024.01.29 -->
         <title>Developer notes - skyportal 0.9.dev0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
@@ -217,9 +217,9 @@
         </div>
         <article role="main">
           <section id="developer-notes">
-<h1>Developer notes<a class="headerlink" href="#developer-notes" title="Link to this heading">#</a></h1>
+<h1>Developer notes<a class="headerlink" href="#developer-notes" title="Link to this heading">¶</a></h1>
 <section id="pre-commit-hook">
-<h2>Pre-commit hook<a class="headerlink" href="#pre-commit-hook" title="Link to this heading">#</a></h2>
+<h2>Pre-commit hook<a class="headerlink" href="#pre-commit-hook" title="Link to this heading">¶</a></h2>
 <p>Install our pre-commit hook as follows:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">pre</span><span class="o">-</span><span class="n">commit</span>
 <span class="n">pre</span><span class="o">-</span><span class="n">commit</span> <span class="n">install</span>
@@ -231,7 +231,7 @@ code, and PrettierJS for JavaScript. We also run ESLint to catch
 several common Redux usage bugs.</p>
 </section>
 <section id="testing">
-<h2>Testing<a class="headerlink" href="#testing" title="Link to this heading">#</a></h2>
+<h2>Testing<a class="headerlink" href="#testing" title="Link to this heading">¶</a></h2>
 <p>To execute the test suite:</p>
 <ul class="simple">
 <li><p>Install geckodriver and Firefox</p></li>
@@ -258,7 +258,7 @@ faster you can also run the test server separately:</p>
 </div>
 <p>It is not noticeably faster to run the test suite headlessly.</p>
 <section id="test-fixtures">
-<h3>Test fixtures<a class="headerlink" href="#test-fixtures" title="Link to this heading">#</a></h3>
+<h3>Test fixtures<a class="headerlink" href="#test-fixtures" title="Link to this heading">¶</a></h3>
 <p>The SkyPortal test suite leverages pytest fixtures to generate and isolate test data for each test. Fixtures are declared in the <code class="docutils literal notranslate"><span class="pre">skyportal/tests/conftest.py</span></code> file, and they utilize factories implemented in <code class="docutils literal notranslate"><span class="pre">skyportal/tests/fixtures.py</span></code> to generate new instances of fixtures as needed.</p>
 <p>Each test will request any fixtures that it requires, and as part of the set-up for that test, new test instances of the fixtures are created. This means that each test is guaranteed to work with fresh, isolated test data in order to avoid any unintended dependencies on other tests. Fixtures should be used when possible in writing new tests to promote safe, repeatable test results.</p>
 <p>SkyPortal test fixtures are implemented with teardown logic, such that any database records generated for that fixture are deleted from the test database upon completion of a test. This serves to avoid bloating of the test database as more tests are run. Note that each fixture defined in <code class="docutils literal notranslate"><span class="pre">conftest.py</span></code> uses the <code class="docutils literal notranslate"><span class="pre">yield</span></code> keyword to return its test object. Any code following <code class="docutils literal notranslate"><span class="pre">yield</span></code> in a pytest fixture is run as teardown logic when that fixture goes out of scope; you will find that in SkyPortal this involves calling the relevant <code class="docutils literal notranslate"><span class="pre">teardown()</span></code> functions on the fixture objects created. These <code class="docutils literal notranslate"><span class="pre">teardown()</span></code> functions are implemented for each SQLAlchemyModelFactory subclass defined in <code class="docutils literal notranslate"><span class="pre">fixtures.py</span></code>.</p>
@@ -266,7 +266,7 @@ faster you can also run the test server separately:</p>
 </section>
 </section>
 <section id="debugging">
-<h2>Debugging<a class="headerlink" href="#debugging" title="Link to this heading">#</a></h2>
+<h2>Debugging<a class="headerlink" href="#debugging" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">log</span></code> to watch log output</p></li>
 <li><p>Run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">stop</span></code> to stop any running web services.</p></li>
@@ -275,7 +275,7 @@ faster you can also run the test server separately:</p>
 </ul>
 </section>
 <section id="database">
-<h2>Database<a class="headerlink" href="#database" title="Link to this heading">#</a></h2>
+<h2>Database<a class="headerlink" href="#database" title="Link to this heading">¶</a></h2>
 <p>All interactions with the database are performed by way of SQLAlchemy using the
 Pyscopg2 backend. Some standard but not necessarily obvious usage patterns we
 make use of include:</p>
@@ -321,11 +321,11 @@ The <code class="docutils literal notranslate"><span class="pre">execute</span><
 </ul>
 </section>
 <section id="docker-images">
-<h2>Docker images<a class="headerlink" href="#docker-images" title="Link to this heading">#</a></h2>
+<h2>Docker images<a class="headerlink" href="#docker-images" title="Link to this heading">¶</a></h2>
 <p>Run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">docker-images</span></code> to build and push to Docker hub.</p>
 </section>
 <section id="debugging-github-actions">
-<h2>Debugging GitHub Actions<a class="headerlink" href="#debugging-github-actions" title="Link to this heading">#</a></h2>
+<h2>Debugging GitHub Actions<a class="headerlink" href="#debugging-github-actions" title="Link to this heading">¶</a></h2>
 <p>You can insert the following step to debug your workflow:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Setup tmate session</span>
 <span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mxschmitt/action-tmate@v2</span>
@@ -412,7 +412,7 @@ The <code class="docutils literal notranslate"><span class="pre">execute</span><
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=efa42bf3"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>

@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="How to Contribute" href="contributing.html" /><link rel="prev" title="Deployment" href="deploy.html" />
 
-    <!-- Generated with Sphinx 7.2.6 and Furo 2024.01.29 -->
+    <!-- Generated with Sphinx 7.3.7 and Furo 2024.01.29 -->
         <title>Data loader - skyportal 0.9.dev0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
@@ -217,7 +217,7 @@
         </div>
         <article role="main">
           <section id="data-loader">
-<h1>Data loader<a class="headerlink" href="#data-loader" title="Link to this heading">#</a></h1>
+<h1>Data loader<a class="headerlink" href="#data-loader" title="Link to this heading">¶</a></h1>
 <p>To populate SkyPortal with initial data, use <code class="docutils literal notranslate"><span class="pre">tools/data_loader.py</span></code>.
 This is also used when doing <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">load_seed_data</span></code> and <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">load_demo_data</span></code>.</p>
 <p>The data loader reads a data file in YAML format.  This YAML files
@@ -225,7 +225,7 @@ matches the SkyPortal API: each entry corresponds to an API endpoint,
 and contains a list of objects to post (see <code class="docutils literal notranslate"><span class="pre">data/db_demo.yaml</span></code> for an
 example).</p>
 <section id="references">
-<h2>References<a class="headerlink" href="#references" title="Link to this heading">#</a></h2>
+<h2>References<a class="headerlink" href="#references" title="Link to this heading">¶</a></h2>
 <p>The attributes of a posted object can be saved as references:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">groups</span><span class="p">:</span>
   <span class="o">-</span> <span class="n">name</span><span class="p">:</span> <span class="n">Program</span> <span class="n">A</span>
@@ -257,7 +257,7 @@ This can now be used when, e.g., posting a telescope:</p>
 <p>Here, the endpoint will become, e.g., <code class="docutils literal notranslate"><span class="pre">groups/6/users</span></code>.</p>
 </section>
 <section id="files">
-<h2>Files<a class="headerlink" href="#files" title="Link to this heading">#</a></h2>
+<h2>Files<a class="headerlink" href="#files" title="Link to this heading">¶</a></h2>
 <p>Lists of objects to post can be loaded through a top-level file entry:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">telescope</span><span class="p">:</span>
   <span class="n">file</span><span class="p">:</span> <span class="n">telescopes</span><span class="o">.</span><span class="n">yaml</span>
@@ -357,7 +357,7 @@ values.</p>
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=efa42bf3"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>

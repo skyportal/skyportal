@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Analyzing database queries" href="query_analysis.html" /><link rel="prev" title="Database Schema" href="database.html" />
 
-    <!-- Generated with Sphinx 7.2.6 and Furo 2024.01.29 -->
+    <!-- Generated with Sphinx 7.3.7 and Furo 2024.01.29 -->
         <title>Database migrations - skyportal 0.9.dev0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
@@ -217,9 +217,9 @@
         </div>
         <article role="main">
           <section id="database-migrations">
-<h1>Database migrations<a class="headerlink" href="#database-migrations" title="Link to this heading">#</a></h1>
+<h1>Database migrations<a class="headerlink" href="#database-migrations" title="Link to this heading">¶</a></h1>
 <section id="setting-up">
-<h2>Setting up<a class="headerlink" href="#setting-up" title="Link to this heading">#</a></h2>
+<h2>Setting up<a class="headerlink" href="#setting-up" title="Link to this heading">¶</a></h2>
 <p>If you are planning to use database migrations, you need to let
 Alembic know the current state of the database.</p>
 <p>Presuming you’ve just started off by running <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">load_demo_data</span></code>
@@ -231,7 +231,7 @@ tell Alembic that you are on the latest database schema:</p>
 </div>
 </section>
 <section id="generate-migration-script">
-<h2>Generate migration script<a class="headerlink" href="#generate-migration-script" title="Link to this heading">#</a></h2>
+<h2>Generate migration script<a class="headerlink" href="#generate-migration-script" title="Link to this heading">¶</a></h2>
 <p>To generate a migration script, after having stamped the latest main commit (see above),
 ensure that the app is stopped, check out the branch with the relevant DB schema
 changes, and run the following:</p>
@@ -241,7 +241,7 @@ changes, and run the following:</p>
 <p>Review the resulting migration file under <code class="docutils literal notranslate"><span class="pre">alembic/versions</span></code> at hand of the <a class="reference external" href="https://alembic.sqlalchemy.org/en/latest/autogenerate.html">documentation</a>.</p>
 </section>
 <section id="applying-migration-scripts">
-<h2>Applying migration scripts<a class="headerlink" href="#applying-migration-scripts" title="Link to this heading">#</a></h2>
+<h2>Applying migration scripts<a class="headerlink" href="#applying-migration-scripts" title="Link to this heading">¶</a></h2>
 <p>If the database has been stamped, as outlined above, the migration manager service
 will automatically apply any pending migration scripts upon starting the app.</p>
 <p>To manually apply migration scripts, after ensuring that the app is stopped, check
@@ -323,7 +323,7 @@ out the branch with pending migration scripts, and run the following to upgrade:
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=efa42bf3"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>

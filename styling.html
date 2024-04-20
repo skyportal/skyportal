@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Database Schema" href="database.html" /><link rel="prev" title="Adding a new type of Comment or Annotation" href="adding_comments_annotation_types.html" />
 
-    <!-- Generated with Sphinx 7.2.6 and Furo 2024.01.29 -->
+    <!-- Generated with Sphinx 7.3.7 and Furo 2024.01.29 -->
         <title>Styling components - skyportal 0.9.dev0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
@@ -217,7 +217,7 @@
         </div>
         <article role="main">
           <section id="styling-components">
-<h1>Styling components<a class="headerlink" href="#styling-components" title="Link to this heading">#</a></h1>
+<h1>Styling components<a class="headerlink" href="#styling-components" title="Link to this heading">¶</a></h1>
 <p>SkyPortal is built on top of <a class="reference external" href="https://mui.com/material-ui/getting-started/overview/">Material UI</a>
 (MUI).  We have evaluated several styling systems, including inline
 styles, CSS Modules, and Styled Components, and have settled on using
@@ -263,19 +263,19 @@ Sheets) and returns a CSS provider <a class="reference external" href="https://r
 <code class="docutils literal notranslate"><span class="pre">&amp;p</span></code> is a <code class="docutils literal notranslate"><span class="pre">p</span></code> element on <code class="docutils literal notranslate"><span class="pre">root</span></code> here.</p>
 <p>You can also <a class="reference external" href="https://mui.com/system/styles/basics/#adapting-based-on-props">parameterize <code class="docutils literal notranslate"><span class="pre">makeStyles</span></code></a>.</p>
 <section id="components">
-<h2>Components<a class="headerlink" href="#components" title="Link to this heading">#</a></h2>
+<h2>Components<a class="headerlink" href="#components" title="Link to this heading">¶</a></h2>
 <p>Please refer to the <a class="reference external" href="https://mui.com/material-ui/react-autocomplete/">MUI component
 docs</a> for available
 components and their props and CSS styles.</p>
 </section>
 <section id="buttons">
-<h2>Buttons<a class="headerlink" href="#buttons" title="Link to this heading">#</a></h2>
+<h2>Buttons<a class="headerlink" href="#buttons" title="Link to this heading">¶</a></h2>
 <p>Do not use the MUI Button component, instead use SkyPortal’s standardized Button component. Import as such (assuming you are editing a component in the <code class="docutils literal notranslate"><span class="pre">static/js/components</span></code> directory):</p>
 <div class="highlight-js notranslate"><div class="highlight"><pre><span></span><span class="k">import</span><span class="w"> </span><span class="nx">Button</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;./Button&#39;</span><span class="p">;</span>
 </pre></div>
 </div>
 <section id="usage">
-<h3>Usage<a class="headerlink" href="#usage" title="Link to this heading">#</a></h3>
+<h3>Usage<a class="headerlink" href="#usage" title="Link to this heading">¶</a></h3>
 <p>There are three accepted button types: primary, secondary, and a regular text button. Use primary buttons for actions such as saving information to the DB or submitting a form. Use secondary buttons and the regular/default button for other actions.</p>
 <p><img alt="buttons" src="_images/buttons.png" /></p>
 <p>Instead of passing <code class="docutils literal notranslate"><span class="pre">variant</span></code> and <code class="docutils literal notranslate"><span class="pre">color</span></code> props, pass in boolean props describing which button you want.</p>
@@ -315,7 +315,7 @@ components and their props and CSS styles.</p>
 </div>
 </section>
 <section id="icons">
-<h3>Icons<a class="headerlink" href="#icons" title="Link to this heading">#</a></h3>
+<h3>Icons<a class="headerlink" href="#icons" title="Link to this heading">¶</a></h3>
 <p>Use the <code class="docutils literal notranslate"><span class="pre">endIcon</span></code> prop for adding icons to buttons. (Do not use the <code class="docutils literal notranslate"><span class="pre">startIcon</span></code> prop.)</p>
 <div class="highlight-jsx notranslate"><div class="highlight"><pre><span></span><span class="k">import</span><span class="w"> </span><span class="nx">SearchIcon</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mui/icons-material/Search&quot;</span><span class="p">;</span>
 <span class="c1">// ...</span>
@@ -329,7 +329,7 @@ components and their props and CSS styles.</p>
 </div>
 </section>
 <section id="asynchronous-operations">
-<h3>Asynchronous Operations<a class="headerlink" href="#asynchronous-operations" title="Link to this heading">#</a></h3>
+<h3>Asynchronous Operations<a class="headerlink" href="#asynchronous-operations" title="Link to this heading">¶</a></h3>
 <p>Use the <code class="docutils literal notranslate"><span class="pre">async</span></code> and <code class="docutils literal notranslate"><span class="pre">loading</span></code> props to make buttons disabled while waiting for an asynchronous operation to complete. Async buttons will always have primary button styling.</p>
 <p><img alt="async button" src="_images/async_button.gif" /></p>
 <div class="highlight-jsx notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">loading</span><span class="p">,</span><span class="w"> </span><span class="nx">setLoading</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">)</span>
@@ -350,13 +350,13 @@ components and their props and CSS styles.</p>
 </section>
 </section>
 <section id="sizes">
-<h2>Sizes<a class="headerlink" href="#sizes" title="Link to this heading">#</a></h2>
+<h2>Sizes<a class="headerlink" href="#sizes" title="Link to this heading">¶</a></h2>
 <p>All sizes should be specified using <code class="docutils literal notranslate"><span class="pre">rem</span></code>, which stands for “root
 element”—i.e., <code class="docutils literal notranslate"><span class="pre">1.5rem</span></code> would be 1.5 times the size of the font-size
 specified in the root HTML element.</p>
 </section>
 <section id="style-props-on-box">
-<h2>Style props on Box<a class="headerlink" href="#style-props-on-box" title="Link to this heading">#</a></h2>
+<h2>Style props on Box<a class="headerlink" href="#style-props-on-box" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">makeStyles</span></code> is preferred in general, but for simple formatting you
 may use <a class="reference external" href="https://mui.com/system/basics/#all-inclusive">style
 props</a> on <code class="docutils literal notranslate"><span class="pre">Box</span></code>
@@ -367,7 +367,7 @@ containers:</p>
 <p>See also “Grid system” below.</p>
 </section>
 <section id="responsive-design">
-<h2>Responsive Design<a class="headerlink" href="#responsive-design" title="Link to this heading">#</a></h2>
+<h2>Responsive Design<a class="headerlink" href="#responsive-design" title="Link to this heading">¶</a></h2>
 <p>MUI uses
 <a class="reference external" href="https://mui.com/material-ui/customization/breakpoints/">breakpoints</a>
 as a convenient way of writing CSS media queries.</p>
@@ -399,7 +399,7 @@ and <code class="docutils literal notranslate"><span class="pre">between</span><
 <a class="reference external" href="https://mui.com/material-ui/react-use-media-query/"><code class="docutils literal notranslate"><span class="pre">useMediaQuery</span></code></a>
 hook.</p>
 <section id="grid-system">
-<h3>Grid system<a class="headerlink" href="#grid-system" title="Link to this heading">#</a></h3>
+<h3>Grid system<a class="headerlink" href="#grid-system" title="Link to this heading">¶</a></h3>
 <p>For positioning components on a page, MUI provides a <a class="reference external" href="https://mui.com/material-ui/react-grid/">12-column grid
 layout</a>.</p>
 <p>There are two <code class="docutils literal notranslate"><span class="pre">Grid</span></code> types: <code class="docutils literal notranslate"><span class="pre">container</span></code> (outer element) and <code class="docutils literal notranslate"><span class="pre">item</span></code>
@@ -437,7 +437,7 @@ can be specified.</p>
 </section>
 </section>
 <section id="do-s-and-don-ts">
-<h2>Do’s and don’ts<a class="headerlink" href="#do-s-and-don-ts" title="Link to this heading">#</a></h2>
+<h2>Do’s and don’ts<a class="headerlink" href="#do-s-and-don-ts" title="Link to this heading">¶</a></h2>
 <ul>
 <li><p>Do not use inline styles</p>
 <p>When a list of components are rendered with inline styles, you cannot
@@ -533,7 +533,7 @@ hunt down.</p>
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=efa42bf3"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>

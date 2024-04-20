@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="API" href="api.html" /><link rel="prev" title="Setup" href="setup.html" />
 
-    <!-- Generated with Sphinx 7.2.6 and Furo 2024.01.29 -->
+    <!-- Generated with Sphinx 7.3.7 and Furo 2024.01.29 -->
         <title>Usage - skyportal 0.9.dev0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
@@ -217,9 +217,9 @@
         </div>
         <article role="main">
           <section id="usage">
-<h1>Usage<a class="headerlink" href="#usage" title="Link to this heading">#</a></h1>
+<h1>Usage<a class="headerlink" href="#usage" title="Link to this heading">¶</a></h1>
 <section id="permissions">
-<h2>Permissions<a class="headerlink" href="#permissions" title="Link to this heading">#</a></h2>
+<h2>Permissions<a class="headerlink" href="#permissions" title="Link to this heading">¶</a></h2>
 <p>Access to resources in Skyportal is controlled in two ways:</p>
 <ul class="simple">
 <li><p><em>ACLs</em> control which actions a user is allowed to perform: create a new user, upload spectra, post comments, etc.</p></li>
@@ -234,22 +234,22 @@
 users the same subset of permissions.</p>
 </section>
 <section id="adding-roles-to-users">
-<h2>Adding roles to users<a class="headerlink" href="#adding-roles-to-users" title="Link to this heading">#</a></h2>
+<h2>Adding roles to users<a class="headerlink" href="#adding-roles-to-users" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>User permissions can be managed on the <code class="docutils literal notranslate"><span class="pre">/users/</span></code> page (click through from profile)</p></li>
 </ul>
 </section>
 <section id="adding-users-to-groups">
-<h2>Adding users to groups<a class="headerlink" href="#adding-users-to-groups" title="Link to this heading">#</a></h2>
+<h2>Adding users to groups<a class="headerlink" href="#adding-users-to-groups" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Groups membership can be managed on the <code class="docutils literal notranslate"><span class="pre">/groups/</span></code> page (click through from profile)</p></li>
 </ul>
 </section>
 <section id="managing-source-classifications">
-<h2>Managing source classifications<a class="headerlink" href="#managing-source-classifications" title="Link to this heading">#</a></h2>
+<h2>Managing source classifications<a class="headerlink" href="#managing-source-classifications" title="Link to this heading">¶</a></h2>
 <p>On the frontend, classifications can be managed from an individual source page or a group sources page.</p>
 <section id="on-a-source-page">
-<h3>On a source page:<a class="headerlink" href="#on-a-source-page" title="Link to this heading">#</a></h3>
+<h3>On a source page:<a class="headerlink" href="#on-a-source-page" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Scroll to Classifications, choose the desired group(s) for the classification from the Choose Group dropdown</p></li>
 <li><p>Select the desired taxonomy from the Taxonomy dropdown</p></li>
@@ -260,7 +260,7 @@ users the same subset of permissions.</p>
 </ul>
 </section>
 <section id="on-a-group-sources-page">
-<h3>On a group sources page:<a class="headerlink" href="#on-a-group-sources-page" title="Link to this heading">#</a></h3>
+<h3>On a group sources page:<a class="headerlink" href="#on-a-group-sources-page" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Click the dropdown arrow to the left of a source id</p></li>
 <li><p>Under Post Classifications, select a taxonomy from the dropdown</p></li>
@@ -271,7 +271,7 @@ users the same subset of permissions.</p>
 </ul>
 </section>
 <section id="programmatic-access">
-<h3>Programmatic access:<a class="headerlink" href="#programmatic-access" title="Link to this heading">#</a></h3>
+<h3>Programmatic access:<a class="headerlink" href="#programmatic-access" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The API allows classifications to be managed using HTTP requests (see <a class="reference external" href="https://skyportal.io/docs/api.html">https://skyportal.io/docs/api.html</a>).</p></li>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">GET</span></code> request allows existing classifications for a source with id <code class="docutils literal notranslate"><span class="pre">source_id</span></code> to be retrieved:</p></li>
@@ -320,7 +320,7 @@ users the same subset of permissions.</p>
 </section>
 </section>
 <section id="important-makefile-targets">
-<h2>Important Makefile targets<a class="headerlink" href="#important-makefile-targets" title="Link to this heading">#</a></h2>
+<h2>Important Makefile targets<a class="headerlink" href="#important-makefile-targets" title="Link to this heading">¶</a></h2>
 <p>Run <code class="docutils literal notranslate"><span class="pre">make</span></code> to get a list of Makefile targets.  Here are some commonly
 used ones:</p>
 <p>General:</p>
@@ -350,7 +350,7 @@ for the first time).</p></li>
 </ul>
 </section>
 <section id="code-formatting-linters">
-<h2>Code formatting / linters<a class="headerlink" href="#code-formatting-linters" title="Link to this heading">#</a></h2>
+<h2>Code formatting / linters<a class="headerlink" href="#code-formatting-linters" title="Link to this heading">¶</a></h2>
 <p>To set up <code class="docutils literal notranslate"><span class="pre">pre-commit</span></code> for automatically reformatting Python and JavaScript changes, run <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">pre-commit</span> <span class="pre">&amp;&amp;</span> <span class="pre">pre-commit</span> <span class="pre">install</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">pre-commit</span></code> is run each time a new change is committed. If an error can be fixed automatically (such as a spacing issue), the tool does that automatically, and you can re-attempt the commit. Otherwise, you may have to make the change manually.</p>
 </section>
@@ -435,7 +435,7 @@ for the first time).</p></li>
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=efa42bf3"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>

@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Adding a new type of Comment or Annotation" href="adding_comments_annotation_types.html" /><link rel="prev" title="How to Contribute" href="contributing.html" />
 
-    <!-- Generated with Sphinx 7.2.6 and Furo 2024.01.29 -->
+    <!-- Generated with Sphinx 7.3.7 and Furo 2024.01.29 -->
         <title>Adding new features - skyportal 0.9.dev0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
@@ -217,17 +217,17 @@
         </div>
         <article role="main">
           <section id="adding-new-features">
-<h1>Adding new features<a class="headerlink" href="#adding-new-features" title="Link to this heading">#</a></h1>
+<h1>Adding new features<a class="headerlink" href="#adding-new-features" title="Link to this heading">¶</a></h1>
 <p>This section will help you get started adding new features to SkyPortal. We’ll discuss the application structure and data flow, and introduce some of the main technologies that are employed, outlining their basic usage. We’ll dig into the code base by walking through the process of adding a simple new feature: a button that triggers an API call to the back-end, which generates a random string that is displayed in the browser.</p>
 <section id="front-end-overview-react-redux">
-<h2>Front-end overview: React &amp; Redux<a class="headerlink" href="#front-end-overview-react-redux" title="Link to this heading">#</a></h2>
+<h2>Front-end overview: React &amp; Redux<a class="headerlink" href="#front-end-overview-react-redux" title="Link to this heading">¶</a></h2>
 <p>The SkyPortal front-end uses React, a component-based UI library, in conjunction with Redux, a front-end state-management library. See the following links for introductory tutorials to these and related libraries, from which much of the below is drawn:</p>
 <p><a class="reference external" href="https://reactjs.org/tutorial/tutorial.html">ReactJS Tutorial</a></p>
 <p><a class="reference external" href="https://reactjs.org/docs/hooks-overview.html">ReactJS Hooks Overview</a></p>
 <p><a class="reference external" href="https://redux.js.org/basics/basic-tutorial/">Redux Tutorial</a></p>
 <p><a class="reference external" href="https://react-redux.js.org/next/api/hooks">React-Redux Hooks Intro</a></p>
 <section id="basic-react-concepts-elements-and-components">
-<h3>Basic React concepts: Elements and Components<a class="headerlink" href="#basic-react-concepts-elements-and-components" title="Link to this heading">#</a></h3>
+<h3>Basic React concepts: Elements and Components<a class="headerlink" href="#basic-react-concepts-elements-and-components" title="Link to this heading">¶</a></h3>
 <p>In React, <a class="reference external" href="https://reactjs.org/docs/rendering-elements.html"><em>elements</em></a> are the smallest building blocks of an app and correspond to DOM elements, but are simple JavaScript objects that are cheap to create. Elements describe what should be displayed in the browser. Here’s a simple example of an element (written with a <a class="reference external" href="https://reactjs.org/docs/introducing-jsx.html">JSX</a> tag):</p>
 <div class="highlight-jsx notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">element</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span><span class="nx">Hello</span><span class="p">,</span><span class="w"> </span><span class="nx">world</span><span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;;</span>
 </pre></div>
@@ -299,7 +299,7 @@
 <p>This renders a <code class="docutils literal notranslate"><span class="pre">div</span></code> containing our three welcome headers into the DOM element whose ID is “root”.</p>
 </section>
 <section id="component-state">
-<h3>Component state<a class="headerlink" href="#component-state" title="Link to this heading">#</a></h3>
+<h3>Component state<a class="headerlink" href="#component-state" title="Link to this heading">¶</a></h3>
 <p>Components can have their own internal state, independent of the props that are passed into them. To illustrate, let’s create a component that tracks how many times a button has been clicked, and displays the count.</p>
 <p>For functional components, we use React’s <a class="reference external" href="https://reactjs.org/docs/hooks-overview.html"><code class="docutils literal notranslate"><span class="pre">useState</span></code> hook</a> to create a state object and a function that updates it. Let’s first just define a component with some state that displays the value of that state:</p>
 <div class="highlight-jsx notranslate"><div class="highlight"><pre><span></span><span class="k">import</span><span class="w"> </span><span class="nx">React</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;react&#39;</span><span class="p">;</span>
@@ -346,7 +346,7 @@
 <p>Let’s look at what’s happening here: we’ve defined a new function in our component called <code class="docutils literal notranslate"><span class="pre">handleClick</span></code> that increments the value of our <code class="docutils literal notranslate"><span class="pre">count</span></code> state by 1, and have passed that as a callback to the button’s <code class="docutils literal notranslate"><span class="pre">onClick</span></code> event. Now every time we click the button, <code class="docutils literal notranslate"><span class="pre">handleClick</span></code> will be executed which will increment the value of <code class="docutils literal notranslate"><span class="pre">count</span></code> by 1. React tracks whenever a component’s props or state are updated, and updates the elements being rendered into the DOM accordingly. Great, our first interactive component with its own state is working! Now that we’ve learned some of the basics of React, let’s take a look at Redux, another front-end library employed in our application.</p>
 </section>
 <section id="redux-basics">
-<h3>Redux basics<a class="headerlink" href="#redux-basics" title="Link to this heading">#</a></h3>
+<h3>Redux basics<a class="headerlink" href="#redux-basics" title="Link to this heading">¶</a></h3>
 <p>We use <a class="reference external" href="https://redux.js.org/basics/basic-tutorial/">Redux</a> to store and manage global front-end state. The basic idea is simple: Redux provides a global <code class="docutils literal notranslate"><span class="pre">store</span></code> object that contains the application state and allows that state to be updated via the dispatching of <em>actions</em>. Actions are simply objects with a <code class="docutils literal notranslate"><span class="pre">type</span></code> attribute and may contain a payload, e.g. <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">type:</span> <span class="pre">'UPDATE_SOURCES',</span> <span class="pre">data:</span> <span class="pre">{</span> <span class="pre">sourceList:</span> <span class="pre">[{</span> <span class="pre">id:</span> <span class="pre">'14gqr',</span> <span class="pre">...</span> <span class="pre">},</span> <span class="pre">...]</span> <span class="pre">}}</span></code>. We dispatch actions via the Redux function <code class="docutils literal notranslate"><span class="pre">store.dispatch</span></code>, and these actions are handled by <em>reducers</em> which specify how the application state should be updated in response to actions dispatched to the store. Let’s take a look at an example of creating actions and reducers:</p>
 <div class="highlight-jsx notranslate"><div class="highlight"><pre><span></span><span class="c1">// Define our action type:</span>
 <span class="kd">const</span><span class="w"> </span><span class="nx">UPDATE_SOURCES</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;UPDATE_SOURCES&quot;</span><span class="p">;</span>
@@ -451,10 +451,10 @@
 </section>
 </section>
 <section id="adding-a-new-end-to-end-skyportal-feature">
-<h2>Adding a new end-to-end SkyPortal feature<a class="headerlink" href="#adding-a-new-end-to-end-skyportal-feature" title="Link to this heading">#</a></h2>
+<h2>Adding a new end-to-end SkyPortal feature<a class="headerlink" href="#adding-a-new-end-to-end-skyportal-feature" title="Link to this heading">¶</a></h2>
 <p>Now we’ll put all these pieces together and walk through adding a new “feature” to SkyPortal: a simple comments section.</p>
 <section id="front-end">
-<h3>Front-end<a class="headerlink" href="#front-end" title="Link to this heading">#</a></h3>
+<h3>Front-end<a class="headerlink" href="#front-end" title="Link to this heading">¶</a></h3>
 <p>We’ll start with defining our new <code class="docutils literal notranslate"><span class="pre">TestComments</span></code> component in a new file in the components directory (<code class="docutils literal notranslate"><span class="pre">static/js/components/TestComments.jsx</span></code>):</p>
 <div class="highlight-jsx notranslate"><div class="highlight"><pre><span></span><span class="k">import</span><span class="w"> </span><span class="nx">React</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="p">,</span><span class="w"> </span><span class="nx">useEffect</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;react&#39;</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useDispatch</span><span class="p">,</span><span class="w"> </span><span class="nx">useSelector</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;react-redux&#39;</span><span class="p">;</span>
@@ -582,7 +582,7 @@ fields, we use
 <p>Then, after running the app (instructions to follow), we can navigate to <code class="docutils literal notranslate"><span class="pre">&lt;base_url&gt;/test_comments</span></code> in the browser and see our new component rendered there.</p>
 </section>
 <section id="back-end">
-<h3>Back-end<a class="headerlink" href="#back-end" title="Link to this heading">#</a></h3>
+<h3>Back-end<a class="headerlink" href="#back-end" title="Link to this heading">¶</a></h3>
 <p>Now let’s take a look at what we’ll need to add to the back-end to make our new feature work.</p>
 <p>The SkyPortal back-end is built using <a class="reference external" href="https://www.tornadoweb.org/en/stable/">Tornado</a>, a Python web application framework that provides its own I/O event loop for non-blocking sockets, making it ideal for use with websockets (see below).</p>
 <p>To handle HTTP requests, we define <em>request handlers</em> that are mapped to API endpoints in the application’s configuration (in <code class="docutils literal notranslate"><span class="pre">skyportal/app_server.py</span></code> – see below). Each SkyPortal request handler is a subclass of
@@ -742,7 +742,7 @@ Handler<code class="docutils literal notranslate"><span class="pre">(defined</sp
 <p>Otherwise, you can simply run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test</span></code> to run the entire test suite.</p>
 </section>
 <section id="websockets">
-<h3>Websockets<a class="headerlink" href="#websockets" title="Link to this heading">#</a></h3>
+<h3>Websockets<a class="headerlink" href="#websockets" title="Link to this heading">¶</a></h3>
 <p>SkyPortal utilizes <a class="reference external" href="http://cesium-ml.org/blog/2016/07/13/a-pattern-for-websockets-in-python/">websockets</a> for pushing messages from the back-end to the front-end. Websockets can be used for telling the front-end that a long-running job has finished, that the DB state has changed and should be re-fetched, for displaying notifications, etc. In SkyPortal, websocket messages are pushed from within the body of request handlers, and always contain an <em>action type</em>. When a message is received by the front-end, its action type is used to determine how to handle the message, which typically involves dispatching actions that update the state. For example, when a new comment is added to a source, we want the comment to automatically appear in the comments section if a user is currently viewing that source. To do this, <code class="docutils literal notranslate"><span class="pre">CommentHandler.post</span></code> pushes a websocket message to all active sessions with an action type of “skyportal/REFRESH_SOURCE” and a payload containing the source’s internal key:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
 
@@ -813,7 +813,7 @@ Handler<code class="docutils literal notranslate"><span class="pre">(defined</sp
 </div>
 </section>
 <section id="file-creation-edit-bookkeeping">
-<h3>File creation/edit bookkeeping<a class="headerlink" href="#file-creation-edit-bookkeeping" title="Link to this heading">#</a></h3>
+<h3>File creation/edit bookkeeping<a class="headerlink" href="#file-creation-edit-bookkeeping" title="Link to this heading">¶</a></h3>
 <p>Let’s recap the files we’ve created or edited to implement this new feature:</p>
 <ul class="simple">
 <li><p>component definition file <code class="docutils literal notranslate"><span class="pre">static/js/components/TestComments.jsx</span></code> <em>(new)</em></p></li>
@@ -828,7 +828,7 @@ Handler<code class="docutils literal notranslate"><span class="pre">(defined</sp
 </section>
 </section>
 <section id="summary-of-front-end-data-flow">
-<h2>Summary of front-end data flow<a class="headerlink" href="#summary-of-front-end-data-flow" title="Link to this heading">#</a></h2>
+<h2>Summary of front-end data flow<a class="headerlink" href="#summary-of-front-end-data-flow" title="Link to this heading">¶</a></h2>
 <p>For a summary of the flow of data in the application’s front-end, see the following diagram:</p>
 <p><img alt="Frontend architecture" src="_images/frontend.png" /></p>
 <p>The global front-end application state is stored in the Redux store as a dictionary. This can only be updated by dispatching actions to the store, which are passed to reducers that determine how to update the application state based on the type and contents of the action. The React components describe the appearance and behavior of the UI components, and are connected to the store’s state and dispatch via the <code class="docutils literal notranslate"><span class="pre">useSelector</span></code> and <code class="docutils literal notranslate"><span class="pre">useDispatch</span></code> hooks provided by the <code class="docutils literal notranslate"><span class="pre">react-redux</span></code> library. Components are automatically re-rendered by React when any part of the state tree upon which they depend is updated. User interaction with these components (e.g. clicking a button) can dispatch action creators, which may make API calls and dispatch actions that will lead to the app state being updated. Messages dispatched from the back-end via websockets can also trigger actions that lead to the app state being updated.</p>
@@ -917,7 +917,7 @@ Handler<code class="docutils literal notranslate"><span class="pre">(defined</sp
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=efa42bf3"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>

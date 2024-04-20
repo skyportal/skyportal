@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="SkyPortal Extensions" href="extensions.html" /><link rel="prev" title="Analysis" href="analysis.html" />
 
-    <!-- Generated with Sphinx 7.2.6 and Furo 2024.01.29 -->
+    <!-- Generated with Sphinx 7.3.7 and Furo 2024.01.29 -->
         <title>Image Analysis - skyportal 0.9.dev0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
@@ -217,13 +217,13 @@
         </div>
         <article role="main">
           <section id="image-analysis">
-<h1>Image Analysis<a class="headerlink" href="#image-analysis" title="Link to this heading">#</a></h1>
+<h1>Image Analysis<a class="headerlink" href="#image-analysis" title="Link to this heading">¶</a></h1>
 <p>This feature allows users to upload FITS images from observations of a source, and then use STDPipe to <strong>extract the photometry from the image</strong>.
 As this feature requires additional system dependencies, we choose to make it optional.</p>
 <section id="installing-system-dependencies-required-by-stdpipe">
-<h2>Installing System Dependencies required by STDpipe<a class="headerlink" href="#installing-system-dependencies-required-by-stdpipe" title="Link to this heading">#</a></h2>
+<h2>Installing System Dependencies required by STDpipe<a class="headerlink" href="#installing-system-dependencies-required-by-stdpipe" title="Link to this heading">¶</a></h2>
 <section id="debian-based-linux-and-wsl">
-<h3>Debian-based Linux and WSL<a class="headerlink" href="#debian-based-linux-and-wsl" title="Link to this heading">#</a></h3>
+<h3>Debian-based Linux and WSL<a class="headerlink" href="#debian-based-linux-and-wsl" title="Link to this heading">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span> <span class="n">install</span> <span class="n">sextractor</span> <span class="n">scamp</span> <span class="n">psfex</span> <span class="n">swarp</span>
 </pre></div>
 </div>
@@ -234,7 +234,7 @@ As this feature requires additional system dependencies, we choose to make it op
 </div>
 </section>
 <section id="mac-osx">
-<h3>Mac OSX<a class="headerlink" href="#mac-osx" title="Link to this heading">#</a></h3>
+<h3>Mac OSX<a class="headerlink" href="#mac-osx" title="Link to this heading">¶</a></h3>
 <p>We can use Homebrew to install dependencies (Macports should also be possible in a similar fashion). We have written a short bash script that can be modified to build the dependencies:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>#!/bin/bash
 
@@ -288,7 +288,7 @@ make install;
 </section>
 </section>
 <section id="installing-stdpipe">
-<h2>Installing STDpipe<a class="headerlink" href="#installing-stdpipe" title="Link to this heading">#</a></h2>
+<h2>Installing STDpipe<a class="headerlink" href="#installing-stdpipe" title="Link to this heading">¶</a></h2>
 <p>As of right now, STDpipe is in development, and not available on pypi or conda yet.
 STDpipe is available at https://github.com/karpov-sv/stdpipe and is mirrored at https://gitlab.in2p3.fr/icare/stdpipe</p>
 <ol class="simple">
@@ -308,7 +308,7 @@ STDpipe is available at https://github.com/karpov-sv/stdpipe and is mirrored at 
 </div>
 </section>
 <section id="configuration-file">
-<h2>Configuration file<a class="headerlink" href="#configuration-file" title="Link to this heading">#</a></h2>
+<h2>Configuration file<a class="headerlink" href="#configuration-file" title="Link to this heading">¶</a></h2>
 <p>By default, the app allows a maximum request size of 10MB (from the client). This is not enough for someone to upload most .fits files (compressed or not).
 To increase the maximum request size, change the <code class="docutils literal notranslate"><span class="pre">max_body_size:</span> <span class="pre">10</span></code> parameter in the <code class="docutils literal notranslate"><span class="pre">config.yaml</span></code> file to a larger value, like <code class="docutils literal notranslate"><span class="pre">100</span></code> (in MB).</p>
 <p>Also, as mentioned earlier, you need to add <code class="docutils literal notranslate"><span class="pre">image_analysis:</span> </code> in the <code class="docutils literal notranslate"><span class="pre">config.yaml</span></code> file. By default, it is not present.
@@ -323,7 +323,7 @@ Later, this field of the config file will be used to configure the image analysi
 <p><strong>If you are deploying SkyPortal using Docker, don’t forget to add the same changes to the <code class="docutils literal notranslate"><span class="pre">docker.yaml</span></code> file as well.</strong></p>
 </section>
 <section id="deploy-using-docker">
-<h2>Deploy using Docker<a class="headerlink" href="#deploy-using-docker" title="Link to this heading">#</a></h2>
+<h2>Deploy using Docker<a class="headerlink" href="#deploy-using-docker" title="Link to this heading">¶</a></h2>
 <p>If you are deploying SkyPortal using Docker, you need to uncomment a few lines from the Dockerfile, which are commented out by default. These lines are here to install the system and python dependencies required by STDpipe.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">RUN</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">update</span> <span class="o">&amp;&amp;</span> \
     <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="o">-</span><span class="n">y</span> <span class="n">sextractor</span> <span class="n">scamp</span> <span class="n">psfex</span>
@@ -343,7 +343,7 @@ Later, this field of the config file will be used to configure the image analysi
 <p>Again, add the same lines mentioned in the Configuration section to the <code class="docutils literal notranslate"><span class="pre">docker.yaml</span></code> file.</p>
 </section>
 <section id="usage">
-<h2>Usage<a class="headerlink" href="#usage" title="Link to this heading">#</a></h2>
+<h2>Usage<a class="headerlink" href="#usage" title="Link to this heading">¶</a></h2>
 <p>Go to the page of a source, and click on the <code class="docutils literal notranslate"><span class="pre">Image</span> <span class="pre">Analysis</span></code> right button under the photometry plot. It will redirect you to the image analysis page.
 Then, fill in the fields required by the form, and upload the image. The operations performed by STDpipe are computation intensive, so it can take several minutes to extract the photometry from the image.</p>
 <p><strong>The image must be a compressed FITS file (.fits.fz). We recommend compressing it with funpack.</strong></p>
@@ -429,7 +429,7 @@ To see if STDpipe managed to extract the photometry from your image, you can sim
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=efa42bf3"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
     </body>
