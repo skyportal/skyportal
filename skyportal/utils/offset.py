@@ -90,7 +90,7 @@ class GaiaQuery:
             requests.head(
                 "http://" + str(g._Tap__connHandler.get_host_url()), timeout=5
             )
-            
+
             q = f"SELECT TOP 1 ra, dec from {self.main_db}.gaia_source"
             job = g.launch_job(q)
             _ = job.get_results()
