@@ -8,6 +8,7 @@ import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
+import CircularProgress from "@mui/material/CircularProgress";
 import * as publicSourcePageActions from "../../../ducks/public_pages/public_source_page";
 import Button from "../../Button";
 import {
@@ -38,6 +39,7 @@ const SourcePublish = ({ source, photometry = null }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const [accessibilityDialogOpen, setAccessibilityDialogOpen] = useState(false);
+  const [publishButton, setPublishButton] = useState("publish");
   const [accessibilityOptionsOpen, setAccessibilityOptionsOpen] =
     useState(false);
   const [accessibilityHistoryOpen, setAccessibilityHistoryOpen] =
@@ -112,12 +114,20 @@ const SourcePublish = ({ source, photometry = null }) => {
   };
 
   const publish = () => {
+    setPublishButton("loading");
     const payload = {
       public_data: publicData(),
     };
     dispatch(
       publicSourcePageActions.generatePublicSourcePage(source.id, payload),
-    );
+    ).then(() => {
+      setTimeout(() => {
+        setPublishButton("done");
+        setTimeout(() => {
+          setPublishButton("publish");
+        }, 4000);
+      }, 2000);
+    });
   };
 
   return (
@@ -145,13 +155,21 @@ const SourcePublish = ({ source, photometry = null }) => {
           </div>
           <div style={{ display: "flex", justifyContent: "center" }}>
             <Button
-              color="primary"
               variant="contained"
               size="big"
               onClick={publish}
-              style={{ marginBottom: "2rem" }}
+              style={{
+                marginBottom: "1rem",
+                backgroundColor: publishButton === "done" ? "green" : "",
+                color: "white",
+              }}
+              disabled={publishButton !== "publish"}
             >
-              Publish
+              {publishButton === "loading" ? (
+                <CircularProgress size={24} />
+              ) : (
+                publishButton
+              )}
             </Button>
           </div>
           <div>
