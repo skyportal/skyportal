@@ -1,3 +1,4 @@
+import datetime
 import json
 import re
 import time
@@ -1097,13 +1098,16 @@ def check_at_report(submission_id, tnsrobot, tns_headers):
 
     if r is None:
         raise TNSReportError("Error checking report, no response")
-    if r.status_code not in [200, 400]:
+    if r.status_code not in [200, 400, 404]:
         raise TNSReportError(f"Error checking report: {r.text}")
 
     try:
         response = serialize_requests_response(r)
     except Exception as e:
         raise TNSReportError(f"Error serializing response: {str(e)}")
+
+    if status_code == 404:
+        return None, response, "report not found"
 
     try:
         at_report = r.json().get('data', {}).get('feedback', {}).get('at_report', [])
@@ -1302,6 +1306,25 @@ def validate_submission_requests():
                         )
                     except Exception:
                         pass
+                elif err == 'report not found':
+                    # it can happen that even after sending a report to TNS and getting
+                    # a submission ID back, the report is not found in TNS... Probably,
+                    # TNS "lost" the report if we still get that error more than 1 minute
+                    # after the TNSRobotSubmission entry was last modified.
+                    #
+                    # So, if it has been less than one minute, we do nothing.
+                    # But otherwise, we mark the submission as pending again,
+                    # so that it can be retried.
+                    if (
+                        datetime.datetime.utcnow() - submission_request.modified
+                    ).total_seconds() > 60:
+                        submission_request.status = 'pending'
+                        submission_request.submission_id = None
+                        session.merge(submission_request)
+                        session.commit()
+                        log(
+                            f"AT report submission of {submission_request.obj_id} not found on TNS, retrying"
+                        )
                 elif err is not None and serialized_response is not None:
                     submission_request.status = f'error: {err}'
                     submission_request.response = serialized_response
