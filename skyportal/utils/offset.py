@@ -85,13 +85,24 @@ class GaiaQuery:
         """
         try:
             g = Gaia
+            # we verify with an HTTP request that the server is even accessible
+            # if not, should raise a ConnectionError or a ReadTimeout
+            r = requests.head(
+                "http://" + str(g._Tap__connHandler.get_host_url()), timeout=5
+            )
+            
             q = f"SELECT TOP 1 ra, dec from {self.main_db}.gaia_source"
             job = g.launch_job(q)
             _ = job.get_results()
             self.is_backup = False
             self.connection = g
             return True
-        except (HTTPError, ConnectionResetError):
+        except (
+            HTTPError,
+            ConnectionResetError,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ReadTimeout,
+        ):
             log("Warning: main Gaia TAP+ server failed")
             self.is_backup = True
         except Exception as e:  # noqa: E722
