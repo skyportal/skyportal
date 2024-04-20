@@ -87,7 +87,7 @@ class GaiaQuery:
             g = Gaia
             # we verify with an HTTP request that the server is even accessible
             # if not, should raise a ConnectionError or a ReadTimeout
-            r = requests.head(
+            requests.head(
                 "http://" + str(g._Tap__connHandler.get_host_url()), timeout=5
             )
             
