@@ -145,6 +145,7 @@ const SourcePublish = ({ source, photometry = null }) => {
       <Dialog
         open={accessibilityDialogOpen}
         onClose={() => setAccessibilityDialogOpen(false)}
+        PaperProps={{ style: { maxWidth: "700px" } }}
       >
         <DialogTitle>Accessibility information</DialogTitle>
         <DialogContent style={{ paddingBottom: "0.5rem" }}>
@@ -159,7 +160,7 @@ const SourcePublish = ({ source, photometry = null }) => {
               size="big"
               onClick={publish}
               style={{
-                marginBottom: "1rem",
+                margin: "1.5rem 0rem",
                 backgroundColor: publishButton === "done" ? "green" : "",
                 color: "white",
               }}
@@ -200,7 +201,9 @@ const SourcePublish = ({ source, photometry = null }) => {
               Version history
               {accessibilityHistoryOpen ? <ExpandLess /> : <ExpandMore />}
             </Button>
-            {accessibilityHistoryOpen && <SourcePublishHistory />}
+            {accessibilityHistoryOpen && (
+              <SourcePublishHistory source_id={source.id} />
+            )}
           </div>
         </DialogContent>
       </Dialog>

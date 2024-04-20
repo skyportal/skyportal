@@ -35,13 +35,6 @@ class PublicSourcePage(Base):
 
     id = sa.Column(sa.Integer, primary_key=True)
 
-    date_created = sa.Column(
-        sa.DateTime,
-        nullable=False,
-        server_default=sa.func.now(),
-        doc="UTC timestamp representing when this page was created.",
-    )
-
     source_id = sa.Column(sa.String, nullable=False, doc="ID of the source")
 
     data = deferred(

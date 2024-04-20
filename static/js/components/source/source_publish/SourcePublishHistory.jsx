@@ -1,5 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import makeStyles from "@mui/styles/makeStyles";
+import { useDispatch } from "react-redux";
+import PropTypes from "prop-types";
+import CircularProgress from "@mui/material/CircularProgress";
+import Link from "@mui/material/Link";
+import { fetchPublicSourcePages } from "../../../ducks/public_pages/public_source_page";
 
 const useStyles = makeStyles(() => ({
   versionHistory: {
@@ -10,30 +15,71 @@ const useStyles = makeStyles(() => ({
     display: "flex",
     padding: "0.25rem 0.5rem",
     justifyContent: "space-between",
+    alignItems: "center",
     borderRadius: "0.5rem",
     marginBottom: "0.5rem",
   },
 }));
 
-const SourcePublishHistory = () => {
+const SourcePublishHistory = ({ source_id }) => {
   const styles = useStyles();
-  // TODO: Add real data
-  const publicSourceHistory = [1, 2, 3];
+  const dispatch = useDispatch();
+  const [versions, setVersions] = useState([]);
+  const [isVersions, setIsVersions] = useState(true);
+
+  useEffect(() => {
+    dispatch(fetchPublicSourcePages(source_id, 10)).then((data) => {
+      setVersions(data.data);
+      setIsVersions(data.status === "success");
+    });
+  }, [dispatch, source_id]);
+
   return (
     <div className={styles.versionHistory}>
-      {publicSourceHistory.map((history) => (
-        // TODO add key
-        <div
-          className={styles.versionHistoryLine}
-          key={`version_history_${history}`}
-        >
-          <div>09/10/20</div>
-          <div>Lists</div>
-          <div>link</div>
+      {isVersions && versions?.length > 0 ? (
+        versions.map((obj) => {
+          const version = obj.PublicSourcePage;
+          return (
+            <div
+              className={styles.versionHistoryLine}
+              key={`version_${version.id}}`}
+            >
+              <b>{new Date(version.created_at).toLocaleString()}</b>
+              <div>
+                <div>
+                  Photometry: {version?.data?.photometry ? "yes" : "no"}
+                </div>
+                <div>
+                  classifications:{" "}
+                  {version?.data?.classifications ? "yes" : "no"}
+                </div>
+              </div>
+              <Link
+                href={`/public/sources/${source_id}`}
+                target="_blank"
+                rel="noreferrer"
+                underline="hover"
+              >
+                Link to this version
+              </Link>
+            </div>
+          );
+        })
+      ) : (
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          {isVersions ? (
+            <CircularProgress size={24} />
+          ) : (
+            "No public page available!"
+          )}
         </div>
-      ))}
+      )}
     </div>
   );
+};
+
+SourcePublishHistory.propTypes = {
+  source_id: PropTypes.string.isRequired,
 };
 
 export default SourcePublishHistory;

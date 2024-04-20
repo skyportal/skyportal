@@ -69,11 +69,11 @@ class PublicSourcePageHandler(BaseHandler):
             return self.success({"Page id": public_source_page.id})
 
     @auth_or_token
-    def get(self, source_id):
+    def get(self, source_id, nb_results=None):
         """
         ---
           description:
-            Retrieve the most recent public source page for a given source
+            Retrieve a certain number of public pages for a given source from the most recent to the oldest
           tags:
             - public_source_page
           parameters:
@@ -83,6 +83,12 @@ class PublicSourcePageHandler(BaseHandler):
                 type: string
                 required: true
                 description: The ID of the source for which to retrieve the public page
+            - in: query
+              name: nb_results
+              schema:
+                type: integer
+                required: false
+                description: The number of public pages to return
           responses:
             200:
               content:
@@ -105,12 +111,14 @@ class PublicSourcePageHandler(BaseHandler):
                 .where(
                     PublicSourcePage.source_id == source_id, PublicSourcePage.is_public
                 )
-                .order_by(PublicSourcePage.date_created.desc())
+                .order_by(PublicSourcePage.created_at.desc())
             )
-            public_source_page = session.scalars(stmt).first()
-            if public_source_page is None:
+            if nb_results is not None:
+                stmt = stmt.limit(nb_results)
+            public_source_pages = session.execute(stmt).all()
+            if public_source_pages is None or public_source_pages == []:
                 return self.error("This source does not have a public page", status=404)
-            return self.success(data=public_source_page)
+            return self.success(data=public_source_pages)
 
     @auth_or_token
     def delete(self, page_id):
