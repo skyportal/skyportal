@@ -143,9 +143,17 @@ const SourcePublish = ({ source, photometry = null }) => {
             page. This information will be available to everyone on the
             internet. Are you sure you want to do this ?
           </div>
-          <Button onClick={publish} color="primary">
-            Publish
-          </Button>
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <Button
+              color="primary"
+              variant="contained"
+              size="big"
+              onClick={publish}
+              style={{ marginBottom: "2rem" }}
+            >
+              Publish
+            </Button>
+          </div>
           <div>
             <Button
               className={styles.expandButton}
