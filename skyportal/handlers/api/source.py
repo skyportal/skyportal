@@ -12,7 +12,6 @@ import arrow
 import astropy
 import astropy.units as u
 import asyncio
-from baselayer.baselayer_template_app.baselayer.app.models import session_context_id
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
 import matplotlib.pyplot as plt
@@ -43,6 +42,7 @@ from twilio.base.exceptions import TwilioException
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
+from baselayer.app.models import session_context_id
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
