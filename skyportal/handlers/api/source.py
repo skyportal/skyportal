@@ -4,12 +4,15 @@ import io
 import operator  # noqa: F401
 import time
 import traceback
+import uuid
 from json.decoder import JSONDecodeError
 
 import re
 import arrow
 import astropy
 import astropy.units as u
+import asyncio
+from baselayer.baselayer_template_app.baselayer.app.models import session_context_id
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
 import matplotlib.pyplot as plt
@@ -44,6 +47,7 @@ from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
 from ...models import (
+    DBSession,
     Allocation,
     Annotation,
     Candidate,
@@ -112,6 +116,48 @@ log = make_log('api/source')
 MAX_LOCALIZATION_SOURCES = 50000
 
 Session = scoped_session(sessionmaker())
+
+
+def run_async(func, *args, **kwargs):
+    """Run any method using the database asynchronously, in its own session scope
+
+    Parameters
+    ----------
+    func: function
+        The function to call in its own async scope
+    args: list
+        Arguments passed to the method, in order
+    kwargs: dict
+        kwargs pased to the method
+    """
+
+    # run a function asynchronously
+    # defining a wrapper function to set the session context id
+    # this way the DBSession context is unique to each async function call
+    # avoiding conflicts between different async functions, and the main thread
+    def wrapper():
+        session_context_id.set(str(uuid.uuid4()))
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            log(f"Error running async function {func.__name__}: {e}")
+
+    event_loop = asyncio.get_event_loop()
+    event_loop.run_in_executor(None, wrapper)
+
+
+def remove_obj_thumbnails(obj_id):
+    log("removing existing public_url thumbnails for obj_id", obj_id)
+    with DBSession() as session:
+        existing_thumbnails = session.scalars(
+            sa.select(Thumbnail).where(
+                Thumbnail.obj_id == obj_id,
+                Thumbnail.type.in_(['ps1', 'sdss', 'ls']),
+            )
+        )
+        for thumbnail in existing_thumbnails:
+            session.delete(thumbnail)
+        session.commit()
 
 
 def check_if_obj_has_photometry(obj_id, user, session):
@@ -3197,17 +3243,7 @@ class SourceHandler(BaseHandler):
                     np.isclose(data.get('ra'), source.ra)
                     and np.isclose(data.get('dec'), source.dec)
                 ):
-                    # if the position of the object is updated, delete the old thumbnails (sdss, ls, ps1)
-                    # the thumbnails queue will regenerate new thumbnails for that object
-                    existing_thumbnails = session.scalars(
-                        sa.select(Thumbnail).where(
-                            Thumbnail.obj_id == obj_id,
-                            Thumbnail.type.in_(['ps1', 'sdss', 'ls']),
-                        )
-                    )
-                    for thumbnail in existing_thumbnails:
-                        session.delete(thumbnail)
-                    session.commit()
+                    run_async(remove_obj_thumbnails, obj_id)
 
             schema = Obj.__schema__()
             try:
@@ -3228,7 +3264,7 @@ class SourceHandler(BaseHandler):
                 payload={"obj_key": obj.internal_key},
             )
 
-            return self.success()
+        return self.success()
 
     @permissions(['Manage sources'])
     def delete(self, obj_id, group_id):
