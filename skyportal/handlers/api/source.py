@@ -131,10 +131,6 @@ def run_async(func, *args, **kwargs):
         kwargs pased to the method
     """
 
-    # run a function asynchronously
-    # defining a wrapper function to set the session context id
-    # this way the DBSession context is unique to each async function call
-    # avoiding conflicts between different async functions, and the main thread
     def wrapper():
         session_context_id.set(str(uuid.uuid4()))
         try:
