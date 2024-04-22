@@ -3196,6 +3196,7 @@ class SourceHandler(BaseHandler):
         with self.Session() as session:
             # verify that there are no candidates for this object,
             # in which case we do not allow updating the position
+            updated_coordinates = False
             if data.get('ra', None) is not None or data.get('dec', None) is not None:
                 existing_candidates = session.scalars(
                     sa.select(Candidate).where(Candidate.obj_id == obj_id)
@@ -3214,6 +3215,7 @@ class SourceHandler(BaseHandler):
                     and np.isclose(data.get('dec'), source.dec)
                 ):
                     run_async(remove_obj_thumbnails, obj_id)
+                    updated_coordinates = True
 
             schema = Obj.__schema__()
             try:
@@ -3233,6 +3235,12 @@ class SourceHandler(BaseHandler):
                 action="skyportal/REFRESH_SOURCE",
                 payload={"obj_key": obj.internal_key},
             )
+
+            if updated_coordinates:
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE_POSITION",
+                    payload={"obj_key": obj.internal_key},
+                )
 
         return self.success()
 
