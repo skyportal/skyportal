@@ -4,14 +4,12 @@ import io
 import operator  # noqa: F401
 import time
 import traceback
-import uuid
 from json.decoder import JSONDecodeError
 
 import re
 import arrow
 import astropy
 import astropy.units as u
-import asyncio
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
 import matplotlib.pyplot as plt
@@ -42,10 +40,10 @@ from twilio.base.exceptions import TwilioException
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.app.models import session_context_id
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
+from ...utils.asynchronous import run_async
 from ...models import (
     DBSession,
     Allocation,
@@ -118,32 +116,8 @@ MAX_LOCALIZATION_SOURCES = 50000
 Session = scoped_session(sessionmaker())
 
 
-def run_async(func, *args, **kwargs):
-    """Run any method using the database asynchronously, in its own session scope
-
-    Parameters
-    ----------
-    func: function
-        The function to call in its own async scope
-    args: list
-        Arguments passed to the method, in order
-    kwargs: dict
-        kwargs pased to the method
-    """
-
-    def wrapper():
-        session_context_id.set(str(uuid.uuid4()))
-        try:
-            func(*args, **kwargs)
-        except Exception as e:
-            log(f"Error running async function {func.__name__}: {e}")
-
-    event_loop = asyncio.get_event_loop()
-    event_loop.run_in_executor(None, wrapper)
-
-
 def remove_obj_thumbnails(obj_id):
-    log("removing existing public_url thumbnails for obj_id", obj_id)
+    log(f"removing existing public_url thumbnails for {obj_id}")
     with DBSession() as session:
         existing_thumbnails = session.scalars(
             sa.select(Thumbnail).where(
