@@ -1060,7 +1060,7 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                     observation_plan_id=event_observation_plan.id,
                     overhead_per_exposure=planned_obs['overhead_per_exposure'],
                 )
-            planned_observations.append(planned_observation)
+                planned_observations.append(planned_observation)
 
             session.add_all(planned_observations)
             session.commit()
