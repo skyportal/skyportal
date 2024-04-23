@@ -101,6 +101,7 @@ export function fetchGcnEventSources(dateobs, filterParams = {}) {
 
   filterParams.includeSourcesInGcn = true;
   filterParams.includeGeoJSON = true;
+  console.log("filterParams", filterParams);
   return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams);
 }
 

@@ -816,6 +816,11 @@ const GcnSelectionForm = ({ dateobs }) => {
         title: "Exclude forced photometry",
         default: true,
       },
+      requireDetections: {
+        type: "boolean",
+        title: "Require detections",
+        default: true,
+      },
       queryList: {
         type: "array",
         items: {
@@ -856,8 +861,9 @@ const GcnSelectionForm = ({ dateobs }) => {
         maxDistance: 4,
       },
       {
-        localizationRejectSources: 6,
-        excludeForcedPhotometry: 6,
+        localizationRejectSources: 4,
+        excludeForcedPhotometry: 4,
+        requireDetections: 4,
       },
       {
         queryList: 6,
