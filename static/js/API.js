@@ -71,7 +71,6 @@ function API(endpoint, actionType, method = "GET", body = {}, otherArgs = {}) {
 
 export const filterOutEmptyValues = (params, removeEmptyArrays = true) => {
   const filteredParams = {};
-  console.log("params", params);
   // Filter out empty fields from an object (form data)
   Object.keys(params).forEach((key) => {
     // Empty array ([]) counts as true, so specifically test for it
