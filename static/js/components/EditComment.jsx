@@ -102,6 +102,7 @@ const EditComment = ({
               editComment={editComment}
               commentText={commentText}
               attachmentName={attachmentName}
+              closeDialog={closeDialog}
             />
           </DialogContent>
           <DialogActions>
