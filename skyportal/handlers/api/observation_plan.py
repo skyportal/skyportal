@@ -1059,8 +1059,6 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                         f'No field for instrument with ID {instrument.id} available with ID {planned_obs["field_id"]}'
                     )
 
-                print(field)
-
                 planned_observation = PlannedObservation(
                     obstime=tt.datetime,
                     dateobs=event.dateobs,
