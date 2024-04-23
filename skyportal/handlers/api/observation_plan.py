@@ -1051,7 +1051,7 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                 planned_observation = PlannedObservation(
                     obstime=tt.datetime,
                     dateobs=event.dateobs,
-                    field_id=planned_obs['field_id'],
+                    field_id=planned_obs['field_db_id'],
                     exposure_time=planned_obs['exposure_time'],
                     weight=planned_obs['weight'],
                     filt=planned_obs['filt'],
