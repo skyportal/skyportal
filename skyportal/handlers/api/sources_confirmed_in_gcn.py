@@ -6,7 +6,8 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 from ..base import BaseHandler
-from .source import get_sources, MAX_SOURCES_PER_PAGE
+from .source import MAX_SOURCES_PER_PAGE
+from .sources import get_sources
 
 from ...models import (
     GcnEvent,
