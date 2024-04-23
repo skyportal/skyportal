@@ -6,8 +6,6 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 from ..base import BaseHandler
-from .source import MAX_SOURCES_PER_PAGE
-from .sources import get_sources
 
 from ...models import (
     GcnEvent,
@@ -326,24 +324,6 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                sources = await get_sources(
-                    user_id=self.associated_user_object.id,
-                    session=session,
-                    first_detected_date=start_date,
-                    last_detected_date=end_date,
-                    localization_dateobs=dateobs,
-                    localization_name=localization_name,
-                    localization_cumprob=localization_cumprob,
-                    page_number=1,
-                    num_per_page=MAX_SOURCES_PER_PAGE,
-                    sourceID=source_id,
-                )
-
-                sources = sources['sources']
-
-                if len(sources) == 0:
-                    return self.error("No sources found, can't confirm/reject")
-
                 stmt = Localization.select(session.user_or_token).where(
                     Localization.localization_name == localization_name,
                     Localization.dateobs == dateobs,
