@@ -956,9 +956,6 @@ class FollowupRequestHandler(BaseHandler):
                 )
             followup_requests = session.scalars(followup_requests).unique().all()
 
-            for req in followup_requests:
-                print(req.to_dict()["payload"])
-
             info = {
                 "followup_requests": [req.to_dict() for req in followup_requests],
                 "totalMatches": int(total_matches),
