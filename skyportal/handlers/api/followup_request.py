@@ -693,6 +693,14 @@ class FollowupRequestHandler(BaseHandler):
             description: |
               String to match status of request against
           - in: query
+            name: priorityThreshold
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Threshold on request priority to include. If provided, filter by
+              payload.priority >= priorityThreshold
+          - in: query
             name: requesters
             nullable: true
             schema:
@@ -1400,6 +1408,7 @@ def observation_schedule(
     instrument,
     observation_start=Time.now(),
     observation_end=Time.now() + TimeDelta(12 * u.hour),
+    time_resolution=20 * u.second,
     standards=pd.DataFrame(),
     output_format='csv',
     figsize=(10, 8),
@@ -1415,6 +1424,8 @@ def observation_schedule(
         Start time for the observations
     observation_end : astropy.time.Time
         End time for the observations
+    time_resolution : astropy.units.quantity.Quantity
+        Time resolution to compute schedule for
     standards : pandas.DataFrame
         Standard stars for inclusion in the observation plan.
         Columns should include name, ra_float, and dec_float.
@@ -1617,7 +1628,7 @@ def observation_schedule(
         constraints=global_constraints,
         observer=observer,
         transitioner=transitioner,
-        time_resolution=60 * u.second,
+        time_resolution=time_resolution,
     )
     # Initialize a Schedule object, to contain the new schedule
     priority_schedule = Schedule(observation_start, observation_end)
@@ -1753,6 +1764,21 @@ class FollowupRequestSchedulerHandler(BaseHandler):
           description: |
             String to match status of request against
         - in: query
+          name: priorityThreshold
+          nullable: true
+          schema:
+            type: number
+          description: |
+            Threshold on request priority to include. If provided, filter by
+            payload.priority >= priorityThreshold
+        - in: query
+          name: timeResolution
+          nullable: true
+          schema:
+            type: number
+          description: |
+            Time resolution for scheduler creation in seconds. Defaults to 20.
+        - in: query
           name: observationStartDate
           nullable: true
           schema:
@@ -1846,6 +1872,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
             include_standards = self.get_query_argument('includeStandards', False)
             standards_only = self.get_query_argument('standardsOnly', False)
             magnitude_range_str = self.get_query_argument('magnitudeRange', None)
+            time_resolution = self.get_query_argument('timeResolution', 20)
             if magnitude_range_str is None:
                 magnitude_range = (np.inf, -np.inf)
             else:
@@ -1946,6 +1973,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                 instrument,
                 observation_start=observation_start,
                 observation_end=observation_end,
+                time_resolution=time_resolution * u.s,
                 standards=standards,
                 output_format=output_format,
                 figsize=(10, 8),
