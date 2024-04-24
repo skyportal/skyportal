@@ -77,11 +77,12 @@ export const filterOutEmptyValues = (params, removeEmptyArrays = true) => {
     // Also, the number 0 may be a valid input but evaluate to false,
     // so just let numbers through
     if (
-      !(
+      (!(
         Array.isArray(params[key]) &&
         params[key].length === 0 &&
         removeEmptyArrays
-      ) ||
+      ) &&
+        (params[key] || params[key] === false)) ||
       typeof key === "number"
     ) {
       filteredParams[key] = params[key];
