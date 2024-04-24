@@ -512,8 +512,6 @@ const FilterCandidateList = ({
     // Save form-specific data, formatted for the API query
     await dispatch(candidatesActions.setFilterFormData(data));
 
-    console.log(fetchParams);
-
     await dispatch(
       candidatesActions.fetchCandidates({
         pageNumber: 1,
