@@ -796,16 +796,20 @@ const GcnSelectionForm = ({ dateobs }) => {
         type: "number",
         title: "Min Number of Detections/Observations",
         default: 2,
+        minimum: 1,
       },
       localizationCumprob: {
         type: "number",
         title: "Cumulative Probability",
         default: 0.95,
+        minimum: 0,
+        maximum: 1,
       },
       maxDistance: {
         type: "number",
         title: "Maximum Distance [Mpc]",
         default: 150,
+        minimum: 0,
       },
       localizationRejectSources: {
         type: "boolean",
@@ -814,7 +818,7 @@ const GcnSelectionForm = ({ dateobs }) => {
       excludeForcedPhotometry: {
         type: "boolean",
         title: "Exclude forced photometry",
-        default: true,
+        default: false,
       },
       requireDetections: {
         type: "boolean",
@@ -861,9 +865,9 @@ const GcnSelectionForm = ({ dateobs }) => {
         maxDistance: 4,
       },
       {
-        localizationRejectSources: 4,
-        excludeForcedPhotometry: 4,
         requireDetections: 4,
+        excludeForcedPhotometry: 4,
+        localizationRejectSources: 4,
       },
       {
         queryList: 6,

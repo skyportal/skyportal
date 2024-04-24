@@ -470,6 +470,9 @@ const FilterCandidateList = ({
       if (formData.numberDetections) {
         data.numberDetections = formData.numberDetections;
       }
+      if (formData.requireDetections === false) {
+        data.requireDetections = false;
+      }
       if (formData.excludeForcedPhotometry) {
         data.excludeForcedPhotometry = formData.excludeForcedPhotometry;
       }
@@ -508,6 +511,8 @@ const FilterCandidateList = ({
 
     // Save form-specific data, formatted for the API query
     await dispatch(candidatesActions.setFilterFormData(data));
+
+    console.log(fetchParams);
 
     await dispatch(
       candidatesActions.fetchCandidates({
@@ -1018,7 +1023,7 @@ const FilterCandidateList = ({
                         id="minNbDect"
                         label="Minimum Number of Detections"
                         type="number"
-                        inputProps={{ step: 1, min: 0 }}
+                        inputProps={{ step: 1, min: 1 }}
                         onChange={(event) => onChange(event.target.value)}
                         defaultValue={1}
                       />
@@ -1027,24 +1032,46 @@ const FilterCandidateList = ({
                     control={control}
                   />
                 </div>
-                <FormControlLabel
-                  control={
-                    <Controller
-                      render={({ field: { onChange, value } }) => (
-                        <Checkbox
-                          onChange={(event) => {
-                            onChange(event.target.checked);
-                          }}
-                          checked={value}
-                        />
-                      )}
-                      name="excludeForcedPhotometry"
-                      control={control}
-                      defaultValue
-                    />
-                  }
-                  label="Ignore Forced Photometry"
-                />
+                <Tooltip title="If unchecked, ignore all constraints on detections.">
+                  <FormControlLabel
+                    control={
+                      <Controller
+                        render={({ field: { onChange, value } }) => (
+                          <Checkbox
+                            onChange={(event) => {
+                              onChange(event.target.checked);
+                            }}
+                            checked={value}
+                          />
+                        )}
+                        name="requireDetections"
+                        control={control}
+                        defaultValue
+                      />
+                    }
+                    label="Require detections"
+                  />
+                </Tooltip>
+                <Tooltip title="If checked, do not account for forced photometry when applying detections constraints">
+                  <FormControlLabel
+                    control={
+                      <Controller
+                        render={({ field: { onChange, value } }) => (
+                          <Checkbox
+                            onChange={(event) => {
+                              onChange(event.target.checked);
+                            }}
+                            checked={value}
+                          />
+                        )}
+                        name="excludeForcedPhotometry"
+                        control={control}
+                        defaultValue={false}
+                      />
+                    }
+                    label="Ignore Forced Photometry"
+                  />
+                </Tooltip>
               </div>
               <div
                 className={classes.formRow}

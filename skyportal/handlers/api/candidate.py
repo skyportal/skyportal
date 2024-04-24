@@ -724,6 +724,7 @@ class CandidateHandler(BaseHandler):
         first_detected_date = self.get_query_argument('firstDetectionAfter', None)
         last_detected_date = self.get_query_argument('lastDetectionBefore', None)
         number_of_detections = self.get_query_argument("numberDetections", None)
+        require_detections = self.get_query_argument("requireDetections", True)
         exclude_forced_photometry = self.get_query_argument(
             "excludeForcedPhotometry", False
         )
@@ -731,7 +732,11 @@ class CandidateHandler(BaseHandler):
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
 
-        if localization_dateobs is not None or localization_name is not None:
+        if (
+            localization_dateobs is not None
+            or localization_name is not None
+            and require_detections
+        ):
             if first_detected_date is None or last_detected_date is None:
                 return self.error(
                     'must specify startDate and endDate when filtering by localizationDateobs or localizationName'
@@ -1166,71 +1171,73 @@ class CandidateHandler(BaseHandler):
                     obj_photometry_annotations_subquery,
                     Obj.id == obj_photometry_annotations_subquery.c.id,
                 )
-
-            if first_detected_date is not None:
-                if exclude_forced_photometry:
-                    photstat_subquery = (
-                        PhotStat.select(session.user_or_token)
-                        .where(
-                            PhotStat.first_detected_no_forced_phot_mjd
-                            >= Time(first_detected_date).mjd
+            if require_detections:
+                if first_detected_date is not None:
+                    if exclude_forced_photometry:
+                        photstat_subquery = (
+                            PhotStat.select(session.user_or_token)
+                            .where(
+                                PhotStat.first_detected_no_forced_phot_mjd
+                                >= Time(first_detected_date).mjd
+                            )
+                            .subquery()
                         )
-                        .subquery()
-                    )
-                else:
-                    photstat_subquery = (
-                        PhotStat.select(session.user_or_token)
-                        .where(
-                            PhotStat.first_detected_mjd >= Time(first_detected_date).mjd
+                    else:
+                        photstat_subquery = (
+                            PhotStat.select(session.user_or_token)
+                            .where(
+                                PhotStat.first_detected_mjd
+                                >= Time(first_detected_date).mjd
+                            )
+                            .subquery()
                         )
-                        .subquery()
+                    q = q.join(
+                        photstat_subquery,
+                        Obj.id == photstat_subquery.c.obj_id,
                     )
-                q = q.join(
-                    photstat_subquery,
-                    Obj.id == photstat_subquery.c.obj_id,
-                )
-            if last_detected_date is not None:
-                if exclude_forced_photometry:
-                    photstat_subquery = (
-                        PhotStat.select(session.user_or_token)
-                        .where(
-                            PhotStat.last_detected_no_forced_phot_mjd
-                            <= Time(last_detected_date).mjd
+                if last_detected_date is not None:
+                    if exclude_forced_photometry:
+                        photstat_subquery = (
+                            PhotStat.select(session.user_or_token)
+                            .where(
+                                PhotStat.last_detected_no_forced_phot_mjd
+                                <= Time(last_detected_date).mjd
+                            )
+                            .subquery()
                         )
-                        .subquery()
-                    )
-                else:
-                    photstat_subquery = (
-                        PhotStat.select(session.user_or_token)
-                        .where(
-                            PhotStat.last_detected_mjd <= Time(last_detected_date).mjd
+                    else:
+                        photstat_subquery = (
+                            PhotStat.select(session.user_or_token)
+                            .where(
+                                PhotStat.last_detected_mjd
+                                <= Time(last_detected_date).mjd
+                            )
+                            .subquery()
                         )
-                        .subquery()
+                    q = q.join(
+                        photstat_subquery,
+                        Obj.id == photstat_subquery.c.obj_id,
                     )
-                q = q.join(
-                    photstat_subquery,
-                    Obj.id == photstat_subquery.c.obj_id,
-                )
-            if number_of_detections and isinstance(number_of_detections, int):
-                if exclude_forced_photometry:
-                    photstat_subquery = (
-                        PhotStat.select(session.user_or_token)
-                        .where(
-                            PhotStat.num_det_no_forced_phot_global
-                            >= number_of_detections
+                if number_of_detections and isinstance(number_of_detections, int):
+                    if exclude_forced_photometry:
+                        photstat_subquery = (
+                            PhotStat.select(session.user_or_token)
+                            .where(
+                                PhotStat.num_det_no_forced_phot_global
+                                >= number_of_detections
+                            )
+                            .subquery()
                         )
-                        .subquery()
+                    else:
+                        photstat_subquery = (
+                            PhotStat.select(session.user_or_token)
+                            .where(PhotStat.num_det_global >= number_of_detections)
+                            .subquery()
+                        )
+                    q = q.join(
+                        photstat_subquery,
+                        Obj.id == photstat_subquery.c.obj_id,
                     )
-                else:
-                    photstat_subquery = (
-                        PhotStat.select(session.user_or_token)
-                        .where(PhotStat.num_det_global >= number_of_detections)
-                        .subquery()
-                    )
-                q = q.join(
-                    photstat_subquery,
-                    Obj.id == photstat_subquery.c.obj_id,
-                )
             if localization_dateobs is not None:
                 if localization_name is None:
                     localization = session.scalars(
