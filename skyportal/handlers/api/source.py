@@ -105,7 +105,7 @@ from .sources import get_sources as get_sources_experimental
 
 DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
-MAX_NUM_DAYS_USING_LOCALIZATION = 31
+MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 _, cfg = load_env()
 log = make_log('api/source')
 
@@ -2284,6 +2284,13 @@ class SourceHandler(BaseHandler):
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
               PhotStat.last_detected_mjd <= endDate
           - in: query
+            name: requireDetections
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Require startDate, endDate, and numberDetections to be set when querying sources in a localization. Defaults to True.
+          - in: query
             name: listName
             nullable: true
             schema:
@@ -2892,7 +2899,11 @@ class SourceHandler(BaseHandler):
         has_spectrum_before = validated['has_spectrum_before']
         created_or_modified_after = validated['created_or_modified_after']
 
-        if localization_dateobs is not None or localization_name is not None:
+        if (
+            localization_dateobs is not None
+            or localization_name is not None
+            and require_detections
+        ):
             if first_detected_date is None or last_detected_date is None:
                 return self.error(
                     'must specify startDate and endDate when filtering by localizationDateobs or localizationName'

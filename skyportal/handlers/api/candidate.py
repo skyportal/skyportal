@@ -49,7 +49,7 @@ from ...models import (
 from ...utils.cache import Cache, array_to_bytes
 from ...utils.sizeof import sizeof, SIZE_WARNING_THRESHOLD
 
-MAX_NUM_DAYS_USING_LOCALIZATION = 31
+MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 
 _, cfg = load_env()
 cache_dir = "cache/candidates_queries"
@@ -497,6 +497,37 @@ class CandidateHandler(BaseHandler):
               type: number
             description: |
               Cumulative probability up to which to include sources
+          - in: query
+            name: firstDetectionAfter
+            schema:
+              type: string
+            description: |
+              Only return sources that were first detected after this UTC datetime.
+          - in: query
+            name: lastDetectionBefore
+            schema:
+              type: string
+            description: |
+              Only return sources that were last detected before this UTC datetime.
+          - in: query
+            name: numberDetections
+            schema:
+              type: integer
+            description: |
+              Only return sources that have been detected at least this many times.
+          - in: query
+            name: requireDetections
+            schema:
+              type: boolean
+            description: |
+              Require firstDetectionAfter, lastDetectionBefore, and numberDetections to be set when querying candidates in a localization. Defaults to True.
+          - in: query
+            name: ignoreForcedPhotometry
+            schema:
+              type: boolean
+            description: |
+              If true, ignore forced photometry when applying firstDetectionAfter, lastDetectionBefore, and numberDetections. Defaults to False.
+
           responses:
             200:
               content:
