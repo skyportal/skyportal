@@ -82,7 +82,7 @@ const SourcePublishHistory = ({ source_id, newPageGenerate = null }) => {
                 </div>
               </div>
               <Link
-                href={`/public/sources/${source_id}?version=${version.creation_date}`}
+                href={`/public/sources/${source_id}/version/${version.creation_date}`}
                 target="_blank"
                 rel="noreferrer"
                 underline="hover"
@@ -90,7 +90,7 @@ const SourcePublishHistory = ({ source_id, newPageGenerate = null }) => {
                 Link to this version
               </Link>
               <button type="button" onClick={() => deleteVersion(version.id)}>
-                <DeleteIcon style={{ color: "#db1212" }} />
+                <DeleteIcon />
               </button>
             </div>
           );

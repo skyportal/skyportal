@@ -10,11 +10,6 @@ header {
     align-items: center;
     justify-content: space-between;
     padding: 1rem;
-    border: 1px solid #e0e0e0;
-    &:not(:last-child) {
-      border-bottom: none;
-    }
-
     h2 {
       margin: 0;
       font-weight: bold;
@@ -24,9 +19,25 @@ header {
       color: rgb(29, 53, 87);
       text-decoration: none;
     }
+
+    &:not(:first-child) {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid lightgray;
+    }
   }
 
   .version {
     padding-left: 5rem;
+    display: flex;
+    align-items: center;
+    gap: 4rem;
+    margin-bottom: 0.5rem;
+
+    a {
+      border: 1px solid gray;
+      border-radius: 0.2rem;
+      padding: 0.2rem 0.4rem;
+    }
   }
 }

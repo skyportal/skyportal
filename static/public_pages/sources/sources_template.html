@@ -30,24 +30,25 @@
       <h1>Public source pages</h1>
     </header>
     <div class="content">
-      {% set last_source_id = '' %} {% for source in sources %} {% if
-      last_source_id != source.source_id %}
+      {% for index, source in enumerate(sources) %} {% if index == 0 or
+      source.source_id != sources[index-1].source_id %}
       <div class="source">
         <h2>{{ source.source_id }}</h2>
         <a href="/public/sources/{{source.source_id}}"
-          >Access to the last page version</a
+          >Access to the latest version of the page</a
         >
       </div>
       {% else %}
       <div class="version">
-        <div>#{ source.id }}</div>
+        <div>#{{source.id}}</div>
         <a
-          href="/public/source/{{ source.id }}/version/{{ source.created_at }}"
+          class="boxShadow"
+          href="/public/sources/{{ source.source_id }}/version/{{ source.creation_date }}"
         >
-          {{ source.created_at }}</a
-        >
+          {{ source.created_at.strftime('%Y/%m/%d %H:%M:%S') }}
+        </a>
       </div>
-      {% end %} {% set last_source_id = source.source_id %} {% end %}
+      {% end %} {% end %}
     </div>
   </body>
 </html>

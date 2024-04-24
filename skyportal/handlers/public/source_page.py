@@ -21,7 +21,7 @@ cache = Cache(
 
 
 class SourcePageHandler(BaseHandler):
-    def get(self, request, source_id=None, version=None):
+    def get(self, source_id=None, version=None):
         """
         ---
         description: Display the public page for a given source
