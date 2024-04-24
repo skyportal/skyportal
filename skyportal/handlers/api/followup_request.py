@@ -1614,7 +1614,10 @@ def observation_schedule(
 
     # Initialize the sequential scheduler with the constraints and transitioner
     prior_scheduler = PriorityScheduler(
-        constraints=global_constraints, observer=observer, transitioner=transitioner
+        constraints=global_constraints,
+        observer=observer,
+        transitioner=transitioner,
+        time_resolution=60 * u.second,
     )
     # Initialize a Schedule object, to contain the new schedule
     priority_schedule = Schedule(observation_start, observation_end)
