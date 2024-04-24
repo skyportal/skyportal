@@ -1671,6 +1671,8 @@ async def get_sources(
                 return data
 
             sources, total_matches = [], len(all_source_ids)
+
+            data['totalMatches'] = total_matches
             if start > total_matches:
                 return data
             if end > total_matches:

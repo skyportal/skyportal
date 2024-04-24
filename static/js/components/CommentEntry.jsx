@@ -33,6 +33,7 @@ const CommentEntry = ({
   editComment,
   commentText,
   attachmentName,
+  closeDialog,
 }) => {
   const styles = useStyles();
   const users = useSelector((state) => state.users);
@@ -122,6 +123,9 @@ const CommentEntry = ({
     setTextValue("");
     setAutosuggestVisible(false);
     setUsernamePrefixMatches({});
+    if (closeDialog) {
+      closeDialog();
+    }
   };
 
   const handleTextInputChange = (event) => {
@@ -426,6 +430,7 @@ CommentEntry.propTypes = {
   editComment: PropTypes.func,
   commentText: PropTypes.string,
   attachmentName: PropTypes.string,
+  closeDialog: PropTypes.func,
 };
 
 CommentEntry.defaultProps = {
@@ -433,6 +438,7 @@ CommentEntry.defaultProps = {
   editComment: null,
   commentText: "",
   attachmentName: "",
+  closeDialog: null,
 };
 
 export default CommentEntry;
