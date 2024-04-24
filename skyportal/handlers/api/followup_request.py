@@ -13,6 +13,7 @@ import jsonschema
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import operator
 import pandas as pd
 import conesearch_alchemy as ca
 import sqlalchemy as sa
@@ -33,6 +34,8 @@ from marshmallow.exceptions import ValidationError
 from scipy.stats import norm
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
+from sqlalchemy.sql.expression import cast
+from sqlalchemy.dialects.postgresql import JSONB
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -729,6 +732,7 @@ class FollowupRequestHandler(BaseHandler):
         instrumentID = self.get_query_argument('instrumentID', None)
         allocationID = self.get_query_argument('allocationID', None)
         requesters = self.get_query_argument('requesters', [])
+        priority_threshold = self.get_query_argument('priorityThreshold', None)
         status = self.get_query_argument('status', None)
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 100)
@@ -883,6 +887,16 @@ class FollowupRequestHandler(BaseHandler):
                     FollowupRequest.requester_id.in_(requesters)
                 )
 
+            if priority_threshold:
+                comp_function = getattr(operator, "ge")
+                name = "priority"
+                followup_requests = followup_requests.where(
+                    comp_function(
+                        FollowupRequest.payload[name],
+                        cast(float(priority_threshold), JSONB),
+                    )
+                )
+
             followup_requests = followup_requests.options(
                 joinedload(FollowupRequest.allocation).joinedload(
                     Allocation.instrument
@@ -941,6 +955,9 @@ class FollowupRequestHandler(BaseHandler):
                     .offset((page_number - 1) * n_per_page)
                 )
             followup_requests = session.scalars(followup_requests).unique().all()
+
+            for req in followup_requests:
+                print(req.to_dict()["payload"])
 
             info = {
                 "followup_requests": [req.to_dict() for req in followup_requests],
@@ -1819,6 +1836,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
             end_date = self.get_query_argument('endDate', None)
             sourceID = self.get_query_argument('sourceID', None)
             status = self.get_query_argument('status', None)
+            priority_threshold = self.get_query_argument('priorityThreshold', None)
             output_format = self.get_query_argument('output_format', 'csv')
             observation_start_date = self.get_query_argument(
                 'observationStartDate', None
@@ -1885,6 +1903,16 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                 if status:
                     followup_requests = followup_requests.where(
                         FollowupRequest.status.contains(status.strip())
+                    )
+
+                if priority_threshold:
+                    comp_function = getattr(operator, "ge")
+                    name = "priority"
+                    followup_requests = followup_requests.where(
+                        comp_function(
+                            FollowupRequest.payload[name],
+                            cast(float(priority_threshold), JSONB),
+                        )
                     )
 
                 followup_requests = followup_requests.options(
