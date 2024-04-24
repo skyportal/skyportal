@@ -43,7 +43,9 @@ from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
+from ...utils.asynchronous import run_async
 from ...models import (
+    DBSession,
     Allocation,
     Annotation,
     Candidate,
@@ -112,6 +114,20 @@ log = make_log('api/source')
 MAX_LOCALIZATION_SOURCES = 50000
 
 Session = scoped_session(sessionmaker())
+
+
+def remove_obj_thumbnails(obj_id):
+    log(f"removing existing public_url thumbnails for {obj_id}")
+    with DBSession() as session:
+        existing_thumbnails = session.scalars(
+            sa.select(Thumbnail).where(
+                Thumbnail.obj_id == obj_id,
+                Thumbnail.type.in_(['ps1', 'sdss', 'ls']),
+            )
+        )
+        for thumbnail in existing_thumbnails:
+            session.delete(thumbnail)
+        session.commit()
 
 
 def check_if_obj_has_photometry(obj_id, user, session):
@@ -3197,6 +3213,7 @@ class SourceHandler(BaseHandler):
         with self.Session() as session:
             # verify that there are no candidates for this object,
             # in which case we do not allow updating the position
+            updated_coordinates = False
             if data.get('ra', None) is not None or data.get('dec', None) is not None:
                 existing_candidates = session.scalars(
                     sa.select(Candidate).where(Candidate.obj_id == obj_id)
@@ -3214,17 +3231,8 @@ class SourceHandler(BaseHandler):
                     np.isclose(data.get('ra'), source.ra)
                     and np.isclose(data.get('dec'), source.dec)
                 ):
-                    # if the position of the object is updated, delete the old thumbnails (sdss, ls, ps1)
-                    # the thumbnails queue will regenerate new thumbnails for that object
-                    existing_thumbnails = session.scalars(
-                        sa.select(Thumbnail).where(
-                            Thumbnail.obj_id == obj_id,
-                            Thumbnail.type.in_(['ps1', 'sdss', 'ls']),
-                        )
-                    )
-                    for thumbnail in existing_thumbnails:
-                        session.delete(thumbnail)
-                    session.commit()
+                    run_async(remove_obj_thumbnails, obj_id)
+                    updated_coordinates = True
 
             schema = Obj.__schema__()
             try:
@@ -3245,7 +3253,13 @@ class SourceHandler(BaseHandler):
                 payload={"obj_key": obj.internal_key},
             )
 
-            return self.success()
+            if updated_coordinates:
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE_POSITION",
+                    payload={"obj_key": obj.internal_key},
+                )
+
+        return self.success()
 
     @permissions(['Manage sources'])
     def delete(self, obj_id, group_id):
