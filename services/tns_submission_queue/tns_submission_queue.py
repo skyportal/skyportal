@@ -1205,15 +1205,60 @@ def process_submission_requests():
 def validate_submission_requests():
     """Service to query TNS for the status of submitted AT reports and update the TNSRobotSubmission table."""
     session_context_id.set(uuid.uuid4().hex)
-    from skyportal.models import (
-        DBSession,
-        TNSRobotSubmission,
-        TNSRobot,
-    )
+    from skyportal.models import DBSession, TNSRobotSubmission, TNSRobot, Obj
 
     while True:
         time.sleep(5)
         with DBSession() as session:
+            # first
+            # we look for submissions with a 504 status (meaning the processing or validation failed at some point)
+            # and re-set them as pending if they failed more than 5 minutes ago
+            try:
+                failed_submission_requests = session.scalars(
+                    sa.select(TNSRobotSubmission).where(
+                        TNSRobotSubmission.status.ilike('504 - Gateway Time-out%'),
+                        TNSRobotSubmission.modified_at
+                        < datetime.datetime.utcnow() - datetime.timedelta(minutes=5),
+                    )
+                ).all()
+                for submission_request in failed_submission_requests:
+                    # first let's query the object and check if it has a TNS name and tns_info
+                    obj = session.scalar(
+                        sa.select(Obj).where(Obj.id == submission_request.obj_id)
+                    )
+                    if (
+                        obj.tns_name is not None
+                        and isinstance(obj.tns_info, dict)
+                        and obj.tns_info.get('reporterid') is not None
+                        and obj.tns_info.get('reporterid')
+                        == submission_request.tnsrobot.bot_id
+                        and isinstance(obj.tns_info.get('reporting_group', {}), dict)
+                        and obj.tns_info.get('reporting_group', {}).get('group_id')
+                        is not None
+                        and obj.tns_info.get('reporting_group', {}).get('group_id')
+                        == submission_request.tnsrobot.source_group_id
+                        and submission_request.payload is not None
+                        and isinstance(submission_request.payload, dict)
+                        and obj.tns_info.get('discoverer') is not None
+                        and obj.tns_info.get('discoverer')
+                        == submission_request.payload.get('reporter')
+                    ):
+                        # if the object was found on TNS and has been reported with the same bot, group, and reporter
+                        # we can consider the current submission request as successful/confirmed and not re-set it as pending
+                        log(
+                            f"TNS submission request {submission_request.id} for object {submission_request.obj_id} seems to have been successful, setting as confirmed"
+                        )
+                        submission_request.status = 'confirmed'
+                    else:
+                        log(
+                            f"Re-setting failed TNS submission request {submission_request.id} for object {submission_request.obj_id}"
+                        )
+                        submission_request.status = 'pending'
+                session.commit()
+                continue  # we don't want to check for submission status if we have failed requests to re-set, just to add some wait time
+            except Exception as e:
+                log(f"Error re-setting failed TNS submission requests: {str(e)}")
+                session.rollback()
             try:
                 # for now we are just testing this, so we'll start with a known submission ID
                 # we have in production: 157099
