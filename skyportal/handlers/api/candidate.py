@@ -787,7 +787,7 @@ class CandidateHandler(BaseHandler):
                 last_detected_date - first_detected_date
             ).days > MAX_NUM_DAYS_USING_LOCALIZATION:
                 return self.error(
-                    "startDate and endDate must be less than a month apart when filtering by localizationDateobs or localizationName",
+                    "startDate and endDate must be less than 10 years apart when filtering by localizationDateobs or localizationName",
                 )
 
         if autosave:
