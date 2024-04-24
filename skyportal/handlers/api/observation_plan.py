@@ -1048,10 +1048,21 @@ class ObservationPlanManualRequestHandler(BaseHandler):
             for planned_obs in observation_plan['planned_observations']:
                 tt = Time(planned_obs['dateobs'], format='isot')
 
+                field = session.scalars(
+                    InstrumentField.select(session.user_or_token).where(
+                        InstrumentField.instrument_id == instrument.id,
+                        InstrumentField.field_id == planned_obs['field_id'],
+                    )
+                ).first()
+                if field is None:
+                    return self.error(
+                        f'No field for instrument with ID {instrument.id} available with ID {planned_obs["field_id"]}'
+                    )
+
                 planned_observation = PlannedObservation(
                     obstime=tt.datetime,
                     dateobs=event.dateobs,
-                    field_id=planned_obs['field_id'],
+                    field_id=field.id,
                     exposure_time=planned_obs['exposure_time'],
                     weight=planned_obs['weight'],
                     filt=planned_obs['filt'],
@@ -1060,7 +1071,7 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                     observation_plan_id=event_observation_plan.id,
                     overhead_per_exposure=planned_obs['overhead_per_exposure'],
                 )
-            planned_observations.append(planned_observation)
+                planned_observations.append(planned_observation)
 
             session.add_all(planned_observations)
             session.commit()
