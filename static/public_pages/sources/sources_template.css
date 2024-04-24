@@ -1,0 +1,32 @@
+header {
+  h1 {
+    color: white;
+  }
+}
+
+.content {
+  .source {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border: 1px solid #e0e0e0;
+    &:not(:last-child) {
+      border-bottom: none;
+    }
+
+    h2 {
+      margin: 0;
+      font-weight: bold;
+    }
+
+    a {
+      color: rgb(29, 53, 87);
+      text-decoration: none;
+    }
+  }
+
+  .version {
+    padding-left: 5rem;
+  }
+}

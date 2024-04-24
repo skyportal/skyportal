@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SkyPortal</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- CSS generic -->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/static/public_pages/style.css"
+    />
+    <!-- CSS for source page -->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/static/public_pages/sources/sources_template.css"
+    />
+  </head>
+  <!-- Body -->
+  <body>
+    <!-- Header -->
+    <header>
+      <h1>Public source pages</h1>
+    </header>
+    <div class="content">
+      {% set last_source_id = '' %} {% for source in sources %} {% if
+      last_source_id != source.source_id %}
+      <div class="source">
+        <h2>{{ source.source_id }}</h2>
+        <a href="/public/sources/{{source.source_id}}"
+          >Access to the last page version</a
+        >
+      </div>
+      {% else %}
+      <div class="version">
+        <div>#{ source.id }}</div>
+        <a
+          href="/public/source/{{ source.id }}/version/{{ source.created_at }}"
+        >
+          {{ source.created_at }}</a
+        >
+      </div>
+      {% end %} {% set last_source_id = source.source_id %} {% end %}
+    </div>
+  </body>
+</html>

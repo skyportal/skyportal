@@ -63,10 +63,10 @@ class PublicSourcePageHandler(BaseHandler):
                 data=data.get("public_data"),
                 is_public=True,
             )
-            public_source_page.publish()
             session.add(public_source_page)
             session.commit()
-            return self.success({"Page id": public_source_page.id})
+            public_source_page.publish()
+            return self.success({"page": public_source_page})
 
     @auth_or_token
     def get(self, source_id, nb_results=None):
@@ -116,8 +116,6 @@ class PublicSourcePageHandler(BaseHandler):
             if nb_results is not None:
                 stmt = stmt.limit(nb_results)
             public_source_pages = session.execute(stmt).all()
-            if public_source_pages is None or public_source_pages == []:
-                return self.error("This source does not have a public page", status=404)
             return self.success(data=public_source_pages)
 
     @auth_or_token
@@ -149,14 +147,17 @@ class PublicSourcePageHandler(BaseHandler):
             return self.error("Page ID is required")
 
         with self.Session() as session:
-            stmt = PublicSourcePage.select(session.user_or_token, mode="delete").where(
-                PublicSourcePage.id == page_id,
-            )
-            public_source_page = session.scalars(stmt).first()
+            # TODO move the mode to delete
+            public_source_page = session.scalars(
+                PublicSourcePage.select(session.user_or_token, mode="read").where(
+                    PublicSourcePage.id == page_id
+                )
+            ).first()
+
             if public_source_page is None:
                 return self.error("Public source page not found", status=404)
-            public_source_page.unpublish()
+            public_source_page.remove_from_cache()
+
             session.delete(public_source_page)
             session.commit()
-
-        return self.success()
+            return self.success()

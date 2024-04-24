@@ -5,11 +5,10 @@ __all__ = [
 import json
 import jinja2
 from ligo.skymap import plot  # noqa: F401 F811
-import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import deferred
-
+from sqlalchemy import event
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
 from baselayer.app.models import (
@@ -25,9 +24,6 @@ cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_public_source_pages_cache"] * 60,
 )
-
-public = True
-private = False
 
 
 class PublicSourcePage(Base):
@@ -48,22 +44,16 @@ class PublicSourcePage(Base):
         doc='Whether the page is accessible to the public.',
     )
 
+    creation_date = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="ISO formatted creation date of the public source page",
+    )
+
     def publish(self):
         """Set the page to public and create the public source page."""
-        self.is_public = public
+        self.is_public = True
         self.generate_public_source_page(self.data)
-
-    def unpublish(self):
-        """Set the page to private and remove it from the cache."""
-        self.is_public = private
-        cache_key = f"source_{self.source_id}"
-        cached = cache[cache_key]
-        if cached is not None:
-            data = np.load(cached, allow_pickle=True)
-            data = data.item()
-            cache[cache_key] = dict_to_bytes({"public": False, "html": data["html"]})
-        else:
-            cache[cache_key] = dict_to_bytes({"public": False, "html": None})
 
     def generate_public_source_page(self, public_data):
         """Generate a public page of the source and cache it."""
@@ -80,7 +70,7 @@ class PublicSourcePage(Base):
         # Set the data status to pending to indicate that the page is being generated
         self.data.update({"status": "pending"})
 
-        cache_key = f"source_{self.source_id}"
+        cache_key = f"source_{self.source_id}_version_{self.creation_date}"
         public_source_page = self.generate_html(public_data)
         cache[cache_key] = dict_to_bytes({"public": True, "html": public_source_page})
         self.data.update({"status": "success"})
@@ -100,3 +90,17 @@ class PublicSourcePage(Base):
             data=public_data,
         )
         return html
+
+    def remove_from_cache(self):
+        """Remove the page from the cache."""
+        cache_key = f"source_{self.source_id}_version_{self.creation_date}"
+        del cache[cache_key]
+
+
+@event.listens_for(PublicSourcePage, 'after_insert')
+def _set_iso_creation_date(mapper, connection, target):
+    connection.execute(
+        sa.update(PublicSourcePage)
+        .where(PublicSourcePage.id == target.id)
+        .values(creation_date=target.created_at.isoformat(timespec='seconds'))
+    )

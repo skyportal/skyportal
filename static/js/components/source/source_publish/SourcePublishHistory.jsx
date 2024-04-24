@@ -3,8 +3,12 @@ import makeStyles from "@mui/styles/makeStyles";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
+import DeleteIcon from "@mui/icons-material/Delete";
 import Link from "@mui/material/Link";
-import { fetchPublicSourcePages } from "../../../ducks/public_pages/public_source_page";
+import {
+  deletePublicSourcePage,
+  fetchPublicSourcePages,
+} from "../../../ducks/public_pages/public_source_page";
 
 const useStyles = makeStyles(() => ({
   versionHistory: {
@@ -19,9 +23,16 @@ const useStyles = makeStyles(() => ({
     borderRadius: "0.5rem",
     marginBottom: "0.5rem",
   },
+  noVersion: {
+    display: "flex",
+    justifyContent: "center",
+    padding: "1rem 0",
+    color: "gray",
+    fontWeight: "bold",
+  },
 }));
 
-const SourcePublishHistory = ({ source_id }) => {
+const SourcePublishHistory = ({ source_id, newPageGenerate = null }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const [versions, setVersions] = useState([]);
@@ -30,9 +41,25 @@ const SourcePublishHistory = ({ source_id }) => {
   useEffect(() => {
     dispatch(fetchPublicSourcePages(source_id, 10)).then((data) => {
       setVersions(data.data);
-      setIsVersions(data.status === "success");
+      setIsVersions(data.data.length > 0);
     });
   }, [dispatch, source_id]);
+
+  useEffect(() => {
+    if (newPageGenerate) {
+      setVersions([{ PublicSourcePage: newPageGenerate }, ...versions]);
+      setIsVersions(true);
+    }
+  }, [newPageGenerate]);
+
+  const deleteVersion = (id) => {
+    dispatch(deletePublicSourcePage(id)).then((data) => {
+      if (data.status === "success") {
+        setIsVersions(versions.length > 1);
+        setVersions(versions.filter((obj) => obj.PublicSourcePage.id !== id));
+      }
+    });
+  };
 
   return (
     <div className={styles.versionHistory}>
@@ -50,27 +77,30 @@ const SourcePublishHistory = ({ source_id }) => {
                   Photometry: {version?.data?.photometry ? "yes" : "no"}
                 </div>
                 <div>
-                  classifications:{" "}
+                  Classifications:{" "}
                   {version?.data?.classifications ? "yes" : "no"}
                 </div>
               </div>
               <Link
-                href={`/public/sources/${source_id}`}
+                href={`/public/sources/${source_id}?version=${version.creation_date}`}
                 target="_blank"
                 rel="noreferrer"
                 underline="hover"
               >
                 Link to this version
               </Link>
+              <button type="button" onClick={() => deleteVersion(version.id)}>
+                <DeleteIcon style={{ color: "#db1212" }} />
+              </button>
             </div>
           );
         })
       ) : (
-        <div style={{ display: "flex", justifyContent: "center" }}>
+        <div className={styles.noVersion}>
           {isVersions ? (
             <CircularProgress size={24} />
           ) : (
-            "No public page available!"
+            <div>NO PUBLIC PAGE AVAILABLE!</div>
           )}
         </div>
       )}
@@ -80,6 +110,20 @@ const SourcePublishHistory = ({ source_id }) => {
 
 SourcePublishHistory.propTypes = {
   source_id: PropTypes.string.isRequired,
+  newPageGenerate: PropTypes.shape({
+    PublicSourcePage: PropTypes.shape({
+      id: PropTypes.number,
+      data: PropTypes.shape({
+        photometry: PropTypes.bool,
+        classifications: PropTypes.bool,
+      }),
+      created_at: PropTypes.string,
+    }),
+  }),
+};
+
+SourcePublishHistory.defaultProps = {
+  newPageGenerate: null,
 };
 
 export default SourcePublishHistory;

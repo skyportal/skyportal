@@ -44,6 +44,7 @@ const SourcePublish = ({ source, photometry = null }) => {
     useState(false);
   const [accessibilityHistoryOpen, setAccessibilityHistoryOpen] =
     useState(false);
+  const [newPageGenerate, setNewPageGenerate] = useState(null);
   const [updateThumbnailsData, setUpdateThumbnailsData] = useState(false);
   // Create data access options
   const optionPhotometry = { label: "photometry", state: useState(true) };
@@ -120,12 +121,11 @@ const SourcePublish = ({ source, photometry = null }) => {
     };
     dispatch(
       publicSourcePageActions.generatePublicSourcePage(source.id, payload),
-    ).then(() => {
+    ).then((data) => {
+      setPublishButton("done");
+      setNewPageGenerate(data.data.page);
       setTimeout(() => {
-        setPublishButton("done");
-        setTimeout(() => {
-          setPublishButton("publish");
-        }, 4000);
+        setPublishButton("publish");
       }, 2000);
     });
   };
@@ -202,7 +202,10 @@ const SourcePublish = ({ source, photometry = null }) => {
               {accessibilityHistoryOpen ? <ExpandLess /> : <ExpandMore />}
             </Button>
             {accessibilityHistoryOpen && (
-              <SourcePublishHistory source_id={source.id} />
+              <SourcePublishHistory
+                source_id={source.id}
+                newPageGenerate={newPageGenerate}
+              />
             )}
           </div>
         </DialogContent>
