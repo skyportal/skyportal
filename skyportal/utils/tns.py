@@ -80,7 +80,7 @@ TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
 # for a given TNS source group. Used to not submit incorrect sources to TNS.
 TNS_SOURCE_GROUP_NAMING_CONVENTIONS = {
     48: r"ZTF\d{2}[a-z]{7}",  # ZTF: ZTF + 2 digits + 7 lowercase characters
-    68: r"[ACT]20\d{6}\d{7}[pm]\d{6}",  # DECAM: A or C or T + 20 + 6 digits + 7 digits + p or m + 6 digits
+    135: r"[ACT]20\d{6}\d{7}[pm]\d{6}",  # DECAM: A or C or T + 20 + 6 digits + 7 digits + p or m + 6 digits
 }
 
 
