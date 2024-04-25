@@ -387,6 +387,7 @@ GcnEventSourcesPage.propTypes = {
     startDate: PropTypes.string,
     endDate: PropTypes.string,
     localizationCumprob: PropTypes.number,
+    requireDetections: PropTypes.bool,
   }).isRequired,
 };
 
@@ -492,6 +493,7 @@ const GcnSelectionForm = ({ dateobs }) => {
     localizationName: null,
     group_ids: [],
     localizationCumprob: null,
+    requireDetections: true,
   });
 
   const [hasFetchedObservations, setHasFetchedObservations] = useState(false);
@@ -612,6 +614,7 @@ const GcnSelectionForm = ({ dateobs }) => {
       localizationName: filterParams.localizationName,
       localizationDateobs: dateobs,
       numberObservations: filterParams?.numberDetections || 1,
+      requireDetections: filterParams?.requireDetections,
     };
     await dispatch(observationsActions.submitObservationsTreasureMap(id, data));
     setIsSubmittingTreasureMap(null);
@@ -850,7 +853,13 @@ const GcnSelectionForm = ({ dateobs }) => {
         title: "Groups",
       },
     },
-    required: ["startDate", "endDate", "localizationCumprob", "queryList"],
+    required: [
+      "startDate",
+      "endDate",
+      "localizationCumprob",
+      "queryList",
+      "requireDetections",
+    ],
   };
 
   const uiSchema = {
