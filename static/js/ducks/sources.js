@@ -76,7 +76,6 @@ export function fetchFavoriteSources(filterParams = {}) {
 }
 
 export function fetchGcnEventSources(dateobs, filterParams = {}) {
-  console.log("fetchGcnEventSources params:", filterParams);
   addFilterParamDefaults(filterParams);
   filterParams.localizationDateobs = dateobs;
 
