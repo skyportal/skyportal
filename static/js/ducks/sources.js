@@ -76,6 +76,7 @@ export function fetchFavoriteSources(filterParams = {}) {
 }
 
 export function fetchGcnEventSources(dateobs, filterParams = {}) {
+  console.log("fetchGcnEventSources params:", filterParams);
   addFilterParamDefaults(filterParams);
   filterParams.localizationDateobs = dateobs;
 
@@ -101,7 +102,7 @@ export function fetchGcnEventSources(dateobs, filterParams = {}) {
 
   filterParams.includeSourcesInGcn = true;
   filterParams.includeGeoJSON = true;
-  return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams);
+  return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams, false);
 }
 
 export function fetchSpatialCatalogSources(
