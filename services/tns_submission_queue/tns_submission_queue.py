@@ -1205,19 +1205,90 @@ def process_submission_requests():
 def validate_submission_requests():
     """Service to query TNS for the status of submitted AT reports and update the TNSRobotSubmission table."""
     session_context_id.set(uuid.uuid4().hex)
-    from skyportal.models import (
-        DBSession,
-        TNSRobotSubmission,
-        TNSRobot,
-    )
+    from skyportal.models import DBSession, TNSRobotSubmission, TNSRobot, Obj
 
     while True:
         time.sleep(5)
         with DBSession() as session:
+            # we look for submissions with a 504 status (meaning the processing or validation failed at some point)
+            # and re-set them as pending if they failed more than 5 minutes ago, confirmed if they were reported,
+            # and label them appropriately if a more recent submission request successfully reported the object with the same robot
             try:
-                # for now we are just testing this, so we'll start with a known submission ID
-                # we have in production: 157099
-                # so query TNS's endpoint to check for submission status
+                failed_submission_requests = session.scalars(
+                    sa.select(TNSRobotSubmission).where(
+                        TNSRobotSubmission.status.ilike('%504 - Gateway Time-out%'),
+                        TNSRobotSubmission.modified
+                        < datetime.datetime.utcnow() - datetime.timedelta(minutes=5),
+                    )
+                ).all()
+                for submission_request in failed_submission_requests:
+                    # check if there is a more recent submission request for the same object and tnsrobot that is submitted or confirmed,
+                    # in which case we don't want to re-set the status of this one but label it appropriately
+                    recent_submission_request = session.scalar(
+                        sa.select(TNSRobotSubmission).where(
+                            TNSRobotSubmission.obj_id == submission_request.obj_id,
+                            TNSRobotSubmission.tnsrobot_id
+                            == submission_request.tnsrobot_id,
+                            TNSRobotSubmission.created_at
+                            > submission_request.created_at,
+                            sa.or_(
+                                TNSRobotSubmission.status.ilike('%submitted%'),
+                                TNSRobotSubmission.status.ilike('%confirmed%'),
+                            ),
+                        )
+                    )
+                    if recent_submission_request is not None:
+                        submission_request.status = 'error: TNS was unresponsive at some point during processing, but a more recent submission request (from the same robot) reported the object since.'
+                        continue
+
+                    # let's check if the object is already on TNS and submitted by this robot, in which case we can mark the submission request as confirmed
+                    obj = session.scalar(
+                        sa.select(Obj).where(Obj.id == submission_request.obj_id)
+                    )
+                    if (
+                        obj.tns_name is not None
+                        and isinstance(obj.tns_info, dict)
+                        and obj.tns_info.get('reporterid') is not None
+                        and obj.tns_info.get('reporterid')
+                        == submission_request.tnsrobot.bot_id
+                        and isinstance(obj.tns_info.get('reporting_group', {}), dict)
+                        and obj.tns_info.get('reporting_group', {}).get('group_id')
+                        is not None
+                        and obj.tns_info.get('reporting_group', {}).get('group_id')
+                        == submission_request.tnsrobot.source_group_id
+                        and obj.tns_info.get('discoverer') is not None
+                        and (
+                            (
+                                submission_request.payload is not None
+                                and isinstance(submission_request.payload, dict)
+                                and obj.tns_info.get('discoverer')
+                                == submission_request.payload.get('reporter')
+                            )
+                            or (
+                                submission_request.custom_reporting_string is not None
+                                and obj.tns_info.get('discoverer')
+                                == submission_request.custom_reporting_string
+                            )
+                        )
+                    ):
+                        log(
+                            f"TNS submission request {submission_request.id} for object {submission_request.obj_id} seems to have been successful, setting as confirmed"
+                        )
+                        submission_request.status = 'confirmed'
+                        continue
+
+                    # not reported on TNS by this robot yet, re-set the submission request to pending
+                    log(
+                        f"Re-setting failed TNS submission request {submission_request.id} for object {submission_request.obj_id}"
+                    )
+                    submission_request.status = 'pending'
+                session.commit()
+                continue  # we don't want to check for submission status if we have failed requests to re-set, just to add some wait time
+            except Exception as e:
+                log(f"Error re-setting failed TNS submission requests: {str(e)}")
+                session.rollback()
+
+            try:
                 # grab the first TNS robot submission request that has a submission ID that's not null
                 submission_request = session.scalar(
                     sa.select(TNSRobotSubmission)
