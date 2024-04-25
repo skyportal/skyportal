@@ -71,18 +71,13 @@ const SourcePublishHistory = ({ source_id, newPageGenerate = null }) => {
               className={styles.versionHistoryLine}
               key={`version_${version.id}}`}
             >
-              <b>{new Date(version.created_at).toLocaleString()}</b>
+              <b>{version?.creation_date}</b>
               <div>
-                <div>
-                  Photometry: {version?.data?.photometry ? "yes" : "no"}
-                </div>
-                <div>
-                  Classifications:{" "}
-                  {version?.data?.classifications ? "yes" : "no"}
-                </div>
+                <div>Photometry: {version?.options?.photometry}</div>
+                <div>Classifications: {version?.options?.classifications}</div>
               </div>
               <Link
-                href={`/public/sources/${source_id}/version/${version.creation_date}`}
+                href={`/public/sources/${source_id}/version/${version?.creation_date_iso}`}
                 target="_blank"
                 rel="noreferrer"
                 underline="hover"
@@ -117,7 +112,7 @@ SourcePublishHistory.propTypes = {
         photometry: PropTypes.bool,
         classifications: PropTypes.bool,
       }),
-      created_at: PropTypes.string,
+      creation_date_iso: PropTypes.string,
     }),
   }),
 };

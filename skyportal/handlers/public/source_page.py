@@ -21,7 +21,7 @@ cache = Cache(
 
 
 class SourcePageHandler(BaseHandler):
-    def get(self, source_id=None, version=None):
+    def get(self, source_id=None, version_date=None):
         """
         ---
         description: Display the public page for a given source
@@ -65,23 +65,25 @@ class SourcePageHandler(BaseHandler):
                 )
             ).all()
             return self.render(
-                "public_pages/sources/sources_template.html", sources=sources
+                "public_pages/sources/sources_template.html",
+                sources=[s.to_dict() for s in sources],
             )
 
-        if version is None:
+        if version_date is None:
             if Session.registry.has():
                 session = Session()
             else:
                 session = Session(bind=DBSession.session_factory.kw["bind"])
             version = session.scalars(
-                sa.select(PublicSourcePage.creation_date)
+                sa.select(PublicSourcePage)
                 .where(PublicSourcePage.source_id == source_id)
                 .order_by(PublicSourcePage.created_at.desc())
             ).first()
             if version is None:
                 return self.error("Page not found", status=404)
+            version_date = version.get_creation_date_iso()
 
-        cache_key = f"source_{source_id}_version_{version}"
+        cache_key = f"source_{source_id}_version_{version_date}"
         cached = cache[cache_key]
         # TODO: Implement cache management
         if cached is None:
@@ -93,4 +95,4 @@ class SourcePageHandler(BaseHandler):
             self.set_header("Content-Type", "text/html; charset=utf-8")
             return self.write(data['html'])
         else:
-            return self.error("This page is not available")
+            return self.error("This page is not available", status=404)

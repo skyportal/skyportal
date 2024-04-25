@@ -21,8 +21,10 @@ const SourcePublishOptions = ({ options }) => {
         <FormControlLabel
           key={`source_publish_option_${option.label}`}
           label={`Include ${option.label}?`}
+          disabled={!option.isElement}
           control={
             <Checkbox
+              disabled={!option.isElement}
               color="primary"
               title={`Include ${option.label}?`}
               type="checkbox"

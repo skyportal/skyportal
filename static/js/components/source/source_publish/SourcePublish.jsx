@@ -56,11 +56,13 @@ const SourcePublish = ({ source, photometry = null }) => {
   const getOptions = () => [
     {
       label: optionPhotometry.label,
+      isElement: source.photometry_exists,
       isCheck: optionPhotometry.state[0],
       setCheck: optionPhotometry.state[1],
     },
     {
       label: optionClassifications.label,
+      isElement: source.classifications.length > 0,
       isCheck: optionClassifications.state[0],
       setCheck: optionClassifications.state[1],
     },
@@ -90,6 +92,12 @@ const SourcePublish = ({ source, photometry = null }) => {
     if (updateThumbnailsData) {
       processThumbnailsData();
     }
+    const getPhotometry = () => {
+      if (!source.photometry_exists) {
+        return [];
+      }
+      return photometry;
+    };
     return {
       source_id: source.id,
       radec_hhmmss: source.radec_hhmmss,
@@ -102,12 +110,7 @@ const SourcePublish = ({ source, photometry = null }) => {
       dm: source.dm?.toFixed(3),
       dl: source.luminosity_distance?.toFixed(2),
       thumbnails: source.thumbnails,
-      photometry:
-        optionPhotometry.state[0] &&
-        source.photometry_exists &&
-        photometry?.length
-          ? photometry
-          : null,
+      photometry: optionPhotometry.state[0] ? getPhotometry() : null,
       classifications: optionClassifications.state[0]
         ? source.classifications
         : null,

@@ -8,7 +8,6 @@ from ligo.skymap import plot  # noqa: F401 F811
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import deferred
-from sqlalchemy import event
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
 from baselayer.app.models import (
@@ -44,11 +43,42 @@ class PublicSourcePage(Base):
         doc='Whether the page is accessible to the public.',
     )
 
-    creation_date = sa.Column(
-        sa.String,
-        nullable=True,
-        doc="ISO formatted creation date of the public source page",
-    )
+    def to_dict(self):
+        """Convert the page to a dictionary with
+        the options to be displayed and the creation date in ISO format."""
+        return {
+            'id': self.id,
+            'source_id': self.source_id,
+            'is_public': self.is_public,
+            'creation_date_iso': self.get_creation_date_iso(),
+            'creation_date': self.get_creation_date(),
+            'options': self.get_options(),
+        }
+
+    def get_creation_date_iso(self):
+        """Get the creation date in ISO format."""
+        return self.created_at.isoformat(timespec='seconds')
+
+    def get_creation_date(self):
+        """Get the creation date in a human-readable format."""
+        return self.created_at.strftime('%Y/%m/%d %H:%M:%S')
+
+    def get_options(self):
+        """Get the options check to be displayed on the public page."""
+        photometry = self.data.get("photometry")
+        classifications = self.data.get("classifications")
+        return {
+            "photometry": "no element"
+            if photometry == []
+            else "public"
+            if photometry
+            else "private",
+            "classifications": "no element"
+            if classifications == []
+            else "public"
+            if classifications
+            else "private",
+        }
 
     def publish(self):
         """Set the page to public and create the public source page."""
@@ -70,7 +100,7 @@ class PublicSourcePage(Base):
         # Set the data status to pending to indicate that the page is being generated
         self.data.update({"status": "pending"})
 
-        cache_key = f"source_{self.source_id}_version_{self.creation_date}"
+        cache_key = f"source_{self.source_id}_version_{self.get_creation_date_iso()}"
         public_source_page = self.generate_html(public_data)
         cache[cache_key] = dict_to_bytes({"public": True, "html": public_source_page})
         self.data.update({"status": "success"})
@@ -93,14 +123,5 @@ class PublicSourcePage(Base):
 
     def remove_from_cache(self):
         """Remove the page from the cache."""
-        cache_key = f"source_{self.source_id}_version_{self.creation_date}"
+        cache_key = f"source_{self.source_id}_version_{self.get_creation_date_iso()}"
         del cache[cache_key]
-
-
-@event.listens_for(PublicSourcePage, 'after_insert')
-def _set_iso_creation_date(mapper, connection, target):
-    connection.execute(
-        sa.update(PublicSourcePage)
-        .where(PublicSourcePage.id == target.id)
-        .values(creation_date=target.created_at.isoformat(timespec='seconds'))
-    )

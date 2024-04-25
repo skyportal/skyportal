@@ -73,7 +73,8 @@ class PublicSourcePageHandler(BaseHandler):
         """
         ---
           description:
-            Retrieve a certain number of public pages for a given source from the most recent to the oldest
+            Retrieve a certain number of public pages, or all pages,
+             for a given source from the most recent to the oldest
           tags:
             - public_source_page
           parameters:
