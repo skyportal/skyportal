@@ -91,20 +91,20 @@ class WINTERRequest:
 
         return target
 
-    def schedule_name(request):
+    def schedule_name(self, request):
         content = request.transactions[0].response["content"]
         content = json.loads(content)
         # the WINTERAPI POST response has a "msg" key,
         # that contains Schedule name is <schedule_name> if successful
         if "msg" in content:
             # it's in quote, so remove them and strip
-            schedule_name = (
+            name = (
                 str(content["msg"].split('Schedule name is')[1])
                 .split(' ')[1]
                 .split('\'')[1]
                 .strip()
             )
-            return schedule_name
+            return name
         else:
             raise ValueError(
                 'Failed to delete request from WINTER, no schedule name found in POST response.'
@@ -172,7 +172,7 @@ class WINTERAPI(FollowUpAPI):
                 raise ValueError('Missing allocation information.')
 
             req = WINTERRequest()
-            schedule_name = req.schedule_name(request)
+            name = req.schedule_name(request)
 
             url = urllib.parse.urljoin(WINTER_URL, 'too/delete')
             r = requests.delete(
@@ -180,7 +180,7 @@ class WINTERAPI(FollowUpAPI):
                 params={
                     'program_name': altdata['program_name'],
                     'program_api_key': altdata['program_api_key'],
-                    'schedule_name': schedule_name,
+                    'schedule_name': name,
                 },
                 auth=HTTPBasicAuth(altdata['username'], altdata['password']),
             )
