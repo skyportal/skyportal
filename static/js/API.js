@@ -69,7 +69,11 @@ function API(endpoint, actionType, method = "GET", body = {}, otherArgs = {}) {
   };
 }
 
-export const filterOutEmptyValues = (params, removeEmptyArrays = true) => {
+export const filterOutEmptyValues = (
+  params,
+  removeEmptyArrays = true,
+  removeFalse = true,
+) => {
   const filteredParams = {};
   // Filter out empty fields from an object (form data)
   Object.keys(params).forEach((key) => {
@@ -82,7 +86,7 @@ export const filterOutEmptyValues = (params, removeEmptyArrays = true) => {
         params[key].length === 0 &&
         removeEmptyArrays
       ) &&
-        params[key]) ||
+        (params[key] || (params[key] === false && removeFalse === false))) ||
       typeof key === "number"
     ) {
       filteredParams[key] = params[key];
@@ -91,10 +95,14 @@ export const filterOutEmptyValues = (params, removeEmptyArrays = true) => {
   return filteredParams;
 };
 
-function GET(endpoint, actionType, queryParams) {
+function GET(endpoint, actionType, queryParams, removeFalse = true) {
   let url = endpoint;
   if (queryParams) {
-    const filteredQueryParams = filterOutEmptyValues(queryParams);
+    const filteredQueryParams = filterOutEmptyValues(
+      queryParams,
+      true,
+      removeFalse,
+    );
     const queryString = new URLSearchParams(filteredQueryParams).toString();
     url += `?${queryString}`;
   }
