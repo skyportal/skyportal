@@ -32,24 +32,25 @@
     <div class="content">
       <!-- prettier-ignore-->
       {% for index, source in enumerate(sources) %}
-      {% if index == 0 or source['source_id'] != sources[index-1]['source_id'] %}
+      {% if index == 0 or source.source_id != sources[index-1].source_id %}
       <div class="source">
-        <h2>{{ source['source_id'] }}</h2>
-        <a href="/public/sources/{{source['source_id']}}"
-          >Access to the latest version of the page</a
+        <h2>{{ source.source_id }}</h2>
+        <a href="/public/sources/{{source.source_id}}" target="_blank"
+          >Access to the latest version of this source</a
         >
       </div>
-      {% else %}
+      {% end %}
       <div class="version">
-        <div>#{{source['id']}}</div>
+        <div>#{{source.id}}</div>
         <a
           class="boxShadow"
-          href="/public/sources/{{ source['source_id'] }}/version/{{ source['creation_date_iso'] }}"
+          href="/public/sources/{{ source.source_id }}/version/{{ source.created_at_iso }}"
+          target="_blank"
         >
-          {{ source['creation_date'] }}
+          {{ source.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
         </a>
       </div>
-      {% end %} {% end %}
+      {% end %}
     </div>
   </body>
 </html>

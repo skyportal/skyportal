@@ -20,11 +20,27 @@ cache = Cache(
 )
 
 
+def get_version(source_id, version_date):
+    if Session.registry.has():
+        session = Session()
+    else:
+        session = Session(bind=DBSession.session_factory.kw["bind"])
+    query = sa.select(PublicSourcePage).where(
+        PublicSourcePage.source_id == source_id, PublicSourcePage.is_public
+    )
+    if version_date:
+        query = query.where(PublicSourcePage.created_at_iso == version_date)
+    else:
+        query = query.order_by(PublicSourcePage.created_at.desc())
+    return session.scalars(query).first()
+
+
 class SourcePageHandler(BaseHandler):
     def get(self, source_id=None, version_date=None):
         """
         ---
-        description: Display the public page for a given source
+        description: Display the public page for a given source and version
+         or list all public source pages
         tags:
           - public_source_page
         parameters:
@@ -52,6 +68,7 @@ class SourcePageHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        # If source_id is None, list all public source pages
         if source_id is None:
             if Session.registry.has():
                 session = Session()
@@ -66,28 +83,27 @@ class SourcePageHandler(BaseHandler):
             ).all()
             return self.render(
                 "public_pages/sources/sources_template.html",
-                sources=[s.to_dict() for s in sources],
+                sources=sources,
             )
 
+        # If version_date None, retrieve the latest version
         if version_date is None:
-            if Session.registry.has():
-                session = Session()
-            else:
-                session = Session(bind=DBSession.session_factory.kw["bind"])
-            version = session.scalars(
-                sa.select(PublicSourcePage)
-                .where(PublicSourcePage.source_id == source_id)
-                .order_by(PublicSourcePage.created_at.desc())
-            ).first()
+            version = get_version(source_id, None)
             if version is None:
                 return self.error("Page not found", status=404)
-            version_date = version.get_creation_date_iso()
+            version_date = version.created_at_iso
 
         cache_key = f"source_{source_id}_version_{version_date}"
         cached = cache[cache_key]
-        # TODO: Implement cache management
+
+        # If the page is not cached, generate it
         if cached is None:
-            return self.error("Page not found", status=404)
+            version = get_version(source_id, version_date)
+            if version is None:
+                return self.error("Page not found", status=404)
+            version.generate_public_source_page()
+            cache_key = f"source_{source_id}_version_{version_date}"
+            cached = cache[cache_key]
 
         data = np.load(cached, allow_pickle=True)
         data = data.item()

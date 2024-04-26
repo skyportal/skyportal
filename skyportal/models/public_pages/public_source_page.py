@@ -4,6 +4,7 @@ import json
 import jinja2
 from ligo.skymap import plot  # noqa: F401 F811
 import sqlalchemy as sa
+from sqlalchemy import event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import deferred
 from baselayer.app.env import load_env
@@ -49,6 +50,12 @@ class PublicSourcePage(Base):
 
     source_id = sa.Column(sa.String, nullable=False, doc="ID of the source")
 
+    created_at_iso = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Creation date in ISO format",
+    )
+
     data = deferred(
         sa.Column(JSONB, nullable=False, doc="Source data accessible on the page")
     )
@@ -67,18 +74,9 @@ class PublicSourcePage(Base):
             'id': self.id,
             'source_id': self.source_id,
             'is_public': self.is_public,
-            'creation_date_iso': self.get_creation_date_iso(),
-            'creation_date': self.get_creation_date(),
+            'created_at_iso': self.created_at_iso,
             'options': self.get_options(),
         }
-
-    def get_creation_date_iso(self):
-        """Get the creation date in ISO format."""
-        return self.created_at.isoformat(timespec='seconds')
-
-    def get_creation_date(self):
-        """Get the creation date in a human-readable format."""
-        return self.created_at.strftime('%Y/%m/%d %H:%M:%S')
 
     def get_options(self):
         """Get the options check to be displayed on the public page."""
@@ -100,9 +98,9 @@ class PublicSourcePage(Base):
     def publish(self):
         """Set the page to public and create the public source page."""
         self.is_public = True
-        self.generate_public_source_page(self.data)
+        self.generate_public_source_page()
 
-    def generate_public_source_page(self, public_data):
+    def generate_public_source_page(self):
         """Generate a public page of the source and cache it."""
         data = self.data
         if isinstance(data, str):
@@ -117,8 +115,8 @@ class PublicSourcePage(Base):
         # Set the data status to pending to indicate that the page is being generated
         self.data.update({"status": "pending"})
 
-        cache_key = f"source_{self.source_id}_version_{self.get_creation_date_iso()}"
-        public_source_page = self.generate_html(public_data)
+        cache_key = f"source_{self.source_id}_version_{self.created_at_iso}"
+        public_source_page = self.generate_html(data)
         cache[cache_key] = dict_to_bytes({"public": True, "html": public_source_page})
         self.data.update({"status": "success"})
 
@@ -140,5 +138,15 @@ class PublicSourcePage(Base):
 
     def remove_from_cache(self):
         """Remove the page from the cache."""
-        cache_key = f"source_{self.source_id}_version_{self.get_creation_date_iso()}"
+        cache_key = f"source_{self.source_id}_version_{self.created_at_iso}"
         del cache[cache_key]
+
+
+@event.listens_for(PublicSourcePage, 'after_insert')
+def _set_created_at_iso(mapped, connection, target):
+    """Set the creation date in ISO format after the page is created."""
+    connection.execute(
+        sa.update(PublicSourcePage.__table__)
+        .where(PublicSourcePage.id == target.id)
+        .values(created_at_iso=target.created_at.isoformat(timespec='seconds'))
+    )
