@@ -148,9 +148,8 @@ class PublicSourcePageHandler(BaseHandler):
             return self.error("Page ID is required")
 
         with self.Session() as session:
-            # TODO move the mode to delete
             public_source_page = session.scalars(
-                PublicSourcePage.select(session.user_or_token, mode="read").where(
+                PublicSourcePage.select(session.user_or_token, mode="delete").where(
                     PublicSourcePage.id == page_id
                 )
             ).first()
