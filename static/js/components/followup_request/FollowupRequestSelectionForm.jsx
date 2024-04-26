@@ -262,6 +262,10 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
         type: "string",
         title: "Request status [completed, submitted, etc.]",
       },
+      priorityThreshold: {
+        type: "number",
+        title: "Only keep requests with priority above some value",
+      },
       useObservationDates: {
         type: "boolean",
         title: "Filter on requests start and end dates?",
@@ -367,6 +371,7 @@ const FollowupRequestSelectionForm = ({ fetchParams, setFetchParams }) => {
       "allocationID",
       "startDate",
       "endDate",
+      "priorityThreshold",
       "useObservationDates",
       "observationStartDate",
       "observationEndDate",
