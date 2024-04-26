@@ -131,9 +131,8 @@ const Notifications = () => {
           <List className={classes.root}>
             {notifications &&
               notifications.map((notification) => (
-                <>
+                <div key={notification.id}>
                   <ListItem
-                    key={notification.id}
                     button={!!notification.url}
                     component={notification.url ? "a" : "li"}
                     href={notification.url ? notification.url : "#"}
@@ -184,7 +183,7 @@ const Notifications = () => {
                     </Button>
                   </ListItem>
                   <Divider />
-                </>
+                </div>
               ))}
             {notifications && notifications.length > 0 && (
               <ListItem className={classes.centered}>
