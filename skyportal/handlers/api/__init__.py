@@ -1,5 +1,9 @@
 from .acls import ACLHandler, UserACLHandler
-from .allocation import AllocationHandler, AllocationReportHandler
+from .allocation import (
+    AllocationHandler,
+    AllocationReportHandler,
+    AllocationObservationPlanHandler,
+)
 from .analysis import (
     AnalysisUploadOnlyHandler,
     AnalysisServiceHandler,

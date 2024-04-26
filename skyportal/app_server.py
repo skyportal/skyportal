@@ -14,6 +14,7 @@ from skyportal.handlers.api import (
     UserACLHandler,
     AllocationHandler,
     AllocationReportHandler,
+    AllocationObservationPlanHandler,
     AssignmentHandler,
     BulkTNSHandler,
     CandidateHandler,
@@ -235,6 +236,7 @@ skyportal_handlers = [
     # API endpoints
     (r'/api/acls', ACLHandler),
     (r'/api/allocation/report(/[0-9]+)', AllocationReportHandler),
+    (r'/api/allocation/observation_plans/([0-9]+)', AllocationObservationPlanHandler),
     (r'/api/allocation(/.*)?', AllocationHandler),
     (r'/api/analysis_service/([0-9]+)/default_analysis(/.*)?', DefaultAnalysisHandler),
     (r'/api/analysis_service(/.*)?', AnalysisServiceHandler),

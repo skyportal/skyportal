@@ -28,7 +28,7 @@ import * as allocationActions from "../ducks/allocations";
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as instrumentActions from "../ducks/instrument";
 import * as instrumentsActions from "../ducks/instruments";
-import planWithSameNameExists from "../ducks/observationPlans";
+import { planWithSameNameExists } from "../ducks/observationPlans";
 import GroupShareSelect from "./group/GroupShareSelect";
 import LocalizationPlot from "./localization/LocalizationPlot";
 

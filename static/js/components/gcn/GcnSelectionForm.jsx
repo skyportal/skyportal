@@ -387,6 +387,7 @@ GcnEventSourcesPage.propTypes = {
     startDate: PropTypes.string,
     endDate: PropTypes.string,
     localizationCumprob: PropTypes.number,
+    requireDetections: PropTypes.bool,
   }).isRequired,
 };
 
@@ -492,6 +493,7 @@ const GcnSelectionForm = ({ dateobs }) => {
     localizationName: null,
     group_ids: [],
     localizationCumprob: null,
+    requireDetections: true,
   });
 
   const [hasFetchedObservations, setHasFetchedObservations] = useState(false);
@@ -612,6 +614,7 @@ const GcnSelectionForm = ({ dateobs }) => {
       localizationName: filterParams.localizationName,
       localizationDateobs: dateobs,
       numberObservations: filterParams?.numberDetections || 1,
+      requireDetections: filterParams?.requireDetections,
     };
     await dispatch(observationsActions.submitObservationsTreasureMap(id, data));
     setIsSubmittingTreasureMap(null);
@@ -796,16 +799,20 @@ const GcnSelectionForm = ({ dateobs }) => {
         type: "number",
         title: "Min Number of Detections/Observations",
         default: 2,
+        minimum: 1,
       },
       localizationCumprob: {
         type: "number",
         title: "Cumulative Probability",
         default: 0.95,
+        minimum: 0,
+        maximum: 1,
       },
       maxDistance: {
         type: "number",
         title: "Maximum Distance [Mpc]",
         default: 150,
+        minimum: 0,
       },
       localizationRejectSources: {
         type: "boolean",
@@ -814,6 +821,11 @@ const GcnSelectionForm = ({ dateobs }) => {
       excludeForcedPhotometry: {
         type: "boolean",
         title: "Exclude forced photometry",
+        default: false,
+      },
+      requireDetections: {
+        type: "boolean",
+        title: "Require detections",
         default: true,
       },
       queryList: {
@@ -841,7 +853,13 @@ const GcnSelectionForm = ({ dateobs }) => {
         title: "Groups",
       },
     },
-    required: ["startDate", "endDate", "localizationCumprob", "queryList"],
+    required: [
+      "startDate",
+      "endDate",
+      "localizationCumprob",
+      "queryList",
+      "requireDetections",
+    ],
   };
 
   const uiSchema = {
@@ -856,8 +874,9 @@ const GcnSelectionForm = ({ dateobs }) => {
         maxDistance: 4,
       },
       {
-        localizationRejectSources: 6,
-        excludeForcedPhotometry: 6,
+        requireDetections: 4,
+        excludeForcedPhotometry: 4,
+        localizationRejectSources: 4,
       },
       {
         queryList: 6,

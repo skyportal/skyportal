@@ -369,9 +369,18 @@ def commit_photometry(
             'diffmaglim',
             'zpdiff',
             'filter',
+            'procstatus',
         }
         if not desired_columns.issubset(set(df.columns)):
             raise ValueError('Missing expected column')
+
+        # filter on the procstatus, only keeping data where procstatus = 0
+        valid_index = [
+            i for i, x in enumerate(df['procstatus']) if str(x).strip() == '0'
+        ]
+        df = df.iloc[valid_index]
+        df.drop(columns=['procstatus'], inplace=True)
+
         df.rename(
             columns={'diffmaglim': 'limiting_mag'},
             inplace=True,
