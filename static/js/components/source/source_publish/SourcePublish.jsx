@@ -5,7 +5,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import PropTypes from "prop-types";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -38,6 +38,10 @@ const useStyles = makeStyles(() => ({
 const SourcePublish = ({ source, photometry = null }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
+  const currentUser = useSelector((state) => state.profile);
+  const permissionToPublish = currentUser.permissions?.includes(
+    "Manage sources publishing",
+  );
   const [accessibilityDialogOpen, setAccessibilityDialogOpen] = useState(false);
   const [publishButton, setPublishButton] = useState("publish");
   const [accessibilityOptionsOpen, setAccessibilityOptionsOpen] =
@@ -118,6 +122,7 @@ const SourcePublish = ({ source, photometry = null }) => {
   };
 
   const publish = () => {
+    if (!permissionToPublish) return;
     setPublishButton("loading");
     const payload = {
       public_data: publicData(),
@@ -157,41 +162,57 @@ const SourcePublish = ({ source, photometry = null }) => {
             page. This information will be available to everyone on the
             internet. Are you sure you want to do this ?
           </div>
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <Button
-              variant="contained"
-              size="big"
-              onClick={publish}
-              style={{
-                margin: "1.5rem 0rem",
-                backgroundColor: publishButton === "done" ? "green" : "",
-                color: "white",
-              }}
-              disabled={publishButton !== "publish"}
-            >
-              {publishButton === "loading" ? (
-                <CircularProgress size={24} />
-              ) : (
-                publishButton
-              )}
-            </Button>
-          </div>
-          <div>
-            <Button
-              className={styles.expandButton}
-              size="small"
-              variant="text"
-              onClick={() =>
-                setAccessibilityOptionsOpen(!accessibilityOptionsOpen)
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              margin: "1.5rem 0",
+            }}
+          >
+            <Tooltip
+              title={
+                permissionToPublish
+                  ? ""
+                  : "You do not have permission to publish this source"
               }
             >
-              Options
-              {accessibilityOptionsOpen ? <ExpandLess /> : <ExpandMore />}
-            </Button>
-            {accessibilityOptionsOpen && (
-              <SourcePublishOptions options={getOptions()} />
-            )}
+              <div>
+                <Button
+                  variant="contained"
+                  onClick={publish}
+                  style={{
+                    backgroundColor: publishButton === "done" ? "green" : "",
+                    color: "white",
+                  }}
+                  disabled={!permissionToPublish || publishButton !== "publish"}
+                >
+                  {publishButton === "loading" ? (
+                    <CircularProgress size={24} />
+                  ) : (
+                    publishButton
+                  )}
+                </Button>
+              </div>
+            </Tooltip>
           </div>
+          {permissionToPublish && (
+            <div>
+              <Button
+                className={styles.expandButton}
+                size="small"
+                variant="text"
+                onClick={() =>
+                  setAccessibilityOptionsOpen(!accessibilityOptionsOpen)
+                }
+              >
+                Options
+                {accessibilityOptionsOpen ? <ExpandLess /> : <ExpandMore />}
+              </Button>
+              {accessibilityOptionsOpen && (
+                <SourcePublishOptions options={getOptions()} />
+              )}
+            </div>
+          )}
           <div>
             <Button
               className={styles.expandButton}

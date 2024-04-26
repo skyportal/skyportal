@@ -2,7 +2,7 @@ import operator  # noqa: F401
 
 from sqlalchemy.orm import sessionmaker, scoped_session
 
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 from ...base import BaseHandler
 
@@ -14,7 +14,7 @@ Session = scoped_session(sessionmaker())
 
 
 class PublicSourcePageHandler(BaseHandler):
-    @auth_or_token
+    @permissions(['Manage sources publishing'])
     async def post(self, source_id):
         """
         ---
