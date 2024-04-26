@@ -9,20 +9,182 @@ from astroplan.moon import moon_phase_angle
 from astropy.utils.masked import MaskedNDArray
 from marshmallow.exceptions import ValidationError
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import (
     Allocation,
     AllocationUser,
+    EventObservationPlan,
     FollowupRequest,
     Group,
     Instrument,
+    ObservationPlanRequest,
     User,
 )
 from ..base import BaseHandler
 
 MAX_FOLLOWUP_REQUESTS = 1000
+MAX_OBSERVATION_PLANS = 1000
+
+
+class AllocationObservationPlanHandler(BaseHandler):
+    @auth_or_token
+    def get(self, allocation_id):
+        """
+        ---
+        tags:
+          - allocations
+          - observation_plans
+        description: Retrieve observation plans associated with an allocation
+        parameters:
+          - in: path
+            name: allocation_id
+            required: true
+            schema:
+              type: integer
+          - in: query
+            name: numPerPage
+            nullable: true
+            schema:
+              type: integer
+            description: |
+              Number of observation plans to return per paginated request. Defaults to 10. Can be no larger than {MAX_OBSERVATION_PLANS}.
+          - in: query
+            name: pageNumber
+            nullable: true
+            schema:
+              type: integer
+            description: Page number for paginated query results. Defaults to 1
+        responses:
+          200:
+             content:
+              application/json:
+                schema: ArrayOfObservationPlanRequests
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        # get owned observation plans
+
+        with self.Session() as session:
+            allocations = Allocation.select(self.current_user)
+
+            try:
+                allocation_id = int(allocation_id)
+            except ValueError:
+                return self.error("Allocation ID must be an integer.")
+
+            page_number = self.get_query_argument("pageNumber", 1)
+            n_per_page = self.get_query_argument("numPerPage", 50)
+
+            try:
+                page_number = int(page_number)
+                n_per_page = int(n_per_page)
+            except Exception as e:
+                raise ValueError(f'Invalid pagination arguments: {e}')
+
+            sortBy = self.get_query_argument("sortBy", "created_at")
+            sortOrder = self.get_query_argument("sortOrder", "asc")
+
+            if sortBy not in ["created_at", "modified", "status", 'gcnevent_id']:
+                return self.error("Invalid sortBy value.")
+            if sortOrder not in ["asc", "desc"]:
+                return self.error("Invalid sortOrder value.")
+
+            allocations = Allocation.select(self.current_user).where(
+                Allocation.id == allocation_id
+            )
+            allocation = session.scalars(allocations).first()
+            if allocation is None:
+                return self.error("Could not retrieve allocation.")
+
+            observation_plan_requests = ObservationPlanRequest.select(
+                self.current_user,
+                options=[
+                    joinedload(ObservationPlanRequest.observation_plans).joinedload(
+                        EventObservationPlan.statistics
+                    ),
+                    joinedload(ObservationPlanRequest.localization),
+                ],
+            ).where(ObservationPlanRequest.allocation_id == allocation.id)
+
+            count_stmt = sa.select(func.count()).select_from(observation_plan_requests)
+            total_matches = session.execute(count_stmt).scalar()
+
+            # sort by created_at ascending\
+            if sortBy == "created_at":
+                if sortOrder == "asc":
+                    observation_plan_requests = observation_plan_requests.order_by(
+                        ObservationPlanRequest.created_at.asc()
+                    )
+                else:
+                    observation_plan_requests = observation_plan_requests.order_by(
+                        ObservationPlanRequest.created_at.desc()
+                    )
+            elif sortBy == "modified":
+                if sortOrder == "asc":
+                    observation_plan_requests = observation_plan_requests.order_by(
+                        ObservationPlanRequest.modified.asc()
+                    )
+                else:
+                    observation_plan_requests = observation_plan_requests.order_by(
+                        ObservationPlanRequest.modified.desc()
+                    )
+            elif sortBy == "status":
+                if sortOrder == "asc":
+                    observation_plan_requests = observation_plan_requests.order_by(
+                        ObservationPlanRequest.status.asc()
+                    )
+                else:
+                    observation_plan_requests = observation_plan_requests.order_by(
+                        ObservationPlanRequest.status.desc()
+                    )
+            elif sortBy == "gcnevent_id":
+                if sortOrder == "asc":
+                    observation_plan_requests = observation_plan_requests.order_by(
+                        ObservationPlanRequest.gcnevent_id.asc()
+                    )
+                else:
+                    observation_plan_requests = observation_plan_requests.order_by(
+                        ObservationPlanRequest.gcnevent_id.desc()
+                    )
+            if n_per_page is not None:
+                observation_plan_requests = (
+                    observation_plan_requests.distinct()
+                    .limit(n_per_page)
+                    .offset((page_number - 1) * n_per_page)
+                )
+            observation_plan_requests = (
+                session.scalars(observation_plan_requests).unique().all()
+            )
+            # go through some pain to get probability and area included
+            # as these are properties
+            request_data = []
+            for ii, req in enumerate(observation_plan_requests):
+                dat = req.to_dict()
+                plan_data = []
+                for plan in dat["observation_plans"]:
+                    plan_dict = plan.to_dict()
+                    plan_dict['statistics'] = [
+                        statistics.to_dict() for statistics in plan_dict['statistics']
+                    ]
+                    plan_data.append(plan_dict)
+
+                dat["observation_plans"] = plan_data
+                request_data.append(dat)
+
+            data = {
+                'totalMatches': total_matches,
+                'observation_plan_requests': request_data,
+                'pageNumber': page_number,
+                'numPerPage': n_per_page,
+            }
+
+            return self.success(data=data)
 
 
 class AllocationHandler(BaseHandler):
