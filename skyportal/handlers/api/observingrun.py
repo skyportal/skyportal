@@ -183,9 +183,6 @@ class ObservingRunHandler(BaseHandler):
                     rise_times = run.rise_time(targets).isot
                     set_times = run.set_time(targets).isot
 
-                    print(rise_times)
-                    print(set_times)
-
                     for d, rt, st in zip(data["assignments"], rise_times, set_times):
                         # we can an attribute error in the case where rt and st are not arrays
                         # this can happen if the observing run's date is missing or incorrect
