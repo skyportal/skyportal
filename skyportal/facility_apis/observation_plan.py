@@ -502,6 +502,7 @@ def generate_plan(
             # parameters used for galaxy targeting
             'galaxies_FoV_sep': 1.0,
             'doChipGaps': False,
+            'ignore_observability': False,
         }
 
         if len(requests) > 1:
