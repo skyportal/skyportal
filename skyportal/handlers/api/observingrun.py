@@ -1,5 +1,8 @@
+import numpy as np
+from astropy.utils.masked import MaskedNDArray
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
+
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
@@ -188,7 +191,12 @@ class ObservingRunHandler(BaseHandler):
                         try:
                             d["rise_time_utc"] = (
                                 rt.item()  # 0-dimensional array (basically a scalar)
-                                if not rt.mask.any()  # check that the value isn't masked (not rising at date)
+                                if not (
+                                    isinstance(
+                                        rt, (np.ma.core.MaskedArray, MaskedNDArray)
+                                    )
+                                    and rt.mask.any()
+                                )  # check that the value isn't masked (not rising at date)
                                 else ''
                             )
                         except AttributeError:
@@ -196,7 +204,12 @@ class ObservingRunHandler(BaseHandler):
                         try:
                             d["set_time_utc"] = (
                                 st.item()
-                                if not st.mask.any()  # check that the value isn't masked (not setting at date)
+                                if not (
+                                    isinstance(
+                                        st, (np.ma.core.MaskedArray, MaskedNDArray)
+                                    )
+                                    and st.mask.any()
+                                )  # check that the value isn't masked (not setting at date)
                                 else ''
                             )
                         except AttributeError:
