@@ -300,24 +300,7 @@ class TRTAPI(FollowUpAPI):
                     {
                         "properties": {
                             "station_name": {
-                                "enum": ["SRO"],
-                            },
-                            "observation_choices": {
-                                "type": "array",
-                                "title": "Desired Observations",
-                                "items": {
-                                    "type": "string",
-                                    "enum": ["B", "V", "R", "I"],
-                                },
-                                "uniqueItems": True,
-                                "minItems": 1,
-                            },
-                        },
-                    },
-                    {
-                        "properties": {
-                            "station_name": {
-                                "enum": ["GAO"],
+                                "enum": ["SRO", "GAO"],
                             },
                             "observation_choices": {
                                 "type": "array",
