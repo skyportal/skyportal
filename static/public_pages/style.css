@@ -104,6 +104,10 @@ p {
   }
 }
 
+button {
+  cursor: pointer;
+}
+
 @keyframes loader {
   0% {
     transform: rotate(0deg);
@@ -120,8 +124,4 @@ p {
   to {
     background: inherit;
   }
-}
-
-button {
-  cursor: pointer;
 }

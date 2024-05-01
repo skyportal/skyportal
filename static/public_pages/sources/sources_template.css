@@ -5,39 +5,56 @@ header {
 }
 
 .content {
-  .source {
+  padding-bottom: 2rem;
+  .searchBar {
     display: flex;
+    justify-content: center;
     align-items: center;
-    justify-content: space-between;
-    padding: 1rem;
-    h2 {
-      margin: 0;
-      font-weight: bold;
-    }
-
-    a {
-      color: rgb(29, 53, 87);
-      text-decoration: none;
-    }
-
-    &:not(:first-child) {
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid lightgray;
+    margin-bottom: 1rem;
+    input {
+      margin: 1rem 0;
+      padding: 0.5rem 0.5rem;
+      border-radius: 0.5rem;
+      font-size: 1rem;
     }
   }
+  .sourceAndVersions {
+    &:not(:last-child) {
+      padding-bottom: 1rem;
+      border-bottom: 1px solid lightgray;
+    }
+    .source {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem;
 
-  .version {
-    padding-left: 5rem;
-    display: flex;
-    align-items: center;
-    gap: 4rem;
-    margin-bottom: 0.5rem;
+      h2 {
+        margin: 0;
+        font-weight: bold;
+      }
 
-    a {
-      border: 1px solid gray;
-      border-radius: 0.2rem;
-      padding: 0.2rem 0.4rem;
+      a {
+        color: rgb(29, 53, 87);
+        text-decoration: none;
+      }
+    }
+    .version {
+      padding-left: 5rem;
+      display: flex;
+      align-items: center;
+      gap: 4rem;
+      margin-bottom: 0.5rem;
+
+      .versionId {
+        min-width: 50px;
+      }
+
+      a {
+        border: 1px solid gray;
+        border-radius: 0.2rem;
+        padding: 0.2rem 0.4rem;
+      }
     }
   }
 }

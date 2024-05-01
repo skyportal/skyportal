@@ -42,20 +42,20 @@ class SourcePageHandler(BaseHandler):
         description: Display the public page for a given source and version
          or list all public source pages
         tags:
-          - public_source_page
+          - source_page
         parameters:
             - in: path
               name: source_id
               required: false
               schema:
-                type: integer
+                type: string
               description: The ID of the source for which to display the public page
             - in: path
-              name: version
+              name: version_date
               required: false
               schema:
                 type: string
-                description: The version of the public page to display
+              description: The date of the version of the public page to display
         responses:
             200:
               content:
@@ -74,16 +74,19 @@ class SourcePageHandler(BaseHandler):
                 session = Session()
             else:
                 session = Session(bind=DBSession.session_factory.kw["bind"])
-            sources = session.scalars(
+            versions = session.scalars(
                 sa.select(PublicSourcePage)
                 .where(PublicSourcePage.is_public)
-                .order_by(
-                    PublicSourcePage.source_id, PublicSourcePage.created_at.desc()
-                )
+                .order_by(PublicSourcePage.created_at.desc())
             ).all()
+            versions_by_source = {}
+            for version in versions:
+                if version.source_id not in versions_by_source:
+                    versions_by_source[version.source_id] = []
+                versions_by_source[version.source_id].append(version)
             return self.render(
                 "public_pages/sources/sources_template.html",
-                sources=sources,
+                versions_by_source=versions_by_source,
             )
 
         # If version_date None, retrieve the latest version
