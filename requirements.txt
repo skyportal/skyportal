@@ -68,7 +68,7 @@ humanize==4.8.0
 xarray>=21.1
 simsurvey==0.7.5
 noaodatalab==2.20.0
-black==24.3.0
+black==24.4.2
 click==8.1.6
 arviz==0.16.1
 corner==2.2.1
