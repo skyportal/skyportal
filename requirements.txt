@@ -34,7 +34,7 @@ conesearch-alchemy==1.0.0
 regions==0.8
 jsonschema==4.21.1
 jsonpath_ng==1.5.3
-pytest-rerunfailures==13.0
+pytest-rerunfailures==14.0
 tables==3.9.2
 timezonefinder==6.2.0
 astroplan==0.10
