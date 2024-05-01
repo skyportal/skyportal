@@ -42,11 +42,11 @@ const SourcePublish = ({ source, photometry = null }) => {
   const permissionToPublish = currentUser.permissions?.includes(
     "Manage sources publishing",
   );
-  const [accessibilityDialogOpen, setAccessibilityDialogOpen] = useState(false);
+  const [sourcePublishDialogOpen, setSourcePublishDialogOpen] = useState(false);
   const [publishButton, setPublishButton] = useState("publish");
-  const [accessibilityOptionsOpen, setAccessibilityOptionsOpen] =
+  const [sourcePublishOptionsOpen, setSourcePublishOptionsOpen] =
     useState(false);
-  const [accessibilityHistoryOpen, setAccessibilityHistoryOpen] =
+  const [sourcePublishHistoryOpen, setSourcePublishHistoryOpen] =
     useState(false);
   const [newPageGenerate, setNewPageGenerate] = useState(null);
   const [updateThumbnailsData, setUpdateThumbnailsData] = useState(false);
@@ -143,22 +143,21 @@ const SourcePublish = ({ source, photometry = null }) => {
       <Button
         secondary
         size="small"
-        data-testid="accessibilityButton"
-        onClick={() => setAccessibilityDialogOpen(true)}
+        onClick={() => setSourcePublishDialogOpen(true)}
       >
-        <Tooltip title="Click here if you want to see the accessibility information">
-          <span>Accessibility</span>
+        <Tooltip title="Click here if you want to see the public access information">
+          <span>Public access</span>
         </Tooltip>
       </Button>
       <Dialog
-        open={accessibilityDialogOpen}
-        onClose={() => setAccessibilityDialogOpen(false)}
+        open={sourcePublishDialogOpen}
+        onClose={() => setSourcePublishDialogOpen(false)}
         PaperProps={{ style: { maxWidth: "700px" } }}
       >
-        <DialogTitle>Accessibility information</DialogTitle>
+        <DialogTitle>Public access information</DialogTitle>
         <DialogContent style={{ paddingBottom: "0.5rem" }}>
           <div style={{ marginBottom: "1rem" }}>
-            You are about to change the accessibility settings for this source
+            You are about to change the public access settings for this source
             page. This information will be available to everyone on the
             internet. Are you sure you want to do this ?
           </div>
@@ -202,13 +201,13 @@ const SourcePublish = ({ source, photometry = null }) => {
                 size="small"
                 variant="text"
                 onClick={() =>
-                  setAccessibilityOptionsOpen(!accessibilityOptionsOpen)
+                  setSourcePublishOptionsOpen(!sourcePublishOptionsOpen)
                 }
               >
                 Options
-                {accessibilityOptionsOpen ? <ExpandLess /> : <ExpandMore />}
+                {sourcePublishOptionsOpen ? <ExpandLess /> : <ExpandMore />}
               </Button>
-              {accessibilityOptionsOpen && (
+              {sourcePublishOptionsOpen && (
                 <SourcePublishOptions options={getOptions()} />
               )}
             </div>
@@ -219,13 +218,13 @@ const SourcePublish = ({ source, photometry = null }) => {
               size="small"
               variant="text"
               onClick={() =>
-                setAccessibilityHistoryOpen(!accessibilityHistoryOpen)
+                setSourcePublishHistoryOpen(!sourcePublishHistoryOpen)
               }
             >
               Version history
-              {accessibilityHistoryOpen ? <ExpandLess /> : <ExpandMore />}
+              {sourcePublishHistoryOpen ? <ExpandLess /> : <ExpandMore />}
             </Button>
-            {accessibilityHistoryOpen && (
+            {sourcePublishHistoryOpen && (
               <SourcePublishHistory
                 source_id={source.id}
                 newPageGenerate={newPageGenerate}
