@@ -1282,8 +1282,8 @@ def validate_submission_requests():
                         f"Re-setting failed TNS submission request {submission_request.id} for object {submission_request.obj_id}"
                     )
                     submission_request.status = 'pending'
-                session.commit()
-                continue  # we don't want to check for submission status if we have failed requests to re-set, just to add some wait time
+                if len(failed_submission_requests) > 0:
+                    session.commit()
             except Exception as e:
                 log(f"Error re-setting failed TNS submission requests: {str(e)}")
                 session.rollback()
