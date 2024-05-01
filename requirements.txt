@@ -59,7 +59,7 @@ pygcn==1.1.2
 pysedm==0.31.0
 xmlschema==2.5.0
 requests==2.31.0
-geojson==3.0.1
+geojson==3.1.0
 typing-extensions==4.8.0
 swifttools==3.0.21
 pip==23.3.1
