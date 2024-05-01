@@ -258,13 +258,6 @@ class TRTAPI(FollowUpAPI):
                 "enum": ["SRO", "GAO", "SBO"],
                 "default": "SRO",
             },
-            "observation_choices": {
-                "type": "array",
-                "title": "Desired Observations",
-                "items": {"type": "string", "enum": ["B", "V", "R", "I"]},
-                "uniqueItems": True,
-                "minItems": 1,
-            },
             "exposure_time": {
                 "title": "Exposure Time [s]",
                 "type": "number",
@@ -301,6 +294,46 @@ class TRTAPI(FollowUpAPI):
             "maximum_airmass",
             "station_name",
         ],
+        "dependencies": {
+            "station_name": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "station_name": {
+                                "enum": ["SRO", "GAO"],
+                            },
+                            "observation_choices": {
+                                "type": "array",
+                                "title": "Desired Observations",
+                                "items": {
+                                    "type": "string",
+                                    "enum": ["B", "V", "R", "I"],
+                                },
+                                "uniqueItems": True,
+                                "minItems": 1,
+                            },
+                        },
+                    },
+                    {
+                        "properties": {
+                            "station_name": {
+                                "enum": ["SBO"],
+                            },
+                            "observation_choices": {
+                                "type": "array",
+                                "title": "Desired Observations",
+                                "items": {
+                                    "type": "string",
+                                    "enum": ["B", "V", "Rc", "Ic"],
+                                },
+                                "uniqueItems": True,
+                                "minItems": 1,
+                            },
+                        },
+                    },
+                ],
+            },
+        },
     }
 
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
