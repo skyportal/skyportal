@@ -271,7 +271,7 @@ class GcnReport(Base):
             data = json.loads(data)
 
         env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader("./static/public_pages/reports")
+            loader=jinja2.FileSystemLoader("./static/public_pages/reports/report")
         )
         env.policies['json.dumps_function'] = to_json
 

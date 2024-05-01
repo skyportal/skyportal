@@ -126,7 +126,7 @@ class PublicSourcePage(Base):
             public_data = json.loads(public_data)
 
         environment = jinja2.Environment(
-            loader=jinja2.FileSystemLoader("./static/public_pages/sources")
+            loader=jinja2.FileSystemLoader("./static/public_pages/sources/source")
         )
         environment.policies['json.dumps_function'] = to_json
         template = environment.get_template("source_template.html")
