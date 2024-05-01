@@ -131,8 +131,8 @@ class PublicSourcePage(Base):
         environment.policies['json.dumps_function'] = to_json
         template = environment.get_template("source_template.html")
         html = template.render(
-            source_id=self.source_id,
             data=public_data,
+            creation_date=self.created_at,
         )
         return html
 

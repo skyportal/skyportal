@@ -5,6 +5,7 @@ import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Link from "@mui/material/Link";
+import moment from "moment";
 import {
   deletePublicSourcePage,
   fetchPublicSourcePages,
@@ -60,6 +61,16 @@ const SourcePublishHistory = ({ source_id, newPageGenerate = null }) => {
       }
     });
   };
+  const displayDate = (date) => {
+    // Parse the date with Moment.js
+    const dateObj = moment(date);
+
+    // Format the date into a string with up to 2 fractional second digits
+    const dateString = dateObj.format("MM/DD/YYYY HH:mm:ss");
+
+    // Append ' UTC' to the end of the string
+    return `${dateString} UTC`;
+  };
 
   return (
     <div className={styles.versionHistory}>
@@ -71,7 +82,7 @@ const SourcePublishHistory = ({ source_id, newPageGenerate = null }) => {
               className={styles.versionHistoryLine}
               key={`version_${version.id}}`}
             >
-              <b>{new Date(version.created_at_iso).toLocaleString()}</b>
+              <b>{displayDate(version.created_at_iso)}</b>
               <div>
                 <div>Photometry: {version?.options?.photometry}</div>
                 <div>Classifications: {version?.options?.classifications}</div>

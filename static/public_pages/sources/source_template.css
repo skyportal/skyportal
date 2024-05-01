@@ -5,8 +5,15 @@
 
   .resumeCard {
     padding: 0.5rem;
-    .title {
+    .titleAndDate {
+      display: flex;
+      justify-content: space-between;
       margin-bottom: 0.5rem;
+      span {
+        font-weight: bold;
+        font-size: 0.9rem;
+        color: gray;
+      }
     }
 
     .classificationsTag {

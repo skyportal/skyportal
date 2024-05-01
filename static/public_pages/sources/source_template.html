@@ -52,8 +52,9 @@
     <!--Page content-->
     <div class="content">
       <div class="card resumeCard">
-        <div class="title">
+        <div class="titleAndDate">
           <h1>{{ data['source_id'] }}</h1>
+          <span>{{ creation_date.strftime('%m/%d/%Y %H:%M:%S') }} UTC</span>
         </div>
         {% if classifications %}
         <div class="classificationsTag">
