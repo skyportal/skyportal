@@ -18,14 +18,16 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
+import { JSONTree } from "react-json-tree";
+
 import Button from "./Button";
 
 import * as Actions from "../ducks/gcnEvent";
-import { GET } from "../API";
 
-import LocalizationPlot from "./LocalizationPlot";
 import AddSurveyEfficiencyObservationPlanPage from "./AddSurveyEfficiencyObservationPlanPage";
 import AddRunFromObservationPlanPage from "./AddRunFromObservationPlanPage";
+import ObservationPlanGlobe from "./ObservationPlanGlobe";
+import ObservationPlanSummaryStatistics from "./ObservationPlanSummaryStatistics";
 
 const useStyles = makeStyles(() => ({
   observationplanRequestTable: {
@@ -96,189 +98,6 @@ const getMuiTheme = (theme) =>
       },
     },
   });
-
-const ObservationPlanGlobe = ({ observationplanRequest }) => {
-  const dispatch = useDispatch();
-
-  const displayOptions = [
-    "localization",
-    "sources",
-    "galaxies",
-    "instrument",
-    "observations",
-  ];
-  const displayOptionsDefault = Object.fromEntries(
-    displayOptions.map((x) => [x, false]),
-  );
-  displayOptionsDefault.localization = true;
-  displayOptionsDefault.observations = true;
-
-  const [obsList, setObsList] = useState(null);
-  useEffect(() => {
-    const fetchObsList = async () => {
-      const response = await dispatch(
-        GET(
-          `/api/observation_plan/${observationplanRequest.id}/geojson`,
-          "skyportal/FETCH_OBSERVATION_PLAN_GEOJSON",
-        ),
-      );
-      setObsList(response.data);
-    };
-    if (
-      ["complete", "submitted to telescope queue"].includes(
-        observationplanRequest?.status,
-      )
-    ) {
-      fetchObsList();
-    }
-  }, [dispatch, setObsList, observationplanRequest]);
-
-  const handleDeleteObservationPlanFields = async (obsPlanList) => {
-    const selectedFields = obsPlanList?.geojson.filter((f) => f?.selected);
-    const selectedIds = selectedFields.map((f) => f?.properties?.field_id);
-    await dispatch(
-      Actions.deleteObservationPlanFields(
-        observationplanRequest.id,
-        selectedIds,
-      ),
-    );
-  };
-
-  return (
-    <div>
-      {!obsList ? (
-        <div>
-          <CircularProgress />
-        </div>
-      ) : (
-        <div>
-          <LocalizationPlot
-            observations={obsList}
-            options={displayOptionsDefault}
-            height={550}
-            width={550}
-            type="obsplan"
-            projection="mollweide"
-          />
-          <Button
-            secondary
-            onClick={() => handleDeleteObservationPlanFields(obsList)}
-          >
-            Delete selected fields
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-ObservationPlanGlobe.propTypes = {
-  observationplanRequest: PropTypes.shape({
-    id: PropTypes.number,
-    requester: PropTypes.shape({
-      id: PropTypes.number,
-      username: PropTypes.string,
-    }),
-    instrument: PropTypes.shape({
-      id: PropTypes.number,
-      name: PropTypes.string,
-    }),
-    status: PropTypes.string,
-    allocation: PropTypes.shape({
-      group: PropTypes.shape({
-        name: PropTypes.string,
-      }),
-    }),
-  }).isRequired,
-};
-
-const ObservationPlanSummaryStatistics = ({ observationplanRequest }) => {
-  const summaryStatistics =
-    observationplanRequest?.observation_plans[0]?.statistics;
-
-  return (
-    <div>
-      {!summaryStatistics || summaryStatistics?.length === 0 ? (
-        <div>
-          <CircularProgress />
-        </div>
-      ) : (
-        <div>
-          <ul>
-            <li>
-              {" "}
-              Number of Observations:{" "}
-              {summaryStatistics[0].statistics.num_observations}{" "}
-            </li>
-            <li> Delay from Trigger: {summaryStatistics[0].statistics.dt} </li>
-            <li>
-              {" "}
-              Start of Observations:{" "}
-              {summaryStatistics[0].statistics.start_observation}{" "}
-            </li>
-            <li>
-              {" "}
-              Unique filters:{" "}
-              {summaryStatistics[0].statistics.unique_filters?.join(", ")}{" "}
-            </li>
-            <li>
-              {" "}
-              Total time [s]: {summaryStatistics[0].statistics.total_time}{" "}
-            </li>
-            <li>
-              {" "}
-              Probability:{" "}
-              {summaryStatistics[0].statistics.probability?.toFixed(3)}{" "}
-            </li>
-            <li>
-              {" "}
-              Area [sq. deg.]:{" "}
-              {summaryStatistics[0].statistics.area?.toFixed(1)}{" "}
-            </li>
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-};
-
-ObservationPlanSummaryStatistics.propTypes = {
-  observationplanRequest: PropTypes.shape({
-    id: PropTypes.number,
-    requester: PropTypes.shape({
-      id: PropTypes.number,
-      username: PropTypes.string,
-    }),
-    instrument: PropTypes.shape({
-      id: PropTypes.number,
-      name: PropTypes.string,
-    }),
-    status: PropTypes.string,
-    allocation: PropTypes.shape({
-      group: PropTypes.shape({
-        name: PropTypes.string,
-      }),
-    }),
-    observation_plans: PropTypes.arrayOf(
-      PropTypes.shape({
-        statistics: PropTypes.arrayOf(
-          PropTypes.shape({
-            statistics: PropTypes.shape({
-              id: PropTypes.number,
-              probability: PropTypes.number,
-              area: PropTypes.number,
-              num_observations: PropTypes.number,
-              dt: PropTypes.number,
-              total_time: PropTypes.number,
-              start_observation: PropTypes.string,
-              unique_filters: PropTypes.arrayOf(PropTypes.string),
-            }),
-          }),
-        ),
-      }),
-    ),
-  }).isRequired,
-};
 
 const ObservationPlanRequestLists = ({ dateobs }) => {
   const classes = useStyles();
@@ -420,7 +239,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
     value.sort();
   });
 
-  const getDataTableColumns = (keys, instrument_id) => {
+  const getDataTableColumns = (instrument_id) => {
     const implementsDelete =
       instrumentObsplanFormParams[instrument_id]?.methodsImplemented.delete;
     const implementsSend =
@@ -433,25 +252,31 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
       { name: "requester.username", label: "Requester" },
       { name: "allocation.group.name", label: "Allocation" },
     ];
-    keys?.forEach((key) => {
-      const renderKey = (value) =>
-        Array.isArray(value) ? value.join(",") : value;
+    const renderPayload = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      const cellStyle = {
+        whiteSpace: "nowrap",
+      };
 
-      if (instrumentObsplanFormParams[instrument_id]) {
-        const field = Object.keys(
-          instrumentObsplanFormParams[instrument_id].aliasLookup,
-        ).includes(key)
-          ? instrumentObsplanFormParams[instrument_id].aliasLookup[key]
-          : key;
-        columns.push({
-          name: `payload.${key}`,
-          label: field,
-          options: {
-            customBodyRender: renderKey,
-          },
-        });
-      }
+      return (
+        <div style={cellStyle}>
+          {observationplanRequest ? (
+            <JSONTree data={observationplanRequest.payload} hideRoot />
+          ) : (
+            ""
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "payload",
+      label: "Payload",
+      options: {
+        customBodyRenderLite: renderPayload,
+      },
     });
+
     columns.push({ name: "status", label: "Status" });
 
     const renderSummaryStatistics = (dataIndex) => {
@@ -596,114 +421,138 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
       const renderQueue = (dataIndex) => {
         const observationplanRequest =
           requestsGroupedByInstId[instrument_id][dataIndex];
+        if (observationplanRequest.status === "running") {
+          return (
+            <div>
+              <CircularProgress />
+            </div>
+          );
+        }
+        if (
+          observationplanRequest?.observation_plans?.length > 0 &&
+          observationplanRequest?.observation_plans[0]?.status === "complete" &&
+          observationplanRequest?.observation_plans[0]?.statistics?.length >
+            0 &&
+          observationplanRequest?.observation_plans[0]?.statistics[0]
+            ?.statistics?.num_observations === 0
+        ) {
+          return <div> No observations planned. </div>;
+        }
         return (
           <div>
-            {observationplanRequest.status === "running" ? (
-              <div>
-                <CircularProgress />
-              </div>
-            ) : (
-              <>
-                <div className={classes.actionButtons}>
-                  {implementsSend && isSending === observationplanRequest.id ? (
-                    <div>
-                      <CircularProgress />
-                    </div>
-                  ) : (
-                    <div>
-                      <Button
-                        primary
-                        onClick={() => {
-                          handleShowTable(observationplanRequest.id);
-                        }}
-                        size="small"
-                        type="submit"
-                        data-testid={`sendRequest_${observationplanRequest.id}`}
-                      >
-                        Send to Queue
-                      </Button>
-                    </div>
-                  )}
-                  {implementsRemove &&
-                  isRemoving === observationplanRequest.id ? (
-                    <div>
-                      <CircularProgress />
-                    </div>
-                  ) : (
-                    <div>
-                      <Button
-                        secondary
-                        onClick={() => {
-                          handleRemove(observationplanRequest.id);
-                        }}
-                        size="small"
-                        type="submit"
-                        data-testid={`removeRequest_${observationplanRequest.id}`}
-                      >
-                        Remove from Queue
-                      </Button>
-                    </div>
-                  )}
+            <div className={classes.actionButtons}>
+              {implementsSend && isSending === observationplanRequest.id ? (
+                <div>
+                  <CircularProgress />
                 </div>
-                <Dialog
-                  open={showTable === observationplanRequest.id}
-                  onClose={() => {
-                    setShowTable(null);
+              ) : (
+                <div
+                  style={{
+                    display:
+                      observationplanRequest.status ===
+                      "submitted to telescope queue"
+                        ? "none"
+                        : "block",
                   }}
-                  style={{ position: "fixed" }}
-                  className={classes.dialog}
                 >
-                  <DialogTitle>Observation plan</DialogTitle>
-                  <DialogContent>
-                    {fetchedObservationPlan &&
-                    fetchedObservationPlan.id === observationplanRequest.id ? (
-                      /* here will show a list (ordered by time) of all the observations in the plan */
-                      /* for each will show the time, field_id, filter */
-                      <>
-                        <MUIDataTable
-                          data={
-                            fetchedObservationPlan.observation_plans[0]
-                              .planned_observations
-                          }
-                          columns={[
-                            { name: "obstime", label: "Time" },
-                            { name: "field_id", label: "Field ID" },
-                            { name: "filt", label: "Filter" },
-                            { name: "exposure_time", label: "Exposure Time" },
-                            { name: "weight", label: "Weight" },
-                          ]}
-                          options={{
-                            filter: false,
-                            sort: false,
-                            print: true,
-                            download: true,
-                            search: true,
-                            selectableRows: "none",
-                            enableNestedDataAccess: ".",
-                            elevation: 0,
-                          }}
-                        />
-                        <Button
-                          primary
-                          onClick={() => {
-                            handleSend(observationplanRequest.id);
-                          }}
-                          size="small"
-                          type="submit"
-                          data-testid={`sendRequest_${observationplanRequest.id}`}
-                        >
-                          Send to Queue
-                        </Button>
-                      </>
-                    ) : (
-                      <div>
-                        <CircularProgress />
-                      </div>
-                    )}
-                  </DialogContent>
-                </Dialog>
-              </>
-            )}
+                  <Button
+                    primary
+                    onClick={() => {
+                      handleShowTable(observationplanRequest.id);
+                    }}
+                    size="small"
+                    type="submit"
+                    data-testid={`sendRequest_${observationplanRequest.id}`}
+                  >
+                    Send to Queue
+                  </Button>
+                </div>
+              )}
+              {implementsRemove && isRemoving === observationplanRequest.id ? (
+                <div>
+                  <CircularProgress />
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display:
+                      observationplanRequest.status ===
+                      "submitted to telescope queue"
+                        ? "block"
+                        : "none",
+                  }}
+                >
+                  <Button
+                    secondary
+                    onClick={() => {
+                      handleRemove(observationplanRequest.id);
+                    }}
+                    size="small"
+                    type="submit"
+                    data-testid={`removeRequest_${observationplanRequest.id}`}
+                  >
+                    Remove from Queue
+                  </Button>
+                </div>
+              )}
+            </div>
+            <Dialog
+              open={showTable === observationplanRequest.id}
+              onClose={() => {
+                setShowTable(null);
+              }}
+              style={{ position: "fixed" }}
+              className={classes.dialog}
+            >
+              <DialogTitle>Observation plan</DialogTitle>
+              <DialogContent>
+                {fetchedObservationPlan &&
+                fetchedObservationPlan.id === observationplanRequest.id ? (
+                  /* here will show a list (ordered by time) of all the observations in the plan */
+                  /* for each will show the time, field_id, filter */
+                  <>
+                    <MUIDataTable
+                      data={
+                        fetchedObservationPlan.observation_plans[0]
+                          .planned_observations
+                      }
+                      columns={[
+                        { name: "obstime", label: "Time" },
+                        { name: "field_id", label: "Field ID" },
+                        { name: "filt", label: "Filter" },
+                        { name: "exposure_time", label: "Exposure Time" },
+                        { name: "weight", label: "Weight" },
+                      ]}
+                      options={{
+                        filter: false,
+                        sort: false,
+                        print: true,
+                        download: true,
+                        search: true,
+                        selectableRows: "none",
+                        enableNestedDataAccess: ".",
+                        elevation: 0,
+                      }}
+                    />
+                    <Button
+                      primary
+                      onClick={() => {
+                        handleSend(observationplanRequest.id);
+                      }}
+                      size="small"
+                      type="submit"
+                      data-testid={`sendRequest_${observationplanRequest.id}`}
+                    >
+                      Send to Queue
+                    </Button>
+                  </>
+                ) : (
+                  <div>
+                    <CircularProgress />
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </div>
         );
       };
@@ -813,79 +662,38 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
     rowsPerPageOptions: [1, 10, 15],
   };
 
-  const keyOrder = (a, b) => {
-    // End date comes after start date
-    if (a === "end_date" && b === "start_date") {
-      return 1;
-    }
-    if (b === "end_date" && a === "start_date") {
-      return -1;
-    }
-
-    // Dates come before anything else
-    if (a === "end_date" || a === "start_date") {
-      return -1;
-    }
-    if (b === "end_date" || b === "start_date") {
-      return 1;
-    }
-
-    // Regular string comparison
-    if (a < b) {
-      return -1;
-    }
-    if (a > b) {
-      return 1;
-    }
-    // a must be equal to b
-    return 0;
-  };
-
   return (
     <div className={classes.container}>
-      {Object.keys(requestsGroupedByInstId).map((instrument_id) => {
+      {Object.keys(requestsGroupedByInstId).map((instrument_id) => (
         // get the flat, unique list of all keys across all requests
-        const keys = requestsGroupedByInstId[instrument_id].reduce((r, a) => {
-          Object.keys(a.payload).forEach((key) => {
-            if (!r.includes(key)) {
-              r = [...r, key];
-            }
-          });
-          return r;
-        }, []);
-
-        keys.sort(keyOrder);
-
-        return (
-          <Accordion
-            className={classes.accordion}
-            key={`instrument_${instrument_id}_table_div`}
+        <Accordion
+          className={classes.accordion}
+          key={`instrument_${instrument_id}_table_div`}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls={`${instLookUp[instrument_id].name}-requests`}
+            data-testid={`${instLookUp[instrument_id].name}-requests-header`}
           >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls={`${instLookUp[instrument_id].name}-requests`}
-              data-testid={`${instLookUp[instrument_id].name}-requests-header`}
-            >
-              <Typography variant="subtitle1">
-                {instLookUp[instrument_id].name} Requests
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails
-              data-testid={`${instLookUp[instrument_id].name}_observationplanRequestsTable`}
-            >
-              <StyledEngineProvider injectFirst>
-                <ThemeProvider theme={getMuiTheme(theme)}>
-                  <MUIDataTable
-                    data={requestsGroupedByInstId[instrument_id]}
-                    options={options}
-                    columns={getDataTableColumns(keys, instrument_id)}
-                  />
-                </ThemeProvider>
-              </StyledEngineProvider>
-            </AccordionDetails>
-          </Accordion>
-        );
-      })}
+            <Typography variant="subtitle1">
+              {instLookUp[instrument_id].name} Requests
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails
+            data-testid={`${instLookUp[instrument_id].name}_observationplanRequestsTable`}
+          >
+            <StyledEngineProvider injectFirst>
+              <ThemeProvider theme={getMuiTheme(theme)}>
+                <MUIDataTable
+                  data={requestsGroupedByInstId[instrument_id]}
+                  options={options}
+                  columns={getDataTableColumns(instrument_id)}
+                />
+              </ThemeProvider>
+            </StyledEngineProvider>
+          </AccordionDetails>
+        </Accordion>
+      ))}
     </div>
   );
 };

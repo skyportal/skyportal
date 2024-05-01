@@ -1637,6 +1637,7 @@ class PhotometryHandler(BaseHandler):
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
         stream_ids = data.pop("stream_ids", None)
+        magsys = data.get('magsys', 'ab')
 
         refresh = self.get_query_argument('refresh', default=False)
 
@@ -1760,7 +1761,7 @@ class PhotometryHandler(BaseHandler):
                 flow.push(
                     '*',
                     'skyportal/FETCH_SOURCE_PHOTOMETRY',
-                    payload={'obj_id': photometry.obj_id},
+                    payload={'obj_id': photometry.obj_id, 'magsys': magsys},
                 )
 
             return self.success()

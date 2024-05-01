@@ -279,7 +279,9 @@ class ObjPositionHandler(BaseHandler):
                     for p in photometry
                     if not np.isnan(p.flux)
                     and not np.isnan(p.fluxerr)
+                    and p.ra is not None
                     and not np.isnan(p.ra)
+                    and p.dec is not None
                     and not np.isnan(p.dec)
                     and all(constraint(p) for constraint in additional_constraints)
                 ]

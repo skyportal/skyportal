@@ -3,6 +3,7 @@ import functools
 import io
 import operator  # noqa: F401
 import time
+import traceback
 from json.decoder import JSONDecodeError
 
 import re
@@ -42,9 +43,12 @@ from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
+from ...utils.asynchronous import run_async
 from ...models import (
+    DBSession,
     Allocation,
     Annotation,
+    Candidate,
     ClassicalAssignment,
     Classification,
     Comment,
@@ -103,13 +107,27 @@ from .sources import get_sources as get_sources_experimental
 
 DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
-MAX_NUM_DAYS_USING_LOCALIZATION = 31
+MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 _, cfg = load_env()
 log = make_log('api/source')
 
 MAX_LOCALIZATION_SOURCES = 50000
 
 Session = scoped_session(sessionmaker())
+
+
+def remove_obj_thumbnails(obj_id):
+    log(f"removing existing public_url thumbnails for {obj_id}")
+    with DBSession() as session:
+        existing_thumbnails = session.scalars(
+            sa.select(Thumbnail).where(
+                Thumbnail.obj_id == obj_id,
+                Thumbnail.type.in_(['ps1', 'sdss', 'ls']),
+            )
+        )
+        for thumbnail in existing_thumbnails:
+            session.delete(thumbnail)
+        session.commit()
 
 
 def check_if_obj_has_photometry(obj_id, user, session):
@@ -557,6 +575,7 @@ async def get_sources(
     include_labellers=False,
     include_hosts=False,
     exclude_forced_photometry=False,
+    require_detections=True,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -678,62 +697,65 @@ async def get_sources(
         other = ca.Point(ra=ra, dec=dec)
         obj_query = obj_query.where(Obj.within(other, radius))
 
-    if first_detected_date:
-        first_detected_date = arrow.get(first_detected_date).datetime
-        if exclude_forced_photometry:
-            photstat_subquery = (
-                PhotStat.select(user)
-                .where(
-                    PhotStat.first_detected_no_forced_phot_mjd
-                    >= Time(first_detected_date).mjd
+    if require_detections:
+        if first_detected_date:
+            first_detected_date = arrow.get(first_detected_date).datetime
+            if exclude_forced_photometry:
+                photstat_subquery = (
+                    PhotStat.select(user)
+                    .where(
+                        PhotStat.first_detected_no_forced_phot_mjd
+                        >= Time(first_detected_date).mjd
+                    )
+                    .subquery()
                 )
-                .subquery()
-            )
-        else:
-            photstat_subquery = (
-                PhotStat.select(user)
-                .where(PhotStat.first_detected_mjd >= Time(first_detected_date).mjd)
-                .subquery()
-            )
-        obj_query = obj_query.join(
-            photstat_subquery, Obj.id == photstat_subquery.c.obj_id
-        )
-    if last_detected_date:
-        last_detected_date = arrow.get(last_detected_date).datetime
-        if exclude_forced_photometry:
-            photstat_subquery = (
-                PhotStat.select(user)
-                .where(
-                    PhotStat.last_detected_no_forced_phot_mjd
-                    <= Time(last_detected_date).mjd
+            else:
+                photstat_subquery = (
+                    PhotStat.select(user)
+                    .where(PhotStat.first_detected_mjd >= Time(first_detected_date).mjd)
+                    .subquery()
                 )
-                .subquery()
+            obj_query = obj_query.join(
+                photstat_subquery, Obj.id == photstat_subquery.c.obj_id
             )
-        else:
-            photstat_subquery = (
-                PhotStat.select(user)
-                .where(PhotStat.last_detected_mjd <= Time(last_detected_date).mjd)
-                .subquery()
+        if last_detected_date:
+            last_detected_date = arrow.get(last_detected_date).datetime
+            if exclude_forced_photometry:
+                photstat_subquery = (
+                    PhotStat.select(user)
+                    .where(
+                        PhotStat.last_detected_no_forced_phot_mjd
+                        <= Time(last_detected_date).mjd
+                    )
+                    .subquery()
+                )
+            else:
+                photstat_subquery = (
+                    PhotStat.select(user)
+                    .where(PhotStat.last_detected_mjd <= Time(last_detected_date).mjd)
+                    .subquery()
+                )
+            obj_query = obj_query.join(
+                photstat_subquery, Obj.id == photstat_subquery.c.obj_id
             )
-        obj_query = obj_query.join(
-            photstat_subquery, Obj.id == photstat_subquery.c.obj_id
-        )
-    if number_of_detections:
-        if exclude_forced_photometry:
-            photstat_subquery = (
-                PhotStat.select(user)
-                .where(PhotStat.num_det_no_forced_phot_global >= number_of_detections)
-                .subquery()
+        if number_of_detections:
+            if exclude_forced_photometry:
+                photstat_subquery = (
+                    PhotStat.select(user)
+                    .where(
+                        PhotStat.num_det_no_forced_phot_global >= number_of_detections
+                    )
+                    .subquery()
+                )
+            else:
+                photstat_subquery = (
+                    PhotStat.select(user)
+                    .where(PhotStat.num_det_global >= number_of_detections)
+                    .subquery()
+                )
+            obj_query = obj_query.join(
+                photstat_subquery, Obj.id == photstat_subquery.c.obj_id
             )
-        else:
-            photstat_subquery = (
-                PhotStat.select(user)
-                .where(PhotStat.num_det_global >= number_of_detections)
-                .subquery()
-            )
-        obj_query = obj_query.join(
-            photstat_subquery, Obj.id == photstat_subquery.c.obj_id
-        )
     if has_spectrum_after:
         try:
             has_spectrum_after = str(arrow.get(has_spectrum_after).datetime)
@@ -1774,9 +1796,9 @@ def post_source(data, user_id, session, refresh_source=True):
 
     # only allow letters, numbers, underscores, dashes, semicolons, and colons
     # do not allow any characters that could be used for a URL's in path arguments
-    if not re.match(r"^[a-zA-Z0-9_\-;:+]+$", data["id"]):
+    if not re.match(r"^[a-zA-Z0-9_\-;:+.]+$", data["id"]):
         raise AttributeError(
-            "Only letters, numbers, underscores, semicolons, colons, +, and - are allowed in source ID"
+            "Only letters, numbers, underscores, semicolons, colons, +, -, and periods are allowed in source ID"
         )
 
     obj = session.scalars(Obj.select(user).where(Obj.id == data["id"])).first()
@@ -2278,6 +2300,13 @@ class SourceHandler(BaseHandler):
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
               PhotStat.last_detected_mjd <= endDate
           - in: query
+            name: requireDetections
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Require startDate, endDate, and numberDetections to be set when querying sources in a localization. Defaults to True.
+          - in: query
             name: listName
             nullable: true
             schema:
@@ -2775,6 +2804,7 @@ class SourceHandler(BaseHandler):
         exclude_forced_photometry = self.get_query_argument(
             "excludeForcedPhotometry", False
         )
+        require_detections = self.get_query_argument("requireDetections", True)
         remove_nested = self.get_query_argument("removeNested", False)
         include_detection_stats = self.get_query_argument(
             "includeDetectionStats", False
@@ -2885,7 +2915,11 @@ class SourceHandler(BaseHandler):
         has_spectrum_before = validated['has_spectrum_before']
         created_or_modified_after = validated['created_or_modified_after']
 
-        if localization_dateobs is not None or localization_name is not None:
+        if (
+            localization_dateobs is not None
+            or localization_name is not None
+            and require_detections
+        ):
             if first_detected_date is None or last_detected_date is None:
                 return self.error(
                     'must specify startDate and endDate when filtering by localizationDateobs or localizationName'
@@ -2898,7 +2932,7 @@ class SourceHandler(BaseHandler):
                 last_detected_date - first_detected_date
             ).days > MAX_NUM_DAYS_USING_LOCALIZATION:
                 return self.error(
-                    "startDate and endDate must be less than a month apart when filtering by localizationDateobs or localizationName",
+                    "startDate and endDate must be less than 10 years apart when filtering by localizationDateobs or localizationName",
                 )
 
         if spatial_catalog_name is not None:
@@ -2934,7 +2968,7 @@ class SourceHandler(BaseHandler):
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
 
-        use_experimental = self.get_query_argument('useExperimentalSources', False)
+        use_experimental = self.get_query_argument('useExperimentalSources', True)
 
         method_get_sources = (
             get_sources_experimental if use_experimental else get_sources
@@ -2969,6 +3003,7 @@ class SourceHandler(BaseHandler):
                         include_gcn_crossmatches=include_gcn_crossmatches,
                     )
                 except Exception as e:
+                    traceback.print_exc()
                     return self.error(f'Cannot retrieve source: {str(e)}')
 
                 query_size = sizeof(source_info)
@@ -2996,6 +3031,7 @@ class SourceHandler(BaseHandler):
                     include_labellers=include_labellers,
                     include_hosts=include_hosts,
                     exclude_forced_photometry=exclude_forced_photometry,
+                    require_detections=require_detections,
                     is_token_request=is_token_request,
                     include_requested=include_requested,
                     requested_only=requested_only,
@@ -3063,9 +3099,10 @@ class SourceHandler(BaseHandler):
                     includeGeoJSON=includeGeoJSON,
                     use_cache=use_cache,
                     query_id=query_id,
-                    verbose=True,
+                    verbose=False,
                 )
             except Exception as e:
+                traceback.print_exc()
                 return self.error(f'Cannot retrieve sources: {str(e)}')
 
             query_size = sizeof(query_results)
@@ -3173,23 +3210,54 @@ class SourceHandler(BaseHandler):
         data = self.get_json()
         data['id'] = obj_id
 
-        schema = Obj.__schema__()
-        try:
-            obj = schema.load(data)
-        except ValidationError as e:
-            return self.error(
-                'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+        with self.Session() as session:
+            # verify that there are no candidates for this object,
+            # in which case we do not allow updating the position
+            updated_coordinates = False
+            if data.get('ra', None) is not None or data.get('dec', None) is not None:
+                existing_candidates = session.scalars(
+                    sa.select(Candidate).where(Candidate.obj_id == obj_id)
+                ).all()
+                if len(existing_candidates) > 0:
+                    return self.error(
+                        'Cannot update the position of an object with candidates/alerts'
+                    )
+
+                source = session.scalars(sa.select(Obj).where(Obj.id == obj_id)).first()
+                if source is None:
+                    return self.error(f'Cannot find the object with name {obj_id}')
+
+                if not (
+                    np.isclose(data.get('ra'), source.ra)
+                    and np.isclose(data.get('dec'), source.dec)
+                ):
+                    run_async(remove_obj_thumbnails, obj_id)
+                    updated_coordinates = True
+
+            schema = Obj.__schema__()
+            try:
+                obj = schema.load(data)
+            except ValidationError as e:
+                return self.error(
+                    'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                )
+            update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+            update_summary_history_if_relevant(data, obj, self.associated_user_object)
+
+            update_healpix_if_relevant(data, obj)
+
+            self.verify_and_commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj.internal_key},
             )
-        update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-        update_summary_history_if_relevant(data, obj, self.associated_user_object)
 
-        update_healpix_if_relevant(data, obj)
-
-        self.verify_and_commit()
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": obj.internal_key},
-        )
+            if updated_coordinates:
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE_POSITION",
+                    payload={"obj_key": obj.internal_key},
+                )
 
         return self.success()
 
