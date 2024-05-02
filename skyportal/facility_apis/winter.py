@@ -184,7 +184,10 @@ class WINTERAPI(FollowUpAPI):
                 },
                 auth=HTTPBasicAuth(altdata['username'], altdata['password']),
             )
-
+            if r.status_code == 404:
+                raise ValueError(
+                    'Failed to delete request from WINTER, could not find a request with the given schedule name. Please wait a few seconds if you just submitted the request.'
+                )
             r.raise_for_status()
             request.status = 'deleted'
 
