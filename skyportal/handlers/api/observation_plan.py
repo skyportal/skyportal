@@ -425,12 +425,16 @@ def post_observation_plans(
     session.commit()
 
     flow = Flow()
+    plan_ids = []
     for observation_plan_request in observation_plan_requests:
         flow.push(
             '*',
             "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
             payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
         )
+        plan_ids.append(observation_plan_request.id)
+
+    return plan_ids
 
 
 def post_observation_plan(
@@ -600,32 +604,33 @@ class ObservationPlanRequestHandler(BaseHandler):
                     )
 
             if len(observation_plans) == 1:
-                post_observation_plan(
+                plan_id = post_observation_plan(
                     observation_plans[0],
                     self.associated_user_object.id,
                     session,
                     asynchronous=True,
                 )
+                plan_ids = [plan_id]
             else:
                 if combine_plans:
-                    post_observation_plans(
+                    plan_ids = post_observation_plans(
                         observation_plans,
                         self.associated_user_object.id,
                         session,
                         asynchronous=True,
                     )
                 else:
+                    plan_ids = []
                     for plan in observation_plans:
-                        post_observation_plan(
+                        plan_id = post_observation_plan(
                             plan,
                             self.associated_user_object.id,
                             session,
                             asynchronous=True,
                         )
+                        plan_ids.append(plan_id)
 
-        return self.success(
-            "Observation plan request submitted successfully to the queue successfully."
-        )
+        return self.success(data={'ids': plan_ids})
 
     @auth_or_token
     def get(self, observation_plan_request_id=None):

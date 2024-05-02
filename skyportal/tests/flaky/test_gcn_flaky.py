@@ -19,7 +19,7 @@ def test_filter_by_gcnevent(
     ztf_camera,
     upload_data_token,
 ):
-    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}
@@ -166,7 +166,7 @@ def test_filter_by_gcnevent(
 def test_gcn_summary_observations(
     super_admin_user, super_admin_token, view_only_token, public_group
 ):
-    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}
@@ -232,8 +232,8 @@ def test_gcn_summary_observations(
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
 
-    fielddatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Fields.csv'
-    regionsdatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Region.reg'
+    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
@@ -350,7 +350,7 @@ def test_gcn_summary_observations(
 
         assert n_retries < 10
 
-    datafile = f'{os.path.dirname(__file__)}/../../../../data/sample_observation_gw.csv'
+    datafile = f'{os.path.dirname(__file__)}/../../../data/sample_observation_gw.csv'
     data = {
         'telescopeName': name,
         'instrumentName': instrument_name,
