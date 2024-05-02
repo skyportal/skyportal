@@ -63,7 +63,7 @@ geojson==3.1.0
 typing-extensions==4.8.0
 swifttools==3.0.21
 pip==23.3.1
-gwemopt==0.2.1
+gwemopt==0.2.2
 humanize==4.8.0
 xarray>=21.1
 simsurvey==0.7.5
