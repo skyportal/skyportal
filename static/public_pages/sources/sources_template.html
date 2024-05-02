@@ -43,40 +43,43 @@
       {% for source, versions in versions_by_source.items() %}
       <div class="sourceAndVersions" id="{{ source }}">
         <div class="source">
-          <h2>
-            {{ source }}
-            <span>
+          <div class="sourceAndTimeAgo">
+            <h2>{{ source }}</h2>
+            {% set time_difference = datetime.datetime.utcnow() -
+            versions[0].created_at %}
+            <span class="timeAgo {% if time_difference.days < 1 %}new{% end %}">
               <!-- prettier-ignore -->
-              {% set time_difference = datetime.datetime.utcnow() - versions[0].created_at %}
-            {% if time_difference.days > 0 %}
-                {{ time_difference.days }} days,
-            {% end %}
-              {% if time_difference.seconds > 3600 %}
-                {{ time_difference.seconds // 3600 }} hours and
-            {% end %}
-              {% if time_difference.seconds > 60 %}
-              {{ (time_difference.seconds % 3600) // 60 }} minutes ago
-              {% else %}
-              {{ time_difference.seconds }} seconds ago
-            {% end %}
+              {% set days = time_difference.days %}
+              {% set hours = time_difference.seconds // 3600 %}
+              {% set minutes = (time_difference.seconds % 3600) // 60 %}
+              {% set seconds = time_difference.seconds % 60 %}
+
+              {% if days > 0 %}{{ days }} days,{% end %}
+              {% if days > 0 or hours > 0 %}{{ hours }} hours{% end %}
+              {% if days > 0 %} and{% elif hours > 0 %},{% end %}
+              {% if hours > 0 or minutes > 0 %}{{ minutes }} minutes{% end %}
+              {% if days == 0 and seconds > 0 %} and {% elif days > 0 %} ago{% end %}
+              {% if days == 0 and seconds > 0 %}{{ seconds }} seconds ago{% end %}
             </span>
-          </h2>
+          </div>
           <a href="/public/sources/{{source}}" target="_blank">
             Link to the latest version</a
           >
         </div>
-        {% for version in versions %}
-        <div class="version">
-          <div class="versionId">#{{version.id}}</div>
-          <a
-            class="boxShadow"
-            href="/public/sources/{{ source }}/version/{{ version.created_at_iso }}"
-            target="_blank"
-          >
-            {{ version.created_at.strftime('%m/%d/%Y %H:%M:%S') }} UTC
-          </a>
+        <div class="versions">
+          {% for version in versions %}
+          <div class="version">
+            <div class="versionId">#{{version.id}}</div>
+            <a
+              class="boxShadow"
+              href="/public/sources/{{ source }}/version/{{ version.created_at_iso }}"
+              target="_blank"
+            >
+              {{ version.created_at.strftime('%m/%d/%Y %H:%M:%S') }} UTC
+            </a>
+          </div>
+          {% end %}
         </div>
-        {% end %}
       </div>
       {% end %}
     </div>

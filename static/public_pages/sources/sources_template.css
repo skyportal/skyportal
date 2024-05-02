@@ -19,24 +19,31 @@ header {
     }
   }
   .sourceAndVersions {
-    &:not(:last-child) {
-      padding-bottom: 1rem;
-      border-bottom: 1px solid lightgray;
-    }
+    border-bottom: 1px solid lightgray;
+    margin-bottom: 1rem;
     .source {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 1rem;
+      padding: 0.5rem 1rem;
 
-      h2 {
-        margin: 0;
-        font-weight: bold;
+      .sourceAndTimeAgo {
+        display: flex;
+        column-gap: 0.7rem;
+        align-items: baseline;
+        h2 {
+          margin: 0;
+          font-weight: bold;
+        }
         span {
-          font-size: 0.8em;
+          font-size: 0.9rem;
           font-weight: normal;
           font-style: italic;
           color: rgb(29, 53, 87);
+
+          &.new {
+            color: green;
+          }
         }
       }
 
@@ -45,21 +52,24 @@ header {
         text-decoration: none;
       }
     }
-    .version {
-      padding-left: 5rem;
-      display: flex;
-      align-items: center;
-      gap: 4rem;
-      margin-bottom: 0.5rem;
+    .versions {
+      display: none;
+      .version {
+        padding-left: 5rem;
+        display: flex;
+        align-items: center;
+        gap: 4rem;
+        margin-bottom: 0.5rem;
 
-      .versionId {
-        min-width: 50px;
-      }
+        .versionId {
+          min-width: 50px;
+        }
 
-      a {
-        border: 1px solid gray;
-        border-radius: 0.2rem;
-        padding: 0.2rem 0.4rem;
+        a {
+          border: 1px solid gray;
+          border-radius: 0.2rem;
+          padding: 0.2rem 0.4rem;
+        }
       }
     }
   }
