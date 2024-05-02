@@ -937,6 +937,7 @@ class ZTFMMAAPI(MMAAPI):
         username: str
             Username for the removal
         """
+        from ..models import DBSession, ObservationPlanRequest
 
         altdata = allocation.altdata
         if not altdata:
@@ -953,6 +954,37 @@ class ZTFMMAAPI(MMAAPI):
         r = s.send(prepped)
         if not r.status_code == 200:
             return ValueError(f'Error deleting queue: {r.text}')
+
+        # check if there is an observation plan request associated with this queue (same queue name)
+        # if so, mark it as removed from queue
+        try:
+            with DBSession() as session:
+                observation_plan_request = session.scalar(
+                    session.query(ObservationPlanRequest).filter(
+                        ObservationPlanRequest.payload['queue_name'] == queue_name,
+                        ObservationPlanRequest.allocation_id == allocation.id,
+                    )
+                )
+                if (
+                    observation_plan_request
+                    and observation_plan_request.status
+                    == 'submitted to telescope queue'
+                ):
+                    observation_plan_request.status = 'deleted from telescope queue'
+                    session.commit()
+
+                    flow = Flow()
+                    flow.push(
+                        '*',
+                        "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                        payload={
+                            "gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs
+                        },
+                    )
+        except Exception as e:
+            log(
+                f'Error marking observation plan request (with same queue name) status as deleted from queue: {e}'
+            )
 
     @staticmethod
     def retrieve(allocation, start_date, end_date):

@@ -932,12 +932,15 @@ class ObservationPlanRequestHandler(BaseHandler):
             if not api.implements()['delete']:
                 return self.error('Cannot delete observation plans on this instrument.')
 
-            observation_plan_request.last_modified_by_id = (
-                self.associated_user_object.id
-            )
-            api.delete(observation_plan_request.id)
+            # if the status of the plan is "submitted to telescope queue", don't allow deletion
+            if observation_plan_request.status == "submitted to telescope queue":
+                return self.error(
+                    "Cannot delete observation plan sent to the telescope queue."
+                )
 
-            session.commit()
+            api.delete(
+                observation_plan_request.id
+            )  # the session.commit() happens in this method, not need to commit here too
 
             self.push_all(
                 action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
@@ -1132,21 +1135,35 @@ class ObservationPlanSubmitHandler(BaseHandler):
                 return self.error(
                     f'Error sending observation plan to telescope: {e.args[0]}'
                 )
-            finally:
-                session.commit()
+
+            session.commit()
 
             try:
                 if (
                     'submit' in observation_plan_request.status
                     and 'fail' not in observation_plan_request.status
                 ):
-                    gcn_triggered = GcnTrigger(
-                        dateobs=observation_plan_request.gcnevent.dateobs,
-                        allocation_id=observation_plan_request.allocation_id,
-                        triggered=True,
+                    # check if there is already a GCN trigger for this dateobs and allocation, with triggered=True
+                    # if there is one already set "triggered" to True, otherwise create it.
+                    existing_gcn_trigger = session.scalar(
+                        GcnTrigger.select(session.user_or_token).where(
+                            GcnTrigger.dateobs
+                            == observation_plan_request.gcnevent.dateobs,
+                            GcnTrigger.allocation_id
+                            == observation_plan_request.allocation_id,
+                        )
                     )
-                    session.add(gcn_triggered)
-                    session.commit()
+                    if existing_gcn_trigger is None:
+                        gcn_triggered = GcnTrigger(
+                            dateobs=observation_plan_request.gcnevent.dateobs,
+                            allocation_id=observation_plan_request.allocation_id,
+                            triggered=True,
+                        )
+                        session.add(gcn_triggered)
+                        session.commit()
+                    elif existing_gcn_trigger.triggered is not True:
+                        existing_gcn_trigger.triggered = True
+                        session.commit()
             except Exception:
                 pass  # this is not a critical error, we can continue
 
@@ -1154,8 +1171,6 @@ class ObservationPlanSubmitHandler(BaseHandler):
                 action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
-
-            session.commit()
 
             return self.success(data=observation_plan_request)
 

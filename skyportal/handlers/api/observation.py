@@ -1512,7 +1512,7 @@ class ObservationExternalAPIHandler(BaseHandler):
     def delete(self, allocation_id):
         """
         ---
-        description: Retrieve queued observations from external API
+        description: Delete queued observations from external API
         tags:
           - observations
         parameters:
@@ -1570,11 +1570,10 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error('Cannot delete queues from this Instrument.')
 
             try:
-                # we now retrieve and commit to the database the
-                # executed observations
                 instrument.api_class_obsplan.remove_queue(
                     allocation, queue_name, self.associated_user_object.username
                 )
+                return self.success()
             except Exception as e:
                 return self.error(f"Error in querying instrument API: {e}")
 
