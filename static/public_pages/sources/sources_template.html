@@ -43,9 +43,26 @@
       {% for source, versions in versions_by_source.items() %}
       <div class="sourceAndVersions" id="{{ source }}">
         <div class="source">
-          <h2>{{ source }}</h2>
+          <h2>
+            {{ source }}
+            <span>
+              <!-- prettier-ignore -->
+              {% set time_difference = datetime.datetime.utcnow() - versions[0].created_at %}
+            {% if time_difference.days > 0 %}
+                {{ time_difference.days }} days,
+            {% end %}
+              {% if time_difference.seconds > 3600 %}
+                {{ time_difference.seconds // 3600 }} hours and
+            {% end %}
+              {% if time_difference.seconds > 60 %}
+              {{ (time_difference.seconds % 3600) // 60 }} minutes ago
+              {% else %}
+              {{ time_difference.seconds }} seconds ago
+            {% end %}
+            </span>
+          </h2>
           <a href="/public/sources/{{source}}" target="_blank">
-            Access to the latest version of this source</a
+            Link to the latest version</a
           >
         </div>
         {% for version in versions %}
