@@ -3,23 +3,11 @@ import os
 import tornado.web
 from baselayer.app.access import permissions
 from baselayer.log import make_log
+from skyportal.utils.files import filesize_to_human_readable
 from ...base import BaseHandler
 
 
 log = make_log('js')
-
-
-def filesize_to_human_readable(size):
-    if not isinstance(size, (int, float)) and size > 0:
-        raise ValueError('size must be a positive number')
-    if size < 1024:
-        return f'{size} B'
-    elif size < 1024 * 1024:
-        return f'{size / 1024:.1f} KB'
-    elif size < 1024 * 1024 * 1024:
-        return f'{size / 1024 / 1024:.1f} MB'
-    else:
-        return f'{size / 1024 / 1024 / 1024:.1f} GB'
 
 
 class LogHandler(BaseHandler):
@@ -42,6 +30,7 @@ class LogHandler(BaseHandler):
             try:
                 log_files = os.listdir('log')
                 log_files = [f for f in log_files if f.endswith('.log')]
+                log_files.sort()
                 log_files = [
                     {
                         'name': f,
