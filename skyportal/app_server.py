@@ -669,6 +669,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
             ),
             'SOCIAL_AUTH_NEW_USER_REDIRECT_URL': '/profile?newUser=true',
             'SOCIAL_AUTH_FIELDS_STORED_IN_SESSION': ['invite_token'],
+            'debug': env.debug if env is not None else False,
         }
     )
 
