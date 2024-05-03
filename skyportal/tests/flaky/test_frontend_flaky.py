@@ -1021,8 +1021,13 @@ def test_slider_classifications(
     driver.click_xpath(f"//li[text()='{test_taxonomy}']", scroll_parent=True)
     driver.click_xpath("//h6[text()='Stellar variable']")
 
+    # Set the 'Eclipsing' slider to 0.5
+    driver.click_xpath("//span[@id='Eclipsing']//span[@data-index='2']")
+
     # Set 'Algol' slider to 0.5
     driver.click_xpath("//span[@id='Algol']//span[@data-index='2']")
+
+    # Submit
     driver.click_xpath("//button[@name='submitClassificationsButton']")
 
     # need to reload the page to see classification
