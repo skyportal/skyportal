@@ -6,6 +6,7 @@ import arrow
 import sqlalchemy as sa
 
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.observation_plan import post_survey_efficiency_analysis
@@ -233,6 +234,18 @@ def service(*args, **kwargs):
                     session.merge(plan_request)
                     session.commit()
 
+                    try:
+                        flow = Flow()
+                        flow.push(
+                            '*',
+                            "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                            payload={"gcnEvent_dateobs": plan_request.gcnevent.dateobs},
+                        )
+                    except Exception as e:
+                        log(
+                            f'Error refreshing observation plan requests on the frontend: {e.args[0]}'
+                        )
+
                 else:
                     try:
                         plan_ids = plan_requests[
@@ -254,6 +267,22 @@ def service(*args, **kwargs):
                         plan_request.status = 'complete'
                         session.merge(plan_request)
                     session.commit()
+
+                    try:
+                        unique_dateobs = {
+                            plan.gcnevent.dateobs for plan in plan_requests
+                        }
+                        flow = Flow()
+                        for dateobs in unique_dateobs:
+                            flow.push(
+                                '*',
+                                "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                                payload={"gcnEvent_dateobs": dateobs},
+                            )
+                    except Exception as e:
+                        log(
+                            f"Error refreshing observation plan requests on the frontend: {e}"
+                        )
 
                 log(f"Generated plans: {plan_ids}")
                 for id in plan_ids:
