@@ -527,8 +527,8 @@ const SourceContent = ({ source }) => {
               style={{
                 padding: 0,
                 minHeight: !(downLarge || isRightPanelVisible)
-                  ? "60vh"
-                  : "52vh",
+                  ? "40vh"
+                  : "30vh",
               }}
             >
               <GCNNotesTable gcnNotes={source.gcn_notes} />
