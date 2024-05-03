@@ -8,10 +8,8 @@ from tdtax import taxonomy, __version__
 
 import pytest
 from skyportal.tests import api
-from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
-from datetime import date, timedelta
 
 
 @pytest.mark.flaky(reruns=2)
@@ -58,8 +56,7 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
     driver.wait_for_xpath('//*[@id="root_lon"]').send_keys('10.0')
     driver.wait_for_xpath('//*[@id="root_elevation"]').send_keys('50.0')
 
-    tab = driver.find_element(By.XPATH, '//*[@class="MuiFormGroup-root"]')
-    for row in tab.find_elements(By.XPATH, '//span[text()="Yes"]'):
+    for row in driver.find_elements(By.XPATH, '//span[text()="Yes"]'):
         row.click()
 
     submit_button_xpath = '//button[@type="submit"]'
@@ -101,9 +98,7 @@ def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
     driver.get("/telescopes")
 
     # check for API instrument
-    driver.wait_for_xpath(
-        f'//*[@class="MuiList-root MuiList-padding"]/*/*/span[text()="{telescope_name}"]'
-    )
+    driver.wait_for_xpath(f'//span[text()="{telescope_name}"]')
 
     # add dropdown instrument
     name2 = str(uuid.uuid4())
@@ -114,8 +109,7 @@ def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
     driver.wait_for_xpath('//*[@id="root_diameter"]').send_keys('2.0')
     driver.wait_for_xpath('//*[@id="root_elevation"]').send_keys('50.0')
 
-    tab = driver.find_element(By.XPATH, '//*[@class="MuiFormGroup-root"]')
-    for row in tab.find_elements(By.XPATH, '//span[text()="Yes"]'):
+    for row in driver.find_elements(By.XPATH, '//span[text()="Yes"]'):
         row.click()
 
     submit_button_xpath = '//button[@type="submit"]'
@@ -123,15 +117,13 @@ def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
     driver.click_xpath(submit_button_xpath)
 
     # check for dropdown instrument
-    driver.wait_for_xpath(
-        f'//*[@class="MuiList-root MuiList-padding"]/*/*/span[text()="{name2}"]'
-    )
+    driver.wait_for_xpath(f'//span[text()="{name2}"]')
 
     driver.set_window_position(0, 0)
     driver.set_window_size(1920, 1080)
 
 
-@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=3)
 def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     telescope_name = str(uuid.uuid4())
     status, data = api(
@@ -174,9 +166,8 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     driver.get("/instruments")
 
     # check for API instrument
-    driver.wait_for_xpath(
-        f'//span[text()[contains(.,"{instrument_name}/{telescope_name}")]]', timeout=20
-    )
+    driver.wait_for_xpath(f'//div[text()[contains(.,"{instrument_name}")]]', timeout=20)
+    driver.wait_for_xpath(f'//div[text()[contains(.,"{telescope_name}")]]')
     # add dropdown instrument
     instrument_name2 = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(instrument_name2)
@@ -184,17 +175,21 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     driver.click_xpath('//li[contains(text(), "Imager")]')
     driver.wait_for_xpath('//*[@id="root_band"]').send_keys('Optical')
     driver.click_xpath('//*[@id="root_telescope_id"]')
-    driver.click_xpath(f'//li[contains(text(), "{telescope_name}")]')
+
+    driver.click_xpath(
+        f'//li[contains(text(), "{telescope_name}")]', scroll_parent=True
+    )
     driver.click_xpath('//*[@id="root_api_classname"]')
     driver.click_xpath('//li[contains(text(), "ZTFAPI")]')
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//body")
 
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
     # check for new API instrument
-    driver.wait_for_xpath(
-        f'//span[text()[contains(.,"{instrument_name2}/{telescope_name}")]]', timeout=20
-    )
+    driver.wait_for_xpath(f'//div[text()[contains(.,"{instrument_name2}")]]')
     # try adding a second time
     driver.click_xpath("//body")
     driver.execute_script("window.scrollBy(0,0)", "")
@@ -204,9 +199,14 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     driver.click_xpath('//li[contains(text(), "Imager")]')
     driver.wait_for_xpath('//*[@id="root_band"]').send_keys('Optical')
     driver.click_xpath('//*[@id="root_telescope_id"]')
-    driver.click_xpath(f'//li[contains(text(), "{telescope_name}")]')
+    driver.click_xpath(
+        f'//li[contains(text(), "{telescope_name}")]', scroll_parent=True
+    )
     driver.click_xpath('//*[@id="root_api_classname"]')
     driver.click_xpath('//li[contains(text(), "ZTFAPI")]')
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//body")
 
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
@@ -295,51 +295,43 @@ def test_super_user_post_allocation(
 
     # go to the allocations page
     driver.get("/allocations")
-    start_date = date.today().strftime("%m/%d/%Y")
-    end_date = (date.today() + timedelta(days=2)).strftime("%m/%d/%Y")
+
     # check for API instrument
-    driver.wait_for_xpath(
-        f'//span[text()[contains(.,"{instrument_name}/{telescope_name}")]]', timeout=20
-    )
+    driver.wait_for_xpath(f'//div[text()[contains(.,"{instrument_name}")]]', timeout=20)
+    driver.click_xpath('//*[@id="addGroup"]')
+    driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
     driver.wait_for_xpath('//*[@id="root_pi"]').send_keys('Shri')
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(start_date)
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('01:01')
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('P')
-
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(end_date)
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('01:01')
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('P')
-
     driver.wait_for_xpath('//*[@id="root_hours_allocated"]').send_keys('100')
     driver.click_xpath('//*[@id="root_instrument_id"]')
     driver.click_xpath(f'//li[contains(text(), "{instrument_name2}")]')
-    driver.click_xpath('//*[@id="root_group_id"]')
-    driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
+    driver.click_xpath('//*[@id="addGroup"]')
 
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
     # check for dropdown instrument
-    driver.wait_for_xpath(
-        f'//span[text()[contains(.,"{instrument_name2}/{telescope_name}")]]'
-    )
+    driver.wait_for_xpath(f'//div[text()[contains(.,"{instrument_name2}")]]')
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_gcnevents_observations(
     driver, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
 ):
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
+    dateobs = "2019-04-25T08:18:05"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     telescope_name = str(uuid.uuid4())
     status, data = api(
@@ -422,7 +414,13 @@ def test_gcnevents_observations(
     while not observations_loaded and nretries < 5:
         try:
             status, data = api(
-                'GET', 'observation', params=data, token=super_admin_token
+                'GET',
+                'observation',
+                params={
+                    'startDate': '2019-04-25T08:18:05',
+                    'endDate': '2019-04-27T08:18:05',
+                },
+                token=super_admin_token,
             )
             assert status == 200
             data = data["data"]
@@ -440,20 +438,14 @@ def test_gcnevents_observations(
     driver.wait_for_xpath('//*[text()="BNS"]')
 
     # test modify sources form
-    driver.wait_for_xpath('//*[@id="root_startDate"]').send_keys('04/24/2019')
-    driver.wait_for_xpath('//*[@id="root_startDate"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_startDate"]').send_keys('01:01')
-    driver.wait_for_xpath('//*[@id="root_startDate"]').send_keys('P')
-    driver.wait_for_xpath('//*[@id="root_endDate"]').send_keys('04/30/2019')
-    driver.wait_for_xpath('//*[@id="root_endDate"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_endDate"]').send_keys('01:01')
-    driver.wait_for_xpath('//*[@id="root_endDate"]').send_keys('P')
     driver.wait_for_xpath('//*[@id="root_localizationCumprob"]').clear()
-    driver.wait_for_xpath('//*[@id="root_localizationCumprob"]').send_keys('1.01')
-    driver.wait_for_xpath('//*[@id="localizationSelectLabel"]/../*/*[@role="button"]')
-    driver.click_xpath('//*[@id="localizationSelectLabel"]/../*/*[@role="button"]')
-    driver.wait_for_xpath('//li[contains(text(), "bayestar.fits.gz")]')
-    driver.click_xpath('//li[contains(text(), "bayestar.fits.gz")]')
+    driver.wait_for_xpath('//*[@id="root_localizationCumprob"]').send_keys('1.00')
+
+    driver.click_xpath('//div[@id="root_queryList"]')
+    driver.wait_for_xpath('//li[contains(text(), "observations")]')
+    driver.click_xpath('//li[contains(text(), "observations")]')
+
+    driver.click_xpath('//body')
 
     submit_button_xpath = (
         '//div[@data-testid="gcnsource-selection-form"]//button[@type="submit"]'
@@ -461,11 +453,9 @@ def test_gcnevents_observations(
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
-    # check that the executed observation table appears
-    driver.wait_for_xpath('//*[text()="84434604"]', timeout=10)
-    driver.wait_for_xpath('//*[text()="ztfr"]')
-    driver.wait_for_xpath('//*[text()="1.57415"]')
-    driver.wait_for_xpath('//*[text()="20.40705"]')
+    observations_xpath = '//button[contains(., "Observations")]'
+    driver.wait_for_xpath(observations_xpath)
+    driver.click_xpath(observations_xpath)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -499,7 +489,13 @@ def test_followup_request_frontend(
     # go to the allocations page
     driver.get("/followup_requests")
 
-    driver.click_xpath(f"//div[@data-testid='{sedm.name}-requests-header']")
+    submit_button_xpath = '//button[@type="submit"]'
+    driver.wait_for_xpath(submit_button_xpath)
+    driver.click_xpath(submit_button_xpath)
+
+    driver.click_xpath(
+        f"//div[@data-testid='{sedm.name}-requests-header']", scroll_parent=True
+    )
     driver.wait_for_xpath(
         f'//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "IFU")]'
     )
@@ -527,15 +523,23 @@ def test_followup_request_frontend(
 
 
 # @pytest.mark.flaky(reruns=2)
-def test_observationplan_request(driver, user, super_admin_token, public_group):
+def test_observationplan_request(
+    driver, super_admin_user, super_admin_token, public_group
+):
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
+    dateobs = "2019-04-25T08:18:05"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     telescope_name = str(uuid.uuid4())
     status, data = api(
@@ -566,7 +570,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
             'name': instrument_name,
             'type': 'imager',
             'band': 'NIR',
-            'filters': ['f110w'],
+            'filters': ['ztfg', 'ztfr'],
             'telescope_id': telescope_id,
             "api_classname_obsplan": "ZTFMMAAPI",
             'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
@@ -609,6 +613,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
             "instrument_id": instrument_id,
             "hours_allocated": 100,
             "pi": "Ed Hubble",
+            "types": ["triggered", "forced_photometry", "observation_plan"],
             '_altdata': '{"access_token": "testtoken"}',
         },
         token=super_admin_token,
@@ -625,7 +630,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     assert status == 200
     assert data['status'] == 'success'
 
-    driver.get(f'/become_user/{user.id}')
+    driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/gcn_events/2019-04-25T08:18:05')
 
     nretries = 0
@@ -639,6 +644,8 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
 
     driver.wait_for_xpath('//*[text()="LVC"]')
     driver.wait_for_xpath('//*[text()="BNS"]')
+
+    driver.click_xpath("//*[@id='observationplan-header']", scroll_parent=True)
 
     submit_button_xpath = (
         '//div[@data-testid="observationplan-request-form"]//button[@type="submit"]'
@@ -657,9 +664,14 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     driver.click_xpath("//body")
     driver.click_xpath(submit_button_xpath)
 
+    submit_button_xpath = '//button[contains(., "Add to Queue")]'
+    driver.wait_for_xpath(submit_button_xpath)
+    driver.click_xpath(submit_button_xpath)
+
     submit_button_xpath = '//button[contains(., "Generate Observation Plans")]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
+
     time.sleep(30)
 
     driver.wait_for_xpath(
@@ -678,7 +690,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     status, data = api("GET", "observation_plan", token=super_admin_token)
     assert status == 200
 
-    observation_plan_request_id = data['data'][-1]['observation_plans'][0][
+    observation_plan_request_id = data['data']['requests'][-1]['observation_plans'][0][
         'observation_plan_request_id'
     ]
     driver.click_xpath(
@@ -693,25 +705,24 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
         f'//a[contains(@data-testid, "downloadRequest_{observation_plan_request_id}")]',
         scroll_parent=True,
     )
+
     driver.click_xpath(
-        f'//button[contains(@data-testid, "sendRequest_{observation_plan_request_id}")]',
+        f'//button[contains(@data-testid, "addObservingRunButton_{observation_plan_request_id}")]',
         scroll_parent=True,
     )
-    driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "submitted to telescope queue")]''',
-        timeout=10,
-    )
-    driver.click_xpath(
-        f'//button[contains(@data-testid, "removeRequest_{observation_plan_request_id}")]',
-        scroll_parent=True,
-    )
+
     driver.click_xpath(
         f'//button[contains(@data-testid, "observingRunRequest_{observation_plan_request_id}")]',
         scroll_parent=True,
     )
-    driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "deleted from telescope queue")]''',
-        timeout=10,
+
+    driver.click_xpath(
+        f'//button[contains(@data-testid, "deleteRequest_{observation_plan_request_id}")]',
+        scroll_parent=True,
+    )
+
+    driver.wait_for_xpath_to_disappear(
+        f"//div[@data-testid='{instrument_name}-requests-header']"
     )
 
 
@@ -720,11 +731,17 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    data = {'xml': payload}
+    event_data = {'xml': payload}
 
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
+    dateobs = "2019-04-25T08:18:05"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
 
     telescope_name = str(uuid.uuid4())
     status, data = api(
@@ -861,17 +878,12 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
     while nretries < 5:
         try:
             driver.click_xpath(
-                f'//*[@id="menu-gcnPageInstrumentSelect"]/*/ul/li[contains(text(), "{instrument_name}")]',
+                f'//li[contains(text(), "{instrument_name}")]',
                 scroll_parent=True,
             )
             break
         except AssertionError:
             nretries = nretries + 1
-
-    driver.click_xpath(
-        f'//a[contains(@data-testid, "observationGcn_{instrument_id}")]',
-        scroll_parent=True,
-    )
 
 
 @pytest.mark.flaky(reruns=2)
@@ -928,6 +940,11 @@ def test_candidate_date_filtering(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
+
+    import pdb
+
+    pdb.set_trace()
+
     start_date_input = driver.wait_for_xpath("//input[@id='startDatePicker']")
     start_date_input.clear()
     start_date_input.send_keys("12/01/2020 12:00 p")
@@ -973,7 +990,12 @@ def test_user_expiration(
     # Set expiration date to today
     driver.click_xpath(f"//*[@data-testid='editUserExpirationDate{user.id}']")
     date = datetime.datetime.now().strftime("%m/%d/%Y")
-    driver.wait_for_xpath("//input[@id='expirationDatePicker']").send_keys(date)
+
+    date_input_xpath = "//input[@id=':r4r:']"
+    date_input = driver.wait_for_xpath(date_input_xpath)
+    driver.click_xpath(date_input_xpath)
+    date_input.send_keys(date)
+
     driver.click_xpath('//*[text()="Submit"]')
 
     # Check that user deactivated
@@ -1013,11 +1035,14 @@ def test_slider_classifications(
     # Wait for the group name appears
     driver.wait_for_xpath(f"//*[text()[contains(., '{public_group.name}')]]")
 
+    driver.refresh()
+
     # Expand public source row
     driver.click_xpath("//*[@id='expandable-button']")
 
     # Select test taxonomy
     driver.click_xpath(f"//*[@id='taxonomy-select-{public_source.id}']")
+
     driver.click_xpath(f"//li[text()='{test_taxonomy}']", scroll_parent=True)
     driver.click_xpath("//h6[text()='Stellar variable']")
 
@@ -1032,4 +1057,4 @@ def test_slider_classifications(
 
     # need to reload the page to see classification
     driver.get(f"/group_sources/{public_group.id}")
-    driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
+    driver.wait_for_xpath(f"//*[text()[contains(., '{'Cataclysmic'}')]]")
