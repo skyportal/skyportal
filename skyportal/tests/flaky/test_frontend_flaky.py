@@ -847,7 +847,7 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
     driver.wait_for_xpath('//li[contains(text(), "bayestar.fits.gz")]')
     driver.click_xpath('//li[contains(text(), "bayestar.fits.gz")]')
     driver.wait_for_xpath('//*[@id="root_localizationCumprob"]').clear()
-    driver.wait_for_xpath('//*[@id="root_localizationCumprob"]').send_keys(1.01)
+    driver.wait_for_xpath('//*[@id="root_localizationCumprob"]').send_keys(1.00)
 
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
@@ -972,7 +972,7 @@ def test_user_expiration(
 
     # Set expiration date to today
     driver.click_xpath(f"//*[@data-testid='editUserExpirationDate{user.id}']")
-    date = datetime.now().strftime("%m/%d/%Y")
+    date = datetime.datetime.now().strftime("%m/%d/%Y")
     driver.wait_for_xpath("//input[@id='expirationDatePicker']").send_keys(date)
     driver.click_xpath('//*[text()="Submit"]')
 
