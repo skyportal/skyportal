@@ -11,6 +11,10 @@ def test_upload_galaxies(driver, super_admin_user, super_admin_token):
     filename = "CLU_mini.csv"
     catalog_name = str(uuid.uuid4())
 
+    submit_button_xpath = '//button[@name="new_gcnevent"]'
+    driver.wait_for_xpath(submit_button_xpath)
+    driver.click_xpath(submit_button_xpath)
+
     driver.wait_for_xpath('//*[@id="root_catalogName"]').send_keys(catalog_name)
     attachment_file = driver.wait_for_xpath('//input[@type="file"]')
     attachment_file.send_keys(
