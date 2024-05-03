@@ -12,6 +12,10 @@ import MUIDataTable from "mui-datatables";
 import IconButton from "@mui/material/IconButton";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import CloseIcon from "@mui/icons-material/Close";
+import CheckIcon from "@mui/icons-material/Check";
+import ClearIcon from "@mui/icons-material/Clear";
+import PriorityHigh from "@mui/icons-material/PriorityHigh";
+import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -20,6 +24,7 @@ import Typography from "@mui/material/Typography";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { Tooltip } from "@mui/material";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -113,9 +118,10 @@ const GCNNotesTable = ({ gcnNotes, canExpand = true }) => {
   // Curate data
   const tableData = [];
   gcnNotes?.forEach((gcnNote) => {
-    const { dateobs, explanation, notes } = gcnNote;
+    const { dateobs, status, explanation, notes } = gcnNote;
     tableData.push({
       dateobs,
+      status,
       explanation,
       notes,
     });
@@ -125,6 +131,39 @@ const GCNNotesTable = ({ gcnNotes, canExpand = true }) => {
     {
       name: "dateobs",
       label: "GCN Event",
+    },
+    {
+      name: "status",
+      label: "Status",
+      options: {
+        customBodyRenderLite: (index) => {
+          const { status } = tableData[index];
+          // status can be "highlighted", "rejected", or "ambiguous"
+          // should never happen here, but show "not vetted" if status is undefined
+          let icon = <PriorityHigh size="small" color="primary" />;
+          if (status === "highlighted") {
+            icon = <CheckIcon size="small" color="green" />;
+          } else if (status === "rejected") {
+            icon = <ClearIcon size="small" color="secondary" />;
+          } else if (status === "ambiguous") {
+            icon = <QuestionMarkIcon size="small" color="primary" />;
+          }
+          return (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Tooltip title={status || "not vetted"} placement="right">
+                {icon}
+              </Tooltip>
+            </div>
+          );
+        },
+      },
     },
     {
       name: "explanation",

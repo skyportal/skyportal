@@ -116,6 +116,16 @@ MAX_LOCALIZATION_SOURCES = 50000
 Session = scoped_session(sessionmaker())
 
 
+def confirmed_in_gcn_status_to_str(status):
+    if status is True:
+        return "highlighted"
+    if status is False:
+        return "rejected"
+    if status is None:
+        return "ambiguous"
+    return "not vetted"
+
+
 def remove_obj_thumbnails(obj_id):
     log(f"removing existing public_url thumbnails for {obj_id}")
     with DBSession() as session:
@@ -528,6 +538,7 @@ async def get_source(
                         'dateobs': gcn.dateobs,
                         'explanation': gcn.explanation,
                         'notes': gcn.notes,
+                        'status': confirmed_in_gcn_status_to_str(gcn.confirmed),
                     }
                     for gcn in confirmed_in_gcn
                 ]
