@@ -4,6 +4,7 @@ from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from ..base import BaseHandler
 
@@ -322,6 +323,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         localization_name = validated['localization_name']
         localization_cumprob = validated['localization_cumprob']
 
+        source_in_gcn_id = None
+        obj_internal_key = None
+
         with self.Session() as session:
             try:
                 stmt = Localization.select(session.user_or_token).where(
@@ -357,6 +361,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                             source_in_gcn.notes = notes
                         session.commit()
                         source_in_gcn_id = source_in_gcn.id
+                        obj_internal_key = source_in_gcn.obj.internal_key
                         if confirmed is True:
                             crossmatches = source_in_gcn.obj.gcn_crossmatch
                             if crossmatches is None:
@@ -398,6 +403,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     session.add(source_in_gcn)
                     session.commit()
                     source_in_gcn_id = source_in_gcn.id
+                    obj_internal_key = source_in_gcn.obj.internal_key
                     if confirmed is True:
                         crossmatches = source_in_gcn.obj.gcn_crossmatch
                         if crossmatches is None:
@@ -424,6 +430,12 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
             except Exception as e:
                 session.rollback()
                 return self.error(str(e))
+
+        if obj_internal_key is not None:
+            flow = Flow()
+            flow.push(
+                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
+            )
 
         return self.success(data={'id': source_in_gcn_id})
 
@@ -498,6 +510,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         source_id = validated['source_id'].strip()
         dateobs = validated['dateobs']
 
+        source_in_gcn_id = None
+        obj_internal_key = None
+
         with self.Session() as session:
             try:
                 stmt = GcnEvent.select(session.user_or_token).where(
@@ -524,6 +539,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     source_in_gcn.notes = notes
                 session.commit()
                 source_in_gcn_id = source_in_gcn.id
+                obj_internal_key = source_in_gcn.obj.internal_key
                 if confirmed is True:
                     crossmatches = source_in_gcn.obj.gcn_crossmatch
                     if crossmatches is None:
@@ -547,6 +563,12 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
             except Exception as e:
                 session.rollback()
                 return self.error(str(e))
+
+        if obj_internal_key is not None:
+            flow = Flow()
+            flow.push(
+                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
+            )
 
         return self.success(data={'id': source_in_gcn_id})
 
@@ -605,6 +627,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         source_id = validated['source_id'].strip()
         dateobs = validated['dateobs']
 
+        source_in_gcn_id = None
+        obj_internal_key = None
+
         with self.Session() as session:
             try:
                 stmt = GcnEvent.select(session.user_or_token).where(
@@ -633,12 +658,20 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     else:
                         setattr(source_in_gcn.obj, 'gcn_crossmatch', crossmatches)
                     session.commit()
+                source_in_gcn_id = source_in_gcn.id
+                obj_internal_key = source_in_gcn.obj.internal_key
                 session.delete(source_in_gcn)
                 session.commit()
             except Exception as e:
                 session.rollback()
                 return self.error(str(e))
-        return self.success(data={'id': source_in_gcn.id})
+
+        if obj_internal_key is not None:
+            flow = Flow()
+            flow.push(
+                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
+            )
+        return self.success(data={'id': source_in_gcn_id})
 
 
 class SourcesConfirmedInGCNTNSHandler(BaseHandler):
