@@ -505,6 +505,7 @@ async def get_sources(
     include_labellers=False,
     include_hosts=False,
     exclude_forced_photometry=False,
+    require_detections=False,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -789,136 +790,141 @@ async def get_sources(
                     f'Invalid created_or_modified_after: {created_or_modified_after} ({e})'
                 )
 
-        # PHOTSTATS
-        photstat_query = []
-        if first_detected_date is not None:
-            try:
-                col = (
-                    'first_detected_mjd'
-                    if not exclude_forced_photometry
-                    else 'first_detected_no_forced_phot_mjd'
-                )
-                query_params.append(
-                    bindparam(
-                        'first_detected_date',
-                        value=Time(arrow.get(first_detected_date).datetime).mjd,
-                        type_=sa.Float,
+        if require_detections:
+            # PHOTSTATS
+            photstat_query = []
+            if first_detected_date is not None:
+                try:
+                    col = (
+                        'first_detected_mjd'
+                        if not exclude_forced_photometry
+                        else 'first_detected_no_forced_phot_mjd'
                     )
-                )
-                photstat_query.append(f"""photstats.{col} >= :first_detected_date""")
+                    query_params.append(
+                        bindparam(
+                            'first_detected_date',
+                            value=Time(arrow.get(first_detected_date).datetime).mjd,
+                            type_=sa.Float,
+                        )
+                    )
+                    photstat_query.append(
+                        f"""photstats.{col} >= :first_detected_date"""
+                    )
 
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid first_detected_date: {first_detected_date} ({e})'
-                )
-        if last_detected_date is not None:
-            try:
-                col = (
-                    'last_detected_mjd'
-                    if not exclude_forced_photometry
-                    else 'last_detected_no_forced_phot_mjd'
-                )
-                query_params.append(
-                    bindparam(
-                        'last_detected_date',
-                        value=Time(arrow.get(last_detected_date).datetime).mjd,
-                        type_=sa.Float,
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid first_detected_date: {first_detected_date} ({e})'
                     )
-                )
-                photstat_query.append(f"""photstats.{col} <= :last_detected_date""")
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid last_detected_date: {last_detected_date} ({e})'
-                )
-        if number_of_detections is not None:
-            try:
-                col = (
-                    'num_det_global'
-                    if not exclude_forced_photometry
-                    else 'num_det_no_forced_phot_global'
-                )
-                query_params.append(
-                    bindparam(
-                        'number_of_detections',
-                        value=int(number_of_detections),
-                        type_=sa.Integer,
+            if last_detected_date is not None:
+                try:
+                    col = (
+                        'last_detected_mjd'
+                        if not exclude_forced_photometry
+                        else 'last_detected_no_forced_phot_mjd'
                     )
-                )
-                photstat_query.append(f"""photstats.{col} >= :number_of_detections""")
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid number_of_detections: {number_of_detections} ({e})'
-                )
-        if min_peak_magnitude is not None:
-            try:
-                query_params.append(
-                    bindparam(
-                        'min_peak_magnitude',
-                        value=float(min_peak_magnitude),
-                        type_=sa.Float,
+                    query_params.append(
+                        bindparam(
+                            'last_detected_date',
+                            value=Time(arrow.get(last_detected_date).datetime).mjd,
+                            type_=sa.Float,
+                        )
                     )
-                )
-                photstat_query.append(
-                    """photstats.peak_mag_global <= :min_peak_magnitude"""
-                )
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid min_peak_magnitude: {min_peak_magnitude} ({e})'
-                )
-        if max_peak_magnitude is not None:
-            try:
-                query_params.append(
-                    bindparam(
-                        'max_peak_magnitude',
-                        value=float(max_peak_magnitude),
-                        type_=sa.Float,
+                    photstat_query.append(f"""photstats.{col} <= :last_detected_date""")
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid last_detected_date: {last_detected_date} ({e})'
                     )
-                )
-                photstat_query.append(
-                    """photstats.peak_mag_global >= :max_peak_magnitude"""
-                )
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid max_peak_magnitude: {max_peak_magnitude} ({e})'
-                )
-        if min_latest_magnitude is not None:
-            try:
-                query_params.append(
-                    bindparam(
-                        'min_latest_magnitude',
-                        value=float(min_latest_magnitude),
-                        type_=sa.Float,
+            if number_of_detections is not None:
+                try:
+                    col = (
+                        'num_det_global'
+                        if not exclude_forced_photometry
+                        else 'num_det_no_forced_phot_global'
                     )
-                )
-                photstat_query.append(
-                    """photstats.last_detected_mag <= :min_latest_magnitude"""
-                )
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid min_latest_magnitude: {min_latest_magnitude} ({e})'
-                )
-        if max_latest_magnitude is not None:
-            try:
-                query_params.append(
-                    bindparam(
-                        'max_latest_magnitude',
-                        value=float(max_latest_magnitude),
-                        type_=sa.Float,
+                    query_params.append(
+                        bindparam(
+                            'number_of_detections',
+                            value=int(number_of_detections),
+                            type_=sa.Integer,
+                        )
                     )
+                    photstat_query.append(
+                        f"""photstats.{col} >= :number_of_detections"""
+                    )
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid number_of_detections: {number_of_detections} ({e})'
+                    )
+            if min_peak_magnitude is not None:
+                try:
+                    query_params.append(
+                        bindparam(
+                            'min_peak_magnitude',
+                            value=float(min_peak_magnitude),
+                            type_=sa.Float,
+                        )
+                    )
+                    photstat_query.append(
+                        """photstats.peak_mag_global <= :min_peak_magnitude"""
+                    )
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid min_peak_magnitude: {min_peak_magnitude} ({e})'
+                    )
+            if max_peak_magnitude is not None:
+                try:
+                    query_params.append(
+                        bindparam(
+                            'max_peak_magnitude',
+                            value=float(max_peak_magnitude),
+                            type_=sa.Float,
+                        )
+                    )
+                    photstat_query.append(
+                        """photstats.peak_mag_global >= :max_peak_magnitude"""
+                    )
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid max_peak_magnitude: {max_peak_magnitude} ({e})'
+                    )
+            if min_latest_magnitude is not None:
+                try:
+                    query_params.append(
+                        bindparam(
+                            'min_latest_magnitude',
+                            value=float(min_latest_magnitude),
+                            type_=sa.Float,
+                        )
+                    )
+                    photstat_query.append(
+                        """photstats.last_detected_mag <= :min_latest_magnitude"""
+                    )
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid min_latest_magnitude: {min_latest_magnitude} ({e})'
+                    )
+            if max_latest_magnitude is not None:
+                try:
+                    query_params.append(
+                        bindparam(
+                            'max_latest_magnitude',
+                            value=float(max_latest_magnitude),
+                            type_=sa.Float,
+                        )
+                    )
+                    photstat_query.append(
+                        """photstats.last_detected_mag >= :max_latest_magnitude"""
+                    )
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid max_latest_magnitude: {max_latest_magnitude} ({e})'
+                    )
+            if len(photstat_query) > 0:
+                statements.append(
+                    f"""
+                    EXISTS (SELECT obj_id from photstats where photstats.obj_id=objs.id and {' AND '.join(photstat_query)})
+                    """
                 )
-                photstat_query.append(
-                    """photstats.last_detected_mag >= :max_latest_magnitude"""
-                )
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid max_latest_magnitude: {max_latest_magnitude} ({e})'
-                )
-        if len(photstat_query) > 0:
-            statements.append(
-                f"""
-                EXISTS (SELECT obj_id from photstats where photstats.obj_id=objs.id and {' AND '.join(photstat_query)})
-                """
-            )
 
         # CONE SEARCH
         if any([ra, dec, radius]):
@@ -1665,6 +1671,8 @@ async def get_sources(
                 return data
 
             sources, total_matches = [], len(all_source_ids)
+
+            data['totalMatches'] = total_matches
             if start > total_matches:
                 return data
             if end > total_matches:

@@ -122,6 +122,7 @@ const ADD_GCN_CROSSMATCH = "skyportal/ADD_GCN_CROSSMATCH";
 const FETCH_LOADED_SOURCE_POSITION = "skyportal/FETCH_LOADED_SOURCE_POSITION";
 const FETCH_LOADED_SOURCE_POSITION_OK =
   "skyportal/FETCH_LOADED_SOURCE_POSITION_OK";
+const REFRESH_SOURCE_POSITION = "skyportal/REFRESH_SOURCE_POSITION";
 
 export function fetchPosition(id) {
   return API.GET(`/api/sources/${id}/position`, FETCH_LOADED_SOURCE_POSITION);
@@ -522,6 +523,11 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     const loaded_obj_key = source?.internal_key;
     if (loaded_obj_key === payload.obj_key) {
       dispatch(fetchSource(source.id));
+    }
+  } else if (actionType === REFRESH_SOURCE_POSITION) {
+    const loaded_obj_key = source?.internal_key;
+    if (loaded_obj_key === payload.obj_key) {
+      dispatch(fetchPosition(source.id));
     }
   } else if (actionType === REFRESH_OBJ_ANALYSES) {
     const loaded_obj_key = source?.internal_key;

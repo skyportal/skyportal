@@ -2,6 +2,7 @@ import numpy as np
 from astropy.utils.masked import MaskedNDArray
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
+
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
@@ -183,16 +184,36 @@ class ObservingRunHandler(BaseHandler):
                     set_times = run.set_time(targets).isot
 
                     for d, rt, st in zip(data["assignments"], rise_times, set_times):
-                        d["rise_time_utc"] = (
-                            rt
-                            if not isinstance(rt, (np.ma.MaskedArray, MaskedNDArray))
-                            else ''
-                        )
-                        d["set_time_utc"] = (
-                            st
-                            if not isinstance(st, (np.ma.MaskedArray, MaskedNDArray))
-                            else ''
-                        )
+                        # we can an attribute error in the case where rt and st are not arrays
+                        # this can happen if the observing run's date is missing or incorrect
+                        # in the case of unit tests for example, or a "dubious" year for time-based packages
+                        # (which is often anything before 1900, or after 2100)
+                        try:
+                            d["rise_time_utc"] = (
+                                rt.item()  # 0-dimensional array (basically a scalar)
+                                if not (
+                                    isinstance(
+                                        rt, (np.ma.core.MaskedArray, MaskedNDArray)
+                                    )
+                                    and rt.mask.any()
+                                )  # check that the value isn't masked (not rising at date)
+                                else ''
+                            )
+                        except AttributeError:
+                            d["rise_time_utc"] = ''
+                        try:
+                            d["set_time_utc"] = (
+                                st.item()
+                                if not (
+                                    isinstance(
+                                        st, (np.ma.core.MaskedArray, MaskedNDArray)
+                                    )
+                                    and st.mask.any()
+                                )  # check that the value isn't masked (not setting at date)
+                                else ''
+                            )
+                        except AttributeError:
+                            d["set_time_utc"] = ''
 
                 data = recursive_to_dict(data)
                 return self.success(data=data)
