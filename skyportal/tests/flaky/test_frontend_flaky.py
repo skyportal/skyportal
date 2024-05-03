@@ -1057,4 +1057,4 @@ def test_slider_classifications(
 
     # need to reload the page to see classification
     driver.get(f"/group_sources/{public_group.id}")
-    driver.wait_for_xpath(f"//*[text()[contains(., '{'Cataclysmic'}')]]")
+    driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
