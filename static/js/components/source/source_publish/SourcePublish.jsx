@@ -20,6 +20,7 @@ import SourcePublishHistory from "./SourcePublishHistory";
 
 const useStyles = makeStyles(() => ({
   expandButton: {
+    backgroundColor: "#80808017",
     width: "100%",
     display: "flex",
     justifyContent: "space-between",
@@ -51,26 +52,12 @@ const SourcePublish = ({ source, photometry = null }) => {
   const [newPageGenerate, setNewPageGenerate] = useState(null);
   const [updateThumbnailsData, setUpdateThumbnailsData] = useState(false);
   // Create data access options
-  const optionPhotometry = { label: "photometry", state: useState(true) };
-  const optionClassifications = {
-    label: "classifications",
-    state: useState(true),
-  };
-
-  const getOptions = () => [
-    {
-      label: optionPhotometry.label,
-      isElement: source.photometry_exists,
-      isCheck: optionPhotometry.state[0],
-      setCheck: optionPhotometry.state[1],
-    },
-    {
-      label: optionClassifications.label,
-      isElement: source.classifications.length > 0,
-      isCheck: optionClassifications.state[0],
-      setCheck: optionClassifications.state[1],
-    },
-  ];
+  const [optionsState, setOptionsState] = useState({
+    include_photometry: true,
+    include_classifications: true,
+    groups: [],
+    streams: [],
+  });
 
   useEffect(() => {
     setUpdateThumbnailsData(true);
@@ -92,16 +79,43 @@ const SourcePublish = ({ source, photometry = null }) => {
   };
 
   const publicData = () => {
-    if (!source) return null;
     if (updateThumbnailsData) {
       processThumbnailsData();
     }
     const getPhotometry = () => {
-      if (!source.photometry_exists) {
-        return [];
+      if (!optionsState.include_photometry) {
+        return null;
       }
-      return photometry;
+      // filter photometry based on selected groups and streams
+      return source.photometry_exists
+        ? photometry.filter(
+            (onePhotometry) =>
+              (!optionsState.groups.length ||
+                onePhotometry.groups.some((group) =>
+                  optionsState.groups.includes(group.id),
+                )) &&
+              (!optionsState.streams.length ||
+                onePhotometry.streams.some((stream) =>
+                  optionsState.streams.includes(stream.id),
+                )),
+          )
+        : [];
     };
+
+    const getClassifications = () => {
+      if (!optionsState.include_classifications) {
+        return null;
+      }
+      // filter classifications based on selected groups
+      return source.classifications?.filter(
+        (onePhotometry) =>
+          !optionsState.groups.length ||
+          onePhotometry.groups.some((group) =>
+            optionsState.groups.includes(group.id),
+          ),
+      );
+    };
+
     return {
       source_id: source.id,
       radec_hhmmss: source.radec_hhmmss,
@@ -114,10 +128,8 @@ const SourcePublish = ({ source, photometry = null }) => {
       dm: source.dm?.toFixed(3),
       dl: source.luminosity_distance?.toFixed(2),
       thumbnails: source.thumbnails,
-      photometry: optionPhotometry.state[0] ? getPhotometry() : null,
-      classifications: optionClassifications.state[0]
-        ? source.classifications
-        : null,
+      photometry: getPhotometry(),
+      classifications: getClassifications(),
     };
   };
 
@@ -208,7 +220,13 @@ const SourcePublish = ({ source, photometry = null }) => {
                 {sourcePublishOptionsOpen ? <ExpandLess /> : <ExpandMore />}
               </Button>
               {sourcePublishOptionsOpen && (
-                <SourcePublishOptions options={getOptions()} />
+                <SourcePublishOptions
+                  optionsState={[optionsState, setOptionsState]}
+                  isElements={{
+                    photometry: source.photometry_exists,
+                    classifications: source.classifications.length > 0,
+                  }}
+                />
               )}
             </div>
           )}

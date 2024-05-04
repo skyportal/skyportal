@@ -53,7 +53,7 @@ header {
       }
     }
     .versions {
-      display: none;
+      /*display: none;*/
       .version {
         padding-left: 5rem;
         display: flex;
