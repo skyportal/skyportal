@@ -116,6 +116,16 @@ MAX_LOCALIZATION_SOURCES = 50000
 Session = scoped_session(sessionmaker())
 
 
+def confirmed_in_gcn_status_to_str(status):
+    if status is True:
+        return "highlighted"
+    if status is False:
+        return "rejected"
+    if status is None:
+        return "ambiguous"
+    return "not vetted"
+
+
 def remove_obj_thumbnails(obj_id):
     log(f"removing existing public_url thumbnails for {obj_id}")
     with DBSession() as session:
@@ -192,6 +202,7 @@ async def get_source(
     requested_only=False,
     include_color_mag=False,
     include_gcn_crossmatches=False,
+    include_gcn_notes=False,
 ):
     """Query source from database.
     obj_id: int
@@ -508,6 +519,31 @@ async def get_source(
             }
             for gcn in source_info["gcn_crossmatch"]
         ]
+
+    if include_gcn_notes:
+        if (
+            not isinstance(source_info.get("gcn_notes"), list)
+            or len(source_info.get("gcn_notes")) == 0
+        ):
+            source_info["gcn_notes"] = []
+        confirmed_in_gcn = session.scalars(
+            SourcesConfirmedInGCN.select(user).where(
+                SourcesConfirmedInGCN.obj_id == obj_id,
+            )
+        ).all()
+        if len(confirmed_in_gcn) > 0:
+            source_info["gcn_notes"].extend(
+                [
+                    {
+                        'dateobs': gcn.dateobs,
+                        'explanation': gcn.explanation,
+                        'notes': gcn.notes,
+                        'status': confirmed_in_gcn_status_to_str(gcn.confirmed),
+                    }
+                    for gcn in confirmed_in_gcn
+                ]
+            )
+
     source_query = Source.select(user).where(Source.obj_id == source_info["id"])
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
@@ -2801,6 +2837,7 @@ class SourceHandler(BaseHandler):
         include_gcn_crossmatches = self.get_query_argument(
             "includeGCNCrossmatches", False
         )
+        include_gcn_notes = self.get_query_argument("includeGCNNotes", False)
         exclude_forced_photometry = self.get_query_argument(
             "excludeForcedPhotometry", False
         )
@@ -3001,6 +3038,7 @@ class SourceHandler(BaseHandler):
                         requested_only=requested_only,
                         include_color_mag=include_color_mag,
                         include_gcn_crossmatches=include_gcn_crossmatches,
+                        include_gcn_notes=include_gcn_notes,
                     )
                 except Exception as e:
                     traceback.print_exc()

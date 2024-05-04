@@ -1,6 +1,6 @@
-import React, { Suspense, useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
 import makeStyles from "@mui/styles/makeStyles";
@@ -12,7 +12,7 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
-import { abs, ceil, log10 } from "mathjs";
+import { log10, abs, ceil } from "mathjs";
 
 import CircularProgress from "@mui/material/CircularProgress";
 import AddIcon from "@mui/icons-material/Add";
@@ -38,7 +38,7 @@ import ShowClassification from "../ShowClassification";
 import ShowSummaries from "../ShowSummaries";
 import SurveyLinkList from "../SurveyLinkList";
 import StarList from "../StarList";
-import { dec_to_dms, ra_to_hours } from "../../units";
+import { ra_to_hours, dec_to_dms } from "../../units";
 import FollowupRequestForm from "../followup_request/FollowupRequestForm";
 import FollowupRequestLists from "../followup_request/FollowupRequestLists";
 import AssignmentForm from "../AssignmentForm";
@@ -58,6 +58,7 @@ import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ShowSummaryHistory from "../ShowSummaryHistory";
 import AnnotationsTable from "../AnnotationsTable";
+import GcnNotesTable from "../gcn/GcnNotesTable";
 import AnalysisList from "../analysis/AnalysisList";
 import AnalysisForm from "../analysis/AnalysisForm";
 import SourceSaveHistory from "./SourceSaveHistory";
@@ -331,7 +332,7 @@ const SourceContent = ({ source }) => {
 
   const rightPanelContent = (downLarge, isRightPanelVisible) => (
     <>
-      <Grid item xs={12} lg={6} order={{ md: 4, lg: 3 }}>
+      <Grid item xs={12} lg={6} order={{ xs: 6, md: 4, lg: 3 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -362,7 +363,46 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={6} order={{ md: 2, lg: 4 }}>
+      {source?.gcn_notes?.length > 0 && (
+        <Grid
+          item
+          xs={12}
+          lg={12}
+          order={{ xs: 7, md: 5, lg: !downLg && !rightPanelVisible ? 5 : 4 }}
+        >
+          <Accordion
+            defaultExpanded
+            disableGutters
+            className={classes.flexColumn}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="gcnNotes-content"
+              id="gcnNotes-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                GCN Notes
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails
+              style={{
+                padding: 0,
+                minHeight: !(downLarge || isRightPanelVisible)
+                  ? "40vh"
+                  : "30vh",
+              }}
+            >
+              <GcnNotesTable gcnNotes={source.gcn_notes} />
+            </AccordionDetails>
+          </Accordion>
+        </Grid>
+      )}
+      <Grid
+        item
+        xs={12}
+        lg={6}
+        order={{ xs: 3, md: 3, lg: !downLg && !rightPanelVisible ? 4 : 5 }}
+      >
         <Accordion
           defaultExpanded
           className={classes.flexColumn}
@@ -398,7 +438,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={12} order={{ md: 9, lg: 7 }}>
+      <Grid item xs={12} lg={12} order={{ xs: 13, md: 10, lg: 8 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -425,7 +465,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={6} order={{ md: 7, lg: 11 }}>
+      <Grid item xs={12} lg={6} order={{ xs: 8, md: 8, lg: 12 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -457,7 +497,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={6} order={{ md: 8, lg: 12 }}>
+      <Grid item xs={12} lg={6} order={{ xs: 9, md: 9, lg: 13 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -500,9 +540,9 @@ const SourceContent = ({ source }) => {
       </Grid>
       <Grid
         item
-        xs={12}
+        xs={14}
         lg={6}
-        order={{ md: 13, lg: 13 }}
+        order={{ xs: 13, md: 13, lg: 13 }}
         style={{ overflow: "auto", paddingBottom: "1px", paddingRight: "1px" }}
       >
         <Accordion
@@ -527,7 +567,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={6} order={{ md: 14, lg: 14 }}>
+      <Grid item xs={12} lg={6} order={{ xs: 15, md: 15, lg: 15 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -565,7 +605,7 @@ const SourceContent = ({ source }) => {
           display: downLg || (!downLg && !rightPanelVisible) ? "flex" : "block",
         }}
       >
-        <Grid item xs={12} order={{ md: 1, lg: 1 }}>
+        <Grid item xs={12} order={{ xs: 1, md: 1, lg: 1 }}>
           <Paper style={{ padding: "0.5rem" }}>
             <div className={classes.container}>
               <div className={classes.header}>
@@ -1089,7 +1129,7 @@ const SourceContent = ({ source }) => {
             </div>
           </Paper>
         </Grid>
-        <Grid item xs={12} order={{ md: 3, lg: 2 }}>
+        <Grid item xs={12} order={{ xs: 2, md: 2, lg: 2 }}>
           <Paper>
             <Typography
               variant="h6"
@@ -1105,7 +1145,7 @@ const SourceContent = ({ source }) => {
             </div>
           </Paper>
         </Grid>
-        <Grid item xs={12} order={{ md: 5, lg: 5 }}>
+        <Grid item xs={12} order={{ xs: 4, md: 6, lg: 6 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1211,7 +1251,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ md: 6, lg: 6 }}>
+        <Grid item xs={12} order={{ xs: 5, md: 7, lg: 7 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1271,7 +1311,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ md: 10, lg: 8 }}>
+        <Grid item xs={12} order={{ xs: 10, md: 11, lg: 9 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1307,7 +1347,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ md: 11, lg: 9 }}>
+        <Grid item xs={12} order={{ xs: 11, md: 12, lg: 10 }}>
           <Accordion>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
@@ -1341,7 +1381,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ md: 12, lg: 10 }}>
+        <Grid item xs={12} order={{ xs: 12, md: 13, lg: 11 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1495,6 +1535,13 @@ SourceContent.propTypes = {
     duplicates: PropTypes.arrayOf(PropTypes.string),
     alias: PropTypes.arrayOf(PropTypes.string),
     gcn_crossmatch: PropTypes.arrayOf(PropTypes.string),
+    gcn_notes: PropTypes.arrayOf(
+      PropTypes.shape({
+        dateobs: PropTypes.string,
+        explanation: PropTypes.string,
+        notes: PropTypes.string,
+      }),
+    ),
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
     photstats: PropTypes.arrayOf(PropTypes.shape(Object)),
