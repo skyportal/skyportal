@@ -104,12 +104,6 @@ const MultipleClassificationsForm = ({
     setSelectedTaxonomy(stateTaxonomy);
   }, [stateTaxonomy]);
 
-  const initialFormState = {};
-  latestTaxonomyList?.forEach((taxonomy) => {
-    initialFormState[taxonomy?.id] = {};
-  });
-  const sortedClassifications = getSortedClasses(currentClassifications);
-
   const scaleProbabilities = useSelector(
     (state) => state.classifications.scaleProbabilities,
   );
@@ -124,24 +118,36 @@ const MultipleClassificationsForm = ({
     );
   };
 
-  // For each existing taxonomy/classification, update initial sliders
-  sortedClassifications?.forEach((classifications) => {
-    classifications?.forEach((classification) => {
-      // Take just the latest values for each field
-      if (
-        classification.taxonomy_id &&
-        classification.taxonomy_id in initialFormState &&
-        !initialFormState[classification.taxonomy_id][
-          classification.classification
-        ]
-      ) {
-        initialFormState[classification.taxonomy_id][
-          classification.classification
-        ] = { depth: -1, probability: classification.probability };
-      }
+  const [formState, setFormState] = useState({});
+
+  useEffect(() => {
+    const initialFormState = {};
+    (taxonomyList?.filter((t) => t.isLatest) || []).forEach((taxonomy) => {
+      initialFormState[taxonomy?.id] = {};
     });
-  });
-  const [formState, setFormState] = useState(initialFormState);
+
+    const sortedClassifications = getSortedClasses(currentClassifications);
+
+    // For each existing taxonomy/classification, update initial sliders
+    sortedClassifications?.forEach((classifications) => {
+      classifications?.forEach((classification) => {
+        // Take just the latest values for each field
+        if (
+          classification.taxonomy_id &&
+          classification.taxonomy_id in initialFormState &&
+          !initialFormState[classification.taxonomy_id][
+            classification.classification
+          ]
+        ) {
+          initialFormState[classification.taxonomy_id][
+            classification.classification
+          ] = { depth: -1, probability: classification.probability };
+        }
+      });
+    });
+
+    setFormState(initialFormState);
+  }, [currentClassifications, taxonomyList]);
 
   const getNode = (classification, path) => {
     // Get node from hierarchy, given classification name
@@ -260,7 +266,7 @@ const MultipleClassificationsForm = ({
               min={0}
               max={1.0}
             />
-            {classification.class in formState[selectedTaxonomy.id] &&
+            {classification.class in (formState[selectedTaxonomy.id] || []) &&
               formState[selectedTaxonomy.id][classification.class]
                 ?.probability !== 0 &&
               renderSliders(
@@ -277,7 +283,7 @@ const MultipleClassificationsForm = ({
             <Slider
               className={styles.slider}
               value={
-                formState[selectedTaxonomy.id][classification.class]
+                (formState[selectedTaxonomy.id] || [])[classification.class]
                   ?.probability || 0
               }
               onChangeCommitted={(_, value) =>
@@ -291,7 +297,7 @@ const MultipleClassificationsForm = ({
               min={0}
               max={1.0}
             />
-            {classification.class in formState[selectedTaxonomy.id] &&
+            {classification.class in (formState[selectedTaxonomy.id] || []) &&
               formState[selectedTaxonomy.id][classification.class]
                 ?.probability !== 0 &&
               renderSliders(
