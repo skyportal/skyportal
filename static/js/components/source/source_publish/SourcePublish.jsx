@@ -58,6 +58,10 @@ const SourcePublish = ({ source, photometry = null }) => {
     groups: [],
     streams: [],
   });
+  const isElements = {
+    photometry: source.photometry_exists,
+    classifications: source.classifications.length > 0,
+  };
 
   useEffect(() => {
     setUpdateThumbnailsData(true);
@@ -87,7 +91,7 @@ const SourcePublish = ({ source, photometry = null }) => {
         return null;
       }
       // filter photometry based on selected groups and streams
-      return source.photometry_exists
+      return isElements.photometry
         ? photometry.filter(
             (onePhotometry) =>
               (!optionsState.groups.length ||
@@ -222,10 +226,7 @@ const SourcePublish = ({ source, photometry = null }) => {
               {sourcePublishOptionsOpen && (
                 <SourcePublishOptions
                   optionsState={[optionsState, setOptionsState]}
-                  isElements={{
-                    photometry: source.photometry_exists,
-                    classifications: source.classifications.length > 0,
-                  }}
+                  isElements={isElements}
                 />
               )}
             </div>
