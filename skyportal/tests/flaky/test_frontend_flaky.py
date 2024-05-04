@@ -1026,7 +1026,7 @@ def test_user_expiration(
     driver.click_xpath(f"//*[@data-testid='editUserExpirationDate{user.id}']")
     date = datetime.datetime.now().strftime("%m/%d/%Y")
 
-    date_input_xpath = "//input[@id=':r4r:']"
+    date_input_xpath = "//input[@placeholder='MM/DD/YYYY']"
     date_input = driver.wait_for_xpath(date_input_xpath)
     driver.click_xpath(date_input_xpath)
     date_input.send_keys(date)
