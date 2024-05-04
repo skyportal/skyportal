@@ -29,7 +29,7 @@ header {
 
       .sourceAndTimeAgo {
         display: flex;
-        column-gap: 0.7rem;
+        column-gap: 1rem;
         align-items: baseline;
         h2 {
           margin: 0;
@@ -46,14 +46,12 @@ header {
           }
         }
       }
-
       a {
         color: rgb(29, 53, 87);
         text-decoration: none;
       }
     }
     .versions {
-      /*display: none;*/
       .version {
         padding-left: 5rem;
         display: flex;

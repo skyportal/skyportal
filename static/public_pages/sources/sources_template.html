@@ -61,12 +61,19 @@
               {% if days == 0 and seconds > 0 %} and {% elif days > 0 %} ago{% end %}
               {% if days == 0 and seconds > 0 %}{{ seconds }} seconds ago{% end %}
             </span>
+            <button type="button" onclick="displayVersions('{{ source }}')">
+              view all...
+            </button>
           </div>
           <a href="/public/sources/{{source}}" target="_blank">
-            Link to the latest version</a
-          >
+            Link to the latest version
+          </a>
         </div>
-        <div class="versions">
+        <div
+          class="versions"
+          id="versions-of-source-{{source}}"
+          style="display: none"
+        >
           {% for version in versions %}
           <div class="version">
             <div class="versionId">#{{version.id}}</div>
