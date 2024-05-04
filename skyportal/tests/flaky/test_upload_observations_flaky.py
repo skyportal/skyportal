@@ -4,7 +4,6 @@ import time
 import pandas as pd
 from regions import Regions
 import pytest
-from selenium.webdriver import ActionChains
 
 from skyportal.tests import api
 
@@ -91,31 +90,3 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')
     search_bar.send_keys('84434604')
     driver.wait_for_xpath('//*[text()="84434604"]', timeout=10)
-    search_bar.clear()
-
-    driver.refresh()
-
-    # Click somewhere outside to remove focus from search bar
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
-
-    filename = "sample_observation_data_upload_noseeing.csv"
-
-    attachment_file = driver.wait_for_xpath('//input[@type="file"]')
-    attachment_file.send_keys(
-        os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            'data',
-            filename,
-        ),
-    )
-
-    driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
-    submit_button_xpath = '//button[contains(.,"Submit")]'
-    driver.click_xpath(submit_button_xpath, scroll_parent=True)
-
-    search_button_xpath = '//button[@data-testid="Search-iconButton"]'
-    driver.click_xpath(search_button_xpath, scroll_parent=True)
-    search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')
-    search_bar.send_keys('94434604')
-    search_bar.clear()

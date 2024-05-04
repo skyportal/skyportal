@@ -254,6 +254,10 @@ def add_observations(instrument_id, obstable):
                 return log(
                     f"Unable to add observations for instrument {instrument_id}: {e}"
                 )
+
+        flow = Flow()
+        flow.push('*', "skyportal/REFRESH_OBSERVATIONS")
+
         return log(f"Successfully added observations for instrument {instrument_id}")
     except Exception as e:
         return log(f"Unable to add observations for instrument {instrument_id}: {e}")

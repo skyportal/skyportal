@@ -1368,6 +1368,9 @@ class ObservationPlanGCNHandler(BaseHandler):
                 return self.error('Need statistics computed to produce a GCN')
             statistics = statistics[0].statistics
 
+            if statistics["start_observation"] is None:
+                return self.success(data="No observation plan to report")
+
             start_observation = Time(statistics["start_observation"], format='isot')
             num_observations = statistics["num_observations"]
             unique_filters = statistics["unique_filters"]
