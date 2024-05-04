@@ -886,7 +886,7 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
             nretries = nretries + 1
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_candidate_date_filtering(
     driver,
     user,
@@ -896,6 +896,9 @@ def test_candidate_date_filtering(
     upload_data_token,
     ztf_camera,
 ):
+    now_utc = datetime.datetime.utcnow()
+    now = datetime.datetime.now()
+
     candidate_id = str(uuid.uuid4())
     for i in range(5):
         status, data = api(
@@ -910,7 +913,7 @@ def test_candidate_date_filtering(
                 "transient": False,
                 "ra_dis": 2.3,
                 "filter_ids": [public_filter.id],
-                "passed_at": str(datetime.datetime.utcnow()),
+                "passed_at": str(now_utc),
             },
             token=upload_data_token,
         )
@@ -941,28 +944,60 @@ def test_candidate_date_filtering(
         wait_clickable=False,
     )
 
-    import pdb
+    now_str = (now - datetime.timedelta(minutes=2)).strftime("%Y %m %d %I %M %p")
 
-    pdb.set_trace()
-
-    start_date_input = driver.wait_for_xpath("//input[@id='startDatePicker']")
+    # find the div at the same level of this
+    start_date_input = driver.wait_for_xpath(
+        '//label[text()="Start (Local Time)"]/../div/input'
+    )
     start_date_input.clear()
-    start_date_input.send_keys("12/01/2020 12:00 p")
-    end_date_input = driver.wait_for_xpath("//input[@id='endDatePicker']")
+    start_date_input.click()
+    start_date_input.send_keys(now_str[5:7])
+    start_date_input.send_keys(now_str[8:10])
+    start_date_input.send_keys(now_str[0:4])
+    start_date_input.send_keys(now_str[11:13])
+    start_date_input.send_keys(now_str[14:16])
+    start_date_input.send_keys(now_str[17])
+
+    now_str = (now - datetime.timedelta(minutes=1)).strftime("%Y %m %d %I %M %p")
+
+    end_date_input = driver.wait_for_xpath(
+        "//label[text()='End (Local Time)']/../div/input"
+    )
     end_date_input.clear()
-    end_date_input.send_keys("12/01/2020 12:00 p")
+    end_date_input.click()
+    end_date_input.send_keys(now_str[5:7])
+    end_date_input.send_keys(now_str[8:10])
+    end_date_input.send_keys(now_str[0:4])
+    end_date_input.send_keys(now_str[11:13])
+    end_date_input.send_keys(now_str[14:16])
+    end_date_input.send_keys(now_str[17])
+
     submit_button = driver.wait_for_xpath_to_be_clickable('//button[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
         driver.wait_for_xpath_to_disappear(
             f'//a[@data-testid="{candidate_id}_{i}"]', 10
         )
+
+    driver.wait_for_xpath('//*[contains(., "Found 0 candidates")]')
+
+    now_str = (now + datetime.timedelta(minutes=1)).strftime("%Y %m %d %I %M %p")
+
     end_date_input.clear()
-    end_date_input.send_keys("12/01/2090 12:00 p")
+    end_date_input.click()
+    end_date_input.send_keys(now_str[5:7])
+    end_date_input.send_keys(now_str[8:10])
+    end_date_input.send_keys(now_str[0:4])
+    end_date_input.send_keys(now_str[11:13])
+    end_date_input.send_keys(now_str[14:16])
+    end_date_input.send_keys(now_str[17])
+
     submit_button = driver.wait_for_xpath_to_be_clickable('//button[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
-    for i in range(5):
-        driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]', 10)
+
+    driver.wait_for_xpath_to_disappear('//*[contains(., "Found 0 candidates")]')
+    driver.wait_for_xpath('//*[contains(., "Found 5 candidates")]')
 
 
 def filter_for_user(driver, username):
