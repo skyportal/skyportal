@@ -2,7 +2,7 @@
 /* eslint-disable no-unused-vars */
 function filterSources() {
   const searchValue = document
-    .getElementById("searchBar")
+    .getElementById("search-bar")
     .value.trim()
     .toLowerCase();
   const sources = document.getElementsByClassName("sourceAndVersions");
