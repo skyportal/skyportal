@@ -101,18 +101,8 @@ SourcePublishOptions.propTypes = {
       PropTypes.shape({
         include_photometry: PropTypes.bool,
         include_classifications: PropTypes.bool,
-        groups: PropTypes.arrayOf(
-          PropTypes.shape({
-            id: PropTypes.number,
-            name: PropTypes.string,
-          }),
-        ),
-        streams: PropTypes.arrayOf(
-          PropTypes.shape({
-            id: PropTypes.number,
-            name: PropTypes.string,
-          }),
-        ),
+        groups: PropTypes.arrayOf(PropTypes.number),
+        streams: PropTypes.arrayOf(PropTypes.number),
       }),
       PropTypes.func,
     ]),
