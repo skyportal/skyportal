@@ -1309,7 +1309,7 @@ const PhotometryPlot = ({
               <Select
                 value={periodUnit}
                 onChange={(e) => setPeriodUnit(e.target.value)}
-                style={{ width: "6rem" }}
+                style={{ width: "8rem" }}
                 size="small"
               >
                 <MenuItem value="minutes">minutes</MenuItem>
