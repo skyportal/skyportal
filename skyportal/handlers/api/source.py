@@ -290,9 +290,8 @@ async def get_source(
     duplicates = session.scalars(
         Source.select(user).join(duplicate_objs, Source.obj_id == duplicate_objs.c.id)
     ).all()
-    # ironically, we might have duplicates of duplicates because we can have multiple sources for the same obj_id
-    # so, deduplicate to only keep one source per obj_id, for that we take advantage of dictionaries and their unique keys
-    # TODO: replace this query by something better where we have only one entry per obj_id
+    # we queried sources joined on obj to enforce permissions, but we can have multiple sources per obj
+    # so we deduplicate the results (happens naturally as a dict has unique obj_id keys here)
     duplicates = list(
         {
             dup.obj_id: {"obj_id": dup.obj_id, "ra": dup.obj.ra, "dec": dup.obj.dec}
