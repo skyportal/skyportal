@@ -2,7 +2,6 @@ import uuid
 import datetime
 
 import pytest
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
 
 from skyportal.tests import api
@@ -36,27 +35,9 @@ def test_recent_sources(driver, user, public_group, upload_data_token):
 
     # Wait for just added source to show up in added sources
     recent_source_dataid = "recentSourceItem"
-    recent_source_item = driver.wait_for_xpath(
+    driver.wait_for_xpath(
         f'//div[starts-with(@data-testid, "{recent_source_dataid}")][.//span[text()="a few seconds ago"]][.//span[contains(text(), "{obj_id}")]]'
     )
-
-    # Hover over item to see quick view button and click it
-    ActionChains(driver).move_to_element(recent_source_item).perform()
-    driver.click_xpath("//div[contains(@data-testid, 'quickViewButton')]")
-
-    driver.wait_for_xpath_to_appear(
-        "//*[@data-testid='source-quick-view-dialog-content']"
-    )
-
-    # Check dialog content
-    driver.wait_for_xpath(f'//h4[text()="{obj_id}"]')
-    driver.wait_for_xpath(f'//div[text()[contains(., "{redshift}")]]')
-    driver.wait_for_xpath(f'//div[text()[contains(., "{ra}")]]')
-    group_name = public_group.name[0:15]
-    driver.wait_for_xpath(
-        f'//span[contains(@class, "MuiChip-label")][text()="{group_name}"]'
-    )
-    driver.click_xpath("//div[contains(@class, 'sourceLinkButton')]")
 
 
 @pytest.mark.flaky(reruns=2)

@@ -247,13 +247,22 @@ class ClassificationHandler(BaseHandler):
 
         """
 
-        page_number = self.get_query_argument('pageNumber', 1)
-        n_per_page = min(
-            int(
-                self.get_query_argument("numPerPage", DEFAULT_CLASSIFICATIONS_PER_PAGE)
-            ),
-            MAX_CLASSIFICATIONS_PER_PAGE,
-        )
+        try:
+            page_number = int(self.get_query_argument('pageNumber', 1))
+            n_per_page = min(
+                int(
+                    self.get_query_argument(
+                        "numPerPage", DEFAULT_CLASSIFICATIONS_PER_PAGE
+                    )
+                ),
+                MAX_CLASSIFICATIONS_PER_PAGE,
+            )
+        except ValueError:
+            return self.error(
+                f'Cannot parse inputs pageNumber ({page_number}) '
+                f'or numPerPage ({n_per_page}) as an integers.'
+            )
+
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
         include_taxonomy = self.get_query_argument('includeTaxonomy', False)

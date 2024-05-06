@@ -743,7 +743,7 @@ class GalaxyASCIIFileHandler(BaseHandler):
             'redshift',
             'redshift_error',
             'sfr_fuv',
-            'sf4_w4',
+            'sfr_w4',
             'mstar',
             'magk',
             'magb',

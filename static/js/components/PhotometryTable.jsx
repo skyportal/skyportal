@@ -6,6 +6,10 @@ import DialogContent from "@mui/material/DialogContent";
 import Slide from "@mui/material/Slide";
 import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
+import CheckIcon from "@mui/icons-material/Check";
+import ClearIcon from "@mui/icons-material/Clear";
+import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
+import PriorityHigh from "@mui/icons-material/PriorityHigh";
 import Tooltip from "@mui/material/Tooltip";
 import makeStyles from "@mui/styles/makeStyles";
 import {
@@ -19,16 +23,24 @@ import MUIDataTable from "mui-datatables";
 
 import { Typography } from "@mui/material";
 import UpdatePhotometry from "./UpdatePhotometry";
+import PhotometryValidation from "./PhotometryValidation";
 import PhotometryMagsys from "./PhotometryMagsys";
 import Button from "./Button";
 import * as Actions from "../ducks/photometry";
 import { mjd_to_utc } from "../units";
+import { PHOT_ZP } from "../utils";
 
 const useStyles = makeStyles(() => ({
   actionButtons: {
     display: "flex",
     flexFlow: "row wrap",
     gap: "0.2rem",
+  },
+  manage: {
+    display: "flex",
+    flexDirection: "row",
+    gap: "0.2rem",
+    marginRight: "0.4rem",
   },
 }));
 
@@ -86,6 +98,7 @@ const isFloat = (x) =>
   typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
 
 const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
+  const { usePhotometryValidation } = useSelector((state) => state.config);
   const photometry = useSelector((state) => state.photometry);
   let bodyContent = null;
 
@@ -98,6 +111,19 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
     setIsDeleting(id);
     await dispatch(Actions.deletePhotometry(id));
     setIsDeleting(null);
+  };
+
+  const objectWithFalseValues = defaultHiddenColumns.reduce((acc, curr) => {
+    acc[curr] = false;
+    return acc;
+  }, {});
+
+  const [openColumns, setOpenColumns] = useState(objectWithFalseValues);
+  const handleColumnViewChange = (columnName, action) => {
+    setOpenColumns((prevOpenColumns) => ({
+      ...prevOpenColumns,
+      [columnName]: action === "add",
+    }));
   };
 
   if (!Object.keys(photometry).includes(obj_id)) {
@@ -133,7 +159,14 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
       Object.keys(data[0]).forEach((key) => {
         if (
           !keys.includes(key) &&
-          !["groups", "owner", "obj_id", "id", "streams"].includes(key)
+          ![
+            "groups",
+            "owner",
+            "obj_id",
+            "id",
+            "streams",
+            "validations",
+          ].includes(key)
         ) {
           keys.push(key);
         }
@@ -156,7 +189,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
             }
             return value;
           },
-          display: !defaultHiddenColumns.includes(key),
+          display: openColumns[key] === false ? "false" : "true",
         },
       }));
 
@@ -175,7 +208,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         label: "UTC",
         options: {
           customBodyRenderLite: renderUTC,
-          display: false,
+          display: openColumns.UTC === false ? "false" : "true",
         },
       });
 
@@ -194,6 +227,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         label: "owner",
         options: {
           customBodyRenderLite: renderOwner,
+          display: openColumns.owner === false ? "false" : "true",
         },
       });
 
@@ -213,35 +247,123 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         label: "streams",
         options: {
           customBodyRenderLite: renderStreams,
-          display: false,
+          display: openColumns.streams === false ? "false" : "true",
         },
       });
 
-      const renderEdit = (dataIndex) => {
-        const phot = data[dataIndex];
-        return (
-          <div>
-            <div className={classes.actionButtons}>
-              <div>
-                <UpdatePhotometry phot={phot} />
-              </div>
+      if (usePhotometryValidation) {
+        const renderValidationStatus = (dataIndex) => {
+          const phot = data[dataIndex];
+          let statusIcon = null;
+          if (phot?.validations.length === 0) {
+            statusIcon = <PriorityHigh size="small" color="primary" />;
+          } else if (phot?.validations[0]?.validated === true) {
+            statusIcon = <CheckIcon size="small" color="green" />;
+          } else if (phot?.validations[0]?.validated === false) {
+            statusIcon = <ClearIcon size="small" color="secondary" />;
+          } else {
+            statusIcon = <QuestionMarkIcon size="small" color="primary" />;
+          }
+
+          return (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              name={`${phot.id}_validation_status`}
+            >
+              {statusIcon}
+              <PhotometryValidation phot={phot} />
             </div>
-          </div>
-        );
-      };
-      columns.push({
-        name: "edit",
-        label: "Edit",
-        options: {
-          customBodyRenderLite: renderEdit,
-        },
-      });
+          );
+        };
 
-      const renderDelete = (dataIndex) => {
+        columns.push({
+          name: "validation_status",
+          label: "Validation",
+          options: {
+            customBodyRenderLite: renderValidationStatus,
+            display: openColumns.validation_status === false ? "false" : "true",
+          },
+        });
+
+        const renderValidationExplanation = (dataIndex) => {
+          const phot = data[dataIndex];
+          let validationExplanation = null;
+          if (phot?.validations.length === 0) {
+            validationExplanation = "";
+          } else {
+            validationExplanation = phot?.validations[0]?.explanation;
+          }
+          return (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              name={`${phot.id}_validation_explanation`}
+            >
+              {validationExplanation}
+            </div>
+          );
+        };
+
+        columns.push({
+          name: "validation_explanation",
+          label: "Explanation",
+          options: {
+            customBodyRenderLite: renderValidationExplanation,
+            display:
+              openColumns.validation_explanation === false ? "false" : "true",
+          },
+        });
+
+        const renderValidationNotes = (dataIndex) => {
+          const phot = data[dataIndex];
+          let notes = null;
+          if (phot?.validations.length === 0) {
+            notes = "";
+          } else {
+            notes = phot?.validations[0]?.notes;
+          }
+          return (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              name={`${phot.id}_validation_notes`}
+            >
+              {notes}
+            </div>
+          );
+        };
+
+        columns.push({
+          name: "validation_notes",
+          label: "Notes",
+          options: {
+            customBodyRenderLite: renderValidationNotes,
+            display: openColumns.validation_notes === false ? "false" : "true",
+          },
+        });
+      }
+
+      const renderManage = (dataIndex) => {
         const phot = data[dataIndex];
         return (
           <div>
-            <div className={classes.actionButtons}>
+            <div className={classes.manage}>
+              <div>
+                <UpdatePhotometry phot={phot} magsys={magsys} />
+              </div>
               {isDeleting === phot.id ? (
                 <div>
                   <CircularProgress />
@@ -266,11 +388,12 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         );
       };
       columns.push({
-        name: "delete",
-        label: "Delete",
+        name: "manage",
+        label: "Manage",
         options: {
-          customBodyRenderLite: renderDelete,
+          customBodyRenderLite: renderManage,
         },
+        display: openColumns.manage === false ? "false" : "true",
       });
 
       const customToolbarFunc = () => (
@@ -294,6 +417,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         customToolbar: customToolbarFunc,
         filter: false,
         download: true,
+        onColumnViewChange: handleColumnViewChange,
         onDownload: (buildHead, buildBody, cols, tableData) => {
           const renderStreamsDownload = (streams) =>
             streams ? streams.map((stream) => stream.name).join(";") : "";
@@ -302,8 +426,26 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
           // if there is no data, cancel download
           if (data?.length > 0) {
             const body = tableData
-              .map((x) =>
-                [
+              .map((x) => {
+                // 19 is the flux column
+                // 20 is the flux error column
+                // 21 is the SNR column
+                if (x.data[2] !== null) {
+                  // it's a detection, we have both flux and flux error
+                  x.data[19] = 10 ** (-0.4 * (x.data[2] - PHOT_ZP));
+                  x.data[20] = (x.data[3] / (2.5 / Math.log(10))) * x.data[19];
+                  x.data[21] = x.data[19] / x.data[20];
+                  if (x.data[21] < 0 || x.data[21] === Infinity) {
+                    x.data[21] = null;
+                  }
+                } else {
+                  // it's an upper limit, we only have fluxerr
+                  x.data[19] = null;
+                  x.data[20] = 10 ** (-0.4 * (x.data[4] - PHOT_ZP));
+                  x.data[21] = null;
+                }
+                x.data[22] = mjd_to_utc(x.data[1]);
+                return [
                   x.data[0],
                   x.data[1],
                   x.data[2],
@@ -312,7 +454,6 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                   x.data[5],
                   x.data[6],
                   x.data[7],
-                  x.data[8],
                   x.data[9],
                   x.data[10],
                   x.data[11],
@@ -321,10 +462,14 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                   x.data[14],
                   x.data[15],
                   x.data[16],
-                  renderOwnerDownload(x.data[18]),
-                  renderStreamsDownload(x.data[19]),
-                ].join(","),
-              )
+                  renderOwnerDownload(x.data[17]),
+                  renderStreamsDownload(x.data[18]),
+                  x.data[19],
+                  x.data[20],
+                  x.data[21],
+                  x.data[22],
+                ].join(",");
+              })
               .join("\n");
 
             const result =
@@ -359,10 +504,6 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                 },
                 {
                   name: "instrument_id",
-                  download: true,
-                },
-                {
-                  name: "snr",
                   download: true,
                 },
                 {
@@ -403,6 +544,22 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                 },
                 {
                   name: "owner",
+                  download: true,
+                },
+                {
+                  name: "flux",
+                  download: true,
+                },
+                {
+                  name: "fluxerr",
+                  download: true,
+                },
+                {
+                  name: "snr",
+                  download: true,
+                },
+                {
+                  name: "UTC",
                   download: true,
                 },
               ]) + body;

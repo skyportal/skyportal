@@ -1,10 +1,12 @@
 import itertools
 import time
+import traceback
 
 import arrow
 import sqlalchemy as sa
 
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.observation_plan import post_survey_efficiency_analysis
@@ -53,7 +55,7 @@ def prioritize_requests(requests):
                 if allocation_id not in telescopeAllocationLookup:
                     telescopeAllocationLookup[
                         allocation_id
-                    ] = plan.allocation.instrument.telescope.current_time
+                    ] = plan.allocation.instrument.telescope.current_time()
 
         # now we loop over the plans. For plans with multiple plans we pick the allocation with the earliest start date and morning time
         # at the same time, we pick the plan to prioritize
@@ -137,6 +139,7 @@ def prioritize_requests(requests):
 
         return plan_with_priority["plan_id"]
     except Exception as e:
+        traceback.print_exc()
         log(f"Error occured prioritizing the observation plan queue: {e}")
         return 0
 
@@ -148,12 +151,39 @@ def service(*args, **kwargs):
         with DBSession() as session:
             try:
                 stmt = sa.select(ObservationPlanRequest).where(
-                    ObservationPlanRequest.status == "pending submission",
-                    ObservationPlanRequest.created_at
-                    > arrow.utcnow().shift(days=-1).datetime,
-                    # we only want to process plans that have been created in the last 24 hours
+                    # we only want to process plans that have been created in the last 72 hours
+                    sa.or_(
+                        sa.and_(
+                            ObservationPlanRequest.status == "pending submission",
+                            ObservationPlanRequest.created_at
+                            > arrow.utcnow().shift(days=-3).datetime,
+                        ),
+                        # or plans that have been "running" for more than 24 hours but less than 72 hours
+                        # this is a way to grab plans that have been stuck in the running state
+                        # and have not been processed
+                        sa.and_(
+                            ObservationPlanRequest.status == "running",
+                            ObservationPlanRequest.created_at
+                            < arrow.utcnow().shift(days=-1).datetime,
+                            ObservationPlanRequest.created_at
+                            > arrow.utcnow().shift(days=-3).datetime,
+                        ),
+                    )
                 )
-                single_requests = session.execute(stmt).scalars().unique().all()
+                single_requests = session.scalars(stmt).unique().all()
+
+                # reprocessing plans that were marked as running before (and probably stuck in that state)
+                # is lower priority, so if we have any pending submission plans, we prioritize those
+                # and remove the running plans from the list
+                if any(
+                    request.status == "pending submission"
+                    for request in single_requests
+                ):
+                    single_requests = [
+                        request
+                        for request in single_requests
+                        if request.status == "pending submission"
+                    ]
 
                 # requests is a list. We want to group that list of plans to be a list of list,
                 # we group based on the plans 'combined_id' which is a unique uuid for a group of plans
@@ -175,7 +205,7 @@ def service(*args, **kwargs):
                 ]
 
                 if len(requests) == 0:
-                    time.sleep(2)
+                    time.sleep(5)
                     continue
 
                 log(f"Prioritizing {len(requests)} observation plan requests...")
@@ -194,13 +224,27 @@ def service(*args, **kwargs):
                         )
                         plan_ids.append(plan_id)
                     except Exception as e:
+                        traceback.print_exc()
                         plan_request.status = 'failed to process'
                         log(f'Error processing observation plan: {e.args[0]}')
                         session.commit()
                         time.sleep(2)
                         continue
                     plan_request.status = 'complete'
+                    session.merge(plan_request)
                     session.commit()
+
+                    try:
+                        flow = Flow()
+                        flow.push(
+                            '*',
+                            "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                            payload={"gcnEvent_dateobs": plan_request.gcnevent.dateobs},
+                        )
+                    except Exception as e:
+                        log(
+                            f'Error refreshing observation plan requests on the frontend: {e.args[0]}'
+                        )
 
                 else:
                     try:
@@ -221,7 +265,24 @@ def service(*args, **kwargs):
 
                     for plan_request in plan_requests:
                         plan_request.status = 'complete'
+                        session.merge(plan_request)
                     session.commit()
+
+                    try:
+                        unique_dateobs = {
+                            plan.gcnevent.dateobs for plan in plan_requests
+                        }
+                        flow = Flow()
+                        for dateobs in unique_dateobs:
+                            flow.push(
+                                '*',
+                                "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                                payload={"gcnEvent_dateobs": dateobs},
+                            )
+                    except Exception as e:
+                        log(
+                            f"Error refreshing observation plan requests on the frontend: {e}"
+                        )
 
                 log(f"Generated plans: {plan_ids}")
                 for id in plan_ids:

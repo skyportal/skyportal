@@ -1,4 +1,5 @@
 import time
+import traceback
 from astropy.time import Time
 import healpix_alchemy as ha
 import humanize
@@ -501,6 +502,7 @@ def generate_plan(
             # parameters used for galaxy targeting
             'galaxies_FoV_sep': 1.0,
             'doChipGaps': False,
+            'ignore_observability': False,
         }
 
         if len(requests) > 1:
@@ -867,10 +869,19 @@ def generate_plan(
         log(f"Finished plan(s) for ID(s): {','.join(observation_plan_id_strings)}")
 
     except Exception as e:
+        traceback.print_exc()
         log(
             f"Failed to generate plans for ID(s): {','.join(observation_plan_id_strings)}: {str(e)}."
         )
         session.rollback()
+        # mark the request and plan as failed
+        for request in requests:
+            request.status = 'failed'
+            session.merge(request)
+        for plan in plans:
+            plan.status = 'failed'
+            session.merge(plan)
+        session.commit()
 
     session.close()
     Session.remove()
@@ -1092,6 +1103,36 @@ class MMAAPI(FollowUpAPI):
                     EventObservationPlan.plan_name == request.payload["queue_name"]
                 )
             ).first()
+
+            # if the request is marked as running but there is a plan that is complete,
+            # then mark the request as complete as well
+            if (
+                plan is not None
+                and plan.status == 'complete'
+                and request.status == 'running'
+            ):
+                request.status = 'complete'
+                session.merge(request)
+                session.commit()
+                log(
+                    f"Plan {plan.id} is already complete. Marking request {request.id} as complete."
+                )
+                return plan.id
+
+            # if the request is marked as running and there is already a plan that is pending submissions,
+            # then it is likely that processing the plan failed before
+            # so we delete the plan and create a new one
+            if (
+                plan is not None
+                and plan.status == 'pending submission'
+                and request.status == 'running'
+            ):
+                log(
+                    f"Plan {plan.id} has been pending submission for more than 24 hours. Deleting and creating a new plan."
+                )
+                session.delete(plan)
+                session.commit()
+                plan = None
 
             if plan is None:
                 # check payload

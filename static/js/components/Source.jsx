@@ -59,6 +59,7 @@ import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ShowSummaryHistory from "./ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
+import GCNNotesTable from "./GCNNotesTable";
 import AnalysisList from "./AnalysisList";
 import AnalysisForm from "./AnalysisForm";
 import SourceSaveHistory from "./SourceSaveHistory";
@@ -275,6 +276,87 @@ SourcePageThumbnails.propTypes = {
   downLarge: PropTypes.bool.isRequired,
 };
 
+const SourceCoordinates = ({ source, downMd = false }) => {
+  const classes = useSourceStyles();
+
+  const ra = source?.adjusted_position?.ra || source.ra;
+  const dec = source?.adjusted_position?.dec || source.dec;
+  const gal_lon = source?.adjusted_position?.gal_lon || source.gal_lon;
+  const gal_lat = source?.adjusted_position?.gal_lat || source.gal_lat;
+  const ebv = source?.adjusted_position?.ebv || source.ebv;
+
+  const radec_hhmmss = `${ra_to_hours(ra, ":")} ${dec_to_dms(dec, ":")}`;
+
+  const title =
+    source?.adjusted_position?.separation > 0
+      ? `The coordinates displayed here have been re-computed using the object's photometry (${source.adjusted_position.separation.toFixed(
+          2,
+        )}" from the original)`
+      : "The coordinates displayed here are the original coordinates of the object";
+
+  return (
+    <Tooltip title={title} placement="top">
+      <div
+        className={classes.infoLine}
+        style={{
+          gap: 0,
+          columnGap: "0.5rem",
+        }}
+      >
+        <div className={classes.sourceInfo}>
+          <span
+            style={{
+              fontWeight: "bold",
+              fontSize: downMd ? "1rem" : "110%",
+            }}
+          >
+            {radec_hhmmss}
+          </span>
+        </div>
+        <div className={classes.sourceInfo}>
+          (&alpha;,&delta;= {ra.toFixed(6)}, &nbsp;
+          {dec.toFixed(6)})
+        </div>
+        <div className={classes.sourceInfo}>
+          (<i>l</i>,<i>b</i>={gal_lon.toFixed(6)}, &nbsp;
+          {gal_lat.toFixed(6)})
+        </div>
+        {ebv && (
+          <div className={classes.sourceInfo}>{`E(B-V): ${ebv.toFixed(
+            2,
+          )}`}</div>
+        )}
+        <div className={classes.sourceInfo}>
+          <UpdateSourceCoordinates source={source} />
+        </div>
+      </div>
+    </Tooltip>
+  );
+};
+
+SourceCoordinates.propTypes = {
+  source: PropTypes.shape({
+    ra: PropTypes.number,
+    dec: PropTypes.number,
+    gal_lat: PropTypes.number,
+    gal_lon: PropTypes.number,
+    ebv: PropTypes.number,
+    adjusted_position: PropTypes.shape({
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+      gal_lat: PropTypes.number,
+      gal_lon: PropTypes.number,
+      ebv: PropTypes.number,
+      separation: PropTypes.number,
+    }),
+  }).isRequired,
+  downMd: PropTypes.bool,
+};
+
+SourceCoordinates.defaultProps = {
+  downMd: false,
+};
+
 const SourceContent = ({ source }) => {
   const dispatch = useDispatch();
   const classes = useSourceStyles();
@@ -348,11 +430,6 @@ const SourceContent = ({ source }) => {
         summary.is_bot === false,
     )?.length < 1;
 
-  const radec_hhmmss = `${ra_to_hours(source.ra, ":")} ${dec_to_dms(
-    source.dec,
-    ":",
-  )}`;
-
   // associatedGCNs is an array of dateobs
   // source.gcn_crossmatch is an array of objects with dateobs
   // we want to combine these two arrays into one array of dateobs deduplicated
@@ -365,6 +442,7 @@ const SourceContent = ({ source }) => {
   useEffect(() => {
     dispatch(photometryActions.fetchSourcePhotometry(source.id, { magsys }));
     dispatch(spectraActions.fetchSourceSpectra(source.id));
+    dispatch(sourceActions.fetchPosition(source.id));
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
   }, [source.id, magsys, dispatch]);
 
@@ -391,7 +469,7 @@ const SourceContent = ({ source }) => {
 
   const rightPanelContent = (downLarge, isRightPanelVisible) => (
     <>
-      <Grid item xs={12} lg={6} order={{ md: 4, lg: 3 }}>
+      <Grid item xs={12} lg={6} order={{ xs: 6, md: 4, lg: 3 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -422,7 +500,46 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={6} order={{ md: 2, lg: 4 }}>
+      {source?.gcn_notes?.length > 0 && (
+        <Grid
+          item
+          xs={12}
+          lg={12}
+          order={{ xs: 7, md: 5, lg: !downLg && !rightPanelVisible ? 5 : 4 }}
+        >
+          <Accordion
+            defaultExpanded
+            disableGutters
+            className={classes.flexColumn}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="gcnNotes-content"
+              id="gcnNotes-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                GCN Notes
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails
+              style={{
+                padding: 0,
+                minHeight: !(downLarge || isRightPanelVisible)
+                  ? "40vh"
+                  : "30vh",
+              }}
+            >
+              <GCNNotesTable gcnNotes={source.gcn_notes} />
+            </AccordionDetails>
+          </Accordion>
+        </Grid>
+      )}
+      <Grid
+        item
+        xs={12}
+        lg={6}
+        order={{ xs: 3, md: 3, lg: !downLg && !rightPanelVisible ? 4 : 5 }}
+      >
         <Accordion
           defaultExpanded
           className={classes.flexColumn}
@@ -458,7 +575,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={12} order={{ md: 9, lg: 7 }}>
+      <Grid item xs={12} lg={12} order={{ xs: 13, md: 10, lg: 8 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -485,7 +602,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={6} order={{ md: 7, lg: 11 }}>
+      <Grid item xs={12} lg={6} order={{ xs: 8, md: 8, lg: 12 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -517,7 +634,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={6} order={{ md: 8, lg: 12 }}>
+      <Grid item xs={12} lg={6} order={{ xs: 9, md: 9, lg: 13 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -560,9 +677,9 @@ const SourceContent = ({ source }) => {
       </Grid>
       <Grid
         item
-        xs={12}
+        xs={14}
         lg={6}
-        order={{ md: 13, lg: 13 }}
+        order={{ xs: 13, md: 13, lg: 13 }}
         style={{ overflow: "auto", paddingBottom: "1px", paddingRight: "1px" }}
       >
         <Accordion
@@ -587,7 +704,7 @@ const SourceContent = ({ source }) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid item xs={12} lg={6} order={{ md: 14, lg: 14 }}>
+      <Grid item xs={12} lg={6} order={{ xs: 15, md: 15, lg: 15 }}>
         <Accordion
           defaultExpanded
           disableGutters
@@ -625,7 +742,7 @@ const SourceContent = ({ source }) => {
           display: downLg || (!downLg && !rightPanelVisible) ? "flex" : "block",
         }}
       >
-        <Grid item xs={12} order={{ md: 1, lg: 1 }}>
+        <Grid item xs={12} order={{ xs: 1, md: 1, lg: 1 }}>
           <Paper style={{ padding: "0.5rem" }}>
             <div className={classes.container}>
               <div className={classes.header}>
@@ -659,37 +776,7 @@ const SourceContent = ({ source }) => {
                 shortened
               />
             </div>
-            <div
-              className={classes.infoLine}
-              style={{ gap: 0, columnGap: "0.5rem" }}
-            >
-              <div className={classes.sourceInfo}>
-                <span
-                  style={{
-                    fontWeight: "bold",
-                    fontSize: downMd ? "1rem" : "110%",
-                  }}
-                >
-                  {radec_hhmmss}
-                </span>
-              </div>
-              <div className={classes.sourceInfo}>
-                (&alpha;,&delta;= {source.ra}, &nbsp;
-                {source.dec})
-              </div>
-              <div className={classes.sourceInfo}>
-                (<i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
-                {source.gal_lat.toFixed(6)})
-              </div>
-              {source.ebv && (
-                <div className={classes.sourceInfo}>
-                  {`E(B-V): ${source.ebv.toFixed(2)}`}
-                </div>
-              )}
-              <div className={classes.sourceInfo}>
-                <UpdateSourceCoordinates source={source} />
-              </div>
-            </div>
+            <SourceCoordinates source={source} downMd={downMd} />
             <div
               className={classes.flexRow}
               style={{
@@ -1182,7 +1269,7 @@ const SourceContent = ({ source }) => {
             </div>
           </Paper>
         </Grid>
-        <Grid item xs={12} order={{ md: 3, lg: 2 }}>
+        <Grid item xs={12} order={{ xs: 2, md: 2, lg: 2 }}>
           <Paper>
             <Typography
               variant="h6"
@@ -1198,7 +1285,7 @@ const SourceContent = ({ source }) => {
             </div>
           </Paper>
         </Grid>
-        <Grid item xs={12} order={{ md: 5, lg: 5 }}>
+        <Grid item xs={12} order={{ xs: 4, md: 6, lg: 6 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1291,7 +1378,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ md: 6, lg: 6 }}>
+        <Grid item xs={12} order={{ xs: 5, md: 7, lg: 7 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1351,7 +1438,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ md: 10, lg: 8 }}>
+        <Grid item xs={12} order={{ xs: 10, md: 11, lg: 9 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1387,7 +1474,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ md: 11, lg: 9 }}>
+        <Grid item xs={12} order={{ xs: 11, md: 12, lg: 10 }}>
           <Accordion>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
@@ -1421,7 +1508,7 @@ const SourceContent = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid item xs={12} order={{ md: 12, lg: 10 }}>
+        <Grid item xs={12} order={{ xs: 12, md: 13, lg: 11 }}>
           <Accordion
             defaultExpanded
             disableGutters
@@ -1579,6 +1666,13 @@ SourceContent.propTypes = {
     ),
     alias: PropTypes.arrayOf(PropTypes.string),
     gcn_crossmatch: PropTypes.arrayOf(PropTypes.string),
+    gcn_notes: PropTypes.arrayOf(
+      PropTypes.shape({
+        dateobs: PropTypes.string,
+        explanation: PropTypes.string,
+        notes: PropTypes.string,
+      }),
+    ),
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
     photstats: PropTypes.arrayOf(PropTypes.shape(Object)),

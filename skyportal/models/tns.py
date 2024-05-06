@@ -77,6 +77,12 @@ class TNSRobot(Base):
         doc="If true, robot will not report to TNS and only store the request's payload.",
     )
 
+    photometry_options = sa.Column(
+        psql.JSONB,
+        nullable=True,
+        doc="Photometry options to use for this robot, to make some data optional or mandatory for manual and auto-reporting.",
+    )
+
     @property
     def altdata(self):
         if self._altdata is None:
@@ -103,9 +109,10 @@ class TNSRobot(Base):
     )
 
 
-# we want a unique constraint on the bot_name, bot_id, source_group_id columns
+# we want a unique constraint on the bot_name, bot_id, source_group_id, testing columns
+# this way you can't have the same bot twice, except for testing
 TNSRobot.__table_args__ = (
-    sa.UniqueConstraint('bot_name', 'bot_id', 'source_group_id'),
+    sa.UniqueConstraint('bot_name', 'bot_id', 'source_group_id', 'testing'),
 )
 
 
@@ -251,14 +258,20 @@ class TNSRobotSubmission(Base):
         sa.ARRAY(sa.Integer),
         nullable=True,
         default=None,
-        doc="Instrument IDs to use for this submission.",
+        doc="Instrument IDs to use for this submission. If specified, overrides the robot's default instrument IDs.",
     )
 
     stream_ids = sa.Column(
         sa.ARRAY(sa.Integer),
         nullable=True,
         default=None,
-        doc="Stream IDs to use for this submission.",
+        doc="Stream IDs to use for this submission. If specified, overrides the robot's default stream IDs.",
+    )
+
+    photometry_options = sa.Column(
+        psql.JSONB,
+        nullable=True,
+        doc="Photometry options to use for this robot, to make some data optional or mandatory. If specified, overrides the robot's default photometry options.",
     )
 
     payload = deferred(sa.Column(psql.JSONB, doc='Payload to be sent to TNS.'))

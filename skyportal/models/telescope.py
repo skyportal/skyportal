@@ -11,6 +11,7 @@ import timezonefinder
 import astroplan
 from astropy import units as u
 from astropy import time as ap_time
+from astropy.utils.masked import MaskedNDArray
 
 from baselayer.app.models import (
     Base,
@@ -185,7 +186,12 @@ class Telescope(Base):
             return None
         if time is None:
             time = ap_time.Time.now()
-        return observer.sun_set_time(time, which='next')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            t = observer.sun_set_time(time, which='next')
+            if isinstance(t.value, (np.ma.core.MaskedArray, MaskedNDArray)):
+                return None
+        return t
 
     def next_sunrise(self, time=None):
         """The astropy timestamp of the next sunrise after `time` at this site.
@@ -195,7 +201,12 @@ class Telescope(Base):
             return None
         if time is None:
             time = ap_time.Time.now()
-        return observer.sun_rise_time(time, which='next')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            t = observer.sun_rise_time(time, which='next')
+            if isinstance(t.value, (np.ma.core.MaskedArray, MaskedNDArray)):
+                return None
+        return t
 
     def next_twilight_evening_nautical(self, time=None):
         """The astropy timestamp of the next evening nautical (-12 degree)
@@ -205,7 +216,12 @@ class Telescope(Base):
             return None
         if time is None:
             time = ap_time.Time.now()
-        return observer.twilight_evening_nautical(time, which='next')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            t = observer.twilight_evening_nautical(time, which='next')
+            if isinstance(t.value, (np.ma.core.MaskedArray, MaskedNDArray)):
+                return None
+        return t
 
     def next_twilight_morning_nautical(self, time=None):
         """The astropy timestamp of the next morning nautical (-12 degree)
@@ -221,7 +237,7 @@ class Telescope(Base):
             # so this returns a MaskedArray and raises a warning.
             warnings.simplefilter("ignore")
             t = observer.twilight_morning_nautical(time, which='next')
-            if isinstance(t.value, np.ma.core.MaskedArray):
+            if isinstance(t.value, (np.ma.core.MaskedArray, MaskedNDArray)):
                 return None
         return t
 
@@ -236,7 +252,7 @@ class Telescope(Base):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             t = observer.twilight_evening_astronomical(time, which='next')
-            if isinstance(t.value, np.ma.core.MaskedArray):
+            if isinstance(t.value, (np.ma.core.MaskedArray, MaskedNDArray)):
                 return None
         return t
 
@@ -251,7 +267,7 @@ class Telescope(Base):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             t = observer.twilight_morning_astronomical(time, which='next')
-            if isinstance(t.value, np.ma.core.MaskedArray):
+            if isinstance(t.value, (np.ma.core.MaskedArray, MaskedNDArray)):
                 return None
         return t
 

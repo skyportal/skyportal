@@ -710,7 +710,7 @@ def test_cannot_repost_series(
             data=series_data,
             token=upload_data_token,
         )
-        assert_api_fail(status, data, 400, 'File already exists:')
+        assert_api_fail(status, data, 400, 'already exists')
 
         # delete the file then try again
         os.remove(filename)
@@ -1594,7 +1594,6 @@ def test_get_series_by_mean_and_rms(
         ps_ids.append(ps.id)
         means.append(ps.mean_mag)
         rmses.append(ps.rms_mag)
-        print(ps.is_detected)
     values = means.copy()
     values.sort()
     split_mag = values[1]

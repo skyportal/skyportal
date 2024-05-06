@@ -186,9 +186,9 @@ const PhotometryPlot = ({
   spectra,
   gcn_events,
   duplicates,
-  magsys,
   mode,
   plotStyle,
+  magsys,
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -767,7 +767,7 @@ const PhotometryPlot = ({
 
     if (plotType === "mag" || plotType === "period") {
       newLayouts.yaxis = {
-        title: "AB Mag",
+        title: magsys.toUpperCase().concat(" Mag"),
         range: [...photStats_value.mag.range],
         zeroline: false,
         ...BASE_LAYOUT,
@@ -1169,6 +1169,7 @@ const PhotometryPlot = ({
             // scrollZoom: true, // this is not working properly, creating issues when we are around the default zooming level. TOFIX
             responsive: true,
             displaylogo: false,
+            showAxisDragHandles: false,
             // the native autoScale2d and resetScale2d buttons are not working
             // as they are not resetting to the specified ranges
             // so, we remove them and add our own
@@ -1301,61 +1302,67 @@ const PhotometryPlot = ({
             </div>
           </div>
         </div>
-        <div className={classes.gridItem} style={{ gridColumn: "span 3" }}>
-          <Typography id="input-slider">Possible Duplicates</Typography>
-          <div className={classes.switchContainer}>
-            <Select
-              value={selectedDuplicates}
-              onChange={(e) => {
-                if (e.target.value.includes("Select all")) {
-                  if (e.target.value?.length !== duplicates.length + 1) {
-                    setSelectedDuplicates(duplicates.map((d) => d.obj_id));
+        {duplicates?.length > 0 && (
+          <div className={classes.gridItem} style={{ gridColumn: "span 3" }}>
+            <Typography id="input-slider">Possible Duplicates</Typography>
+            <div className={classes.switchContainer}>
+              <Select
+                value={selectedDuplicates}
+                onChange={(e) => {
+                  if (e.target.value.includes("Select all")) {
+                    if (e.target.value?.length !== duplicates.length + 1) {
+                      setSelectedDuplicates(duplicates.map((d) => d.obj_id));
+                    } else {
+                      setSelectedDuplicates([]);
+                    }
                   } else {
-                    setSelectedDuplicates([]);
+                    setSelectedDuplicates(e.target.value);
                   }
-                } else {
-                  setSelectedDuplicates(e.target.value);
-                }
-              }}
-              style={{ minWidth: "100%" }}
-              size="small"
-              multiple
-              renderValue={(selected) => {
-                // show chips for each
-                const duplicatesValue = duplicates.filter((d) =>
-                  selected.includes(d.obj_id),
-                );
-                return (
-                  <div className={classes.chips}>
-                    {duplicatesValue.map((d) => (
-                      <Chip
-                        key={d.obj_id}
-                        label={`${d.obj_id} (${d.separation.toFixed(2)}")`}
-                        className={classes.chip}
-                      />
-                    ))}
-                  </div>
-                );
-              }}
-            >
-              {/* if there is more than one menu item, show a "select all" menuitem which on click selects all the sources */}
-              {duplicates.length > 1 && (
-                <MenuItem value="Select all" key="Select all">
-                  <Checkbox
-                    checked={selectedDuplicates.length === duplicates.length}
-                  />
-                  Select all
-                </MenuItem>
-              )}
-              {duplicates.map((d) => (
-                <MenuItem key={d.obj_id} value={d.obj_id}>
-                  <Checkbox checked={selectedDuplicates.includes(d.obj_id)} />
-                  {d.obj_id} ({d.separation.toFixed(2)} arcsec)
-                </MenuItem>
-              ))}
-            </Select>
+                }}
+                style={{ minWidth: "100%" }}
+                size="small"
+                multiple
+                renderValue={(selected) => {
+                  // show chips for each
+                  const duplicatesValue = duplicates.filter((d) =>
+                    selected.includes(d.obj_id),
+                  );
+                  return (
+                    <div className={classes.chips}>
+                      {duplicatesValue.map((d) => (
+                        <Chip
+                          key={d.obj_id}
+                          label={`${d.obj_id} (${d.separation.toFixed(2)}")`}
+                          className={classes.chip}
+                        />
+                      ))}
+                    </div>
+                  );
+                }}
+              >
+                {/* if there is more than one menu item, show a "select all" menuitem which on click selects all the sources */}
+                {duplicates.length > 1 && (
+                  <MenuItem value="Select all" key="Select all">
+                    <Checkbox
+                      size="small"
+                      checked={selectedDuplicates.length === duplicates.length}
+                    />
+                    Select all
+                  </MenuItem>
+                )}
+                {duplicates.map((d) => (
+                  <MenuItem key={d.obj_id} value={d.obj_id}>
+                    <Checkbox
+                      checked={selectedDuplicates.includes(d.obj_id)}
+                      size="small"
+                    />
+                    {d.obj_id} ({d.separation.toFixed(2)} arcsec)
+                  </MenuItem>
+                ))}
+              </Select>
+            </div>
           </div>
-        </div>
+        )}
         {tabIndex === 2 && (
           <div className={classes.gridItem} style={{ gridColumn: "span 3" }}>
             <Typography id="input-slider">Period (days)</Typography>
@@ -1477,11 +1484,11 @@ PhotometryPlot.propTypes = {
       dec: PropTypes.number.isRequired,
     }),
   ),
-  magsys: PropTypes.string,
   mode: PropTypes.string,
   plotStyle: PropTypes.shape({
     height: PropTypes.string,
   }),
+  magsys: PropTypes.string,
 };
 
 PhotometryPlot.defaultProps = {
@@ -1490,11 +1497,11 @@ PhotometryPlot.defaultProps = {
   gcn_events: [],
   spectra: [],
   duplicates: [],
-  magsys: "ab",
   mode: "desktop",
   plotStyle: {
     height: "65vh",
   },
+  magsys: "ab",
 };
 
 export default PhotometryPlot;

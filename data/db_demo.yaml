@@ -217,6 +217,15 @@ telescope:
     skycam_link: null
     robotic: true
     =id: LCOGT1m
+  - diameter: 0.7
+    elevation: 1405.0
+    lat: 37.0713
+    lon: -119.4122
+    nickname: Thai Robotic Telescope
+    name: TRT0p7m
+    skycam_link: null
+    robotic: true
+    =id: TRT0p7m
   - diameter: 2.0
     elevation: 3052.0
     lat: 20.7083
@@ -410,6 +419,13 @@ instrument:
     filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz", "desy"]
     api_classname: SINISTROAPI
     =id: SINISTRO
+  - band: optical
+    name: TRT
+    telescope_id: =TRT0p7m
+    type: imager
+    filters: ['bessellb', 'bessellv', 'bessellr', 'besselli']
+    api_classname: TRTAPI
+    =id: TRT
   - band: optical
     name: SPECTRAL
     telescope_id: =LCOGT2m
@@ -644,7 +660,7 @@ allocation:
     start_date: "3020-02-12T00:00:00"
     end_date: "3020-07-12T00:00:00"
     hours_allocated: 100
-    types: [triggered, forced_photometry]
+    types: [triggered, forced_photometry, observation_plan]
     group_id: =program_A
     instrument_id: =ZTF
     =id: ZTF_allocation
@@ -722,6 +738,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TESS
+  - pi: Michael Coughlin
+    proposal_id: TRT-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =TRT
 
 galaxy_catalog:
   - catalog_name: CLU_mini
