@@ -34,9 +34,9 @@ import { BASE_LAYOUT, PHOT_ZP, smoothing_func, mjdnow, rgba } from "../utils";
 
 // convert any unit to days
 const periodUnitDividers = {
-  minutes: 60 * 24,
-  hours: 24,
-  days: 1,
+  minutes: 60.0 * 24.0,
+  hours: 24.0,
+  days: 1.0,
 };
 
 const Plot = createPlotlyComponent(Plotly);
