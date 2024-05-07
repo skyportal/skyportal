@@ -89,7 +89,6 @@ const useStyles = makeStyles((theme) => ({
     [theme.breakpoints.down("md")]: {
       gridTemplateColumns: "1fr 1fr 1fr",
       display: "grid",
-      // put the gridColumn to span 3 for the first child
       "& > :first-child": {
         gridColumn: "span 2",
       },
