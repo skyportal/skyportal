@@ -34,11 +34,12 @@ class PublicSourcePageHandler(BaseHandler):
             content:
                 application/json:
                     schema:
-                    type: object
-                    properties:
-                        public_data:
                         type: object
-                        description: Data to display publicly
+                        properties:
+                            public_data:
+                                type: object
+                                required: true
+                                description: Data to display publicly
           responses:
             200:
               content:
