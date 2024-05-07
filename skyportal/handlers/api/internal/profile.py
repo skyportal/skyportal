@@ -179,6 +179,15 @@ class ProfileHandler(BaseHandler):
                         "Invalid affiliations. Should be a list of strings."
                     )
 
+            if data.get("bio") is not None and isinstance(data.get("bio"), str):
+                user.bio = data.pop("bio")
+
+            if data.get("bot") not in [None, ""]:
+                if str(data.get("bot")).lower() in ["true", "t", "1"]:
+                    user.bot = True
+                else:
+                    user.bot = False
+
             if data.get("contact_phone") is not None:
                 phone = data.pop("contact_phone")
                 if phone not in [None, ""]:
