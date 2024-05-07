@@ -1305,7 +1305,6 @@ const PhotometryPlot = ({
                 style={{ minWidth: "8rem", width: "100%" }}
                 size="small"
               />
-              {/* an MUI Select to pick a unit for the period, with options ranging from minutes, hours, days */}
               <Select
                 value={periodUnit}
                 onChange={(e) => setPeriodUnit(e.target.value)}
