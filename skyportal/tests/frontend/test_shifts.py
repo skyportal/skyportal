@@ -269,7 +269,7 @@ def test_shift(
     driver.click_xpath(notification_bell)
 
     notification_xpath = (
-        f'//ul/a/p[contains(text(),"needs a replacement for shift: {name}")]'
+        f'//ul/div/a/p[contains(text(),"needs a replacement for shift: {name}")]'
     )
     driver.wait_for_xpath(notification_xpath)
     driver.click_xpath(notification_xpath, timeout=10)
