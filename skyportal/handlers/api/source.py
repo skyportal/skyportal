@@ -1899,6 +1899,49 @@ def post_source(data, user_id, session, refresh_source=True):
             "of group_ids for which if there is a source, cancel saving to the associated group_id from the key"
         )
 
+    # we want to allow admins to save sources as another user(s).
+    # it's optional, and we default to saving to the current user unless specified otherwise.
+    saver_per_group_id = {gid: user for gid in group_ids}
+    if 'saver_per_group_id' in data:
+        if not user.is_admin:
+            raise AttributeError(
+                "You must be an admin to specify a saver_per_group_id field."
+            )
+        if not isinstance(data['saver_per_group_id'], dict):
+            raise AttributeError(
+                "Invalid saver_per_group_id field. Please specify a dict"
+            )
+        try:
+            saver_id_per_group_id = {
+                int(gid): int(user_id)
+                for gid, user_id in data['saver_per_group_id'].items()
+            }
+        except Exception:
+            raise AttributeError(
+                "Invalid saver_per_group_id field. Please specify a dict with group_ids as keys and user_ids as values"
+            )
+
+        try:
+            for gid in saver_id_per_group_id:
+                if gid in group_ids:
+                    group_saver_for_gid = session.scalar(
+                        sa.select(GroupUser).where(
+                            GroupUser.user_id == saver_id_per_group_id[gid],
+                            GroupUser.group_id == gid,
+                        )
+                    )
+                    if not group_saver_for_gid:
+                        log(
+                            f"Could not save to group {gid} as user {saver_id_per_group_id[gid]} (user is not a member of the group). Using current user {user.id} instead."
+                        )
+                    else:
+                        saver_per_group_id[gid] = group_saver_for_gid.user
+
+        except Exception as e:
+            raise AttributeError(f"Invalid saver_per_group_id field. {e}")
+
+    data.pop('saver_per_group_id', None)
+
     if not obj_already_exists:
         try:
             obj = schema.load(data)
@@ -1967,10 +2010,18 @@ def post_source(data, user_id, session, refresh_source=True):
                     f'User does not have power to save to group with ID {group.id}.'
                 )
         if source is not None:
+            # only edit the saver if the existing source is not currently active
+            if not source.active:
+                source.saved_by = saver_per_group_id[group.id]
             source.active = True
-            source.saved_by = user
         else:
-            session.add(Source(obj=obj, group=group, saved_by_id=user.id))
+            session.add(
+                Source(
+                    obj=obj,
+                    group=group,
+                    saved_by_id=saver_per_group_id[group.id].id,
+                )
+            )
 
     session.commit()
 
@@ -1983,7 +2034,7 @@ def post_source(data, user_id, session, refresh_source=True):
         # see if there is a tnsrobot_group set up for autosubmission
         # and if the user has autosubmission set up
         tnsrobot_group_with_autoreporter = session.scalars(
-            TNSRobotGroup.select(user)
+            TNSRobotGroup.select(saver_per_group_id[group.id])
             .join(
                 TNSRobotGroupAutoreporter,
                 TNSRobotGroup.id == TNSRobotGroupAutoreporter.tnsrobot_group_id,
@@ -1993,7 +2044,8 @@ def post_source(data, user_id, session, refresh_source=True):
                 TNSRobotGroup.auto_report,
                 TNSRobotGroupAutoreporter.group_user_id.in_(
                     sa.select(GroupUser.id).where(
-                        GroupUser.user_id == user.id, GroupUser.group_id == group.id
+                        GroupUser.user_id == saver_per_group_id[group.id].id,
+                        GroupUser.group_id == group.id,
                     )
                 ),
             )
@@ -2031,7 +2083,7 @@ def post_source(data, user_id, session, refresh_source=True):
                 submission_request = TNSRobotSubmission(
                     obj_id=obj.id,
                     tnsrobot_id=tnsrobot_group_with_autoreporter.tnsrobot_id,
-                    user_id=user.id,
+                    user_id=saver_per_group_id[group.id].id,
                     auto_submission=True,
                 )
                 session.add(submission_request)
