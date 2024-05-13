@@ -39,34 +39,47 @@ class SourcePageHandler(BaseHandler):
     def get(self, source_id=None, version_date=None):
         """
         ---
-        description: Display the public page for a given source and version
-         or list all public source pages
-        tags:
-          - source_page
-        parameters:
-            - in: path
-              name: source_id
-              required: false
-              schema:
-                type: string
-              description: The ID of the source for which to display the public page
-            - in: path
-              name: version_date
-              required: false
-              schema:
-                type: string
-              description: The date of the version of the public page to display
-        responses:
-            200:
-              content:
-                text/html:
+        single:
+            description: Display the public page for a given source and version
+            tags:
+              - source_page
+            parameters:
+                - in: path
+                  name: source_id
+                  required: true
                   schema:
                     type: string
-                    description: The HTML content of the public source page
-            400:
-              content:
-                application/json:
-                  schema: Error
+                  description: The ID of the source for which to display the public page
+                - in: path
+                  name: version_date
+                  required: false
+                  schema:
+                    type: string
+                  description: The date of the version of the public page to display
+            responses:
+                200:
+                  content:
+                    text/html:
+                      schema:
+                        type: string
+                        description: |
+                            The HTML content of the selected version of the public source page
+                            or the latest version if version_date is not provided
+                400:
+                  content:
+                    application/json:
+                      schema: Error
+        multiple:
+            description: List all public source pages and their versions
+            tags:
+              - sources_page
+            responses:
+                200:
+                  content:
+                    text/html:
+                      schema:
+                        type: string
+                        description: The HTML content of the page listing all public source pages
         """
         # If source_id is None, list all public source pages
         if source_id is None:
