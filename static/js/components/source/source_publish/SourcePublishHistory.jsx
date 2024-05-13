@@ -67,8 +67,6 @@ const SourcePublishHistory = ({ source_id, newPageGenerate = null }) => {
 
     // Format the date into a string with up to 2 fractional second digits
     const dateString = dateObj.format("MM/DD/YYYY HH:mm:ss");
-
-    // Append ' UTC' to the end of the string
     return `${dateString} UTC`;
   };
 
