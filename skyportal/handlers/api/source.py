@@ -1824,6 +1824,7 @@ def post_source(data, user_id, session, refresh_source=True):
     refresh_source : bool
         Refresh source upon post. Defaults to True.
     """
+    warnings = []
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
@@ -1931,9 +1932,9 @@ def post_source(data, user_id, session, refresh_source=True):
                         )
                     )
                     if not group_saver_for_gid:
-                        log(
-                            f"Could not save to group {gid} as user {saver_id_per_group_id[gid]} (user is not a member of the group). Using current user {user.id} instead."
-                        )
+                        warning_msg = f"Could not save to group {gid} as user {saver_id_per_group_id[gid]} (user is not a member of the group). Using current user {user.id} instead."
+                        log(f"WARNING: {warning_msg}")
+                        warnings.append(warning_msg)
                     else:
                         saver_per_group_id[gid] = group_saver_for_gid.user
 
@@ -2103,7 +2104,7 @@ def post_source(data, user_id, session, refresh_source=True):
                 '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
             )
 
-    return obj.id, list(set(group_ids) - set(not_saved_to_group_ids))
+    return obj.id, list(set(group_ids) - set(not_saved_to_group_ids)), warnings
 
 
 def apply_active_or_requested_filtering(query, include_requested, requested_only):
@@ -3258,15 +3259,19 @@ class SourceHandler(BaseHandler):
 
         with self.Session() as session:
             try:
-                obj_id, saved_to_groups = post_source(
+                obj_id, saved_to_groups, warnings = post_source(
                     data,
                     self.associated_user_object.id,
                     session,
                     refresh_source=refresh_source,
                 )
-                return self.success(
-                    data={"id": obj_id, "saved_to_groups": saved_to_groups}
-                )
+                response_data = data = {
+                    "id": obj_id,
+                    "saved_to_groups": saved_to_groups,
+                }
+                if len(warnings) > 0:
+                    response_data["warnings"] = warnings
+                return self.success(data=response_data)
             except Exception as e:
                 return self.error(f'Failed to post source: {str(e)}')
 
