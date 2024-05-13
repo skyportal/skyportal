@@ -1235,6 +1235,8 @@ const PhotometryPlot = ({
               ) {
                 // if its a marker, secondary axis, or the trace that was double clicked, it's always visible
                 trace.visible = true;
+              } else if (!showForcedPhotometry && trace.isForcedPhotometry) {
+                trace.visible = false;
               } else if (
                 !showNonDetections &&
                 trace.dataType === "upperLimits"
@@ -1247,8 +1249,6 @@ const PhotometryPlot = ({
               ) {
                 // if we already isolated a single trace and we double click on it, or if there are no traces visible, show all
                 trace.visible = true;
-              } else if (!showForcedPhotometry && trace.isForcedPhotometry) {
-                trace.visible = false;
               } else {
                 // otherwise, hide all
                 trace.visible = "legendonly";
