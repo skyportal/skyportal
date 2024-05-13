@@ -137,7 +137,7 @@ class ProfileHandler(BaseHandler):
                     type: string
                     description: |
                       User's biography, or a short description of the user
-                  bot:
+                  is_bot:
                     type: boolean
                     description: |
                       Whether or not the user account should be flagged as a bot account
@@ -190,11 +190,11 @@ class ProfileHandler(BaseHandler):
             if data.get("bio") is not None and isinstance(data.get("bio"), str):
                 user.bio = data.pop("bio")
 
-            if data.get("bot") not in [None, ""]:
-                if str(data.get("bot")).lower() in ["true", "t", "1"]:
-                    user.bot = True
+            if data.get("is_bot") not in [None, ""]:
+                if str(data.get("is_bot")).lower() in ["true", "t", "1"]:
+                    user.is_bot = True
                 else:
-                    user.bot = False
+                    user.is_bot = False
 
             if data.get("contact_phone") is not None:
                 phone = data.pop("contact_phone")

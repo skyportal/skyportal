@@ -77,7 +77,7 @@ const UpdateProfileForm = () => {
       email: profile.contact_email,
       phone: profile.contact_phone,
       bio: profile.bio,
-      isBot: profile.bot,
+      is_bot: profile.is_bot,
     });
   }, [reset, profile]);
 
@@ -91,7 +91,7 @@ const UpdateProfileForm = () => {
       contact_email: initialValues.email,
       contact_phone: initialValues.phone,
       bio: initialValues.bio,
-      bot: initialValues.isBot,
+      is_bot: initialValues.is_bot,
     };
     const result = await dispatch(
       ProfileActions.updateBasicUserInfo(basicinfo),
@@ -340,11 +340,11 @@ const UpdateProfileForm = () => {
                   spacing={2}
                 >
                   <Grid item xs={12} lg={6}>
-                    <InputLabel htmlFor="isBot_id">
+                    <InputLabel htmlFor="is_bot_id">
                       Is this a bot account (used only from the API)?
                     </InputLabel>
                     <Controller
-                      name="isBot"
+                      name="is_bot"
                       render={({ field: { onChange, value } }) => (
                         <Switch
                           checked={value}
@@ -354,7 +354,7 @@ const UpdateProfileForm = () => {
                         />
                       )}
                       control={control}
-                      defaultValue={profile?.isBot}
+                      defaultValue={profile?.is_bot}
                     />
                   </Grid>
                 </Grid>
