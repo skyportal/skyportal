@@ -95,7 +95,7 @@ app:
     - path: "/"
       component: HomePage
       exact: True
-      directory: "template"
+      directory: "templates"
     - path: "/source/:id"
       component: Source
       directory: "source"
