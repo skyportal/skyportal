@@ -4,7 +4,9 @@ import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
-import { Avatar, Paper, Tooltip } from "@mui/material";
+import Avatar from "@mui/material/Avatar";
+import Paper from "@mui/material/Paper";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import makeStyles from "@mui/styles/makeStyles";

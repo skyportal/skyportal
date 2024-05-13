@@ -5,20 +5,16 @@ import dayjs from "dayjs";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import {
-  Collapse,
-  Divider,
-  List,
-  ListItem,
-  Paper,
-  Tooltip,
-} from "@mui/material";
+import Collapse from "@mui/material/Collapse";
+import Divider from "@mui/material/Divider";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import Paper from "@mui/material/Paper";
+import Tooltip from "@mui/material/Tooltip";
 import { showNotification } from "baselayer/components/Notifications";
-import {
-  ExpandLess,
-  ExpandMore,
-  HelpOutlineOutlined,
-} from "@mui/icons-material";
+import ExpandLess from "@mui/icons-material/ExpandLess";
+import ExpandMore from "@mui/icons-material/ExpandMore";
+import HelpOutlineOutlined from "@mui/icons-material/HelpOutlineOutlined";
 import * as shiftActions from "../ducks/shift";
 import SourceTable from "./source/SourceTable";
 import * as sourcesActions from "../ducks/sources";

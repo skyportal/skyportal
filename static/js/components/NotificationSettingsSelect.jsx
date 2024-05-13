@@ -15,7 +15,10 @@ import Tooltip from "@mui/material/Tooltip";
 import grey from "@mui/material/colors/grey";
 import EditNotificationsIcon from "@mui/icons-material/EditNotifications";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
-import { Box, Button, Checkbox, Slider } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import Slider from "@mui/material/Slider";
 import * as profileActions from "../ducks/profile";
 
 const useStyles = makeStyles((theme) => ({
