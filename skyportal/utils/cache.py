@@ -123,12 +123,13 @@ class Cache:
             return
 
         fn = self._hash_filename(name)
-        if not fn.exists():
+
+        try:
+            os.remove(fn)
+        except FileNotFoundError:
             return
-        os.remove(fn)
 
         log(f"cleanup [{os.path.basename(fn)}]")
-
         self.clean_cache()
 
     def _remove(self, filenames):
