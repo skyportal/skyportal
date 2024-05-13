@@ -37,7 +37,7 @@ import * as hydrationActions from "../../ducks/hydration";
 import NoMatchingRoute from "../NoMatchingRoute";
 
 {% for route in app.routes -%}
-const {{ route.component }} = React.lazy(() => import("../{{ (route.directory ~ '/' if route.directory) ~ route.component }}"));
+const {{ (route.component).split('/').pop() }} = React.lazy(() => import("../{{ route.component }}"));
 {% endfor %}
 
 import Theme from "../Theme";
@@ -157,7 +157,7 @@ const MainContentInternal = ({ root }) => {
           <Routes>
 
             {%- for route in app.routes %}
-            <Route path="{{ route.path }}" element={{ "{<Suspense fallback={<Spinner />}><" }}{{ route.component }}{{ "/></Suspense>}" }} />
+            <Route path="{{ route.path }}" element={{ "{<Suspense fallback={<Spinner />}><" }}{{ (route.component).split('/').pop() }}{{ "/></Suspense>}" }} />
             {%- endfor %}
 
             <Route path="*" element={<NoMatchingRoute/>} />

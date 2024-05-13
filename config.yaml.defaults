@@ -93,34 +93,26 @@ app:
   # These are Javascript component routes
   routes:
     - path: "/"
-      component: HomePage
+      component: templates/HomePage
       exact: True
-      directory: "templates"
     - path: "/source/:id"
-      component: Source
-      directory: "source"
+      component: source/Source
     - path: "/favorites"
       component: FavoritesPage
     - path: "/gcn_events/:dateobs"
-      component: GcnEventPage
-      directory: "gcn"
+      component: gcn/GcnEventPage
     - path: "/groups"
-      component: Groups
-      directory: "group"
+      component: group/Groups
     - path: "/group/:id"
-      component: Group
-      directory: "group"
+      component: group/Group
     - path: "/profile"
       component: Profile
     - path: "/candidates"
-      component: CandidateList
-      directory: "candidate"
+      component: candidate/CandidateList
     - path: "/sources"
-      component: SourceList
-      directory: "source"
+      component: source/SourceList
     - path: "/user/:id"
-      component: UserInfo
-      directory: "user"
+      component: user/UserInfo
     - path: "/upload_photometry/:id"
       component: UploadPhotometry
     - path: "/about"
@@ -128,8 +120,7 @@ app:
     - path: "/run/:id"
       component: RunSummary
     - path: "/source/:obj_id/analysis/:analysis_id"
-      component: SourceAnalysisPage
-      directory: "source"
+      component: source/SourceAnalysisPage
     - path: "/share_data/:id"
       component: ShareDataForm
     - path: "/filter/:fid"
@@ -137,16 +128,13 @@ app:
     - path: "/runs"
       component: ObservingRunPage
     - path: "/allocations"
-      component: AllocationPage
-      directory: "allocation"
+      component: allocation/AllocationPage
     - path: "/allocation/:id"
-      component: AllocationSummary
-      directory: "allocation"
+      component: allocation/AllocationSummary
     - path: "/instrument/:id"
       component: InstrumentSummary
     - path: "/telescope/:id"
-      component: TelescopeSummary
-      directory: "telescope"
+      component: telescope/TelescopeSummary
     - path: "/observations"
       component: ObservationPage
     - path: "/galaxies"
@@ -154,14 +142,11 @@ app:
     - path: "/spatial_catalogs"
       component: SpatialCatalogPage
     - path: "/followup_requests"
-      component: FollowupRequestPage
-      directory: "followup_request"
+      component: followup_request/FollowupRequestPage
     - path: "/group_sources/:id"
-      component: GroupSources
-      directory: "group"
+      component: group/GroupSources
     - path: "/user_management"
-      component: UserManagement
-      directory: "user"
+      component: user/UserManagement
     - path: "/upload_spectrum/:id"
       component: UploadSpectrum
     - path: "/observability/:id"
@@ -173,25 +158,19 @@ app:
     - path: "/db_stats"
       component: DBStats
     - path: "/gcn_events"
-      component: GcnEvents
-      directory: "gcn"
+      component: gcn/GcnEvents
     - path: "/telescopes"
-      component: TelescopePage
-      directory: "telescope"
+      component: telescope/TelescopePage
     - path: "/instruments"
       component: InstrumentPage
     - path: "/mmadetectors"
-      component: MMADetectorPage
-      directory: "mma_detector"
+      component: mma_detector/MMADetectorPage
     - path: "/earthquakes"
-      component: EarthquakesPage
-      directory: "earthquake"
+      component: earthquake/EarthquakesPage
     - path: "/earthquakes/:event_id"
-      component: EarthquakePage
-      directory: "earthquake"
+      component: earthquake/EarthquakePage
     - path: "/services"
-      component: AnalysisServicePage
-      directory: "analysis"
+      component: analysis/AnalysisServicePage
     - path: "/recurring_apis"
       component: RecurringAPIPage
     - path: "/shifts"
@@ -203,11 +182,9 @@ app:
     - path: "/taxonomies"
       component: TaxonomyPage
     - path: "/tns_robots"
-      component: TNSRobotsPage
-      directory: "tns"
+      component: tns/TNSRobotsPage
     - path: "/tns_robot/:id/submissions"
-      component: TNSRobotSubmissionsPage
-      directory: "tns"
+      component: tns/TNSRobotSubmissionsPage
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
