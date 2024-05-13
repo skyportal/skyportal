@@ -2,7 +2,6 @@ __all__ = ['PublicSourcePage']
 
 import json
 import jinja2
-from ligo.skymap import plot  # noqa: F401 F811
 import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.dialects.postgresql import JSONB
