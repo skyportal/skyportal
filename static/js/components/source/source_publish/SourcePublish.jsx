@@ -174,7 +174,7 @@ const SourcePublish = ({ source, photometry = null }) => {
         <DialogContent style={{ paddingBottom: "0.5rem" }}>
           <div style={{ marginBottom: "1rem" }}>
             You are about to change the public access settings for this source
-            page. This information will be available to everyone on the
+            page. The data you selected will be available to everyone on the
             internet. Are you sure you want to do this ?
           </div>
           <div
