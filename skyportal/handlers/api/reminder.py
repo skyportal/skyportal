@@ -123,7 +123,7 @@ def post_reminder(
                     user=user,
                 )
             )
-        resource_name = gcn_event.dateobs
+        resource_name = str(gcn_event.dateobs).replace(" ", "T")
     elif associated_resource_type.lower() == "earthquake":
         earthquake = session.scalars(
             EarthquakeEvent.select(session.user_or_token).where(

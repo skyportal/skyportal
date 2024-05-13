@@ -57,3 +57,16 @@ def delete_file_data(attachment_path):
                 parent_dir.rmdir()
         except OSError:
             pass
+
+
+def filesize_to_human_readable(size):
+    if not isinstance(size, (int, float)) and size > 0:
+        raise ValueError('size must be a positive number')
+    if size < 1024:
+        return f'{size} B'
+    elif size < 1024 * 1024:
+        return f'{size / 1024:.1f} KB'
+    elif size < 1024 * 1024 * 1024:
+        return f'{size / 1024 / 1024:.1f} MB'
+    else:
+        return f'{size / 1024 / 1024 / 1024:.1f} GB'

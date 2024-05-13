@@ -363,6 +363,7 @@ def test_gcn_summary_observations(
     )
     assert status == 200
     assert data['status'] == 'success'
+
     id = data['data']['ids'][0]
 
     # wait for the observation plan to finish loading
@@ -452,7 +453,7 @@ def test_gcn_summary_observations(
     try:
         with open(fpath) as f:
             lines = f.read()
-        data = lines.split('\n')
+        data = list(filter(None, lines.split('\n')))
         assert "TITLE: GCN SUMMARY" in data[0]
         assert "SUBJECT: Follow-up" in data[1]
         assert "DATE" in data[2]
@@ -460,7 +461,7 @@ def test_gcn_summary_observations(
             f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
             in data[3]
         )
-        assert f"on behalf of the {public_group.name}, report:" in data[5]
+        assert f"on behalf of the {public_group.name}, report:" in data[4]
 
         assert any("Observations:" in line for line in data)
         assert any(
@@ -542,7 +543,10 @@ def test_gcn_summary_galaxies(
     datafile = f'{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5'
     data = {
         'catalog_name': catalog_name,
-        'catalog_data': Table.read(datafile).to_pandas().to_dict(orient='list'),
+        'catalog_data': Table.read(datafile)
+        .to_pandas()
+        .replace({np.nan: None})
+        .to_dict(orient='list'),
     }
 
     status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
@@ -605,7 +609,7 @@ def test_gcn_summary_galaxies(
     try:
         with open(fpath) as f:
             lines = f.read()
-        data = lines.split('\n')
+        data = list(filter(None, lines.split('\n')))
         assert "TITLE: GCN SUMMARY" in data[0]
         assert "SUBJECT: Follow-up" in data[1]
         assert "DATE" in data[2]
@@ -613,18 +617,21 @@ def test_gcn_summary_galaxies(
             f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
             in data[3]
         )
-        assert f"on behalf of the {public_group.name}, report:" in data[5]
+        assert f"on behalf of the {public_group.name}, report:" in data[4]
 
         assert any(
-            "Found 82 galaxies in the event's localization:" in line for line in data
+            "Found 54 galaxies in the event's localization:" in line for line in data
         )
+
         assert any(
-            "catalog" in line
-            and "name" in line
-            and "ra" in line
-            and "dec" in line
-            and "distmpc" in line
-            and "redshift" in line
+            "Galaxy" in line
+            and "RA" in line
+            and "Dec" in line
+            and "Distance" in line
+            and "m_Ks" in line
+            and "m_NUV" in line
+            and "m_W1" in line
+            and "dP_dV" in line
             for line in data
         )
 
@@ -731,6 +738,28 @@ def test_gcn_summary_sources(
     assert status == 200
     assert data['status'] == 'success'
 
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 58709 + 1.5,
+            'instrument_id': ztf_camera.id,
+            'flux': 13.24,
+            'fluxerr': 0.131,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            "ra": 24.6258,
+            "dec": -32.9024,
+            "ra_unc": 0.01,
+            "dec_unc": 0.01,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
     # get the gcn event summary
     params = {
         "title": "gcn summary",
@@ -739,7 +768,7 @@ def test_gcn_summary_sources(
         "groupId": public_group.id,
         "startDate": "2019-08-13 08:18:05",
         "endDate": "2019-08-19 08:18:05",
-        "localizationCumprob": 0.99,
+        "localizationCumprob": 1.00,
         "numberDetections": 1,
         "showSources": True,
         "showGalaxies": False,
@@ -763,7 +792,7 @@ def test_gcn_summary_sources(
     try:
         with open(fpath) as f:
             lines = f.read()
-        data = lines.split('\n')
+        data = list(filter(None, lines.split('\n')))
         assert "TITLE: GCN SUMMARY" in data[0]
         assert "SUBJECT: Follow-up" in data[1]
         assert "DATE" in data[2]
@@ -771,17 +800,19 @@ def test_gcn_summary_sources(
             f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
             in data[3]
         )
-        assert f"on behalf of the {public_group.name}, report:" in data[5]
+        assert f"on behalf of the {public_group.name}, report:" in data[4]
 
         assert any(
             "Found" in line and "in the event's localization" in line for line in data
         )
+
         assert any(
             "id" in line
-            and "alias" in line
+            and "tns" in line
             and "ra" in line
             and "dec" in line
             and "redshift" in line
+            and "comment" in line
             for line in data
         )
 
@@ -843,7 +874,7 @@ def get_summary(driver, user, group, showSources, showGalaxies, showObservations
 
 
 def test_download_localization(super_admin_token):
-    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
+    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     event_data = {'xml': payload}
