@@ -422,6 +422,7 @@ def generate_plan(
             'doSingleExposure': True,
             # parallelize computation
             'doParallel': True,
+            'Ncores': 4,
             # gwemopt scheduling algorithms
             # options: greedy, greedy_slew, sear, airmass_weighted
             'scheduleType': request.payload["schedule_type"],
