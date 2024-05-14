@@ -421,7 +421,7 @@ def generate_plan(
             # single set of scheduled observations
             'doSingleExposure': True,
             # parallelize computation
-            'doParallel': False,
+            'doParallel': True,
             # gwemopt scheduling algorithms
             # options: greedy, greedy_slew, sear, airmass_weighted
             'scheduleType': request.payload["schedule_type"],
