@@ -57,7 +57,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from skyportal.enum_types import ALLOWED_BANDPASSES
-from skyportal.facility_apis.observation_plan import (
+from skyportal.utils.observation_plan import (
     generate_observation_plan_statistics,
 )
 from skyportal.handlers.api.followup_request import post_assignment

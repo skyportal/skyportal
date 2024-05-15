@@ -9,13 +9,13 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
 from baselayer.log import make_log
-from skyportal.handlers.api.observation_plan import post_survey_efficiency_analysis
 from skyportal.models import (
     DBSession,
     DefaultObservationPlanRequest,
     EventObservationPlan,
     ObservationPlanRequest,
 )
+from skyportal.handlers.api.observation_plan import post_survey_efficiency_analysis
 from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()

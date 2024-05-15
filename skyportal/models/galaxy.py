@@ -28,12 +28,16 @@ class Galaxy(Base, ca.Point):
     redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.", index=True)
     redshift_error = sa.Column(sa.Float, nullable=True, doc="Redshift error.")
 
-    sfr_fuv = sa.Column(sa.Float, nullable=True, doc="SFR based on FUV [Msol/yr]")
+    sfr_fuv = sa.Column(
+        sa.Float, nullable=True, doc="SFR based on FUV [Msol/yr]", index=True
+    )
     sfr_w4 = sa.Column(sa.Float, nullable=True, doc="SFR based on W4 [Msol/yr]")
 
-    mstar = sa.Column(sa.Float, nullable=True, doc="Stellar mass [log(Msol)]")
-    magb = sa.Column(sa.Float, nullable=True, doc="B band magnitude [mag]")
-    magk = sa.Column(sa.Float, nullable=True, doc="K band magnitude")
+    mstar = sa.Column(
+        sa.Float, nullable=True, doc="Stellar mass [log(Msol)]", index=True
+    )
+    magb = sa.Column(sa.Float, nullable=True, doc="B band magnitude [mag]", index=True)
+    magk = sa.Column(sa.Float, nullable=True, doc="K band magnitude", index=True)
 
     mag_fuv = sa.Column(sa.Float, nullable=True, doc="FUV band magnitude")
     mag_nuv = sa.Column(sa.Float, nullable=True, doc="NUV band magnitude")
