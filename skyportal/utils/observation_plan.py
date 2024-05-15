@@ -14,8 +14,8 @@ from baselayer.log import make_log
 from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
 
-from ..utils.cache import Cache, array_to_bytes
 from ..handlers.api.galaxy import get_galaxies
+from .cache import Cache, array_to_bytes
 
 log = make_log('api/observation_plan')
 
