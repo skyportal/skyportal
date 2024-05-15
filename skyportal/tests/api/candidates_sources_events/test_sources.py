@@ -429,6 +429,56 @@ def test_add_source_without_group_id(upload_data_token, view_only_token, public_
     npt.assert_almost_equal(data["data"]["ra"], 234.22)
 
 
+def test_admin_save_source_as_other_user(
+    upload_data_token,
+    view_only_token,
+    super_admin_token,
+    view_only_user,
+    super_admin_user,
+    public_group,
+):
+    obj_id = str(uuid.uuid4())
+
+    # we shouldn't be able to save as the super admin user using
+    # the upload_data_token (which is not an admin token)
+    source_data = {
+        "id": obj_id,
+        "ra": 234.22,
+        "dec": -22.33,
+        "group_ids": [public_group.id],
+        "saver_per_group_id": {public_group.id: super_admin_user.id},
+    }
+    status, data = api(
+        "POST",
+        "sources",
+        data=source_data,
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert (
+        data['message']
+        == 'Failed to post source: You must be an admin to specify a saver_per_group_id field.'
+    )
+
+    # now save it to the public group as the view only user, using the super admin token
+    source_data['saver_per_group_id'] = {public_group.id: view_only_user.id}
+    status, data = api(
+        "POST",
+        "sources",
+        data=source_data,
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    # check that the source was saved by the view only user successfully
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+    assert len(data["data"]["groups"]) > 0
+    assert data["data"]["groups"][0]["saved_by"]["id"] == view_only_user.id
+
+
 def test_starlist(super_admin_token, upload_data_token, public_source):
     status, data = api(
         "PATCH",

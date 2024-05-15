@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import TextField from "@mui/material/TextField";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
-import Typography from "@mui/material/Typography";
+import Switch from "@mui/material/Switch";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -14,6 +14,11 @@ import DialogTitle from "@mui/material/DialogTitle";
 import InputLabel from "@mui/material/InputLabel";
 import Grid from "@mui/material/Grid";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -71,6 +76,8 @@ const UpdateProfileForm = () => {
       affiliations: profile.affiliations,
       email: profile.contact_email,
       phone: profile.contact_phone,
+      bio: profile.bio,
+      is_bot: profile.is_bot,
     });
   }, [reset, profile]);
 
@@ -83,6 +90,8 @@ const UpdateProfileForm = () => {
       affiliations: initialValues.affiliations,
       contact_email: initialValues.email,
       contact_phone: initialValues.phone,
+      bio: initialValues.bio,
+      is_bot: initialValues.is_bot,
     };
     const result = await dispatch(
       ProfileActions.updateBasicUserInfo(basicinfo),
@@ -109,7 +118,6 @@ const UpdateProfileForm = () => {
 
   return (
     <div>
-      <Typography variant="h5">Update User Profile</Typography>
       <Card>
         <CardContent>
           <h2>Username</h2>
@@ -117,13 +125,24 @@ const UpdateProfileForm = () => {
             <InputLabel htmlFor="usernameInput">
               Username (normalized upon save)
             </InputLabel>
-            <TextField
-              {...register("username", { required: true })}
-              name="username"
-              id="usernameInput"
-              error={!!errors.username}
-              helperText={errors.username ? "Required" : ""}
-            />
+            <Grid
+              container
+              direction="row"
+              justifyContent="flex-start"
+              alignItems="baseline"
+              spacing={2}
+            >
+              <Grid item xs={12} lg={3}>
+                <TextField
+                  {...register("username", { required: true })}
+                  name="username"
+                  id="usernameInput"
+                  error={!!errors.username}
+                  helperText={errors.username ? "Required" : ""}
+                  style={{ width: "100%" }}
+                />
+              </Grid>
+            </Grid>
             <h2>Contact Information</h2>
             <Grid
               container
@@ -132,7 +151,7 @@ const UpdateProfileForm = () => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={6} sm={3}>
+              <Grid item xs={6} lg={3}>
                 <InputLabel htmlFor="firstName_id">First Name</InputLabel>
                 <TextField
                   {...register("firstName", { required: true })}
@@ -140,14 +159,35 @@ const UpdateProfileForm = () => {
                   id="firstName_id"
                   error={!!errors.firstName}
                   helperText={errors.firstName ? "Required" : ""}
+                  style={{ width: "100%" }}
                 />
               </Grid>
-              <Grid item xs={6} sm={3}>
+              <Grid item xs={6} lg={3}>
                 <InputLabel htmlFor="lastName_id">Last Name</InputLabel>
                 <TextField
                   {...register("lastName", { required: false })}
                   name="lastName"
                   id="lastName_id"
+                  style={{ width: "100%" }}
+                />
+              </Grid>
+            </Grid>
+            <br />
+            <Grid
+              container
+              direction="row"
+              justifyContent="flex-start"
+              alignItems="baseline"
+              spacing={2}
+            >
+              <Grid item xs={12} lg={6}>
+                <InputLabel htmlFor="bio_id">Bio</InputLabel>
+                <TextField
+                  {...register("bio", { required: false })}
+                  name="bio"
+                  id="bio_id"
+                  multiline
+                  style={{ width: "100%" }}
                 />
               </Grid>
             </Grid>
@@ -160,7 +200,7 @@ const UpdateProfileForm = () => {
                 alignItems="baseline"
                 spacing={2}
               >
-                <Grid item xs={12} sm={5}>
+                <Grid item xs={12} lg={6}>
                   <InputLabel htmlFor="affiliationsInput">
                     Affiliations
                   </InputLabel>
@@ -224,7 +264,7 @@ const UpdateProfileForm = () => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={12} sm={5}>
+              <Grid item xs={12} lg={6}>
                 <InputLabel htmlFor="email_id">
                   Preferred Contact Email
                 </InputLabel>
@@ -257,7 +297,7 @@ const UpdateProfileForm = () => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={12} sm={3}>
+              <Grid item xs={12} lg={6}>
                 <InputLabel htmlFor="phone_id">
                   Contact Phone (Include Country Code)
                 </InputLabel>
@@ -267,6 +307,7 @@ const UpdateProfileForm = () => {
                     name="phone"
                     type="tel"
                     id="phone_id"
+                    style={{ width: "100%" }}
                   />
                   <Button
                     secondary
@@ -281,6 +322,44 @@ const UpdateProfileForm = () => {
                 </div>
               </Grid>
             </Grid>
+            <br />
+            <Accordion>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="advancedOptions-content"
+                id="advancedOptions"
+              >
+                <Typography variant="h6">Advanced Options</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Grid
+                  container
+                  direction="row"
+                  justifyContent="flex-start"
+                  alignItems="baseline"
+                  spacing={2}
+                >
+                  <Grid item xs={12} lg={6}>
+                    <InputLabel htmlFor="is_bot_id">
+                      Is this a bot account (used only from the API)?
+                    </InputLabel>
+                    <Controller
+                      name="is_bot"
+                      render={({ field: { onChange, value } }) => (
+                        <Switch
+                          checked={value}
+                          onChange={(e) => onChange(e.target.checked)}
+                          color="primary"
+                          inputProps={{ "aria-label": "primary checkbox" }}
+                        />
+                      )}
+                      control={control}
+                      defaultValue={profile?.is_bot}
+                    />
+                  </Grid>
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
             <br />
             <Button
               primary
