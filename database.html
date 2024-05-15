@@ -1741,6 +1741,8 @@ specified User (or Token instance, if a token is passed).</p>
 <dt><strong>annotations_on_spectra</strong></dt><dd></dd>
 <dt><strong>assignments</strong></dt><dd><p>Objs the User has assigned to ObservingRuns.</p>
 </dd>
+<dt><strong>bio</strong></dt><dd><p>A short biography of the user, or description for bot accounts.</p>
+</dd>
 <dt><strong>catalog_queries</strong></dt><dd><p>The catalog queries this User has made.</p>
 </dd>
 <dt><strong>comments</strong></dt><dd></dd>
@@ -1791,6 +1793,8 @@ specified User (or Token instance, if a token is passed).</p>
 <dt><strong>id</strong></dt><dd><p>Unique object identifier.</p>
 </dd>
 <dt><strong>is_admin</strong></dt><dd></dd>
+<dt><strong>is_bot</strong></dt><dd><p>Whether or not the user account should be flagged as a bot account.</p>
+</dd>
 <dt><strong>is_system_admin</strong></dt><dd></dd>
 <dt><strong>last_name</strong></dt><dd><p>The User’s last name.</p>
 </dd>
@@ -1953,6 +1957,12 @@ For System Admins, this corresponds to all Groups.</p>
 </dd></dl>
 
 <dl class="py attribute">
+<dt class="sig sig-object py" id="baselayer.app.models.User.bio">
+<span class="sig-name descname"><span class="pre">bio</span></span><a class="headerlink" href="#baselayer.app.models.User.bio" title="Link to this definition">¶</a></dt>
+<dd><p>A short biography of the user, or description for bot accounts.</p>
+</dd></dl>
+
+<dl class="py attribute">
 <dt class="sig sig-object py" id="baselayer.app.models.User.catalog_queries">
 <span class="sig-name descname"><span class="pre">catalog_queries</span></span><a class="headerlink" href="#baselayer.app.models.User.catalog_queries" title="Link to this definition">¶</a></dt>
 <dd><p>The catalog queries this User has made.</p>
@@ -2101,6 +2111,12 @@ contact email is null, the username.</p>
 <span class="sig-name descname"><span class="pre">is_authenticated</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#baselayer.app.models.User.is_authenticated" title="Link to this definition">¶</a></dt>
 <dd><p>Boolean flag indicating whether the User is currently
 authenticated.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="baselayer.app.models.User.is_bot">
+<span class="sig-name descname"><span class="pre">is_bot</span></span><a class="headerlink" href="#baselayer.app.models.User.is_bot" title="Link to this definition">¶</a></dt>
+<dd><p>Whether or not the user account should be flagged as a bot account.</p>
 </dd></dl>
 
 <dl class="py attribute">
@@ -2871,6 +2887,7 @@ SkyPortal database.</p>
 <li><a class="reference internal" href="#baselayer.app.models.User.acls"><code class="docutils literal notranslate"><span class="pre">User.acls</span></code></a></li>
 <li><a class="reference internal" href="#baselayer.app.models.User.affiliations"><code class="docutils literal notranslate"><span class="pre">User.affiliations</span></code></a></li>
 <li><a class="reference internal" href="#baselayer.app.models.User.assignments"><code class="docutils literal notranslate"><span class="pre">User.assignments</span></code></a></li>
+<li><a class="reference internal" href="#baselayer.app.models.User.bio"><code class="docutils literal notranslate"><span class="pre">User.bio</span></code></a></li>
 <li><a class="reference internal" href="#baselayer.app.models.User.catalog_queries"><code class="docutils literal notranslate"><span class="pre">User.catalog_queries</span></code></a></li>
 <li><a class="reference internal" href="#baselayer.app.models.User.contact_email"><code class="docutils literal notranslate"><span class="pre">User.contact_email</span></code></a></li>
 <li><a class="reference internal" href="#baselayer.app.models.User.contact_phone"><code class="docutils literal notranslate"><span class="pre">User.contact_phone</span></code></a></li>
@@ -2896,6 +2913,7 @@ SkyPortal database.</p>
 <li><a class="reference internal" href="#baselayer.app.models.User.id"><code class="docutils literal notranslate"><span class="pre">User.id</span></code></a></li>
 <li><a class="reference internal" href="#baselayer.app.models.User.is_active"><code class="docutils literal notranslate"><span class="pre">User.is_active()</span></code></a></li>
 <li><a class="reference internal" href="#baselayer.app.models.User.is_authenticated"><code class="docutils literal notranslate"><span class="pre">User.is_authenticated()</span></code></a></li>
+<li><a class="reference internal" href="#baselayer.app.models.User.is_bot"><code class="docutils literal notranslate"><span class="pre">User.is_bot</span></code></a></li>
 <li><a class="reference internal" href="#baselayer.app.models.User.last_name"><code class="docutils literal notranslate"><span class="pre">User.last_name</span></code></a></li>
 <li><a class="reference internal" href="#baselayer.app.models.User.listings"><code class="docutils literal notranslate"><span class="pre">User.listings</span></code></a></li>
 <li><a class="reference internal" href="#baselayer.app.models.User.localizationproperties"><code class="docutils literal notranslate"><span class="pre">User.localizationproperties</span></code></a></li>
