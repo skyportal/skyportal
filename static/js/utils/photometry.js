@@ -1,15 +1,4 @@
 /* global Plotly */
-
-const filter_mapper = {
-  ztfg: "green",
-  ztfr: "red",
-  ztfi: "orange",
-};
-
-function filter2color(filter) {
-  return filter_mapper[filter] || "blue";
-}
-
 function ModifiedJulianDateFromUnixTime(t) {
   return t / 86400000 + 40587;
 }
@@ -19,11 +8,13 @@ function ModifiedJulianDateNow() {
 }
 
 /* eslint-disable no-unused-vars */
-function plot_lc(photometry_data, div_id) {
+function plot_lc(photometry_data, div_id, filters_used_mapper) {
+  const filters_mapper = JSON.parse(filters_used_mapper);
   const photometry = JSON.parse(photometry_data);
   const now = ModifiedJulianDateNow();
   const names_already_seen = [];
   const plot_data = [];
+  const filterToColor = (filter) => filters_mapper[filter] || "blue";
 
   photometry.forEach((element) => {
     let name = `${element.instrument_name}/${element.filter}`;
@@ -38,7 +29,7 @@ function plot_lc(photometry_data, div_id) {
         type: "data",
         array: [element.magerr],
         visible: true,
-        color: filter2color(element.filter),
+        color: filterToColor[element.filter],
         width: 2,
         thickness: 0.8,
         opacity: 0.5,
@@ -46,12 +37,12 @@ function plot_lc(photometry_data, div_id) {
       legendgroup: name,
       marker: {
         symbol: element.mag === null ? "triangle-down" : "circle",
-        color: filter2color(element.filter),
+        color: filterToColor(element.filter),
         opacity: 0.8,
         size: 8,
       },
       line: {
-        color: filter2color(element.filter),
+        color: filterToColor(element.filter),
         width: 2,
         opacity: 0.8,
       },

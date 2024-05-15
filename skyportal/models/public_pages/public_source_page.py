@@ -124,6 +124,15 @@ class PublicSourcePage(Base):
         if isinstance(public_data, str):
             public_data = json.loads(public_data)
 
+        # Create the filters mapper
+        if "photometry" in public_data and public_data["photometry"] is not None:
+            from skyportal.handlers.api.photometry import get_bandpasses_to_colors
+
+            filters = {
+                photometry["filter"] for photometry in public_data.get("photometry", [])
+            }
+            public_data["filters_mapper"] = get_bandpasses_to_colors(filters)
+
         environment = jinja2.Environment(
             loader=jinja2.FileSystemLoader("./static/public_pages/sources/source")
         )
@@ -142,7 +151,7 @@ class PublicSourcePage(Base):
 
 
 @event.listens_for(PublicSourcePage, 'after_insert')
-def _set_created_at_iso(mapped, connection, target):
+def _set_created_at_iso(_, connection, target):
     """Set the creation date in ISO format after the page is created."""
     connection.execute(
         sa.update(PublicSourcePage.__table__)

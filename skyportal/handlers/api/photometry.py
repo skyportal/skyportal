@@ -177,9 +177,11 @@ def get_color(bandpass, format="hex"):
     return bandcolor
 
 
-BANDPASSES_COLORS = {
-    bandpass: get_color(bandpass, "rgb") for bandpass in ALLOWED_BANDPASSES
-}
+def get_bandpasses_to_colors(bandpasses, colors_type="hex"):
+    return {bandpass: get_color(bandpass, colors_type) for bandpass in bandpasses}
+
+
+BANDPASSES_COLORS = get_bandpasses_to_colors(ALLOWED_BANDPASSES, "rgb")
 
 BANDPASSES_WAVELENGTHS = {
     bandpass: get_effective_wavelength(bandpass) for bandpass in ALLOWED_BANDPASSES
