@@ -25,7 +25,7 @@ env, cfg = load_env()
 
 
 # Submission URL
-API_URL = f"{cfg['app.swift.protocol']}://{cfg['app.swift.host']}:{cfg['app.swift.port']}/toop/submit_json.php"
+API_URL = f"{cfg['app.swift.protocol']}://{cfg['app.swift.host']}:{cfg['app.swift.port']}/toop/submit_api.php"
 XRT_URL = f"{cfg['app.swift_xrt_endpoint']}/run_userobject.php"
 
 log = make_log('facility_apis/swift')

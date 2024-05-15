@@ -5,6 +5,9 @@ import { useSelector, useDispatch } from "react-redux";
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
+import makeStyles from "@mui/styles/makeStyles";
+import { useTheme } from "@mui/material/styles";
+
 import Slider from "@mui/material/Slider";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
@@ -20,7 +23,6 @@ import Switch from "@mui/material/Switch";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Checkbox from "@mui/material/Checkbox";
-import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import Dialog from "@mui/material/Dialog";
@@ -38,9 +40,16 @@ import * as photometryActions from "../ducks/photometry";
 
 import { BASE_LAYOUT, PHOT_ZP, smoothing_func, mjdnow, rgba } from "../utils";
 
+// convert any unit to days
+const periodUnitDividers = {
+  minutes: 60.0 * 24.0,
+  hours: 24.0,
+  days: 1.0,
+};
+
 const Plot = createPlotlyComponent(Plotly);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   gridContainer: {
     display: "grid",
     gridAutoFlow: "row",
@@ -70,6 +79,31 @@ const useStyles = makeStyles(() => ({
       width: "7rem",
       marginTop: 0,
       marginBottom: 0,
+    },
+  },
+  periodContainer: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: "1rem",
+    width: "100%",
+    paddingLeft: "0.5rem",
+    "& > .MuiTextField-root": {
+      width: "7rem",
+      marginTop: 0,
+      marginBottom: 0,
+    },
+    [theme.breakpoints.down("md")]: {
+      gridTemplateColumns: "1fr 1fr 1fr",
+      display: "grid",
+      "& > :first-child": {
+        gridColumn: "span 2",
+      },
+      "& > :last-child": {
+        gridColumn: "span 3",
+      },
+      paddingBottom: "0.5rem",
     },
   },
   switchContainer: {
@@ -190,7 +224,8 @@ const PhotometryPlot = ({
   plotStyle,
   magsys,
 }) => {
-  const classes = useStyles();
+  const theme = useTheme();
+  const classes = useStyles(theme);
   const dispatch = useDispatch();
 
   const profile = useSelector((state) => state.profile);
@@ -206,6 +241,7 @@ const PhotometryPlot = ({
   const [markerSize, setMarkerSize] = useState(6);
 
   const [period, setPeriod] = useState(1);
+  const [periodUnit, setPeriodUnit] = useState("days");
   const [phase, setPhase] = useState(2);
   const [smoothing, setSmoothing] = useState(0);
 
@@ -403,6 +439,7 @@ const PhotometryPlot = ({
     photometryStats,
     plotType,
     periodValue,
+    periodUnitValue,
     smoothingValue,
     phaseValue,
     showNonDetectionsValue,
@@ -582,8 +619,11 @@ const PhotometryPlot = ({
           const colorInteriorNonDet = rgba(colorRGB, 0.1);
           const colorInteriorDet = rgba(colorRGB, 0.3);
 
+          const scaledPeriodValue =
+            periodValue / periodUnitDividers[periodUnitValue];
+
           const phases = groupedPhotometry[key].map(
-            (point) => (point.mjd % periodValue) / periodValue,
+            (point) => (point.mjd % scaledPeriodValue) / scaledPeriodValue,
           );
 
           // split the y in det and non det
@@ -852,6 +892,7 @@ const PhotometryPlot = ({
         newPhotStats,
         tabToPlotType(tabIndex),
         period,
+        periodUnit,
         smoothing,
         phase,
         showNonDetections,
@@ -904,6 +945,7 @@ const PhotometryPlot = ({
         photStats,
         tabToPlotType(tabIndex),
         period,
+        periodUnit,
         smoothing,
         phase,
         showNonDetections,
@@ -931,6 +973,7 @@ const PhotometryPlot = ({
         photStats,
         tabToPlotType(tabIndex),
         period,
+        periodUnit,
         smoothing,
         phase,
         showNonDetections,
@@ -939,7 +982,7 @@ const PhotometryPlot = ({
       );
       setPlotData(traces);
     }
-  }, [period, smoothing]);
+  }, [period, periodUnit, smoothing]);
 
   useEffect(() => {
     if (initialized && annotations !== null) {
@@ -1365,8 +1408,8 @@ const PhotometryPlot = ({
         )}
         {tabIndex === 2 && (
           <div className={classes.gridItem} style={{ gridColumn: "span 3" }}>
-            <Typography id="input-slider">Period (days)</Typography>
-            <div className={classes.sliderContainer}>
+            <Typography id="input-slider">Period</Typography>
+            <div className={classes.periodContainer}>
               <Slider
                 value={period}
                 onChange={(e, newValue) => setPeriod(newValue)}
@@ -1375,6 +1418,7 @@ const PhotometryPlot = ({
                 step={0.1}
                 min={0.1}
                 max={365}
+                style={{ minWidth: "14rem", width: "100%" }}
               />
               <TextField
                 value={period}
@@ -1387,9 +1431,19 @@ const PhotometryPlot = ({
                   max: 365,
                   "aria-labelledby": "input-slider",
                 }}
-                style={{ width: "12rem" }}
+                style={{ minWidth: "8rem", width: "100%" }}
                 size="small"
               />
+              <Select
+                value={periodUnit}
+                onChange={(e) => setPeriodUnit(e.target.value)}
+                style={{ width: "8rem" }}
+                size="small"
+              >
+                <MenuItem value="minutes">minutes</MenuItem>
+                <MenuItem value="hours">hours</MenuItem>
+                <MenuItem value="days">days</MenuItem>
+              </Select>
               <Button
                 onClick={() => setPeriod(period * 2)}
                 variant="contained"
