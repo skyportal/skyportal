@@ -104,6 +104,15 @@ const UserProfileInfo = () => {
           </div>
         </div>
         &nbsp;
+        {/* if the user has a bio, display it here in italic, full width */}
+        {profile.bio && (
+          <Typography
+            component="div"
+            style={{ width: "100%", display: "flex", flexWrap: "wrap" }}
+          >
+            <Box fontStyle="italic">{profile.bio}</Box>
+          </Typography>
+        )}
         <br />
         <Typography component="div">
           <Box pb={1}>

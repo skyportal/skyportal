@@ -120,19 +120,27 @@ class ProfileHandler(BaseHandler):
                   last_name:
                     type: string
                     description: |
-                       User's preferred last name
+                      User's preferred last name
                   affiliations:
                     type: list
                     description: |
-                       User's list of affiliations
+                      User's list of affiliations
                   contact_email:
                     type: string
                     description: |
-                       User's preferred email address
+                      User's preferred email address
                   contact_phone:
                     type: string
                     description: |
-                       User's preferred (international) phone number
+                      User's preferred (international) phone number
+                  bio:
+                    type: string
+                    description: |
+                      User's biography, or a short description of the user
+                  is_bot:
+                    type: boolean
+                    description: |
+                      Whether or not the user account should be flagged as a bot account
                   preferences:
                     schema: UpdateUserPreferencesRequestJSON
                     description: JSON describing updates to user preferences dict
@@ -178,6 +186,15 @@ class ProfileHandler(BaseHandler):
                     return self.error(
                         "Invalid affiliations. Should be a list of strings."
                     )
+
+            if data.get("bio") is not None and isinstance(data.get("bio"), str):
+                user.bio = data.pop("bio")
+
+            if data.get("is_bot") not in [None, ""]:
+                if str(data.get("is_bot")).lower() in ["true", "t", "1"]:
+                    user.is_bot = True
+                else:
+                    user.is_bot = False
 
             if data.get("contact_phone") is not None:
                 phone = data.pop("contact_phone")
