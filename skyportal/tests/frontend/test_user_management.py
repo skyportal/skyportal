@@ -1,5 +1,4 @@
 import pytest
-from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
 
@@ -63,8 +62,8 @@ def test_grant_and_delete_user_acl(driver, super_admin_user, user):
     filter_for_user(driver, user.username)
     driver.click_xpath(f'//*[@data-testid="addUserACLsButton{user.id}"]')
     driver.click_xpath('//*[@data-testid="addUserACLsSelect"]')
-    element = driver.find_element(By.XPATH, f'//li[text()="{acl}"]')
-    driver.execute_script("arguments[0].scrollIntoView();", element)
+    element = driver.wait_for_xpath(f'//li[text()="{acl}"]')
+    driver.scroll_to_element(element, True)
     driver.click_xpath(f'//li[text()="{acl}"]')
     driver.click_xpath('//*[text()="Submit"]')
     driver.wait_for_xpath('//*[text()="User successfully granted specified ACL(s)."]')
