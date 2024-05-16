@@ -12,7 +12,7 @@ import Pagination from "@mui/material/Pagination";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 // eslint-disable-next-line
-import HoursBelowAirmassPlot from "./template/HoursBelowAirmassPlot";
+import HoursBelowAirmassPlot from "./templates/HoursBelowAirmassPlot";
 import ObservabilityPreferences from "./ObservabilityPreferences";
 import AirmassPlot from "./AirmassPlot";
 import withRouter from "./withRouter";
