@@ -49,8 +49,8 @@
             >{{ data['event']['name'] }}</a
           >
           ({{ dateobs }}): {{ report_name }} {% else %}
-          <a href="{{ host }}/gcn_events/{{ dateobs }}">{{ dateobs }}</a>: {{
-          report_name }} {% endif %}
+          <a href="{{ host }}/gcn_events/{{ dateobs }}">{{ dateobs }}</a>: {{ report_name }}
+          {% endif %}
         </h1>
         <p style="margin: 0">Program: {{ program }}</p>
         <div
@@ -107,16 +107,14 @@
         >
           <thead>
             <tr>
-              {% for prop in data.get("event", {}).get("event_properties",
-              [])[-1]["data"].keys() %}
+              {% for prop in data.get("event", {}).get("event_properties",[])[-1]["data"].keys() %}
               <th>{{ prop }}</th>
               {% endfor %}
             </tr>
           </thead>
           <tbody>
             <tr>
-              {% for value in data.get("event", {}).get("event_properties",
-              [])[-1]["data"].values() %}
+              {% for value in data.get("event", {}).get("event_properties",[])[-1]["data"].values() %}
               <td>{{ value }}</td>
               {% endfor %}
             </tr>
@@ -133,16 +131,14 @@
         >
           <thead>
             <tr>
-              {% for prop in data.get("event",
-              {}).get("localization_properties", [])[-1]["data"].keys() %}
+              {% for prop in data.get("event",{}).get("localization_properties", [])[-1]["data"].keys() %}
               <th>{{ prop }}</th>
               {% endfor %}
             </tr>
           </thead>
           <tbody>
             <tr>
-              {% for value in data.get("event",
-              {}).get("localization_properties", [])[-1]["data"].values() %}
+              {% for value in data.get("event",{}).get("localization_properties", [])[-1]["data"].values() %}
               <td>{{ value }}</td>
               {% endfor %}
             </tr>
@@ -240,10 +236,11 @@
             id="lc_box_{{source['id']}}"
             style="display: none; visibility: hidden"
           >
-            {% if source.get('photometry') %} {% set photometry =
-            source['photometry'] | tojson | safe %} {% set photometry_div_id =
-            'lc_' ~ source['id'] %} {% endif %}
             <td colspan="10">
+              {% if source.get('photometry') %}
+              {% set photometry = source['photometry'] | tojson | safe %}
+              {% set photometry_div_id = 'lc_' ~ source['id'] %}
+              {% set filters_mapper = source.get('filters_mapper') | tojson | safe %}
               <div
                 style="
                   display: flex;
@@ -269,9 +266,10 @@
               </div>
               <div id="{{ photometry_div_id }}" style="height: 400px">
                 <script>
-                  plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`);
+                  plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`);
                 </script>
               </div>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

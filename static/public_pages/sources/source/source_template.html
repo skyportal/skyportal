@@ -24,13 +24,13 @@
     />
     <!-- JS for source page -->
     <script src="/static/public_pages/sources/source/source_template.js"></script>
-    {% if data.get('photometry') %} {% set photometry = data.get('photometry') |
-    tojson | safe %}
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="/static/js/utils/csv.js"></script>
-    <script src="/static/js/utils/photometry.js"></script>
-    {% endif %} {% set classifications = data['classifications'] | tojson | safe
-    if data.get('classifications') else None %}
+    {% if data.get('photometry') %}
+      {% set photometry = data.get('photometry') | tojson | safe %}
+      <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+      <script src="/static/js/utils/csv.js"></script>
+      <script src="/static/js/utils/photometry.js"></script>
+    {% endif %}
+    {% set classifications = data['classifications'] | tojson | safe if data.get('classifications') else None %}
   </head>
   <!-- Body -->
   <body>
@@ -64,8 +64,7 @@
             class="classificationTag"
             onclick="handleClassificationTag(`{{classification.classification}}`)"
           >
-            {{ "ML: " if classification.ml }} {{ classification.classification
-            }}
+            {{ "ML: " if classification.ml }} {{ classification.classification }}
           </button>
           {% endfor %}
         </div>
@@ -159,9 +158,10 @@
           <p>MAG</p>
         </div>
         {% set photometry_div_id = 'photometryPlot' %}
+        {% set filters_mapper = data.get('filters_mapper') | tojson | safe %}
         <div class="photometryPlot" id="{{ photometry_div_id }}">
           <script>
-            plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`);
+            plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`);
           </script>
         </div>
         {% else %}
@@ -180,8 +180,7 @@
             <div class="author">{{ classification.author_name }}</div>
             <div class="nameAndProbability">
               <p class="name">
-                {{ "ML: " if classification.ml }} {{
-                classification.classification }}
+                {{ "ML: " if classification.ml }} {{ classification.classification }}
               </p>
               <p class="probability">(P={{ classification.probability }})</p>
             </div>
