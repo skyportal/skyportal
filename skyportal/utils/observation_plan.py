@@ -359,6 +359,7 @@ def generate_plan(
     plans, requests = [], []
     observation_plan_id_strings = [str(x) for x in observation_plan_ids]
 
+    error = None
     try:
         log(
             f"Creating observation plan(s) for ID(s): {','.join(observation_plan_id_strings)}"
@@ -712,7 +713,8 @@ def generate_plan(
             idx = np.where(values != None)[0]  # noqa: E711
 
             if len(idx) == 0:
-                raise ValueError('No galaxies available for scheduling.')
+                error = "No galaxies available for scheduling."
+                raise ValueError(error)
 
             probs = np.array(probs)[idx]
             values = values[idx]
@@ -767,9 +769,8 @@ def generate_plan(
         elif params["tilesType"] == "galaxy":
             for request in requests:
                 if request.instrument.region is None:
-                    raise ValueError(
-                        'Must define the instrument region in the case of galaxy requests'
-                    )
+                    error = "Must define the instrument region in the case of galaxy requests"
+                    raise ValueError(error)
                 regions = Regions.parse(request.instrument.region, format='ds9')
                 tile_structs = gwemopt.skyportal.create_galaxy_from_skyportal(
                     params, map_struct, catalog_struct, regions=regions
@@ -880,11 +881,12 @@ def generate_plan(
         )
         session.rollback()
         # mark the request and plan as failed
+        failed_status = 'failed' if error is None else f'failed: {error}'
         for request in requests:
-            request.status = 'failed'
+            request.status = failed_status
             session.merge(request)
         for plan in plans:
-            plan.status = 'failed'
+            plan.status = failed_status
             session.merge(plan)
         session.commit()
 

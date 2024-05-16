@@ -476,8 +476,8 @@ class GalaxyCatalogHandler(BaseHandler):
 
         if "z" in catalog_data and "redshift" not in catalog_data:
             catalog_data["redshift"] = catalog_data.pop("z")
-        if "z_err" in catalog_data and "redshift_error" not in catalog_data:
-            catalog_data["redshift_error"] = catalog_data.pop("z_err")
+        if "z_unc" in catalog_data and "redshift_error" not in catalog_data:
+            catalog_data["redshift_error"] = catalog_data.pop("z_unc")
 
         # fill in any missing optional parameters
         optional_parameters = [

@@ -230,9 +230,16 @@ def service(*args, **kwargs):
                         session.commit()
                         time.sleep(2)
                         continue
-                    plan_request.status = 'complete'
-                    session.merge(plan_request)
-                    session.commit()
+                    plan_request = session.scalar(
+                        sa.select(ObservationPlanRequest).where(
+                            ObservationPlanRequest.id == plan_request.id
+                        )
+                    )
+                    log(f"Plan {plan_id} status: {plan_request.status}")
+                    if plan_request.status == "running":
+                        plan_request.status = 'complete'
+                        session.merge(plan_request)
+                        session.commit()
 
                     try:
                         flow = Flow()
@@ -264,9 +271,16 @@ def service(*args, **kwargs):
                         continue
 
                     for plan_request in plan_requests:
-                        plan_request.status = 'complete'
-                        session.merge(plan_request)
-                    session.commit()
+                        plan_request = session.scalar(
+                            sa.select(ObservationPlanRequest).where(
+                                ObservationPlanRequest.id == plan_request.id
+                            )
+                        )
+                        log(f"Plan {plan_request.id} status: {plan_request.status}")
+                        if plan_request.status == "running":
+                            plan_request.status = 'complete'
+                            session.merge(plan_request)
+                            session.commit()
 
                     try:
                         unique_dateobs = {
