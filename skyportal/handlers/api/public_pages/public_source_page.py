@@ -14,7 +14,7 @@ Session = scoped_session(sessionmaker())
 
 
 class PublicSourcePageHandler(BaseHandler):
-    @permissions(['Manage sources publishing'])
+    @permissions(['Manage sources'])
     async def post(self, source_id):
         """
         ---

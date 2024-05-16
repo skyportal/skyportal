@@ -40,9 +40,8 @@ const SourcePublish = ({ source, photometry = null }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const currentUser = useSelector((state) => state.profile);
-  const permissionToPublish = currentUser.permissions?.includes(
-    "Manage sources publishing",
-  );
+  const permissionToPublish =
+    currentUser.permissions?.includes("Manage sources");
   const [sourcePublishDialogOpen, setSourcePublishDialogOpen] = useState(false);
   const [publishButton, setPublishButton] = useState("publish");
   const [sourcePublishOptionsOpen, setSourcePublishOptionsOpen] =
