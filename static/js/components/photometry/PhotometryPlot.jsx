@@ -51,11 +51,14 @@ const useStyles = makeStyles((theme) => ({
   gridContainer: {
     display: "grid",
     gridAutoFlow: "row",
-    gridTemplateColumns: "repeat(3, 1fr)",
+    gridTemplateColumns: "repeat(4, 1fr)",
     rowGap: "0.5rem",
     columnGap: "2rem",
     width: "100%",
     padding: "0.5rem 1rem 0 1rem",
+    "@media (max-width: 650px)": {
+      gridTemplateColumns: "repeat(2, 1fr)",
+    },
   },
   gridItem: {
     display: "flex",
@@ -245,6 +248,7 @@ const PhotometryPlot = ({
   const [layoutReset, setLayoutReset] = useState(false);
 
   const [showNonDetections, setShowNonDetections] = useState(true);
+  const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
 
   const [initialized, setInitialized] = useState(false);
 
@@ -470,6 +474,9 @@ const PhotometryPlot = ({
 
           const upperLimitsTrace = {
             dataType: "upperLimits",
+            isForcedPhotometry:
+              upperLimits?.length > 0 &&
+              ["fp", "fp_alert"].includes(upperLimits[0].origin),
             x: upperLimits.map((point) => point.mjd),
             y: upperLimits.map((point) =>
               plotType === "mag" ? point.limiting_mag : point.flux,
@@ -503,6 +510,9 @@ const PhotometryPlot = ({
 
           const detectionsTrace = {
             dataType: "detections",
+            isForcedPhotometry:
+              detections?.length > 0 &&
+              ["fp", "fp_alert"].includes(detections[0].origin),
             x: detections.map((point) => point.mjd),
             y: detections.map((point) =>
               plotType === "mag" ? point.mag : point.flux,
@@ -990,26 +1000,37 @@ const PhotometryPlot = ({
     if (plotData) {
       const newPlotData = plotData.map((trace) => {
         const newTrace = { ...trace };
+
         if (
-          showNonDetections &&
           newTrace.dataType === "upperLimits" &&
-          newTrace.visible !== true
+          newTrace.isForcedPhotometry
         ) {
-          newTrace.visible = true;
-          newTrace.showlegend = true;
-        } else if (
-          !showNonDetections &&
-          newTrace.dataType === "upperLimits" &&
-          newTrace.visible !== false
-        ) {
-          newTrace.visible = false;
-          newTrace.showlegend = false;
+          if (showNonDetections && showForcedPhotometry) {
+            newTrace.visible = true;
+            newTrace.showlegend = true;
+          } else {
+            newTrace.visible = false;
+            newTrace.showlegend = false;
+          }
+        } else if (newTrace.dataType === "upperLimits") {
+          if (showNonDetections) {
+            newTrace.visible = true;
+            newTrace.showlegend = true;
+          } else {
+            newTrace.visible = false;
+            newTrace.showlegend = false;
+          }
+        } else if (newTrace.isForcedPhotometry) {
+          newTrace.visible = showForcedPhotometry;
+          newTrace.showlegend = showForcedPhotometry;
         }
+
         return newTrace;
       });
+
       setPlotData(newPlotData);
     }
-  }, [showNonDetections]);
+  }, [showNonDetections, showForcedPhotometry]);
 
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
@@ -1215,6 +1236,8 @@ const PhotometryPlot = ({
               ) {
                 // if its a marker, secondary axis, or the trace that was double clicked, it's always visible
                 trace.visible = true;
+              } else if (!showForcedPhotometry && trace.isForcedPhotometry) {
+                trace.visible = false;
               } else if (
                 !showNonDetections &&
                 trace.dataType === "upperLimits"
@@ -1247,6 +1270,18 @@ const PhotometryPlot = ({
             <Switch
               checked={showNonDetections}
               onChange={() => setShowNonDetections(!showNonDetections)}
+              inputProps={{ "aria-label": "controlled" }}
+            />
+          </div>
+        </div>
+        <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
+          <Typography id="photometry-show-hide" noWrap>
+            Forced Photometry
+          </Typography>
+          <div className={classes.switchContainer}>
+            <Switch
+              checked={showForcedPhotometry}
+              onChange={() => setshowForcedPhotometry(!showForcedPhotometry)}
               inputProps={{ "aria-label": "controlled" }}
             />
           </div>
