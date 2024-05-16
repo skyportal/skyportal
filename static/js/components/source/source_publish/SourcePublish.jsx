@@ -94,11 +94,12 @@ const SourcePublish = ({ source, photometry = null }) => {
       return isElements.photometry
         ? photometry.filter(
             (onePhotometry) =>
-              (!optionsState.groups.length ||
+              (optionsState.groups.length === 0 ||
                 onePhotometry.groups.some((group) =>
                   optionsState.groups.includes(group.id),
                 )) &&
-              (!optionsState.streams.length ||
+              (optionsState.streams.length === 0 ||
+                onePhotometry.streams.length === 0 ||
                 onePhotometry.streams.some((stream) =>
                   optionsState.streams.includes(stream.id),
                 )),
