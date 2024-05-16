@@ -994,42 +994,37 @@ const PhotometryPlot = ({
     if (plotData) {
       const newPlotData = plotData.map((trace) => {
         const newTrace = { ...trace };
+
         if (
-          showNonDetections &&
           newTrace.dataType === "upperLimits" &&
-          newTrace.visible !== true
+          newTrace.isForcedPhotometry
         ) {
-          newTrace.visible = true;
-          newTrace.showlegend = true;
-        } else if (
-          !showNonDetections &&
-          newTrace.dataType === "upperLimits" &&
-          newTrace.visible !== false
-        ) {
-          newTrace.visible = false;
-          newTrace.showlegend = false;
+          if (showNonDetections && showForcedPhotometry) {
+            newTrace.visible = true;
+            newTrace.showlegend = true;
+          } else {
+            newTrace.visible = false;
+            newTrace.showlegend = false;
+          }
+        } else if (newTrace.dataType === "upperLimits") {
+          if (showNonDetections) {
+            newTrace.visible = true;
+            newTrace.showlegend = true;
+          } else {
+            newTrace.visible = false;
+            newTrace.showlegend = false;
+          }
+        } else if (newTrace.isForcedPhotometry) {
+          newTrace.visible = showForcedPhotometry;
+          newTrace.showlegend = showForcedPhotometry;
         }
+
         return newTrace;
       });
+
       setPlotData(newPlotData);
     }
-  }, [showNonDetections]);
-
-  useEffect(() => {
-    if (plotData) {
-      const updatedPlotData = plotData.map((trace) => {
-        const updatedTrace = { ...trace };
-
-        if (updatedTrace.isForcedPhotometry) {
-          updatedTrace.visible = showForcedPhotometry;
-        }
-
-        return updatedTrace;
-      });
-
-      setPlotData(updatedPlotData);
-    }
-  }, [showForcedPhotometry]);
+  }, [showNonDetections, showForcedPhotometry]);
 
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
