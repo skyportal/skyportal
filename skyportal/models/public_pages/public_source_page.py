@@ -82,12 +82,12 @@ class PublicSourcePage(Base):
         photometry = self.data.get("photometry")
         classifications = self.data.get("classifications")
         return {
-            "photometry": "no element"
+            "photometry": "no data"
             if photometry == []
             else "public"
             if photometry
             else "private",
-            "classifications": "no element"
+            "classifications": "no data"
             if classifications == []
             else "public"
             if classifications
