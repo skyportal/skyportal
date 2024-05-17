@@ -15,7 +15,7 @@ from astropy.io import ascii
 from geojson import Feature, Point
 from scipy.stats import norm
 from scipy.integrate import quad
-from sqlalchemy import func
+from sqlalchemy import func, nulls_last
 from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
@@ -45,6 +45,8 @@ def get_galaxies(
     max_redshift=None,
     min_distance=None,
     max_distance=None,
+    min_mstar=None,
+    max_mstar=None,
     localization_dateobs=None,
     localization_name=None,
     localization_cumprob=None,
@@ -53,6 +55,8 @@ def get_galaxies(
     page_number=1,
     num_per_page=MAX_GALAXIES,
     return_probability=False,
+    sort_by=None,
+    sort_order=None,
 ):
     if catalog_names_only:
         stmt = Galaxy.select(
@@ -106,7 +110,23 @@ def get_galaxies(
             raise ValueError(
                 "Invalid values for max_distance - could not convert to float"
             )
+    if min_mstar is not None:
+        try:
+            min_mstar = float(min_mstar)
+        except ValueError:
+            raise ValueError(
+                "Invalid values for min_mstar - could not convert to float"
+            )
+    if max_mstar is not None:
+        try:
+            max_mstar = float(max_mstar)
+        except ValueError:
+            raise ValueError(
+                "Invalid values for max_mstar - could not convert to float"
+            )
 
+    localization = None
+    tiles_subquery = None
     if localization_dateobs is not None:
         if localization_name is not None:
             localization = session.scalars(
@@ -131,10 +151,10 @@ def get_galaxies(
 
         distmean, distsigma = localization.marginal_moments
         if (distmean is not None) and (distsigma is not None):
+            if max_distance is None:
+                max_distance = np.min([distmean + 3 * distsigma, 10000])
             if min_distance is None:
                 min_distance = np.max([distmean - 3 * distsigma, 0])
-            if max_distance is not None:
-                max_distance = np.min([distmean + 3 * distsigma, 10000])
 
         # now get the dateobs in the format YYYY_MM
         partition_key = arrow.get(localization.dateobs).datetime
@@ -188,8 +208,42 @@ def get_galaxies(
             )
         ).all()
 
+        col = [Galaxy.id]
+        if sort_by == 'prob':
+            col.append(localizationtilescls.probdensity)
+        elif sort_by == 'mstar_prob_weighted':
+            if catalog_name is None:
+                raise ValueError(
+                    "Cannot sort by mstar_prob_weighted without specifying a catalog_name"
+                )
+            # we normalize the mstar values in the catalog to be between 0 and 1
+            min_mstar_query = (
+                sa.select(sa.func.min(Galaxy.mstar))
+                .where(Galaxy.catalog_name == catalog_name)
+                .group_by(Galaxy.catalog_name)
+            )
+            max_mstar_query = (
+                sa.select(sa.func.max(Galaxy.mstar))
+                .where(Galaxy.catalog_name == catalog_name)
+                .group_by(Galaxy.catalog_name)
+            )
+            min_mstar, max_mstar = (
+                session.scalars(min_mstar_query).first(),
+                session.scalars(max_mstar_query).first(),
+            )
+            if min_mstar is None or max_mstar is None:
+                raise ValueError(
+                    "Could not find min or max mstar in the selected catalog, cannot sort by mstar_prob_weighted"
+                )
+            col.append(
+                (
+                    ((Galaxy.mstar - min_mstar) / (max_mstar - min_mstar))
+                    * localizationtilescls.probdensity  # * localizationtilescls.healpix.area
+                ).label('mstar_prob_weighted')
+            )
+
         tiles_subquery = (
-            sa.select(Galaxy.id)
+            sa.select(*col)
             .where(
                 localizationtilescls.id.in_(tile_ids),
                 localizationtilescls.healpix.contains(Galaxy.healpix),
@@ -197,7 +251,11 @@ def get_galaxies(
             .subquery()
         )
 
-    query = Galaxy.select(session.user_or_token)
+    if num_per_page is not None:
+        query = Galaxy.select(session.user_or_token, columns=[Galaxy.id])
+    else:
+        query = Galaxy.select(session.user_or_token)
+
     if localization_dateobs is not None:
         query = query.join(
             tiles_subquery,
@@ -235,19 +293,90 @@ def get_galaxies(
     if max_redshift is not None:
         query = query.where(Galaxy.redshift <= max_redshift)
 
+    # if the max distance is less than or equal to the min distance, then we set the minimum distance to None
+    if (
+        min_distance is not None
+        and max_distance is not None
+        and max_distance <= min_distance
+    ):
+        min_distance = None
+
     if min_distance is not None:
         query = query.where(Galaxy.distmpc >= min_distance)
 
     if max_distance is not None:
         query = query.where(Galaxy.distmpc <= max_distance)
 
-    count_stmt = sa.select(func.count()).select_from(query)
-    total_matches = session.execute(count_stmt).scalar()
-    if num_per_page is not None:
-        query = query.limit(num_per_page).offset((page_number - 1) * num_per_page)
+    if sort_by is not None:
+        if sort_by not in [
+            "distmpc",
+            "redshift",
+            "name",
+            "mstar",
+            "prob",
+            "mstar_prob_weighted",
+            "sfr_fuv",
+            "magb",
+            "magk",
+        ]:
+            raise ValueError(
+                "Invalid sort_by field, must be one of 'distmpc', 'redshift', 'name', 'mstar', 'prob', 'mstar_prob_weighted', 'sfr_fuv', 'magb', 'magk'"
+            )
+        if sort_by in ["prob", "mstar_prob_weighted"] and (
+            localization_dateobs is None or tiles_subquery is None
+        ):
+            raise ValueError(
+                "Cannot sort by 'prob' without providing a localization_dateobs"
+            )
+        if sort_order not in ["asc", "desc"]:
+            raise ValueError("Invalid sort_order. Must be 'asc' or 'desc'")
+        sort_by_field = None
+        if sort_by == "distmpc":
+            sort_by_field = Galaxy.distmpc
+        elif sort_by == "redshift":
+            sort_by_field = Galaxy.redshift
+        elif sort_by == "name":
+            sort_by_field = Galaxy.name
+        elif sort_by == "mstar":
+            sort_by_field = Galaxy.mstar
+        elif sort_by == "prob":
+            sort_by_field = tiles_subquery.columns.probdensity
+        elif sort_by == "mstar_prob_weighted":
+            sort_by_field = tiles_subquery.columns.mstar_prob_weighted
+        elif sort_by == "sfr_fuv":
+            sort_by_field = Galaxy.sfr_fuv
+        elif sort_by == "magb":
+            sort_by_field = Galaxy.magb
+        elif sort_by == "magk":
+            sort_by_field = Galaxy.magk
 
-    galaxies = session.scalars(query).all()
-    if return_probability:
+        if sort_order == "asc":
+            query = query.order_by(nulls_last(sort_by_field.asc()))
+        else:
+            query = query.order_by(nulls_last(sort_by_field.desc()))
+
+    # now that we have all of the ids (sorted), apply the pagination in python
+    # this might increase memory usage, but we avoid having a count query and then a limit query
+    # which is duplicated work
+    if num_per_page is not None:
+        page_number = page_number if page_number is not None else 1
+        galaxy_ids = session.scalars(query).all()
+        total_matches = len(galaxy_ids)
+        galaxy_ids = galaxy_ids[
+            (page_number - 1) * num_per_page : page_number * num_per_page
+        ]
+        galaxies = (
+            session.scalars(
+                Galaxy.select(session.user_or_token).where(Galaxy.id.in_(galaxy_ids))
+            ).all()
+            if len(galaxy_ids) > 0
+            else []
+        )
+    else:
+        galaxies = session.scalars(query).all()
+        total_matches = len(galaxies)
+
+    if return_probability and localization is not None:
         PROB, DISTMU, DISTSIGMA, DISTNORM = localization.flat
         ras = np.array([galaxy.ra for galaxy in galaxies])
         decs = np.array([galaxy.dec for galaxy in galaxies])
@@ -271,13 +400,25 @@ def get_galaxies(
     else:
         galaxies = [galaxy.to_dict() for galaxy in galaxies]
 
-    query_results = {"galaxies": galaxies, "totalMatches": int(total_matches)}
+    # query_results is a dictionary that contains the results of the query and some of the parameters
+    # we remove the None values from the output (if pagination isn't used for example)
+    # and we convert the totalMatches to an integer to keep the data types consistent
+    query_results = {
+        "galaxies": galaxies,
+        "totalMatches": total_matches,
+        "sortBy": sort_by,
+        "sortOrder": sort_order,
+        "page": page_number,
+        "numPerPage": num_per_page,
+    }
+    query_results = {k: v for k, v in query_results.items() if v is not None}
+    if "totalMatches" in query_results:
+        query_results["totalMatches"] = int(query_results["totalMatches"])
 
     if includeGeoJSON:
         # features are JSON representations that the d3 stuff understands.
         # We use these to render the contours of the sky localization and
         # locations of the transients.
-
         features = []
         for source in query_results["galaxies"]:
             point = Point((source["ra"], source["dec"]))
@@ -329,6 +470,14 @@ class GalaxyCatalogHandler(BaseHandler):
 
         if not all(k in catalog_data for k in ['ra', 'dec', 'name']):
             return self.error("ra, dec, and name required in catalog_data.")
+
+        # rename all columns to lowercase
+        catalog_data = {k.lower(): v for k, v in catalog_data.items()}
+
+        if "z" in catalog_data and "redshift" not in catalog_data:
+            catalog_data["redshift"] = catalog_data.pop("z")
+        if "z_unc" in catalog_data and "redshift_error" not in catalog_data:
+            catalog_data["redshift_error"] = catalog_data.pop("z_unc")
 
         # fill in any missing optional parameters
         optional_parameters = [
@@ -448,6 +597,22 @@ class GalaxyCatalogHandler(BaseHandler):
               description: |
                 If provided, return only galaxies with a redshift of at most this value
             - in: query
+              name: minMstar
+              nullable: true
+              schema:
+                type: number
+              description: |
+                If provided, return only galaxies with a stellar mass of at least
+                this value
+            - in: query
+              name: maxMstar
+              nullable: true
+              schema:
+                type: number
+              description: |
+                If provided, return only galaxies with a stellar mass of at most
+                this value
+            - in: query
               name: localizationDateobs
               schema:
                 type: string
@@ -480,7 +645,7 @@ class GalaxyCatalogHandler(BaseHandler):
                 type: integer
               description: |
                 Number of galaxies to return per paginated request.
-                Defaults to 100. Can be no larger than {MAX_OBSERVATIONS}.
+                Defaults to 100. Can be no larger than {MAX_GALAXIES}.
             - in: query
               name: pageNumber
               nullable: true
@@ -503,6 +668,23 @@ class GalaxyCatalogHandler(BaseHandler):
               description: |
                 Boolean indicating whether to return probability density.
                 Defaults to false.
+            - in: query
+              name: sortBy
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Column to sort by. Can be one of the following:
+                distmpc, redshift, name, mstar, prob, mstar_prob_weighted, sfr_fuv, magb, magk.
+                Defaults to no sorting unless a localization and catalog are provided, then defaults to mstar_prob_weighted.
+            - in: query
+              name: sortOrder
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Sort order. Can be one of the following: asc, desc.
+                Defaults to None unless a localization and catalog are provided, then defaults to desc.
           responses:
             200:
               content:
@@ -530,7 +712,11 @@ class GalaxyCatalogHandler(BaseHandler):
         max_redshift = self.get_query_argument("maxRedshift", None)
         min_distance = self.get_query_argument("minDistance", None)
         max_distance = self.get_query_argument("maxDistance", None)
+        min_mstar = self.get_query_argument("minMstar", None)
+        max_mstar = self.get_query_argument("maxMstar", None)
         return_probability = self.get_query_argument("returnProbability", False)
+        sort_by = self.get_query_argument("sortBy", None)
+        sort_order = self.get_query_argument("sortOrder", None)
 
         page_number = self.get_query_argument("pageNumber", 1)
         try:
@@ -543,6 +729,18 @@ class GalaxyCatalogHandler(BaseHandler):
             num_per_page = int(num_per_page)
         except ValueError as e:
             return self.error(f'numPerPage fails: {e}')
+
+        if (
+            localization_name is not None
+            and localization_dateobs is not None
+            and catalog_name is not None
+        ):
+            # catalog name is required when sorting by mstar_prob_weighted, so we don't enforce
+            # it as the default sort_by parameter (for localization queries) if not provided
+            if sort_by is None:
+                sort_by = "mstar_prob_weighted"
+            if sort_order is None:
+                sort_order = "desc"
         with self.Session() as session:
             try:
                 data = get_galaxies(
@@ -556,12 +754,16 @@ class GalaxyCatalogHandler(BaseHandler):
                     max_redshift=max_redshift,
                     min_distance=min_distance,
                     max_distance=max_distance,
+                    min_mstar=min_mstar,
+                    max_mstar=max_mstar,
                     localization_dateobs=localization_dateobs,
                     localization_name=localization_name,
                     localization_cumprob=localization_cumprob,
                     includeGeoJSON=includeGeoJSON,
                     catalog_names_only=catalog_names_only,
                     return_probability=return_probability,
+                    sort_by=sort_by,
+                    sort_order=sort_order,
                     page_number=page_number,
                     num_per_page=num_per_page,
                 )

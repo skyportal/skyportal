@@ -18,6 +18,9 @@ const DELETE_GALAXIES = "skyportal/DELETE_GALAXIES";
 
 const UPLOAD_GALAXIES = "skyportal/UPLOAD_GALAXIES";
 
+const FETCH_GALAXY_CATALOGS = "skyportal/FETCH_GALAXY_CATALOGS";
+const FETCH_GALAXY_CATALOGS_OK = "skyportal/FETCH_GALAXY_CATALOGS_OK";
+
 export function uploadGalaxies(data) {
   return API.POST(`/api/galaxy_catalog/ascii`, UPLOAD_GALAXIES, data);
 }
@@ -42,6 +45,9 @@ export function fetchGcnEventGalaxies(dateobs, filterParams = {}) {
   return API.GET("/api/galaxy_catalog", FETCH_GCNEVENT_GALAXIES, filterParams);
 }
 
+export const fetchGalaxyCatalogs = () =>
+  API.GET("/api/galaxy_catalog?catalogNamesOnly=true", FETCH_GALAXY_CATALOGS);
+
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { gcnEvent } = getState();
@@ -64,6 +70,12 @@ const reducer = (state = null, action) => {
       return {
         ...state,
         gcnEventGalaxies: action.data,
+      };
+    }
+    case FETCH_GALAXY_CATALOGS_OK: {
+      return {
+        ...state,
+        catalogs: action.data,
       };
     }
     default:

@@ -32,6 +32,8 @@ const LocalizationPlot = ({
   setRotation,
   selectedFields,
   setSelectedFields,
+  selectedObservations,
+  setSelectedObservations,
   type,
   projection = "orthographic",
 }) => {
@@ -76,6 +78,8 @@ const LocalizationPlot = ({
       setRotation={setRotation}
       selectedFields={selectedFields}
       setSelectedFields={setSelectedFields}
+      selectedObservations={selectedObservations}
+      setSelectedObservations={setSelectedObservations}
       projectionType={projection}
       airmass_threshold={airmass_threshold}
     />
@@ -204,6 +208,8 @@ LocalizationPlot.propTypes = {
   setRotation: PropTypes.func,
   selectedFields: PropTypes.arrayOf(PropTypes.number),
   setSelectedFields: PropTypes.func,
+  selectedObservations: PropTypes.arrayOf(PropTypes.number),
+  setSelectedObservations: PropTypes.func,
   type: PropTypes.string,
   projection: PropTypes.string,
 };
@@ -228,6 +234,8 @@ LocalizationPlot.defaultProps = {
   setRotation: () => {},
   selectedFields: [],
   setSelectedFields: () => {},
+  selectedObservations: [],
+  setSelectedObservations: () => {},
   type: null,
   projection: "orthographic",
 };
@@ -257,6 +265,8 @@ const GeoJSONGlobePlot = ({
   setRotation,
   selectedFields,
   setSelectedFields,
+  selectedObservations,
+  setSelectedObservations,
   airmass_threshold = 2.5,
   projectionType = "orthographic",
 }) => {
@@ -572,8 +582,12 @@ const GeoJSONGlobePlot = ({
             .attr("d", geoGenerator)
             .on("click", () => {
               if (f.selected) {
+                setSelectedObservations(
+                  selectedObservations.filter((id) => id !== field_id),
+                );
                 f.selected = false;
               } else {
+                setSelectedObservations([...selectedObservations, field_id]);
                 f.selected = true;
               }
               refresh();
@@ -730,6 +744,8 @@ GeoJSONGlobePlot.propTypes = {
   setRotation: PropTypes.func,
   selectedFields: PropTypes.arrayOf(PropTypes.number),
   setSelectedFields: PropTypes.func,
+  selectedObservations: PropTypes.arrayOf(PropTypes.number),
+  setSelectedObservations: PropTypes.func,
   airmass_threshold: PropTypes.number,
   projectionType: PropTypes.string,
 };
@@ -753,6 +769,8 @@ GeoJSONGlobePlot.defaultProps = {
   setRotation: () => {},
   selectedFields: [],
   setSelectedFields: () => {},
+  selectedObservations: [],
+  setSelectedObservations: () => {},
   airmass_threshold: 2.5,
   projectionType: "orthographic",
 };

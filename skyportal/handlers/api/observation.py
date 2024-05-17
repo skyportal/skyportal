@@ -54,7 +54,7 @@ from .observation_plan import (
     TREASUREMAP_INSTRUMENT_IDS,
     TREASUREMAP_FILTERS,
 )
-from ...facility_apis.observation_plan import combine_healpix_tuples
+from ...utils.observation_plan import combine_healpix_tuples
 from ...utils.cache import Cache
 
 

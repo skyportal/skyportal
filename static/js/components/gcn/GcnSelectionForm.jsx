@@ -471,6 +471,7 @@ const GcnSelectionForm = ({ dateobs }) => {
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const groups = useSelector((state) => state.groups.userAccessible);
   const { analysisLoc } = useSelector((state) => state.localization);
+  const galaxyCatalogs = useSelector((state) => state.galaxies?.catalogs);
   const [selectedFields, setSelectedFields] = useState([]);
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
@@ -706,6 +707,19 @@ const GcnSelectionForm = ({ dateobs }) => {
   };
 
   const handleSubmit = async ({ formData }) => {
+    if (
+      formData?.queryList?.includes("sources") &&
+      formData?.group_ids?.length === 0
+    ) {
+      dispatch(
+        showNotification(
+          "Please select at least one group when querying sources.",
+          "error",
+          4000,
+        ),
+      );
+      return;
+    }
     setIsSubmitting(true);
     formData.startDate = formData.startDate
       .replace("+00:00", "")
@@ -757,6 +771,7 @@ const GcnSelectionForm = ({ dateobs }) => {
       setHasFetchedObservations(true);
     }
     if (formData.queryList.includes("galaxies")) {
+      formData.numPerPage = 100;
       await dispatch(
         galaxiesActions.fetchGcnEventGalaxies(gcnEvent?.dateobs, formData),
       );
@@ -811,7 +826,6 @@ const GcnSelectionForm = ({ dateobs }) => {
       maxDistance: {
         type: "number",
         title: "Maximum Distance [Mpc]",
-        default: 150,
         minimum: 0,
       },
       localizationRejectSources: {
@@ -849,7 +863,7 @@ const GcnSelectionForm = ({ dateobs }) => {
           })),
         },
         uniqueItems: true,
-        default: groups?.length > 0 ? [groups[0]?.id] : [],
+        default: [],
         title: "Groups",
       },
     },
@@ -858,9 +872,25 @@ const GcnSelectionForm = ({ dateobs }) => {
       "endDate",
       "localizationCumprob",
       "queryList",
+      "catalog_name",
       "requireDetections",
     ],
   };
+
+  if (galaxyCatalogs?.length > 0) {
+    GcnSourceSelectionFormSchema.properties.catalog_name = {
+      type: "string",
+      title: "Galaxy Catalog",
+      enum: galaxyCatalogs.map((cat) => cat?.catalog_name),
+      default: galaxyCatalogs[0]?.catalog_name,
+    };
+  } else {
+    GcnSourceSelectionFormSchema.properties.catalog_name = {
+      type: "string",
+      title: "Galaxy Catalog",
+      enum: [],
+    };
+  }
 
   const uiSchema = {
     "ui:grid": [
@@ -879,8 +909,9 @@ const GcnSelectionForm = ({ dateobs }) => {
         localizationRejectSources: 4,
       },
       {
-        queryList: 6,
-        group_ids: 6,
+        queryList: 4,
+        catalog_name: 4,
+        group_ids: 4,
       },
     ],
   };
