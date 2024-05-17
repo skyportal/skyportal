@@ -90,7 +90,7 @@ const SourcePublish = ({ source, photometry = null }) => {
         return null;
       }
       // filter photometry based on selected groups and streams
-      return isElements.photometry
+      return photometry !== null
         ? photometry.filter(
             (onePhotometry) =>
               optionsState.groups.length === 0 ||

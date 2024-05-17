@@ -94,6 +94,7 @@ from ...utils.offset import (
 )
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
+from ...utils.calculations import great_circle_distance
 from ..base import BaseHandler
 from .candidate import (
     grab_query_results,
@@ -289,10 +290,21 @@ async def get_source(
     duplicates = session.scalars(
         Source.select(user).join(duplicate_objs, Source.obj_id == duplicate_objs.c.id)
     ).all()
-    if len(duplicates) > 0:
-        source_info["duplicates"] = list({dup.obj_id for dup in duplicates})
-    else:
-        source_info["duplicates"] = None
+    # we queried sources joined on obj to enforce permissions, but we can have multiple sources per obj
+    # so we deduplicate the results (happens naturally as a dict has unique obj_id keys here)
+    duplicates = list(
+        {
+            dup.obj_id: {"obj_id": dup.obj_id, "ra": dup.obj.ra, "dec": dup.obj.dec}
+            for dup in duplicates
+        }.values()
+    )
+    # add the separation to each
+    for dup in duplicates:
+        dup["separation"] = (
+            great_circle_distance(s.ra, s.dec, dup["ra"], dup["dec"]) * 3600
+        )  # to arcsec
+    # sort by separation ascending (closest first)
+    source_info["duplicates"] = sorted(duplicates, key=lambda x: x["separation"])
 
     if 'photstats' in source_info:
         photstats = source_info["photstats"]
