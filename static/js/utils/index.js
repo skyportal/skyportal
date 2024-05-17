@@ -29,6 +29,7 @@ export {
   moonCoords,
   sunGeoJSON,
   moonGeoJSON,
+  greatCircleDistance,
 } from "./positions";
 
 export { not, intersection, union } from "./sets";
