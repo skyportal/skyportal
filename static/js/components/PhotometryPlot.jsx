@@ -54,7 +54,7 @@ const useStyles = makeStyles((theme) => ({
     display: "grid",
     gridAutoFlow: "row",
     gridTemplateColumns: "repeat(3, 1fr)",
-    rowGap: "0.5rem",
+    rowGap: 0,
     columnGap: "2rem",
     width: "100%",
     padding: "0.5rem 1rem 0 1rem",
@@ -113,7 +113,6 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "flex-start",
     alignItems: "center",
     gap: "0.5rem",
-    width: "100%",
   },
   doubleSwitch: {
     display: "flex",
@@ -253,6 +252,7 @@ const PhotometryPlot = ({
   const [layoutReset, setLayoutReset] = useState(false);
 
   const [showNonDetections, setShowNonDetections] = useState(true);
+  const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
 
   const [initialized, setInitialized] = useState(false);
 
@@ -443,6 +443,7 @@ const PhotometryPlot = ({
     smoothingValue,
     phaseValue,
     showNonDetectionsValue,
+    showForcedPhotometryValue,
     existingPlotData,
     filter2colorMapper,
   ) => {
@@ -478,8 +479,17 @@ const PhotometryPlot = ({
             ? existingTracesVisibilities[`${key}upperLimits`]
             : true;
 
+          const detectionisFP =
+            detections?.length > 0 &&
+            ["fp", "fp_alert"].includes(detections[0].origin);
+
+          const upperLimitisFP =
+            upperLimits?.length > 0 &&
+            ["fp", "fp_alert"].includes(upperLimits[0].origin);
+
           const upperLimitsTrace = {
             dataType: "upperLimits",
+            isForcedPhotometry: upperLimitisFP,
             x: upperLimits.map((point) => point.mjd),
             y: upperLimits.map((point) =>
               plotType === "mag" ? point.limiting_mag : point.flux,
@@ -500,7 +510,8 @@ const PhotometryPlot = ({
               symbol: "triangle-down",
             },
             visible:
-              showNonDetectionsValue === false
+              showNonDetectionsValue === false ||
+              (upperLimitisFP === true && showForcedPhotometryValue === false)
                 ? false
                 : existingUpperLimitsTraceVisibility,
             hoverlabel: {
@@ -513,6 +524,7 @@ const PhotometryPlot = ({
 
           const detectionsTrace = {
             dataType: "detections",
+            isForcedPhotometry: detectionisFP,
             x: detections.map((point) => point.mjd),
             y: detections.map((point) =>
               plotType === "mag" ? point.mag : point.flux,
@@ -540,7 +552,10 @@ const PhotometryPlot = ({
               color: colorInteriorDet,
               size: markerSize,
             },
-            visible: existingDetectionTraceVisibility,
+            visible:
+              detectionisFP === true && showForcedPhotometryValue === false
+                ? false
+                : existingDetectionTraceVisibility,
             hoverlabel: {
               bgcolor: "white",
               font: { size: 14 },
@@ -896,6 +911,7 @@ const PhotometryPlot = ({
         smoothing,
         phase,
         showNonDetections,
+        showForcedPhotometry,
         plotData || [],
         filter2color,
       );
@@ -936,7 +952,7 @@ const PhotometryPlot = ({
       setLayouts(newLayouts);
       setInitialized(true);
     }
-  }, [photometry, selectedDuplicates, defaultVisibleFilters, filter2color]);
+  }, [photometry, selectedDuplicates, defaultVisibleFilters, filter2color, dm]);
 
   useEffect(() => {
     if (initialized && filter2color) {
@@ -949,6 +965,7 @@ const PhotometryPlot = ({
         smoothing,
         phase,
         showNonDetections,
+        showForcedPhotometry,
         plotData,
         filter2color,
       );
@@ -977,6 +994,7 @@ const PhotometryPlot = ({
         smoothing,
         phase,
         showNonDetections,
+        showForcedPhotometry,
         plotData,
         filter2color,
       );
@@ -1031,26 +1049,46 @@ const PhotometryPlot = ({
     if (plotData) {
       const newPlotData = plotData.map((trace) => {
         const newTrace = { ...trace };
+
         if (
-          showNonDetections &&
           newTrace.dataType === "upperLimits" &&
-          newTrace.visible !== true
+          newTrace.isForcedPhotometry
         ) {
-          newTrace.visible = true;
-          newTrace.showlegend = true;
-        } else if (
-          !showNonDetections &&
-          newTrace.dataType === "upperLimits" &&
-          newTrace.visible !== false
-        ) {
-          newTrace.visible = false;
-          newTrace.showlegend = false;
+          newTrace.visible = showForcedPhotometry && showNonDetections;
+          newTrace.showlegend = showForcedPhotometry && showNonDetections;
+        } else if (newTrace.dataType === "upperLimits") {
+          newTrace.visible = showNonDetections;
+          newTrace.showlegend = showNonDetections;
         }
+
         return newTrace;
       });
       setPlotData(newPlotData);
     }
   }, [showNonDetections]);
+
+  useEffect(() => {
+    if (plotData) {
+      const newPlotData = plotData.map((trace) => {
+        const newTrace = { ...trace };
+
+        if (
+          newTrace.dataType === "upperLimits" &&
+          newTrace.isForcedPhotometry
+        ) {
+          newTrace.visible = showForcedPhotometry && showNonDetections;
+          newTrace.showlegend = showForcedPhotometry && showNonDetections;
+        } else if (newTrace.isForcedPhotometry) {
+          newTrace.visible = showForcedPhotometry;
+          newTrace.showlegend = showForcedPhotometry;
+        }
+
+        return newTrace;
+      });
+
+      setPlotData(newPlotData);
+    }
+  }, [showForcedPhotometry]);
 
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
@@ -1260,6 +1298,8 @@ const PhotometryPlot = ({
               ) {
                 // if its a marker, secondary axis, or the trace that was double clicked, it's always visible
                 trace.visible = true;
+              } else if (!showForcedPhotometry && trace.isForcedPhotometry) {
+                trace.visible = false;
               } else if (
                 !showNonDetections &&
                 trace.dataType === "upperLimits"
@@ -1284,16 +1324,33 @@ const PhotometryPlot = ({
         />
       </div>
       <div className={classes.gridContainer}>
-        <div className={classes.gridItem} style={{ gridColumn: "span 2" }}>
-          <Typography id="photometry-show-hide" noWrap>
-            Non-Detections
-          </Typography>
-          <div className={classes.switchContainer}>
-            <Switch
-              checked={showNonDetections}
-              onChange={() => setShowNonDetections(!showNonDetections)}
-              inputProps={{ "aria-label": "controlled" }}
-            />
+        <div
+          className={classes.gridItem}
+          style={{ gridColumn: "span 2", columnGap: 0 }}
+        >
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <Typography id="photometry-show-hide" noWrap>
+              Non-Detections
+            </Typography>
+            <div className={classes.switchContainer}>
+              <Switch
+                checked={showNonDetections}
+                onChange={() => setShowNonDetections(!showNonDetections)}
+                inputProps={{ "aria-label": "controlled" }}
+              />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <Typography id="photometry-show-hide" noWrap>
+              Forced Photometry
+            </Typography>
+            <div className={classes.switchContainer}>
+              <Switch
+                checked={showForcedPhotometry}
+                onChange={() => setshowForcedPhotometry(!showForcedPhotometry)}
+                inputProps={{ "aria-label": "controlled" }}
+              />
+            </div>
           </div>
         </div>
         <div
@@ -1332,7 +1389,7 @@ const PhotometryPlot = ({
                 inputProps={{
                   style: { textAlign: "center", padding: "4.5px" },
                 }}
-                style={{ width: "2.4rem", margin: 0 }}
+                style={{ width: "3rem", margin: 0 }}
               />
               <IconButton
                 onClick={() =>
@@ -1346,7 +1403,10 @@ const PhotometryPlot = ({
           </div>
         </div>
         {duplicates?.length > 0 && (
-          <div className={classes.gridItem} style={{ gridColumn: "span 3" }}>
+          <div
+            className={classes.gridItem}
+            style={{ gridColumn: "span 3", marginTop: "0.5rem" }}
+          >
             <Typography id="input-slider">Possible Duplicates</Typography>
             <div className={classes.switchContainer}>
               <Select
