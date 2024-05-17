@@ -29,6 +29,7 @@ export const DUCKS_TO_HYDRATE = [
   "favorites",
   "rejected",
   "observationPlans",
+  "galaxyCatalogs",
 ];
 
 export const NUMBER_OF_DUCKS_TO_HYDRATE = DUCKS_TO_HYDRATE.length;

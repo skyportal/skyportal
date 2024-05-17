@@ -34,6 +34,8 @@ const ObservationPlanGlobe = ({
   const [obsList, setObsList] = useState(null);
   const [localization, setLocalization] = useState(null);
 
+  const [selectedObservations, setSelectedObservations] = useState([]);
+
   useEffect(() => {
     const fetchObsList = async () => {
       const response = await dispatch(
@@ -68,9 +70,7 @@ const ObservationPlanGlobe = ({
     }
   }, [dispatch, setLocalization, observationplanRequest]);
 
-  const handleDeleteObservationPlanFields = async (obsPlanList) => {
-    const selectedFields = obsPlanList?.geojson.filter((f) => f?.selected);
-    const selectedIds = selectedFields.map((f) => f?.properties?.field_id);
+  const handleDeleteObservationPlanFields = async (selectedIds) => {
     await dispatch(
       Actions.deleteObservationPlanFields(
         observationplanRequest.id,
@@ -86,19 +86,36 @@ const ObservationPlanGlobe = ({
           <CircularProgress />
         </div>
       ) : (
-        <div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyItems: "center",
+          }}
+        >
           <LocalizationPlot
             localization={localization}
             observations={obsList}
             options={displayOptionsDefault}
-            height={550}
-            width={550}
+            height={600}
+            width={600}
             type="obsplan"
             projection="mollweide"
+            selectedObservations={selectedObservations}
+            setSelectedObservations={setSelectedObservations}
           />
           <Button
             secondary
-            onClick={() => handleDeleteObservationPlanFields(obsList)}
+            onClick={() =>
+              handleDeleteObservationPlanFields(selectedObservations)
+            }
+            style={{
+              marginTop: "2px",
+              display:
+                obsList?.geojson?.filter((f) => f?.selected)?.length > 0
+                  ? "block"
+                  : "none",
+            }}
           >
             Delete selected fields
           </Button>

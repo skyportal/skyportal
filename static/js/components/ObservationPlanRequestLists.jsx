@@ -45,7 +45,10 @@ const useStyles = makeStyles(() => ({
     margin: "1rem 0",
   },
   localization: {
-    minWidth: "250px",
+    minWidth: "500px",
+  },
+  summaryStatistics: {
+    minWidth: "200px",
   },
   dialog: {
     minWidth: "60vw",
@@ -59,40 +62,58 @@ const useStyles = makeStyles(() => ({
 const getMuiTheme = (theme) =>
   createTheme({
     palette: theme.palette,
-    overrides: {
+    components: {
       MUIDataTable: {
-        paper: {
-          width: "100%",
+        styleOverrides: {
+          paper: {
+            width: "100%",
+          },
+        },
+      },
+      MUIDataTableHeadCell: {
+        styleOverrides: {
+          root: {
+            padding: `${theme.spacing(0.5)} 0 ${theme.spacing(
+              0.5,
+            )} ${theme.spacing(0.5)}`,
+          },
         },
       },
       MUIDataTableBodyCell: {
-        stackedCommon: {
-          overflow: "hidden",
-          "&:last-child": {
-            paddingLeft: "0.25rem",
+        styleOverrides: {
+          root: {
+            padding: `0 ${theme.spacing(0.5)} 0 ${theme.spacing(0.5)}`,
+          },
+          stackedCommon: {
+            overflow: "hidden",
+            "&:last-child": {
+              paddingLeft: "0.25rem",
+            },
           },
         },
       },
       MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
+        styleOverrides: {
+          toolbar: {
+            flexFlow: "row wrap",
+            justifyContent: "flex-end",
+            padding: "0.5rem 1rem 0",
+            [theme.breakpoints.up("sm")]: {
+              // Cancel out small screen styling and replace
+              padding: "0px",
+              paddingRight: "2px",
+              flexFlow: "row nowrap",
+            },
           },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
+          tableCellContainer: {
+            padding: "1rem",
+          },
+          selectRoot: {
+            marginRight: "0.5rem",
+            [theme.breakpoints.up("sm")]: {
+              marginLeft: "0",
+              marginRight: "2rem",
+            },
           },
         },
       },
@@ -290,7 +311,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
               <CircularProgress />
             </div>
           ) : (
-            <div>
+            <div className={classes.summaryStatistics}>
               <ObservationPlanSummaryStatistics
                 observationplanRequest={observationplanRequest}
               />
@@ -307,45 +328,31 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
       },
     });
 
-    const renderDelete = (dataIndex) => {
+    const renderLocalization = (dataIndex) => {
       const observationplanRequest =
         requestsGroupedByInstId[instrument_id][dataIndex];
 
+      if (!["complete", "running"].includes(observationplanRequest?.status)) {
+        return <div />;
+      }
+
       return (
-        <div>
-          <div className={classes.actionButtons}>
-            {implementsDelete && isDeleting === observationplanRequest.id ? (
-              <div>
-                <CircularProgress />
-              </div>
-            ) : (
-              <div>
-                <Button
-                  primary
-                  onClick={() => {
-                    handleDelete(observationplanRequest.id);
-                  }}
-                  size="small"
-                  type="submit"
-                  data-testid={`deleteRequest_${observationplanRequest.id}`}
-                >
-                  Delete
-                </Button>
-              </div>
-            )}
-          </div>
+        <div className={classes.localization}>
+          <ObservationPlanGlobe
+            observationplanRequest={observationplanRequest}
+          />
         </div>
       );
     };
     columns.push({
-      name: "delete",
-      label: "Delete",
+      name: "skymap",
+      label: "Skymap",
       options: {
-        customBodyRenderLite: renderDelete,
+        customBodyRenderLite: renderLocalization,
       },
     });
 
-    const renderModify = (dataIndex) => {
+    const renderManage = (dataIndex) => {
       const observationplanRequest =
         requestsGroupedByInstId[instrument_id][dataIndex];
 
@@ -404,16 +411,43 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
                   observationplanRequest={observationplanRequest}
                 />
               </div>
+              <div className={classes.actionButtons}>
+                {implementsDelete &&
+                isDeleting === observationplanRequest.id ? (
+                  <div>
+                    <CircularProgress />
+                  </div>
+                ) : (
+                  <div>
+                    <Button
+                      primary
+                      onClick={() => {
+                        handleDelete(observationplanRequest.id);
+                      }}
+                      size="small"
+                      type="submit"
+                      data-testid={`deleteRequest_${observationplanRequest.id}`}
+                      disabled={
+                        observationplanRequest.status ===
+                        "submitted to telescope queue"
+                      }
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
       );
     };
+
     columns.push({
-      name: "interact",
-      label: "Interact",
+      name: "manage",
+      label: "Manage",
       options: {
-        customBodyRenderLite: renderModify,
+        customBodyRenderLite: renderManage,
       },
     });
 
@@ -449,10 +483,9 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
                 <div
                   style={{
                     display:
-                      observationplanRequest.status ===
-                      "submitted to telescope queue"
-                        ? "none"
-                        : "block",
+                      observationplanRequest.status === "complete"
+                        ? "block"
+                        : "none",
                   }}
                 >
                   <Button
@@ -591,7 +624,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
                     type="submit"
                     data-testid={`treasuremapRequest_${observationplanRequest.id}`}
                   >
-                    Send to Treasure Map
+                    Send
                   </Button>
                 </div>
               )}
@@ -610,7 +643,7 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
                     type="submit"
                     data-testid={`treasuremapDelete_${observationplanRequest.id}`}
                   >
-                    Retract from Treasure Map
+                    Retract
                   </Button>
                 </div>
               )}
@@ -624,26 +657,6 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
       label: "Treasure Map",
       options: {
         customBodyRenderLite: renderTreasureMap,
-      },
-    });
-
-    const renderLocalization = (dataIndex) => {
-      const observationplanRequest =
-        requestsGroupedByInstId[instrument_id][dataIndex];
-
-      return (
-        <div className={classes.localization}>
-          <ObservationPlanGlobe
-            observationplanRequest={observationplanRequest}
-          />
-        </div>
-      );
-    };
-    columns.push({
-      name: "skymap",
-      label: "Skymap",
-      options: {
-        customBodyRenderLite: renderLocalization,
       },
     });
 

@@ -105,7 +105,6 @@ User Guide
    advanced_usage
    photometric_series
    analysis
-   image_analysis
    extensions
    pages
 
