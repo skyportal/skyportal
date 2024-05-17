@@ -72,7 +72,7 @@ black==24.4.2
 click==8.1.6
 arviz==0.16.1
 corner==2.2.1
-penquins==2.3.2
+penquins==2.4.1
 selenium==4.8.3
 selenium-requests==2.0.4
 afterglowpy==0.7.3
