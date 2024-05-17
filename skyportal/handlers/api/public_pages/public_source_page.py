@@ -1,7 +1,5 @@
 import operator  # noqa: F401
 
-from sqlalchemy.orm import sessionmaker, scoped_session
-
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 from ...base import BaseHandler
@@ -9,8 +7,6 @@ from ...base import BaseHandler
 from ....models import PublicSourcePage
 
 log = make_log('api/public_source_page')
-
-Session = scoped_session(sessionmaker())
 
 
 class PublicSourcePageHandler(BaseHandler):
