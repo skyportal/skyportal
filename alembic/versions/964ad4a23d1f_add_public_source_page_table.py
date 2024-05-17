@@ -1,7 +1,7 @@
 """add public source page table
 
 Revision ID: 964ad4a23d1f
-Revises: 77c4af61eea6
+Revises: 7b0d2b1b6561
 Create Date: 2024-05-07 17:50:26.936982
 
 """
@@ -12,7 +12,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '964ad4a23d1f'
-down_revision = 'aa6432209e3e'
+down_revision = '7b0d2b1b6561'
 branch_labels = None
 depends_on = None
 
