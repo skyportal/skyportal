@@ -669,11 +669,7 @@ class LCOAPI(FollowUpAPI):
                 )
                 IOLoop.current().run_in_executor(None, download_obs)
             else:
-                if "non_field_errors" in ar.json():
-                    error_message = r.json()["non_field_errors"]
-                else:
-                    error_message = r.content.decode()
-                request.status = error_message
+                request.status = r.content.decode()
         elif content["state"] == "PENDING":
             request.status = "pending"
 
@@ -737,11 +733,7 @@ class SINISTROAPI(LCOAPI):
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            if "non_field_errors" in r.json():
-                error_message = r.json()["non_field_errors"]
-            else:
-                error_message = r.content.decode()
-            request.status = error_message
+            request.status = r.content.decode()
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -873,11 +865,7 @@ class SPECTRALAPI(LCOAPI):
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            if "non_field_errors" in r.json():
-                error_message = r.json()["non_field_errors"]
-            else:
-                error_message = r.content.decode()
-            request.status = error_message
+            request.status = r.content.decode()
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -1008,11 +996,7 @@ class MUSCATAPI(LCOAPI):
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            if "non_field_errors" in r.json():
-                error_message = r.json()["non_field_errors"]
-            else:
-                error_message = r.content.decode()
-            request.status = error_message
+            request.status = r.content.decode()
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -1136,10 +1120,7 @@ class FLOYDSAPI(LCOAPI):
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            if "non_field_errors" in r.json():
-                error_message = r.json()["non_field_errors"]
-            else:
-                error_message = r.content.decode()
+            error_message = r.content.decode()
             request.status = error_message
 
         transaction = FacilityTransaction(

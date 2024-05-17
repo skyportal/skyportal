@@ -13,6 +13,7 @@ ar_token = ar.json()['token']
 * MMA: There are two generic methods for distributing observation plans. The first is through API, where the user provides {"protocol": "http/https", "host": "host", "port": "port", "access_token": "token"}, and the second through scp, where the user provides {"host": "host", "port": "port", "username": "username", "password": "password", "directory": "output_directory"}.
 * NICER: A username and password (as entered at https://heasarc.gsfc.nasa.gov/ark/nicertoo/) are passed as `{"username": "username", "password": "password"}`.
 * SLACK: As discussed further [here](./slack.html), slack information is pass as `{"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}`.
+* SOAR: A user account must be made on https://lco.global/, at which point the authentication takes the form `{"PROPOSAL_ID": "your_proposal_ID", "API_TOKEN": "testtoken"}`. The submission token is available directly from https://observe.lco.global.
 * SWIFT Triggering: A username and password are passed as `{"username": "username", "secret": "password"}`.
 * SWIFT XRT Reductions: A user account must be made with the Swift-XRT data products API platform (see https://www.swift.ac.uk/user_objects/register.php to register). The authentication then is the email of the user `"XRT_UserID": "swift_email"}` where swift_email is the email address used upon sign up.
 * ZTF Triggering: An API token for an admin user for [Kowalski](https://github.com/dmitryduev/kowalski) can be passed as `{"access_token": "your_token"}`.
