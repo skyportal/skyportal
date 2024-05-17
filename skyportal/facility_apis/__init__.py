@@ -14,6 +14,7 @@ from .lt import IOOAPI, IOIAPI, SPRATAPI
 from .lco import SINISTROAPI, SPECTRALAPI, FLOYDSAPI, MUSCATAPI
 from .nicer import NICERAPI
 from .ps1 import PS1API
+from .soar import SOARGHTSREDCAMAPI, SOARGHTSREDCAMIMAGERAPI
 from .swift import UVOTXRTAPI, UVOTXRTMMAAPI
 from .tess import TESSAPI
 from .trt import TRTAPI

@@ -226,7 +226,7 @@ class SPECTRALRequest:
 
 class MUSCATRequest:
 
-    """An XML structure for LCO 2m MUSCAT requests."""
+    """A JSON structure for LCO 2m MUSCAT requests."""
 
     def __init__(self, request):
         """Initialize MUSCAT request.
@@ -335,7 +335,7 @@ class MUSCATRequest:
 
 class FLOYDSRequest:
 
-    """An XML structure for LCO 2m FLOYDS requests."""
+    """A JSON structure for LCO 2m FLOYDS requests."""
 
     def __init__(self, request):
         """Initialize FLOYDS request.
