@@ -219,7 +219,15 @@ def test_duplicate_sources(public_group, upload_data_token, ztf_camera):
     )
     assert status == 200
     assert data["status"] == "success"
-    assert data["data"]["duplicates"] == [obj_id2]
+    assert len(data["data"]["duplicates"]) == 1
+    assert "ra" in data["data"]["duplicates"][0]
+    assert "dec" in data["data"]["duplicates"][0]
+    assert "obj_id" in data["data"]["duplicates"][0]
+    assert "separation" in data["data"]["duplicates"][0]
+    assert data["data"]["duplicates"][0]["ra"] == ra + 0.0001
+    assert data["data"]["duplicates"][0]["dec"] == dec + 0.0005
+    assert data["data"]["duplicates"][0]["obj_id"] == obj_id2
+    assert np.isclose(data["data"]["duplicates"][0]["separation"], 1.82, atol=0.05)
 
     status, data = api(
         "GET",
@@ -228,7 +236,15 @@ def test_duplicate_sources(public_group, upload_data_token, ztf_camera):
     )
     assert status == 200
     assert data["status"] == "success"
-    assert data["data"]["duplicates"] == [obj_id1]
+    assert len(data["data"]["duplicates"]) == 1
+    assert "ra" in data["data"]["duplicates"][0]
+    assert "dec" in data["data"]["duplicates"][0]
+    assert "obj_id" in data["data"]["duplicates"][0]
+    assert "separation" in data["data"]["duplicates"][0]
+    assert data["data"]["duplicates"][0]["ra"] == ra
+    assert data["data"]["duplicates"][0]["dec"] == dec
+    assert data["data"]["duplicates"][0]["obj_id"] == obj_id1
+    assert np.isclose(data["data"]["duplicates"][0]["separation"], 1.82, atol=0.05)
 
 
 def test_token_user_update_source(super_admin_token, upload_data_token, public_source):
