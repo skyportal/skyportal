@@ -7,6 +7,14 @@ const ObservationPlanSummaryStatistics = ({ observationplanRequest }) => {
   const summaryStatistics =
     observationplanRequest?.observation_plans[0]?.statistics;
 
+  if (observationplanRequest?.status !== "complete") {
+    return (
+      <div>
+        <p>Only available for completed requests.</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       {!summaryStatistics || summaryStatistics?.length === 0 ? (
