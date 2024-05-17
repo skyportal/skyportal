@@ -387,6 +387,7 @@ GcnEventSourcesPage.propTypes = {
     startDate: PropTypes.string,
     endDate: PropTypes.string,
     localizationCumprob: PropTypes.number,
+    requireDetections: PropTypes.bool,
   }).isRequired,
 };
 
@@ -470,6 +471,7 @@ const GcnSelectionForm = ({ dateobs }) => {
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const groups = useSelector((state) => state.groups.userAccessible);
   const { analysisLoc } = useSelector((state) => state.localization);
+  const galaxyCatalogs = useSelector((state) => state.galaxies?.catalogs);
   const [selectedFields, setSelectedFields] = useState([]);
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
@@ -492,6 +494,7 @@ const GcnSelectionForm = ({ dateobs }) => {
     localizationName: null,
     group_ids: [],
     localizationCumprob: null,
+    requireDetections: true,
   });
 
   const [hasFetchedObservations, setHasFetchedObservations] = useState(false);
@@ -612,6 +615,7 @@ const GcnSelectionForm = ({ dateobs }) => {
       localizationName: filterParams.localizationName,
       localizationDateobs: dateobs,
       numberObservations: filterParams?.numberDetections || 1,
+      requireDetections: filterParams?.requireDetections,
     };
     await dispatch(observationsActions.submitObservationsTreasureMap(id, data));
     setIsSubmittingTreasureMap(null);
@@ -703,6 +707,19 @@ const GcnSelectionForm = ({ dateobs }) => {
   };
 
   const handleSubmit = async ({ formData }) => {
+    if (
+      formData?.queryList?.includes("sources") &&
+      formData?.group_ids?.length === 0
+    ) {
+      dispatch(
+        showNotification(
+          "Please select at least one group when querying sources.",
+          "error",
+          4000,
+        ),
+      );
+      return;
+    }
     setIsSubmitting(true);
     formData.startDate = formData.startDate
       .replace("+00:00", "")
@@ -754,6 +771,7 @@ const GcnSelectionForm = ({ dateobs }) => {
       setHasFetchedObservations(true);
     }
     if (formData.queryList.includes("galaxies")) {
+      formData.numPerPage = 100;
       await dispatch(
         galaxiesActions.fetchGcnEventGalaxies(gcnEvent?.dateobs, formData),
       );
@@ -796,16 +814,19 @@ const GcnSelectionForm = ({ dateobs }) => {
         type: "number",
         title: "Min Number of Detections/Observations",
         default: 2,
+        minimum: 1,
       },
       localizationCumprob: {
         type: "number",
         title: "Cumulative Probability",
         default: 0.95,
+        minimum: 0,
+        maximum: 1,
       },
       maxDistance: {
         type: "number",
         title: "Maximum Distance [Mpc]",
-        default: 150,
+        minimum: 0,
       },
       localizationRejectSources: {
         type: "boolean",
@@ -814,6 +835,11 @@ const GcnSelectionForm = ({ dateobs }) => {
       excludeForcedPhotometry: {
         type: "boolean",
         title: "Exclude forced photometry",
+        default: false,
+      },
+      requireDetections: {
+        type: "boolean",
+        title: "Require detections",
         default: true,
       },
       queryList: {
@@ -837,12 +863,34 @@ const GcnSelectionForm = ({ dateobs }) => {
           })),
         },
         uniqueItems: true,
-        default: groups?.length > 0 ? [groups[0]?.id] : [],
+        default: [],
         title: "Groups",
       },
     },
-    required: ["startDate", "endDate", "localizationCumprob", "queryList"],
+    required: [
+      "startDate",
+      "endDate",
+      "localizationCumprob",
+      "queryList",
+      "catalog_name",
+      "requireDetections",
+    ],
   };
+
+  if (galaxyCatalogs?.length > 0) {
+    GcnSourceSelectionFormSchema.properties.catalog_name = {
+      type: "string",
+      title: "Galaxy Catalog",
+      enum: galaxyCatalogs.map((cat) => cat?.catalog_name),
+      default: galaxyCatalogs[0]?.catalog_name,
+    };
+  } else {
+    GcnSourceSelectionFormSchema.properties.catalog_name = {
+      type: "string",
+      title: "Galaxy Catalog",
+      enum: [],
+    };
+  }
 
   const uiSchema = {
     "ui:grid": [
@@ -856,12 +904,14 @@ const GcnSelectionForm = ({ dateobs }) => {
         maxDistance: 4,
       },
       {
-        localizationRejectSources: 6,
-        excludeForcedPhotometry: 6,
+        requireDetections: 4,
+        excludeForcedPhotometry: 4,
+        localizationRejectSources: 4,
       },
       {
-        queryList: 6,
-        group_ids: 6,
+        queryList: 4,
+        catalog_name: 4,
+        group_ids: 4,
       },
     ],
   };

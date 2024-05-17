@@ -505,6 +505,7 @@ async def get_sources(
     include_labellers=False,
     include_hosts=False,
     exclude_forced_photometry=False,
+    require_detections=False,
     is_token_request=False,
     include_requested=False,
     requested_only=False,
@@ -789,136 +790,141 @@ async def get_sources(
                     f'Invalid created_or_modified_after: {created_or_modified_after} ({e})'
                 )
 
-        # PHOTSTATS
-        photstat_query = []
-        if first_detected_date is not None:
-            try:
-                col = (
-                    'first_detected_mjd'
-                    if not exclude_forced_photometry
-                    else 'first_detected_no_forced_phot_mjd'
-                )
-                query_params.append(
-                    bindparam(
-                        'first_detected_date',
-                        value=Time(arrow.get(first_detected_date).datetime).mjd,
-                        type_=sa.Float,
+        if require_detections:
+            # PHOTSTATS
+            photstat_query = []
+            if first_detected_date is not None:
+                try:
+                    col = (
+                        'first_detected_mjd'
+                        if not exclude_forced_photometry
+                        else 'first_detected_no_forced_phot_mjd'
                     )
-                )
-                photstat_query.append(f"""photstats.{col} >= :first_detected_date""")
+                    query_params.append(
+                        bindparam(
+                            'first_detected_date',
+                            value=Time(arrow.get(first_detected_date).datetime).mjd,
+                            type_=sa.Float,
+                        )
+                    )
+                    photstat_query.append(
+                        f"""photstats.{col} >= :first_detected_date"""
+                    )
 
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid first_detected_date: {first_detected_date} ({e})'
-                )
-        if last_detected_date is not None:
-            try:
-                col = (
-                    'last_detected_mjd'
-                    if not exclude_forced_photometry
-                    else 'last_detected_no_forced_phot_mjd'
-                )
-                query_params.append(
-                    bindparam(
-                        'last_detected_date',
-                        value=Time(arrow.get(last_detected_date).datetime).mjd,
-                        type_=sa.Float,
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid first_detected_date: {first_detected_date} ({e})'
                     )
-                )
-                photstat_query.append(f"""photstats.{col} <= :last_detected_date""")
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid last_detected_date: {last_detected_date} ({e})'
-                )
-        if number_of_detections is not None:
-            try:
-                col = (
-                    'num_det_global'
-                    if not exclude_forced_photometry
-                    else 'num_det_no_forced_phot_global'
-                )
-                query_params.append(
-                    bindparam(
-                        'number_of_detections',
-                        value=int(number_of_detections),
-                        type_=sa.Integer,
+            if last_detected_date is not None:
+                try:
+                    col = (
+                        'last_detected_mjd'
+                        if not exclude_forced_photometry
+                        else 'last_detected_no_forced_phot_mjd'
                     )
-                )
-                photstat_query.append(f"""photstats.{col} >= :number_of_detections""")
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid number_of_detections: {number_of_detections} ({e})'
-                )
-        if min_peak_magnitude is not None:
-            try:
-                query_params.append(
-                    bindparam(
-                        'min_peak_magnitude',
-                        value=float(min_peak_magnitude),
-                        type_=sa.Float,
+                    query_params.append(
+                        bindparam(
+                            'last_detected_date',
+                            value=Time(arrow.get(last_detected_date).datetime).mjd,
+                            type_=sa.Float,
+                        )
                     )
-                )
-                photstat_query.append(
-                    """photstats.peak_mag_global <= :min_peak_magnitude"""
-                )
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid min_peak_magnitude: {min_peak_magnitude} ({e})'
-                )
-        if max_peak_magnitude is not None:
-            try:
-                query_params.append(
-                    bindparam(
-                        'max_peak_magnitude',
-                        value=float(max_peak_magnitude),
-                        type_=sa.Float,
+                    photstat_query.append(f"""photstats.{col} <= :last_detected_date""")
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid last_detected_date: {last_detected_date} ({e})'
                     )
-                )
-                photstat_query.append(
-                    """photstats.peak_mag_global >= :max_peak_magnitude"""
-                )
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid max_peak_magnitude: {max_peak_magnitude} ({e})'
-                )
-        if min_latest_magnitude is not None:
-            try:
-                query_params.append(
-                    bindparam(
-                        'min_latest_magnitude',
-                        value=float(min_latest_magnitude),
-                        type_=sa.Float,
+            if number_of_detections is not None:
+                try:
+                    col = (
+                        'num_det_global'
+                        if not exclude_forced_photometry
+                        else 'num_det_no_forced_phot_global'
                     )
-                )
-                photstat_query.append(
-                    """photstats.last_detected_mag <= :min_latest_magnitude"""
-                )
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid min_latest_magnitude: {min_latest_magnitude} ({e})'
-                )
-        if max_latest_magnitude is not None:
-            try:
-                query_params.append(
-                    bindparam(
-                        'max_latest_magnitude',
-                        value=float(max_latest_magnitude),
-                        type_=sa.Float,
+                    query_params.append(
+                        bindparam(
+                            'number_of_detections',
+                            value=int(number_of_detections),
+                            type_=sa.Integer,
+                        )
                     )
+                    photstat_query.append(
+                        f"""photstats.{col} >= :number_of_detections"""
+                    )
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid number_of_detections: {number_of_detections} ({e})'
+                    )
+            if min_peak_magnitude is not None:
+                try:
+                    query_params.append(
+                        bindparam(
+                            'min_peak_magnitude',
+                            value=float(min_peak_magnitude),
+                            type_=sa.Float,
+                        )
+                    )
+                    photstat_query.append(
+                        """photstats.peak_mag_global <= :min_peak_magnitude"""
+                    )
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid min_peak_magnitude: {min_peak_magnitude} ({e})'
+                    )
+            if max_peak_magnitude is not None:
+                try:
+                    query_params.append(
+                        bindparam(
+                            'max_peak_magnitude',
+                            value=float(max_peak_magnitude),
+                            type_=sa.Float,
+                        )
+                    )
+                    photstat_query.append(
+                        """photstats.peak_mag_global >= :max_peak_magnitude"""
+                    )
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid max_peak_magnitude: {max_peak_magnitude} ({e})'
+                    )
+            if min_latest_magnitude is not None:
+                try:
+                    query_params.append(
+                        bindparam(
+                            'min_latest_magnitude',
+                            value=float(min_latest_magnitude),
+                            type_=sa.Float,
+                        )
+                    )
+                    photstat_query.append(
+                        """photstats.last_detected_mag <= :min_latest_magnitude"""
+                    )
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid min_latest_magnitude: {min_latest_magnitude} ({e})'
+                    )
+            if max_latest_magnitude is not None:
+                try:
+                    query_params.append(
+                        bindparam(
+                            'max_latest_magnitude',
+                            value=float(max_latest_magnitude),
+                            type_=sa.Float,
+                        )
+                    )
+                    photstat_query.append(
+                        """photstats.last_detected_mag >= :max_latest_magnitude"""
+                    )
+                except Exception as e:
+                    raise ValueError(
+                        f'Invalid max_latest_magnitude: {max_latest_magnitude} ({e})'
+                    )
+            if len(photstat_query) > 0:
+                statements.append(
+                    f"""
+                    EXISTS (SELECT obj_id from photstats where photstats.obj_id=objs.id and {' AND '.join(photstat_query)})
+                    """
                 )
-                photstat_query.append(
-                    """photstats.last_detected_mag >= :max_latest_magnitude"""
-                )
-            except Exception as e:
-                raise ValueError(
-                    f'Invalid max_latest_magnitude: {max_latest_magnitude} ({e})'
-                )
-        if len(photstat_query) > 0:
-            statements.append(
-                f"""
-                EXISTS (SELECT obj_id from photstats where photstats.obj_id=objs.id and {' AND '.join(photstat_query)})
-                """
-            )
 
         # CONE SEARCH
         if any([ra, dec, radius]):
@@ -1389,10 +1395,15 @@ async def get_sources(
                 comments_filter = [c.strip() for c in comments_filter.split(",")]
             elif isinstance(comments_filter, str):
                 comments_filter = [comments_filter]
-            query_params['comments_filter'] = bindparam(
-                'comments_filter', value=comments_filter, type_=sa.ARRAY(sa.String)
+            elif isinstance(comments_filter, list):
+                comments_filter = [str(c) for c in comments_filter]
+            for i, c in enumerate(comments_filter):
+                query_params.append(
+                    bindparam(f'comments_filter_{i}', value=c, type_=sa.String)
+                )
+            comments_query.append(
+                f"""comments.text ilike any(array[:{', :'.join([f'comments_filter_{i}' for i in range(len(comments_filter))])}])"""
             )
-            comments_query.append("""comments.text LIKE ANY (:comments_filter)""")
         if comments_filter_before is not None:
             try:
                 query_params.append(
@@ -1660,6 +1671,8 @@ async def get_sources(
                 return data
 
             sources, total_matches = [], len(all_source_ids)
+
+            data['totalMatches'] = total_matches
             if start > total_matches:
                 return data
             if end > total_matches:
@@ -1917,53 +1930,60 @@ async def get_sources(
             if verbose:
                 log_verbose(f'3. Sources Query took {endTime - startTime} seconds.')
 
-            # REFORMAT SOURCES (SAVE INFO)
-            start = time.time()
-            source_group_ids, source_user_ids = [], []
-            for source in sources:
-                source_group_ids.append(source['group_id']), source_user_ids.append(
-                    source['saved_by_id']
+            if not remove_nested:
+                # REFORMAT SOURCES (SAVE INFO)
+                start = time.time()
+                source_group_ids, source_user_ids = [], []
+                for source in sources:
+                    source_group_ids.append(source['group_id']), source_user_ids.append(
+                        source['saved_by_id']
+                    )
+
+                source_group_ids, source_user_ids = set(source_group_ids), set(
+                    source_user_ids
                 )
 
-            source_group_ids, source_user_ids = set(source_group_ids), set(
-                source_user_ids
-            )
-
-            groups = (
-                session.query(Group)
-                .filter(Group.id.in_(source_group_ids))
-                .distinct()
-                .all()
-            )
-            groups = {group.id: group.to_dict() for group in groups}
-
-            users = (
-                session.query(User)
-                .filter(User.id.in_(source_user_ids))
-                .distinct()
-                .all()
-            )
-            users = {user.id: user.to_dict() for user in users}
-
-            # for each obj, add a 'groups' key with the groups tho which it has been saved as a source
-            for source in sources:
-                obj = next((obj for obj in objs if obj['id'] == source['obj_id']), None)
-                obj['groups'].append(
-                    {
-                        **groups[source['group_id']],
-                        "active": source['active'],
-                        "requested": source['requested'],
-                        "saved_at": source['saved_at'],
-                        "saved_by": users[source['saved_by_id']],
-                    }
+                groups = (
+                    session.query(Group)
+                    .filter(Group.id.in_(source_group_ids))
+                    .distinct()
+                    .all()
                 )
+                groups = {group.id: group.to_dict() for group in groups}
 
-            endTime = time.time()
-            if verbose:
-                log_verbose(
-                    f'4. Sources Refomatting took {endTime - startTime} seconds.'
+                users = (
+                    session.query(User)
+                    .filter(User.id.in_(source_user_ids))
+                    .distinct()
+                    .all()
                 )
+                users = {user.id: user.to_dict() for user in users}
 
+                # for each obj, add a 'groups' key with the groups tho which it has been saved as a source
+                for source in sources:
+                    obj = next(
+                        (obj for obj in objs if obj['id'] == source['obj_id']), None
+                    )
+                    obj['groups'].append(
+                        {
+                            **groups[source['group_id']],
+                            "active": source['active'],
+                            "requested": source['requested'],
+                            "saved_at": source['saved_at'],
+                            "saved_by": users.get(source['saved_by_id'], None),
+                        }
+                    )
+
+                endTime = time.time()
+                if verbose:
+                    log_verbose(
+                        f'4. Sources Refomatting took {endTime - startTime} seconds.'
+                    )
+
+            else:
+                # remove the groups key from the objs
+                for obj in objs:
+                    obj.pop('groups', None)
             startTime = time.time()
             obj_coords = np.array([[obj['ra'], obj['dec']] for obj in objs])
             obj_coords_gal = radec2lb(obj_coords[:, 0], obj_coords[:, 1])

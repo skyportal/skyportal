@@ -49,6 +49,7 @@ from ...models.schema import (
     PhotometryRangeQuery,
 )
 from ...enum_types import ALLOWED_MAGSYSTEMS, ALLOWED_BANDPASSES
+from .photometry_validation import USE_PHOTOMETRY_VALIDATION
 
 _, cfg = load_env()
 
@@ -238,6 +239,7 @@ def serialize(
     annotations=True,
     owner=False,
     stream=False,
+    validation=False,
 ):
     return_value = {
         'obj_id': phot.obj_id,
@@ -268,6 +270,10 @@ def serialize(
         return_value['owner'] = phot.owner.to_dict()
     if stream:
         return_value['streams'] = [stream.to_dict() for stream in phot.streams]
+    if USE_PHOTOMETRY_VALIDATION and validation:
+        return_value['validations'] = [
+            validation.to_dict() for validation in phot.validations
+        ]
 
     if (
         phot.ref_flux is not None
@@ -1631,6 +1637,7 @@ class PhotometryHandler(BaseHandler):
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
         stream_ids = data.pop("stream_ids", None)
+        magsys = data.get('magsys', 'ab')
 
         refresh = self.get_query_argument('refresh', default=False)
 
@@ -1754,7 +1761,7 @@ class PhotometryHandler(BaseHandler):
                 flow.push(
                     '*',
                     'skyportal/FETCH_SOURCE_PHOTOMETRY',
-                    payload={'obj_id': photometry.obj_id},
+                    payload={'obj_id': photometry.obj_id, 'magsys': magsys},
                 )
 
             return self.success()
@@ -1829,6 +1836,9 @@ class ObjPhotometryHandler(BaseHandler):
         outsys = self.get_query_argument('magsys', 'ab')
         include_owner_info = self.get_query_argument('includeOwnerInfo', False)
         include_stream_info = self.get_query_argument('includeStreamInfo', False)
+        include_validation_info = self.get_query_argument(
+            'includeValidationInfo', False
+        )
         deduplicate_photometry = self.get_query_argument('deduplicatePhotometry', False)
 
         if str(include_owner_info).lower() in ['true', 't', '1']:
@@ -1840,6 +1850,11 @@ class ObjPhotometryHandler(BaseHandler):
             include_stream_info = True
         else:
             include_stream_info = False
+
+        if str(include_validation_info).lower() in ['true', 't', '1']:
+            include_validation_info = True
+        else:
+            include_validation_info = False
 
         with self.Session() as session:
             obj = session.scalars(
@@ -1884,6 +1899,7 @@ class ObjPhotometryHandler(BaseHandler):
                         format,
                         owner=include_owner_info,
                         stream=include_stream_info,
+                        validation=include_validation_info,
                     )
                     for phot in photometry
                 ]
@@ -2221,6 +2237,34 @@ ObjPhotometryHandler.get.__doc__ = f"""
               type: boolean
             description: |
               Boolean indicating whether to phase fold the light curve. Defaults to false.
+          - in: query
+            name: deduplicatePhotometry
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to deduplicate photometry. Defaults to false.
+          - in: query
+            name: includeOwnerInfo
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include photometry owner. Defaults to false.
+          - in: query
+            name: includeStreamInfo
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include photometry stream information. Defaults to false.
+          - in: query
+            name: includeValidationInfo
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include photometry validation information. Defaults to false.
         responses:
           200:
             content:

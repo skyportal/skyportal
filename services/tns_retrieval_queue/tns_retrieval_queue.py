@@ -6,6 +6,7 @@ from threading import Thread
 from datetime import datetime, timedelta
 
 import requests
+from skyportal.utils.calculations import great_circle_distance
 import sqlalchemy as sa
 import tornado.escape
 import tornado.ioloop
@@ -20,7 +21,7 @@ from baselayer.log import make_log
 from skyportal.handlers.api.photometry import add_external_photometry
 from skyportal.handlers.api.source import post_source
 from skyportal.handlers.api.spectrum import post_spectrum
-from skyportal.models import DBSession, Obj, User, Group
+from skyportal.models import DBSession, Obj, Source, User, Group
 from skyportal.utils.tns import (
     get_IAUname,
     read_tns_photometry,
@@ -41,12 +42,32 @@ DEFAULT_RADIUS = 2.0 / 3600  # 2 arcsec in degrees
 
 TNS_URL = cfg['app.tns.endpoint']
 object_url = urllib.parse.urljoin(TNS_URL, 'api/get/object')
-search_frontend_url = urllib.parse.urljoin(TNS_URL, 'search')
 
 bot_id = cfg.get('app.tns.bot_id', None)
 bot_name = cfg.get('app.tns.bot_name', None)
 api_key = cfg.get('app.tns.api_key', None)
 look_back_days = cfg.get('app.tns.look_back_days', 1)
+
+
+def refresh_obj_on_frontend(obj, user_id='*'):
+    """Refresh an object's source page on the frontend for all users or a specific user.
+
+    Parameters
+    ----------
+    obj : `skyportal.models.Obj`
+        The object to refresh, with an id and internal_key
+    user_id : str, optional
+        The user ID to refresh the object for. If '*', refresh for all users.
+    """
+    try:
+        flow = Flow()
+        flow.push(
+            user_id,
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': obj.internal_key},
+        )
+    except Exception:
+        log(f'Error refreshing object {obj.id} on frontend')
 
 
 def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, session):
@@ -78,6 +99,25 @@ def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, se
                 elif obj.tns_name is None or obj.tns_name == "":
                     obj.tns_name = tns_name
                     obj.tns_info = tns_source_data
+                # if the obj has tns_info that contains radeg and decdeg,
+                # check if the new TNS source is closer to the obj than the existing TNS source
+                elif (
+                    isinstance(obj.tns_info, dict)
+                    and "radeg" in obj.tns_info
+                    and "decdeg" in obj.tns_info
+                ):
+                    existing_tns_dist = great_circle_distance(
+                        obj.ra,
+                        obj.dec,
+                        float(obj.tns_info["radeg"]),
+                        float(obj.tns_info["decdeg"]),
+                    )
+                    new_tns_dist = great_circle_distance(
+                        obj.ra, obj.dec, float(tns_ra), float(tns_dec)
+                    )
+                    if new_tns_dist < existing_tns_dist:
+                        obj.tns_name = tns_name
+                        obj.tns_info = tns_source_data
                 # if the current name doesn't have the SN designation but the new name has it, update
                 elif not str(obj.tns_name).lower().strip().startswith(
                     "sn"
@@ -89,12 +129,7 @@ def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, se
 
                 session.commit()
                 log(f"Updated object {obj.id} with TNS name {tns_name}")
-                flow = Flow()
-                flow.push(
-                    '*',
-                    'skyportal/REFRESH_SOURCE',
-                    payload={'obj_key': obj.internal_key},
-                )
+                refresh_obj_on_frontend(obj)
             except Exception as e:
                 log(f"Error updating object: {str(e)}")
                 session.rollback()
@@ -267,17 +302,26 @@ def process_queue(queue):
                         ra=existing_obj.ra,
                         dec=existing_obj.dec,
                         radius=float(task.get("radius", DEFAULT_RADIUS)),
+                        closest=True,  # get the closest object to the input coordinates as the TNS source
                     )
-                    if tns_source is None:
+                    log(
+                        f"Found TNS source {tns_source} for object {existing_obj.id} with prefix {tns_prefix}"
+                    )
+                    if tns_source in [None, "None", ""]:
                         raise ValueError(f'{task.get("obj_id")} not found on TNS.')
-                    tns_name = f"{tns_prefix} {tns_name}"
-                elif (
-                    task.get("tns_source") is not None
-                    and task.get("tns_prefix") is not None
-                ):
+                    tns_name = f"{tns_prefix} {tns_source}"
+                elif task.get("tns_source") is not None:
                     # here we just want to create a TNS source
                     tns_source = task.get("tns_source")
-                    tns_name = f"{task.get('tns_prefix')} {task.get('tns_source')}"
+                    tns_prefix = task.get("tns_prefix")
+
+                    # providing the prefix is not mandatory, just nice for logging if we already have it
+                    # we will retrieve if anyway if it's not provided when fetching the object from TNS
+                    if tns_prefix is not None:
+                        tns_name = f"{tns_prefix} {tns_source}"
+                    else:
+                        tns_name = tns_source
+                    log(f"Processing TNS source {tns_name}")
                 else:
                     log("No obj_id or tns_name provided, skipping")
                     continue
@@ -320,10 +364,33 @@ def process_queue(queue):
                     log(f"Error getting TNS data for {tns_name}: {r.text}")
                     continue
 
-                tns_source_data = r.json().get("data", dict()).get("reply", dict())
+                try:
+                    tns_source_data = r.json().get("data", dict()).get("reply", dict())
+                except Exception:
+                    tns_source_data = None
                 if tns_source_data is None:
                     log(f"Error getting TNS data for {tns_name}: no reply in data")
                     continue
+
+                try:
+                    # '110' is the TNS code we get when an object is not found
+                    msg = (
+                        tns_source_data.get("name", {})
+                        .get("110", {})
+                        .get("message", None)
+                    )
+                    if msg == 'No results found.':
+                        log(f"Could not find {tns_name} on TNS at {TNS_URL}")
+                        continue
+                except Exception:
+                    pass
+
+                tns_prefix = tns_source_data.get("name_prefix", None)
+                if tns_prefix is None:
+                    log(f"Error processing TNS source {tns_name}: obj has no prefix")
+                    continue
+
+                tns_name = f"{tns_prefix} {tns_source}"
 
                 ra, dec = tns_source_data.get("radeg", None), tns_source_data.get(
                     "decdeg", None
@@ -337,6 +404,8 @@ def process_queue(queue):
                     # simply add the TNS name to the existing object
                     existing_obj.tns_name = tns_name
                     existing_obj.tns_info = tns_source_data
+                    session.commit()
+                    refresh_obj_on_frontend(existing_obj)
                 else:
                     # otherwise, add the TNS name to all the existing sources within a 2 arcsec radius
                     add_tns_name_to_existing_objs(
@@ -345,22 +414,40 @@ def process_queue(queue):
 
                 with DBSession() as session:
                     existing_tns_obj = session.scalar(
-                        sa.select(Obj).where(Obj.id == tns_name)
+                        sa.select(Obj).where(Obj.id == tns_source)
                     )
-                    if existing_tns_obj is not None:
-                        # TODO: update photometry and spectra and not just skip
-                        log(
-                            f"TNS source {tns_name} already exists in the database, skipping..."
+                    existing_tns_public_source = session.scalar(
+                        sa.select(Source).where(
+                            Source.obj_id == tns_source,
+                            Source.group_id == public_group_id,
                         )
-                    else:
-                        # we add the TNS source to the database if it doesn't exist yet
-                        # with its photometry and spectra
+                    )
+                    # if an object already exists for this tns_source, we update its TNS name
+                    if (
+                        existing_tns_obj is not None
+                        and existing_tns_obj.tns_name != tns_name
+                    ):
+                        existing_tns_obj.tns_name = tns_name
+                        existing_tns_obj.tns_info = tns_source_data
+                        session.commit()
+                        log(
+                            f"TNS obj {tns_name} already exists in the database, updated its TNS name."
+                        )
+                        refresh_obj_on_frontend(existing_tns_obj)
+
+                    # if the obj does not exist or if it exists but is saved to the public group,
+                    # we create/save the TNS source to the public group
+                    if existing_tns_public_source is None:
+                        log(
+                            f"Saving TNS source {tns_name} to the database (public group)"
+                        )
                         new_source_data = {
                             "id": tns_source,  # the name without the prefix
                             "ra": ra,
                             "dec": dec,
                             "tns_name": tns_name,  # the name with the prefix (AT, SN, etc.)
                             "tns_info": tns_source_data,
+                            "group_ids": [public_group_id],
                         }
                         post_source(new_source_data, USER_ID, session)
 
@@ -429,22 +516,32 @@ def tns_watcher(queue):
     # useful if the app has been down for a while
     start_date = datetime.now() - timedelta(days=look_back_days)
     while True:
-        # convert start date to isot format
-        start_date = start_date.strftime("%Y-%m-%dT%H:%M:%S")
-        tns_sources = get_recent_TNS(api_key, tns_headers, start_date, get_data=False)
-        for tns_source in tns_sources:
-            # add the tns_source to the queue
-            queue.append(
-                {
-                    "tns_prefix": tns_source['prefix'],
-                    "tns_source": tns_source['id'],
-                    "obj_id": None,
-                }
+        try:
+            # convert start date to isot format
+            tns_sources = get_recent_TNS(
+                api_key,
+                tns_headers,
+                start_date.strftime("%Y-%m-%dT%H:%M:%S"),
+                get_data=False,
             )
-            log(f"Added TNS source {tns_source['id']} to the queue for processing")
+            for tns_source in tns_sources:
+                # add the tns_source to the queue
+                queue.append(
+                    {
+                        "tns_prefix": tns_source['prefix'],
+                        "tns_source": tns_source['id'],
+                        "obj_id": None,
+                    }
+                )
+                log(f"Added TNS source {tns_source['id']} to the queue for processing")
 
-        # we always look at a minimum of 1 hour back in time
-        start_date = datetime.now() - timedelta(hours=1)
+            # if we got any sources, we update the start date to now - 1 hour
+            # otherwise we keep querying TNS starting from same start date
+            if len(tns_sources) > 0:
+                start_date = datetime.now() - timedelta(hours=1)
+        except Exception as e:
+            log(f"Error getting TNS sources: {e}, retrying in 4 minutes")
+
         time.sleep(60 * 4)  # sleep for 4 minutes
 
 
@@ -468,6 +565,17 @@ def api(queue):
             except json.JSONDecodeError:
                 self.set_status(400)
                 return self.write({"status": "error", "message": "Malformed JSON data"})
+
+            if 'tns_source' in data:
+                queue.append({"tns_source": data['tns_source']})
+                self.set_status(200)
+                return self.write(
+                    {
+                        "status": "success",
+                        "message": "TNS request accepted into queue",
+                        "data": {"queue_length": len(queue)},
+                    }
+                )
 
             required_keys = {'obj_id', 'user_id'}
             if not required_keys.issubset(set(data.keys())):

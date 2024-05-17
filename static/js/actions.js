@@ -150,6 +150,11 @@ export default function hydrate(
           dispatch(hydrationActions.finishedHydrating("tnsrobots"));
         });
       }
+      if (ducks_to_hydrate.includes("galaxyCatalogs")) {
+        dispatch(galaxiesActions.fetchGalaxyCatalogs()).then(() => {
+          dispatch(hydrationActions.finishedHydrating("galaxyCatalogs"));
+        });
+      }
       if (ducks_to_hydrate.includes("rejected")) {
         dispatch(rejectedActions.fetchRejected()).then(() => {
           dispatch(hydrationActions.finishedHydrating("rejected"));

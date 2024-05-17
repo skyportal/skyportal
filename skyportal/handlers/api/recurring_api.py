@@ -101,6 +101,12 @@ class RecurringAPIHandler(BaseHandler):
             if data['number_of_retries'] > MAX_RETRIES:
                 return self.error(f'number_of_retries must be <= {MAX_RETRIES}')
 
+        if 'payload' in data:
+            try:
+                json.loads(data['payload'])
+            except json.JSONDecodeError:
+                return self.error('payload must be a valid JSON string')
+
         with self.Session() as session:
             schema = RecurringAPI.__schema__()
             try:

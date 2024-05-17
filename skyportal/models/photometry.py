@@ -170,6 +170,13 @@ class Photometry(conesearch_alchemy.Point, Base):
         doc="Annotations posted about this photometry.",
     )
 
+    validations = relationship(
+        "PhotometryValidation",
+        back_populates="photometry",
+        passive_deletes=True,
+        doc="Photometry validation check.",
+    )
+
     @hybrid_property
     def mag(self):
         """The magnitude of the photometry point in the AB system."""

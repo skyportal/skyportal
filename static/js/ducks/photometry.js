@@ -20,6 +20,7 @@ export function fetchSourcePhotometry(id, params = {}) {
   return API.GET(`/api/sources/${id}/photometry`, FETCH_SOURCE_PHOTOMETRY, {
     includeOwnerInfo: true,
     includeStreamInfo: true,
+    includeValidationInfo: true,
     ...params,
   });
 }
@@ -63,9 +64,9 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     // or if the source that is loaded is the one that is being
     // specified in the payload's obj_id
     const { source } = getState();
-    const { obj_id } = payload;
+    const { obj_id, magsys } = payload;
     if (source?.id && source.id === obj_id) {
-      dispatch(fetchSourcePhotometry(payload.obj_id));
+      dispatch(fetchSourcePhotometry(payload.obj_id, { magsys }));
     }
   }
 });

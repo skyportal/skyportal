@@ -50,15 +50,33 @@ const TransferList = ({
   };
 
   const handleCheckedRight = () => {
-    setRight(right.concat(leftChecked));
-    setLeft(not(left, leftChecked));
-    setChecked(not(checked, leftChecked));
+    const newRight = right
+      .concat(leftChecked)
+      .sort((a, b) => a?.label?.localeCompare(b?.label));
+    const newLeft = not(left, leftChecked).sort((a, b) =>
+      a?.label?.localeCompare(b?.label),
+    );
+    const newChecked = not(checked, leftChecked).sort((a, b) =>
+      a?.label?.localeCompare(b?.label),
+    );
+    setRight(newRight);
+    setLeft(newLeft);
+    setChecked(newChecked);
   };
 
   const handleCheckedLeft = () => {
-    setLeft(left.concat(rightChecked));
-    setRight(not(right, rightChecked));
-    setChecked(not(checked, rightChecked));
+    const newLeft = left
+      .concat(rightChecked)
+      .sort((a, b) => a?.label?.localeCompare(b?.label));
+    const newRight = not(right, rightChecked).sort((a, b) =>
+      a?.label?.localeCompare(b?.label),
+    );
+    const newChecked = not(checked, rightChecked).sort((a, b) =>
+      a?.label?.localeCompare(b?.label),
+    );
+    setLeft(newLeft);
+    setRight(newRight);
+    setChecked(newChecked);
   };
 
   const customList = (title, items) => (
@@ -89,6 +107,7 @@ const TransferList = ({
         sx={{
           width: "100%",
           height: "100%",
+          maxHeight: "60vh",
           bgcolor: "background.paper",
           overflow: "auto",
         }}

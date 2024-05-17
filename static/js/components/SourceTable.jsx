@@ -1457,6 +1457,13 @@ const SourceTable = ({
     }
 
     const data = filterOutEmptyValues(formData);
+
+    // the method above drops any empty or false params, but we make sure to keep requireDetections
+    // if it is False, as it's default is to be True
+    if (formData.requireDetections === false) {
+      data.requireDetections = false;
+    }
+
     setTableFilterList(
       Object.entries(data).map(([key, value]) => {
         if (key === "position") {

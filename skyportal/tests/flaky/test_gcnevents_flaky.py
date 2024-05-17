@@ -8,7 +8,6 @@ import numpy as np
 from skyportal.tests import api
 from skyportal.tests.frontend.test_reminders import (
     post_and_verify_reminder,
-    post_and_verify_reminder_frontend,
 )
 
 
@@ -148,18 +147,12 @@ def test_gcnevents_object(
     driver.wait_for_xpath('//*[text()="Fermi"]')
     driver.wait_for_xpath('//*[text()="GRB"]')
 
-    # test modify sources form
-    driver.wait_for_xpath('//*[@id="root_queryList"]')
-    driver.click_xpath('//*[@id="root_queryList"]')
-    driver.wait_for_xpath('//li[contains(text(), "sources")]')
-    driver.click_xpath('//li[contains(text(), "sources")]')
-
-    # Click somewhere outside to remove focus from dropdown select
-    driver.click_xpath("//body")
-
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
+
+    sources_button = driver.wait_for_xpath('//button[text()="Sources"]')
+    driver.scroll_to_element_and_click(sources_button)
 
     # check for object
     driver.wait_for_xpath(f'//*[text()[contains(.,"{obj_id}")]]', timeout=15)
@@ -191,14 +184,13 @@ def test_reminder_on_gcn(driver, super_admin_user, super_admin_token):
     gcn_event_id = data['data']['id']
 
     endpoint = f"gcn_event/{gcn_event_id}/reminders"
-    reminder_text = post_and_verify_reminder(endpoint, super_admin_token)
+    post_and_verify_reminder(endpoint, super_admin_token)
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/gcn_events/{dateobs}")
     driver.wait_for_xpath('//*[contains(.,"190814 21:10:39")]', timeout=30)
     driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
     driver.wait_for_xpath('//*[@href="/gcn_events/2019-08-14T21:10:39"]')
     driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
-    post_and_verify_reminder_frontend(driver, reminder_text)
 
 
 @pytest.mark.flaky(reruns=3)
@@ -316,23 +308,15 @@ def test_confirm_reject_source_in_gcn(
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/gcn_events/2019-08-14T21:10:39')
 
-    query_list = driver.wait_for_xpath(
-        '//*[@aria-labelledby="root_queryList-label root_queryList"]', 20
-    )
-    time.sleep(5)
-    driver.scroll_to_element_and_click(query_list)
-    driver.click_xpath('//li[@data-value="sources"]')
+    submit_button_xpath = '//button[@type="submit"]'
+    driver.wait_for_xpath(submit_button_xpath)
+    driver.click_xpath(submit_button_xpath)
 
-    driver.click_xpath('//body')
-
-    submit = driver.wait_for_xpath(
-        '//*[@data-testid="gcnsource-selection-form"]/*[@class="rjsf"]/*/*[@type="submit"]'
-    )
-    driver.scroll_to_element_and_click(submit)
-    driver.wait_for_xpath(f'//*[@href="/source/{obj_id}"]')
+    sources_button = driver.wait_for_xpath('//button[text()="Sources"]')
+    driver.scroll_to_element_and_click(sources_button)
     driver.wait_for_xpath(f'//*[@name="{obj_id}_gcn_status"]')
     driver.wait_for_xpath(
-        f'//*[@name="{obj_id}_gcn_status"]/*[@data-testid="QuestionMarkIcon"]'
+        f'//*[@name="{obj_id}_gcn_status"]/*[@data-testid="PriorityHighIcon"]'
     )
 
     edit_btn = driver.wait_for_xpath(
@@ -347,7 +331,7 @@ def test_confirm_reject_source_in_gcn(
 
     driver.scroll_to_element_and_click(edit_btn)
     undefined_btn = driver.wait_for_xpath(
-        '//*[@type="button" and contains(., "UNDEFINED")]'
+        '//*[@type="button" and contains(., "AMBIGUOUS")]'
     )
     driver.scroll_to_element_and_click(undefined_btn)
     driver.wait_for_xpath(
@@ -356,7 +340,7 @@ def test_confirm_reject_source_in_gcn(
 
     driver.scroll_to_element_and_click(edit_btn)
     confirm_btn = driver.wait_for_xpath(
-        '//*[@type="button" and contains(., "CONFIRM")]'
+        '//*[@type="button" and contains(., "HIGHLIGHT")]'
     )
     driver.scroll_to_element_and_click(confirm_btn)
     driver.wait_for_xpath(
@@ -365,5 +349,5 @@ def test_confirm_reject_source_in_gcn(
 
     driver.get(f'/source/{obj_id}')
 
-    driver.wait_for_xpath('//*[contains(., "Associated to:")]')
+    driver.wait_for_xpath('//*[contains(., "GCN Crossmatches:")]')
     driver.wait_for_xpath('//*[contains(., "2019-08-14T21:10:39")]')
