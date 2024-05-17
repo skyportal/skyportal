@@ -575,35 +575,34 @@ def post_followup_request(
                 payload={"request_id": followup_request.id},
             )
 
-    # try:
-    if True:
+    try:
         instrument.api_class.submit(
             followup_request,
             session,
             refresh_source=refresh_source,
             refresh_requests=refresh_requests,
         )
-    # except Exception:
-    #    followup_request.status = 'failed to submit'
-    #    raise
-    # finally:
-    #    session.commit()
-    #    if (
-    #        refresh_source or refresh_requests
-    #    ) and followup_request.status == 'failed to submit':
-    #        flow = Flow()
-    #        if refresh_source:
-    #            flow.push(
-    #                '*',
-    #                "skyportal/REFRESH_SOURCE",
-    #                payload={"obj_key": followup_request.obj.internal_key},
-    #            )
-    #        if refresh_requests:
-    #            flow.push(
-    #                followup_request.last_modified_by_id,
-    #                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-    #                payload={"request_id": followup_request.id},
-    #            )
+    except Exception:
+        followup_request.status = 'failed to submit'
+        raise
+    finally:
+        session.commit()
+        if (
+            refresh_source or refresh_requests
+        ) and followup_request.status == 'failed to submit':
+            flow = Flow()
+            if refresh_source:
+                flow.push(
+                    '*',
+                    "skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": followup_request.obj.internal_key},
+                )
+            if refresh_requests:
+                flow.push(
+                    followup_request.last_modified_by_id,
+                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+                    payload={"request_id": followup_request.id},
+                )
     return followup_request.id
 
 
@@ -1038,8 +1037,7 @@ class FollowupRequestHandler(BaseHandler):
                 return self.error('Invalid specified radius for spatial constraints.')
 
         with self.Session() as session:
-            # try:
-            if True:
+            try:
                 data["requester_id"] = self.associated_user_object.id
                 data["last_modified_by_id"] = self.associated_user_object.id
                 data['allocation_id'] = int(data['allocation_id'])
@@ -1053,17 +1051,17 @@ class FollowupRequestHandler(BaseHandler):
                 )
 
                 return self.success(data={"id": followup_request_id})
-            # except Exception as e:
-            #    if (
-            #        'not submitting request' in str(e)
-            #        and len(list(constraints.keys())) > 0
-            #    ):
-            #        return self.success(
-            #            data={"id": None, "ignored": True, "message": str(e)}
-            #        )
-            #    return self.error(
-            #        f'Error submitting follow-up request: {e.normalized_messages() if hasattr(e, "normalized_messages") else str(e)}'
-            #    )
+            except Exception as e:
+                if (
+                    'not submitting request' in str(e)
+                    and len(list(constraints.keys())) > 0
+                ):
+                    return self.success(
+                        data={"id": None, "ignored": True, "message": str(e)}
+                    )
+                return self.error(
+                    f'Error submitting follow-up request: {e.normalized_messages() if hasattr(e, "normalized_messages") else str(e)}'
+                )
 
     @permissions(["Upload data"])
     def put(self, request_id):
