@@ -36,19 +36,22 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublish = ({ source, photometry = null }) => {
+const SourcePublish = ({ source }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const currentUser = useSelector((state) => state.profile);
   const permissionToPublish =
     currentUser.permissions?.includes("Manage sources");
   const [sourcePublishDialogOpen, setSourcePublishDialogOpen] = useState(false);
-  const [publishButton, setPublishButton] = useState("publish");
+  const [publishButton, setPublishButton] = useState({
+    text: "Publish",
+    color: "",
+  });
   const [sourcePublishOptionsOpen, setSourcePublishOptionsOpen] =
     useState(false);
   const [sourcePublishHistoryOpen, setSourcePublishHistoryOpen] =
     useState(false);
-  const [newPageGenerate, setNewPageGenerate] = useState(null);
+  const [newPageGenerate, setNewPagePublished] = useState(null);
   const [updateThumbnailsData, setUpdateThumbnailsData] = useState(false);
   // Create data access options
   const [optionsState, setOptionsState] = useState({
@@ -85,41 +88,6 @@ const SourcePublish = ({ source, photometry = null }) => {
     if (updateThumbnailsData) {
       processThumbnailsData();
     }
-    const getPhotometry = () => {
-      if (!optionsState.include_photometry) {
-        return null;
-      }
-      // filter photometry based on selected groups and streams
-      return photometry !== null
-        ? photometry.filter(
-            (onePhotometry) =>
-              optionsState.groups.length === 0 ||
-              onePhotometry.groups.some((group) =>
-                optionsState.groups.includes(group.id),
-              ) ||
-              optionsState.streams.length === 0 ||
-              onePhotometry.streams.length === 0 ||
-              onePhotometry.streams.some((stream) =>
-                optionsState.streams.includes(stream.id),
-              ),
-          )
-        : [];
-    };
-
-    const getClassifications = () => {
-      if (!optionsState.include_classifications) {
-        return null;
-      }
-      // filter classifications based on selected groups
-      return source.classifications?.filter(
-        (onePhotometry) =>
-          !optionsState.groups.length ||
-          onePhotometry.groups.some((group) =>
-            optionsState.groups.includes(group.id),
-          ),
-      );
-    };
-
     return {
       source_id: source.id,
       radec_hhmmss: source.radec_hhmmss,
@@ -132,24 +100,28 @@ const SourcePublish = ({ source, photometry = null }) => {
       dm: source.dm?.toFixed(3),
       dl: source.luminosity_distance?.toFixed(2),
       thumbnails: source.thumbnails,
-      photometry: getPhotometry(),
-      classifications: getClassifications(),
+      options: optionsState,
     };
   };
 
   const publish = () => {
     if (!permissionToPublish) return;
-    setPublishButton("loading");
+
+    setPublishButton({ text: "loading", color: "" });
     const payload = {
       public_data: publicData(),
     };
     dispatch(
       publicSourcePageActions.generatePublicSourcePage(source.id, payload),
     ).then((data) => {
-      setPublishButton("done");
-      setNewPageGenerate(data.data.page);
+      if (data.status === "error") {
+        setPublishButton({ text: "Error", color: "red" });
+      } else {
+        setPublishButton({ text: "Done", color: "green" });
+        setNewPagePublished(data.data.page);
+      }
       setTimeout(() => {
-        setPublishButton("publish");
+        setPublishButton({ text: "Publish", color: "" });
       }, 2000);
     });
   };
@@ -196,15 +168,17 @@ const SourcePublish = ({ source, photometry = null }) => {
                   variant="contained"
                   onClick={publish}
                   style={{
-                    backgroundColor: publishButton === "done" ? "green" : "",
+                    backgroundColor: publishButton.color,
                     color: "white",
                   }}
-                  disabled={!permissionToPublish || publishButton !== "publish"}
+                  disabled={
+                    !permissionToPublish || publishButton.text !== "Publish"
+                  }
                 >
-                  {publishButton === "loading" ? (
+                  {publishButton.text === "loading" ? (
                     <CircularProgress size={24} />
                   ) : (
-                    publishButton
+                    publishButton.text
                   )}
                 </Button>
               </div>
@@ -274,11 +248,6 @@ SourcePublish.propTypes = {
     classifications: PropTypes.arrayOf(PropTypes.shape({})),
     is_public: PropTypes.bool,
   }).isRequired,
-  photometry: PropTypes.arrayOf(PropTypes.shape({})),
-};
-
-SourcePublish.defaultProps = {
-  photometry: null,
 };
 
 export default SourcePublish;

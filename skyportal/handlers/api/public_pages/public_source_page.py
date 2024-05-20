@@ -1,10 +1,12 @@
 import operator  # noqa: F401
 
+from sqlalchemy import or_
+
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 from ...base import BaseHandler
 
-from ....models import PublicSourcePage
+from ....models import PublicSourcePage, Group, Stream, Classification, Photometry
 
 log = make_log('api/public_source_page')
 
@@ -51,13 +53,44 @@ class PublicSourcePageHandler(BaseHandler):
             return self.error("No data provided")
         if source_id is None:
             return self.error("Source ID is required")
-        if data.get("public_data") is None:
+        public_data = data.get("public_data")
+        if public_data is None:
             return self.error("No data provided to display publicly")
 
         with self.Session() as session:
+            group_ids = public_data.get("options").get("groups")
+            stream_ids = public_data.get("options").get("streams")
+
+            if public_data.get("options").get("include_photometry"):
+                query = Photometry.select(session.user_or_token, mode="read").where(
+                    Photometry.obj_id == source_id
+                )
+                if len(group_ids) and len(stream_ids):
+                    query = query.where(
+                        or_(
+                            Photometry.groups.any(Group.id.in_(group_ids)),
+                            Photometry.streams.any(Stream.id.in_(stream_ids)),
+                        )
+                    )
+                public_data["photometry"] = [
+                    photo.to_dict_public() for photo in session.scalars(query).all()
+                ]
+
+            if public_data.get("options").get("include_classifications"):
+                query = Classification.select(session.user_or_token, mode="read").where(
+                    Classification.obj_id == source_id
+                )
+                if len(group_ids):
+                    query = query.where(
+                        Classification.groups.any(Group.id.in_(group_ids))
+                    )
+                public_data["classifications"] = [
+                    c.to_dict_public() for c in session.scalars(query).all()
+                ]
+
             public_source_page = PublicSourcePage(
                 source_id=source_id,
-                data=data.get("public_data"),
+                data=public_data,
                 is_public=True,
             )
             session.add(public_source_page)

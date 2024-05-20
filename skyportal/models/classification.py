@@ -90,6 +90,15 @@ class Classification(Base):
         doc="Classification votes for this classification.",
     )
 
+    def to_dict_public(self):
+        return {
+            'classification': self.classification,
+            'author_name': self.author_name,
+            'probability': self.probability,
+            'ml': self.ml,
+            'taxname': self.taxonomy.name if self.taxonomy else None,
+        }
+
 
 class ClassificationVote(Base):
     """Record of an instance in which a Classification is voted up or down
