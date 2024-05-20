@@ -295,7 +295,7 @@ class WINTERAPI(FollowUpAPI):
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": str(datetime.utcnow() + timedelta(days=1)).replace("T", ""),
+                "default": str(datetime.utcnow() + timedelta(days=7)).replace("T", ""),
             },
             "filter": {
                 "type": "string",
