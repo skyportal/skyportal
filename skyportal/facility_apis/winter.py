@@ -68,7 +68,7 @@ class WINTERRequest:
         t_exp = int(request.payload["exposure_time"]) * int(request.payload["n_dither"])
         # n_exp = int(request.payload.get("exposure_counts", 1))
         n_dither = int(request.payload["n_dither"])
-        dither_distance = float(request.payload.get("dither_distance", 30))
+        dither_distance = float(request.payload.get("dither_distance", 90))
         start_time_mjd = Time(request.payload["start_date"], format='iso').mjd
         end_time_mjd = Time(request.payload["end_date"], format='iso').mjd
         max_airmass = float(request.payload.get("maximum_airmass", 2.0))
@@ -134,7 +134,7 @@ class WINTERAPI(FollowUpAPI):
         )
 
         payload['priority'] = payload.get('priority', 50)
-        payload['dither_distance'] = payload.get('dither_distance', 30)
+        payload['dither_distance'] = payload.get('dither_distance', 90)
         payload['maximum_airmass'] = payload.get('maximum_airmass', 2.0)
 
         if "advanced" in payload:
@@ -329,7 +329,7 @@ class WINTERAPI(FollowUpAPI):
                             "dither_distance": {
                                 "type": "number",
                                 "title": "Dither Distance (arcsec)",
-                                "default": 30,
+                                "default": 90,
                                 "minimum": 0,
                             },
                             "maximum_airmass": {
