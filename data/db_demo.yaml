@@ -350,6 +350,14 @@ telescope:
     robotic: true
     diameter: 1.9
     =id: KAO-1p9m
+  - name: SOAR Telescope
+    nickname: SOAR
+    lat: -30.2379
+    lon: -70.7337
+    elevation: 2738
+    robotic: true
+    diameter: 4.1
+    =id: SOAR
 
 instrument:
   - name: ZTF
@@ -578,6 +586,24 @@ instrument:
     =id: KAO
     api_classname: GENERICAPI
     filters: ["ps1::open", "sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+  - name: GHTS Camera
+    type: imager
+    telescope_id: =SOAR
+    filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+    api_classname: SOARGHTSIMAGERAPI
+    =id: GHTSCamera
+  - band: optical
+    name: GHTS
+    telescope_id: =SOAR
+    type: spectrograph
+    api_classname: SOARGHTSAPI
+    =id: GHTS
+  - band: nir
+    name: TripleSpec
+    telescope_id: =SOAR
+    type: spectrograph
+    api_classname: SOARTSPECAPI
+    =id: TripleSpec
 
 instrument/=SEDMv2/log:
   - start_date: "2023-06-02T22:00:00"
@@ -745,6 +771,27 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TRT
+  - pi: Michael Coughlin
+    proposal_id: GHTS-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =GHTS
+  - pi: Michael Coughlin
+    proposal_id: GHTSCamera-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =GHTSCamera
+  - pi: Michael Coughlin
+    proposal_id: TSPEC-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =TripleSpec
 
 galaxy_catalog:
   - catalog_name: CLU_mini
