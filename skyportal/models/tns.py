@@ -149,6 +149,7 @@ class TNSRobotGroup(Base):
 
     owner = sa.Column(sa.Boolean, nullable=False, default=False)
     auto_report = sa.Column(sa.Boolean, nullable=False, default=False)
+    auto_report_allow_bots = sa.Column(sa.Boolean, nullable=False, default=False)
 
     tnsrobot = relationship(
         'TNSRobot',
@@ -222,6 +223,12 @@ class TNSRobotSubmission(Base):
         nullable=True,
         default=None,
         doc="Custom reporting string to use for this submission only.",
+    )
+    custom_remarks_string = sa.Column(
+        sa.String,
+        nullable=True,
+        default=None,
+        doc="Custom remarks string to use for this submission only.",
     )
 
     status = sa.Column(sa.String, nullable=False, default='pending')

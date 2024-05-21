@@ -155,19 +155,22 @@ class SourceGroupsHandler(BaseHandler):
                     # 3. submitted
                     # 4. complete
                     # if so, do not add another request
-                    existing_submission_request = session.scalars(
-                        TNSRobotSubmission.select(session.user_or_token).where(
-                            TNSRobotSubmission.obj_id == obj.id,
-                            TNSRobotSubmission.tnsrobot_id
-                            == tnsrobot_group_with_autoreporter.tnsrobot_id,
-                            sa.or_(
-                                TNSRobotSubmission.status == "pending",
-                                TNSRobotSubmission.status == "processing",
-                                TNSRobotSubmission.status.like("submitted%"),
-                                TNSRobotSubmission.status.like("complete%"),
-                            ),
+                    stmt = TNSRobotSubmission.select(session.user_or_token).where(
+                        TNSRobotSubmission.obj_id == obj.id,
+                        TNSRobotSubmission.tnsrobot_id
+                        == tnsrobot_group_with_autoreporter.tnsrobot_id,
+                        sa.or_(
+                            TNSRobotSubmission.status == "pending",
+                            TNSRobotSubmission.status == "processing",
+                            TNSRobotSubmission.status.like("submitted%"),
+                            TNSRobotSubmission.status.like("complete%"),
+                        ),
+                    )
+                    if self.associated_user_object.is_bot:
+                        stmt = stmt.where(
+                            TNSRobotGroup.auto_report_allow_bots.is_(True)
                         )
-                    ).first()
+                    existing_submission_request = session.scalars(stmt).first()
                     if existing_submission_request is not None:
                         log(
                             f"Submission request already exists for obj_id {obj.id} and tnsrobot_id {tnsrobot_group_with_autoreporter.tnsrobot_id}"
