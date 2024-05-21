@@ -1,6 +1,7 @@
 import operator  # noqa: F401
 import json
 
+import joblib
 from sqlalchemy import or_
 
 from baselayer.app.access import auth_or_token, permissions
@@ -13,7 +14,7 @@ log = make_log('api/public_source_page')
 
 
 def calculate_hash(data):
-    return str(hash(json.dumps(data, sort_keys=True)))
+    return joblib.hash(json.dumps(data, sort_keys=True))
 
 
 class PublicSourcePageHandler(BaseHandler):
