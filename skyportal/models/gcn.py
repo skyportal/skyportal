@@ -160,7 +160,7 @@ class GcnReport(Base):
         doc='Whether GcnReport should be published',
     )
 
-    def generate_plot(self, figsize=(10, 5), output_format='png'):
+    def get_plot(self, figsize=(10, 5), output_format='png'):
         """GcnReport plot.
         Parameters
         ----------
@@ -263,9 +263,8 @@ class GcnReport(Base):
 
         return buf.read()
 
-    def generate_html(self):
-        """Publish GcnReport."""
-        # TODO: create the hmtl and cache it
+    def get_html(self):
+        """Get the HTML content of the GCN report."""
         data = self.data
         if isinstance(data, str):
             data = json.loads(data)
@@ -297,6 +296,7 @@ class GcnReport(Base):
         return html
 
     def generate_report(self):
+        """Generate the GCN report and cache it."""
         data = self.data
         if isinstance(data, str):
             try:
@@ -308,8 +308,8 @@ class GcnReport(Base):
         elif data.get("status") == "pending":
             raise ValueError("Report is still being generated.")
         cache_key = f"gcn_{self.id}"
-        pub_html = self.generate_html()
-        pub_plot = self.generate_plot()
+        pub_html = self.get_html()
+        pub_plot = self.get_plot()
         cache[cache_key] = dict_to_bytes(
             {"published": True, "html": pub_html, "plot": pub_plot}
         )

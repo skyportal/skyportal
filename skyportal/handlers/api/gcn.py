@@ -3945,7 +3945,7 @@ class GcnReportHandler(BaseHandler):
                 else:
                     report.unpublish()
             else:
-                report.generate_html()
+                report.generate_report()
 
             session.commit()
 
