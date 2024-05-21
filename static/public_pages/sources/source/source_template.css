@@ -9,7 +9,10 @@
       display: flex;
       justify-content: space-between;
       margin-bottom: 0.5rem;
-      span {
+      .date {
+        @media screen and (max-width: 600px) {
+          font-size: 0.55rem;
+        }
         font-weight: bold;
         font-size: 0.9rem;
         color: gray;
@@ -45,6 +48,7 @@
     .images {
       margin-top: 1rem;
       display: flex;
+      flex-wrap: wrap;
       gap: 0.5rem 0.5rem;
 
       .imageAndTitle {
@@ -53,7 +57,10 @@
         border-radius: 4px;
         max-height: 31rem;
         max-width: 13rem;
-        width: 100%;
+        width: 31%;
+        @media screen and (max-width: 450px) {
+          width: 48%;
+        }
 
         .title {
           letter-spacing: 0.009em;

@@ -54,7 +54,7 @@
       <div class="card resumeCard">
         <div class="titleAndDate">
           <h1>{{ data['source_id'] }}</h1>
-          <span>{{ created_at.strftime('%m/%d/%Y %H:%M:%S') }} UTC</span>
+          <span class="date">{{ created_at.strftime('%m/%d/%Y %H:%M:%S') }} UTC</span>
         </div>
         {% if classifications %}
         <div class="classificationsTag">
@@ -85,7 +85,7 @@
           </h3>
           <h3>
             Redshift:
-            <span> {{ data['redshift'] }} </span>
+            <span> {{ data['redshift'] if data.get('redshift') else '...' }} </span>
             {% if data.get('dm') %} DM:
             <span> {{ data['dm'] }} mag </span>
             {% endif %} {% if data.get('dl') %}

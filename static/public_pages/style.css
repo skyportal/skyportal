@@ -10,7 +10,6 @@ body {
   font-family: "Roboto", Helvetica, Ariel, sans-serif;
   color: rgba(0, 0, 0, 0.87);
   background-color: #f0f2f5;
-  font-size: 1rem;
   height: 100%;
   margin: 0;
 }
@@ -39,23 +38,32 @@ header {
 
 h1 {
   color: #457b9d;
-  font-size: 2rem;
   font-weight: bold;
   margin: 0;
+  font-size: 2rem;
+  @media screen and (max-width: 600px) {
+    font-size: 1.9rem;
+  }
 }
 
 h2 {
   line-height: 1.5rem;
-  font-size: 1.25rem;
   font-weight: normal;
   margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  @media screen and (max-width: 600px) {
+    font-size: 1.15rem;
+  }
 }
 
 h3 {
   line-height: 1.2rem;
   font-weight: bold;
-  font-size: 1rem;
   margin: 0;
+  font-size: 1rem;
+  @media screen and (max-width: 600px) {
+    font-size: 0.9rem;
+  }
 }
 
 a {
@@ -64,6 +72,7 @@ a {
 }
 
 p {
+  font-size: 0.9rem;
   margin: 0;
 }
 
