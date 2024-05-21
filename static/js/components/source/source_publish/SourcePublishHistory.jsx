@@ -80,13 +80,13 @@ const SourcePublishHistory = ({ source_id, newPageGenerate = null }) => {
               className={styles.versionHistoryLine}
               key={`version_${version.id}}`}
             >
-              <b>{displayDate(version.created_at_iso)}</b>
+              <b>{displayDate(version.created_at)}</b>
               <div>
                 <div>Photometry: {version?.options?.photometry}</div>
                 <div>Classifications: {version?.options?.classifications}</div>
               </div>
               <Link
-                href={`/public/sources/${source_id}/version/${version?.created_at_iso}`}
+                href={`/public/sources/${source_id}/version/${version?.hash}`}
                 target="_blank"
                 rel="noreferrer"
                 underline="hover"
@@ -117,10 +117,11 @@ SourcePublishHistory.propTypes = {
   newPageGenerate: PropTypes.shape({
     PublicSourcePage: PropTypes.shape({
       id: PropTypes.number,
-      created_at_iso: PropTypes.string,
+      created_at: PropTypes.string,
+      hash: PropTypes.string,
       data: PropTypes.shape({
-        photometry: PropTypes.bool,
-        classifications: PropTypes.bool,
+        photometry: PropTypes.string,
+        classifications: PropTypes.string,
       }),
     }),
   }),

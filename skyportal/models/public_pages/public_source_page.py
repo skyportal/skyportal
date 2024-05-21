@@ -3,7 +3,6 @@ __all__ = ['PublicSourcePage']
 import json
 import jinja2
 import sqlalchemy as sa
-from sqlalchemy import event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import deferred
 from baselayer.app.env import load_env
@@ -49,14 +48,14 @@ class PublicSourcePage(Base):
 
     source_id = sa.Column(sa.String, nullable=False, doc="ID of the source")
 
-    created_at_iso = sa.Column(
-        sa.String,
-        nullable=True,
-        doc="Creation date in ISO format",
-    )
-
     data = deferred(
         sa.Column(JSONB, nullable=False, doc="Source data accessible on the page")
+    )
+
+    hash = sa.Column(
+        sa.String,
+        nullable=False,
+        doc="Hash of the source data used to identify the page version",
     )
 
     is_public = sa.Column(
@@ -66,6 +65,13 @@ class PublicSourcePage(Base):
         doc='Whether the page is accessible to the public.',
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.hash = self.calculate_hash()
+
+    def calculate_hash(self):
+        return hash(json.dumps(self.data, sort_keys=True))
+
     def to_dict(self):
         """Convert the page to a dictionary with
         the options to be displayed and the creation date in ISO format."""
@@ -73,7 +79,8 @@ class PublicSourcePage(Base):
             'id': self.id,
             'source_id': self.source_id,
             'is_public': self.is_public,
-            'created_at_iso': self.created_at_iso,
+            'created_at': self.created_at,
+            'hash': self.hash,
             'options': self.get_options(),
         }
 
@@ -94,36 +101,22 @@ class PublicSourcePage(Base):
             else "private",
         }
 
-    def publish(self):
-        """Set the page to public and create the public source page."""
-        self.is_public = True
-        self.generate_public_source_page()
-
-    def generate_public_source_page(self):
-        """Generate a public page of the source and cache it."""
+    def generate_page(self):
+        """Generate the public page for the source and cache it."""
         data = self.data
         if isinstance(data, str):
             try:
                 data = json.loads(data)
             except Exception:
-                data = {"status": "error", "message": "Invalid JSON data."}
-        if data.get("status") == "error":
-            raise ValueError(data.get("message", "Invalid JSON data."))
-        elif data.get("status") == "pending":
-            raise ValueError("Public source page is still being generated.")
-        # Set the data status to pending to indicate that the page is being generated
-        self.data.update({"status": "pending"})
+                raise ValueError("Invalid data provided")
+        cache_key = f"source_{self.source_id}_version_{self.hash}"
+        public_source_page_html = self.get_html(data)
+        cache[cache_key] = dict_to_bytes(
+            {"public": True, "html": public_source_page_html}
+        )
 
-        cache_key = f"source_{self.source_id}_version_{self.created_at_iso}"
-        public_source_page = self.generate_html(data)
-        cache[cache_key] = dict_to_bytes({"public": True, "html": public_source_page})
-        self.data.update({"status": "success"})
-
-    def generate_html(self, public_data):
-        """Generate HTML for the public page of the source."""
-        if isinstance(public_data, str):
-            public_data = json.loads(public_data)
-
+    def get_html(self, public_data):
+        """Get the HTML content of the public source page."""
         # Create the filters mapper
         if "photometry" in public_data and public_data["photometry"] is not None:
             from skyportal.handlers.api.photometry import get_bandpasses_to_colors
@@ -140,21 +133,11 @@ class PublicSourcePage(Base):
         template = environment.get_template("source_template.html")
         html = template.render(
             data=public_data,
-            creation_date=self.created_at,
+            created_at=self.created_at,
         )
         return html
 
     def remove_from_cache(self):
         """Remove the page from the cache."""
-        cache_key = f"source_{self.source_id}_version_{self.created_at_iso}"
+        cache_key = f"source_{self.source_id}_version_{self.hash}"
         del cache[cache_key]
-
-
-@event.listens_for(PublicSourcePage, 'after_insert')
-def _set_created_at_iso(_, connection, target):
-    """Set the creation date in ISO format after the page is created."""
-    connection.execute(
-        sa.update(PublicSourcePage.__table__)
-        .where(PublicSourcePage.id == target.id)
-        .values(created_at_iso=target.created_at.isoformat(timespec='seconds'))
-    )

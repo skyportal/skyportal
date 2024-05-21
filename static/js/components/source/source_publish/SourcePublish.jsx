@@ -118,7 +118,7 @@ const SourcePublish = ({ source }) => {
         setPublishButton({ text: "Error", color: "red" });
       } else {
         setPublishButton({ text: "Done", color: "green" });
-        setNewPagePublished(data.data.page);
+        setNewPagePublished(data.data.public_source_page);
       }
       setTimeout(() => {
         setPublishButton({ text: "Publish", color: "" });

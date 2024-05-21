@@ -95,8 +95,8 @@ class PublicSourcePageHandler(BaseHandler):
             )
             session.add(public_source_page)
             session.commit()
-            public_source_page.publish()
-            return self.success({"page": public_source_page})
+            public_source_page.generate_page()
+            return self.success({"public_source_page": public_source_page})
 
     @auth_or_token
     def get(self, source_id, nb_results=None):
