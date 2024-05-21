@@ -246,7 +246,6 @@ SourcePublish.propTypes = {
     thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
     photometry_exists: PropTypes.bool,
     classifications: PropTypes.arrayOf(PropTypes.shape({})),
-    is_public: PropTypes.bool,
   }).isRequired,
 };
 

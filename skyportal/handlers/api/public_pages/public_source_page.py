@@ -1,4 +1,5 @@
 import operator  # noqa: F401
+import json
 
 from sqlalchemy import or_
 
@@ -11,14 +12,18 @@ from ....models import PublicSourcePage, Group, Stream, Classification, Photomet
 log = make_log('api/public_source_page')
 
 
+def calculate_hash(data):
+    return str(hash(json.dumps(data, sort_keys=True)))
+
+
 class PublicSourcePageHandler(BaseHandler):
     @permissions(['Manage sources'])
     async def post(self, source_id):
         """
         ---
           description:
-            Create a public page for a source at a given date
-            with given data to display publicly
+            Create a public page for a source with given data
+            to display publicly, only if this page does not already exist
           tags:
             - public_source_page
           parameters:
@@ -88,10 +93,25 @@ class PublicSourcePageHandler(BaseHandler):
                     c.to_dict_public() for c in session.scalars(query).all()
                 ]
 
+            new_page_hash = calculate_hash(public_data)
+            if (
+                session.scalars(
+                    PublicSourcePage.select(session.user_or_token, mode="read").where(
+                        PublicSourcePage.source_id == source_id,
+                        PublicSourcePage.hash == new_page_hash,
+                    )
+                ).first()
+                is not None
+            ):
+                return self.error(
+                    "A public page with the same data already exists for this source"
+                )
+
             public_source_page = PublicSourcePage(
                 source_id=source_id,
+                hash=new_page_hash,
                 data=public_data,
-                is_public=True,
+                is_visible=True,
             )
             session.add(public_source_page)
             session.commit()
@@ -140,7 +160,7 @@ class PublicSourcePageHandler(BaseHandler):
             stmt = (
                 PublicSourcePage.select(session.user_or_token, mode="read")
                 .where(
-                    PublicSourcePage.source_id == source_id, PublicSourcePage.is_public
+                    PublicSourcePage.source_id == source_id, PublicSourcePage.is_visible
                 )
                 .order_by(PublicSourcePage.created_at.desc())
             )

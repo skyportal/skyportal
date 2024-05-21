@@ -1434,7 +1434,6 @@ SourceContent.propTypes = {
     redshift_error: PropTypes.number,
     z_round: PropTypes.number,
     radec_hhmmss: PropTypes.string,
-    is_public: PropTypes.bool,
     summary_history: PropTypes.arrayOf(
       PropTypes.shape({
         summary: PropTypes.string,

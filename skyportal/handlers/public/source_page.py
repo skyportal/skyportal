@@ -21,7 +21,7 @@ cache = Cache(
 
 def get_version(session, source_id, version_hash):
     query = sa.select(PublicSourcePage).where(
-        PublicSourcePage.source_id == source_id, PublicSourcePage.is_public
+        PublicSourcePage.source_id == source_id, PublicSourcePage.is_visible
     )
     if version_hash:
         query = query.where(PublicSourcePage.hash == version_hash)
@@ -81,7 +81,7 @@ class SourcePageHandler(BaseHandler):
             if source_id is None:
                 versions = session.scalars(
                     sa.select(PublicSourcePage)
-                    .where(PublicSourcePage.is_public)
+                    .where(PublicSourcePage.is_visible)
                     .order_by(PublicSourcePage.created_at.desc())
                 ).all()
                 versions_by_source = {}

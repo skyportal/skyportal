@@ -58,19 +58,12 @@ class PublicSourcePage(Base):
         doc="Hash of the source data used to identify the page version",
     )
 
-    is_public = sa.Column(
+    is_visible = sa.Column(
         sa.Boolean,
         nullable=False,
         server_default='false',
-        doc='Whether the page is accessible to the public.',
+        doc='Whether the page is visible to the public',
     )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.hash = self.calculate_hash()
-
-    def calculate_hash(self):
-        return hash(json.dumps(self.data, sort_keys=True))
 
     def to_dict(self):
         """Convert the page to a dictionary with
@@ -78,7 +71,7 @@ class PublicSourcePage(Base):
         return {
             'id': self.id,
             'source_id': self.source_id,
-            'is_public': self.is_public,
+            'is_visible': self.is_visible,
             'created_at': self.created_at,
             'hash': self.hash,
             'options': self.get_options(),
