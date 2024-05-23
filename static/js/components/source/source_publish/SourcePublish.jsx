@@ -50,7 +50,7 @@ const SourcePublish = ({ source }) => {
   const [sourcePublishOptionsOpen, setSourcePublishOptionsOpen] =
     useState(false);
   const [sourcePublishHistoryOpen, setSourcePublishHistoryOpen] =
-    useState(false);
+    useState(true);
   const [newPageGenerate, setNewPagePublished] = useState(null);
   const [updateThumbnailsData, setUpdateThumbnailsData] = useState(false);
   // Create data access options
