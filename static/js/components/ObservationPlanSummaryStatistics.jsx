@@ -7,7 +7,11 @@ const ObservationPlanSummaryStatistics = ({ observationplanRequest }) => {
   const summaryStatistics =
     observationplanRequest?.observation_plans[0]?.statistics;
 
-  if (observationplanRequest?.status !== "complete") {
+  if (
+    !["complete", "submitted to telescope queue"].includes(
+      observationplanRequest?.status,
+    )
+  ) {
     return (
       <div>
         <p>Only available for completed requests.</p>

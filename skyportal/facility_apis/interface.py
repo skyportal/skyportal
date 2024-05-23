@@ -175,3 +175,8 @@ class FollowUpAPI(_Base):
     # mapping of any jsonschema property names to how they shoud be rendered
     # on the frontend. example - {"observation_mode": "Observation Mode"}
     alias_lookup = {}
+
+    # the order of the priority if it is a parameter of the form:
+    # - "asc" means that higher priority is more urgent (default if not provided),
+    # - "desc" means that lower priority is more urgent
+    priorityOrder = "asc"
