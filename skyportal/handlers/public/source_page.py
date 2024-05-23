@@ -1,16 +1,14 @@
 import numpy as np
-from sqlalchemy.orm import scoped_session, sessionmaker
 import sqlalchemy as sa
 
 from baselayer.app.env import load_env
+from baselayer.app.models import DBSession
 from ...models.public_pages.public_source_page import PublicSourcePage
 
 from ...utils.cache import Cache
 from ..base import BaseHandler
 
 env, cfg = load_env()
-
-Session = scoped_session(sessionmaker())
 
 cache_dir = "cache/public_pages/sources"
 cache = Cache(
@@ -76,7 +74,7 @@ class SourcePageHandler(BaseHandler):
                         type: string
                         description: The HTML content of the page listing all public source pages
         """
-        with self.Session() as session:
+        with DBSession() as session:
             # If source_id is None, list all public source pages
             if source_id is None:
                 versions = session.scalars(
