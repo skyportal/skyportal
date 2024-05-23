@@ -74,9 +74,9 @@
           id="versions-of-source-{{source}}"
           style="display: none"
         >
-          {% for version in versions %}
+          {% for index, version in enumerate(versions) %}
           <div class="version">
-            <div class="versionId">#{{version.id}}</div>
+            <div class="versionId">#{{len(versions) - index}}</div>
             <a
               class="boxShadow"
               href="/public/sources/{{ source }}/version/{{ version.hash }}"
