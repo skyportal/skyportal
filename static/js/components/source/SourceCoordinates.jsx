@@ -2,6 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import Tooltip from "@mui/material/Tooltip";
 import UpdateSourceCoordinates from "../UpdateSourceCoordinates";
+import { dec_to_dms, ra_to_hours } from "../../units";
 
 const SourceCoordinates = ({ classes, source, downMd = false }) => {
   const ra = source?.adjusted_position?.ra || source.ra;
@@ -16,6 +17,9 @@ const SourceCoordinates = ({ classes, source, downMd = false }) => {
           2,
         )}" from the original)`
       : "The coordinates displayed here are the original coordinates of the object";
+
+  const getRaDec = (real_ra, real_dec) =>
+    `${ra_to_hours(real_ra, ":")} ${dec_to_dms(real_dec, ":")}`;
 
   return (
     <Tooltip title={title} placement="top">
@@ -33,7 +37,7 @@ const SourceCoordinates = ({ classes, source, downMd = false }) => {
               fontSize: downMd ? "1rem" : "110%",
             }}
           >
-            {source.radec_hhmmss}
+            {getRaDec(ra, dec)}
           </span>
         </div>
         <div className={classes.sourceInfo}>
@@ -65,7 +69,6 @@ SourceCoordinates.propTypes = {
   source: PropTypes.shape({
     ra: PropTypes.number,
     dec: PropTypes.number,
-    radec_hhmmss: PropTypes.string,
     gal_lat: PropTypes.number,
     gal_lon: PropTypes.number,
     ebv: PropTypes.number,

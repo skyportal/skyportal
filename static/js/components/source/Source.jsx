@@ -38,7 +38,6 @@ import ShowClassification from "../ShowClassification";
 import ShowSummaries from "../ShowSummaries";
 import SurveyLinkList from "../SurveyLinkList";
 import StarList from "../StarList";
-import { ra_to_hours, dec_to_dms } from "../../units";
 import FollowupRequestForm from "../followup_request/FollowupRequestForm";
 import FollowupRequestLists from "../followup_request/FollowupRequestLists";
 import AssignmentForm from "../AssignmentForm";
@@ -297,15 +296,8 @@ const SourceContent = ({ source }) => {
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
   }, [source.id, magsys, dispatch]);
 
-  useEffect(() => {
-    source.radec_hhmmss = `${ra_to_hours(source.ra, ":")} ${dec_to_dms(
-      source.dec,
-      ":",
-    )}`;
-    source.z_round = source.redshift_error
-      ? ceil(abs(log10(source.redshift_error)))
-      : 4;
-  }, [source]);
+  const getZRound = (redshift_error) =>
+    redshift_error ? ceil(abs(log10(redshift_error))) : 4;
 
   const setHost = (galaxyName) => {
     dispatch(sourceActions.addHost(source.id, { galaxyName }));
@@ -648,10 +640,13 @@ const SourceContent = ({ source }) => {
             >
               <div>
                 <b>Redshift: &nbsp;</b>
-                {source.redshift && source.redshift.toFixed(source.z_round)}
+                {source.redshift &&
+                  source.redshift.toFixed(getZRound(source.redshift_error))}
                 {source.redshift_error && <b>&nbsp; &plusmn; &nbsp;</b>}
                 {source.redshift_error &&
-                  source.redshift_error.toFixed(source.z_round)}
+                  source.redshift_error.toFixed(
+                    getZRound(source.redshift_error),
+                  )}
                 <UpdateSourceRedshift source={source} />
                 <SourceRedshiftHistory
                   redshiftHistory={source.redshift_history}
@@ -1432,8 +1427,6 @@ SourceContent.propTypes = {
     thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
     redshift: PropTypes.number,
     redshift_error: PropTypes.number,
-    z_round: PropTypes.number,
-    radec_hhmmss: PropTypes.string,
     summary_history: PropTypes.arrayOf(
       PropTypes.shape({
         summary: PropTypes.string,
