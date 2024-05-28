@@ -8,7 +8,13 @@ from sqlalchemy.exc import IntegrityError
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
 from ...base import BaseHandler
-from ....models import User, TNSRobotGroup, TNSRobotGroupAutoreporter, GroupUser
+from ....models import (
+    User,
+    GroupUser,
+    TNSRobotGroup,
+    TNSRobotGroupAutoreporter,
+    TNSRobotCoauthor,
+)
 
 
 class ProfileHandler(BaseHandler):
@@ -229,9 +235,9 @@ class ProfileHandler(BaseHandler):
                         TNSRobotGroup.auto_report.is_(True),
                         TNSRobotGroup.auto_report_allow_bots.is_(False),
                     )
-                )
+                ).all()
                 for tnsrobot_group in tnsrobot_groups_no_bot_autoreports:
-                    autoreporter = session.scalar(
+                    autoreporter = session.scalars(
                         sa.select(TNSRobotGroupAutoreporter).where(
                             TNSRobotGroupAutoreporter.tnsrobot_group_id
                             == tnsrobot_group.id,
@@ -242,11 +248,22 @@ class ProfileHandler(BaseHandler):
                                 )
                             ),
                         )
-                    )
+                    ).first()
                     if autoreporter is not None:
                         return self.error(
                             "User is an autoreporter of a TNS robot group that does not allow bots to be autoreporters. Please remove the autoreporter status first, or allow bot autoreporting."
                         )
+
+                # check that the user isn't a coauthor of any TNS bot, in which case they can't be a bot
+                tns_bot_coauthor = session.scalars(
+                    TNSRobotCoauthor.select(session.user_or_token).where(
+                        TNSRobotCoauthor.user_id == user.id
+                    )
+                ).first()
+                if tns_bot_coauthor is not None:
+                    return self.error(
+                        "User is a coauthor of a TNS robot and cannot be flagged as a bot."
+                    )
 
             if data.get("contact_phone") is not None:
                 phone = data.pop("contact_phone")
