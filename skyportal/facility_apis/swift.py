@@ -162,7 +162,7 @@ class UVOTXRTRequest:
         too.exp_time_just = request.payload["exp_time_just"]
         too.immediate_objective = request.payload["immediate_objective"]
 
-        if request.payload["urgency"] not in ["0", "1", "2", "3", "4"]:
+        if str(request.payload["urgency"]) not in ["0", "1", "2", "3", "4"]:
             raise ValueError('urgency not one of 0, 1, 2, 3, or 4.')
         too.urgency = int(request.payload["urgency"])
 
@@ -709,3 +709,5 @@ class UVOTXRTAPI(FollowUpAPI):
     }
 
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
+
+    priorityOrder = "desc"
