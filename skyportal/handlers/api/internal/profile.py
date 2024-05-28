@@ -188,7 +188,23 @@ class ProfileHandler(BaseHandler):
                     )
 
             if data.get("bio") is not None and isinstance(data.get("bio"), str):
-                user.bio = data.pop("bio")
+                bio = data.pop("bio")
+                bio = str(bio).strip()
+
+                # the bio must be more than 10 characters, and less than 1000 characters
+                if len(bio) < 10:
+                    return self.error("Bio must be at least 10 characters long.")
+                if len(bio) > 1000:
+                    return self.error("Bio must be less than 1000 characters long.")
+
+                # capitalize the first letter of the bio
+                bio = bio[0].upper() + bio[1:]
+
+                # if it doesn't end in a period, exclamation point, or question mark, add a period
+                if bio[-1] not in [".", "!", "?"]:
+                    bio += "."
+
+                user.bio = bio
 
             if data.get("is_bot") not in [None, ""]:
                 if str(data.get("is_bot")).lower() in ["true", "t", "1"]:

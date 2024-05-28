@@ -402,6 +402,20 @@ def build_reporters_and_remarks_string(submission_request, source, tnsrobot, ses
                 f'One or more authors are bots that are missing a bio/description: {", ".join([author.username for author in bot_authors_with_missing_bios])}, cannot report {obj_id} to TNS.'
             )
 
+        # verify that the bios are correct too, i.e. more than 10 characters and less than 1000 characters
+        bot_authors_with_invalid_bios = [
+            author
+            for author in authors
+            if author.is_bot
+            and (
+                len(str(author.bio).strip()) < 10 or len(str(author.bio).strip()) > 1000
+            )
+        ]
+        if len(bot_authors_with_invalid_bios) > 0:
+            raise TNSReportWarning(
+                f'One or more authors are bots that have a bio/description that is too short or too long: {", ".join([author.username for author in bot_authors_with_invalid_bios])}, cannot report {obj_id} to TNS.'
+            )
+
         reporters = []
         remarks = []
         for author in authors:
@@ -430,11 +444,11 @@ def build_reporters_and_remarks_string(submission_request, source, tnsrobot, ses
             if author.is_bot:
                 # if the author is a bot, we use the bio as the remark
                 bio = str(author.bio).strip()
-                # if it doesn't end in a period, add one
-                if bio[-1] != ".":
-                    bio += "."
                 # capitalize the first letter of the bio
                 bio = bio[0].upper() + bio[1:]
+                # if it doesn't end in a period, exclamation point, or question mark, add a period
+                if bio[-1] not in [".", "!", "?"]:
+                    bio += "."
                 remarks.append(bio)
 
         reporters = ", ".join(reporters)
