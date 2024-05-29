@@ -356,6 +356,7 @@ const CommentListMobile = ({
                         lastName={author.last_name}
                         username={author.username}
                         gravatarUrl={author.gravatar_url}
+                        isBot={author.is_bot || false}
                       />
                     </div>
                     <div
@@ -447,6 +448,7 @@ const CommentListMobile = ({
                         lastName={author.last_name}
                         username={author.username}
                         gravatarUrl={author.gravatar_url}
+                        isBot={author.is_bot || false}
                       />
                     </div>
                     <div className={styles.commentContent}>
