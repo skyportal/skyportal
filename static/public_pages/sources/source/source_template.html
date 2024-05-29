@@ -24,6 +24,10 @@
     />
     <!-- JS for source page -->
     <script src="/static/public_pages/sources/source/source_template.js"></script>
+    <script type="module">
+      let source_subtitle = document.getElementById('source_subtitle')
+      source_subtitle.innerHTML = radec_hhmmss(`{{ data['ra'] }}`,`{{ data['dec'] }}`) + source_subtitle.innerHTML
+    </script>
     {% if data.get('photometry') %}
       {% set photometry = data.get('photometry') | tojson | safe %}
       <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -70,8 +74,7 @@
         </div>
         {% endif %}
         <div class="subtitle">
-          <h3>
-            {{ data['radec_hhmmss'] }}
+          <h3 id="source_subtitle">
             <span>
               (&alpha;,&delta;= {{ data['ra'] }}, &nbsp{{ data['dec'] }})
             </span>
