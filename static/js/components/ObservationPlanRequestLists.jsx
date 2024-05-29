@@ -332,7 +332,11 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
       const observationplanRequest =
         requestsGroupedByInstId[instrument_id][dataIndex];
 
-      if (!["complete", "running"].includes(observationplanRequest?.status)) {
+      if (
+        !["complete", "running", "submitted to telescope queue"].includes(
+          observationplanRequest?.status,
+        )
+      ) {
         return <div />;
       }
 
@@ -464,7 +468,9 @@ const ObservationPlanRequestLists = ({ dateobs }) => {
         }
         if (
           observationplanRequest?.observation_plans?.length > 0 &&
-          observationplanRequest?.observation_plans[0]?.status === "complete" &&
+          ["complete", "submitted to telescope queue"].includes(
+            observationplanRequest?.observation_plans[0]?.status,
+          ) &&
           observationplanRequest?.observation_plans[0]?.statistics?.length >
             0 &&
           observationplanRequest?.observation_plans[0]?.statistics[0]
