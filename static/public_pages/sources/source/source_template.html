@@ -98,21 +98,25 @@
           <div class="imageAndTitle">
             <div class="title">
               {% if thumbnail.get('link') %}
-              <a
-                href="{{ thumbnail['link'] }}"
-                target="_blank"
-                rel="noreferrer"
-              >
+                <a
+                  href="{{ thumbnail['link'] }}"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {{ thumbnail['header'] }}
+                </a>
+              {% else %}
                 {{ thumbnail['header'] }}
-              </a>
-              {% else %} {{ thumbnail['header'] }} {% endif %}
+              {% endif %}
             </div>
             <div class="image">
+              {% if thumbnail.get('link') %}
               <a
                 href="{{ thumbnail['link'] }}"
                 target="_blank"
                 rel="noreferrer"
               >
+              {% endif %}
                 <img
                   src="{{ thumbnail['public_url'] }}"
                   alt="{{ thumbnail['alt'] }}"
@@ -129,7 +133,9 @@
                   alt="crosshair"
                   style="display: none"
                 />
+              {% if thumbnail.get('link') %}
               </a>
+              {% endif %}
             </div>
             <div class="loader">
               <span></span>
