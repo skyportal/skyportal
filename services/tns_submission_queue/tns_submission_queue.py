@@ -816,9 +816,9 @@ def build_at_report(
     if phot_last is None:
         at_report['photometry']['photometry_group'].pop('1')
 
-    # add the remark if it's not None
+    # add the remarks if it's not None
     if remarks is not None and str(remarks).strip() != '':
-        at_report['remark'] = remarks
+        at_report['remarks'] = remarks
 
     return {"at_report": {"0": at_report}}
 
