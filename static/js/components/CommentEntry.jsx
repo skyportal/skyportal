@@ -51,6 +51,12 @@ const CommentEntry = ({
   const usernameTrie = useMemo(() => {
     const trie = UsernameTrie();
     (users?.users || []).forEach((user) => {
+      if (!user.username) {
+        return;
+      }
+      if (user.is_bot) {
+        return;
+      }
       trie.insertUser({
         username: user.username,
         firstName: user.first_name || "",
