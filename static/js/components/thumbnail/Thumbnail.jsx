@@ -1,9 +1,9 @@
+import PropTypes from "prop-types";
+import React from "react";
 import { useSelector } from "react-redux";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
-import PropTypes from "prop-types";
-import React from "react";
 import makeStyles from "@mui/styles/makeStyles";
 
 const useStyles = makeStyles((theme) => ({
