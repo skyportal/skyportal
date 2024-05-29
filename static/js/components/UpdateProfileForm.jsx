@@ -181,13 +181,16 @@ const UpdateProfileForm = () => {
               spacing={2}
             >
               <Grid item xs={12} lg={6}>
-                <InputLabel htmlFor="bio_id">Bio</InputLabel>
+                <InputLabel htmlFor="bio_id">
+                  Bio (min 10, max 1000 chars)
+                </InputLabel>
                 <TextField
                   {...register("bio", { required: false })}
                   name="bio"
                   id="bio_id"
                   multiline
                   style={{ width: "100%" }}
+                  inputProps={{ maxLength: 1000 }}
                 />
               </Grid>
             </Grid>

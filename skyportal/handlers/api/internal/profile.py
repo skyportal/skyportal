@@ -1,13 +1,20 @@
 from copy import deepcopy
 
 import phonenumbers
+import sqlalchemy as sa
 from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
 from sqlalchemy.exc import IntegrityError
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
 from ...base import BaseHandler
-from ....models import User
+from ....models import (
+    User,
+    GroupUser,
+    TNSRobotGroup,
+    TNSRobotGroupAutoreporter,
+    TNSRobotCoauthor,
+)
 
 
 class ProfileHandler(BaseHandler):
@@ -188,13 +195,75 @@ class ProfileHandler(BaseHandler):
                     )
 
             if data.get("bio") is not None and isinstance(data.get("bio"), str):
-                user.bio = data.pop("bio")
+                bio = data.pop("bio")
+                bio = str(bio).strip()
+
+                # the bio is not empty, verify that it is valid
+                if len(bio) > 0:
+                    if len(bio) < 10:
+                        return self.error("Bio must be at least 10 characters long.")
+                    if len(bio) > 1000:
+                        return self.error("Bio must be less than 1000 characters long.")
+
+                    # capitalize the first letter of the bio
+                    bio = bio[0].upper() + bio[1:]
+
+                    # if it doesn't end in a period, exclamation point, or question mark, add a period
+                    if bio[-1] not in [".", "!", "?"]:
+                        bio += "."
+
+                user.bio = bio
 
             if data.get("is_bot") not in [None, ""]:
                 if str(data.get("is_bot")).lower() in ["true", "t", "1"]:
                     user.is_bot = True
                 else:
                     user.is_bot = False
+
+            if user.is_bot:
+                # check that the bio is set and is between 10 and 1000 characters if the user is a bot
+                if user.bio is None or len(user.bio) < 10 or len(user.bio) > 1000:
+                    return self.error(
+                        "Bot users must have a bio between 10 and 1000 characters long."
+                    )
+
+                # check that the user isn't in any groups that have auto-reporting enabled but bot autoreports are not allowed
+                user_accessible_groups = [group.id for group in user.accessible_groups]
+                tnsrobot_groups_no_bot_autoreports = session.scalars(
+                    TNSRobotGroup.select(session.user_or_token).where(
+                        TNSRobotGroup.group_id.in_(user_accessible_groups),
+                        TNSRobotGroup.auto_report.is_(True),
+                        TNSRobotGroup.auto_report_allow_bots.is_(False),
+                    )
+                ).all()
+                for tnsrobot_group in tnsrobot_groups_no_bot_autoreports:
+                    autoreporter = session.scalars(
+                        sa.select(TNSRobotGroupAutoreporter).where(
+                            TNSRobotGroupAutoreporter.tnsrobot_group_id
+                            == tnsrobot_group.id,
+                            TNSRobotGroupAutoreporter.group_user_id.in_(
+                                sa.select(GroupUser.id).where(
+                                    GroupUser.user_id == user.id,
+                                    GroupUser.group_id == tnsrobot_group.group_id,
+                                )
+                            ),
+                        )
+                    ).first()
+                    if autoreporter is not None:
+                        return self.error(
+                            "User is an autoreporter of a TNS robot group that does not allow bots to be autoreporters. Please remove the autoreporter status first, or allow bot autoreporting."
+                        )
+
+                # check that the user isn't a coauthor of any TNS bot, in which case they can't be a bot
+                tns_bot_coauthor = session.scalars(
+                    TNSRobotCoauthor.select(session.user_or_token).where(
+                        TNSRobotCoauthor.user_id == user.id
+                    )
+                ).first()
+                if tns_bot_coauthor is not None:
+                    return self.error(
+                        "User is a coauthor of a TNS robot and cannot be flagged as a bot."
+                    )
 
             if data.get("contact_phone") is not None:
                 phone = data.pop("contact_phone")

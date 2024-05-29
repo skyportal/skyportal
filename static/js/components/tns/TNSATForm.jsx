@@ -219,6 +219,9 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
       first_and_last_detections: formData.first_and_last_detections,
     };
     delete formData.first_and_last_detections;
+    if (formData?.remarks?.length === 0) {
+      delete formData.remarks;
+    }
     dispatch(sourceActions.addSourceTNS(obj_id, formData)).then((result) => {
       setSubmissionRequestInProcess(false);
       if (result.status === "success") {
@@ -291,6 +294,13 @@ const TNSATForm = ({ obj_id, submitCallback }) => {
             : true,
         description:
           "If enabled, the bot will not send a report to TNS if there is no first and last detection (at least 2 detections).",
+      },
+      remarks: {
+        type: "string",
+        title: "Remark (optional)",
+        default: "",
+        description:
+          "Any additional remarks to include in the report. Optional",
       },
       archival: {
         type: "boolean",

@@ -97,6 +97,9 @@ const TNSRobotGroup = ({ tnsrobot_group, groupsLookup, usersLookup }) => {
   const [autoreport, setAutoreport] = useState(
     tnsrobot_group.auto_report || false,
   );
+  const [autoreport_allow_bots, setAutoreportAllowBots] = useState(
+    tnsrobot_group.auto_report_allow_bots || false,
+  );
   const [left, setLeft] = useState([]);
   const [right, setRight] = useState([]);
   const [updating, setUpdating] = useState(false);
@@ -149,13 +152,18 @@ const TNSRobotGroup = ({ tnsrobot_group, groupsLookup, usersLookup }) => {
     setUpdating(true);
     if (
       owner !== tnsrobot_group.owner ||
-      autoreport !== tnsrobot_group.auto_report
+      autoreport !== tnsrobot_group.auto_report ||
+      autoreport_allow_bots !== tnsrobot_group.auto_report_allow_bots
     ) {
       await dispatch(
         tnsrobotsActions.editTNSRobotGroup(
           tnsrobot_group.tnsrobot_id,
           tnsrobot_group.group_id,
-          { owner, auto_report: autoreport },
+          {
+            owner,
+            auto_report: autoreport,
+            auto_report_allow_bots: autoreport_allow_bots,
+          },
         ),
       ).then((response) => {
         if (response.status === "success") {
@@ -283,6 +291,15 @@ const TNSRobotGroup = ({ tnsrobot_group, groupsLookup, usersLookup }) => {
             checked={autoreport}
             onChange={(e) => setAutoreport(e.target.checked)}
           />
+          {autoreport && (
+            <>
+              <InputLabel>Allow bots to autoreport</InputLabel>
+              <Switch
+                checked={autoreport_allow_bots}
+                onChange={(e) => setAutoreportAllowBots(e.target.checked)}
+              />
+            </>
+          )}
           {initialized && (
             <div>
               <Typography>Autoreporters</Typography>
@@ -340,6 +357,7 @@ TNSRobotGroup.propTypes = {
     group_id: PropTypes.number,
     owner: PropTypes.bool,
     auto_report: PropTypes.bool,
+    auto_report_allow_bots: PropTypes.bool,
     autoreporters: PropTypes.arrayOf(
       PropTypes.shape({
         tnsrobot_group_id: PropTypes.number,
@@ -375,6 +393,7 @@ const NewTNSRobotGroup = ({ tnsrobot, groupsLookup }) => {
         group_id: group,
         owner,
         auto_report: false,
+        auto_report_allow_bots: false,
       }),
     ).then((response) => {
       if (response.status === "success") {
@@ -463,6 +482,7 @@ NewTNSRobotGroup.propTypes = {
         group_id: PropTypes.number,
         owner: PropTypes.bool,
         auto_report: PropTypes.bool,
+        auto_report_allow_bots: PropTypes.bool,
       }),
     ),
   }).isRequired,

@@ -617,6 +617,12 @@ class TNSRobotCoauthorHandler(BaseHandler):
                     f'User {user_id} has no affiliation(s), required to be a coauthor of TNSRobot {tnsrobot_id}. User must add one in their profile.'
                 )
 
+            # if the user is a bot, throw an error
+            if user.is_bot:
+                return self.error(
+                    f'User {user_id} is a bot and cannot be a coauthor of TNSRobot {tnsrobot_id}'
+                )
+
             # add the coauthor
             coauthor = TNSRobotCoauthor(tnsrobot_id=tnsrobot_id, user_id=user_id)
             session.add(coauthor)
@@ -734,7 +740,8 @@ class TNSRobotGroupHandler(BaseHandler):
         """
         # the PUT handler is used to add or edit a group
         data = self.get_json()
-        autoreport = data.get('auto_report', None)
+        auto_report = data.get('auto_report', None)
+        auto_report_allow_bots = data.get('auto_report_allow_bots', None)
         owner = data.get('owner', None)
         if group_id is None:
             group_id = int(data.get('group_id', None))
@@ -744,14 +751,25 @@ class TNSRobotGroupHandler(BaseHandler):
         except ValueError:
             return self.error(f'Invalid group_id: {group_id}, must be an integer')
 
-        if autoreport is not None:
-            # try to convert the autoreport to a boolean
-            if str(autoreport) in ['True', 'true', '1', 't']:
-                autoreport = True
-            elif str(autoreport) in ['False', 'false', '0', 'f']:
-                autoreport = False
+        if auto_report is not None:
+            # try to convert the auto_report to a boolean
+            if str(auto_report) in ['True', 'true', '1', 't']:
+                auto_report = True
+            elif str(auto_report) in ['False', 'false', '0', 'f']:
+                auto_report = False
             else:
-                return self.error(f'Invalid autoreport value: {autoreport}')
+                return self.error(f'Invalid auto_report value: {auto_report}')
+
+        if auto_report_allow_bots is not None:
+            # try to convert the auto_report_allow_bots to a boolean
+            if str(auto_report_allow_bots) in ['True', 'true', '1', 't']:
+                auto_report_allow_bots = True
+            elif str(auto_report_allow_bots) in ['False', 'false', '0', 'f']:
+                auto_report_allow_bots = False
+            else:
+                return self.error(
+                    f'Invalid auto_report_allow_bots value: {auto_report_allow_bots}'
+                )
 
         if owner is not None:
             # try to convert the owner to a boolean
@@ -795,13 +813,42 @@ class TNSRobotGroupHandler(BaseHandler):
 
             if tnsrobot_group is not None:
                 # the user wants to edit the tnsrobot_group
-                if autoreport is None and owner is None:
+                if (
+                    auto_report is None
+                    and owner is None
+                    and auto_report_allow_bots is None
+                ):
                     return self.error(
-                        'You must specify autoreport and/or owner when editing a TNSRobotGroup'
+                        'You must specify auto_report, owner and/or auto_report_allow_bots when editing a TNSRobotGroup'
                     )
 
-                if autoreport is not None and autoreport != tnsrobot_group.auto_report:
-                    tnsrobot_group.auto_report = autoreport
+                if (
+                    auto_report is not None
+                    and auto_report != tnsrobot_group.auto_report
+                ):
+                    tnsrobot_group.auto_report = auto_report
+                if (
+                    auto_report_allow_bots is not None
+                    and auto_report_allow_bots != tnsrobot_group.auto_report_allow_bots
+                ):
+                    # if the user is trying to set auto_report_allow_bots to False,
+                    # we need to verify that none of the existing autoreporter are bots
+                    if auto_report_allow_bots is False:
+                        autoreporters_group_users = session.scalars(
+                            sa.select(GroupUser).where(
+                                GroupUser.id.in_(
+                                    [
+                                        r.group_user_id
+                                        for r in tnsrobot_group.autoreporters
+                                    ]
+                                )
+                            )
+                        )
+                        if any(gu.user.is_bot for gu in autoreporters_group_users):
+                            return self.error(
+                                'Cannot set auto_report_allow_bots to False when one or more autoreporters are bots. Remove the bots from the autoreporters first.'
+                            )
+                    tnsrobot_group.auto_report_allow_bots = auto_report_allow_bots
 
                 if owner is not None and owner != tnsrobot_group.owner:
                     # here we want to be careful not to remove the last owner
@@ -840,10 +887,9 @@ class TNSRobotGroupHandler(BaseHandler):
                 tnsrobot_group = TNSRobotGroup(
                     tnsrobot_id=tnsrobot_id,
                     group_id=group_id,
-                    auto_report=bool(
-                        autoreport
-                    ),  # None || False -> False, True -> True
-                    owner=bool(owner),  # None || False -> False, True -> True
+                    auto_report=bool(auto_report),
+                    auto_report_allow_bots=bool(auto_report_allow_bots),
+                    owner=bool(owner),
                 )
 
                 session.add(tnsrobot_group)
@@ -1070,6 +1116,12 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
                 if len(user.affiliations) == 0:
                     return self.error(
                         f'User {user_id} has no affiliation(s), required to be an autoreporter of TNSRobot {tnsrobot_id}. User must add one in their profile.'
+                    )
+
+                # if the user is a bot user and the tnsrobot_group did not allow bot users, return an error
+                if user.is_bot and not tnsrobot_group.auto_report_allow_bots:
+                    return self.error(
+                        f'User {user_id} is a bot user, which is not allowed to be an autoreporter for TNSRobot {tnsrobot_id}'
                     )
 
                 autoreporter = TNSRobotGroupAutoreporter(
@@ -1581,6 +1633,7 @@ class ObjTNSHandler(BaseHandler):
             data = self.get_json()
             tnsrobotID = data.get('tnsrobotID')
             reporters = data.get('reporters', '')
+            remarks = data.get('remarks', '')
             archival = data.get('archival', False)
             archival_comment = data.get('archivalComment', '')
             instrument_ids = data.get('instrument_ids', [])
@@ -1693,6 +1746,7 @@ class ObjTNSHandler(BaseHandler):
                 obj_id=obj.id,
                 user_id=self.associated_user_object.id,
                 custom_reporting_string=reporters,
+                custom_remarks_string=remarks,
                 archival=archival,
                 archival_comment=archival_comment,
                 instrument_ids=instrument_ids,
