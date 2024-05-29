@@ -24,7 +24,7 @@ const useStyles = makeStyles((theme) => ({
   },
   badge: (props) => ({
     fontSize: `${Math.max(parseInt(parseFloat(props.size) / 2, 10), 10)}px`,
-    color: theme.palette.getContrastText(props.usercolor),
+    color: "#555555",
   }),
 }));
 
