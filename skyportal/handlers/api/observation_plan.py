@@ -2483,7 +2483,9 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                 else:
                     source['group_ids'] = [allocation.group_id]
 
-                (obj_id,) = post_source(source, self.associated_user_object.id, session)
+                obj_id, _, _ = post_source(
+                    source, self.associated_user_object.id, session
+                )
                 if np.max(priorities) - np.min(priorities) == 0.0:
                     # assign equal weights if all the same
                     normalized_priority = 0.5

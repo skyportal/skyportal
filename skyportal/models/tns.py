@@ -149,7 +149,9 @@ class TNSRobotGroup(Base):
 
     owner = sa.Column(sa.Boolean, nullable=False, default=False)
     auto_report = sa.Column(sa.Boolean, nullable=False, default=False)
-    auto_report_allow_bots = sa.Column(sa.Boolean, nullable=False, default=False)
+    auto_report_allow_bots = sa.Column(
+        sa.Boolean, nullable=False, server_default='false'
+    )
 
     tnsrobot = relationship(
         'TNSRobot',
