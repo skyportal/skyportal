@@ -485,6 +485,8 @@ def generate_plan(
             'galaxies_FoV_sep': 1.0,
             'doChipGaps': False,
             'ignore_observability': False,
+            # solver type (heuristic or milp)
+            'solverType': 'heuristic',
         }
 
         if len(requests) > 1:
@@ -587,12 +589,7 @@ def generate_plan(
         # params = gwemopt.utils.params_checker(params)
         params = gwemopt.segments.get_telescope_segments(params)
 
-        map_struct = dict(
-            zip(
-                ['prob', 'distmu', 'distsigma', 'distnorm'],
-                request.localization.flat,
-            )
-        )
+        map_struct = {'skymap': request.localization.table}
 
         log(f"Reading skymap for ID(s): {','.join(observation_plan_id_strings)}")
 
@@ -809,7 +806,7 @@ def generate_plan(
         )
 
         planned_observations = []
-        for ii in range(len(coverage_struct["ipix"])):
+        for ii in range(len(coverage_struct["moc"])):
             data = coverage_struct["data"][ii, :]
             filt = coverage_struct["filters"][ii]
             mjd = data[2]
