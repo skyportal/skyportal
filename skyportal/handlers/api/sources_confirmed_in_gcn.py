@@ -740,6 +740,7 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
         confirmed = data.get('confirmed', True)
         tnsrobotID = data.get('tnsrobotID')
         reporters = data.get('reporters', '')
+        remarks = data.get('remarks', '')
         archival = data.get('archival', False)
         archival_comment = data.get('archivalComment', '')
 
@@ -837,6 +838,7 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                         obj_id=obj.obj_id,
                         user_id=self.associated_user_object.id,
                         custom_reporting_string=reporters,
+                        custom_remarks_string=remarks,
                         archival=archival,
                         archival_comment=archival_comment,
                         auto_submission=False,

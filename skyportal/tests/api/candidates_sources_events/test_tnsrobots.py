@@ -218,6 +218,7 @@ def test_post_and_delete_tns_robot(
     request_data = {
         'tnsrobotID': id,
         'reporters': "test reporter string",
+        'remarks': "test remark string",
         'archival': False,
     }
     status, data = api(
@@ -239,6 +240,7 @@ def test_post_and_delete_tns_robot(
     assert len(submissions) >= 1
     assert submissions[0]['obj_id'] == public_source.id
     assert submissions[0]['custom_reporting_string'] == "test reporter string"
+    assert submissions[0]['custom_remarks_string'] == "test remark string"
     assert submissions[0]['archival'] is False
     assert "pending" in submissions[0]['status']
 

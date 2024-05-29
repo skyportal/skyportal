@@ -182,6 +182,19 @@ def find_accessible_tnsrobot_groups(submission_request, tnsrobot, user, session)
                 f'User {user_id} is not an auto-reporter for any group with TNSRobot {tnsrobot_id} set to auto-report.'
             )
 
+        # if the user is a bot, filter out the groups that are not set to auto-report with bots
+        if user.is_bot:
+            tnsrobot_groups_with_autoreport = [
+                tnsrobot_group
+                for tnsrobot_group in tnsrobot_groups_with_autoreport
+                if tnsrobot_group.auto_report_allow_bots is True
+            ]
+
+            if len(tnsrobot_groups_with_autoreport) == 0:
+                raise TNSReportError(
+                    f'No group with TNSRobot {tnsrobot_id} set to auto-report with bot users.'
+                )
+
     return tnsrobot_groups
 
 
@@ -275,8 +288,8 @@ def find_source_to_submit(submission_request, tnsrobot_groups, session):
     return source
 
 
-def build_reporters_string(submission_request, source, tnsrobot, session):
-    """Build the reporters string for the TNS report.
+def build_reporters_and_remarks_string(submission_request, source, tnsrobot, session):
+    """Build the reporters string and remarks for the TNS report.
 
     Parameters
     ----------
@@ -293,6 +306,8 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
     -------
     reporters : str
         The reporters string.
+    remarks : str
+        The remarks string.
     warning : str
         Any warning (e.g., if the original source saver had no affiliation and was ignored).
     """
@@ -303,6 +318,8 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
     tnsrobot_id = submission_request.tnsrobot_id
     user_id = submission_request.user_id
     obj_id = submission_request.obj_id
+    reporters = None
+    remarks = None
     if submission_request.custom_reporting_string not in [None, ""]:
         reporters = submission_request.custom_reporting_string
     else:
@@ -321,6 +338,10 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
             )
             if len(source_saver.affiliations) == 0:
                 warning = f'original source saver {source_saver.username} had no affiliation, ignored as the first author.'
+            elif source_saver.is_bot and (
+                source_saver.bio is None or str(source_saver.bio).strip() == ""
+            ):
+                warning = f'original source saver {source_saver.username} is a bot with no bio, ignored as the first author.'
             else:
                 author_ids.append(source.saved_by_id)
         author_ids.append(user_id)
@@ -369,7 +390,34 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
                 f'One or more authors are missing an affiliation: {", ".join([author.username for author in authors_with_missing_affiliations])}, cannot report {obj_id} to TNS.'
             )
 
+        # if any of the users are bot users, and are missing a bio/description
+        # that we would use as the remark(s) to send to TNS, we don't submit
+        bot_authors_with_missing_bios = [
+            author
+            for author in authors
+            if author.is_bot and (author.bio is None or str(author.bio).strip() == "")
+        ]
+        if len(bot_authors_with_missing_bios) > 0:
+            raise TNSReportWarning(
+                f'One or more authors are bots that are missing a bio/description: {", ".join([author.username for author in bot_authors_with_missing_bios])}, cannot report {obj_id} to TNS.'
+            )
+
+        # verify that the bios are correct too, i.e. more than 10 characters and less than 1000 characters
+        bot_authors_with_invalid_bios = [
+            author
+            for author in authors
+            if author.is_bot
+            and (
+                len(str(author.bio).strip()) < 10 or len(str(author.bio).strip()) > 1000
+            )
+        ]
+        if len(bot_authors_with_invalid_bios) > 0:
+            raise TNSReportWarning(
+                f'One or more authors are bots that have a bio/description that is too short or too long: {", ".join([author.username for author in bot_authors_with_invalid_bios])}, cannot report {obj_id} to TNS.'
+            )
+
         reporters = []
+        remarks = []
         for author in authors:
             # filter out empty affiliations
             affiliations = [
@@ -393,15 +441,30 @@ def build_reporters_string(submission_request, source, tnsrobot, session):
             affiliations = ", ".join(affiliations)
             reporters.append(f'{author.first_name} {author.last_name} ({affiliations})')
 
+            if author.is_bot:
+                # if the author is a bot, we use the bio as the remark
+                bio = str(author.bio).strip()
+                # capitalize the first letter of the bio
+                bio = bio[0].upper() + bio[1:]
+                # if it doesn't end in a period, exclamation point, or question mark, add a period
+                if bio[-1] not in [".", "!", "?"]:
+                    bio += "."
+                remarks.append(bio)
+
         reporters = ", ".join(reporters)
+        remarks = " ".join(remarks)
 
         # acknowledgments are added to the end of the reporters string if they exist (optional)
         if tnsrobot.acknowledgments not in [None, ""]:
             reporters += f' {str(tnsrobot.acknowledgments).strip()}'
 
         reporters = reporters.strip()
+        remarks = remarks.strip()
 
-    return reporters, warning
+    if submission_request.custom_remarks_string not in [None, ""]:
+        remarks = submission_request.custom_remarks_string
+
+    return reporters, remarks, warning
 
 
 def find_accessible_instrument_ids(submission_request, tnsrobot, user, session):
@@ -542,6 +605,7 @@ def build_at_report(
     submission_request,
     tnsrobot,
     reporters,
+    remarks,
     photometry,
     photometry_options,
     stream_ids,
@@ -557,6 +621,8 @@ def build_at_report(
         The TNSRobot to submit with.
     reporters : str
         The reporters to use for the submission.
+    remarks : str
+        The remarks to use for the submission (optional)
     photometry : list of `~skyportal.models.Photosometry`
         The photometry to submit.
     photometry_options : dict
@@ -750,6 +816,10 @@ def build_at_report(
     if phot_last is None:
         at_report['photometry']['photometry_group'].pop('1')
 
+    # add the remark if it's not None
+    if remarks is not None and str(remarks).strip() != '':
+        at_report['remark'] = remarks
+
     return {"at_report": {"0": at_report}}
 
 
@@ -876,12 +946,13 @@ def process_submission_request(submission_request, session):
 
         source = find_source_to_submit(submission_request, tnsrobot_groups, session)
 
-        reporters, warning = build_reporters_string(
+        reporters, remarks, warning = build_reporters_and_remarks_string(
             submission_request, source, tnsrobot, session
         )
 
         # set it now, so we already have it if we need to reprocess the request
         submission_request.custom_reporting_string = reporters
+        submission_request.custom_reporting_remarks = remarks
 
         archival = submission_request.archival
         archival_comment = submission_request.archival_comment
@@ -970,6 +1041,7 @@ def process_submission_request(submission_request, session):
             submission_request,
             tnsrobot,
             reporters,
+            remarks,
             photometry,
             photometry_options,
             stream_ids,
