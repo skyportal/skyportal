@@ -258,13 +258,6 @@ const TNSRobotSubmissionsPage = () => {
             >
               {status}
             </Typography>
-            // <Chip
-            //   label={<Typography variant="body2">{status}</Typography>}
-            //   style={{
-            //     backgroundColor: colors[1],
-            //     color: colors[0],
-            //   }}
-            // />
           );
         },
       },
