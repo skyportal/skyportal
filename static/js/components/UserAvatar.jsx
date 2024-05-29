@@ -82,8 +82,6 @@ const UserAvatar = ({
     tooltipText = `[Bot] ${tooltipText}`;
   }
 
-  // the smart icon should be centered at the top of the avatar, overlapping
-  // the avatar
   if (isBot) {
     return (
       <Tooltip title={tooltipText} arrow placement="top-start">
