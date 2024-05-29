@@ -58,6 +58,7 @@ header {
       }
     }
     .versions {
+      margin-bottom: 1rem;
       .version {
         padding-left: 5rem;
         display: flex;
