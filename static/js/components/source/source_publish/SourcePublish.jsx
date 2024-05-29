@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
@@ -11,10 +11,6 @@ import ExpandMore from "@mui/icons-material/ExpandMore";
 import CircularProgress from "@mui/material/CircularProgress";
 import * as publicSourcePageActions from "../../../ducks/public_pages/public_source_page";
 import Button from "../../Button";
-import {
-  getThumbnailAltAndLink,
-  getThumbnailHeader,
-} from "../../thumbnail/Thumbnail";
 import SourcePublishOptions from "./SourcePublishOptions";
 import SourcePublishHistory from "./SourcePublishHistory";
 
@@ -36,7 +32,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublish = ({ source }) => {
+const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const currentUser = useSelector((state) => state.profile);
@@ -51,79 +47,36 @@ const SourcePublish = ({ source }) => {
     useState(false);
   const [sourcePublishHistoryOpen, setSourcePublishHistoryOpen] =
     useState(true);
-  const [newPageGenerate, setNewPagePublished] = useState(null);
-  const [updateThumbnailsData, setUpdateThumbnailsData] = useState(false);
+  const [versions, setVersions] = useState([]);
   // Create data access options
-  const [optionsState, setOptionsState] = useState({
+  const [options, setOptions] = useState({
     include_photometry: true,
     include_classifications: true,
     groups: [],
     streams: [],
   });
-  const isElements = {
-    photometry: source.photometry_exists,
-    classifications: source.classifications.length > 0,
-  };
-
-  useEffect(() => {
-    setUpdateThumbnailsData(true);
-  }, [source.thumbnails]);
-
-  // Add alt, link and header to thumbnails
-  const processThumbnailsData = () => {
-    source.thumbnails.forEach((thumbnail) => {
-      const { alt, link } = getThumbnailAltAndLink(
-        thumbnail.type,
-        source.ra,
-        source.dec,
-      );
-      thumbnail.alt = alt;
-      thumbnail.link = link;
-      thumbnail.header = getThumbnailHeader(thumbnail.type);
-    });
-    setUpdateThumbnailsData(false);
-  };
-
-  const publicData = () => {
-    if (updateThumbnailsData) {
-      processThumbnailsData();
-    }
-    return {
-      source_id: source.id,
-      radec_hhmmss: source.radec_hhmmss,
-      ra: source.ra,
-      dec: source.dec,
-      gal_lon: source.gal_lon?.toFixed(6),
-      gal_lat: source.gal_lat?.toFixed(6),
-      ebv: source.ebv?.toFixed(2),
-      redshift: source.redshift?.toFixed(source.z_round),
-      dm: source.dm?.toFixed(3),
-      dl: source.luminosity_distance?.toFixed(2),
-      thumbnails: source.thumbnails,
-      options: optionsState,
-    };
-  };
 
   const publish = () => {
-    if (!permissionToPublish) return;
-
-    setPublishButton({ text: "loading", color: "" });
-    const payload = {
-      public_data: publicData(),
-    };
-    dispatch(
-      publicSourcePageActions.generatePublicSourcePage(source.id, payload),
-    ).then((data) => {
-      if (data.status === "error") {
-        setPublishButton({ text: "Error", color: "red" });
-      } else {
-        setPublishButton({ text: "Done", color: "green" });
-        setNewPagePublished(data.data.public_source_page);
-      }
-      setTimeout(() => {
-        setPublishButton({ text: "Publish", color: "" });
-      }, 2000);
-    });
+    if (permissionToPublish) {
+      setPublishButton({ text: "loading", color: "" });
+      dispatch(
+        publicSourcePageActions.generatePublicSourcePage(sourceId, {
+          options,
+        }),
+      ).then((data) => {
+        if (data.status === "error") {
+          setPublishButton({ text: "Error", color: "red" });
+        } else {
+          setPublishButton({ text: "Done", color: "green" });
+          if (sourcePublishHistoryOpen) {
+            setVersions([data.data, ...versions]);
+          }
+        }
+        setTimeout(() => {
+          setPublishButton({ text: "Publish", color: "" });
+        }, 2000);
+      });
+    }
   };
 
   return (
@@ -199,8 +152,11 @@ const SourcePublish = ({ source }) => {
               </Button>
               {sourcePublishOptionsOpen && (
                 <SourcePublishOptions
-                  optionsState={[optionsState, setOptionsState]}
-                  isElements={isElements}
+                  optionsState={[options, setOptions]}
+                  isElements={{
+                    photometry: isPhotometry,
+                    classifications: isClassifications,
+                  }}
                 />
               )}
             </div>
@@ -219,8 +175,9 @@ const SourcePublish = ({ source }) => {
             </Button>
             {sourcePublishHistoryOpen && (
               <SourcePublishHistory
-                source_id={source.id}
-                newPageGenerate={newPageGenerate}
+                sourceId={sourceId}
+                versions={versions}
+                setVersions={setVersions}
               />
             )}
           </div>
@@ -231,22 +188,9 @@ const SourcePublish = ({ source }) => {
 };
 
 SourcePublish.propTypes = {
-  source: PropTypes.shape({
-    id: PropTypes.string,
-    ra: PropTypes.number,
-    dec: PropTypes.number,
-    radec_hhmmss: PropTypes.string,
-    gal_lat: PropTypes.number,
-    gal_lon: PropTypes.number,
-    ebv: PropTypes.number,
-    redshift: PropTypes.number,
-    z_round: PropTypes.number,
-    dm: PropTypes.number,
-    luminosity_distance: PropTypes.number,
-    thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
-    photometry_exists: PropTypes.bool,
-    classifications: PropTypes.arrayOf(PropTypes.shape({})),
-  }).isRequired,
+  sourceId: PropTypes.string.isRequired,
+  isPhotometry: PropTypes.bool.isRequired,
+  isClassifications: PropTypes.bool.isRequired,
 };
 
 export default SourcePublish;

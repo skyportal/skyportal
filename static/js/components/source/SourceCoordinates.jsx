@@ -18,9 +18,6 @@ const SourceCoordinates = ({ classes, source, downMd = false }) => {
         )}" from the original)`
       : "The coordinates displayed here are the original coordinates of the object";
 
-  const getRaDec = (real_ra, real_dec) =>
-    `${ra_to_hours(real_ra, ":")} ${dec_to_dms(real_dec, ":")}`;
-
   return (
     <Tooltip title={title} placement="top">
       <div
@@ -37,7 +34,7 @@ const SourceCoordinates = ({ classes, source, downMd = false }) => {
               fontSize: downMd ? "1rem" : "110%",
             }}
           >
-            {getRaDec(ra, dec)}
+            {`${ra_to_hours(ra, ":")} ${dec_to_dms(dec, ":")}`}
           </span>
         </div>
         <div className={classes.sourceInfo}>

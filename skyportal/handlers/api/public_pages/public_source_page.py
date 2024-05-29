@@ -6,9 +6,11 @@ from sqlalchemy import or_
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
+from ..source import get_source
 from ...base import BaseHandler
 
 from ....models import PublicSourcePage, Group, Stream, Classification, Photometry
+from ....utils.thumbnail import get_thumbnail_alt_link, get_thumbnail_header
 
 log = make_log('api/public_source_page')
 
@@ -17,14 +19,28 @@ def calculate_hash(data):
     return joblib.hash(json.dumps(data, sort_keys=True))
 
 
+def process_thumbnails(thumbnails, ra, dec):
+    for index, thumbnail in enumerate(thumbnails):
+        alt, link = get_thumbnail_alt_link(thumbnail["type"], ra, dec)
+        header = get_thumbnail_header(thumbnail["type"])
+        thumbnails[index] = {
+            "type": thumbnail["type"],
+            "public_url": thumbnail["public_url"],
+            "alt": alt,
+            "link": link,
+            "header": header,
+        }
+    return thumbnails
+
+
 class PublicSourcePageHandler(BaseHandler):
     @permissions(['Manage sources'])
     async def post(self, source_id):
         """
         ---
           description:
-            Create a public page for a source with given data
-            to display publicly, only if this page does not already exist
+            Create a public page for a source, with given options,
+            only if this page does not already exist
           tags:
             - public_source_page
           parameters:
@@ -40,10 +56,10 @@ class PublicSourcePageHandler(BaseHandler):
                     schema:
                         type: object
                         properties:
-                            public_data:
+                            options:
                                 type: object
                                 required: true
-                                description: Data to display publicly
+                                description: Options to manage data to display publicly
           responses:
             200:
               content:
@@ -59,15 +75,44 @@ class PublicSourcePageHandler(BaseHandler):
             return self.error("No data provided")
         if source_id is None:
             return self.error("Source ID is required")
-        public_data = data.get("public_data")
-        if public_data is None:
-            return self.error("No data provided to display publicly")
+        options = data.get("options")
+        if options is None:
+            return self.error("Options are required")
 
         with self.Session() as session:
-            group_ids = public_data.get("options").get("groups")
-            stream_ids = public_data.get("options").get("streams")
+            group_ids = options.get("groups")
+            stream_ids = options.get("streams")
 
-            if public_data.get("options").get("include_photometry"):
+            # get source
+            source = await get_source(
+                source_id,
+                self.associated_user_object.id,
+                session=session,
+                include_thumbnails=True,
+            )
+            if source is None:
+                return self.error("Source not found", status=404)
+            data_to_publish = {
+                "ra": round(source["ra"], 6) if source["gal_lon"] else None,
+                "dec": round(source["dec"], 6) if source["gal_lon"] else None,
+                "redshift": round(source["redshift"], 6)
+                if source["redshift"]
+                else None,
+                "gal_lon": round(source["gal_lon"], 6) if source["gal_lon"] else None,
+                "gal_lat": round(source["gal_lat"], 6) if source["gal_lat"] else None,
+                "ebv": round(source["ebv"], 2) if source["ebv"] else None,
+                "dm": round(source["dm"], 3) if source["dm"] else None,
+                "dl": round(source["luminosity_distance"], 2)
+                if source["luminosity_distance"]
+                else None,
+                "thumbnails": process_thumbnails(
+                    source["thumbnails"], source["ra"], source["dec"]
+                ),
+                "options": options,
+            }
+
+            # get photometry
+            if options.get("include_photometry"):
                 query = Photometry.select(session.user_or_token, mode="read").where(
                     Photometry.obj_id == source_id
                 )
@@ -78,11 +123,12 @@ class PublicSourcePageHandler(BaseHandler):
                             Photometry.streams.any(Stream.id.in_(stream_ids)),
                         )
                     )
-                public_data["photometry"] = [
+                data_to_publish["photometry"] = [
                     photo.to_dict_public() for photo in session.scalars(query).all()
                 ]
 
-            if public_data.get("options").get("include_classifications"):
+            # get classifications
+            if options.get("include_classifications"):
                 query = Classification.select(session.user_or_token, mode="read").where(
                     Classification.obj_id == source_id
                 )
@@ -90,11 +136,11 @@ class PublicSourcePageHandler(BaseHandler):
                     query = query.where(
                         Classification.groups.any(Group.id.in_(group_ids))
                     )
-                public_data["classifications"] = [
+                data_to_publish["classifications"] = [
                     c.to_dict_public() for c in session.scalars(query).all()
                 ]
 
-            new_page_hash = calculate_hash(public_data)
+            new_page_hash = calculate_hash(data_to_publish)
             if (
                 session.scalars(
                     PublicSourcePage.select(session.user_or_token, mode="read").where(
@@ -105,19 +151,26 @@ class PublicSourcePageHandler(BaseHandler):
                 is not None
             ):
                 return self.error(
-                    "A public page with the same data already exists for this source"
+                    "A public page with the same data and same options already exists for this source"
                 )
 
             public_source_page = PublicSourcePage(
                 source_id=source_id,
                 hash=new_page_hash,
-                data=public_data,
+                data=data_to_publish,
                 is_visible=True,
             )
             session.add(public_source_page)
             session.commit()
-            public_source_page.generate_page()
-            return self.success({"public_source_page": public_source_page})
+            try:
+                public_source_page.generate_page()
+            except Exception as e:
+                session.rollback()
+                if public_source_page in session:
+                    session.delete(public_source_page)
+                    session.commit()
+                return self.error(f"Error generating public page: {e}")
+            return self.success(data={"PublicSourcePage": public_source_page})
 
     @auth_or_token
     def get(self, source_id, nb_results=None):

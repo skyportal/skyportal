@@ -1,5 +1,6 @@
-// Add animation on the classification select by the classification tag
 /* eslint-disable no-unused-vars */
+
+// Add animation on the classification select by the classification tag
 function handleClassificationTag(classificationId) {
   const element = document.getElementById(classificationId);
   element.scrollIntoView({
@@ -22,7 +23,6 @@ function disableLoader(image) {
     .getElementsByClassName("loader")[0].style.display = "none";
 }
 
-/* eslint-disable no-unused-vars */
 function handleImageLoad(image) {
   image.onload = null;
   disableLoader(image);
@@ -32,7 +32,6 @@ function handleImageLoad(image) {
   }
 }
 
-/* eslint-disable no-unused-vars */
 function handleImageError(image) {
   image.onload = null;
   image.onerror = null;

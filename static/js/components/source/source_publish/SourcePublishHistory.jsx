@@ -33,30 +33,22 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublishHistory = ({ source_id, newPageGenerate = null }) => {
+const SourcePublishHistory = ({ sourceId, versions, setVersions }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
-  const [versions, setVersions] = useState([]);
-  const [isVersions, setIsVersions] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    dispatch(fetchPublicSourcePages(source_id, 10)).then((data) => {
+    setIsLoading(true);
+    dispatch(fetchPublicSourcePages(sourceId, 10)).then((data) => {
       setVersions(data.data);
-      setIsVersions(data.data.length > 0);
+      setIsLoading(false);
     });
-  }, [dispatch, source_id]);
-
-  useEffect(() => {
-    if (newPageGenerate) {
-      setVersions([{ PublicSourcePage: newPageGenerate }, ...versions]);
-      setIsVersions(true);
-    }
-  }, [newPageGenerate]);
+  }, [dispatch, sourceId]);
 
   const deleteVersion = (id) => {
     dispatch(deletePublicSourcePage(id)).then((data) => {
       if (data.status === "success") {
-        setIsVersions(versions.length > 1);
         setVersions(versions.filter((obj) => obj.PublicSourcePage.id !== id));
       }
     });
@@ -72,7 +64,7 @@ const SourcePublishHistory = ({ source_id, newPageGenerate = null }) => {
 
   return (
     <div className={styles.versionHistory}>
-      {isVersions && versions?.length > 0 ? (
+      {versions.length > 0 ? (
         versions.map((obj) => {
           const version = obj.PublicSourcePage;
           return (
@@ -86,7 +78,7 @@ const SourcePublishHistory = ({ source_id, newPageGenerate = null }) => {
                 <div>Classifications: {version?.options?.classifications}</div>
               </div>
               <Link
-                href={`/public/sources/${source_id}/version/${version?.hash}`}
+                href={`/public/sources/${sourceId}/version/${version?.hash}`}
                 target="_blank"
                 rel="noreferrer"
                 underline="hover"
@@ -101,7 +93,7 @@ const SourcePublishHistory = ({ source_id, newPageGenerate = null }) => {
         })
       ) : (
         <div className={styles.noVersion}>
-          {isVersions ? (
+          {isLoading ? (
             <CircularProgress size={24} />
           ) : (
             <div>NO PUBLIC PAGE AVAILABLE!</div>
@@ -113,22 +105,21 @@ const SourcePublishHistory = ({ source_id, newPageGenerate = null }) => {
 };
 
 SourcePublishHistory.propTypes = {
-  source_id: PropTypes.string.isRequired,
-  newPageGenerate: PropTypes.shape({
-    PublicSourcePage: PropTypes.shape({
-      id: PropTypes.number,
-      created_at: PropTypes.string,
-      hash: PropTypes.string,
-      data: PropTypes.shape({
-        photometry: PropTypes.string,
-        classifications: PropTypes.string,
+  sourceId: PropTypes.string.isRequired,
+  versions: PropTypes.arrayOf(
+    PropTypes.shape({
+      PublicSourcePage: PropTypes.shape({
+        id: PropTypes.number,
+        created_at: PropTypes.string,
+        options: PropTypes.shape({
+          photometry: PropTypes.string,
+          classifications: PropTypes.string,
+        }),
+        hash: PropTypes.string,
       }),
     }),
-  }),
-};
-
-SourcePublishHistory.defaultProps = {
-  newPageGenerate: null,
+  ).isRequired,
+  setVersions: PropTypes.func.isRequired,
 };
 
 export default SourcePublishHistory;

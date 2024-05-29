@@ -53,7 +53,7 @@
     <div class="content">
       <div class="card resumeCard">
         <div class="titleAndDate">
-          <h1>{{ data['source_id'] }}</h1>
+          <h1>{{ source_id }}</h1>
           <span class="date">{{ created_at.strftime('%m/%d/%Y %H:%M:%S') }} UTC</span>
         </div>
         {% if classifications %}
@@ -76,8 +76,7 @@
               (&alpha;,&delta;= {{ data['ra'] }}, &nbsp{{ data['dec'] }})
             </span>
             <span>
-              (<i>l</i>,<i>b</i>={{ data['gal_lon'] }}, &nbsp;{{ data['gal_lat']
-              }})
+              (<i>l</i>,<i>b</i>={{ data['gal_lon'] }}, &nbsp;{{ data['gal_lat']}})
             </span>
             {% if data.get('ebv') %}
             <span> E(B-V): {{ data['ebv'] }} </span>
@@ -146,7 +145,7 @@
           <div class="download">
             <button
               type="button"
-              onclick='downloadPhotometryToCsv(`{{ photometry }}`, `{{ data["source_id"] }}`)'
+              onclick='downloadPhotometryToCsv(`{{ photometry }}`, `{{ source_id }}`)'
             >
               Download
             </button>
