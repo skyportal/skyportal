@@ -25,7 +25,7 @@ marshmallow-enum==1.5.1
 Pillow>=8.4.0
 pyproj==3.6.1
 pytest==8.1.1
-git+https://github.com/sncosmo/sncosmo.git@master#egg=sncosmo
+sncosmo==2.10.4
 tdtax==0.1.4
 healpix-alchemy==1.1.0
 mocpy==0.13.1
@@ -63,7 +63,7 @@ geojson==3.1.0
 typing-extensions==4.8.0
 swifttools==3.0.21
 pip==23.3.1
-gwemopt==0.2.2
+git+https://github.com/skyportal/gwemopt.git@main#egg=gwemopt
 humanize==4.8.0
 xarray>=21.1
 simsurvey==0.7.5
