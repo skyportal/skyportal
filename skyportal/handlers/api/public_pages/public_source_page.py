@@ -93,8 +93,8 @@ class PublicSourcePageHandler(BaseHandler):
             if source is None:
                 return self.error("Source not found", status=404)
             data_to_publish = {
-                "ra": round(source["ra"], 6) if source["gal_lon"] else None,
-                "dec": round(source["dec"], 6) if source["gal_lon"] else None,
+                "ra": round(source["ra"], 6) if source["ra"] else None,
+                "dec": round(source["dec"], 6) if source["dec"] else None,
                 "redshift": round(source["redshift"], 6)
                 if source["redshift"]
                 else None,
