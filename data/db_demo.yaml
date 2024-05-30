@@ -711,6 +711,7 @@ allocation:
     start_date: "3020-02-12T00:00:00"
     end_date: "3020-07-12T00:00:00"
     hours_allocated: 100
+    types: [triggered, observation_plan]
     group_id: =program_A
     instrument_id: =SEDMv2
     =id: SEDMv2_allocation
