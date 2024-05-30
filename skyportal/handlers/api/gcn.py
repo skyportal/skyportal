@@ -1898,6 +1898,12 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
         user = session.scalar(sa.select(User).where(User.id == user_id))
         localization = session.query(Localization).get(localization_id)
         dateobs = localization.dateobs
+        localization_tags = [
+            tags.text
+            for tags in session.query(LocalizationTag)
+            .filter(LocalizationTag.localization_id == localization_id)
+            .all()
+        ]
 
         default_observation_plans = (
             session.scalars(DefaultObservationPlanRequest.select(user)).unique().all()
@@ -1945,6 +1951,37 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     'gcnevent_id': event.id,
                     'localization_id': localization_id,
                 }
+
+                if 'filters' in gcn_observation_plan:
+                    filters = gcn_observation_plan['filters']
+                    if filters is not None:
+                        if 'gcn_notices' in filters and len(filters['gcn_notices']) > 0:
+                            if not any(
+                                [
+                                    gcn.NoticeType(notice.notice_type).name
+                                    in filters['gcn_notices']
+                                    for notice in event.gcn_notices
+                                ]
+                            ):
+                                continue
+
+                        if 'gcn_tags' in filters and len(filters['gcn_tags']) > 0:
+                            intersection = list(
+                                set(event.tags) & set(filters["gcn_tags"])
+                            )
+                            if len(intersection) == 0:
+                                continue
+
+                        if (
+                            "localization_tags" in filters
+                            and len(filters["localization_tags"]) > 0
+                        ):
+                            intersection = list(
+                                set(localization_tags)
+                                & set(filters["localization_tags"])
+                            )
+                            if len(intersection) == 0:
+                                continue
 
                 post_observation_plan(
                     plan,
