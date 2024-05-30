@@ -3,6 +3,8 @@ import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
 import Avatar from "@mui/material/Avatar";
 import Tooltip from "@mui/material/Tooltip";
+import SmartToyIcon from "@mui/icons-material/SmartToy";
+import Badge from "@mui/material/Badge";
 
 const useStyles = makeStyles((theme) => ({
   avatar: (props) => ({
@@ -20,6 +22,10 @@ const useStyles = makeStyles((theme) => ({
   avatarImg: {
     zIndex: 5,
   },
+  badge: (props) => ({
+    fontSize: `${Math.max(parseInt(parseFloat(props.size) / 2, 10), 10)}px`,
+    color: "#555555",
+  }),
 }));
 
 // Return true if all characters in a string are Korean characters
@@ -29,15 +35,23 @@ export const isAllKoreanCharacters = (str) =>
   );
 
 const getInitials = (firstName, lastName) => {
-  // Korean names are almost always <=2 characters; last names are written first,
+  // Korean last names are almost always <=2 characters; last names are written first,
   // so using the full first name is a more natural "initials" than (firstName[0], lastName[0])
+  // also, first names have more chance to be unique as a lot of last names are very common
   if (isAllKoreanCharacters(firstName)) {
     return firstName;
   }
   return `${firstName?.charAt(0)}${lastName?.charAt(0)}`;
 };
 
-const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
+const UserAvatar = ({
+  size,
+  firstName,
+  lastName,
+  username,
+  gravatarUrl,
+  isBot,
+}) => {
   // use the hash of the username (which is in the gravatarUrl) to
   // select a unique color for this user
   function bgcolor() {
@@ -64,6 +78,33 @@ const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
   if (firstName && lastName) {
     tooltipText += ` (${firstName} ${lastName})`;
   }
+  if (isBot) {
+    tooltipText = `[Bot] ${tooltipText}`;
+  }
+
+  if (isBot) {
+    return (
+      <Tooltip title={tooltipText} arrow placement="top-start">
+        <Badge
+          overlap="circular"
+          anchorOrigin={{ vertical: "top", horizontal: "right" }}
+          badgeContent={
+            <SmartToyIcon fontSize="small" className={classes.badge} />
+          }
+        >
+          <Avatar
+            alt={backUpLetters}
+            src={`${gravatarUrl}&s=${size}`}
+            size={size}
+            classes={{
+              root: classes.avatar,
+              img: classes.avatarImg,
+            }}
+          />
+        </Badge>
+      </Tooltip>
+    );
+  }
 
   return (
     <Tooltip title={tooltipText} arrow placement="top-start">
@@ -86,11 +127,13 @@ UserAvatar.propTypes = {
   lastName: PropTypes.string,
   username: PropTypes.string.isRequired,
   gravatarUrl: PropTypes.string.isRequired,
+  isBot: PropTypes.bool,
 };
 
 UserAvatar.defaultProps = {
   firstName: null,
   lastName: null,
+  isBot: false,
 };
 
 export default UserAvatar;
