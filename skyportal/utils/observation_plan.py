@@ -29,6 +29,8 @@ cache = Cache(
 )
 
 use_skyportal_fields = cfg['app.observation_plan.use_skyportal_fields']
+use_parallel = cfg.get('app.observation_plan.use_parallel', False)
+Ncores = cfg.get('app.observation_plan.Ncores', 1)
 
 
 def combine_healpix_tuples(input_tiles):
@@ -403,7 +405,8 @@ def generate_plan(
             # single set of scheduled observations
             'doSingleExposure': True,
             # parallelize computation
-            'doParallel': False,
+            'doParallel': use_parallel,
+            'Ncores': Ncores,
             # gwemopt scheduling algorithms
             # options: greedy, greedy_slew, sear, airmass_weighted
             'scheduleType': request.payload["schedule_type"],
