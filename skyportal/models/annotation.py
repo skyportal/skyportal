@@ -92,7 +92,13 @@ class AnnotationMixin:
     def construct_author_info_dict(self):
         return {
             field: getattr(self.author, field)
-            for field in ('username', 'first_name', 'last_name', 'gravatar_url')
+            for field in (
+                'username',
+                'first_name',
+                'last_name',
+                'gravatar_url',
+                'is_bot',
+            )
         }
 
 

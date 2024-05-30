@@ -366,6 +366,7 @@ class UserHandler(BaseHandler):
                 if user.contact_phone:
                     return_values[-1]["contact_phone"] = user.contact_phone.e164
                 return_values[-1]["contact_email"] = user.contact_email
+                return_values[-1]["gravatar_url"] = user.gravatar_url
                 # Only Sys admins can see other users' group memberships for all groups and stream access
                 # if not sys admin, restrict to only the groups the current user is a member of
                 if self.current_user.is_system_admin:

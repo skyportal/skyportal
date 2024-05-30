@@ -74,6 +74,7 @@ const UserProfileInfo = () => {
             lastName={profile.last_name}
             username={profile.username}
             gravatarUrl={profile.gravatar_url}
+            isBot={profile?.is_bot || false}
           />
           &nbsp;&nbsp;
           <div style={{ display: "flex", flexDirection: "column" }}>

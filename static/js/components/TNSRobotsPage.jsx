@@ -53,6 +53,9 @@ const userLabel = (user) => {
   if (!user) {
     return "loading...";
   }
+  if (user.is_bot === true) {
+    return `${user.username}`;
+  }
   if (!(user.first_name && user.last_name)) {
     return `${user.username}${
       user.affiliations?.length > 0 ? ` (${user.affiliations[0]})` : ""

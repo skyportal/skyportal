@@ -109,6 +109,7 @@ const NewsFeedItem = ({ item }) => {
           lastName={item.author_info.last_name}
           username={item.author_info.username}
           gravatarUrl={item.author_info.gravatar_url}
+          isBot={item.author_info?.is_bot || false}
         />
       );
       entryTitle = null;
@@ -253,6 +254,7 @@ NewsFeedItem.propTypes = {
       first_name: PropTypes.string,
       last_name: PropTypes.string,
       gravatar_url: PropTypes.string.isRequired,
+      is_bot: PropTypes.bool,
     }),
   }).isRequired,
 };
