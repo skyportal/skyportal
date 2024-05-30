@@ -1,3 +1,4 @@
+import math
 import operator  # noqa: F401
 import json
 
@@ -31,6 +32,16 @@ def process_thumbnails(thumbnails, ra, dec):
             "header": header,
         }
     return thumbnails
+
+
+def get_redshift_to_display(source):
+    redshift_display = "..."
+    if source.get('redshift') and source.get('redshift_error'):
+        z_round = math.ceil(abs(math.log10(source['redshift_error'])))
+        redshift_display = f"{round(source['redshift'], z_round)} ± {round(source['redshift_error'], z_round)}"
+    elif 'redshift' in source:
+        redshift_display = round(source['redshift'], 4)
+    return redshift_display
 
 
 class PublicSourcePageHandler(BaseHandler):
@@ -95,9 +106,7 @@ class PublicSourcePageHandler(BaseHandler):
             data_to_publish = {
                 "ra": round(source["ra"], 6) if source["ra"] else None,
                 "dec": round(source["dec"], 6) if source["dec"] else None,
-                "redshift": round(source["redshift"], 6)
-                if source["redshift"]
-                else None,
+                "redshift_display": get_redshift_to_display(source),
                 "gal_lon": round(source["gal_lon"], 6) if source["gal_lon"] else None,
                 "gal_lat": round(source["gal_lat"], 6) if source["gal_lat"] else None,
                 "ebv": round(source["ebv"], 2) if source["ebv"] else None,

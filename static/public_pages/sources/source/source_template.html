@@ -87,7 +87,9 @@
           </h3>
           <h3>
             Redshift:
-            <span> {{ data['redshift'] if data.get('redshift') else '...' }} </span>
+            <span>
+              {{ data['redshift_display'] }}
+            </span>
             {% if data.get('dm') %} DM:
             <span> {{ data['dm'] }} mag </span>
             {% endif %} {% if data.get('dl') %}
