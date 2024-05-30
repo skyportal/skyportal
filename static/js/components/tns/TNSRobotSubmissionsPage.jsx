@@ -8,7 +8,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import SmartToyIcon from "@mui/icons-material/SmartToy";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -21,6 +21,7 @@ import ReactJson from "react-json-view";
 import { Typography } from "@mui/material";
 import Button from "../Button";
 
+import UserAvatar from "./UserAvatar";
 import { userLabel } from "./TNSRobotsPage";
 
 import * as tnsrobotsActions from "../../ducks/tnsrobots";
@@ -34,6 +35,23 @@ const useStyles = makeStyles(() => ({
     flexDirection: "row",
   },
 }));
+
+function getStatusColors(status) {
+  // if it starts with success, green
+  if (status.startsWith("success")) {
+    return ["black", "MediumAquaMarine"];
+  }
+  // if any of these strings are present, yellow
+  if (status.includes("already posted to TNS")) {
+    return ["black", "Orange"];
+  }
+  // if it starts with error, red
+  if (status.startsWith("error")) {
+    return ["white", "Crimson"];
+  }
+  // else grey
+  return ["black", "LightGrey"];
+}
 
 const TNSRobotSubmissionsPage = () => {
   const classes = useStyles();
@@ -169,12 +187,27 @@ const TNSRobotSubmissionsPage = () => {
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: "0.5rem",
+                  gap: "0.75rem",
                 }}
               >
+                {usersLookup[user_id]?.username &&
+                  usersLookup[user_id]?.gravatar_url && (
+                    <UserAvatar
+                      size={28}
+                      firstName={usersLookup[user_id]?.first_name}
+                      lastName={usersLookup[user_id]?.last_name}
+                      username={usersLookup[user_id]?.username}
+                      gravatarUrl={usersLookup[user_id]?.gravatar_url}
+                      isBot={usersLookup[user_id]?.is_bot || false}
+                    />
+                  )}
                 {userLabel(usersLookup[user_id])}
-                <Tooltip title="This submission was triggered automatically when the user saved the source.">
-                  <SmartToyIcon fontSize="small" style={{ color: "gray" }} />
+                <Tooltip
+                  title={`This submission was triggered automatically when the ${
+                    usersLookup[user_id]?.is_bot === true ? "BOT" : ""
+                  } user saved the source.`}
+                >
+                  <AutoAwesomeIcon fontSize="small" style={{ color: "gray" }} />
                 </Tooltip>
               </div>
             );
@@ -209,6 +242,24 @@ const TNSRobotSubmissionsPage = () => {
       options: {
         filter: false,
         sort: true,
+        customBodyRenderLite: (dataIndex) => {
+          const { status } = tnsrobot_submissions[dataIndex];
+          const colors = getStatusColors(status);
+          return (
+            <Typography
+              variant="body2"
+              style={{
+                backgroundColor: colors[1],
+                color: colors[0],
+                padding: "0.25rem 0.75rem 0.25rem 0.75rem",
+                borderRadius: "1rem",
+                maxWidth: "fit-content",
+              }}
+            >
+              {status}
+            </Typography>
+          );
+        },
       },
     },
     {

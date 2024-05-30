@@ -207,6 +207,7 @@ const TopSaversList = ({ savers, styles }) => {
           lastName={author.last_name}
           username={author.username}
           gravatarUrl={author.gravatar_url}
+          isBot={author?.is_bot || false}
         />
         <p>{author.username}</p>
       </div>
