@@ -13,7 +13,11 @@ RUN apt-get update && \
     apt-get install -y python3 python3-venv python3-dev \
     libpq-dev supervisor \
     git nodejs postgresql-client vim nano screen htop \
-    libcurl4-gnutls-dev libgnutls28-dev
+    libcurl4-gnutls-dev libgnutls28-dev && \
+    curl https://sh.rustup.rs -sSf | sh -s -- -y && \
+    apt-get install -y cargo
+
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 # we install nginx with brotli support from ppa:ondrej/nginx-mainline
 RUN add-apt-repository ppa:ondrej/nginx-mainline -y && \
