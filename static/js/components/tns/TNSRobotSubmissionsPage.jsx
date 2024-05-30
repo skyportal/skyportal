@@ -21,7 +21,7 @@ import ReactJson from "react-json-view";
 import { Typography } from "@mui/material";
 import Button from "../Button";
 
-import UserAvatar from "./UserAvatar";
+import UserAvatar from "../user/UserAvatar";
 import { userLabel } from "./TNSRobotsPage";
 
 import * as tnsrobotsActions from "../../ducks/tnsrobots";
