@@ -1,8 +1,8 @@
-import math
 import operator  # noqa: F401
 import json
 
 import joblib
+import numpy as np
 from sqlalchemy import or_
 
 from baselayer.app.access import auth_or_token, permissions
@@ -37,7 +37,7 @@ def process_thumbnails(thumbnails, ra, dec):
 def get_redshift_to_display(source):
     redshift_display = "..."
     if source.get('redshift') and source.get('redshift_error'):
-        z_round = math.ceil(abs(math.log10(source['redshift_error'])))
+        z_round = int(np.ceil(abs(np.log10(source['redshift_error']))))
         redshift_display = f"{round(source['redshift'], z_round)} ± {round(source['redshift_error'], z_round)}"
     elif 'redshift' in source:
         redshift_display = round(source['redshift'], 4)
