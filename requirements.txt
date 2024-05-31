@@ -10,7 +10,7 @@ seaborn==0.13.2
 pytest-randomly==3.15.0
 factory-boy==3.3.0
 astropy==6.0.1
-distributed==2023.4.1
+distributed==2024.5.2
 dustmaps==1.0.13
 reproject==0.11.0
 avro-python3==1.10.2
