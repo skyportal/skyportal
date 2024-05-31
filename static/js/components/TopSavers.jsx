@@ -202,7 +202,7 @@ const TopSaversList = ({ savers, styles }) => {
     return (
       <div className={styles.saverInfo}>
         <UserAvatar
-          size={24}
+          size={32}
           firstName={author.first_name}
           lastName={author.last_name}
           username={author.username}

@@ -20,10 +20,10 @@ const useStyles = makeStyles((theme) => ({
     },
   }),
   avatarImg: {
-    zIndex: 5,
+    zIndex: 1,
   },
   badge: (props) => ({
-    fontSize: `${Math.max(parseInt(parseFloat(props.size) / 2, 10), 10)}px`,
+    fontSize: `${Math.max(parseInt(parseFloat(props.size) / 1.8, 10), 10)}px`,
     color: "#555555",
   }),
 }));

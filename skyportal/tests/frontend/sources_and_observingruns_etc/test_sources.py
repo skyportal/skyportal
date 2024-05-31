@@ -553,10 +553,17 @@ def test_show_starlist(driver, user, public_source):
 def test_centroid_plot(
     driver, user, public_source, public_group, ztf_camera, upload_data_token
 ):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+
+    driver.wait_for_xpath('//div[@id="no-centroid-plot"]')
+
+    discovery_ra = public_source.ra
+    discovery_dec = public_source.dec
     # Put in some actual photometry data first
     status, data = api(
         'POST',
-        'photometry',
+        'photometry?refresh=true',
         data={
             'obj_id': str(public_source.id),
             'mjd': [58000.0, 58001.0, 58002.0],
@@ -566,9 +573,13 @@ def test_centroid_plot(
             'filter': ['ztfg', 'ztfg', 'ztfg'],
             'zp': [25.0, 30.0, 21.2],
             'magsys': ['ab', 'ab', 'ab'],
-            'ra': [264.19482957057863, 264.1948483167286, 264.19475131195185],
+            'ra': [discovery_ra + 0.0001, discovery_ra + 0.0002, discovery_ra + 0.0003],
             'ra_unc': 0.17,
-            'dec': [50.54773905413207, 50.547910537435854, 50.547856056708355],
+            'dec': [
+                discovery_dec + 0.0001,
+                discovery_dec + 0.0002,
+                discovery_dec + 0.0003,
+            ],
             'dec_unc': 0.2,
             'group_ids': [public_group.id],
         },
@@ -578,47 +589,7 @@ def test_centroid_plot(
     assert data['status'] == 'success'
     assert len(data['data']['ids']) == 3
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-
-    try:
-        # Look for Suspense fallback to show
-        loading_text = "Loading centroid plot..."
-        driver.wait_for_xpath(f'//div[text()="{loading_text}"]')
-        driver.wait_for_xpath_to_disappear(f'//div[text()="{loading_text}"]')
-
-    except TimeoutException:
-        # The plot may have loaded too quickly to catch the Suspense div
-        driver.wait_for_xpath_to_disappear(f'//div[text()="{loading_text}"]')
-
-    finally:
-        component_class_xpath = "//div[contains(@data-testid, 'centroid-plot-div')]"
-        vegaplot_div = driver.wait_for_xpath(component_class_xpath)
-        assert vegaplot_div.is_displayed()
-
-        # Since Vega uses a <canvas> element, we can't examine individual
-        # components of the plot through the DOM, so just compare an image of
-        # the plot to the saved baseline
-        generated_plot_data = vegaplot_div.screenshot_as_png
-        generated_plot = Image.open(BytesIO(generated_plot_data))
-
-        expected_plot_path = os.path.abspath(
-            "skyportal/tests/data/centroid_plot_expected.png"
-        )
-
-        # Use this commented line to save a new version of the expected plot
-        # if changes have been made to the component:
-        # temporarily generate the plot we will test against
-        generated_plot.save(expected_plot_path)
-
-        if not os.path.exists(expected_plot_path):
-            pytest.fail("Missing centroid plot baseline image for comparison")
-        expected_plot = Image.open(expected_plot_path)
-
-        difference = ImageChops.difference(
-            generated_plot.convert('RGB'), expected_plot.convert('RGB')
-        )
-        assert difference.getbbox() is None
+    driver.wait_for_xpath('//div[@id="centroid-plot"]/div[@class="js-plotly-plot"]')
 
 
 def test_dropdown_facility_change(driver, user, public_source):
