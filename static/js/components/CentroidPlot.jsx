@@ -17,6 +17,8 @@ import CentroidPlotPlugins, {
 
 const Plot = createPlotlyComponent(Plotly);
 
+const SNR_THRESHOLD = 3.0; // TODO: make this configurable from the UI
+
 const useStyles = makeStyles(() => ({
   plotContainer: {
     width: "100%",
@@ -62,6 +64,7 @@ const calculateCentroid = (
   how = "snr2",
   maxOffset = 0.5,
   sigmaClip = 4.0,
+  snrThreshold = null,
 ) => {
   // Calculates the best position for a source from its photometric
   // points. Only small adjustments from the fallback position are
@@ -69,6 +72,15 @@ const calculateCentroid = (
 
   if (!photometry || photometry.length === 0) {
     return { refRA: null, refDec: null };
+  }
+
+  // if an snrThreshold is provided, remove points with snr < snrThreshold
+  if (
+    snrThreshold !== null &&
+    !Number.isNaN(snrThreshold) &&
+    snrThreshold > 0
+  ) {
+    photometry = photometry.filter((p) => p[how] >= snrThreshold);
   }
 
   // remove observations with distances more than maxOffset away from the median
@@ -150,7 +162,6 @@ const calculateCentroid = (
 };
 
 const prepareData = (photometry, fallbackRA, fallbackDec) => {
-  console.log(photometry);
   if (!photometry || photometry.length === 0) {
     return { refRA: null, refDec: null, oneSigmaCircle: null, stdCircle: null };
   }
@@ -186,9 +197,9 @@ const prepareData = (photometry, fallbackRA, fallbackDec) => {
     newPoint.snr = newPoint.flux / newPoint.fluxerr;
     return newPoint;
   });
-  // remove those with a snr < 3.0 and valid flux and fluxerr
+  // remove those with a snr < SNR_THRESHOLD and no valid flux and fluxerr
   points = points.filter(
-    (p) => p.snr >= 3.0 && p.flux !== null && p.fluxerr !== null,
+    (p) => p.snr >= SNR_THRESHOLD && p.flux !== null && p.fluxerr !== null,
   );
   if (points.length === 0) {
     return {
