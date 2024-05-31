@@ -150,6 +150,7 @@ const calculateCentroid = (
 };
 
 const prepareData = (photometry, fallbackRA, fallbackDec) => {
+  console.log(photometry);
   if (!photometry || photometry.length === 0) {
     return { refRA: null, refDec: null, oneSigmaCircle: null, stdCircle: null };
   }
@@ -334,7 +335,12 @@ const CentroidPlotV2 = ({ sourceId }) => {
   }, [id]);
 
   useEffect(() => {
-    if (photometry?.length > 0 && ra && dec && filter2color) {
+    if (
+      photometry?.length > 0 &&
+      !Number.isNaN(ra) &&
+      !Number.isNaN(dec) &&
+      filter2color
+    ) {
       const { refRA, refDec, points, oneSigmaCircle, stdCircle } = prepareData(
         photometry,
         ra,
@@ -453,6 +459,7 @@ const CentroidPlotV2 = ({ sourceId }) => {
   return (
     <div className={classes.plotContainer}>
       <div
+        id="centroid-plot"
         style={{
           width: "100%",
           height: "50vh",
