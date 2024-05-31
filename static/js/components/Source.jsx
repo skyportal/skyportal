@@ -625,7 +625,12 @@ const SourceContent = ({ source }) => {
                 </div>
               }
             >
-              <CentroidPlot sourceId={source.id} />
+              <CentroidPlot
+                sourceId={source.id}
+                plotStyle={{
+                  height: "50vh",
+                }}
+              />
             </Suspense>
           </AccordionDetails>
         </Accordion>

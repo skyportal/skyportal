@@ -299,7 +299,7 @@ const prepareData = (photometry, fallbackRA, fallbackDec) => {
   return { refRA, refDec, points, oneSigmaCircle, stdCircle };
 };
 
-const CentroidPlot = ({ sourceId }) => {
+const CentroidPlot = ({ sourceId, plotStyle }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
 
@@ -454,7 +454,7 @@ const CentroidPlot = ({ sourceId }) => {
         id="centroid-plot"
         style={{
           width: "100%",
-          height: "50vh",
+          height: plotStyle?.height || "50vh",
           overflowX: "scroll",
         }}
       >
@@ -521,6 +521,15 @@ const CentroidPlot = ({ sourceId }) => {
 
 CentroidPlot.propTypes = {
   sourceId: PropTypes.string.isRequired,
+  plotStyle: PropTypes.shape({
+    height: PropTypes.string,
+  }),
+};
+
+CentroidPlot.defaultProps = {
+  plotStyle: {
+    height: "50vh",
+  },
 };
 
 export default CentroidPlot;
