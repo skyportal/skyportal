@@ -8,7 +8,7 @@ import Typography from "@mui/material/Typography";
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
-import { PHOT_ZP } from "../utils";
+import { PHOT_ZP, greatCircleDistance } from "../utils";
 
 import CentroidPlotPlugins, {
   getCrossMatches,
@@ -32,30 +32,6 @@ function groupBy(arr, key) {
     return acc;
   }, {});
 }
-
-// Helper functions for computing plot points (taken from GROWTH marshall)
-const gcirc = (ra1, dec1, ra2, dec2) => {
-  // input deg, haversine formula, return deg
-  ra1 = (ra1 / 180) * Math.PI;
-  dec1 = (dec1 / 180) * Math.PI;
-  ra2 = (ra2 / 180) * Math.PI;
-  dec2 = (dec2 / 180) * Math.PI;
-  const delDec2 = (dec2 - dec1) * 0.5;
-  const delRA2 = (ra2 - ra1) * 0.5;
-  return (
-    (360 *
-      Math.asin(
-        Math.sqrt(
-          Math.sin(delDec2) * Math.sin(delDec2) +
-            Math.cos(dec1) *
-              Math.cos(dec2) *
-              Math.sin(delRA2) *
-              Math.sin(delRA2),
-        ),
-      )) /
-    Math.PI
-  );
-};
 
 const calculateCentroid = (
   photometry,
@@ -88,12 +64,16 @@ const calculateCentroid = (
   const medianDec = d3.median(photometry.map((p) => p.dec));
 
   // make sure that the median itself is not too far from the fallback position
-  if (gcirc(medianRA, medianDec, fallbackRA, fallbackDec) > maxOffset) {
+  if (
+    greatCircleDistance(medianRA, medianDec, fallbackRA, fallbackDec, "deg") >
+    maxOffset
+  ) {
     return { refRA: fallbackRA, refDec: fallbackDec };
   }
 
   let points = photometry.filter(
-    (p) => gcirc(medianRA, medianDec, p.ra, p.dec) <= maxOffset,
+    (p) =>
+      greatCircleDistance(medianRA, medianDec, p.ra, p.dec, "deg") <= maxOffset,
   );
 
   // add a ra_offset, dec_offset, and offset_arcsec to each point
@@ -240,9 +220,11 @@ const prepareData = (photometry, fallbackRA, fallbackDec) => {
       newPoint.ra_offset ** 2 + newPoint.dec_offset ** 2,
     );
     newPoint.deltaRA =
-      gcirc(p.ra, p.dec, refRA, p.dec) * 3600 * -Math.sign(p.ra - refRA);
+      greatCircleDistance(p.ra, p.dec, refRA, p.dec, "arcsec") *
+      -Math.sign(p.ra - refRA);
     newPoint.deltaDec =
-      gcirc(p.ra, p.dec, p.ra, refDec) * 3600 * Math.sign(p.dec - refDec);
+      greatCircleDistance(p.ra, p.dec, p.ra, refDec, "arcsec") *
+      Math.sign(p.dec - refDec);
     return newPoint;
   });
 
