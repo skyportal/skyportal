@@ -625,11 +625,7 @@ const SourceContent = ({ source }) => {
                 </div>
               }
             >
-              <CentroidPlot
-                className={classes.smallPlot}
-                sourceId={source.id}
-                size="21.875rem"
-              />
+              <CentroidPlot sourceId={source.id} />
             </Suspense>
           </AccordionDetails>
         </Accordion>
