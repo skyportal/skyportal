@@ -38,7 +38,7 @@ const useStyles = makeStyles(() => ({
 
 function getStatusColors(status) {
   // if it starts with success, green
-  if (status.startsWith("success")) {
+  if (status.startsWith("complete")) {
     return ["black", "MediumAquaMarine"];
   }
   // if any of these strings are present, yellow
@@ -180,28 +180,28 @@ const TNSRobotSubmissionsPage = () => {
         sort: true,
         customBodyRenderLite: (dataIndex) => {
           const { user_id } = tnsrobot_submissions[dataIndex];
-          if (tnsrobot_submissions[dataIndex].auto_submission) {
-            return (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: "0.75rem",
-                }}
-              >
-                {usersLookup[user_id]?.username &&
-                  usersLookup[user_id]?.gravatar_url && (
-                    <UserAvatar
-                      size={28}
-                      firstName={usersLookup[user_id]?.first_name}
-                      lastName={usersLookup[user_id]?.last_name}
-                      username={usersLookup[user_id]?.username}
-                      gravatarUrl={usersLookup[user_id]?.gravatar_url}
-                      isBot={usersLookup[user_id]?.is_bot || false}
-                    />
-                  )}
-                {userLabel(usersLookup[user_id])}
+          return (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: "0.75rem",
+              }}
+            >
+              {usersLookup[user_id]?.username &&
+                usersLookup[user_id]?.gravatar_url && (
+                  <UserAvatar
+                    size={28}
+                    firstName={usersLookup[user_id]?.first_name}
+                    lastName={usersLookup[user_id]?.last_name}
+                    username={usersLookup[user_id]?.username}
+                    gravatarUrl={usersLookup[user_id]?.gravatar_url}
+                    isBot={usersLookup[user_id]?.is_bot || false}
+                  />
+                )}
+              {userLabel(usersLookup[user_id])}
+              {tnsrobot_submissions[dataIndex].auto_submission && (
                 <Tooltip
                   title={`This submission was triggered automatically when the ${
                     usersLookup[user_id]?.is_bot === true ? "BOT" : ""
@@ -209,10 +209,9 @@ const TNSRobotSubmissionsPage = () => {
                 >
                   <AutoAwesomeIcon fontSize="small" style={{ color: "gray" }} />
                 </Tooltip>
-              </div>
-            );
-          }
-          return userLabel(usersLookup[user_id]);
+              )}
+            </div>
+          );
         },
       },
     },

@@ -479,9 +479,10 @@ const SourceContent = ({ source }) => {
               }
             >
               <CentroidPlot
-                className={classes.smallPlot}
                 sourceId={source.id}
-                size="21.875rem"
+                plotStyle={{
+                  height: "50vh",
+                }}
               />
             </Suspense>
           </AccordionDetails>
