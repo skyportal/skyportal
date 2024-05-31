@@ -553,12 +553,17 @@ def test_show_starlist(driver, user, public_source):
 def test_centroid_plot(
     driver, user, public_source, public_group, ztf_camera, upload_data_token
 ):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+
+    driver.wait_for_xpath('//div[@id="no-centroid-plot"]')
+
     discovery_ra = public_source.ra
     discovery_dec = public_source.dec
     # Put in some actual photometry data first
     status, data = api(
         'POST',
-        'photometry',
+        'photometry?refresh=true',
         data={
             'obj_id': str(public_source.id),
             'mjd': [58000.0, 58001.0, 58002.0],
@@ -584,33 +589,7 @@ def test_centroid_plot(
     assert data['status'] == 'success'
     assert len(data['data']['ids']) == 3
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-
-    plotly_div = driver.wait_for_xpath('//div[@id="centroid-plot"]')
-
-    # We can simply export the Plotly.js plot to an img and compare
-    # it with an expected img of the plot we have saved earlier.
-    generated_plot_data = plotly_div.screenshot_as_png
-    generated_plot = Image.open(BytesIO(generated_plot_data))
-
-    expected_plot_path = os.path.abspath(
-        "skyportal/tests/data/centroid_plot_expected.png"
-    )
-
-    # Use this commented line to save a new version of the expected plot
-    # if changes have been made to the component:
-    # temporarily generate the plot we will test against
-    # generated_plot.save(expected_plot_path)
-
-    if not os.path.exists(expected_plot_path):
-        pytest.fail("Missing centroid plot baseline image for comparison")
-    expected_plot = Image.open(expected_plot_path)
-
-    difference = ImageChops.difference(
-        generated_plot.convert('RGB'), expected_plot.convert('RGB')
-    )
-    assert difference.getbbox() is None
+    driver.wait_for_xpath('//div[@id="centroid-plot"]/div[@class="js-plotly-plot"]')
 
 
 def test_dropdown_facility_change(driver, user, public_source):

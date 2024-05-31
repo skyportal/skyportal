@@ -134,7 +134,6 @@ const calculateCentroid = (
   }
 
   return {
-    // ra: med_ra + diff_ra / (np.cos(np.radians(med_dec)) * 3600.0),
     refRA:
       medianRA + differenceRA / (Math.cos((medianDec / 180) * Math.PI) * 3600),
     refDec: medianDec + differenceDec / 3600,
@@ -300,7 +299,7 @@ const prepareData = (photometry, fallbackRA, fallbackDec) => {
   return { refRA, refDec, points, oneSigmaCircle, stdCircle };
 };
 
-const CentroidPlotV2 = ({ sourceId }) => {
+const CentroidPlot = ({ sourceId }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
 
@@ -371,7 +370,7 @@ const CentroidPlotV2 = ({ sourceId }) => {
 
   if (!filter2color) {
     return (
-      <div className={classes.plotContainer}>
+      <div className={classes.plotContainer} id="no-centroid-plot">
         <Typography variant="body1">
           No valid filter to color mapping
         </Typography>
@@ -381,7 +380,7 @@ const CentroidPlotV2 = ({ sourceId }) => {
 
   if (id === null || ra === null || dec === null || id !== sourceId) {
     return (
-      <div className={classes.plotContainer}>
+      <div className={classes.plotContainer} id="no-centroid-plot">
         <Typography variant="body1">
           No valid source selected to compute the centroid
         </Typography>
@@ -391,7 +390,7 @@ const CentroidPlotV2 = ({ sourceId }) => {
 
   if (!data?.refRA && !data?.refDec) {
     return (
-      <div className={classes.plotContainer}>
+      <div className={classes.plotContainer} id="no-centroid-plot">
         <Typography variant="body1">
           No valid photometry data to compute the centroid
         </Typography>
@@ -520,8 +519,8 @@ const CentroidPlotV2 = ({ sourceId }) => {
   );
 };
 
-CentroidPlotV2.propTypes = {
+CentroidPlot.propTypes = {
   sourceId: PropTypes.string.isRequired,
 };
 
-export default CentroidPlotV2;
+export default CentroidPlot;
