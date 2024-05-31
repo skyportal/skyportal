@@ -4,7 +4,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import Typography from "@mui/material/Typography"; // eslint-disable-line no-unused-vars
 
 // import * as archiveActions from "../ducks/archive";
-// IMPORTANT: the file imported above needs to be added to same codebase where the UI plugin will be overwritten.
+// IMPORTANT: the file imported above needs to be added to the same codebase where the UI plugin will be overwritten.
 //            It should add the `cross_match` key to the redux store, along with methods to populate that field.
 
 // list of cross-match catalogs to hide
