@@ -10,7 +10,10 @@ import createPlotlyComponent from "react-plotly.js/factory";
 
 import { PHOT_ZP } from "../utils";
 
-import * as archiveActions from "../ducks/archive";
+import CentroidPlotPlugins, {
+  getCrossMatches,
+  getCrossMatchesTraces,
+} from "./CentroidPlotPlugins";
 
 const Plot = createPlotlyComponent(Plotly);
 
@@ -20,15 +23,6 @@ const useStyles = makeStyles(() => ({
     height: "100%",
   },
 }));
-
-const catalogColors = {
-  AllWISE: "#2f5492",
-  Gaia_EDR3: "#FF00FF",
-  PS1_DR1: "#3bbed5",
-  PS1_PSC: "#d62728",
-  GALEX: "#6607c2",
-  TNS: "#ed6cf6",
-};
 
 function groupBy(arr, key) {
   return arr.reduce((acc, x) => {
@@ -125,18 +119,18 @@ const calculateCentroid = (
   if (how === "snr2") {
     // use the SNR^2 as the weight to compute the average
     differenceRA =
-      d3.sum(points.map((p) => p.ra * p.snr ** 2)) /
+      d3.sum(points.map((p) => p.ra_offset * p.snr ** 2)) /
       d3.sum(points.map((p) => p.snr ** 2));
     differenceDec =
-      d3.sum(points.map((p) => p.dec * p.snr ** 2)) /
+      d3.sum(points.map((p) => p.dec_offset * p.snr ** 2)) /
       d3.sum(points.map((p) => p.snr ** 2));
   } else if (how === "invvar") {
     // use the inverse variance as the weight to compute the average
     differenceRA =
-      d3.sum(points.map((p) => p.ra * (1 / p.ra_unc ** 2))) /
+      d3.sum(points.map((p) => p.ra_offset * (1 / p.ra_unc ** 2))) /
       d3.sum(points.map((p) => 1 / p.ra_unc ** 2));
     differenceDec =
-      d3.sum(points.map((p) => p.dec * (1 / p.dec_unc ** 2))) /
+      d3.sum(points.map((p) => p.dec_offset * (1 / p.dec_unc ** 2))) /
       d3.sum(points.map((p) => 1 / p.dec_unc ** 2));
   } else {
     // log a warning if the how parameter is not recognized
@@ -149,15 +143,15 @@ const calculateCentroid = (
 
   return {
     // ra: med_ra + diff_ra / (np.cos(np.radians(med_dec)) * 3600.0),
-    ra:
+    refRA:
       medianRA + differenceRA / (Math.cos((medianDec / 180) * Math.PI) * 3600),
-    dec: medianDec + differenceDec / 3600,
+    refDec: medianDec + differenceDec / 3600,
   };
 };
 
 const prepareData = (photometry, fallbackRA, fallbackDec) => {
   if (!photometry || photometry.length === 0) {
-    return { refRA: null, refDec: null, oneSigmaCircle: null };
+    return { refRA: null, refDec: null, oneSigmaCircle: null, stdCircle: null };
   }
   // keep only the points with a mag and magerr
   // and ra, dec
@@ -175,7 +169,13 @@ const prepareData = (photometry, fallbackRA, fallbackDec) => {
       !["fp", "alert_fp"].includes(p.origin),
   );
   if (points.length === 0) {
-    return { refRA: null, refDec: null, points: [], oneSigmaCircle: null };
+    return {
+      refRA: null,
+      refDec: null,
+      points: [],
+      oneSigmaCircle: null,
+      stdCircle: null,
+    };
   }
   // calculate the flux and fluxerr for these points
   points = points.map((p) => {
@@ -190,19 +190,31 @@ const prepareData = (photometry, fallbackRA, fallbackDec) => {
     (p) => p.snr >= 3.0 && p.flux !== null && p.fluxerr !== null,
   );
   if (points.length === 0) {
-    return { refRA: null, refDec: null, points: [], oneSigmaCircle: null };
+    return {
+      refRA: null,
+      refDec: null,
+      points: [],
+      oneSigmaCircle: null,
+      stdCircle: null,
+    };
   }
   const { refRA, refDec } = calculateCentroid(
     points,
-    "snr2",
-    5,
     fallbackRA,
     fallbackDec,
+    "snr2",
+    5,
   );
 
   // if ra and dec are null, return
   if (refRA === null || refDec === null) {
-    return { refRA: null, refDec: null, points: [], oneSigmaCircle: null };
+    return {
+      refRA: null,
+      refDec: null,
+      points: [],
+      oneSigmaCircle: null,
+      stdCircle: null,
+    };
   }
 
   // to each point, compute the delta in ra and dec in arcsec
@@ -224,14 +236,74 @@ const prepareData = (photometry, fallbackRA, fallbackDec) => {
 
   // compute the radius (in arcsec) of the 1 sigma boundary circle
   // for the centroid using the deltaRA and deltaDec
-  // of the points that are within the max offset (0.5 arcsec)
   const oneSigmaCircle = Math.max(
-    ...points
-      .filter((p) => p.offset_arcsec <= 0.5)
-      .map((p) => Math.sqrt(p.deltaRA ** 2 + p.deltaDec ** 2)),
+    ...points.map((p) => Math.sqrt(p.deltaRA ** 2 + p.deltaDec ** 2)),
   );
 
-  return { refRA, refDec, points, oneSigmaCircle };
+  // calculate radius of the standard deviation circle, as the max std dev
+  // of the deltaRA and deltaDec
+  const std_dev_RA = d3.deviation(points.map((p) => p.deltaRA));
+  const std_dev_Dec = d3.deviation(points.map((p) => p.deltaDec));
+  const stdCircle = Math.max(std_dev_RA, std_dev_Dec);
+
+  // add text to the points (shown on hover):
+  points = points.map((p) => {
+    const newPoint = { ...p };
+    newPoint.streams = (newPoint.streams || [])
+      .map((stream) => stream?.name || stream)
+      .filter((value, index, self) => self.indexOf(value) === index);
+    // we only want to keep the stream names that are not substrings of others
+    // for example, if we have a stream called 'ZTF Public', we don't want to keep
+    // 'ZTF Public+Partnership' because it's a substring of 'ZTF Public'.
+    newPoint.streams = newPoint.streams.filter((name) => {
+      const names = newPoint.streams.filter(
+        (c) => c !== name && c.includes(name),
+      );
+      return names.length === 0;
+    });
+    newPoint.text = `MJD: ${newPoint.mjd.toFixed(6)}`;
+    if (newPoint.mag) {
+      newPoint.text += `
+      <br>Mag: ${newPoint.mag ? newPoint.mag.toFixed(3) : "NaN"}
+      <br>Magerr: ${newPoint.magerr ? newPoint.magerr.toFixed(3) : "NaN"}
+      `;
+    }
+    newPoint.text += `
+      <br>Limiting Mag: ${
+        newPoint.limiting_mag ? newPoint.limiting_mag.toFixed(3) : "NaN"
+      }
+      <br>Flux: ${newPoint.flux ? newPoint.flux.toFixed(3) : "NaN"}
+    `;
+    if (newPoint.mag) {
+      newPoint.text += `<br>Fluxerr: ${newPoint.fluxerr.toFixed(3) || "NaN"}`;
+    }
+    newPoint.text += `
+      <br>Filter: ${newPoint.filter}
+      <br>Instrument: ${newPoint.instrument_name}
+    `;
+    if ([null, undefined, "", "None"].includes(newPoint.origin) === false) {
+      newPoint.text += `<br>Origin: ${newPoint.origin}`;
+    }
+    if (
+      [null, undefined, "", "None", "undefined"].includes(
+        newPoint.altdata?.exposure,
+      ) === false
+    ) {
+      newPoint.text += `<br>Exposure: ${newPoint.altdata?.exposure || ""}`;
+    }
+    if (newPoint.snr) {
+      newPoint.text += `<br>SNR: ${newPoint.snr.toFixed(3)}`;
+    }
+    if (newPoint.streams.length > 0) {
+      newPoint.text += `<br>Streams: ${newPoint.streams.join(", ")}`;
+    }
+    newPoint.text += `<br>RA Offset: ${newPoint.ra_offset.toFixed(4)}"`;
+    newPoint.text += `<br>Dec Offset: ${newPoint.dec_offset.toFixed(4)}"`;
+    newPoint.text += `<br>Offset: ${newPoint.offset_arcsec.toFixed(4)}"`;
+    return newPoint;
+  });
+
+  return { refRA, refDec, points, oneSigmaCircle, stdCircle };
 };
 
 const CentroidPlotV2 = ({ sourceId }) => {
@@ -246,8 +318,8 @@ const CentroidPlotV2 = ({ sourceId }) => {
   // apps on top of the basic SkyPortal
   const crossMatches = useSelector((state) => state.cross_matches);
   const [filter2color, setFilter2Color] = useState(null);
-
-  const radius = 10.0;
+  const [data, setData] = useState(null);
+  const [plotData, setPlotData] = useState(null);
 
   useEffect(() => {
     if (!filter2color && config?.bandpassesColors) {
@@ -256,10 +328,47 @@ const CentroidPlotV2 = ({ sourceId }) => {
   }, [config, filter2color]);
 
   useEffect(() => {
-    if (id === sourceId && ra && dec) {
-      dispatch(archiveActions.fetchCrossMatches({ ra, dec, radius }));
+    if (id === sourceId && ra && dec && typeof getCrossMatches === "function") {
+      getCrossMatches(ra, dec, dispatch);
     }
   }, [id]);
+
+  useEffect(() => {
+    if (photometry?.length > 0 && ra && dec && filter2color) {
+      const { refRA, refDec, points, oneSigmaCircle, stdCircle } = prepareData(
+        photometry,
+        ra,
+        dec,
+      );
+      setData({ refRA, refDec, oneSigmaCircle, stdCircle });
+
+      const photometryTraces = [];
+      const groupedPoints = groupBy(points, "filter");
+      Object.keys(groupedPoints).forEach((filter) => {
+        const colorRGB = filter2color[filter] || [0, 0, 0];
+        photometryTraces.push({
+          x: groupedPoints[filter].map((p) => p.deltaRA),
+          y: groupedPoints[filter].map((p) => p.deltaDec),
+          mode: "markers",
+          type: "scatter",
+          marker: {
+            size: 6,
+            color: `rgb(${colorRGB.join(",")})`,
+            opacity: 0.9,
+          },
+          name: filter,
+          hoverlabel: {
+            bgcolor: "white",
+            font: { size: 14 },
+            align: "left",
+          },
+          text: groupedPoints[filter].map((p) => p.text),
+          hovertemplate: "%{text}<extra></extra>",
+        });
+      });
+      setPlotData(photometryTraces);
+    }
+  }, [photometry, ra, dec, filter2color]);
 
   if (!filter2color) {
     return (
@@ -281,13 +390,7 @@ const CentroidPlotV2 = ({ sourceId }) => {
     );
   }
 
-  const { refRA, refDec, points, oneSigmaCircle } = prepareData(
-    photometry,
-    ra,
-    dec,
-  );
-
-  if (!refRA || !refDec || !points || points.length === 0) {
+  if (!data?.refRA && !data?.refDec) {
     return (
       <div className={classes.plotContainer}>
         <Typography variant="body1">
@@ -299,172 +402,119 @@ const CentroidPlotV2 = ({ sourceId }) => {
 
   const traces = [];
 
-  // group the photometry points per filter, returns a dict with the filter as key and the points as value
-  const groupedPoints = groupBy(points, "filter");
-  Object.keys(groupedPoints).forEach((filter) => {
-    const colorRGB = filter2color[filter] || [0, 0, 0];
-    traces.push({
-      x: groupedPoints[filter].map((p) => p.deltaRA),
-      y: groupedPoints[filter].map((p) => p.deltaDec),
-      mode: "markers",
-      type: "scatter",
-      marker: {
-        size: 6,
-        color: `rgb(${colorRGB.join(",")})`,
-        opacity: 0.9,
-      },
-      name: filter,
-    });
-  });
-
   if (
     crossMatches &&
     typeof crossMatches === "object" &&
-    Object.keys(crossMatches)?.length > 0
+    Object.keys(crossMatches)?.length > 0 &&
+    typeof getCrossMatchesTraces === "function"
   ) {
-    // cross_matches are already grouped by catalog (instead of filter)
-    Object.keys(crossMatches).forEach((catalog) => {
-      if (crossMatches[catalog]?.length > 0) {
-        const catalogPoints = crossMatches[catalog].map((cm) => {
-          const newPoint = { ...cm };
-          newPoint.ra_offset =
-            Math.cos((refDec / 180) * Math.PI) * (cm.ra - refRA) * 3600;
-          newPoint.dec_offset = (cm.dec - refDec) * 3600;
-          newPoint.offset_arcsec = Math.sqrt(
-            newPoint.ra_offset ** 2 + newPoint.dec_offset ** 2,
-          );
-          newPoint.deltaRA =
-            gcirc(cm.ra, cm.dec, refRA, cm.dec) *
-            3600 *
-            -Math.sign(cm.ra - refRA);
-          newPoint.deltaDec =
-            gcirc(cm.ra, cm.dec, cm.ra, refDec) *
-            3600 *
-            Math.sign(cm.dec - refDec);
-          return newPoint;
-        });
-
-        const color = catalogColors[catalog] || "black";
-
-        traces.push({
-          x: catalogPoints.map((p) => p.deltaRA),
-          y: catalogPoints.map((p) => p.deltaDec),
-          mode: "markers",
-          type: "scatter",
-          marker: {
-            size: 12,
-            color,
-            opacity: 1,
-            symbol: "star",
-          },
-          name: catalog,
-        });
-      }
-    });
+    traces.push(
+      ...getCrossMatchesTraces(crossMatches, data?.refRA, data?.refDec),
+    );
   }
 
   const shapes = [];
 
-  if (oneSigmaCircle) {
+  if (data?.oneSigmaCircle) {
     // 1 sigma boundary circle
     shapes.push({
       type: "circle",
       xref: "x",
       yref: "y",
-      x0: -oneSigmaCircle,
-      y0: -oneSigmaCircle,
-      x1: oneSigmaCircle,
-      y1: oneSigmaCircle,
+      x0: -data?.oneSigmaCircle,
+      y0: -data?.oneSigmaCircle,
+      x1: data?.oneSigmaCircle,
+      y1: data?.oneSigmaCircle,
       fillcolor: "rgba(204, 210, 219, 0.15)",
       line: {
         color: "rgba(204, 210, 219, 0.3)",
       },
     });
+  }
 
-    // nuclear-to-host circle (0.2 * oneSigmaCircle)
+  if (data?.stdCircle) {
+    // nuclear-to-host circle (std dev)
     shapes.push({
       type: "circle",
       xref: "x",
       yref: "y",
-      x0: -0.2 * oneSigmaCircle,
-      y0: -0.2 * oneSigmaCircle,
-      x1: 0.2 * oneSigmaCircle,
-      y1: 0.2 * oneSigmaCircle,
+      x0: -data?.stdCircle,
+      y0: -data?.stdCircle,
+      x1: data?.stdCircle,
+      y1: data?.stdCircle,
       // darker blue
       line: {
         color: "rgba(0, 0, 255, 0.3)",
-        width: 3,
+        width: 2,
       },
     });
   }
 
   return (
-    // <div className={classes.plotContainer}>
-    // <div
-    //   style={{
-    //     width: "100%",
-    //     height: "100%",
-    //     overflowX: "scroll",
-    //   }}
-    // >
-    <div
-      style={{
-        width: "100%",
-        height: "50vh",
-        overflowX: "scroll",
-      }}
-    >
-      <Plot
-        data={traces}
-        layout={{
-          // width: newHeight + 80,
-          // height: newHeight,
-          xaxis: {
-            title: "\u0394RA (arcsec)",
-            range: [-oneSigmaCircle, oneSigmaCircle],
-          },
-          yaxis: {
-            title: "\u0394Dec (arcsec)",
-            scaleanchor: "x",
-            range: [-oneSigmaCircle, oneSigmaCircle],
-          },
-          legend: {
-            title: {
-              text: "Filter/Catalog",
+    <div className={classes.plotContainer}>
+      <div
+        style={{
+          width: "100%",
+          height: "50vh",
+          overflowX: "scroll",
+        }}
+      >
+        <Plot
+          data={[...plotData, ...traces]}
+          layout={{
+            // 2x2 arcsec plot
+            xaxis: {
+              title: "\u0394RA (arcsec)",
+              range: [-1, 1],
+            },
+            yaxis: {
+              title: "\u0394Dec (arcsec)",
+              scaleanchor: "x",
+              range: [-1, 1],
+            },
+            legend: {
+              title: {
+                text: "Filter/Catalog",
+                font: { size: 14 },
+              },
               font: { size: 14 },
+              tracegroupgap: 0,
             },
-            font: { size: 14 },
-            tracegroupgap: 0,
-          },
-          showlegend: true,
-          autosize: true,
-          margin: {
-            l: 60,
-            r: 30,
-            b: 40,
-            t: 30,
-            pad: 5,
-          },
-          scene: {
-            aspectmode: "manual",
-            aspectratio: {
-              x: 1,
-              y: 1,
+            showlegend: true,
+            autosize: true,
+            margin: {
+              l: 60,
+              r: 30,
+              b: 40,
+              t: 30,
+              pad: 5,
             },
-          },
-          dragmode: "pan",
-          shapes,
-        }}
-        config={{
-          responsive: true,
-          displaylogo: false,
-          showAxisDragHandles: false,
-          scrollZoom: true,
-          modeBarButtonsToRemove: ["zoom2d", "autoScale2d", "lasso2d"],
-          doubleClick: "reset",
-        }}
-        useResizeHandler
-        style={{ width: "100%", height: "100%" }}
+            scene: {
+              aspectmode: "manual",
+              aspectratio: {
+                x: 1,
+                y: 1,
+              },
+            },
+            dragmode: "pan",
+            shapes,
+          }}
+          config={{
+            responsive: true,
+            displaylogo: false,
+            showAxisDragHandles: false,
+            scrollZoom: true,
+            modeBarButtonsToRemove: ["zoom2d", "autoScale2d", "lasso2d"],
+            doubleClick: "reset",
+          }}
+          useResizeHandler
+          style={{ width: "100%", height: "100%" }}
+        />
+      </div>
+      <CentroidPlotPlugins
+        crossMatches={crossMatches}
+        refRA={data?.refRA}
+        refDec={data?.refDec}
       />
     </div>
   );

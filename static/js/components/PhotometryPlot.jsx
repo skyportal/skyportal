@@ -481,11 +481,11 @@ const PhotometryPlot = ({
 
           const detectionisFP =
             detections?.length > 0 &&
-            ["fp", "fp_alert"].includes(detections[0].origin);
+            ["fp", "alert_fp"].includes(detections[0].origin);
 
           const upperLimitisFP =
             upperLimits?.length > 0 &&
-            ["fp", "fp_alert"].includes(upperLimits[0].origin);
+            ["fp", "alert_fp"].includes(upperLimits[0].origin);
 
           const upperLimitsTrace = {
             dataType: "upperLimits",
