@@ -29,7 +29,7 @@ sncosmo==2.10.4
 tdtax==0.1.4
 healpix-alchemy==1.1.0
 mocpy==0.13.1
-obspy==1.4.1
+obspy==1.4.0
 conesearch-alchemy==1.0.0
 regions==0.8
 jsonschema==4.21.1
