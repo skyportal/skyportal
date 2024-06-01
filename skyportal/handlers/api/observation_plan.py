@@ -3388,8 +3388,6 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             except jsonschema.exceptions.ValidationError as e:
                 return self.error(f'Payload failed to validate: {e}', status=403)
 
-            print(data)
-
             default_observation_plan_request = (
                 DefaultObservationPlanRequest.__schema__().load(data)
             )
