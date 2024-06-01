@@ -1,7 +1,7 @@
 """Observation plan automatic send migration
 
 Revision ID: ce87ed8ca4b5
-Revises: 94c30396a122
+Revises: 96f23f9a4216
 Create Date: 2024-06-01 10:36:44.076381
 
 """
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'ce87ed8ca4b5'
-down_revision = '94c30396a122'
+down_revision = '96f23f9a4216'
 branch_labels = None
 depends_on = None
 
