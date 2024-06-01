@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { makeStyles } from "@mui/styles";
 
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import UserPreferencesHeader from "./UserPreferencesHeader";
+import UserPreferencesHeader from "./user/UserPreferencesHeader";
 
 import * as profileActions from "../ducks/profile";
 

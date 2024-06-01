@@ -7,7 +7,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 
 import * as Actions from "../ducks/gcnEvent";
-import GroupShareSelect from "./GroupShareSelect";
+import GroupShareSelect from "./group/GroupShareSelect";
 import Button from "./Button";
 
 const AddRunFromObservationPlanPage = ({ observationplanRequest }) => {

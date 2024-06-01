@@ -1,20 +1,20 @@
 import React, { useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import moment from "moment";
 import {
   CircularProgress,
-  Tooltip,
   FormControlLabel,
   FormGroup,
   Switch,
+  Tooltip,
 } from "@mui/material";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
-import GroupsSelect from "./GroupsSelect";
+import GroupsSelect from "./group/GroupsSelect";
 import * as shiftActions from "../ducks/shift";
 
 /* eslint-disable react/prop-types */

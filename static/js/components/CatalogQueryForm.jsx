@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
@@ -16,7 +16,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import * as allocationActions from "../ducks/allocations";
 
 import * as catalogQueryActions from "../ducks/catalog_query";
-import GroupShareSelect from "./GroupShareSelect";
+import GroupShareSelect from "./group/GroupShareSelect";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 

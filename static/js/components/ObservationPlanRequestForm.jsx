@@ -29,8 +29,8 @@ import * as gcnEventActions from "../ducks/gcnEvent";
 import * as instrumentActions from "../ducks/instrument";
 import * as instrumentsActions from "../ducks/instruments";
 import { planWithSameNameExists } from "../ducks/observationPlans";
-import GroupShareSelect from "./GroupShareSelect";
-import LocalizationPlot from "./LocalizationPlot";
+import GroupShareSelect from "./group/GroupShareSelect";
+import LocalizationPlot from "./localization/LocalizationPlot";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 

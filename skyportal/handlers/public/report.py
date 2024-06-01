@@ -14,7 +14,7 @@ env, cfg = load_env()
 
 Session = scoped_session(sessionmaker())
 
-cache_dir = "cache/reports"
+cache_dir = "cache/public_pages/reports"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_reports_cache"] * 60,
@@ -97,4 +97,6 @@ class ReportHandler(BaseHandler):
                     }
                     for report in reports
                 ]
-                return self.render("reports/gcn_reports.html", reports=reports)
+                return self.render(
+                    "public_pages/reports/gcn_reports_template.html", reports=reports
+                )

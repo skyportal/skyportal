@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { makeStyles } from "@mui/styles";
 import { showNotification } from "baselayer/components/Notifications";
@@ -11,8 +11,8 @@ import Tooltip from "@mui/material/Tooltip";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Button from "./Button";
 
-import UserPreferencesHeader from "./UserPreferencesHeader";
-import ClassificationSelect from "./ClassificationSelect";
+import UserPreferencesHeader from "./user/UserPreferencesHeader";
+import ClassificationSelect from "./classification/ClassificationSelect";
 import NotificationSettingsSelect from "./NotificationSettingsSelect";
 import * as profileActions from "../ducks/profile";
 import NotificationGcnEvent from "./NotificationGcnEvent";

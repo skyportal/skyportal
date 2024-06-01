@@ -50,6 +50,7 @@ from .user_token import *
 from .weather import *
 from .webhook import *
 from .sources_confirmed_in_gcn import *
+from .public_pages.public_source_page import *
 
 # Cosmology
 from .cosmo import cosmo
