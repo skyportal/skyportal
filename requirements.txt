@@ -64,7 +64,7 @@ typing-extensions==4.8.0
 swifttools==3.0.22
 pip==24.0
 git+https://github.com/skyportal/gwemopt.git@main#egg=gwemopt
-humanize==4.8.0
+humanize==4.9.0
 xarray>=21.1
 simsurvey==0.7.5
 noaodatalab==2.20.0
