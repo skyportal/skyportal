@@ -15,6 +15,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { showNotification } from "baselayer/components/Notifications";
 
 import MUIDataTable from "mui-datatables";
+import { JSONTree } from "react-json-tree";
 import Button from "./Button";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
@@ -139,145 +140,34 @@ const DefaultObservationPlanTable = ({
     );
   };
 
-  const renderFilters = (dataIndex) => {
+  const renderPayload = (dataIndex) => {
     const default_observation_plan = default_observation_plans[dataIndex];
+    const cellStyle = {
+      whiteSpace: "nowrap",
+    };
 
     return (
-      <div>
-        {default_observation_plan
-          ? default_observation_plan.payload.filters
-          : ""}
+      <div style={cellStyle}>
+        {default_observation_plan ? (
+          <JSONTree data={default_observation_plan.payload} hideRoot />
+        ) : (
+          ""
+        )}
       </div>
     );
   };
 
-  const renderProgram = (dataIndex) => {
+  const renderAutoSend = (dataIndex) => {
     const default_observation_plan = default_observation_plans[dataIndex];
-
-    return (
-      <div>
-        {default_observation_plan
-          ? default_observation_plan.payload.program_id
-          : ""}
-      </div>
+    console.log(
+      "default_observation_plan.auto_send",
+      default_observation_plan.auto_send,
     );
-  };
-
-  const renderQueue = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
 
     return (
       <div>
         {default_observation_plan
-          ? default_observation_plan.payload.queue_name
-          : ""}
-      </div>
-    );
-  };
-
-  const renderExposureTime = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-
-    return (
-      <div>
-        {default_observation_plan
-          ? default_observation_plan.payload.exposure_time
-          : ""}
-      </div>
-    );
-  };
-
-  const renderScheduleType = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-
-    return (
-      <div>
-        {default_observation_plan
-          ? default_observation_plan.payload.schedule_type
-          : ""}
-      </div>
-    );
-  };
-
-  const renderGalaxy = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-
-    return (
-      <div>
-        {default_observation_plan
-          ? default_observation_plan.payload.galaxy_catalog
-          : ""}
-      </div>
-    );
-  };
-
-  const renderFilterStrategy = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-
-    return (
-      <div>
-        {default_observation_plan
-          ? default_observation_plan.payload.filter_strategy
-          : ""}
-      </div>
-    );
-  };
-
-  const renderMaxAirmass = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-
-    return (
-      <div>
-        {default_observation_plan
-          ? default_observation_plan.payload.maximum_airmass
-          : ""}
-      </div>
-    );
-  };
-
-  const renderSubprogram = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-
-    return (
-      <div>
-        {default_observation_plan
-          ? default_observation_plan.payload.subprogram_name
-          : ""}
-      </div>
-    );
-  };
-
-  const renderScheduleStrategy = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-
-    return (
-      <div>
-        {default_observation_plan
-          ? default_observation_plan.payload.schedule_strategy
-          : ""}
-      </div>
-    );
-  };
-
-  const renderProb = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-
-    return (
-      <div>
-        {default_observation_plan
-          ? default_observation_plan.payload.integrated_probability
-          : ""}
-      </div>
-    );
-  };
-
-  const renderMinTimeDiff = (dataIndex) => {
-    const default_observation_plan = default_observation_plans[dataIndex];
-
-    return (
-      <div>
-        {default_observation_plan
-          ? default_observation_plan.payload.minimum_time_difference
+          ? default_observation_plan.auto_send.toString()
           : ""}
       </div>
     );
@@ -353,123 +243,23 @@ const DefaultObservationPlanTable = ({
       },
     },
     {
-      name: "filters",
-      label: "Filters",
+      name: "payload",
+      label: "Payload",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderFilters,
+        customBodyRenderLite: renderPayload,
       },
     },
     {
-      name: "program",
-      label: "Program",
+      name: "auto_send",
+      label: "Automatically send to queue?",
       options: {
         filter: false,
         sort: true,
         sortThirdClickReset: true,
-        customBodyRenderLite: renderProgram,
-      },
-    },
-    {
-      name: "queue",
-      label: "Queue",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderQueue,
-      },
-    },
-    {
-      name: "exposure_time",
-      label: "Exposure Time",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderExposureTime,
-      },
-    },
-    {
-      name: "schedule_type",
-      label: "Schedule Type",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderScheduleType,
-      },
-    },
-    {
-      name: "schedule_strategy",
-      label: "Schedule Strategy",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderScheduleStrategy,
-      },
-    },
-    {
-      name: "galaxy_catalog",
-      label: "Galaxy Catalog",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderGalaxy,
-      },
-    },
-    {
-      name: "filter_strategy",
-      label: "Filter Strategy",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderFilterStrategy,
-      },
-    },
-    {
-      name: "max_airmass",
-      label: "Maximum Airmass",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderMaxAirmass,
-      },
-    },
-    {
-      name: "subprogram",
-      label: "Subprogram",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderSubprogram,
-      },
-    },
-    {
-      name: "integrated_probability",
-      label: "Integrated Probability",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderProb,
-      },
-    },
-    {
-      name: "min_time_diff",
-      label: "Minimum Time Difference",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderMinTimeDiff,
+        customBodyRenderLite: renderAutoSend,
       },
     },
     {

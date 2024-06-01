@@ -155,8 +155,9 @@ const NewDefaultObservationPlan = () => {
   };
 
   const handleSubmit = async ({ formData }) => {
-    const { default_plan_name } = formData;
+    const { default_plan_name, auto_send } = formData;
     delete formData.default_plan_name;
+    delete formData.auto_send;
     const filters = {
       notice_types: selectedGcnNoticeTypes,
       gcn_tags: selectedGcnTags,
@@ -168,6 +169,7 @@ const NewDefaultObservationPlan = () => {
       payload: formData,
       filters,
       default_plan_name,
+      auto_send,
     };
 
     dispatch(
@@ -191,6 +193,11 @@ const NewDefaultObservationPlan = () => {
   formSchemaCopy.properties.default_plan_name = {
     default: "DEFAULT-PLAN-NAME",
     type: "string",
+  };
+  formSchemaCopy.properties.auto_send = {
+    title: "Automatically send to telescope queue?",
+    default: false,
+    type: "boolean",
   };
 
   const keys_to_remove = ["start_date", "end_date", "queue_name"];
