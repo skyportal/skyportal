@@ -60,7 +60,7 @@ pysedm==0.31.0
 xmlschema==2.5.0
 requests==2.32.2
 geojson==3.1.0
-typing-extensions==4.8.0
+typing-extensions==4.9.0
 swifttools==3.0.22
 pip==23.3.1
 git+https://github.com/skyportal/gwemopt.git@main#egg=gwemopt
