@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -9,7 +9,7 @@ import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
 import PropTypes from "prop-types";
@@ -18,7 +18,7 @@ import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 
 import SpatialCatalogTable from "./SpatialCatalogTable";
 import NewSpatialCatalog from "./NewSpatialCatalog";
-import SourceTable from "./SourceTable";
+import SourceTable from "./source/SourceTable";
 
 import * as spatialCatalogsActions from "../ducks/spatialCatalogs";
 import * as sourcesActions from "../ducks/sources";

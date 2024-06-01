@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { makeStyles } from "@mui/styles";
 import { showNotification } from "baselayer/components/Notifications";
@@ -10,11 +10,11 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Button from "./Button";
 
-import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
-import GcnTagsSelect from "./GcnTagsSelect";
-import GcnPropertiesSelect from "./GcnPropertiesSelect";
-import LocalizationTagsSelect from "./LocalizationTagsSelect";
-import LocalizationPropertiesSelect from "./LocalizationPropertiesSelect";
+import GcnNoticeTypesSelect from "./gcn/GcnNoticeTypesSelect";
+import GcnTagsSelect from "./gcn/GcnTagsSelect";
+import GcnPropertiesSelect from "./gcn/GcnPropertiesSelect";
+import LocalizationTagsSelect from "./localization/LocalizationTagsSelect";
+import LocalizationPropertiesSelect from "./localization/LocalizationPropertiesSelect";
 import * as profileActions from "../ducks/profile";
 
 const conversions = {

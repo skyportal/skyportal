@@ -2,7 +2,7 @@ astroscrappy==1.1.0
 numpy==1.23.4
 scipy==1.11.3
 pandas==2.2.0
-dask==2023.4.1
+dask==2024.5.2
 geopandas==0.13.2
 intervals==0.9.2
 joblib==1.3.1
@@ -10,9 +10,9 @@ seaborn==0.13.2
 pytest-randomly==3.15.0
 factory-boy==3.3.0
 astropy==6.0.1
-distributed==2023.4.1
+distributed==2024.5.2
 dustmaps==1.0.13
-reproject==0.11.0
+reproject==0.13.1
 avro-python3==1.10.2
 fastavro==1.9.4
 tqdm>=4.27,<4.67
@@ -33,7 +33,7 @@ obspy==1.4.0
 conesearch-alchemy==1.0.0
 regions==0.8
 jsonschema==4.21.1
-jsonpath_ng==1.5.3
+jsonpath_ng==1.6.1
 pytest-rerunfailures==14.0
 tables==3.9.2
 timezonefinder==6.2.0
@@ -54,7 +54,7 @@ suds-py3==1.4.5.0
 vcrpy==5.1.0
 aiosmtpd==1.4.6
 ligo.skymap==1.1.2
-healpy==1.16.6
+healpy==1.17.1
 pygcn==1.1.2
 pysedm==0.31.0
 xmlschema==2.5.0
@@ -62,9 +62,9 @@ requests==2.32.2
 geojson==3.1.0
 typing-extensions==4.8.0
 swifttools==3.0.22
-pip==23.3.1
+pip==24.0
 git+https://github.com/skyportal/gwemopt.git@main#egg=gwemopt
-humanize==4.8.0
+humanize==4.9.0
 xarray>=21.1
 simsurvey==0.7.5
 noaodatalab==2.20.0
@@ -81,7 +81,7 @@ confluent_kafka==2.2.0 # dependency of gcn-kafka: pinning to understand memory e
 iminuit==2.25.2
 watchdog==3.0.0
 PyAstronomy==0.19.0
-shapely==2.0.3
+shapely==2.0.4
 openai==1.12.0
 tiktoken==0.5.2
 simplejson==3.19.2

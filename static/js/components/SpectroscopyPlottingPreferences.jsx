@@ -1,7 +1,7 @@
 import React from "react";
 import { makeStyles } from "@mui/styles";
 
-import UserPreferencesHeader from "./UserPreferencesHeader";
+import UserPreferencesHeader from "./user/UserPreferencesHeader";
 import SpectroscopyButtonsForm from "./SpectroscopyButtonsForm";
 
 const useStyles = makeStyles(() => ({

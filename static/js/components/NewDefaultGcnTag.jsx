@@ -7,9 +7,9 @@ import makeStyles from "@mui/styles/makeStyles";
 import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
-import GcnNoticeTypesSelect from "./GcnNoticeTypesSelect";
-import GcnTagsSelect from "./GcnTagsSelect";
-import LocalizationTagsSelect from "./LocalizationTagsSelect";
+import GcnNoticeTypesSelect from "./gcn/GcnNoticeTypesSelect";
+import GcnTagsSelect from "./gcn/GcnTagsSelect";
+import LocalizationTagsSelect from "./localization/LocalizationTagsSelect";
 
 import * as defaultGcnTagsActions from "../ducks/default_gcn_tags";
 

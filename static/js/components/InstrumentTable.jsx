@@ -5,8 +5,8 @@ import { showNotification } from "baselayer/components/Notifications";
 import Paper from "@mui/material/Paper";
 import {
   createTheme,
-  ThemeProvider,
   StyledEngineProvider,
+  ThemeProvider,
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";

@@ -8,9 +8,9 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
-import { modifyTaxonomy, fetchTaxonomies } from "../ducks/taxonomies";
+import { fetchTaxonomies, modifyTaxonomy } from "../ducks/taxonomies";
 
-import GroupShareSelect from "./GroupShareSelect";
+import GroupShareSelect from "./group/GroupShareSelect";
 
 const useStyles = makeStyles(() => ({
   chips: {

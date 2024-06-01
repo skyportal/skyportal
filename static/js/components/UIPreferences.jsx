@@ -1,12 +1,12 @@
 import React from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 
 import * as profileActions from "../ducks/profile";
-import UserPreferencesHeader from "./UserPreferencesHeader";
+import UserPreferencesHeader from "./user/UserPreferencesHeader";
 
 const UIPreferences = () => {
   const preferences = useSelector((state) => state.profile.preferences);

@@ -1,12 +1,12 @@
-import React, { useEffect, useState, Suspense } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import MUIDataTable from "mui-datatables";
 import { useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import Typography from "@mui/material/Typography";
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
@@ -26,7 +26,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 
 import FormValidationError from "./FormValidationError";
-import CommentList from "./CommentList";
+import CommentList from "./comment/CommentList";
 import AnnotationsTable from "./AnnotationsTable";
 import SyntheticPhotometryForm from "./SyntheticPhotometryForm";
 
@@ -34,9 +34,9 @@ import withRouter from "./withRouter";
 
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
-import * as sourceActions from "../ducks/source";
-import { useSourceStyles } from "./Source";
 import { deleteSpectrum } from "../ducks/spectra";
+import * as sourceActions from "../ducks/source";
+import { useSourceStyles } from "./source/Source";
 
 import SpectraPlot from "./SpectraPlot";
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 
 import Plotly from "plotly.js-basic-dist";

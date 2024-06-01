@@ -50,7 +50,7 @@ host = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
     f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
 )
 
-cache_dir = "cache/reports"
+cache_dir = "cache/public_pages/reports"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_reports_cache"] * 60,
@@ -160,7 +160,7 @@ class GcnReport(Base):
         doc='Whether GcnReport should be published',
     )
 
-    def generate_plot(self, figsize=(10, 5), output_format='png'):
+    def get_plot(self, figsize=(10, 5), output_format='png'):
         """GcnReport plot.
         Parameters
         ----------
@@ -263,17 +263,28 @@ class GcnReport(Base):
 
         return buf.read()
 
-    def generate_html(self):
-        """Publish GcnReport."""
-        # TODO: create the hmtl and cache it
+    def get_html(self):
+        """Get the HTML content of the GCN report."""
         data = self.data
         if isinstance(data, str):
             data = json.loads(data)
 
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader("./static/reports"))
+        # Create the filters mapper
+        if data.get("sources"):
+            from skyportal.handlers.api.photometry import get_bandpasses_to_colors
+
+            for source in data["sources"]:
+                filters = {
+                    photometry["filter"] for photometry in source.get("photometry", [])
+                }
+                source["filters_mapper"] = get_bandpasses_to_colors(filters)
+
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader("./static/public_pages/reports/report")
+        )
         env.policies['json.dumps_function'] = to_json
 
-        template = env.get_template("gcn_report.html")
+        template = env.get_template("gcn_report_template.html")
         html = template.render(
             host=host,
             dateobs=str(self.dateobs).replace(" ", "T"),
@@ -285,6 +296,7 @@ class GcnReport(Base):
         return html
 
     def generate_report(self):
+        """Generate the GCN report and cache it."""
         data = self.data
         if isinstance(data, str):
             try:
@@ -296,8 +308,8 @@ class GcnReport(Base):
         elif data.get("status") == "pending":
             raise ValueError("Report is still being generated.")
         cache_key = f"gcn_{self.id}"
-        pub_html = self.generate_html()
-        pub_plot = self.generate_plot()
+        pub_html = self.get_html()
+        pub_plot = self.get_plot()
         cache[cache_key] = dict_to_bytes(
             {"published": True, "html": pub_html, "plot": pub_plot}
         )

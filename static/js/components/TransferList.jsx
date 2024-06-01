@@ -11,7 +11,7 @@ import Checkbox from "@mui/material/Checkbox";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 
-import { not, intersection, union } from "../utils";
+import { intersection, not, union } from "../utils";
 
 const TransferList = ({
   left,

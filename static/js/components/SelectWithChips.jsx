@@ -1,14 +1,12 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
-import {
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  useTheme,
-  Chip,
-} from "@mui/material";
+import Chip from "@mui/material/Chip";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import { useTheme } from "@mui/material/styles";
 
 const useStyles = makeStyles(() => ({
   chips: {

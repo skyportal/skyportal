@@ -15,9 +15,9 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import Button from "./Button";
-import GroupShareSelect from "./GroupShareSelect";
-import { saveSource, checkSource } from "../ducks/source";
-import { hours_to_ra, dms_to_dec } from "../units";
+import GroupShareSelect from "./group/GroupShareSelect";
+import { checkSource, saveSource } from "../ducks/source";
+import { dms_to_dec, hours_to_ra } from "../units";
 
 dayjs.extend(utc);
 
