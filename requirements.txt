@@ -9,7 +9,7 @@ joblib==1.3.1
 seaborn==0.13.2
 pytest-randomly==3.15.0
 factory-boy==3.3.0
-astropy==6.0.1
+astropy==6.1.0
 distributed==2024.5.2
 dustmaps==1.0.13
 reproject==0.13.1
@@ -17,7 +17,7 @@ avro-python3==1.10.2
 fastavro==1.9.4
 tqdm>=4.27,<4.67
 matplotlib==3.6.2
-astroquery==0.4.6
+astroquery==0.4.7
 apispec==6.3.0
 marshmallow==3.19.0
 marshmallow-sqlalchemy==1.0.0
@@ -45,8 +45,8 @@ paramiko==3.4.0
 scp==0.14.5
 requests_toolbelt==0.10.1
 sendgrid==6.10.0
-twilio==9.0.5
 responses==0.25.0
+twilio==9.1.0
 numba==0.59.1
 pyvo==1.5.1
 lxml==4.9.3
@@ -75,7 +75,7 @@ corner==2.2.2
 penquins==2.4.1
 selenium==4.8.3
 selenium-requests==2.0.4
-afterglowpy==0.7.3
+afterglowpy==0.8.0
 gcn-kafka==0.3.3
 confluent_kafka==2.2.0 # dependency of gcn-kafka: pinning to understand memory effects on GCNEvents
 iminuit==2.25.2
