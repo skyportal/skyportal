@@ -47,7 +47,7 @@ requests_toolbelt==0.10.1
 sendgrid==6.10.0
 twilio==9.0.5
 responses==0.25.0
-numba==0.57.1
+numba==0.59.1
 pyvo==1.5.1
 lxml==4.9.3
 suds-py3==1.4.5.0
