@@ -45,8 +45,8 @@ paramiko==3.4.0
 scp==0.14.5
 requests_toolbelt==0.10.1
 sendgrid==6.10.0
+responses==0.25.0
 twilio==9.1.0
-responses==0.23.3
 numba==0.59.1
 pyvo==1.5.1
 lxml==4.9.3
