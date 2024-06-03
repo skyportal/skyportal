@@ -164,9 +164,6 @@
           {% endif %}
         </div>
         {% if photometry %}
-        <div class="photometryType">
-          <p>MAG</p>
-        </div>
         {% set photometry_div_id = 'photometryPlot' %}
         {% set filters_mapper = data.get('filters_mapper') | tojson | safe %}
         <div class="photometryPlot" id="{{ photometry_div_id }}">
