@@ -13,6 +13,31 @@ adjust_color_bias = cfg["image_grayscale_params.adjust_color_bias"]
 log = make_log('thumbnail')
 
 
+def get_thumbnail_alt_link(name, ra, dec):
+    alt = {
+        "new": "discovery image",
+        "ref": "pre-discovery (reference) image",
+        "sub": "subtracted image",
+        "sdss": "Link to SDSS Navigate tool",
+        "ls": "Link to Legacy Survey DR9 Image Access",
+        "ps1": "Link to PanSTARRS-1 Image Access",
+    }
+    link = {
+        "sdss": f"https://skyserver.sdss.org/dr16/en/tools/chart/navi.aspx?opt=G&ra={ra}&dec={dec}&scale=0.25",
+        "ls": f"https://www.legacysurvey.org/viewer?ra={ra}&dec={dec}&layer=ls-dr9&photoz-dr9&zoom=16&mark={ra},{dec}",
+        "ps1": f"https://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos={ra}+{dec}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=",
+    }
+    return alt.get(name, ""), link.get(name, "")
+
+
+def get_thumbnail_header(thumb_type):
+    header = {
+        "ls": "LEGACY SURVEY DR9",
+        "ps1": "PANSTARRS DR2",
+    }
+    return header.get(thumb_type, thumb_type.upper())
+
+
 def image_is_grayscale(
     file,
     thumb_size=thumb_size,

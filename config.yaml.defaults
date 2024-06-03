@@ -93,26 +93,26 @@ app:
   # These are Javascript component routes
   routes:
     - path: "/"
-      component: HomePage
+      component: templates/HomePage
       exact: True
     - path: "/source/:id"
-      component: Source
+      component: source/Source
     - path: "/favorites"
       component: FavoritesPage
     - path: "/gcn_events/:dateobs"
-      component: GcnEventPage
+      component: gcn/GcnEventPage
     - path: "/groups"
-      component: Groups
+      component: group/Groups
     - path: "/group/:id"
-      component: Group
+      component: group/Group
     - path: "/profile"
       component: Profile
     - path: "/candidates"
-      component: CandidateList
+      component: candidate/CandidateList
     - path: "/sources"
-      component: SourceList
+      component: source/SourceList
     - path: "/user/:id"
-      component: UserInfo
+      component: user/UserInfo
     - path: "/upload_photometry/:id"
       component: UploadPhotometry
     - path: "/about"
@@ -120,7 +120,7 @@ app:
     - path: "/run/:id"
       component: RunSummary
     - path: "/source/:obj_id/analysis/:analysis_id"
-      component: SourceAnalysisPage
+      component: source/SourceAnalysisPage
     - path: "/share_data/:id"
       component: ShareDataForm
     - path: "/filter/:fid"
@@ -128,13 +128,13 @@ app:
     - path: "/runs"
       component: ObservingRunPage
     - path: "/allocations"
-      component: AllocationPage
+      component: allocation/AllocationPage
     - path: "/allocation/:id"
-      component: AllocationSummary
+      component: allocation/AllocationSummary
     - path: "/instrument/:id"
       component: InstrumentSummary
     - path: "/telescope/:id"
-      component: TelescopeSummary
+      component: telescope/TelescopeSummary
     - path: "/observations"
       component: ObservationPage
     - path: "/galaxies"
@@ -142,11 +142,11 @@ app:
     - path: "/spatial_catalogs"
       component: SpatialCatalogPage
     - path: "/followup_requests"
-      component: FollowupRequestPage
+      component: followup_request/FollowupRequestPage
     - path: "/group_sources/:id"
-      component: GroupSources
+      component: group/GroupSources
     - path: "/user_management"
-      component: UserManagement
+      component: user/UserManagement
     - path: "/upload_spectrum/:id"
       component: UploadSpectrum
     - path: "/observability/:id"
@@ -158,19 +158,19 @@ app:
     - path: "/db_stats"
       component: DBStats
     - path: "/gcn_events"
-      component: GcnEvents
+      component: gcn/GcnEvents
     - path: "/telescopes"
-      component: TelescopePage
+      component: telescope/TelescopePage
     - path: "/instruments"
       component: InstrumentPage
     - path: "/mmadetectors"
-      component: MMADetectorPage
+      component: mma_detector/MMADetectorPage
     - path: "/earthquakes"
-      component: EarthquakesPage
+      component: earthquake/EarthquakesPage
     - path: "/earthquakes/:event_id"
-      component: EarthquakePage
+      component: earthquake/EarthquakePage
     - path: "/services"
-      component: AnalysisServicePage
+      component: analysis/AnalysisServicePage
     - path: "/recurring_apis"
       component: RecurringAPIPage
     - path: "/shifts"
@@ -182,9 +182,9 @@ app:
     - path: "/taxonomies"
       component: TaxonomyPage
     - path: "/tns_robots"
-      component: TNSRobotsPage
+      component: tns/TNSRobotsPage
     - path: "/tns_robot/:id/submissions"
-      component: TNSRobotSubmissionsPage
+      component: tns/TNSRobotSubmissionsPage
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -518,6 +518,7 @@ misc:
   minutes_to_keep_annotations_info_query_cache: 360
   minutes_to_keep_localization_instrument_query_cache: 1440
   max_items_in_localization_instrument_query_cache: 100
+  minutes_to_keep_public_source_pages_cache: 1440
   minutes_to_keep_reports_cache: 1440
   public_group_name: "Sitewide Group"
   # Use a named cosmology from `astropy.cosmology.parameters.available` cosmologies

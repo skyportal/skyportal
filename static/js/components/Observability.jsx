@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
@@ -12,7 +12,7 @@ import Pagination from "@mui/material/Pagination";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 // eslint-disable-next-line
-import HoursBelowAirmassPlot from "./HoursBelowAirmassPlot";
+import HoursBelowAirmassPlot from "./templates/HoursBelowAirmassPlot";
 import ObservabilityPreferences from "./ObservabilityPreferences";
 import AirmassPlot from "./AirmassPlot";
 import withRouter from "./withRouter";

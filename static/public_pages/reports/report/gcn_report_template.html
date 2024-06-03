@@ -1,0 +1,436 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>GCN Reports</title>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/static/public_pages/reports/report/gcn_report_template.css"
+    />
+    <script src="/static/js/utils/csv.js" type="text/javascript"></script>
+    {% if data.get("sources", [])|length > 0 %}
+    <script
+      src="/static/js/utils/photometry.js"
+      type="text/javascript"
+    ></script>
+    <script
+      src="https://cdn.plot.ly/plotly-latest.min.js"
+      type="text/javascript"
+    ></script>
+    <script type="text/javascript">
+      function toggleVisibility(id) {
+        let x = document.getElementById("lc_box_" + id);
+        if (x.style.display === "none") {
+          x.style.display = "table-row";
+          x.style.visibility = "visible";
+        } else {
+          x.style.display = "none";
+          x.style.visibility = "hidden";
+        }
+      }
+    </script>
+    {% endif %}
+  </head>
+  <body>
+    <div
+      style="
+        display: flex;
+        flex-direction: row;
+        max-width: 100%;
+        justify-content: space-between;
+      "
+    >
+      <div>
+        <h1 style="margin-bottom: 0">
+          {% if data.get("event", {}).get("name", None) %}
+          <a href="{{ host }}/gcn_events/{{ dateobs }}"
+            >{{ data['event']['name'] }}</a
+          >
+          ({{ dateobs }}): {{ report_name }} {% else %}
+          <a href="{{ host }}/gcn_events/{{ dateobs }}">{{ dateobs }}</a>: {{ report_name }}
+          {% endif %}
+        </h1>
+        <p style="margin: 0">Program: {{ program }}</p>
+        <div
+          style="
+            display: flex;
+            flex-direction: row;
+            max-width: 100%;
+            justify-content: left;
+            align-items: center;
+            margin-top: 8px;
+            margin-bottom: 10px;
+          "
+        >
+          <div style="display: flex; flex-direction: row; flex-wrap: wrap">
+            {% for tag in data.get("event", {}).get("tags", []) %}
+            <div class="tag">{{ tag }}</div>
+            {% endfor %}
+          </div>
+        </div>
+        <div
+          style="
+            display: flex;
+            flex-direction: row;
+            max-width: 100%;
+            justify-content: left;
+            align-items: center;
+            margin-top: 12px;
+            margin-bottom: 10px;
+          "
+        >
+          <h3 style="margin: 0; margin-right: 6px">
+            Aliases: {{data.get("event", {}).get("aliases", [])|join(", ")}}
+          </h3>
+        </div>
+      </div>
+      <div style="padding-right: 0; padding-top: 12px">
+        <img
+          src="/static/images/skyportal_logo_dark.png"
+          altText="Skyportal logo"
+          class="logo"
+        />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="container">
+        <h2 style="margin-top: 0; margin-bottom: 10px; margin-top: 40px">
+          Event properties
+        </h2>
+        <table
+          id="properties"
+          class="table"
+          style="max-width: 100%; border-collapse: collapse; border-spacing: 0"
+        >
+          <thead>
+            <tr>
+              {% for prop in data.get("event", {}).get("event_properties",[])[-1]["data"].keys() %}
+              <th>{{ prop }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              {% for value in data.get("event", {}).get("event_properties",[])[-1]["data"].values() %}
+              <td>{{ value }}</td>
+              {% endfor %}
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 style="margin-top: 10px; margin-bottom: 10px; margin-top: 40px">
+          Localization properties:
+        </h2>
+        <table
+          id="localization"
+          class="table"
+          style="width: 100%; border-collapse: collapse; border-spacing: 0"
+        >
+          <thead>
+            <tr>
+              {% for prop in data.get("event",{}).get("localization_properties", [])[-1]["data"].keys() %}
+              <th>{{ prop }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              {% for value in data.get("event",{}).get("localization_properties", [])[-1]["data"].values() %}
+              <td>{{ value }}</td>
+              {% endfor %}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- put a vertical divider between the 2 -->
+      <div class="divider"></div>
+      <div class="container" style="text-align: center">
+        <h3 style="margin: 0; margin-right: 6px">
+          Localization: {{data.get("event", {}).get("localization_name", None)}}
+        </h3>
+        <img
+          src="{{ host }}/public/reports/gcn/{{ report_id }}/plot"
+          alt="Plot"
+          width="100%"
+          class="plot"
+        />
+      </div>
+    </div>
+
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        margin-top: 30px;
+        margin-bottom: 30px;
+      "
+    >
+      {% if data.get("sources", [])|length == 0 %}
+      <h2 style="margin-top: 0; margin-bottom: 10px">Sources</h2>
+      <p style="margin-top: 0">No sources</p>
+      {% else %}
+      <div
+        style="
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        "
+      >
+        <h2 style="margin-top: 0; margin-bottom: 0">Sources</h2>
+        <button
+          type="button"
+          onclick="downloadTableToCSV('sources')"
+          style="max-height: 30px"
+        >
+          Download CSV
+        </button>
+      </div>
+      <table class="table" style="width: 100%" id="sources">
+        <thead>
+          <tr>
+            <th style="border-left-width: 0"></th>
+            <th>Source ID</th>
+            <th>Alias</th>
+            <th>RA</th>
+            <th>Dec</th>
+            <th>RA Err</th>
+            <th>Dec Err</th>
+            <th>Redshift</th>
+            <th>Host</th>
+            <th>Comment</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for source in data["sources"] %}
+          <tr>
+            <td style="border-left-width: 0">
+              <button
+                type="button"
+                onclick="toggleVisibility(`{{ source['id'] }}`,`{{ source['photometry'] }}`)"
+                style="max-height: 30px"
+              >
+                +
+              </button>
+            </td>
+
+            <td>
+              <a href="{{ host ~ '/source/' ~ source['id'] }}"
+                >{{ source['id'] }}</a
+              >
+            </td>
+            <td>{{ source['alias'] }}</td>
+            <td>{{ source['ra'] }}</td>
+            <td>{{ source['dec'] }}</td>
+            <td>{{ source['ra_err'] }}</td>
+            <td>{{ source['dec_err'] }}</td>
+            <td>{{ source['redshift'] }}</td>
+            <td>{{ source['host_id'] }}</td>
+            <td>{{ source.get('comment', '') }}</td>
+          </tr>
+          <tr
+            id="lc_box_{{source['id']}}"
+            style="display: none; visibility: hidden"
+          >
+            <td colspan="10">
+              {% if source.get('photometry') %}
+              {% set photometry = source['photometry'] | tojson | safe %}
+              {% set photometry_div_id = 'lc_' ~ source['id'] %}
+              {% set filters_mapper = source.get('filters_mapper') | tojson | safe %}
+              <div
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  align-items: flex-end;
+                "
+              >
+                <script>
+                  function downloadPhotometryCsv() {
+                    downloadPhotometryToCsv(
+                      `{{ photometry }}`,
+                      `{{ source['id'] }}`,
+                    );
+                  }
+                </script>
+                <button
+                  type="button"
+                  onclick="downloadPhotometryCsv()"
+                  style="max-height: 30px"
+                >
+                  Download Photometry as CSV
+                </button>
+              </div>
+              <div id="{{ photometry_div_id }}" style="height: 400px">
+                <script>
+                  plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`);
+                </script>
+              </div>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <br />
+      {% endif %}
+    </div>
+
+    <div style="display: flex; flex-direction: column; margin-bottom: 30px">
+      {% if data.get("observation_statistics", [])|length == 0 %}
+      <h2 style="margin-top: 0; margin-bottom: 10px">Observation Statistics</h2>
+      <p style="margin-top: 0">No observation statistics</p>
+      {% else %}
+      <div
+        style="
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        "
+      >
+        <h2 style="margin-top: 0; margin-bottom: 0">Observation Statistics</h2>
+        <button
+          type="button"
+          onclick="downloadTableToCSV('observation_statistics')"
+          style="max-height: 30px"
+        >
+          Download as CSV
+        </button>
+      </div>
+      <table class="table" style="width: 100%" id="observation_statistics">
+        <thead>
+          <tr>
+            <th style="border-left-width: 0">Telescope</th>
+            <th>Instrument</th>
+            <th>Probability</th>
+            <th>Area [sq. deg.]</th>
+          </tr>
+        </thead>
+        {% for observation_statistic in data["observation_statistics"] %}
+        <tbody>
+          <tr>
+            <td style="border-left-width: 0">
+              {{ observation_statistic['telescope_name'] }}
+            </td>
+            <td>{{ observation_statistic['instrument_name'] }}</td>
+            <td>{{ observation_statistic['probability'] }}</td>
+            <td>{{ observation_statistic['area'] }}</td>
+          </tr>
+        </tbody>
+        {% endfor %}
+      </table>
+      {% endif %}
+    </div>
+
+    <div style="display: flex; flex-direction: column; margin-bottom: 30px">
+      {% if data.get("observations", [])|length == 0 %}
+      <h2 style="margin-top: 0; margin-bottom: 10px">Observations</h2>
+      <p style="margin-top: 0">No observations</p>
+      {% else %}
+      <div
+        style="
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        "
+      >
+        <h2 style="margin-top: 0; margin-bottom: 0">Observations</h2>
+        <button
+          type="button"
+          onclick="downloadTableToCSV('observations')"
+          style="max-height: 30px"
+        >
+          Download as CSV
+        </button>
+      </div>
+      <table class="table" style="width: 100%" id="observations">
+        <thead>
+          <tr>
+            <th style="border-left-width: 0">Observation ID</th>
+            <th>Time</th>
+            <th>Instrument ID</th>
+            <th>Field ID</th>
+            <th>Filter</th>
+            <th>Exp. Time</th>
+            <th>Limiting Mag.</th>
+            <th>Airmass</th>
+            <th>Processed Fraction</th>
+          </tr>
+        </thead>
+        {% for observation in data["observations"] %}
+        <tbody>
+          <tr>
+            <td style="border-left-width: 0">
+              {{ observation['observation_id'] }}
+            </td>
+            <td>{{ observation['obstime'] }}</td>
+            <td>{{ observation['instrument_id'] }}</td>
+            <td>{{ observation['instrument_field_id'] }}</td>
+            <td>{{ observation['filt'] }}</td>
+            <td>{{ observation['exposure_time'] }}</td>
+            <td>{{ observation['limmag'] }}</td>
+            <td>{{ observation['airmass'] }}</td>
+            <td>{{ observation['processed_fraction'] }}</td>
+          </tr>
+        </tbody>
+        {% endfor %}
+      </table>
+      {% endif %}
+    </div>
+
+    <div style="display: flex; flex-direction: column; margin-bottom: 30px">
+      {% if data.get("survey_efficiency_analyses", [])|length == 0 %}
+      <h2 style="margin-top: 0; margin-bottom: 10px">Simulation Analyses</h2>
+      <p style="margin-top: 0">No simulation analyses</p>
+      {% else %}
+      <div
+        style="
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        "
+      >
+        <h2 style="margin-top: 0; margin-bottom: 0">Simulation Analyses</h2>
+        <button
+          type="button"
+          onclick="downloadTableToCSV('survey_efficiency_analyses')"
+          style="max-height: 30px"
+        >
+          Download as CSV
+        </button>
+      </div>
+      <table class="table" style="width: 100%" id="survey_efficiency_analyses">
+        <thead>
+          <tr>
+            <th style="border-left-width: 0">Payload</th>
+            <th>Number of Transients</th>
+            <th>Number in Covered Region</th>
+            <th>Number Detected</th>
+            <th>Efficiency</th>
+          </tr>
+        </thead>
+        {% for analysis in data["survey_efficiency_analyses"] %}
+        <tbody>
+          <tr>
+            <td style="border-left-width: 0">{{ analysis['payload'] }}</td>
+            <td>{{ analysis['number_of_transients'] }}</td>
+            <td>{{ analysis['number_in_covered'] }}</td>
+            <td>{{ analysis['number_detected'] }}</td>
+            <td>{{ analysis['efficiency'] }}</td>
+          </tr>
+        </tbody>
+        {% endfor %}
+      </table>
+      {% endif %}
+    </div>
+  </body>
+</html>

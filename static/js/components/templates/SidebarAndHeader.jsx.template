@@ -1,0 +1,340 @@
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Link, useLocation } from "react-router-dom";
+
+import Typography from "@mui/material/Typography";
+import Drawer from "@mui/material/Drawer";
+import AppBar from '@mui/material/AppBar';
+import Toolbar from '@mui/material/Toolbar';
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import IconButton from "@mui/material/IconButton";
+import makeStyles from '@mui/styles/makeStyles';
+import Collapse from '@mui/material/Collapse';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import Divider from "@mui/material/Divider";
+import useMediaQuery from "@mui/material/useMediaQuery";
+
+{% for group in app.sidebar -%}
+  {% if not group.name.startswith('main') and group.icon %}
+    import {{ group.icon }}Icon from "@mui/icons-material/{{ group.icon }}";
+  {% endif %}
+  {% for subitem in group.subitems -%}
+    import {{ subitem.icon }}Icon from "@mui/icons-material/{{ subitem.icon }}";
+  {%- endfor %}
+{%- endfor %}
+import MenuIcon from "@material-ui/icons/Menu";
+
+import HeaderContent from "./HeaderContent";
+import * as Actions from "../../ducks/sidebar";
+import hydrate from "../../actions";
+
+const drawerWidth = 170;
+
+const useStyles = makeStyles((theme) => ({
+  root: {
+    display: 'flex',
+    padding: 0,
+    margin: 0,
+  },
+  appBar: {
+    position: "fixed",
+    zIndex: 150,
+    transition: theme.transitions.create(['margin', 'width'], {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.leavingScreen,
+    }),
+    height: "fit-content",
+    background: theme.palette.primary.dark,
+    padding: 0,
+    margin: 0,
+  },
+  appBarShift: {
+    width: `calc(100% - ${drawerWidth}px)`,
+    marginLeft: drawerWidth,
+    transition: theme.transitions.create(['margin', 'width'], {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+  },
+  drawer: {
+    maxWidth: drawerWidth,
+    flexShrink: 0,
+  },
+  drawerPaper: {
+    zIndex: 140,
+    maxWidth: drawerWidth,
+    background: theme.palette.primary.light,
+    fontSize: "1.2em",
+    padding: 0,
+  },
+  drawerPaperTemporary: {
+    zIndex: 140,
+    width: 'fit-content',
+    background: theme.palette.primary.light,
+    fontSize: "1.2em",
+    padding: 0,
+  },
+  toolbar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingLeft: "1.5rem",
+    paddingRight: 0,
+    [theme.breakpoints.up("md")]: {
+      paddingRight: "1rem",
+    },
+  },
+  drawerHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    // necessary for content to be below app bar
+    ...theme.mixins.toolbar,
+    paddingTop: "3em",
+  },
+  link: {
+    color: theme.palette.info.main,
+    textDecoration: "none",
+  },
+  bold: {
+    color: theme.palette.info.main,
+    fontWeight: "bold"
+  },
+  icon: {
+    color: theme.palette.info.main,
+  },
+  minimized: {
+    display: 'none',
+    transition: theme.transitions.create(['display'], {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+  }
+}));
+
+const SidebarLinkText = ({ route, title, open }) => {
+  const classes = useStyles();
+  const currentRoute = useLocation().pathname;
+
+  return (
+    <ListItemText
+      primary={
+        <Typography className={currentRoute === route ? classes.bold : null}>
+          {title}
+        </Typography>
+      }
+      className={!open ? classes.minimized : null}
+    />
+  );
+};
+
+
+const SidebarAndHeader = () => {
+  const open = useSelector((state) => state.sidebar.open);
+  const currentUser = useSelector((state) => state.profile);
+
+  const dispatch = useDispatch();
+  const classes = useStyles();
+
+  const isSmall = useMediaQuery(theme => theme.breakpoints.down("md"));
+
+  {% for group in app.sidebar -%}
+    {% if not group.name.startswith('main') %}
+      const [{{ group.name }}Open, set{{ group.name }}Open] = React.useState(false);
+    {% endif %}
+  {%- endfor %}
+
+  const [temporaryOpen, setTemporaryOpen] = React.useState(false);
+
+  let timer = 0;
+  const TIMEOUT = 700;
+
+  function mouseEnter() {
+    if (!temporaryOpen && !open && !isSmall) {
+      timer = setTimeout(() => {
+        setTemporaryOpen(true);
+      }, TIMEOUT);
+    }
+  }
+
+  function mouseLeave() {
+    setTemporaryOpen(false);
+    clearTimeout(timer);
+    {% for group in app.sidebar -%}
+      {% if not group.name.startswith('main') %}
+        set{{ group.name }}Open(false);
+      {% endif %}
+    {%- endfor %}
+  }
+
+  const handleToggleSidebarOpen = () => {
+    if (open) {
+      {% for group in app.sidebar -%}
+        {% if not group.name.startswith('main') %}
+          set{{ group.name }}Open(false);
+        {% endif %}
+      {%- endfor %}
+    }
+    dispatch(Actions.toggleSidebar());
+  };
+
+  useEffect(() => {
+    if (isSmall && open) {
+      dispatch(Actions.setSidebar(false));
+      setTemporaryOpen(false);
+    }
+  }, [isSmall, dispatch]);
+
+  const drawerType = (temporaryOpen || isSmall) ? "temporary" : "permanent";
+
+  const hydrateIfDashboardClicked = (url) => {
+    clearTimeout(timer);
+    if (url === "/") {
+      dispatch(hydrate(true));
+    }
+  };
+
+  {% macro add_items_to_menu(group) -%}
+    {% for item in group.subitems -%}
+    {% if item.permissions %}
+      {(
+      {% for permission in item.permissions %}
+        currentUser.permissions?.includes("{{ permission }}") ||
+      {% endfor %}
+      false) && (
+    {% endif %}
+    {% if item.url.startswith('http') -%}
+    <a href="{{ item.url }}" className={classes.link}>
+    {% else %}
+    <Link to="{{ item.url }}" onClick={() => hydrateIfDashboardClicked("{{ item.url }}")} className={classes.link}>
+    {%- endif %}
+      <ListItem name="sidebar{{ item.name }}Button" disablePadding sx={{ "{{ display: 'block' }}" }}>
+        <ListItemButton
+            sx={{"{{
+              minHeight: 48,
+              justifyContent: (open || temporaryOpen) ? 'initial' : 'center',
+              px: 2.5,
+            }}"}}
+          >
+            <ListItemIcon
+              sx={{ "{{
+                minWidth: 0,
+                mr: (open || temporaryOpen) ? 2 : 'auto',
+                justifyContent: 'center',
+              }}" }}
+            >
+              <{{ item.icon }}Icon className={classes.icon} />
+            </ListItemIcon>
+            <SidebarLinkText
+              route="{{ item.url }}"
+              title="{{ item.name }}"
+              open={open || temporaryOpen}
+            />
+        </ListItemButton>
+      </ListItem>
+    {% if item.url.startswith('http') -%}
+    </a>
+    {% else %}
+    </Link>
+    {%- endif %}
+    {% if item.permissions %}
+    )}
+    {% endif %}
+    {%- endfor %}
+  {%- endmacro %}
+
+  {% macro make_foldable_menu(group) -%}
+    {% if group.permissions %}
+      {(
+      {% for permission in group.permissions %}
+        currentUser.permissions?.includes("{{ permission }}") ||
+      {% endfor %}
+      false) && (
+    {% endif %}
+    <>
+      <ListItem name="sidebar{{ group.name }}Button" disablePadding sx={{ "{{ display: 'block' }}"}} className={classes.link}>
+        <ListItemButton
+            sx={{"{{
+              minHeight: 48,
+              justifyContent: (open || temporaryOpen) ? 'initial' : 'center',
+              px: 2.5,
+            }}"}}
+            onClick={() => set{{ group.name }}Open(!{{ group.name }}Open)}
+          >
+            <ListItemIcon
+              sx={{ "{{
+                minWidth: 0,
+                mr: (open || temporaryOpen) ? 2 : 'auto',
+                justifyContent: 'center',
+              }}" }}
+            >
+              {(!(open || temporaryOpen) && {{ group.name }}Open) ? <ExpandLess /> : <{{ group.icon }}Icon className={classes.icon} />}
+            </ListItemIcon>
+            <SidebarLinkText
+              title="{{ group.name }}"
+              open={open || temporaryOpen}
+            />
+              {((open || temporaryOpen) && {{ group.name }}Open) ? <ExpandLess /> : null}
+              {(!{{ group.name }}Open && (open || temporaryOpen)) ? <ExpandMore /> : null}
+        </ListItemButton>
+      </ListItem>
+      <Collapse in={ {{group.name }}Open} timeout="auto" unmountOnExit>
+        <Divider />
+        <List component="div" disablePadding>
+          {{ add_items_to_menu(group) }}
+        </List>
+        <Divider />
+      </Collapse>
+    </>
+    {% if group.permissions %}
+    )}
+    {% endif %}
+  {%- endmacro %}
+
+  return (
+    <>
+      <AppBar
+        className={classes.appBar}
+      >
+        <Toolbar className={classes.toolbar}>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            onClick={handleToggleSidebarOpen}
+            edge="start"
+            className={classes.menuButton}
+          >
+            <MenuIcon />
+          </IconButton>
+          <HeaderContent />
+        </Toolbar>
+      </AppBar>
+      <Drawer
+        className={classes.drawer}
+        variant={drawerType}
+        anchor="left"
+        open={open || temporaryOpen}
+        onClose={isSmall ? handleToggleSidebarOpen : undefined}
+        classes={{ "{{ paper: drawerType === 'temporary' ? classes.drawerPaperTemporary : classes.drawerPaper }}" }}
+        PaperProps={{ "{{ onMouseEnter: mouseEnter, onMouseLeave: mouseLeave }}" }}
+      >
+        {!isSmall && <div className={classes.drawerHeader} />}
+        <List>
+        {% for group in app.sidebar -%}
+          {% if group.name.startswith('main') %}
+            {{ add_items_to_menu(group) }}
+          {% else %}
+            {{ make_foldable_menu(group) }}
+          {% endif %}
+        {%- endfor %}
+        </List>
+      </Drawer>
+    </>
+  );
+};
+
+export default SidebarAndHeader;

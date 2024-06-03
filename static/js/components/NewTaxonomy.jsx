@@ -5,9 +5,9 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
-import { submitTaxonomy, fetchTaxonomies } from "../ducks/taxonomies";
+import { fetchTaxonomies, submitTaxonomy } from "../ducks/taxonomies";
 
-import GroupShareSelect from "./GroupShareSelect";
+import GroupShareSelect from "./group/GroupShareSelect";
 
 const NewTaxonomy = () => {
   const { taxonomyList } = useSelector((state) => state.taxonomies);

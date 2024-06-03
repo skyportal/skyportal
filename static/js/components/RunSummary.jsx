@@ -1,6 +1,6 @@
-import React, { useEffect, Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
 import PropTypes from "prop-types";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
@@ -23,17 +23,17 @@ import Paper from "@mui/material/Paper";
 import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
-import ThumbnailList from "./ThumbnailList";
+import ThumbnailList from "./thumbnail/ThumbnailList";
 import { observingRunTitle } from "./AssignmentForm";
 import { ObservingRunStarList } from "./StarList";
 import withRouter from "./withRouter";
 
 import * as SourceAction from "../ducks/source";
 import * as Action from "../ducks/observingRun";
-import { ra_to_hours, dec_to_dms } from "../units";
+import { dec_to_dms, ra_to_hours } from "../units";
 
 import SkyCam from "./SkyCam";
-import VegaPhotometry from "./VegaPhotometry";
+import VegaPhotometry from "./vega/VegaPhotometry";
 
 const AirmassPlot = React.lazy(() => import("./AirmassPlot"));
 

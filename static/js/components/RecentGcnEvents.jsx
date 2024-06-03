@@ -17,8 +17,8 @@ import Button from "./Button";
 
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
-import GcnTags from "./GcnTags";
-import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
+import GcnTags from "./gcn/GcnTags";
+import GcnEventAllocationTriggers from "./gcn/GcnEventAllocationTriggers";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);

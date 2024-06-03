@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
 import TextField from "@mui/material/TextField";
 import Card from "@mui/material/Card";
@@ -32,10 +32,10 @@ import NotificationPreferences from "./NotificationPreferences";
 import SlackPreferences from "./SlackPreferences";
 import OpenAIPreferences from "./OpenAIPreferences";
 import ObservabilityPreferences from "./ObservabilityPreferences";
-import FollowupRequestPreferences from "./FollowupRequestPreferences";
-import PhotometryPlottingPreferences from "./PhotometryPlottingPreferences";
+import FollowupRequestPreferences from "./followup_request/FollowupRequestPreferences";
+import PhotometryPlottingPreferences from "./photometry/PhotometryPlottingPreferences";
 import SpectroscopyPlottingPreferences from "./SpectroscopyPlottingPreferences";
-import ClassificationsShortcutForm from "./ClassificationsShortcutForm";
+import ClassificationsShortcutForm from "./classification/ClassificationsShortcutForm";
 import QuickSaveSourcePreferences from "./QuickSaveSourcePreferences";
 
 const useStyles = makeStyles(() => ({

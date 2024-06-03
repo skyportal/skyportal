@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -208,7 +208,11 @@ const WidgetPrefsDialog = ({
 
 WidgetPrefsDialog.propTypes = {
   initialValues: PropTypes.objectOf(
-    PropTypes.oneOfType([PropTypes.string, PropTypes.shape({})]),
+    PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.bool,
+      PropTypes.shape({}),
+    ]),
   ).isRequired,
   stateBranchName: PropTypes.string.isRequired,
   onSubmit: PropTypes.func.isRequired,

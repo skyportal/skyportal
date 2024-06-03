@@ -27,7 +27,7 @@ repos:
     hooks:
       - id: prettier
         pass_filenames: true
-        exclude: baselayer|node_modules|doc|data
+        exclude: baselayer|node_modules|doc|data|^(.*_template\.html)$
   - repo: local
     hooks:
       - id: ESLint

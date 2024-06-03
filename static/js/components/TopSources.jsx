@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 
@@ -15,7 +15,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 
 import Button from "./Button";
 
-import { ra_to_hours, dec_to_dms } from "../units";
+import { dec_to_dms, ra_to_hours } from "../units";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useSourceListStyles } from "./RecentSources";

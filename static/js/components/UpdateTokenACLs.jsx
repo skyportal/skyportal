@@ -9,7 +9,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import makeStyles from "@mui/styles/makeStyles";
 import SaveIcon from "@mui/icons-material/Save";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";

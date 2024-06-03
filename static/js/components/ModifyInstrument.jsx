@@ -16,7 +16,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { modifyInstrument } from "../ducks/instrument";
 import { fetchInstruments } from "../ducks/instruments";
 // eslint-disable-next-line import/no-cycle
-import { instrumentTitle, instrumentInfo } from "./InstrumentPage";
+import { instrumentInfo, instrumentTitle } from "./InstrumentPage";
 
 const useStyles = makeStyles(() => ({
   chips: {

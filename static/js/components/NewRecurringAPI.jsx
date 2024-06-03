@@ -10,8 +10,8 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import {
-  submitRecurringAPI,
   fetchRecurringAPIs,
+  submitRecurringAPI,
 } from "../ducks/recurring_apis";
 
 dayjs.extend(utc);

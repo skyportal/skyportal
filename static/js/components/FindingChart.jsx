@@ -1,4 +1,4 @@
-import React, { useRef, useState, Suspense } from "react";
+import React, { Suspense, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import makeStyles from "@mui/styles/makeStyles";
 
@@ -16,7 +16,7 @@ import PrintIcon from "@mui/icons-material/Print";
 
 import TextLoop from "react-text-loop";
 import { useImage } from "react-image";
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useReactToPrint } from "react-to-print";
 import Button from "./Button";
 

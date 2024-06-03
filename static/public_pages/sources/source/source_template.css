@@ -1,0 +1,160 @@
+.content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+
+  .resumeCard {
+    padding: 0.5rem;
+    .titleAndDate {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      .date {
+        @media screen and (max-width: 600px) {
+          font-size: 0.55rem;
+        }
+        font-weight: bold;
+        font-size: 0.9rem;
+        color: gray;
+      }
+    }
+
+    .classificationsTag {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      .classificationTag {
+        padding: 0.1rem 0.5rem;
+        background-color: #e0e0e0;
+        border-radius: 1rem;
+        font-weight: bold;
+        font-size: inherit;
+      }
+    }
+
+    .subtitle {
+      h3 {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0 0.5rem;
+        margin-bottom: 0.5rem;
+        span {
+          font-weight: normal;
+          white-space: nowrap;
+        }
+      }
+    }
+
+    .images {
+      margin-top: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 0.5rem;
+
+      .imageAndTitle {
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        position: relative;
+        border-radius: 4px;
+        max-height: 31rem;
+        max-width: 13rem;
+        width: 31%;
+        @media screen and (max-width: 450px) {
+          width: 48%;
+        }
+
+        .title {
+          letter-spacing: 0.009em;
+          font-size: 0.8rem;
+          font-weight: bold;
+          margin: 0.5rem;
+          color: gray;
+          @media screen and (max-width: 600px) {
+            font-size: 0.55rem;
+          }
+        }
+
+        .image {
+          position: relative;
+
+          img {
+            width: 100%;
+            height: 100%;
+          }
+
+          .crosshair {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+          }
+        }
+      }
+    }
+  }
+  .photometryCard {
+    padding-left: 0;
+    padding-right: 0;
+    .titleAndDownload {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      h2 {
+        margin-left: 1rem;
+      }
+      .download {
+        margin-right: 1rem;
+      }
+    }
+    .photometryType {
+      display: flex;
+      p {
+        color: #457b9d;
+        font-weight: 500;
+        font-size: 0.875rem;
+        padding: 0.5rem 1.5rem 1rem 1.5rem;
+        letter-spacing: 0.02857em;
+        border-bottom: solid #457b9d 2px;
+      }
+    }
+    .photometryPlot {
+      margin-bottom: 1rem;
+    }
+  }
+  .classificationsCard {
+    .classifications {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      .classification {
+        padding: 0.5rem 2rem 0.5rem 0.5rem;
+        border: 1px solid grey;
+        border-radius: 4px;
+        &.active {
+          animation: backgroundFade 3s forwards;
+        }
+        .author {
+          font-size: 0.9rem;
+        }
+        .nameAndProbability {
+          margin: 0.2rem 0;
+          display: flex;
+          align-items: center;
+          flex-wrap: nowrap;
+          column-gap: 0.3rem;
+          .name {
+            font-size: 1.2rem;
+            font-weight: bold;
+          }
+
+          .probability {
+            font-size: 0.9rem;
+          }
+        }
+        .taxname {
+          font-size: 0.9rem;
+        }
+      }
+    }
+  }
+}

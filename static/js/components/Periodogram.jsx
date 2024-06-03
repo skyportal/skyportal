@@ -1,5 +1,5 @@
-import React, { useRef, useState, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useEffect, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
 import { Link, useParams } from "react-router-dom";
 import makeStyles from "@mui/styles/makeStyles";
@@ -19,8 +19,8 @@ import Dygraph from "dygraphs";
 import { showNotification } from "baselayer/components/Notifications";
 
 import TextLoop from "react-text-loop";
-import { useForm, Controller } from "react-hook-form";
-import { dot, dotMultiply, add, transpose, quantileSeq } from "mathjs";
+import { Controller, useForm } from "react-hook-form";
+import { add, dot, dotMultiply, quantileSeq, transpose } from "mathjs";
 import Button from "./Button";
 
 import * as photometryActions from "../ducks/photometry";

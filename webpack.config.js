@@ -7,7 +7,7 @@ const config = {
   entry: {
     main: [
       "@babel/polyfill",
-      path.resolve(__dirname, "static/js/components/Main.jsx"),
+      path.resolve(__dirname, "static/js/components/templates/Main.jsx"),
     ],
   },
   output: {

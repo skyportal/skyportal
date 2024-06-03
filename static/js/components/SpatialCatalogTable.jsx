@@ -4,8 +4,8 @@ import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import {
   createTheme,
-  ThemeProvider,
   StyledEngineProvider,
+  ThemeProvider,
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
@@ -14,7 +14,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import MUIDataTable from "mui-datatables";
-import SourceTableFilterForm from "./SourceTableFilterForm";
+import SourceTableFilterForm from "./source/SourceTableFilterForm";
 
 import Button from "./Button";
 
