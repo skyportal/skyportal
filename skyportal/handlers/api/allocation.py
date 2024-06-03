@@ -190,7 +190,7 @@ class AllocationObservationPlanHandler(BaseHandler):
 class AllocationHandler(BaseHandler):
     @auth_or_token
     def get(self, allocation_id=None):
-        """
+        f"""
         ---
         single:
           tags:
@@ -249,7 +249,7 @@ class AllocationHandler(BaseHandler):
         # get owned allocations
 
         with self.Session() as session:
-            allocations = Allocation.select(self.current_user)
+            allocations = Allocation.select(session.user_or_token)
 
             if allocation_id is not None:
                 try:
@@ -378,7 +378,7 @@ class AllocationHandler(BaseHandler):
                     }
                 )
 
-            allocations = Allocation.select(self.current_user)
+            allocations = Allocation.select(session.user_or_token)
             instrument_id = self.get_query_argument('instrument_id', None)
             if instrument_id is not None:
                 allocations = allocations.where(
