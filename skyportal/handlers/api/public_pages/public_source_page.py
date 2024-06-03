@@ -39,7 +39,7 @@ def get_redshift_to_display(source):
     if source.get('redshift') and source.get('redshift_error'):
         z_round = int(np.ceil(abs(np.log10(source['redshift_error']))))
         redshift_display = f"{round(source['redshift'], z_round)} ± {round(source['redshift_error'], z_round)}"
-    elif 'redshift' in source:
+    elif source.get('redshift'):
         redshift_display = round(source['redshift'], 4)
     return redshift_display
 
