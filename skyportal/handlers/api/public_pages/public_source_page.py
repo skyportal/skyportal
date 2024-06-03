@@ -21,6 +21,10 @@ def calculate_hash(data):
 
 
 def process_thumbnails(thumbnails, ra, dec):
+    thumbnails = sorted(
+        thumbnails,
+        key=lambda x: ["new", "ref", "sub", "sdss", "ls", "ps1"].index(x["type"]),
+    )
     for index, thumbnail in enumerate(thumbnails):
         alt, link = get_thumbnail_alt_link(thumbnail["type"], ra, dec)
         header = get_thumbnail_header(thumbnail["type"])
