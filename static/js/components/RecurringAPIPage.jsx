@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
 import DeleteIcon from "@mui/icons-material/Delete";

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -12,7 +12,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import * as defaultFollowupRequestsActions from "../ducks/default_followup_requests";
 import * as allocationActions from "../ducks/allocations";
 import * as instrumentsActions from "../ducks/instruments";
-import GroupShareSelect from "./GroupShareSelect";
+import GroupShareSelect from "./group/GroupShareSelect";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 

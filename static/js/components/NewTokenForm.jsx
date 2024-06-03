@@ -14,8 +14,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 */
-
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import Button from "./Button";
 
 import * as ProfileActions from "../ducks/profile";

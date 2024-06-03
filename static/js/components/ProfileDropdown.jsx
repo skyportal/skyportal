@@ -13,7 +13,7 @@ import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Divider from "@mui/material/Divider";
 import Button from "./Button";
-import UserAvatar from "./UserAvatar";
+import UserAvatar from "./user/UserAvatar";
 
 const useStyles = makeStyles((theme) => ({
   avatar: {

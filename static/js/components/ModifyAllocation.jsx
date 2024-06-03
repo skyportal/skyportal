@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import makeStyles from "@mui/styles/makeStyles";
@@ -15,7 +15,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import GroupShareSelect from "./GroupShareSelect";
+import GroupShareSelect from "./group/GroupShareSelect";
 import { modifyAllocation } from "../ducks/allocation";
 import { fetchAllocations } from "../ducks/allocations";
 import * as groupActions from "../ducks/group";

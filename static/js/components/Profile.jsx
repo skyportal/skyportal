@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import NewTokenForm from "./NewTokenForm";
 import TokenList from "./TokenList";
 import UpdateProfileForm from "./UpdateProfileForm";
-import UserProfileInfo from "./UserProfileInfo";
+import UserProfileInfo from "./user/UserProfileInfo";
 
 const Profile = () => {
   const profile = useSelector((state) => state.profile);

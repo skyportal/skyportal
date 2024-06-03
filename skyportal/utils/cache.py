@@ -111,6 +111,27 @@ class Cache:
 
         self.clean_cache()
 
+    def __delitem__(self, name):
+        """Remove item from the cache.
+
+        Parameters
+        ----------
+        name : str
+            Name of item to remove.
+        """
+        if name is None:
+            return
+
+        fn = self._hash_filename(name)
+
+        try:
+            os.remove(fn)
+        except FileNotFoundError:
+            return
+
+        log(f"cleanup [{os.path.basename(fn)}]")
+        self.clean_cache()
+
     def _remove(self, filenames):
         """Remove given items from the cache.
 

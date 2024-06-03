@@ -1,0 +1,209 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SkyPortal</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- CSS generic -->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/static/public_pages/style.css"
+    />
+    <!-- CSS for source page -->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/static/public_pages/sources/source/source_template.css"
+    />
+    <!-- JS for source page -->
+    <script src="/static/public_pages/sources/source/source_template.js"></script>
+    <script type="module">
+      let source_subtitle = document.getElementById('source_subtitle')
+      source_subtitle.innerHTML = radec_hhmmss(`{{ data['ra'] }}`,`{{ data['dec'] }}`) + source_subtitle.innerHTML
+    </script>
+    {% if data.get('photometry') %}
+      {% set photometry = data.get('photometry') | tojson | safe %}
+      <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+      <script src="/static/js/utils/csv.js"></script>
+      <script src="/static/js/utils/photometry.js"></script>
+    {% endif %}
+    {% set classifications = data['classifications'] | tojson | safe if data.get('classifications') else None %}
+  </head>
+  <!-- Body -->
+  <body>
+    <header>
+      <!--Logos-->
+      <div>
+        <img
+          src="/static/images/skyportal_logo_dark.png"
+          alt="Logo de croissance"
+          width="41"
+          height="40"
+        />
+      </div>
+      <!--Site title-->
+      <div>
+        <a class="websiteName" href="/"> SkyPortal </a>
+      </div>
+    </header>
+    <!--Page content-->
+    <div class="content">
+      <div class="card resumeCard">
+        <div class="titleAndDate">
+          <h1>{{ source_id }}</h1>
+          <span class="date">{{ created_at.strftime('%m/%d/%Y %H:%M:%S') }} UTC</span>
+        </div>
+        {% if classifications %}
+        <div class="classificationsTag">
+          {% for classification in data['classifications'] %}
+          <button
+            type="button"
+            class="classificationTag"
+            onclick="handleClassificationTag(`{{classification.classification}}`)"
+          >
+            {{ "ML: " if classification.ml }} {{ classification.classification }}
+          </button>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div class="subtitle">
+          <h3 id="source_subtitle">
+            <span>
+              (&alpha;,&delta;= {{ data['ra'] }}, &nbsp{{ data['dec'] }})
+            </span>
+            <span>
+              (<i>l</i>,<i>b</i>={{ data['gal_lon'] }}, &nbsp;{{ data['gal_lat']}})
+            </span>
+            {% if data.get('ebv') %}
+            <span> E(B-V): {{ data['ebv'] }} </span>
+            {% endif %}
+          </h3>
+          <h3>
+            Redshift:
+            <span>
+              {{ data['redshift_display'] }}
+            </span>
+            {% if data.get('dm') %} DM:
+            <span> {{ data['dm'] }} mag </span>
+            {% endif %} {% if data.get('dl') %}
+            <b><i>D</i><sub>L</sub>:</b>
+            <span> {{ data['dl'] }} Mpc </span>
+            {% endif %}
+          </h3>
+        </div>
+        <div class="images">
+          {% for thumbnail in data.get('thumbnails') %}
+          <div class="imageAndTitle">
+            <div class="title">
+              {% if thumbnail.get('link') %}
+                <a
+                  href="{{ thumbnail['link'] }}"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {{ thumbnail['header'] }}
+                </a>
+              {% else %}
+                {{ thumbnail['header'] }}
+              {% endif %}
+            </div>
+            <div class="image">
+              {% if thumbnail.get('link') %}
+              <a
+                href="{{ thumbnail['link'] }}"
+                target="_blank"
+                rel="noreferrer"
+              >
+              {% endif %}
+                <img
+                  src="{{ thumbnail['public_url'] }}"
+                  alt="{{ thumbnail['alt'] }}"
+                  title="{{ thumbnail['alt'] }}"
+                  loading="lazy"
+                  onload="handleImageLoad(this)"
+                  onerror="handleImageError(this)"
+                  data-thumbnail-type="{{ thumbnail.get('type') }}"
+                  data-thumbnail-public-url="{{ thumbnail.get('public_url') }}"
+                />
+                <img
+                  class="crosshair"
+                  src="/static/images/crosshairs.png"
+                  alt="crosshair"
+                  style="display: none"
+                />
+              {% if thumbnail.get('link') %}
+              </a>
+              {% endif %}
+            </div>
+            <div class="loader">
+              <span></span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="card photometryCard">
+        <div class="titleAndDownload">
+          <h2>Photometry</h2>
+          {% if photometry %}
+          <div class="download">
+            <button
+              type="button"
+              onclick='downloadPhotometryToCsv(`{{ photometry }}`, `{{ source_id }}`)'
+            >
+              Download
+            </button>
+          </div>
+          {% endif %}
+        </div>
+        {% if photometry %}
+        <div class="photometryType">
+          <p>MAG</p>
+        </div>
+        {% set photometry_div_id = 'photometryPlot' %}
+        {% set filters_mapper = data.get('filters_mapper') | tojson | safe %}
+        <div class="photometryPlot" id="{{ photometry_div_id }}">
+          <script>
+            plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`);
+          </script>
+        </div>
+        {% else %}
+        <h2 class="noDataMessage">No photometry available</h2>
+        {% endif %}
+      </div>
+      <div class="card classificationsCard">
+        <h2>Classifications</h2>
+        {% if classifications %}
+        <div class="classifications">
+          {% for classification in data['classifications'] %}
+          <div
+            id="{{ classification.classification }}"
+            class="classification boxShadow"
+          >
+            <div class="author">{{ classification.author_name }}</div>
+            <div class="nameAndProbability">
+              <p class="name">
+                {{ "ML: " if classification.ml }} {{ classification.classification }}
+              </p>
+              <p class="probability">(P={{ classification.probability }})</p>
+            </div>
+            <div class="taxname">
+              <i>{{ classification.taxname }}</i>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <h2 class="noDataMessage">No classifications available</h2>
+        {% endif %}
+      </div>
+    </div>
+  </body>
+</html>

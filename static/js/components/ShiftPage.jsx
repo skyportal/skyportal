@@ -1,5 +1,5 @@
-import React, { useEffect, useState, Suspense } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React, { Suspense, useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
 import Paper from "@mui/material/Paper";
@@ -13,10 +13,10 @@ import ShiftManagement from "./ShiftManagement";
 import ShiftSummary from "./ShiftSummary";
 import Reminders from "./Reminders";
 
-import { getShiftsSummary, fetchShift } from "../ducks/shift";
+import { fetchShift, getShiftsSummary } from "../ducks/shift";
 import * as shiftsActions from "../ducks/shifts";
 
-const CommentList = React.lazy(() => import("./CommentList"));
+const CommentList = React.lazy(() => import("./comment/CommentList"));
 
 const useStyles = makeStyles((theme) => ({
   root: {

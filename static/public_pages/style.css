@@ -1,0 +1,136 @@
+:root {
+  --card-shadow: 0 2px 1px -1px rgba(0, 0, 0, 0.2),
+    0 1px 1px 0 rgba(0, 0, 0, 0.14), 0 1px 3px 0 rgba(0, 0, 0, 0.12);
+}
+
+html {
+}
+
+body {
+  font-family: "Roboto", Helvetica, Ariel, sans-serif;
+  color: rgba(0, 0, 0, 0.87);
+  background-color: #f0f2f5;
+  height: 100%;
+  margin: 0;
+}
+
+header {
+  background-color: rgb(29, 53, 87);
+  align-items: center;
+  padding-left: 1.5rem;
+  min-height: 64px;
+  display: flex;
+  position: relative;
+  z-index: 150;
+  box-shadow:
+    0 2px 4px -1px rgba(0, 0, 0, 0.2),
+    0 4px 5px 0 rgba(0, 0, 0, 0.14),
+    0 1px 10px 0 rgba(0, 0, 0, 0.12);
+
+  .websiteName {
+    font-size: 1.6rem;
+    margin-left: 1rem;
+    color: white;
+    font-weight: bold;
+    text-decoration: none;
+  }
+}
+
+h1 {
+  color: #457b9d;
+  font-weight: bold;
+  margin: 0;
+  font-size: 2rem;
+  @media screen and (max-width: 600px) {
+    font-size: 1.9rem;
+  }
+}
+
+h2 {
+  line-height: 1.5rem;
+  font-weight: normal;
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  @media screen and (max-width: 600px) {
+    font-size: 1.15rem;
+  }
+}
+
+h3 {
+  line-height: 1.2rem;
+  font-weight: bold;
+  margin: 0;
+  font-size: 1rem;
+  @media screen and (max-width: 600px) {
+    font-size: 0.9rem;
+  }
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+p {
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.card {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  padding: 1rem;
+  margin: 0.5rem 1rem 0.5rem 1rem;
+  box-shadow: var(--card-shadow);
+
+  .noDataMessage {
+    display: flex;
+    justify-content: center;
+    margin: 2rem 0;
+  }
+}
+
+.boxShadow {
+  box-shadow: var(--card-shadow);
+}
+
+.loader {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  span {
+    border: 4px solid transparent;
+    border-top: 4px solid #457b9d;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: loader 3s linear infinite;
+  }
+}
+
+button {
+  cursor: pointer;
+}
+
+@keyframes loader {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+@keyframes backgroundFade {
+  /* from blue to inherit */
+  from {
+    background: rgba(69, 123, 157, 0.5);
+  }
+  to {
+    background: inherit;
+  }
+}

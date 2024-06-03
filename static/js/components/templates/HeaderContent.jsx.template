@@ -1,0 +1,140 @@
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { useDispatch } from "react-redux";
+
+import Box from "@mui/material/Box";
+import makeStyles from '@mui/styles/makeStyles';
+import IconButton from "@mui/material/IconButton";
+import RefreshIcon from '@mui/icons-material/Refresh';
+import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
+import Tooltip from "@mui/material/Tooltip";
+import useMediaQuery from "@mui/material/useMediaQuery";
+
+import ProfileDropdown from "../ProfileDropdown";
+import Logo from "../Logo";
+import Notifications from "../Notifications";
+import hydrate from "../../actions";
+
+import QuickSearchBar from "../QuickSearchBar";
+
+const useStyles = makeStyles((theme) => ({
+  topBannerContent: {
+    width: "100%",
+    position: "relative",
+    paddingLeft: "1rem",
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  title: {
+    margin: "0 0 0 0.5rem",
+    color: "white",
+    fontSize: "160%",
+    fontWeight: "bold",
+    verticalAlign: "middle",
+  },
+  logos: {
+    flexDirection: "row",
+    alignItems: "center",
+    display: "none",
+    [theme.breakpoints.up("sm")]: {
+      display: "inline-flex",
+      flexDirection: "row",
+    },
+    paddingRight: "0.4rem",
+  },
+  logoContainer: {
+    height: "100%",
+    borderRight: "1px solid white",
+    paddingLeft: "0.4rem",
+    paddingRight: "0.4rem",
+    "&:last-of-type": {
+      borderRight: "none",
+      paddingRight: "0",
+    },
+    "& > div": {
+      "& > img": {
+        maxHeight: "40px",
+      },
+    },
+  },
+}));
+
+const HeaderContent = () => {
+  const classes = useStyles();
+  const dispatch = useDispatch();
+
+  const isDesktop = useMediaQuery((theme) => theme.breakpoints.up("md"));
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [openSearch, setOpenSearch] = useState(false);
+
+  const handleRefresh = () => {
+    dispatch(hydrate());
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 3000);
+  };
+
+  useEffect(() => {
+    if (isDesktop) {
+      setOpenSearch(false);
+    }
+  }, [isDesktop]);
+
+  return (
+    <div className={classes.topBannerContent} style={{"{{justifyContent: openSearch ? 'flex-end' : 'space-between'}}"}}>
+      <Link onClick={() => dispatch(hydrate())} to="/" style={{"{{ display: openSearch ? 'none' : 'inline-flex', flexDirection: 'row', alignItems: 'center', textDecoration: 'none' }}"}}>
+        <div className={classes.logos}>
+          {%- for logo in app.logos %}
+          <div className={classes.logoContainer}>
+            <Logo src="{{ logo.src }}" altText="{{ logo.alt_text }}" />
+          </div>
+          {%- endfor %}
+        </div>
+        <p className={classes.title}>
+          {{ app.title }}
+        </p>
+      </Link>
+      <div style={{"{{ display: openSearch ? 'none' : 'inline-flex', flexDirection: 'row', alignItems: 'center', gap: '1rem', paddingRight: '1rem' }}"}}>
+        <Box display={{"{{ xs: 'none', md: 'block' }}"}}>
+          <QuickSearchBar />
+        </Box>
+        <Box display={{"{{ xs: openSearch ? 'none' : 'block', md: 'none' }}"}}>
+          <IconButton
+            onClick={() => setOpenSearch(true)}
+            size="large"
+            style={{"{{padding: 0, margin: 0}}"}}
+          >
+            <SearchIcon fontSize="large" style={{"{{color: '#457b9d'}}"}}/>
+          </IconButton>
+        </Box>
+        <Box display={{"{{ xs: 'none', md: 'block' }}"}}>
+          <Tooltip title="Refresh basic data">
+            <IconButton
+              onClick={() => handleRefresh()}
+              data-testid="refreshButton"
+              size="large"
+              style={{"{{padding: 0, margin: 0}}"}}
+              disabled={refreshing}
+            >
+              <RefreshIcon fontSize="large" style={{"{{color: refreshing ? 'grey' : '#457b9d'}}"}}/>
+            </IconButton>
+          </Tooltip>
+        </Box>
+        <Notifications />
+        <ProfileDropdown />
+      </div>
+      <Box display={{"{{ xs: openSearch ? 'flex' : 'none', md: 'none' }}"}} style={{"{{paddingRight: '0.5rem', flexDirection: 'row', alignItems: 'center'}}"}}>
+        <QuickSearchBar />
+        <IconButton
+          onClick={() => setOpenSearch(false)}
+          size="large"
+        >
+          <CloseIcon style={{"{{color: 'white', padding: 0}}"}}/>
+        </IconButton>
+      </Box>
+    </div>
+)};
+
+export default HeaderContent;

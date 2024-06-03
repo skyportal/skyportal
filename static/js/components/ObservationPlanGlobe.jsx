@@ -10,7 +10,7 @@ import * as Actions from "../ducks/gcnEvent";
 import { GET } from "../API";
 import Button from "./Button";
 
-import LocalizationPlot from "./LocalizationPlot";
+import LocalizationPlot from "./localization/LocalizationPlot";
 
 const ObservationPlanGlobe = ({
   observationplanRequest,

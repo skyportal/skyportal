@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
 import Paper from "@mui/material/Paper";
@@ -20,7 +20,7 @@ import MenuItem from "@mui/material/MenuItem";
 import makeStyles from "@mui/styles/makeStyles";
 import Button from "./Button";
 
-import UserAvatar from "./UserAvatar";
+import UserAvatar from "./user/UserAvatar";
 import * as profileActions from "../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
@@ -202,7 +202,7 @@ const TopSaversList = ({ savers, styles }) => {
     return (
       <div className={styles.saverInfo}>
         <UserAvatar
-          size={24}
+          size={32}
           firstName={author.first_name}
           lastName={author.last_name}
           username={author.username}

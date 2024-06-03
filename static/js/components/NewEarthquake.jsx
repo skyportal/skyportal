@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { submitEarthquake, fetchEarthquakes } from "../ducks/earthquake";
+import { fetchEarthquakes, submitEarthquake } from "../ducks/earthquake";
 
 dayjs.extend(utc);
 

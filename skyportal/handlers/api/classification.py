@@ -37,7 +37,9 @@ def post_classification(data, user_id, session):
     sources = session.scalars(Source.select(user).where(Source.obj_id == obj_id)).all()
     source_group_ids = [source.group_id for source in sources]
     user_group_ids = [g.id for g in user.accessible_groups]
-    group_ids = data.pop("group_ids", list(set(source_group_ids) & set(user_group_ids)))
+    group_ids = data.pop("group_ids", [])
+    if len(group_ids) == 0:
+        group_ids = list(set(source_group_ids) & set(user_group_ids))
 
     origin = data.get('origin')
 

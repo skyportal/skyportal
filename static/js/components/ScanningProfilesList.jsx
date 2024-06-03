@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
 import Checkbox from "@mui/material/Checkbox";
@@ -11,8 +11,8 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import {
   createTheme,
-  ThemeProvider,
   StyledEngineProvider,
+  ThemeProvider,
   useTheme,
 } from "@mui/material/styles";
 
@@ -22,7 +22,7 @@ import MUIDataTable from "mui-datatables";
 import Button from "./Button";
 import * as profileActions from "../ducks/profile";
 
-import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
+import CandidatesPreferencesForm from "./candidate/CandidatesPreferencesForm";
 
 const savedStatusSelectOptions = [
   { value: "all", label: "regardless of saved status" },

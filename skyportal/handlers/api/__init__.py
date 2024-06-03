@@ -211,3 +211,4 @@ from .sources_confirmed_in_gcn import (
     SourcesConfirmedInGCNTNSHandler,
     GCNsAssociatedWithSourceHandler,
 )
+from .public_pages.public_source_page import PublicSourcePageHandler

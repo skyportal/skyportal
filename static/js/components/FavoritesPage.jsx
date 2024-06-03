@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import makeStyles from "@mui/styles/makeStyles";
 
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
-import SourceTable from "./SourceTable";
+import SourceTable from "./source/SourceTable";
 
 import * as sourcesActions from "../ducks/sources";
 

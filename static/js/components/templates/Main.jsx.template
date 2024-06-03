@@ -1,0 +1,190 @@
+// Baselayer components
+import { Notifications } from "baselayer/components/Notifications";
+
+// React and Redux
+import React, { useEffect, Suspense } from "react";
+import PropTypes from "prop-types";
+import { Provider, useSelector } from "react-redux";
+import { createRoot } from 'react-dom/client';
+
+import { BrowserRouter, Routes, Route, useLocation, useParams } from "react-router-dom";
+
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import {
+  ThemeProvider,
+  StyledEngineProvider,
+  useTheme,
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import Spinner from "../Spinner";
+
+import clsx from "clsx";
+
+// WebSocket
+import WebSocket from "baselayer/components/WebSocket";
+import messageHandler from "baselayer/MessageHandler";
+
+// Store
+import store from "../../store";
+
+// Actions
+import hydrate from "../../actions";
+import * as rotateLogoActions from "../../ducks/logo";
+import * as hydrationActions from "../../ducks/hydration";
+
+import NoMatchingRoute from "../NoMatchingRoute";
+
+{% for route in app.routes -%}
+const {{ (route.component).split('/').pop() }} = React.lazy(() => import("../{{ route.component }}"));
+{% endfor %}
+
+import Theme from "../Theme";
+import SidebarAndHeader from "./SidebarAndHeader";
+import ErrorBoundary from "../ErrorBoundary";
+
+messageHandler.init(store.dispatch, store.getState);
+
+const useStyles = makeStyles((theme) => ({
+  content: {
+    flexGrow: 1,
+    transition: theme.transitions.create("margin", {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.leavingScreen,
+    }),
+    marginTop: "2.5em", // top bar height
+    "& a": {
+      textDecoration: "none",
+      color: "gray",
+      fontWeight: "bold",
+    },
+  },
+  contentShift: {
+    transition: theme.transitions.create("margin", {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+  },
+  websocket: {
+    display: "none",
+  }
+}));
+
+const MainContent = ({ root }) => {
+
+  const theme = useTheme();
+  return (
+    <ThemeProvider theme={theme}>
+      <MainContentInternal root={root} />
+    </ThemeProvider>
+  )
+
+};
+
+const MainContentInternal = ({ root }) => {
+  const { open } = useSelector((state) => state.sidebar);
+
+  const classes = useStyles();
+  const theme = useTheme();
+
+  const isSmall = useMediaQuery(theme.breakpoints.down("md"));
+
+  const marginLeft = () => {
+    if (isSmall) {
+      return "0";
+    } else if (open) {
+      return "170px";
+    } else {
+      return "65px";
+    }
+  };
+
+  useEffect(() => {
+    store.dispatch(rotateLogoActions.rotateLogo());
+    setTimeout(() => {
+      store.dispatch(hydrationActions.verifyHydration());
+    }, 1400);
+    setTimeout(() => {
+      const {hydratedList, hydrated} = store.getState().hydration;
+      if (hydrated === true) {
+        // fully hydrated, do nothing except dashboard refresh
+        store.dispatch(hydrate(true));
+      } else if (hydratedList?.length > 0) {
+        // not fully hydrated, hydrate only missing
+        const missing = Array.from([...hydrationActions.DUCKS_TO_HYDRATE].filter(x => !hydratedList.includes(x)));
+        store.dispatch(hydrate(false, missing));
+      } else {
+        // not hydrated at all, hydrate everything
+        store.dispatch(hydrate());
+      }
+      store.dispatch(rotateLogoActions.rotateLogo());
+    }, 1500);
+  }, []);
+
+  const location = useLocation();
+  useEffect(() => {
+    document.title = "{{ app.title }}";
+  }, [location]);
+
+  return (
+   <StyledEngineProvider injectFirst>
+     <Theme {% if testing %} disableTransitions {% endif %}>
+
+      <div>
+        <WebSocket
+          url={`${window.location.protocol === "https:" ? "wss" :
+          "ws"}://${root}websocket`}
+          auth_url={`${window.location.protocol}//${root}baselayer/socket_auth_token`}
+          messageHandler={messageHandler}
+          dispatch={store.dispatch}
+        />
+      </div>
+
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <SidebarAndHeader open={open} />
+
+        <div
+          role="main"
+          className={clsx(classes.content, {
+            [classes.contentShift]: !open,
+          })}
+          style={{"{{marginLeft: marginLeft(), padding: window?.location?.pathname === '/' ? 0 : '0.625rem'}}"}}
+        >
+
+          <Notifications />
+
+          <Routes>
+
+            {%- for route in app.routes %}
+            <Route path="{{ route.path }}" element={{ "{<Suspense fallback={<Spinner />}><" }}{{ (route.component).split('/').pop() }}{{ "/></Suspense>}" }} />
+            {%- endfor %}
+
+            <Route path="*" element={<NoMatchingRoute/>} />
+
+          </Routes>
+
+        </div>
+
+      </LocalizationProvider>
+    </Theme>
+  </StyledEngineProvider>
+  );
+};
+
+MainContent.propTypes = {
+  root: PropTypes.string.isRequired
+};
+
+const container = document.getElementById("content");
+const root = createRoot(container);
+
+root.render(
+  <Provider store={store}>
+      <ErrorBoundary key={location.pathname}>
+        <BrowserRouter basename="/">
+          <MainContent root={`${window.location.host}/`} />
+        </BrowserRouter>
+      </ErrorBoundary>
+  </Provider>
+);

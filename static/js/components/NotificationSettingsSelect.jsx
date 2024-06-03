@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
-import { withStyles, makeStyles } from "@mui/styles";
+import { makeStyles, withStyles } from "@mui/styles";
 import PropTypes from "prop-types";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -15,7 +15,10 @@ import Tooltip from "@mui/material/Tooltip";
 import grey from "@mui/material/colors/grey";
 import EditNotificationsIcon from "@mui/icons-material/EditNotifications";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
-import { Box, Slider, Checkbox, Button } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import Slider from "@mui/material/Slider";
 import * as profileActions from "../ducks/profile";
 
 const useStyles = makeStyles((theme) => ({

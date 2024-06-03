@@ -186,6 +186,7 @@ from skyportal.handlers.api import (
     SourcesConfirmedInGCNHandler,
     SourcesConfirmedInGCNTNSHandler,
     GCNsAssociatedWithSourceHandler,
+    PublicSourcePageHandler,
 )
 from skyportal.handlers.api.internal import (
     SourceViewsHandler,
@@ -209,7 +210,10 @@ from skyportal.handlers.api.internal import (
     RecentGcnEventsHandler,
     FilterWavelengthHandler,
 )
-from skyportal.handlers.public import ReportHandler
+from skyportal.handlers.public import (
+    ReportHandler,
+    SourcePageHandler,
+)
 
 from . import model_util, openapi
 from .models import init_db
@@ -554,6 +558,9 @@ skyportal_handlers = [
         r'/api/webhook/(obj)_analysis/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?',
         AnalysisWebhookHandler,
     ),
+    # Public pages managed by the API.
+    (r'/api/public_pages/source(/[0-9A-Za-z-_\.\+]+)', PublicSourcePageHandler),
+    # Internal API endpoints
     (r'/api/internal/tokens(/[0-9A-Za-z-]+)?', TokenHandler),
     (r"/api/internal/profile(/[0-9]+)?", ProfileHandler),
     (r'/api/internal/dbinfo', DBInfoHandler),
@@ -584,6 +591,10 @@ skyportal_handlers = [
     (r'/api/.*', InvalidEndpointHandler),
     # Public pages.
     (r'/public/reports/(gcn)(/[0-9]+)?(/.*)?', ReportHandler),
+    (
+        r'/public/sources(?:/)?([0-9A-Za-z-_\.\+]+)?(?:/)?(?:version)?(?:/)?([0-9a-f]+)?',
+        SourcePageHandler,
+    ),
     (r'/public/.*', InvalidEndpointHandler),
     # Debug and logout pages.
     (r'/become_user(/.*)?', BecomeUserHandler),
@@ -658,6 +669,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
             ),
             'SOCIAL_AUTH_NEW_USER_REDIRECT_URL': '/profile?newUser=true',
             'SOCIAL_AUTH_FIELDS_STORED_IN_SESSION': ['invite_token'],
+            'debug': env.debug if env is not None else False,
         }
     )
 

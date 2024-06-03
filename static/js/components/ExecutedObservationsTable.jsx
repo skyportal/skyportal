@@ -5,8 +5,8 @@ import { useNavigate } from "react-router-dom";
 import Paper from "@mui/material/Paper";
 import {
   createTheme,
-  ThemeProvider,
   StyledEngineProvider,
+  ThemeProvider,
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
@@ -18,7 +18,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 import ObservationFilterForm from "./ObservationFilterForm";
 
-import { saveSource, checkSource } from "../ducks/source";
+import { checkSource, saveSource } from "../ducks/source";
 
 const useStyles = makeStyles((theme) => ({
   container: {

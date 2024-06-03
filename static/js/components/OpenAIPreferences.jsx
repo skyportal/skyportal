@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -9,7 +9,7 @@ import TextField from "@mui/material/TextField";
 import makeStyles from "@mui/styles/makeStyles";
 
 import * as profileActions from "../ducks/profile";
-import UserPreferencesHeader from "./UserPreferencesHeader";
+import UserPreferencesHeader from "./user/UserPreferencesHeader";
 import CustomizeOpenAIParameters from "./CustomizeOpenAIParameters";
 
 const useStyles = makeStyles((theme) => ({

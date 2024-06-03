@@ -184,9 +184,9 @@ def check_if_obj_has_photometry(obj_id, user, session):
 
 async def get_source(
     obj_id,
-    tns_name,
     user_id,
     session,
+    tns_name=None,
     include_thumbnails=False,
     include_comments=False,
     include_analyses=False,
@@ -3087,9 +3087,9 @@ class SourceHandler(BaseHandler):
                 try:
                     source_info = await get_source(
                         obj_id,
-                        tns_name,
                         self.associated_user_object.id,
                         session,
+                        tns_name=tns_name,
                         include_thumbnails=include_thumbnails,
                         include_comments=include_comments,
                         include_analyses=include_analyses,

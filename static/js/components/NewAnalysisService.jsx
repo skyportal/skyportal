@@ -9,10 +9,10 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import GroupShareSelect from "./GroupShareSelect";
+import GroupShareSelect from "./group/GroupShareSelect";
 import {
-  submitAnalysisService,
   fetchAnalysisServices,
+  submitAnalysisService,
 } from "../ducks/analysis_services";
 
 dayjs.extend(utc);

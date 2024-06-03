@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
 import Paper from "@mui/material/Paper";
@@ -22,7 +22,7 @@ import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
-import { allowedClasses } from "./ClassificationForm";
+import { allowedClasses } from "./classification/ClassificationForm";
 import Button from "./Button";
 
 import * as summaryActions from "../ducks/summary";
