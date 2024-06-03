@@ -28,7 +28,7 @@ pytest==8.1.1
 sncosmo==2.10.4
 tdtax==0.1.4
 healpix-alchemy==1.1.0
-mocpy==0.13.1
+mocpy==0.14.0
 obspy==1.4.0
 conesearch-alchemy==1.0.0
 regions==0.8
@@ -63,7 +63,7 @@ geojson==3.1.0
 typing-extensions==4.8.0
 swifttools==3.0.22
 pip==24.0
-git+https://github.com/skyportal/gwemopt.git@main#egg=gwemopt
+gwemopt==0.3.1
 humanize==4.9.0
 xarray>=21.1
 simsurvey==0.7.5
