@@ -434,7 +434,9 @@ def post_gcnevent_from_json(payload, user_id, session, asynchronous=True):
 
     user = session.query(User).get(user_id)
 
-    dateobs = Time(payload['trigger_time'], format="isot").datetime
+    dateobs = Time(payload['trigger_time'], format="isot", precision=0)
+    # FIXME: https://github.com/astropy/astropy/issues/7179
+    dateobs = Time(dateobs.iso).datetime
 
     event = session.scalars(
         GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
@@ -477,6 +479,23 @@ def post_gcnevent_from_json(payload, user_id, session, asynchronous=True):
     event.detectors = detectors
     session.commit()
 
+    # TODO: add the notice_type to the pygcn enum (or change how we handle notice types entirely)
+    # so we can save the JSON notices
+    # gcn_notice = GcnNotice(
+    #     content=payload,
+    #     ivorn=None,
+    #     notice_type=None,
+    #     stream=None,
+    #     date=payload["trigger_time"]
+    #     has_localization=True,
+    #     localization_ingested=False,
+    #     dateobs=dateobs,
+    #     sent_by_id=user_id,
+    # )
+    # session.add(gcn_notice)
+    # session.commit()
+    # notice_id = gcn_notice.id
+
     localization_properties, localization_tags = None, None
     skymap = None
     if "instrument" in payload:
@@ -489,7 +508,7 @@ def post_gcnevent_from_json(payload, user_id, session, asynchronous=True):
             skymap['localization_name'] = "BAT-GUANO.fits.gz"
 
     if skymap is None:
-        return event.id
+        return event.dateobs, event.id, None
 
     skymap["dateobs"] = event.dateobs
     skymap["sent_by_id"] = user.id
@@ -543,7 +562,7 @@ def post_gcnevent_from_json(payload, user_id, session, asynchronous=True):
                 tags=localization_tags,
             )
 
-    return event.id
+    return event.dateobs, event.id, None
 
 
 def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
@@ -2287,7 +2306,6 @@ class LocalizationNoticeHandler(BaseHandler):
             if gcn_notice is None:
                 return self.error("Notice not found", status=404)
 
-            # then get the localization, if it exists
             root = lxml.etree.fromstring(gcn_notice.content)
             notice_type = gcn_notice.notice_type
             status, skymap_metadata = get_skymap_metadata(root, notice_type)
