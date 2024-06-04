@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 
@@ -13,6 +14,7 @@ from baselayer.log import make_log
 from skyportal.handlers.api.gcn import (
     get_tags,
     post_gcnevent_from_xml,
+    post_gcnevent_from_json,
     post_skymap_from_notice,
 )
 from skyportal.models import DBSession, GcnEvent
@@ -26,9 +28,12 @@ init_db(**cfg['database'])
 
 client_id = cfg['gcn.client_id']
 client_secret = cfg['gcn.client_secret']
-notice_types = [
+classic_notice_types = [
     f'gcn.classic.voevent.{notice_type}'
     for notice_type in cfg.get("gcn.notice_types", [])
+]
+json_notice_types = [
+    f'gcn.notices.{notice_type}' for notice_type in cfg.get("gcn.json_notice_types", [])
 ]
 
 reject_tags = cfg.get('gcn.reject_tags', [])
@@ -62,8 +67,16 @@ def is_configured():
     if client_secret is None or client_secret == '':
         log('No client_secret configured to poll gcn events (config: gcn.client_secret')
         return False
-    if notice_types is None or notice_types == '' or notice_types == []:
-        log('No notice_types configured to poll gcn events (config: gcn.notice_types')
+    if (
+        classic_notice_types is None
+        or classic_notice_types == ''
+        or classic_notice_types == []
+    ) and (
+        json_notice_types is None or json_notice_types == '' or json_notice_types == []
+    ):
+        log(
+            'No notice_types configured to poll gcn events (config: gcn.notice_types and/or gcn.json_notice_types)'
+        )
         return False
     return True
 
@@ -90,7 +103,7 @@ def poll_events(*args, **kwargs):
         log(f'Failed to initiate consumer to poll gcn events: {e}')
         return
     try:
-        consumer.subscribe(notice_types)
+        consumer.subscribe(classic_notice_types + json_notice_types)
     except Exception as e:
         log(f'Failed to subscribe to gcn events: {e}')
         return
@@ -101,9 +114,18 @@ def poll_events(*args, **kwargs):
                 consumer.commit(message)
                 if payload.find(b'Broker: Unknown topic or partition') != -1:
                     continue
-                root = get_root_from_payload(payload)
-                notice_type = gcn.get_notice_type(root)
-                tags = get_tags(root)
+
+                try:
+                    payload = json.loads(payload.decode('utf8'))
+                    notice_type = None
+                    tags = []
+                    alert_type = "json"
+                except Exception:
+                    root = get_root_from_payload(payload)
+                    notice_type = gcn.get_notice_type(root)
+                    tags = get_tags(root)
+                    alert_type = "classic"
+
                 tags_intersection = list(set(tags).intersection(set(reject_tags)))
                 if len(tags_intersection) > 0:
                     log(
@@ -136,14 +158,22 @@ def poll_events(*args, **kwargs):
                     # event ingestion
                     log(f'Ingesting gcn_event from {message.topic()}')
                     try:
-                        dateobs, event_id, notice_id = post_gcnevent_from_xml(
-                            payload,
-                            user_id,
-                            session,
-                            post_skymap=False,
-                            asynchronous=False,
-                            notify=False,
-                        )
+                        if alert_type == "classic":
+                            dateobs, event_id, notice_id = post_gcnevent_from_xml(
+                                payload,
+                                user_id,
+                                session,
+                                post_skymap=False,
+                                asynchronous=False,
+                                notify=False,
+                            )
+                        elif alert_type == "json":
+                            dateobs, event_id, notice_id = post_gcnevent_from_json(
+                                payload,
+                                user_id,
+                                session,
+                                asynchronous=False,
+                            )
                     except Exception as e:
                         log(f'Failed to ingest gcn_event from {message.topic()}: {e}')
                         continue

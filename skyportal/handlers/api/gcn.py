@@ -422,6 +422,130 @@ def post_skymap_from_notice(
     return localization_id
 
 
+def post_gcnevent_from_json(payload, user_id, session, asynchronous=True):
+    """Post GcnEvent to database from JSON.
+    payload: dict
+        JSON containing alert payload
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
+
+    user = session.query(User).get(user_id)
+
+    dateobs = Time(payload['trigger_time'], format="isot").datetime
+
+    event = session.scalars(
+        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+    ).first()
+
+    if event is None:
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        session.add(event)
+    else:
+        if not event.is_accessible_by(user, mode="update"):
+            raise ValueError(
+                "Insufficient permissions: GCN event can only be updated by original poster"
+            )
+
+    tags = []
+    if "instrument" in payload:
+        if payload["instrument"] == "WXT":
+            tags = ["Einstein Probe"]
+        elif payload["instrument"] == "BAT-GUANO":
+            tags = ["GUANO"]
+
+    tags = [
+        GcnTag(
+            dateobs=event.dateobs,
+            text=text,
+            sent_by_id=user.id,
+        )
+        for text in tags
+    ]
+
+    detectors = []
+    for tag in tags:
+        session.add(tag)
+
+        mma_detector = session.scalars(
+            MMADetector.select(user).where(MMADetector.nickname == tag.text)
+        ).first()
+        if mma_detector is not None:
+            detectors.append(mma_detector)
+    event.detectors = detectors
+    session.commit()
+
+    localization_properties, localization_tags = None, None
+    skymap = None
+    if "instrument" in payload:
+        if payload["instrument"] == "WXT":
+            skymap = from_cone(payload['ra'], payload['dec'], payload['ra_dec_error'])
+        elif payload["instrument"] == "BAT-GUANO":
+            skymap, localization_properties, localization_tags = from_bytes(
+                payload['healpix_file']
+            )
+            skymap['localization_name'] = "BAT-GUANO.fits.gz"
+
+    if skymap is None:
+        return event.id
+
+    skymap["dateobs"] = event.dateobs
+    skymap["sent_by_id"] = user.id
+
+    try:
+        ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
+        if error < SOURCE_RADIUS_THRESHOLD:
+            source = {
+                'id': Time(event.dateobs).isot.replace(":", "-"),
+                'ra': ra,
+                'dec': dec,
+            }
+            post_source(source, user_id, session)
+    except Exception:
+        pass
+
+    localization = session.scalars(
+        Localization.select(user).where(
+            Localization.dateobs == dateobs,
+            Localization.localization_name == skymap["localization_name"],
+        )
+    ).first()
+    if localization is None:
+        localization = Localization(**skymap)
+        session.add(localization)
+        session.commit()
+        localization_id = localization.id
+
+        log(f"Generating tiles/properties/contours for localization {localization_id}")
+        if asynchronous:
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_tiles_properties_contour_and_obsplan(
+                    localization_id,
+                    user_id,
+                    properties=localization_properties,
+                    tags=localization_tags,
+                ),
+            )
+        else:
+            add_tiles_properties_contour_and_obsplan(
+                localization_id,
+                user_id,
+                session,
+                properties=localization_properties,
+                tags=localization_tags,
+            )
+
+    return event.id
+
+
 def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
     """Post GcnEvent to database from dictionary.
     payload: dict
