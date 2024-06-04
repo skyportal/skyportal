@@ -93,7 +93,7 @@ class Classification(Base):
     def to_dict_public(self):
         return {
             'classification': self.classification,
-            'author_name': self.author_name,
+            'author_name': self.author.first_name + ' ' + self.author.last_name,
             'probability': self.probability,
             'ml': self.ml,
             'taxname': self.taxonomy.name if self.taxonomy else None,
