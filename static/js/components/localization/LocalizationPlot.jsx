@@ -48,12 +48,7 @@ const LocalizationPlot = ({
     }
   }
 
-  if (
-    !localization?.id ||
-    !localization?.dateobs ||
-    !localization?.localization_name ||
-    !localization?.contour
-  ) {
+  if (!localization?.id || !localization?.contour) {
     return <CircularProgress />;
   }
 

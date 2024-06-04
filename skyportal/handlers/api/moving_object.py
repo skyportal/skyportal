@@ -139,10 +139,17 @@ class MovingObjectHandler(BaseHandler):
                 )
 
             moving_objects = session.scalars(moving_objects).unique().all()
+            moving_objects = [
+                {**moving_object.to_dict(), 'contour': moving_object.contour}
+                for moving_object in moving_objects
+            ]
+
             return self.success(
                 data={
                     'moving_objects': moving_objects,
                     "totalMatches": int(total_matches),
+                    "pageNumber": page_number,
+                    "numPerPage": n_per_page,
                 }
             )
 
@@ -185,6 +192,8 @@ class MovingObjectHandler(BaseHandler):
 
             session.add(moving_object)
             session.commit()
+
+            self.push_all(action="skyportal/REFRESH_MOVING_OBJECTS")
             return self.success(data={"id": moving_object.id})
 
     @permissions(['Upload data'])
@@ -239,6 +248,8 @@ class MovingObjectHandler(BaseHandler):
                 setattr(moving_object, k, data[k])
 
             session.commit()
+
+            self.push_all(action="skyportal/REFRESH_MOVING_OBJECTS")
             return self.success()
 
     @permissions(['Upload data'])
@@ -272,6 +283,8 @@ class MovingObjectHandler(BaseHandler):
 
             session.delete(moving_object)
             session.commit()
+
+            self.push_all(action="skyportal/REFRESH_MOVING_OBJECTS")
             return self.success()
 
 
@@ -428,4 +441,6 @@ class MovingObjectHorizonsHandler(BaseHandler):
 
             session.add(moving_object)
             session.commit()
+
+            self.push_all(action="skyportal/REFRESH_MOVING_OBJECTS")
             return self.success(data={"id": moving_object.id})
