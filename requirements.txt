@@ -1,6 +1,6 @@
-astroscrappy==1.1.0
+astroscrappy==1.2.0
 numpy==1.23.4
-scipy==1.11.3
+scipy==1.13.1
 pandas==2.2.0
 dask==2024.5.2
 geopandas==0.13.2
@@ -42,7 +42,7 @@ py3-validate-email==1.0.5.post1
 alembic==1.13.1
 marshmallow-jsonschema==0.13.0
 paramiko==3.4.0
-scp==0.14.5
+scp==0.15.0
 requests_toolbelt==0.10.1
 sendgrid==6.10.0
 responses==0.25.0
@@ -53,7 +53,7 @@ lxml==5.2.2
 suds-py3==1.4.5.0
 vcrpy==5.1.0
 aiosmtpd==1.4.6
-ligo.skymap==1.1.2
+ligo.skymap==2.0.1
 healpy==1.17.1
 pygcn==1.1.2
 pysedm==0.31.0
@@ -70,7 +70,7 @@ simsurvey==0.7.5
 noaodatalab==2.20.0
 black==24.4.2
 click==8.1.6
-arviz==0.16.1
+arviz==0.18.0
 corner==2.2.2
 penquins==2.4.1
 selenium==4.8.3
@@ -78,15 +78,15 @@ selenium-requests==2.0.4
 afterglowpy==0.8.0
 gcn-kafka==0.3.3
 confluent_kafka==2.2.0 # dependency of gcn-kafka: pinning to understand memory effects on GCNEvents
-iminuit==2.25.2
-watchdog==3.0.0
-PyAstronomy==0.19.0
+iminuit==2.26.0
+watchdog==4.0.1
+PyAstronomy==0.21.0
 shapely==2.0.4
 openai==1.12.0
 tiktoken==0.5.2
 simplejson==3.19.2
 langchain==0.1.14
 langchain-openai==0.0.6
-pinecone-client==3.0.3
+pinecone-client==4.1.0
 pydantic==2.7.1
 typing-inspect==0.9.0

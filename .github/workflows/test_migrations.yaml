@@ -86,7 +86,7 @@ jobs:
 
           sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
-          pip install pip==23.1.2
+          pip install pip==24.0
           pip install wheel numpy
 
           export NPM_PACKAGES="${HOME}/.npm-packages"

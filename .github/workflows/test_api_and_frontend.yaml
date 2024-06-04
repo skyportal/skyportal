@@ -111,7 +111,7 @@ jobs:
           sudo apt update -y
           sudo apt install nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter -y
 
-          pip install pip==23.1.2
+          pip install pip==24.0
           pip install wheel numpy
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
