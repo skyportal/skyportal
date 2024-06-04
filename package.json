@@ -26,7 +26,7 @@
     "buffer": "6.0.3",
     "check-dependencies": "2.0.0",
     "choices.js": "10.2.0",
-    "clsx": "1.2.1",
+    "clsx": "2.1.1",
     "convert-css-length": "2.0.1",
     "core-js": "3.30.2",
     "css-loader": "6.8.1",
