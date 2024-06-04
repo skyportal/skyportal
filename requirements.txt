@@ -78,7 +78,7 @@ selenium-requests==2.0.4
 afterglowpy==0.8.0
 gcn-kafka==0.3.3
 confluent_kafka==2.2.0 # dependency of gcn-kafka: pinning to understand memory effects on GCNEvents
-iminuit==2.25.2
+iminuit==2.26.0
 watchdog==3.0.0
 PyAstronomy==0.21.0
 shapely==2.0.4
