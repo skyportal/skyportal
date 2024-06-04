@@ -60,7 +60,7 @@ pysedm==0.31.0
 xmlschema==2.5.0
 requests==2.32.3
 geojson==3.1.0
-typing-extensions==4.8.0
+typing-extensions==4.12.1
 swifttools==3.0.22
 pip==24.0
 gwemopt==0.3.1
@@ -73,7 +73,7 @@ click==8.1.6
 arviz==0.18.0
 corner==2.2.2
 penquins==2.4.1
-selenium==4.8.3
+selenium==4.16.0
 selenium-requests==2.0.4
 afterglowpy==0.8.0
 gcn-kafka==0.3.3
