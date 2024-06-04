@@ -73,7 +73,7 @@ jobs:
           sudo apt update -y
           sudo apt install -y libcurl4-gnutls-dev libgnutls28-dev
 
-          python -m pip install pip==23.1.2
+          python -m pip install pip==24.0
           pip install numpy wheel
           pip install -r baselayer/requirements.txt
           pip install -r requirements.txt

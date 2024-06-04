@@ -81,6 +81,9 @@ const config = {
     new webpack.ProvidePlugin({
       Buffer: ["buffer", "Buffer"],
     }),
+    new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+      resource.request = resource.request.replace(/^node:/, "");
+    }),
   ],
   resolve: {
     alias: {
