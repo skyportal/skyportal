@@ -47,22 +47,18 @@ function plot_lc(photometry_data, div_id, filters_used_mapper) {
         opacity: 0.8,
       },
       mode: "markers+lines",
-      // use a hover template to display:
-      // - mjd
-      // - mag
-      // - magerr
-      // - filter
-      // - limiting_mag
-      // - instrument_id
-      text: `mjd: ${element.mjd.toFixed(6)}<br>mag: ${
-        element.mag ? element.mag.toFixed(4) : element.mag
-      }<br>magerr: ${
-        element.magerr ? element.magerr.toFixed(4) : element.magerr
-      }<br>filter: ${element.filter}<br>limmag: ${
-        element.limiting_mag
-          ? element.limiting_mag.toFixed(4)
-          : element.limiting_mag
-      }<br>instrument: ${element.instrument_name}`,
+      // use a hover template to display: - mjd - mag - magerr - limiting_mag - filter - instrument_id
+      text: `MJD: ${element.mjd.toFixed(6)}<br>${
+        element.mag !== null ? `Mag: ${element.mag.toFixed(4)}<br>` : ""
+      }${
+        element.magerr !== null
+          ? `Magerr: ${element.magerr.toFixed(4)}<br>`
+          : ""
+      }${
+        element.limiting_mag !== null
+          ? `Limiting Mag: ${element.limiting_mag.toFixed(4)}<br>`
+          : ""
+      }Filter: ${element.filter}<br>Instrument: ${element.instrument_name}`,
     };
     data.showlegend = !names_already_seen.includes(name);
     plot_data.push(data);
