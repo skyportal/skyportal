@@ -53,7 +53,7 @@ lxml==5.2.2
 suds-py3==1.4.5.0
 vcrpy==5.1.0
 aiosmtpd==1.4.6
-ligo.skymap==1.1.2
+ligo.skymap==2.0.1
 healpy==1.17.1
 pygcn==1.1.2
 pysedm==0.31.0
