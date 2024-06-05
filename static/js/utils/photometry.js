@@ -1,7 +1,23 @@
 /* global Plotly */
-window.isMobile = window.matchMedia(
-  "only screen and (max-width: 900px)",
-).matches;
+window.isMobile = window.matchMedia("(max-width: 900px)").matches;
+
+const baseLayout = {
+  ticks: "outside",
+  nticks: 8,
+  ticklen: 12,
+  tickfont: { size: 14 },
+  tickformat: ".6~f",
+  tickcolor: "black",
+  minor: {
+    ticks: "outside",
+    ticklen: 6,
+    tickcolor: "black",
+  },
+  titlefont: { size: 18 },
+  showline: true,
+  zeroline: false,
+  automargin: true,
+};
 
 const rgba = (rgb, alpha) => `rgba(${rgb[0]},${rgb[1]},${rgb[2]}, ${alpha})`;
 
@@ -22,7 +38,7 @@ function getHoverText(point) {
   );
 }
 
-const baseTrace = (data, isDetection, key, color) => {
+function getTrace(data, isDetection, key, color) {
   const dataType = isDetection ? "detections" : "upperLimits";
   return {
     dataType,
@@ -61,70 +77,16 @@ const baseTrace = (data, isDetection, key, color) => {
     },
     hovertemplate: "%{text}<extra></extra>",
   };
-};
-
-const baseLayout = {
-  ticks: "outside",
-  nticks: 8,
-  ticklen: 12,
-  tickfont: { size: 14 },
-  tickformat: ".6~f",
-  tickcolor: "black",
-  minor: {
-    ticks: "outside",
-    ticklen: 6,
-    tickcolor: "black",
-  },
-  titlefont: { size: 18 },
-  showline: true,
-  zeroline: false,
-  automargin: true,
-};
-
-function getGroupedPhotometry(photometry) {
-  return photometry.reduce((acc, point) => {
-    const key = `${point.instrument_name}/${point.filter}${
-      point.origin !== "None" ? `/${point.origin}` : ""
-    }`;
-    if (!acc[key]) {
-      acc[key] = [];
-    }
-    acc[key].push(point);
-    return acc;
-  }, {});
 }
 
-/* eslint-disable no-unused-vars */
-function plotLc(photometry_data, div_id, filters_used_mapper) {
-  const photometry = JSON.parse(photometry_data);
-  const mapper = JSON.parse(filters_used_mapper);
-  const plotData = [];
-
-  const groupedPhotometry = getGroupedPhotometry(photometry);
-  Object.keys(groupedPhotometry).forEach((key) => {
-    const photometry = groupedPhotometry[key];
-    const color = getColor(mapper, photometry[0].filter);
-    const { detections, upperLimits } = photometry.reduce(
-      (acc, point) => {
-        point.mag !== null
-          ? acc.detections.push(point)
-          : acc.upperLimits.push(point);
-        return acc;
-      },
-      { detections: [], upperLimits: [] },
-    );
-    const detectionsTrace = baseTrace(detections, true, key, color);
-    const upperLimitsTrace = baseTrace(upperLimits, false, key, color);
-    plotData.push(detectionsTrace, upperLimitsTrace);
-  });
-
-  const layout = {
+function getLayout() {
+  return {
     autosize: true,
-    // xaxis: {
-    //   title: "MJD",
-    //   side: "top",
-    //   ...baseLayout
-    // },
+    xaxis2: {
+      title: "MJD",
+      side: "top",
+      ...baseLayout,
+    },
     xaxis: {
       title: "Days Ago",
       autorange: "reversed",
@@ -158,7 +120,16 @@ function plotLc(photometry_data, div_id, filters_used_mapper) {
       x: isMobile ? 0 : 1,
     },
   };
-  const config = {
+}
+
+function getConfig() {
+  const resetLayout = () => {
+    Plotly.relayout(
+      document.getElementsByClassName("plotly")[0].parentElement,
+      getLayout(),
+    );
+  };
+  return {
     responsive: true,
     displaylogo: false,
     showAxisDragHandles: false,
@@ -168,28 +139,71 @@ function plotLc(photometry_data, div_id, filters_used_mapper) {
       "select2d",
       "lasso2d",
     ],
+    modeBarButtonsToAdd: [
+      {
+        name: "Reset",
+        icon: Plotly.Icons.home,
+        click: () => {
+          resetLayout();
+        },
+      },
+    ],
   };
-  Plotly.newPlot(document.getElementById(div_id), plotData, layout, config);
+}
+
+function getGroupedPhotometry(photometry) {
+  return photometry.reduce((acc, point) => {
+    const key = `${point.instrument_name}/${point.filter}${
+      point.origin !== "None" ? `/${point.origin}` : ""
+    }`;
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(point);
+    return acc;
+  }, {});
 }
 
 function adjustLegend() {
-  let isMobile = window.matchMedia(
-    "only screen and (max-width: 900px)",
-  ).matches;
+  let isMobile = window.matchMedia("(max-width: 900px)").matches;
   if (isMobile !== window.isMobile) {
     window.isMobile = isMobile;
-    const newLayout = {
-      legend: {
-        orientation: isMobile ? "h" : "v",
-        y: isMobile ? -0.3 : 1,
-        x: isMobile ? 0 : 1,
-      },
-    };
     Plotly.relayout(
       document.getElementsByClassName("plotly")[0].parentElement,
-      newLayout,
+      getLayout(),
     );
   }
 }
 
 window.addEventListener("resize", adjustLegend);
+
+/* eslint-disable no-unused-vars */
+function plotLc(photometry_data, div_id, filters_used_mapper) {
+  const photometry = JSON.parse(photometry_data);
+  const mapper = JSON.parse(filters_used_mapper);
+  const plotData = [];
+
+  const groupedPhotometry = getGroupedPhotometry(photometry);
+  Object.keys(groupedPhotometry).forEach((key) => {
+    const photometry = groupedPhotometry[key];
+    const color = getColor(mapper, photometry[0].filter);
+    const { detections, upperLimits } = photometry.reduce(
+      (acc, point) => {
+        point.mag !== null
+          ? acc.detections.push(point)
+          : acc.upperLimits.push(point);
+        return acc;
+      },
+      { detections: [], upperLimits: [] },
+    );
+    const detectionsTrace = getTrace(detections, true, key, color);
+    const upperLimitsTrace = getTrace(upperLimits, false, key, color);
+    plotData.push(detectionsTrace, upperLimitsTrace);
+  });
+  Plotly.newPlot(
+    document.getElementById(div_id),
+    plotData,
+    getLayout(),
+    getConfig(),
+  );
+}
