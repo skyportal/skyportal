@@ -19,12 +19,6 @@ const baseLayout = {
   automargin: true,
 };
 
-const rgba = (rgb, alpha) => `rgba(${rgb[0]},${rgb[1]},${rgb[2]}, ${alpha})`;
-
-function getColor(mapper, filter) {
-  return mapper[filter] || [0, 0, 0];
-}
-
 /* eslint-disable */
 function getHoverText(point) {
   return (
@@ -39,10 +33,12 @@ function getHoverText(point) {
 }
 
 function getTrace(data, isDetection, key, color) {
+  const now = new Date().getTime() / 86400000 + 40587;
+  const rgba = (rgb, alpha) => `rgba(${rgb[0]},${rgb[1]},${rgb[2]}, ${alpha})`;
   const dataType = isDetection ? "detections" : "upperLimits";
   return {
     dataType,
-    x: data.map((point) => point.mjd),
+    x: data.map((point) => now - point.mjd),
     y: data.map((point) => point.limiting_mag),
     ...(isDetection
       ? {
@@ -82,11 +78,6 @@ function getTrace(data, isDetection, key, color) {
 function getLayout() {
   return {
     autosize: true,
-    xaxis2: {
-      title: "MJD",
-      side: "top",
-      ...baseLayout,
-    },
     xaxis: {
       title: "Days Ago",
       autorange: "reversed",
@@ -119,6 +110,7 @@ function getLayout() {
       y: isMobile ? -0.3 : 1,
       x: isMobile ? 0 : 1,
     },
+    hovermode: "closest",
   };
 }
 
@@ -138,6 +130,9 @@ function getConfig() {
       "resetScale2d",
       "select2d",
       "lasso2d",
+      "toggleSpikelines",
+      "hoverClosestCartesian",
+      "hoverCompareCartesian",
     ],
     modeBarButtonsToAdd: [
       {
@@ -186,7 +181,7 @@ function plotLc(photometry_data, div_id, filters_used_mapper) {
   const groupedPhotometry = getGroupedPhotometry(photometry);
   Object.keys(groupedPhotometry).forEach((key) => {
     const photometry = groupedPhotometry[key];
-    const color = getColor(mapper, photometry[0].filter);
+    const color = mapper[photometry[0].filter] || [0, 0, 0];
     const { detections, upperLimits } = photometry.reduce(
       (acc, point) => {
         point.mag !== null
