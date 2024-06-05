@@ -1,3 +1,5 @@
+import json
+import traceback
 import os
 import uuid
 
@@ -13,6 +15,7 @@ from baselayer.log import make_log
 from skyportal.handlers.api.gcn import (
     get_tags,
     post_gcnevent_from_xml,
+    post_gcnevent_from_json,
     post_skymap_from_notice,
 )
 from skyportal.models import DBSession, GcnEvent
@@ -26,9 +29,12 @@ init_db(**cfg['database'])
 
 client_id = cfg['gcn.client_id']
 client_secret = cfg['gcn.client_secret']
-notice_types = [
+classic_notice_types = [
     f'gcn.classic.voevent.{notice_type}'
     for notice_type in cfg.get("gcn.notice_types", [])
+]
+json_notice_types = [
+    f'gcn.notices.{notice_type}' for notice_type in cfg.get("gcn.json_notice_types", [])
 ]
 
 reject_tags = cfg.get('gcn.reject_tags', [])
@@ -62,8 +68,16 @@ def is_configured():
     if client_secret is None or client_secret == '':
         log('No client_secret configured to poll gcn events (config: gcn.client_secret')
         return False
-    if notice_types is None or notice_types == '' or notice_types == []:
-        log('No notice_types configured to poll gcn events (config: gcn.notice_types')
+    if (
+        classic_notice_types is None
+        or classic_notice_types == ''
+        or classic_notice_types == []
+    ) and (
+        json_notice_types is None or json_notice_types == '' or json_notice_types == []
+    ):
+        log(
+            'No notice_types configured to poll gcn events (config: gcn.notice_types and/or gcn.json_notice_types)'
+        )
         return False
     return True
 
@@ -90,7 +104,7 @@ def poll_events(*args, **kwargs):
         log(f'Failed to initiate consumer to poll gcn events: {e}')
         return
     try:
-        consumer.subscribe(notice_types)
+        consumer.subscribe(classic_notice_types + json_notice_types)
     except Exception as e:
         log(f'Failed to subscribe to gcn events: {e}')
         return
@@ -101,9 +115,18 @@ def poll_events(*args, **kwargs):
                 consumer.commit(message)
                 if payload.find(b'Broker: Unknown topic or partition') != -1:
                     continue
-                root = get_root_from_payload(payload)
-                notice_type = gcn.get_notice_type(root)
-                tags = get_tags(root)
+
+                try:
+                    payload = json.loads(payload.decode('utf8'))
+                    notice_type = None
+                    tags = []
+                    alert_type = "json"
+                except Exception:
+                    root = get_root_from_payload(payload)
+                    notice_type = gcn.get_notice_type(root)
+                    tags = get_tags(root)
+                    alert_type = "classic"
+
                 tags_intersection = list(set(tags).intersection(set(reject_tags)))
                 if len(tags_intersection) > 0:
                     log(
@@ -112,6 +135,7 @@ def poll_events(*args, **kwargs):
                     continue
 
                 with DBSession() as session:
+                    root = None
                     # we skip the ingestion of a retraction of the event does not exist in the DB
                     if notice_type == gcn.NoticeType.LVC_RETRACTION:
                         dateobs = get_dateobs(root)
@@ -135,54 +159,75 @@ def poll_events(*args, **kwargs):
 
                     # event ingestion
                     log(f'Ingesting gcn_event from {message.topic()}')
+                    dateobs, event_id, notice_id = None, None, None
                     try:
-                        dateobs, event_id, notice_id = post_gcnevent_from_xml(
-                            payload,
-                            user_id,
-                            session,
-                            post_skymap=False,
-                            asynchronous=False,
-                            notify=False,
-                        )
-                    except Exception as e:
-                        log(f'Failed to ingest gcn_event from {message.topic()}: {e}')
-                        continue
-
-                    # skymap ingestion if available or cone
-                    notified_on_skymap = False
-                    status, metadata = get_skymap_metadata(root, notice_type, 15)
-                    if status in ['available', 'cone']:
-                        log(
-                            f'Ingesting skymap for gcn_event: {dateobs}, notice_id: {notice_id}'
-                        )
-                        try:
-                            localization_id = post_skymap_from_notice(
-                                dateobs,
-                                notice_id,
+                        if alert_type == "classic":
+                            dateobs, event_id, notice_id = post_gcnevent_from_xml(
+                                payload,
                                 user_id,
                                 session,
+                                post_skymap=False,
                                 asynchronous=False,
                                 notify=False,
                             )
-                            request_body = {
-                                'target_class_name': 'Localization',
-                                'target_id': localization_id,
-                            }
-                            notified_on_skymap = post_notification(
-                                request_body, timeout=30
+                        elif alert_type == "json":
+                            # save the payload to a file
+                            with open(f'/tmp/{str(uuid.uuid4())}.json', 'w') as f:
+                                f.write(json.dumps(payload, indent=2))
+                            dateobs, event_id, notice_id = post_gcnevent_from_json(
+                                payload,
+                                user_id,
+                                session,
+                                asynchronous=False,
                             )
-                        except Exception as e:
+                    except Exception as e:
+                        traceback.print_exc()
+                        log(f'Failed to ingest gcn_event from {message.topic()}: {e}')
+                        continue
+
+                    # TODO: unify skymap ingestion to also process JSON notices sky maps
+                    # after ingesting the event (to deal with timeouts better)
+                    notified_on_skymap = False
+                    if alert_type == "classic":
+                        # skymap ingestion if available or cone
+                        status, metadata = get_skymap_metadata(root, notice_type, 15)
+                        if status in ['available', 'cone']:
                             log(
-                                f'Failed to ingest skymap for gcn_event: {dateobs}, notice_id: {notice_id}: {e}'
+                                f'Ingesting skymap for gcn_event: {dateobs}, notice_id: {notice_id}'
                             )
-                    elif status == 'unavailable':
-                        log(
-                            f'No skymap available for gcn_event: {dateobs}, notice_id: {notice_id} with url: {metadata.get("url", None)}'
-                        )
+                            try:
+                                localization_id = post_skymap_from_notice(
+                                    dateobs,
+                                    notice_id,
+                                    user_id,
+                                    session,
+                                    asynchronous=False,
+                                    notify=False,
+                                )
+                                request_body = {
+                                    'target_class_name': 'Localization',
+                                    'target_id': localization_id,
+                                }
+                                notified_on_skymap = post_notification(
+                                    request_body, timeout=30
+                                )
+                            except Exception as e:
+                                log(
+                                    f'Failed to ingest skymap for gcn_event: {dateobs}, notice_id: {notice_id}: {e}'
+                                )
+                        elif status == 'unavailable':
+                            log(
+                                f'No skymap available for gcn_event: {dateobs}, notice_id: {notice_id} with url: {metadata.get("url", None)}'
+                            )
+                        else:
+                            log(
+                                f'No skymap available for gcn_event: {dateobs}, notice_id: {notice_id}'
+                            )
                     else:
-                        log(
-                            f'No skymap available for gcn_event: {dateobs}, notice_id: {notice_id}'
-                        )
+                        # for now we don't store notices of JSON type, because we are missing
+                        # the notice_type int -> text mapping (and the ivorn) from pygcn
+                        # so we can't notify using our current notification system
+                        notified_on_skymap = True
                     if not notified_on_skymap:
                         request_body = {
                             'target_class_name': 'GcnNotice',
