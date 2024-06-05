@@ -355,27 +355,13 @@ def get_observations(
     else:
         raise ValueError('observation_status should be executed or queued')
 
-    if includeGeoJSON:
-        obs_query = (
-            Observation.select(
-                session.user_or_token,
-                mode="read",
-            )
-            .options(
-                joinedload(Observation.field).undefer(InstrumentField.contour_summary)
-            )
-            .options(
-                joinedload(Observation.instrument).joinedload(Instrument.telescope)
-            )
-        )
-    else:
-        obs_query = Observation.select(
-            session.user_or_token,
-            mode="read",
-        ).options(joinedload(Observation.field))
-
-    obs_query = obs_query.where(Observation.obstime >= start_date)
-    obs_query = obs_query.where(Observation.obstime <= end_date)
+    obs_query = Observation.select(
+        session.user_or_token,
+        mode="read",
+    ).where(
+        Observation.obstime >= start_date,
+        Observation.obstime <= end_date,
+    )
 
     # optional: slice by Instrument
     if telescope_name is not None and instrument_name is not None:
