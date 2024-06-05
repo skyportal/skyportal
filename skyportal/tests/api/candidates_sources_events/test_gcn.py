@@ -225,6 +225,64 @@ def test_gcn_from_moc(super_admin_token):
     assert "2022-06-18T18:31:12" not in [event["dateobs"] for event in data['events']]
 
 
+def test_gcn_from_json(super_admin_token):
+    datafile = f'{os.path.dirname(__file__)}/../../data/EP240508.json'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    event_data = {'json': payload}
+
+    dateobs = "2024-05-08T07:38:01"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+    dateobs = "2024-05-08T07:38:01"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    assert data["dateobs"] == "2024-05-08T07:38:01"
+    assert 'Einstein Probe' in data["tags"]
+
+    params = {"include2DMap": True}
+    skymap = "229.83800_-29.74700_0.05090"
+    n_retries = 0
+    while True:
+        try:
+            status, data = api(
+                'GET',
+                f'localization/{dateobs}/name/{skymap}',
+                token=super_admin_token,
+                params=params,
+            )
+
+            data = data["data"]
+            assert data.get("dateobs") == "2024-05-08T07:38:01"
+            assert data.get("localization_name") == skymap
+            assert np.isclose(np.sum(data.get("flat_2d", [])), 1)
+            break
+        except AssertionError as e:
+            if n_retries == 5:
+                raise e
+            n_retries += 1
+            time.sleep(2)
+
+    status, data = api(
+        'DELETE',
+        f'localization/{dateobs}/name/{skymap}',
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    # delete the event
+    status, data = api(
+        'DELETE', 'gcn_event/2024-05-08T07:38:01', token=super_admin_token
+    )
+
+
 @pytest.mark.flaky(reruns=3)
 def test_gcn_summary_sources(
     super_admin_user,
