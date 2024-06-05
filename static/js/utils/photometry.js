@@ -1,76 +1,195 @@
 /* global Plotly */
-function ModifiedJulianDateFromUnixTime(t) {
-  return t / 86400000 + 40587;
+window.isMobile = window.matchMedia(
+  "only screen and (max-width: 900px)",
+).matches;
+
+const rgba = (rgb, alpha) => `rgba(${rgb[0]},${rgb[1]},${rgb[2]}, ${alpha})`;
+
+function getColor(mapper, filter) {
+  return mapper[filter] || [0, 0, 0];
 }
 
-function ModifiedJulianDateNow() {
-  return ModifiedJulianDateFromUnixTime(new Date().getTime());
+/* eslint-disable */
+function getHoverText(point) {
+  return (
+    `MJD: ${point.mjd.toFixed(6)}<br>` +
+    (point.mag !== null ? `Mag: ${point.mag.toFixed(4)}<br>` : "") +
+    (point.magerr !== null ? `Magerr: ${point.magerr.toFixed(4)}<br>` : "") +
+    (point.limiting_mag !== null
+      ? `Limiting Mag: ${point.limiting_mag.toFixed(4)}<br>`
+      : "") +
+    `Filter: ${point.filter}<br>Instrument: ${point.instrument_name}`
+  );
+}
+
+const baseTrace = (data, isDetection, key, color) => {
+  const dataType = isDetection ? "detections" : "upperLimits";
+  return {
+    dataType,
+    x: data.map((point) => point.mjd),
+    y: data.map((point) => point.limiting_mag),
+    ...(isDetection
+      ? {
+          error_y: {
+            type: "data",
+            array: data.map((point) => point.magerr),
+            visible: true,
+            color: rgba(color, 0.5),
+            width: 1,
+            thickness: 2,
+          },
+        }
+      : {}),
+    text: data.map((point) => getHoverText(point)),
+    mode: "markers",
+    type: "scatter",
+    name: key + (isDetection ? "" : " (UL)"),
+    legendgroup: key + dataType,
+    marker: {
+      line: {
+        width: 1,
+        color: rgba(color, 1),
+      },
+      color: isDetection ? rgba(color, 0.3) : rgba(color, 0.1),
+      size: 6,
+      symbol: isDetection ? "circle" : "triangle-down",
+    },
+    hoverlabel: {
+      bgcolor: "white",
+      font: { size: 14 },
+      align: "left",
+    },
+    hovertemplate: "%{text}<extra></extra>",
+  };
+};
+
+const baseLayout = {
+  ticks: "outside",
+  nticks: 8,
+  ticklen: 12,
+  tickfont: { size: 14 },
+  tickformat: ".6~f",
+  tickcolor: "black",
+  minor: {
+    ticks: "outside",
+    ticklen: 6,
+    tickcolor: "black",
+  },
+  titlefont: { size: 18 },
+  showline: true,
+  zeroline: false,
+  automargin: true,
+};
+
+function getGroupedPhotometry(photometry) {
+  return photometry.reduce((acc, point) => {
+    const key = `${point.instrument_name}/${point.filter}${
+      point.origin !== "None" ? `/${point.origin}` : ""
+    }`;
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(point);
+    return acc;
+  }, {});
 }
 
 /* eslint-disable no-unused-vars */
-function plot_lc(photometry_data, div_id, filters_used_mapper) {
-  const filters_mapper = JSON.parse(filters_used_mapper);
+function plotLc(photometry_data, div_id, filters_used_mapper) {
   const photometry = JSON.parse(photometry_data);
-  const now = ModifiedJulianDateNow();
-  const names_already_seen = [];
-  const plot_data = [];
-  const filterToColor = (filter) => filters_mapper[filter] || "blue";
+  const mapper = JSON.parse(filters_used_mapper);
+  const plotData = [];
 
-  photometry.forEach((element) => {
-    let name = `${element.instrument_name}/${element.filter}`;
-    if (element.origin !== "None") {
-      name = `${name}/${element.origin}`;
-    }
-    const data = {
-      x: [now - element.mjd],
-      y: element.mag === null ? [element.limiting_mag] : [element.mag],
-      name,
-      error_y: {
-        type: "data",
-        array: [element.magerr],
-        visible: true,
-        color: filterToColor[element.filter],
-        width: 2,
-        thickness: 0.8,
-        opacity: 0.5,
+  const groupedPhotometry = getGroupedPhotometry(photometry);
+  Object.keys(groupedPhotometry).forEach((key) => {
+    const photometry = groupedPhotometry[key];
+    const color = getColor(mapper, photometry[0].filter);
+    const { detections, upperLimits } = photometry.reduce(
+      (acc, point) => {
+        point.mag !== null
+          ? acc.detections.push(point)
+          : acc.upperLimits.push(point);
+        return acc;
       },
-      legendgroup: name,
-      marker: {
-        symbol: element.mag === null ? "triangle-down" : "circle",
-        color: filterToColor(element.filter),
-        opacity: 0.8,
-        size: 8,
-      },
-      line: {
-        color: filterToColor(element.filter),
-        width: 2,
-        opacity: 0.8,
-      },
-      mode: "markers+lines",
-      // use a hover template to display: - mjd - mag - magerr - limiting_mag - filter - instrument_id
-      text: `MJD: ${element.mjd.toFixed(6)}<br>${
-        element.mag !== null ? `Mag: ${element.mag.toFixed(4)}<br>` : ""
-      }${
-        element.magerr !== null
-          ? `Magerr: ${element.magerr.toFixed(4)}<br>`
-          : ""
-      }${
-        element.limiting_mag !== null
-          ? `Limiting Mag: ${element.limiting_mag.toFixed(4)}<br>`
-          : ""
-      }Filter: ${element.filter}<br>Instrument: ${element.instrument_name}`,
-    };
-    data.showlegend = !names_already_seen.includes(name);
-    plot_data.push(data);
-    names_already_seen.push(name);
+      { detections: [], upperLimits: [] },
+    );
+    const detectionsTrace = baseTrace(detections, true, key, color);
+    const upperLimitsTrace = baseTrace(upperLimits, false, key, color);
+    plotData.push(detectionsTrace, upperLimitsTrace);
   });
+
   const layout = {
     autosize: true,
-    xaxis: { title: "Days ago", autorange: "reversed" },
-    yaxis: { title: "AB Mag", autorange: "reversed" },
+    // xaxis: {
+    //   title: "MJD",
+    //   side: "top",
+    //   ...baseLayout
+    // },
+    xaxis: {
+      title: "Days Ago",
+      autorange: "reversed",
+      overlaying: "x",
+      ...baseLayout,
+    },
+    yaxis: {
+      title: "AB Mag",
+      autorange: "reversed",
+      ...baseLayout,
+    },
     margin: { l: 50, r: 50, b: 30, t: 30, pad: 1 },
+    shapes: [
+      {
+        type: "rect",
+        xref: "paper",
+        yref: "paper",
+        x0: 0,
+        y0: 0,
+        x1: 1,
+        y1: 1,
+        line: {
+          color: "black",
+          width: 1,
+        },
+      },
+    ],
+    legend: {
+      orientation: isMobile ? "h" : "v",
+      y: isMobile ? -0.3 : 1,
+      x: isMobile ? 0 : 1,
+    },
   };
-  const config = { responsive: true };
-
-  Plotly.newPlot(document.getElementById(div_id), plot_data, layout, config);
+  const config = {
+    responsive: true,
+    displaylogo: false,
+    showAxisDragHandles: false,
+    modeBarButtonsToRemove: [
+      "autoScale2d",
+      "resetScale2d",
+      "select2d",
+      "lasso2d",
+    ],
+  };
+  Plotly.newPlot(document.getElementById(div_id), plotData, layout, config);
 }
+
+function adjustLegend() {
+  let isMobile = window.matchMedia(
+    "only screen and (max-width: 900px)",
+  ).matches;
+  if (isMobile !== window.isMobile) {
+    window.isMobile = isMobile;
+    const newLayout = {
+      legend: {
+        orientation: isMobile ? "h" : "v",
+        y: isMobile ? -0.3 : 1,
+        x: isMobile ? 0 : 1,
+      },
+    };
+    Plotly.relayout(
+      document.getElementsByClassName("plotly")[0].parentElement,
+      newLayout,
+    );
+  }
+}
+
+window.addEventListener("resize", adjustLegend);
