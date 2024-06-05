@@ -169,6 +169,28 @@ const QuickSearchBar = () => {
                 match_name = `${match_name} ${
                   matchingEntries[key].tns_name
                 } ${matchingEntries[key].tns_name?.replace(/\s/g, "")}`;
+                // if the tns_name starts with AT, also add to the match_name the name without SN instead of AT
+                // and vice versa. That way if a user searches for an object by AT name but the object
+                // has been classified as SN, the search will still match, and vice versa.
+                if (matchingEntries[key].tns_name.startsWith("AT")) {
+                  const sn_name = matchingEntries[key].tns_name.replace(
+                    "AT",
+                    "SN",
+                  );
+                  match_name = `${match_name} ${sn_name} ${sn_name.replace(
+                    /\s/g,
+                    "",
+                  )}`;
+                } else if (matchingEntries[key].tns_name.startsWith("SN")) {
+                  const sn_name = matchingEntries[key].tns_name.replace(
+                    "SN",
+                    "AT",
+                  );
+                  match_name = `${match_name} ${sn_name} ${sn_name.replace(
+                    /\s/g,
+                    "",
+                  )}`;
+                }
               }
               return {
                 id: matchingEntries[key].id,
