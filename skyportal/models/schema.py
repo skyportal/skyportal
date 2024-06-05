@@ -1154,7 +1154,9 @@ class ObservingRunPost(_Schema):
 
 
 class GcnHandlerPut(_Schema):
+    dateobs = fields.Field(metadata={'description': 'UTC event timestamp'})
     xml = fields.String(metadata={'description': 'VOEvent XML content.'})
+    json = fields.String(metadata={'description': 'JSON notice content.'})
 
 
 class GcnEventHandlerGet(_Schema):
