@@ -355,33 +355,13 @@ def get_observations(
     else:
         raise ValueError('observation_status should be executed or queued')
 
-    if includeGeoJSON:
-        obs_query = (
-            Observation.select(
-                session.user_or_token,
-                mode="read",
-            )
-            .options(
-                joinedload(Observation.field).undefer(InstrumentField.contour_summary)
-            )
-            .options(
-                joinedload(Observation.instrument).joinedload(Instrument.telescope)
-            )
-        )
-    else:
-        obs_query = (
-            Observation.select(
-                session.user_or_token,
-                mode="read",
-            )
-            .options(joinedload(Observation.field))
-            .options(
-                joinedload(Observation.instrument).joinedload(Instrument.telescope)
-            )
-        )
-
-    obs_query = obs_query.where(Observation.obstime >= start_date)
-    obs_query = obs_query.where(Observation.obstime <= end_date)
+    obs_query = Observation.select(
+        session.user_or_token,
+        mode="read",
+    ).where(
+        Observation.obstime >= start_date,
+        Observation.obstime <= end_date,
+    )
 
     # optional: slice by Instrument
     if telescope_name is not None and instrument_name is not None:
@@ -775,21 +755,18 @@ def get_observations(
     obs_query = obs_query.order_by(order_by)
 
     if n_per_page is not None:
-        obs_query = (
-            obs_query.distinct()
-            .limit(n_per_page)
-            .offset((page_number - 1) * n_per_page)
-        )
+        obs_query = obs_query.limit(n_per_page).offset((page_number - 1) * n_per_page)
 
     t0 = time.time()
     observations = session.scalars(obs_query).all()
 
     observations_list = []
     for o in observations:
-        obs_dict = o.to_dict()
-        obs_dict['field'] = obs_dict['field'].to_dict()
-        obs_dict['instrument'] = obs_dict['instrument'].to_dict()
-        observations_list.append(obs_dict)
+        o = {
+            **o.to_dict(),
+            "field": o.field.to_dict(),
+        }
+        observations_list.append(o)
 
     data = {
         "observations": observations_list,
