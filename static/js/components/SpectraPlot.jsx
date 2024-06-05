@@ -155,17 +155,41 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
       };
     });
 
-    const newSpectra = spectraData.map((spectrum) => {
+    let newSpectra = spectraData.map((spectrum) => {
       const newSpectrum = { ...spectrum };
       let normfac = Math.abs(median(newSpectrum.fluxes));
       normfac = normfac !== 0.0 ? normfac : 1e-20;
       newSpectrum.fluxes_normed = newSpectrum.fluxes.map(
         (flux) => flux / normfac,
       );
+      // remove indexes where the flux_normed or the wavelength is NaN
+      // so first find the indexes to remove
+      const indexesToRemove = [];
+      // eslint-disable-next-line no-plusplus
+      for (let i = 0; i < newSpectrum.fluxes_normed.length; i++) {
+        if (
+          newSpectrum.fluxes_normed[i] === null ||
+          newSpectrum.wavelengths[i] === null ||
+          Number.isNaN(newSpectrum.fluxes_normed[i]) ||
+          Number.isNaN(newSpectrum.wavelengths[i])
+        ) {
+          indexesToRemove.push(i);
+        }
+      }
+      // then remove them
+      newSpectrum.fluxes_normed = newSpectrum.fluxes_normed.filter(
+        (value, index) => !indexesToRemove.includes(index),
+      );
+
+      // if we end up with an empty array, we should not include this spectrum
+      if (newSpectrum.fluxes_normed.length === 0) {
+        return null;
+      }
+
       newSpectrum.text = newSpectrum.wavelengths.map(
         (wavelength, index) =>
-          `Wavelength: ${wavelength.toFixed(3)}
-          <br>Flux: ${newSpectrum.fluxes_normed[index].toFixed(3)}
+          `Wavelength: ${wavelength?.toFixed(3)}
+          <br>Flux: ${newSpectrum.fluxes_normed[index]?.toFixed(3)}
           <br>Telescope: ${newSpectrum.telescope_name}
           <br>Instrument: ${newSpectrum.instrument_name}
           <br>Observed at (UTC): ${newSpectrum.observed_at}
@@ -223,6 +247,9 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
 
       return newSpectrum;
     });
+
+    // remove null values (spectra that had no valid fluxes or wavelengths)
+    newSpectra = newSpectra.filter((spectrum) => spectrum !== null);
 
     spectrumTypes.forEach((type) => {
       stats[type].wavelength.range = [
@@ -479,9 +506,9 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
             color: line.color,
             width: 1,
           },
-          hovertemplate: `Name: ${line.name}<br>Rest Wavelength: ${x.toFixed(
+          hovertemplate: `Name: ${line.name}<br>Rest Wavelength: ${x?.toFixed(
             3,
-          )} Å<br>Wavelength: ${redshiftedX.toFixed(3)} Å<extra></extra>`,
+          )} Å<br>Wavelength: ${redshiftedX?.toFixed(3)} Å<extra></extra>`,
           name: line.name,
           legendgroup: line.name,
           showlegend: false,
@@ -517,7 +544,7 @@ const SpectraPlot = ({ spectra, redshift, mode, plotStyle }) => {
               hovertemplate: `Name: Custom Wavelength<br>Wavelength: ${parseFloat(
                 customWavelengthInput,
                 10,
-              ).toFixed(3)}<extra></extra>`,
+              )?.toFixed(3)}<extra></extra>`,
               name: "Custom Wavelength",
               legendgroup: "Custom Wavelength",
               showlegend: false,
