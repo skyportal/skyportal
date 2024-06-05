@@ -162,10 +162,14 @@ class UVOTXRTRequest:
         too.exp_time_just = request.payload["exp_time_just"]
         too.immediate_objective = request.payload["immediate_objective"]
 
-        if str(request.payload["urgency"]) not in ["0", "1", "2", "3", "4"]:
-            raise ValueError('urgency not one of 0, 1, 2, 3, or 4.')
-        too.urgency = int(request.payload["urgency"])
-
+        try:
+            too.urgency = int(request.payload["urgency"])
+        except Exception as e:
+            raise ValueError(f"Could not convert urgency to a valid integer: {e}")
+        if too.urgency < 0 or too.urgency > 4:
+            raise ValueError(
+                f"urgency must be one of 0, 1, 2, 3, or 4, and not: {too.urgency}"
+            )
         if request.payload["obs_type"] not in [
             "Spectroscopy",
             "Light Curve",

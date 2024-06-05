@@ -701,6 +701,9 @@ gcn:
     - ICECUBE_ASTROTRACK_GOLD
     - ICECUBE_ASTROTRACK_BRONZE
     - MAXI_UNKNOWN
+  json_notice_types:
+    - einstein_probe.wxt.alert
+    - swift.bat.guano
   reject_tags: # reject notices with these tags (optional)
     - MDC
   summary:

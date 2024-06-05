@@ -422,6 +422,165 @@ def post_skymap_from_notice(
     return localization_id
 
 
+def post_gcnevent_from_json(payload, user_id, session, asynchronous=True):
+    """Post GcnEvent to database from JSON.
+    payload: dict
+        JSON containing alert payload
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
+
+    # if payload is a string try to json.load it
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except Exception as e:
+            raise ValueError(f"Could not load str payload: {e}")
+    elif isinstance(payload, bytes):
+        try:
+            payload = json.loads(payload.decode('utf8'))
+        except Exception as e:
+            raise ValueError(f"Could not load str payload: {e}")
+    elif not isinstance(payload, dict):
+        raise ValueError(
+            f"Unsupported JSON payload dtype, must be one of string, bytes, or dict, not {type(payload)}"
+        )
+
+    user = session.query(User).get(user_id)
+
+    dateobs = Time(payload['trigger_time'], format="isot", precision=0)
+    # FIXME: https://github.com/astropy/astropy/issues/7179
+    dateobs = Time(dateobs.iso).datetime
+
+    event = session.scalars(
+        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+    ).first()
+
+    if event is None:
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        session.add(event)
+    else:
+        if not event.is_accessible_by(user, mode="update"):
+            raise ValueError(
+                "Insufficient permissions: GCN event can only be updated by original poster"
+            )
+
+    tags = []
+    if "instrument" in payload:
+        if payload["instrument"] == "WXT":
+            tags = ["Einstein Probe"]
+        elif payload["instrument"] == "BAT-GUANO":
+            tags = ["GUANO"]
+
+    tags = [
+        GcnTag(
+            dateobs=event.dateobs,
+            text=text,
+            sent_by_id=user.id,
+        )
+        for text in tags
+    ]
+
+    detectors = []
+    for tag in tags:
+        session.add(tag)
+
+        mma_detector = session.scalars(
+            MMADetector.select(user).where(MMADetector.nickname == tag.text)
+        ).first()
+        if mma_detector is not None:
+            detectors.append(mma_detector)
+    event.detectors = detectors
+    session.commit()
+
+    # TODO: add the notice_type to the pygcn enum (or change how we handle notice types entirely)
+    # so we can save the JSON notices
+    # gcn_notice = GcnNotice(
+    #     content=payload,
+    #     ivorn=None,
+    #     notice_type=None,
+    #     stream=None,
+    #     date=payload["trigger_time"]
+    #     has_localization=True,
+    #     localization_ingested=False,
+    #     dateobs=dateobs,
+    #     sent_by_id=user_id,
+    # )
+    # session.add(gcn_notice)
+    # session.commit()
+    # notice_id = gcn_notice.id
+
+    localization_properties, localization_tags = None, None
+    skymap = None
+    if "instrument" in payload:
+        if payload["instrument"] == "WXT":
+            skymap = from_cone(payload['ra'], payload['dec'], payload['ra_dec_error'])
+        elif payload["instrument"] == "BAT-GUANO":
+            skymap, localization_properties, localization_tags = from_bytes(
+                payload['healpix_file']
+            )
+            skymap['localization_name'] = "BAT-GUANO.fits.gz"
+
+    if skymap is None:
+        return event.dateobs, event.id, None
+
+    skymap["dateobs"] = event.dateobs
+    skymap["sent_by_id"] = user.id
+
+    try:
+        ra, dec, error = (float(val) for val in skymap["localization_name"].split("_"))
+        if error < SOURCE_RADIUS_THRESHOLD:
+            source = {
+                'id': Time(event.dateobs).isot.replace(":", "-"),
+                'ra': ra,
+                'dec': dec,
+            }
+            post_source(source, user_id, session)
+    except Exception:
+        pass
+
+    localization = session.scalars(
+        Localization.select(user).where(
+            Localization.dateobs == dateobs,
+            Localization.localization_name == skymap["localization_name"],
+        )
+    ).first()
+    if localization is None:
+        localization = Localization(**skymap)
+        session.add(localization)
+        session.commit()
+        localization_id = localization.id
+
+        log(f"Generating tiles/properties/contours for localization {localization_id}")
+        if asynchronous:
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_tiles_properties_contour_and_obsplan(
+                    localization_id,
+                    user_id,
+                    properties=localization_properties,
+                    tags=localization_tags,
+                ),
+            )
+        else:
+            add_tiles_properties_contour_and_obsplan(
+                localization_id,
+                user_id,
+                session,
+                properties=localization_properties,
+                tags=localization_tags,
+            )
+
+    return event.dateobs, event.id, None
+
+
 def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
     """Post GcnEvent to database from dictionary.
     payload: dict
@@ -1077,11 +1236,12 @@ class GcnEventHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        if 'xml' not in data:
+        # if an xml or json notice is not provided, then a dateobs must be specified
+        if not any([format in data for format in ["xml", "json"]]):
             required_keys = {'dateobs'}
             if not required_keys.issubset(set(data.keys())):
                 return self.error(
-                    "Either xml or dateobs must be present in data to parse GcnEvent"
+                    "Either xml, json or dateobs must be present in data to parse a GcnEvent"
                 )
 
         event_id, dateobs, notice_id = None, None, None
@@ -1090,6 +1250,10 @@ class GcnEventHandler(BaseHandler):
                 if 'xml' in data:
                     dateobs, event_id, notice_id = post_gcnevent_from_xml(
                         data['xml'], self.associated_user_object.id, session
+                    )
+                elif 'json' in data:
+                    dateobs, even_id, notice_id = post_gcnevent_from_json(
+                        data['json'], self.associated_user_object.id, session
                     )
                 else:
                     event_id = post_gcnevent_from_dictionary(
@@ -2163,7 +2327,6 @@ class LocalizationNoticeHandler(BaseHandler):
             if gcn_notice is None:
                 return self.error("Notice not found", status=404)
 
-            # then get the localization, if it exists
             root = lxml.etree.fromstring(gcn_notice.content)
             notice_type = gcn_notice.notice_type
             status, skymap_metadata = get_skymap_metadata(root, notice_type)

@@ -743,7 +743,10 @@ class GcnEvent(Base):
     @property
     def HasNS(self):
         """Checking if GW event contains NS."""
-        notice = self.gcn_notices[0]
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
         root = lxml.etree.fromstring(notice.content)
         elem = root.find(".//Param[@name='HasNS']")
         if elem is None:
@@ -757,7 +760,10 @@ class GcnEvent(Base):
     @property
     def HasRemnant(self):
         """Checking if GW event has remnant matter."""
-        notice = self.gcn_notices[0]
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
         root = lxml.etree.fromstring(notice.content)
         elem = root.find(".//Param[@name='HasRemnant']")
         if elem is None:
@@ -771,7 +777,10 @@ class GcnEvent(Base):
     @property
     def FAR(self):
         """Returning event false alarm rate."""
-        notice = self.gcn_notices[0]
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
         root = lxml.etree.fromstring(notice.content)
         elem = root.find(".//Param[@name='FAR']")
         if elem is None:
