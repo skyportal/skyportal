@@ -158,7 +158,7 @@
               type="button"
               onclick='downloadPhotometryToCsv(`{{ photometry }}`, `{{ source_id }}`)'
             >
-              Download
+              DOWNLOAD
             </button>
           </div>
           {% endif %}
@@ -168,7 +168,7 @@
         {% set filters_mapper = data.get('filters_mapper') | tojson | safe %}
         <div class="photometryPlot" id="{{ photometry_div_id }}">
           <script>
-            plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`);
+            plotLc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`);
           </script>
         </div>
         {% else %}
