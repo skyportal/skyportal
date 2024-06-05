@@ -432,6 +432,22 @@ def post_gcnevent_from_json(payload, user_id, session, asynchronous=True):
         Database session for this transaction
     """
 
+    # if payload is a string try to json.load it
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except Exception as e:
+            raise ValueError(f"Could not load str payload: {e}")
+    elif isinstance(payload, bytes):
+        try:
+            payload = json.loads(payload.decode('utf8'))
+        except Exception as e:
+            raise ValueError(f"Could not load str payload: {e}")
+    elif not isinstance(payload, dict):
+        raise ValueError(
+            f"Unsupported JSON payload dtype, must be one of string, bytes, or dict, not {type(payload)}"
+        )
+
     user = session.query(User).get(user_id)
 
     dateobs = Time(payload['trigger_time'], format="isot", precision=0)
@@ -1220,11 +1236,12 @@ class GcnEventHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        if 'xml' not in data:
+        # if an xml or json notice is not provided, then a dateobs must be specified
+        if not any([format in data for format in ["xml", "json"]]):
             required_keys = {'dateobs'}
             if not required_keys.issubset(set(data.keys())):
                 return self.error(
-                    "Either xml or dateobs must be present in data to parse GcnEvent"
+                    "Either xml, json or dateobs must be present in data to parse a GcnEvent"
                 )
 
         event_id, dateobs, notice_id = None, None, None
@@ -1233,6 +1250,10 @@ class GcnEventHandler(BaseHandler):
                 if 'xml' in data:
                     dateobs, event_id, notice_id = post_gcnevent_from_xml(
                         data['xml'], self.associated_user_object.id, session
+                    )
+                elif 'json' in data:
+                    dateobs, even_id, notice_id = post_gcnevent_from_json(
+                        data['json'], self.associated_user_object.id, session
                     )
                 else:
                     event_id = post_gcnevent_from_dictionary(
