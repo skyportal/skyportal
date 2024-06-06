@@ -9,6 +9,7 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 from ..source import get_source
 from ...base import BaseHandler
+from ....enum_types import THUMBNAIL_TYPES
 
 from ....models import PublicSourcePage, Group, Stream, Classification, Photometry
 from ....utils.thumbnail import get_thumbnail_alt_link, get_thumbnail_header
@@ -23,7 +24,7 @@ def calculate_hash(data):
 def process_thumbnails(thumbnails, ra, dec):
     thumbnails = sorted(
         thumbnails,
-        key=lambda x: ["new", "ref", "sub", "sdss", "ls", "ps1"].index(x["type"]),
+        key=lambda x: THUMBNAIL_TYPES.index(x["type"]),
     )
     for index, thumbnail in enumerate(thumbnails):
         alt, link = get_thumbnail_alt_link(thumbnail["type"], ra, dec)
