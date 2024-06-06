@@ -62,7 +62,7 @@ function getTrace(data, isDetection, key, color) {
         color: rgba(color, 1),
       },
       color: isDetection ? rgba(color, 0.3) : rgba(color, 0.1),
-      size: 10,
+      size: window.isMobile ? 6 : 9,
       symbol: isDetection ? "circle" : "triangle-down",
     },
     hoverlabel: {
@@ -71,6 +71,14 @@ function getTrace(data, isDetection, key, color) {
       align: "left",
     },
     hovertemplate: "%{text}<extra></extra>",
+  };
+}
+
+function getResponsiveLegend(isMobile) {
+  return {
+    orientation: isMobile ? "h" : "v",
+    y: isMobile ? -0.3 : 1,
+    x: isMobile ? 0 : 1,
   };
 }
 
@@ -104,22 +112,12 @@ function getLayout() {
         },
       },
     ],
-    legend: {
-      orientation: isMobile ? "h" : "v",
-      y: isMobile ? -0.3 : 1,
-      x: isMobile ? 0 : 1,
-    },
+    legend: getResponsiveLegend(window.isMobile),
     hovermode: "closest",
   };
 }
 
 function getConfig() {
-  const resetLayout = () => {
-    Plotly.relayout(
-      document.getElementsByClassName("plotly")[0].parentElement,
-      getLayout(),
-    );
-  };
   return {
     responsive: true,
     displaylogo: false,
@@ -138,7 +136,10 @@ function getConfig() {
         name: "Reset",
         icon: Plotly.Icons.home,
         click: () => {
-          resetLayout();
+          Plotly.relayout(
+            document.getElementsByClassName("plotly")[0].parentElement,
+            getLayout(),
+          );
         },
       },
     ],
@@ -159,13 +160,11 @@ function getGroupedPhotometry(photometry) {
 }
 
 function adjustLegend() {
-  let isMobile = window.matchMedia("(max-width: 900px)").matches;
-  if (isMobile !== window.isMobile) {
-    window.isMobile = isMobile;
-    Plotly.relayout(
-      document.getElementsByClassName("plotly")[0].parentElement,
-      getLayout(),
-    );
+  if (window.matchMedia("(max-width: 900px)").matches !== window.isMobile) {
+    window.isMobile = !window.isMobile;
+    const plotDiv = document.getElementsByClassName("plotly")[0].parentElement;
+    Plotly.relayout(plotDiv, { legend: getResponsiveLegend(window.isMobile) });
+    Plotly.restyle(plotDiv, { "marker.size": window.isMobile ? 6 : 9 });
   }
 }
 
