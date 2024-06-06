@@ -12,7 +12,7 @@ def test_add_and_get_moving_object(
         'POST',
         'moving_object',
         data={
-            'name': moving_obj_1,
+            'id': moving_obj_1,
             'obj_ids': [str(public_source.id)],
             "mjd": [59410, 59411, 59412],
             "ra": [42.01, 42.01, 42.02],
@@ -29,7 +29,7 @@ def test_add_and_get_moving_object(
         'POST',
         'moving_object',
         data={
-            'name': moving_obj_2,
+            'id': moving_obj_2,
             'obj_ids': [str(public_source_two_groups.id)],
             "mjd": [69410, 69411, 69412],
             "ra": [52.01, 52.01, 52.02],
@@ -47,16 +47,20 @@ def test_add_and_get_moving_object(
     )
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['obj_ids'] == [str(public_source.id)]
+    assert "objs" in data["data"]
+    assert len(data["data"]["objs"]) == 1
+    assert data["data"]["objs"][0]["id"] == str(public_source.id)
 
     status, data = api(
         'GET', f'moving_object/{moving_object_id_2}', token=upload_data_token
     )
     assert status == 200
     assert data['status'] == 'success'
-    assert data['data']['obj_ids'] == [str(public_source_two_groups.id)]
+    assert "objs" in data["data"]
+    assert len(data["data"]["objs"]) == 1
+    assert data["data"]["objs"][0]["id"] == str(public_source_two_groups.id)
 
-    params = {'obj_id': str(public_source.id)}
+    params = {'obj_id': str(public_source.id), 'include_objs': True}
 
     status, data = api(
         'GET',
@@ -66,8 +70,14 @@ def test_add_and_get_moving_object(
     )
     assert status == 200
     assert data['status'] == 'success'
+    assert len(data["data"]) > 0
+    assert any([d['id'] == moving_obj_1 for d in data['data']['moving_objects']])
+    assert all(["objs" in d for d in data['data']['moving_objects']])
     assert any(
-        d['obj_ids'] == [str(public_source.id)] for d in data['data']['moving_objects']
+        [
+            d['objs'][0]['id'] == str(public_source.id)
+            for d in data['data']['moving_objects']
+        ]
     )
 
     status, data = api(
@@ -86,6 +96,11 @@ def test_add_and_get_moving_object(
     )
     assert status == 200
     assert data['status'] == 'success'
+    assert len(data["data"]) > 0
     assert not any(
-        d['obj_ids'] == [str(public_source.id)] for d in data['data']['moving_objects']
+        [
+            d['id'] == moving_obj_1
+            and str(public_source.id) in [o['id'] for o in d['objs']]
+            for d in data['data']['moving_objects']
+        ]
     )

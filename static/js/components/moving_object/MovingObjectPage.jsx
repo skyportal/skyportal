@@ -9,7 +9,6 @@ import Typography from "@mui/material/Typography";
 import MovingObjectTable from "./MovingObjectTable";
 import Spinner from "../Spinner";
 import * as movingObjectsActions from "../../ducks/moving_objects";
-import NewMovingObject from "./NewMovingObject";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -54,11 +53,11 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const MovingObjectList = () => {
+const MovingObjectPage = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
-  const movingObjectsState = useSelector((state) => state.moving_objects);
+  const { movingObjects } = useSelector((state) => state.moving_objects);
 
   const [rowsPerPage, setRowsPerPage] = useState(100);
 
@@ -96,44 +95,34 @@ const MovingObjectList = () => {
     dispatch(movingObjectsActions.fetchMovingObjects(data));
   };
 
-  if (!movingObjectsState.movingObjectList) {
+  if (!movingObjects) {
     return <Spinner />;
   }
 
   return (
     <Grid container spacing={2}>
-      <Grid item md={8} sm={12}>
+      <Grid item md={12} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paper}>
             <Typography variant="h6" display="inline">
               Moving Objects
             </Typography>
-            {movingObjectsState.movingObjectList && (
+            {typeof movingObjects?.moving_objects !== "undefined" && (
               <MovingObjectTable
-                movingObjects={
-                  movingObjectsState?.movingObjectsList?.moving_objects
-                }
+                movingObjects={movingObjects?.moving_objects || []}
                 paginateCallback={handleMovingObjectTablePagination}
-                totalMatches={movingObjectsState.totalMatches}
-                pageNumber={movingObjectsState.pageNumber}
-                numPerPage={movingObjectsState.numPerPage}
+                totalMatches={movingObjects?.totalMatches || 0}
+                pageNumber={movingObjects?.pageNumber || 1}
+                numPerPage={movingObjects?.numPerPage || 10}
                 sortingCallback={handleMovingObjectTableSorting}
               />
             )}
           </div>
         </Paper>
       </Grid>
-      <Grid item md={4} sm={12}>
-        <Paper>
-          <div className={classes.paper}>
-            <Typography variant="h6">Add a New Moving Object</Typography>
-            <NewMovingObject />
-          </div>
-        </Paper>
-      </Grid>
-      {!movingObjectsState.movingObjectList && <Spinner />}
+      {!movingObjects && <Spinner />}
     </Grid>
   );
 };
 
-export default MovingObjectList;
+export default MovingObjectPage;

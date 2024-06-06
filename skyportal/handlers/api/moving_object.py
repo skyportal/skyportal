@@ -9,7 +9,9 @@ from sqlalchemy import func
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import (
+    Obj,
     MovingObject,
+    MovingObjectAssociation,
 )
 from ..base import BaseHandler
 from ...utils.moving_objects import get_object_positions
@@ -47,6 +49,12 @@ class MovingObjectHandler(BaseHandler):
           description: Retrieve all moving objects
           parameters:
           - in: query
+            name: moving_objectID
+            nullable: true
+            schema:
+                type: string
+            description: Retrieve moving object that matches the moving_objectID.
+          - in: query
             name: obj_id
             nullable: true
             schema:
@@ -65,6 +73,13 @@ class MovingObjectHandler(BaseHandler):
             schema:
               type: integer
             description: Page number for paginated query results. Defaults to 1.
+          - in: query
+            name: include_objs
+            nullable: true
+            schema:
+                type: boolean
+            description: |
+                Include the associated objects in the response. Defaults to False.
           responses:
             200:
               content:
@@ -83,9 +98,9 @@ class MovingObjectHandler(BaseHandler):
 
             if moving_object_id is not None:
                 try:
-                    moving_object_id = int(moving_object_id)
+                    moving_object_id = str(moving_object_id)
                 except ValueError:
-                    return self.error("MovingObject ID must be an integer.")
+                    return self.error("MovingObject ID must be a valid integer.")
 
                 moving_object = MovingObject.select(session.user_or_token).where(
                     MovingObject.id == moving_object_id
@@ -95,7 +110,11 @@ class MovingObjectHandler(BaseHandler):
                     return self.error("Could not retrieve moving object.")
 
                 table = moving_object.table.to_pandas().to_dict('records')
-                moving_object = {**moving_object.to_dict(), 'table': table}
+                moving_object = {
+                    **moving_object.to_dict(),
+                    'table': table,
+                    'objs': [o.to_dict() for o in moving_object.objs if o is not None],
+                }
 
                 return self.success(data=moving_object)
 
@@ -104,10 +123,18 @@ class MovingObjectHandler(BaseHandler):
             page_number = self.get_query_argument("pageNumber", 1)
             n_per_page = self.get_query_argument("numPerPage", 10)
             obj_id = self.get_query_argument("obj_id", None)
+            moving_objectID = self.get_query_argument("moving_objectID", None)
+            include_objs = self.get_query_argument("include_objs", False)
 
             if obj_id is not None:
+                moving_objects = moving_objects.join(
+                    MovingObjectAssociation,
+                    MovingObjectAssociation.moving_object_id == MovingObject.id,
+                ).where(MovingObjectAssociation.obj_id == obj_id)
+
+            if moving_objectID is not None:
                 moving_objects = moving_objects.where(
-                    MovingObject.obj_ids.contains([obj_id.strip()])
+                    MovingObject.id.like(f'%{moving_objectID}%')
                 )
 
             try:
@@ -136,10 +163,22 @@ class MovingObjectHandler(BaseHandler):
                 )
 
             moving_objects = session.scalars(moving_objects).unique().all()
-            moving_objects = [
-                {**moving_object.to_dict(), 'contour': moving_object.contour}
-                for moving_object in moving_objects
-            ]
+            if not include_objs:
+                moving_objects = [
+                    {**moving_object.to_dict(), 'contour': moving_object.contour}
+                    for moving_object in moving_objects
+                ]
+            else:
+                moving_objects = [
+                    {
+                        **moving_object.to_dict(),
+                        'contour': moving_object.contour,
+                        "objs": [
+                            o.to_dict() for o in moving_object.objs if o is not None
+                        ],
+                    }
+                    for moving_object in moving_objects
+                ]
 
             return self.success(
                 data={
@@ -160,7 +199,7 @@ class MovingObjectHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: MovingObjectNoID
+              schema: MovingObjectPost
         responses:
           200:
             content:
@@ -179,7 +218,19 @@ class MovingObjectHandler(BaseHandler):
         """
 
         data = self.get_json()
+        obj_ids = data.pop('obj_ids', [])
         with self.Session() as session:
+            if 'id' not in data:
+                return self.error("Moving object ID (name) must be provided.")
+
+            # look if the moving object already exists
+            moving_object = session.scalar(
+                MovingObject.select(session.user_or_token).where(
+                    MovingObject.id == str(data['id'])
+                )
+            )
+            if moving_object is not None:
+                return self.error(f"Moving object with ID {data['id']} already exists.")
             try:
                 moving_object = MovingObject.__schema__().load(data=data)
             except ValidationError as e:
@@ -188,6 +239,18 @@ class MovingObjectHandler(BaseHandler):
                 )
 
             session.add(moving_object)
+
+            if len(obj_ids) > 0:
+                for obj_id in obj_ids:
+                    obj = session.scalar(
+                        Obj.select(session.user_or_token).where(Obj.id == obj_id)
+                    )
+                    if obj is None:
+                        return self.error(f"Could not find object with ID {obj_id}")
+                    moving_object_association = MovingObjectAssociation(
+                        obj=obj, moving_object=moving_object
+                    )
+                    session.add(moving_object_association)
             session.commit()
 
             self.push_all(action="skyportal/REFRESH_MOVING_OBJECTS")
@@ -209,7 +272,7 @@ class MovingObjectHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: MovingObjectNoID
+              schema: MovingObjectPut
         responses:
           200:
             content:
@@ -224,7 +287,7 @@ class MovingObjectHandler(BaseHandler):
         with self.Session() as session:
             moving_object = session.scalars(
                 MovingObject.select(session.user_or_token, mode="update").where(
-                    MovingObject.id == int(moving_object_id)
+                    MovingObject.id == str(moving_object_id)
                 )
             ).first()
             if moving_object is None:
@@ -232,6 +295,8 @@ class MovingObjectHandler(BaseHandler):
 
             data = self.get_json()
             data['id'] = moving_object_id
+
+            obj_ids = data.pop('obj_ids', [])
 
             schema = MovingObject.__schema__()
             try:
@@ -244,10 +309,40 @@ class MovingObjectHandler(BaseHandler):
             for k in data:
                 setattr(moving_object, k, data[k])
 
+            if len(obj_ids) > 0:
+                # delete the existing associations
+                existing_obj_ids = [o.id for o in moving_object.objs]
+                obj_ids_to_delete = set(existing_obj_ids) - set(obj_ids)
+                obj_ids_to_add = set(obj_ids) - set(existing_obj_ids)
+                for obj_id in obj_ids_to_delete:
+                    moving_object_association = (
+                        MovingObjectAssociation.select()
+                        .where(
+                            (MovingObjectAssociation.obj_id == obj_id)
+                            & (
+                                MovingObjectAssociation.moving_object_id
+                                == moving_object_id
+                            )
+                        )
+                        .first()
+                    )
+                    if moving_object_association is not None:
+                        session.delete(moving_object_association)
+                for obj_id in obj_ids_to_add:
+                    obj = session.scalar(
+                        Obj.select(session.user_or_token).where(Obj.id == obj_id)
+                    )
+                    if obj is None:
+                        return self.error(f"Could not find object with ID {obj_id}")
+                    moving_object_association = MovingObjectAssociation(
+                        obj=obj, moving_object=moving_object
+                    )
+                    session.add(moving_object_association)
+
             session.commit()
 
             self.push_all(action="skyportal/REFRESH_MOVING_OBJECTS")
-            return self.success()
+            return self.success({"id": moving_object_id})
 
     @permissions(['Upload data'])
     def delete(self, moving_object_id):
@@ -272,7 +367,7 @@ class MovingObjectHandler(BaseHandler):
         with self.Session() as session:
             moving_object = session.scalars(
                 MovingObject.select(session.user_or_token, mode="delete").where(
-                    MovingObject.id == int(moving_object_id)
+                    MovingObject.id == str(moving_object_id)
                 )
             ).first()
             if moving_object is None:
@@ -325,16 +420,22 @@ class MovingObjectHorizonsHandler(BaseHandler):
 
         object_name = data.get('object_name')
         if object_name is None:
-            raise self.error('object_name is required')
+            return self.error('object_name is required')
 
-        if 'start_date' in data:
-            start_date = arrow.get(data['start_date'].strip()).datetime
-        else:
-            start_date = Time.now() - TimeDelta(3 * u.day)
-        if 'end_date' in data:
-            end_date = arrow.get(data['end_date'].strip()).datetime
-        else:
-            end_date = Time.now() + TimeDelta(1 * u.day)
+        try:
+            if 'start_date' in data:
+                start_date = arrow.get(data['start_date'].strip()).datetime
+            else:
+                start_date = Time.now() - TimeDelta(3 * u.day)
+        except Exception as e:
+            return self.error(f'Error parsing start_date: {e}')
+        try:
+            if 'end_date' in data:
+                end_date = arrow.get(data['end_date'].strip()).datetime
+            else:
+                end_date = Time.now() + TimeDelta(1 * u.day)
+        except Exception as e:
+            return self.error(f'Error parsing end_date: {e}')
 
         time_step = data.get("time_step", "60m")
 
@@ -345,18 +446,41 @@ class MovingObjectHorizonsHandler(BaseHandler):
             time_step=time_step,
             verbose=True,
         )
-        pos["name"] = object_name
+        if pos is None or 'ra' not in pos or len(pos['ra']) == 0:
+            return self.error('No positions found for object')
+
+        pos["id"] = object_name
 
         with self.Session() as session:
-            try:
-                moving_object = MovingObject.__schema__().load(data=pos)
-            except ValidationError as e:
-                return self.error(
-                    f'Error parsing posted moving_object: "{e.normalized_messages()}"'
+            # if the moving object already exists, update it
+            moving_object = session.scalar(
+                MovingObject.select(session.user_or_token).where(
+                    MovingObject.id == object_name
                 )
+            )
+            if moving_object is not None:
+                schema = MovingObject.__schema__()
+                try:
+                    schema.load(data=pos, partial=True)
+                except ValidationError as e:
+                    return self.error(
+                        'Invalid/missing parameters: ' f'{e.normalized_messages()}'
+                    )
 
-            session.add(moving_object)
-            session.commit()
+                for k in pos:
+                    setattr(moving_object, k, pos[k])
+                session.commit()
+                self.push_all(action="skyportal/REFRESH_MOVING_OBJECTS")
+                return self.success(data={"id": moving_object.id})
+            else:
+                try:
+                    moving_object = MovingObject.__schema__().load(data=pos)
+                except ValidationError as e:
+                    return self.error(
+                        f'Error parsing posted moving_object: "{e.normalized_messages()}"'
+                    )
 
-            self.push_all(action="skyportal/REFRESH_MOVING_OBJECTS")
-            return self.success(data={"id": moving_object.id})
+                session.add(moving_object)
+                session.commit()
+                self.push_all(action="skyportal/REFRESH_MOVING_OBJECTS")
+                return self.success(data={"id": moving_object.id})

@@ -21,7 +21,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 
 const reducer = (
   state = {
-    movingObjectList: [],
+    movingObjects: {},
   },
   action,
 ) => {
@@ -30,7 +30,7 @@ const reducer = (
       const moving_objects = action.data;
       return {
         ...state,
-        movingObjectsList: moving_objects,
+        movingObjects: moving_objects,
       };
     }
     default:

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
+import { useDispatch } from "react-redux";
 import { showNotification } from "baselayer/components/Notifications";
 import Paper from "@mui/material/Paper";
 import {
@@ -11,12 +11,19 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
+import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import Tooltip from "@mui/material/Tooltip";
+import IconButton from "@mui/material/IconButton";
 
 import MUIDataTable from "mui-datatables";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import LocalizationPlot from "../localization/LocalizationPlot";
+import NewMovingObject from "./NewMovingObject";
 
 import * as movingObjectActions from "../../ducks/moving_object";
 
@@ -32,6 +39,9 @@ const useStyles = makeStyles((theme) => ({
       color: "white",
       background: theme.palette.primary.main,
     },
+  },
+  localizationContainer: {
+    maxWidth: "20vw",
   },
 }));
 
@@ -107,7 +117,7 @@ const MovingObjectTable = ({
   const renderMovingObjectName = (dataIndex) => {
     const movingObject = movingObjects[dataIndex];
 
-    return <div>{movingObject ? movingObject.name : ""}</div>;
+    return <div>{movingObject?.id || ""}</div>;
   };
 
   const renderLocalization = (dataIndex) => {
@@ -115,13 +125,15 @@ const MovingObjectTable = ({
     const options = { localization: true };
 
     return (
-      <LocalizationPlot
-        localization={movingObject}
-        options={options}
-        height={600}
-        width={600}
-        projection="orthographic"
-      />
+      <div className={classes.localizationContainer}>
+        <LocalizationPlot
+          localization={movingObject}
+          options={options}
+          height={600}
+          width={600}
+          projection="orthographic"
+        />
+      </div>
     );
   };
 
@@ -151,7 +163,10 @@ const MovingObjectTable = ({
   };
 
   const handleSearchChange = (searchText) => {
-    const data = { name: searchText };
+    const data = { moving_objectID: searchText };
+    if (searchText === "") {
+      delete data.moving_objectID;
+    }
     paginateCallback(1, rowsPerPage, {}, data);
   };
 
@@ -204,6 +219,8 @@ const MovingObjectTable = ({
     },
   });
 
+  const [openNew, setOpenNew] = useState(false);
+
   const options = {
     search: true,
     onSearchChange: handleSearchChange,
@@ -214,10 +231,23 @@ const MovingObjectTable = ({
     onTableChange: handleTableChange,
     jumpToPage: true,
     serverSide: true,
-    pagination: false,
+    pagination: true,
+    rowsPerPage,
+    rowsPerPageOptions: [1, 10, 20, 50, 100],
     count: totalMatches,
     filter: true,
     sort: true,
+    customToolbar: () => (
+      <Tooltip title="Add new moving object">
+        <IconButton
+          onClick={() => {
+            setOpenNew(true);
+          }}
+        >
+          <AddIcon />
+        </IconButton>
+      </Tooltip>
+    ),
   };
 
   return (
@@ -237,6 +267,17 @@ const MovingObjectTable = ({
       ) : (
         <CircularProgress />
       )}
+      <Dialog
+        open={openNew}
+        onClose={() => setOpenNew(false)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle>Add New Moving Object</DialogTitle>
+        <DialogContent>
+          <NewMovingObject onSubmit={() => setOpenNew(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
