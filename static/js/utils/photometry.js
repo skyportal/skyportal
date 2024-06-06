@@ -5,8 +5,7 @@ const baseLayout = {
   ticks: "outside",
   nticks: 8,
   ticklen: 12,
-  tickfont: { size: 14 },
-  tickformat: ".6~f",
+  tickformat: ".2f",
   tickcolor: "black",
   minor: {
     ticks: "outside",
@@ -14,6 +13,7 @@ const baseLayout = {
     tickcolor: "black",
   },
   titlefont: { size: 18 },
+  tickfont: { size: 14 },
   zeroline: false,
   automargin: true,
 };
@@ -62,7 +62,7 @@ function getTrace(data, isDetection, key, color) {
         color: rgba(color, 1),
       },
       color: isDetection ? rgba(color, 0.3) : rgba(color, 0.1),
-      size: 6,
+      size: 10,
       symbol: isDetection ? "circle" : "triangle-down",
     },
     hoverlabel: {
