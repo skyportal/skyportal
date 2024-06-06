@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import makeStyles from "@mui/styles/makeStyles";
 
 import TextField from "@mui/material/TextField";
-import Autocomplete from "@mui/material/Autocomplete";
+import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import CircularProgress from "@mui/material/CircularProgress";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
@@ -73,6 +73,16 @@ function useDebouncer(value, delay) {
   return debouncedValue;
 }
 
+// create a filterOptions for the MUI Autocomplete component
+// that ignores cases and spaces when matching
+const filterOptions = createFilterOptions({
+  matchFrom: "any",
+  ignoreCase: true,
+  ignoreAccents: true,
+  trim: true,
+  stringify: (option) => option?.match_name,
+});
+
 const QuickSearchBar = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -140,28 +150,59 @@ const QuickSearchBar = () => {
           const rez = Object.keys(matchingEntries).map((key) => {
             if (type === "GCN Events") {
               let name = matchingEntries[key].dateobs;
+              let match_name = matchingEntries[key].dateobs;
               if ((matchingEntries[key].aliases || []).length > 0) {
                 name = `${name} (${matchingEntries[key].aliases[0]})`;
+                match_name = `${match_name} ${matchingEntries[key].aliases[0]}`;
               }
               return {
                 id: matchingEntries[key].dateobs,
                 name,
+                match_name,
               };
             }
             if (type === "Sources") {
               let name = matchingEntries[key].id;
+              let match_name = matchingEntries[key].id;
               if (matchingEntries[key]?.tns_name?.length > 0) {
                 name = `${name} (${matchingEntries[key].tns_name})`;
+                match_name = `${match_name} ${
+                  matchingEntries[key].tns_name
+                } ${matchingEntries[key].tns_name?.replace(/\s/g, "")}`;
+                // if the tns_name starts with AT, also add to the match_name the name without SN instead of AT
+                // and vice versa. That way if a user searches for an object by AT name but the object
+                // has been classified as SN, the search will still match, and vice versa.
+                if (matchingEntries[key].tns_name.startsWith("AT")) {
+                  const sn_name = matchingEntries[key].tns_name.replace(
+                    "AT",
+                    "SN",
+                  );
+                  match_name = `${match_name} ${sn_name} ${sn_name.replace(
+                    /\s/g,
+                    "",
+                  )}`;
+                } else if (matchingEntries[key].tns_name.startsWith("SN")) {
+                  const sn_name = matchingEntries[key].tns_name.replace(
+                    "SN",
+                    "AT",
+                  );
+                  match_name = `${match_name} ${sn_name} ${sn_name.replace(
+                    /\s/g,
+                    "",
+                  )}`;
+                }
               }
               return {
                 id: matchingEntries[key].id,
                 name,
+                match_name,
               };
             }
             // fallback
             return {
               id: matchingEntries[key].id,
               name: matchingEntries[key].id,
+              match_name: matchingEntries[key].id,
             };
           });
           newOptions = [...newOptions, ...rez];
@@ -213,8 +254,9 @@ const QuickSearchBar = () => {
         color="primary"
         id="quick-search-bar"
         classes={{ root: classes.root, paper: classes.paper }}
-        isOptionEqualToValue={(option, val) => option.name === val.name}
+        // isOptionEqualToValue={(option, val) => option.name === val.name}
         getOptionLabel={(option) => option.name || ""}
+        filterOptions={filterOptions}
         onInputChange={(e, val) => setInputValue(val)}
         onChange={(event, newValue, reason) => {
           if (reason === "selectOption") {
