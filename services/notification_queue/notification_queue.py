@@ -805,7 +805,6 @@ def api(queue):
                                             len(gcn_pref.get("gcn_notice_types", []))
                                             > 0
                                         ):
-                                            print(notice.notice_type)
                                             if (
                                                 notice.notice_type is not None
                                                 and gcn.NoticeType(
@@ -927,7 +926,6 @@ def api(queue):
                                                 f"with Tag *{gcn_tag.text}*"
                                             )
                                         else:
-                                            print(notice.notice_type)
                                             if notice.notice_type is not None:
                                                 notice_type = gcn.NoticeType(
                                                     notice.notice_type
