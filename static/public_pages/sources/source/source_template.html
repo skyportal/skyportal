@@ -184,7 +184,7 @@
             id="{{ classification.classification }}"
             class="classification boxShadow"
           >
-            <div class="author">{{ classification.author_name }}</div>
+            <div class="author">{{ classification.format_author }}</div>
             <div class="nameAndProbability">
               <p class="name">
                 {{ "ML: " if classification.ml }} {{ classification.classification }}
