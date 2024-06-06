@@ -114,6 +114,10 @@ def poll_events(*args, **kwargs):
             for message in consumer.consume():
                 payload = message.value()
                 consumer.commit(message)
+
+                if payload is None:
+                    continue
+
                 if payload.find(b'Broker: Unknown topic or partition') != -1:
                     continue
 
