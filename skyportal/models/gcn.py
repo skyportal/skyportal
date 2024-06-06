@@ -413,7 +413,7 @@ class GcnNotice(Base):
 
     notice_type = sa.Column(
         sa.Enum(gcn.NoticeType),
-        nullable=False,
+        nullable=True,
         doc='GCN Notice type',
     )
 
@@ -604,6 +604,12 @@ class GcnEvent(Base):
         doc="List of different names for this event, parsed from different GCN notices.",
     )
 
+    gcn_type = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="GCN type (voevent, json, dictionary)",
+    )
+
     tach_id = sa.Column(
         sa.String,
         nullable=True,
@@ -695,8 +701,12 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        root = lxml.etree.fromstring(notice.content)
-        elem = root.find(".//Param[@name='LightCurve_URL']")
+        try:
+            root = lxml.etree.fromstring(notice.content)
+            elem = root.find(".//Param[@name='LightCurve_URL']")
+        except lxml.etree.XMLSyntaxError:
+            return None
+
         if elem is None:
             return None
         else:
@@ -712,8 +722,13 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        root = lxml.etree.fromstring(notice.content)
-        elem = root.find(".//Param[@name='EventPage']")
+
+        try:
+            root = lxml.etree.fromstring(notice.content)
+            elem = root.find(".//Param[@name='EventPage']")
+        except lxml.etree.XMLSyntaxError:
+            return None
+
         if elem is None:
             return None
         else:
@@ -728,8 +743,13 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        root = lxml.etree.fromstring(notice.content)
-        elem = root.find(".//Param[@name='GraceID']")
+
+        try:
+            root = lxml.etree.fromstring(notice.content)
+            elem = root.find(".//Param[@name='GraceID']")
+        except lxml.etree.XMLSyntaxError:
+            return None
+
         if elem is None:
             return None
         else:
@@ -747,8 +767,13 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        root = lxml.etree.fromstring(notice.content)
-        elem = root.find(".//Param[@name='HasNS']")
+
+        try:
+            root = lxml.etree.fromstring(notice.content)
+            elem = root.find(".//Param[@name='HasNS']")
+        except lxml.etree.XMLSyntaxError:
+            return None
+
         if elem is None:
             return None
         else:
@@ -764,8 +789,13 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        root = lxml.etree.fromstring(notice.content)
-        elem = root.find(".//Param[@name='HasRemnant']")
+
+        try:
+            root = lxml.etree.fromstring(notice.content)
+            elem = root.find(".//Param[@name='HasRemnant']")
+        except lxml.etree.XMLSyntaxError:
+            return None
+
         if elem is None:
             return None
         else:
@@ -781,8 +811,13 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        root = lxml.etree.fromstring(notice.content)
-        elem = root.find(".//Param[@name='FAR']")
+
+        try:
+            root = lxml.etree.fromstring(notice.content)
+            elem = root.find(".//Param[@name='FAR']")
+        except lxml.etree.XMLSyntaxError:
+            return None
+
         if elem is None:
             return None
         else:
