@@ -168,6 +168,7 @@
         {% set filters_mapper = data.get('filters_mapper') | tojson | safe %}
         <div class="photometryPlot" id="{{ photometry_div_id }}">
           <script>
+            window.addEventListener("resize", adjustLegend);
             plotLc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`);
           </script>
         </div>

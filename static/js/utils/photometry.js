@@ -169,8 +169,6 @@ function adjustLegend() {
   }
 }
 
-window.addEventListener("resize", adjustLegend);
-
 /* eslint-disable no-unused-vars */
 function plotLc(photometry_data, div_id, filters_used_mapper) {
   const photometry = JSON.parse(photometry_data);
