@@ -29,6 +29,11 @@
         border-radius: 1rem;
         font-weight: bold;
         font-size: inherit;
+        line-height: 1.2rem;
+        @media screen and (max-width: 450px) {
+          font-size: 0.7rem;
+          line-height: 0.7rem;
+        }
       }
     }
 
@@ -136,6 +141,10 @@
           .name {
             font-size: 1.2rem;
             font-weight: bold;
+            @media screen and (max-width: 450px) {
+              font-size: 1rem;
+              line-height: 1rem;
+            }
           }
 
           .probability {
