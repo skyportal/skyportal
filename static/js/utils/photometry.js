@@ -77,7 +77,7 @@ function getTrace(data, isDetection, key, color) {
 function getResponsiveLegend(isMobile) {
   return {
     orientation: isMobile ? "h" : "v",
-    y: isMobile ? -0.3 : 1,
+    y: isMobile ? -0.5 : 1,
     x: isMobile ? 0 : 1,
   };
 }
