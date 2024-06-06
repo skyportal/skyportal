@@ -14,7 +14,6 @@ const baseLayout = {
     tickcolor: "black",
   },
   titlefont: { size: 18 },
-  showline: true,
   zeroline: false,
   automargin: true,
 };
