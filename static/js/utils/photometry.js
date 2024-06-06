@@ -38,7 +38,7 @@ function getTrace(data, isDetection, key, color) {
   return {
     dataType,
     x: data.map((point) => now - point.mjd),
-    y: data.map((point) => point.limiting_mag),
+    y: data.map((point) => (isDetection ? point.mag : point.limiting_mag)),
     ...(isDetection
       ? {
           error_y: {
