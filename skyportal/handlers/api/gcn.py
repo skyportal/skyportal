@@ -176,7 +176,6 @@ def post_gcnevent_from_xml(
             sent_by_id=user_id,
             trigger_id=trigger_id,
             aliases=aliases,
-            gcn_type="voevent",
         )
         session.add(event)
         session.commit()
@@ -204,6 +203,7 @@ def post_gcnevent_from_xml(
         localization_ingested=False,
         dateobs=dateobs,
         sent_by_id=user_id,
+        gcn_type="voevent",
     )
     session.add(gcn_notice)
     session.commit()
@@ -473,7 +473,6 @@ def post_gcnevent_from_json(
         event = GcnEvent(
             dateobs=dateobs,
             sent_by_id=user.id,
-            gcn_type="json",
         )
         session.add(event)
     else:
@@ -524,6 +523,7 @@ def post_gcnevent_from_json(
         localization_ingested=False,
         dateobs=dateobs,
         sent_by_id=user_id,
+        gcn_type="json",
     )
     session.add(gcn_notice)
     session.commit()
@@ -583,7 +583,7 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
     ).first()
 
     if event is None:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id, gcn_type="dictionary")
+        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
         session.add(event)
     else:
         if not event.is_accessible_by(user, mode="update"):

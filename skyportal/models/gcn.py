@@ -417,6 +417,12 @@ class GcnNotice(Base):
         doc='GCN Notice type',
     )
 
+    gcn_type = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="GCN type (voevent, json, dictionary)",
+    )
+
     stream = sa.Column(
         sa.String, nullable=False, doc='Event stream or mission (i.e., "Fermi")'
     )
@@ -602,12 +608,6 @@ class GcnEvent(Base):
         nullable=False,
         server_default='{}',
         doc="List of different names for this event, parsed from different GCN notices.",
-    )
-
-    gcn_type = sa.Column(
-        sa.String,
-        nullable=True,
-        doc="GCN type (voevent, json, dictionary)",
     )
 
     tach_id = sa.Column(

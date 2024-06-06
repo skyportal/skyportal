@@ -282,6 +282,8 @@ def get_skymap_url(root, notice_type, timeout=10):
 def is_retraction(root):
     if isinstance(root, dict):
         retraction = root.get('retraction')
+        if retraction:
+            return True
     else:
         retraction = root.find("./What/Param[@name='Retraction']")
         if retraction is not None:
