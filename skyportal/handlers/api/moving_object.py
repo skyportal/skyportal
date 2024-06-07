@@ -220,7 +220,7 @@ class MovingObjectHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: MovingObjectPost
+              schema: MovingObjectNoID
         responses:
           200:
             content:
@@ -293,7 +293,7 @@ class MovingObjectHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: MovingObjectPut
+              schema: MovingObjectNoID
         responses:
           200:
             content:
