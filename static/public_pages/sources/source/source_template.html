@@ -168,8 +168,13 @@
         {% set filters_mapper = data.get('filters_mapper') | tojson | safe %}
         <div class="photometryPlot" id="{{ photometry_div_id }}">
           <script>
-            window.addEventListener("resize", adjustLegend);
-            plotLc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`);
+            window.isMobile = window.matchMedia("(max-width: 900px)").matches;
+            window.addEventListener("resize", function (){
+              if (window.isMobile !== window.matchMedia("(max-width: 900px)").matches)
+                window.isMobile = !window.isMobile
+                adjustLegend(window.isMobile)
+            });
+            plotLc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`, window.isMobile);
           </script>
         </div>
         {% else %}

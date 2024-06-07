@@ -1,6 +1,4 @@
 /* global Plotly */
-window.isMobile = window.matchMedia("(max-width: 900px)").matches;
-
 const baseLayout = {
   ticks: "outside",
   nticks: 8,
@@ -31,7 +29,7 @@ function getHoverText(point) {
   );
 }
 
-function getTrace(data, isDetection, key, color) {
+function getTrace(data, isDetection, key, color, isMobile) {
   const now = new Date().getTime() / 86400000 + 40587;
   const rgba = (rgb, alpha) => `rgba(${rgb[0]},${rgb[1]},${rgb[2]}, ${alpha})`;
   const dataType = isDetection ? "detections" : "upperLimits";
@@ -62,7 +60,7 @@ function getTrace(data, isDetection, key, color) {
         color: rgba(color, 1),
       },
       color: isDetection ? rgba(color, 0.3) : rgba(color, 0.1),
-      size: window.isMobile ? 6 : 9,
+      size: isMobile ? 6 : 9,
       symbol: isDetection ? "circle" : "triangle-down",
     },
     hoverlabel: {
@@ -82,7 +80,7 @@ function getResponsiveLegend(isMobile) {
   };
 }
 
-function getLayout() {
+function getLayout(isMobile) {
   return {
     autosize: true,
     xaxis: {
@@ -112,7 +110,7 @@ function getLayout() {
         },
       },
     ],
-    legend: getResponsiveLegend(window.isMobile),
+    legend: getResponsiveLegend(isMobile),
     hovermode: "closest",
   };
 }
@@ -159,17 +157,14 @@ function getGroupedPhotometry(photometry) {
   }, {});
 }
 
-function adjustLegend() {
-  if (window.matchMedia("(max-width: 900px)").matches !== window.isMobile) {
-    window.isMobile = !window.isMobile;
-    const plotDiv = document.getElementsByClassName("plotly")[0].parentElement;
-    Plotly.relayout(plotDiv, { legend: getResponsiveLegend(window.isMobile) });
-    Plotly.restyle(plotDiv, { "marker.size": window.isMobile ? 6 : 9 });
-  }
+function adjustLegend(isMobile) {
+  const plotDiv = document.getElementsByClassName("plotly")[0].parentElement;
+  Plotly.relayout(plotDiv, { legend: getResponsiveLegend(isMobile) });
+  Plotly.restyle(plotDiv, { "marker.size": isMobile ? 6 : 9 });
 }
 
 /* eslint-disable no-unused-vars */
-function plotLc(photometry_data, div_id, filters_used_mapper) {
+function plotLc(photometry_data, div_id, filters_used_mapper, isMobile) {
   const photometry = JSON.parse(photometry_data);
   const mapper = JSON.parse(filters_used_mapper);
   const plotData = [];
@@ -187,14 +182,14 @@ function plotLc(photometry_data, div_id, filters_used_mapper) {
       },
       { detections: [], upperLimits: [] },
     );
-    const detectionsTrace = getTrace(detections, true, key, color);
-    const upperLimitsTrace = getTrace(upperLimits, false, key, color);
+    const detectionsTrace = getTrace(detections, true, key, color, isMobile);
+    const upperLimitsTrace = getTrace(upperLimits, false, key, color, isMobile);
     plotData.push(detectionsTrace, upperLimitsTrace);
   });
   Plotly.newPlot(
     document.getElementById(div_id),
     plotData,
-    getLayout(),
+    getLayout(isMobile),
     getConfig(),
   );
 }
