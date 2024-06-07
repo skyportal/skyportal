@@ -1980,9 +1980,14 @@ def add_default_gcn_tags(user, session, dateobs=None, localization=None):
         if dateobs is None and localization is None:
             return gcn_tags
         if dateobs is None:
-            event = session.scalars(
-                GcnEvent.select(user).where(GcnEvent.dateobs == localization.dateobs)
-            ).first()
+            if localization.dateobs is not None:
+                event = session.scalars(
+                    GcnEvent.select(user).where(
+                        GcnEvent.dateobs == localization.dateobs
+                    )
+                ).first()
+            else:
+                return gcn_tags
         else:
             event = session.scalars(
                 GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
@@ -2152,7 +2157,6 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     user_id=user.id,
                     session=session,
                     default_plan=True,
-                    asynchronous=False,
                 )
         log(f"Triggered observation plans for localization {localization_id}")
     except Exception as e:
@@ -2173,6 +2177,7 @@ def add_tiles_properties_contour_and_obsplan(
     notify=True,
     properties=None,
     tags=None,
+    observation_plans=True,
 ):
     if parent_session is None:
         if Session.registry.has():
@@ -2192,7 +2197,8 @@ def add_tiles_properties_contour_and_obsplan(
             properties=properties,
             tags=tags,
         )
-        add_observation_plans(localization_id, user_id, session)
+        if observation_plans:
+            add_observation_plans(localization_id, user_id, session)
     except Exception as e:
         log(
             f"Unable to generate tiles / properties / observation plans / contour for localization {localization_id}: {e}"

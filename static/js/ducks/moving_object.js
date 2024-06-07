@@ -14,9 +14,10 @@ const MODIFY_MOVING_OBJECT = "skyportal/MODIFY_MOVING_OBJECT";
 
 const DELETE_MOVING_OBJECT = "skyportal/DELETE_MOVING_OBJECT";
 
-const FETCH_MOVING_OBJECT_SKYMAP = "skyportal/FETCH_MOVING_OBJECT_SKYMAP";
-
 const SUBMIT_MOVING_OBJECT_HORIZONS = "skyportal/SUBMIT_MOVING_OBJECT_HORIZONS";
+
+const SUBMIT_MOVING_OBJECT_OBSERVATION_PLAN =
+  "skyportal/SUBMIT_MOVING_OBJECT_OBSERVATION_PLAN";
 
 export const fetchMovingObject = (id) =>
   API.GET(`/api/moving_object/${id}`, FETCH_MOVING_OBJECT);
@@ -36,19 +37,12 @@ export function deleteMovingObject(id) {
   return API.DELETE(`/api/moving_object/${id}`, DELETE_MOVING_OBJECT);
 }
 
-export function fetchMovingObjectSkymap(id, localization, airmassTime = null) {
-  if (airmassTime) {
-    return API.GET(
-      `/api/moving_object/${id}?includeGeoJSONSummary=True&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}&airmassTime=${airmassTime}`,
-      FETCH_MOVING_OBJECT_SKYMAP,
-    );
-  }
-
-  return API.GET(
-    `/api/moving_object/${id}?includeGeoJSONSummary=True&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}`,
-    FETCH_MOVING_OBJECT_SKYMAP,
+export const submitMovingObjectObservationPlan = (plan) =>
+  API.POST(
+    `/api/moving_object/observation_plan`,
+    SUBMIT_MOVING_OBJECT_OBSERVATION_PLAN,
+    plan,
   );
-}
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

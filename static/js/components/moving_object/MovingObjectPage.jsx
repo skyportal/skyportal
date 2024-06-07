@@ -7,6 +7,7 @@ import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 
 import MovingObjectTable from "./MovingObjectTable";
+import MovingObjectObservationPlan from "./MovingObjectObservationPlan";
 import Spinner from "../Spinner";
 import * as movingObjectsActions from "../../ducks/moving_objects";
 
@@ -115,6 +116,16 @@ const MovingObjectPage = () => {
                 pageNumber={movingObjects?.pageNumber || 1}
                 numPerPage={movingObjects?.numPerPage || 10}
                 sortingCallback={handleMovingObjectTableSorting}
+              />
+            )}
+          </div>
+        </Paper>
+        <Paper>
+          <div className={classes.paperContent}>
+            <Typography variant="h6">Add a New Observation Plan</Typography>
+            {typeof movingObjects?.moving_objects !== "undefined" && (
+              <MovingObjectObservationPlan
+                movingObjects={movingObjects?.moving_objects || []}
               />
             )}
           </div>

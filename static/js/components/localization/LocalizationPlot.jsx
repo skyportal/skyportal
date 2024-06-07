@@ -676,6 +676,8 @@ const GeoJSONGlobePlot = ({
     moon,
   };
 
+  console.log("data", data);
+
   const svgRef = useD3(renderMap, height, width, data);
 
   return (

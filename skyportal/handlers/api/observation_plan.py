@@ -339,7 +339,10 @@ def post_survey_efficiency_analysis(
 
 
 def post_observation_plans(
-    plans, user_id, session, default_plan=False, asynchronous=True
+    plans,
+    user_id,
+    session,
+    default_plan=False,
 ):
     """Post combined ObservationPlans to database.
 
@@ -353,8 +356,6 @@ def post_observation_plans(
         Database session for this transaction
     default_plan : bool
         Observation plan is created automatically. Defaults to False.
-    asynchronous : bool
-        Create asynchronous request. Defaults to True.
     """
 
     user = session.query(User).get(user_id)
@@ -438,7 +439,10 @@ def post_observation_plans(
 
 
 def post_observation_plan(
-    plan, user_id, session, default_plan=False, asynchronous=True
+    plan,
+    user_id,
+    session,
+    default_plan=False,
 ):
     """Post ObservationPlan to database.
 
@@ -452,8 +456,6 @@ def post_observation_plan(
         Database session for this transaction
     default_plan : bool
         Observation plan is created automatically. Defaults to False.
-    asynchronous : bool
-        Create asynchronous request. Defaults to True.
     """
 
     user = session.query(User).get(user_id)
@@ -608,7 +610,6 @@ class ObservationPlanRequestHandler(BaseHandler):
                     observation_plans[0],
                     self.associated_user_object.id,
                     session,
-                    asynchronous=True,
                 )
                 plan_ids = [plan_id]
             else:
@@ -617,7 +618,6 @@ class ObservationPlanRequestHandler(BaseHandler):
                         observation_plans,
                         self.associated_user_object.id,
                         session,
-                        asynchronous=True,
                     )
                 else:
                     plan_ids = []
@@ -626,7 +626,6 @@ class ObservationPlanRequestHandler(BaseHandler):
                             plan,
                             self.associated_user_object.id,
                             session,
-                            asynchronous=True,
                         )
                         plan_ids.append(plan_id)
 

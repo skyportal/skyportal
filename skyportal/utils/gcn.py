@@ -659,6 +659,8 @@ def get_contour(localization):
     levels = [50, 90]
     paths = ligo.skymap.postprocess.contour(cls, levels, degrees=True, simplify=True)
     center = ligo.skymap.postprocess.posterior_max(prob)
+    for level, path in zip(levels, paths):
+        print(path)
     localization.contour = {
         'type': 'FeatureCollection',
         'features': [

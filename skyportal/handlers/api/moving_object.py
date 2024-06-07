@@ -1,20 +1,28 @@
 import arrow
 import astropy.units as u
-import sqlalchemy as sa
-
 from astropy.time import Time, TimeDelta
+import asyncio
+import jsonschema
 from marshmallow.exceptions import ValidationError
-from sqlalchemy import func
+import sqlalchemy as sa
+from sqlalchemy.orm import joinedload
+from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import (
+    Allocation,
+    EventObservationPlan,
+    Group,
     Obj,
+    Localization,
     MovingObject,
     MovingObjectAssociation,
+    ObservationPlanRequest,
 )
 from ..base import BaseHandler
 from ...utils.moving_objects import get_object_positions
+from .gcn import add_tiles_properties_contour_and_obsplan
 
 MAX_MOVING_OBJECTS = 1000
 
@@ -118,13 +126,23 @@ class MovingObjectHandler(BaseHandler):
 
                 return self.success(data=moving_object)
 
-            moving_objects = MovingObject.select(session.user_or_token)
-
             page_number = self.get_query_argument("pageNumber", 1)
             n_per_page = self.get_query_argument("numPerPage", 10)
             obj_id = self.get_query_argument("obj_id", None)
             moving_objectID = self.get_query_argument("moving_objectID", None)
             include_objs = self.get_query_argument("include_objs", False)
+            include_plans = self.get_query_argument("include_plans", True)
+
+            if include_plans:
+                options = [
+                    joinedload(MovingObject.observationplan_requests)
+                    .joinedload(ObservationPlanRequest.observation_plans)
+                    .joinedload(EventObservationPlan.statistics)
+                ]
+            else:
+                options = []
+
+            moving_objects = MovingObject.select(session.user_or_token, options=options)
 
             if obj_id is not None:
                 moving_objects = moving_objects.join(
@@ -152,7 +170,7 @@ class MovingObjectHandler(BaseHandler):
                     f'numPerPage should be no larger than {MAX_MOVING_OBJECTS}.'
                 )
 
-            count_stmt = sa.select(func.count()).select_from(moving_objects)
+            count_stmt = sa.select(sa.func.count()).select_from(moving_objects)
             total_matches = session.execute(count_stmt).scalar()
 
             if n_per_page is not None:
@@ -163,26 +181,29 @@ class MovingObjectHandler(BaseHandler):
                 )
 
             moving_objects = session.scalars(moving_objects).unique().all()
-            if not include_objs:
-                moving_objects = [
-                    {**moving_object.to_dict(), 'contour': moving_object.contour}
-                    for moving_object in moving_objects
-                ]
-            else:
-                moving_objects = [
-                    {
-                        **moving_object.to_dict(),
-                        'contour': moving_object.contour,
-                        "objs": [
-                            o.to_dict() for o in moving_object.objs if o is not None
-                        ],
-                    }
-                    for moving_object in moving_objects
-                ]
+            moving_objects_data = []
+            for moving_object in moving_objects:
+                if include_objs:
+                    objs = [o.to_dict() for o in moving_object.objs if o is not None]
+                if include_plans:
+                    plans = [
+                        o.to_dict()
+                        for o in moving_object.observationplan_requests
+                        if o is not None
+                    ]
+                moving_object = {
+                    **moving_object.to_dict(),
+                    'contour': moving_object.contour,
+                }
+                if include_objs:
+                    moving_object['objs'] = objs
+                if include_plans:
+                    moving_object['plans'] = plans
+                moving_objects_data.append(moving_object)
 
             return self.success(
                 data={
-                    'moving_objects': moving_objects,
+                    'moving_objects': moving_objects_data,
                     "totalMatches": int(total_matches),
                     "pageNumber": page_number,
                     "numPerPage": n_per_page,
@@ -484,3 +505,161 @@ class MovingObjectHorizonsHandler(BaseHandler):
                 session.commit()
                 self.push_all(action="skyportal/REFRESH_MOVING_OBJECTS")
                 return self.success(data={"id": moving_object.id})
+
+
+class MovingObjectObservationPlanRequestHandler(BaseHandler):
+    @permissions(['Manage observation plans'])
+    def post(self):
+        """
+        ---
+        description: Create moving object observation plan requests.
+        tags:
+          - moving_objects
+        requestBody:
+          content:
+            application/json:
+              schema: MovingObjectObservationPlanPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New moving object observation plan request ID
+        """
+        data = self.get_json()
+        asynchronous = data.pop('asynchronous', True)
+
+        with self.Session() as session:
+            moving_object_id = data.pop('name')
+            if moving_object_id is None:
+                return self.error('moving_object name is required')
+
+            moving_object = session.scalars(
+                MovingObject.select(session.user_or_token).where(
+                    MovingObject.id == str(moving_object_id)
+                )
+            ).first()
+            if moving_object is None:
+                return self.error('No such moving_object')
+
+            if 'queue_name' not in data.get('payload', {}):
+                return self.error(
+                    'All observation plans must have a "queue_name" key in their payload.'
+                )
+
+            target_group_ids = data.pop('target_group_ids', [])
+            stmt = Group.select(self.current_user).where(Group.id.in_(target_group_ids))
+            target_groups = session.scalars(stmt).all()
+
+            stmt = Allocation.select(session.user_or_token).where(
+                Allocation.id == data['allocation_id'],
+            )
+            allocation = session.scalars(stmt).first()
+            if allocation is None:
+                return self.error(
+                    f"Cannot access allocation with ID: {data['allocation_id']}",
+                    status=403,
+                )
+
+            instrument = allocation.instrument
+            if instrument.api_classname_obsplan is None:
+                return self.error('Instrument has no remote API.', status=403)
+
+            try:
+                formSchema = instrument.api_class_obsplan.custom_json_schema(
+                    instrument, self.current_user
+                )
+            except AttributeError:
+                formSchema = instrument.api_class_obsplan.form_json_schema
+
+            payload = data['payload']
+
+            # validate the payload
+            try:
+                jsonschema.validate(payload, formSchema)
+            except jsonschema.exceptions.ValidationError as e:
+                return self.error(f'Payload failed to validate: {e}', status=403)
+
+            filters = payload.get('filters', [])
+            if isinstance(filters, str):
+                filters = filters.split(',')
+            if (
+                not set(filters).issubset(set(allocation.instrument.filters))
+                or len(filters) == 0
+            ):
+                return self.error(
+                    f'Filters in payload must be a subset of instrument filters: {allocation.instrument.filters}'
+                )
+
+            url, properties, tags = None, None, None
+            try:
+                skymap = moving_object.skymap
+            except Exception as e:
+                raise ValueError(
+                    f"Failed to get skymap from moving object {moving_object.id}: {e}"
+                )
+
+            if skymap is None:
+                raise Exception(
+                    f"No skymap could be created for moving object {moving_object.id}"
+                )
+
+            localization = Localization(
+                **skymap, sent_by_id=self.associated_user_object.id
+            )
+            session.add(localization)
+            session.commit()
+            localization_id = localization.id
+
+            if asynchronous:
+                try:
+                    loop = asyncio.get_event_loop()
+                except Exception:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: add_tiles_properties_contour_and_obsplan(
+                        localization_id,
+                        self.associated_user_object.id,
+                        url=url,
+                        notify=False,
+                        properties=properties,
+                        tags=tags,
+                        observation_plans=False,
+                    ),
+                )
+            else:
+                add_tiles_properties_contour_and_obsplan(
+                    localization_id,
+                    self.associated_user_object.id,
+                    session,
+                    url=url,
+                    notify=False,
+                    properties=properties,
+                    tags=tags,
+                    observation_plans=False,
+                )
+
+            plan = {}
+            plan["requester_id"] = self.associated_user_object.id
+            plan["last_modified_by_id"] = self.associated_user_object.id
+            plan['allocation_id'] = int(allocation.id)
+            plan['localization_id'] = int(localization.id)
+            plan['moving_object_id'] = moving_object.id
+            plan['default_plan'] = False
+            plan['payload'] = payload
+
+            observation_plan_request = ObservationPlanRequest.__schema__().load(plan)
+            observation_plan_request.target_groups = target_groups
+            session.add(observation_plan_request)
+            session.commit()

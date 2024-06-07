@@ -104,7 +104,11 @@ from .mmadetector import (
     MMADetectorSpectrumHandler,
     MMADetectorTimeIntervalHandler,
 )
-from .moving_object import MovingObjectHandler, MovingObjectHorizonsHandler
+from .moving_object import (
+    MovingObjectHandler,
+    MovingObjectHorizonsHandler,
+    MovingObjectObservationPlanRequestHandler,
+)
 from .mpc import ObjMPCHandler
 from .news_feed import NewsFeedHandler
 from .observation import (

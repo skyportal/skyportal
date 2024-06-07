@@ -24,6 +24,7 @@ import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import LocalizationPlot from "../localization/LocalizationPlot";
 import NewMovingObject from "./NewMovingObject";
+import ObservationPlanSummaryStatistics from "../ObservationPlanSummaryStatistics";
 
 import * as movingObjectActions from "../../ducks/moving_object";
 
@@ -39,6 +40,9 @@ const useStyles = makeStyles((theme) => ({
       color: "white",
       background: theme.palette.primary.main,
     },
+  },
+  summaryStatistics: {
+    minWidth: "200px",
   },
   localizationContainer: {
     maxWidth: "20vw",
@@ -120,6 +124,30 @@ const MovingObjectTable = ({
     return <div>{movingObject?.id || ""}</div>;
   };
 
+  const renderSummaryStatistics = (dataIndex) => {
+    const movingObject = movingObjects[dataIndex];
+    const observationplanRequest = movingObject.plans?.length
+      ? movingObject.plans[movingObject.plans?.length - 1]
+      : null;
+    console.log("observationplanRequest", observationplanRequest);
+
+    return (
+      <div>
+        {observationplanRequest?.status === "running" ? (
+          <div>
+            <CircularProgress />
+          </div>
+        ) : (
+          <div className={classes.summaryStatistics}>
+            <ObservationPlanSummaryStatistics
+              observationplanRequest={observationplanRequest}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderLocalization = (dataIndex) => {
     const movingObject = movingObjects[dataIndex];
     const options = { localization: true };
@@ -131,7 +159,7 @@ const MovingObjectTable = ({
           options={options}
           height={600}
           width={600}
-          projection="orthographic"
+          projection="mollweide"
         />
       </div>
     );
@@ -212,6 +240,13 @@ const MovingObjectTable = ({
     },
   });
   columns.push({
+    name: "summarystatistics",
+    label: "Summary Statistics",
+    options: {
+      customBodyRenderLite: renderSummaryStatistics,
+    },
+  });
+  columns.push({
     name: "delete",
     label: " ",
     options: {
@@ -249,6 +284,8 @@ const MovingObjectTable = ({
       </Tooltip>
     ),
   };
+
+  console.log("movingObjects", movingObjects);
 
   return (
     <div>

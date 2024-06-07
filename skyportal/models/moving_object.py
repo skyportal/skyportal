@@ -11,9 +11,12 @@ from astropy.table import Table
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from mocpy import MOC
+import numpy as np
 import regions
 
 from baselayer.app.models import Base
+
+from ..utils.gcn import from_ellipse
 
 
 class MovingObject(Base):
@@ -61,6 +64,18 @@ class MovingObject(Base):
         passive_deletes=True,
         doc='Objects associated with this moving object.',
     )
+    localizations = relationship(
+        'Localization',
+        passive_deletes=True,
+        doc='Localizations associated with this moving object.',
+    )
+    observationplan_requests = relationship(
+        'ObservationPlanRequest',
+        back_populates='moving_object',
+        cascade='delete',
+        passive_deletes=True,
+        doc="Observation plan requests of this moving object.",
+    )
 
     @property
     def table(self):
@@ -69,6 +84,35 @@ class MovingObject(Base):
             [self.mjd, self.ra, self.ra_err, self.dec, self.dec_err],
             names=['MJD', 'RA', 'RA_ERR', 'DEC', 'DEC_ERR'],
         )
+
+    @property
+    def skymap(self):
+        try:
+            table = self.table
+            row = table[-1]
+
+            if row["RA_ERR"] > row["DEC_ERR"]:
+                skymap = from_ellipse(
+                    self.id,
+                    row["RA"],
+                    row["DEC"],
+                    row["RA_ERR"],
+                    row["DEC_ERR"],
+                    0,
+                )
+            else:
+                skymap = from_ellipse(
+                    self.id,
+                    row["RA"],
+                    row["DEC"],
+                    row["DEC_ERR"],
+                    row["RA_ERR"],
+                    90,
+                )
+            skymap['moving_object_id'] = self.id
+            return skymap
+        except Exception:
+            return None
 
     @property
     def localization(self):
@@ -86,7 +130,7 @@ class MovingObject(Base):
                 ellipse = regions.EllipseSkyRegion(
                     center, row["RA_ERR"] * u.deg, row["DEC_ERR"] * u.deg, 90 * u.deg
                 )
-            moc = MOC.from_astropy_regions(ellipse, max_depth=10)
+            moc = MOC.from_astropy_regions(ellipse, max_depth=8)
 
             return moc, center
         except Exception:
@@ -102,12 +146,14 @@ class MovingObject(Base):
         # compute full contour
         geometry = []
         for coord in boundaries:
-            tab = list(
-                zip(
-                    (*coord.ra.deg, coord.ra.deg[0]),
-                    (*coord.dec.deg, coord.dec.deg[0]),
+            if len(coord.ra.deg) == 1:
+                continue
+            tab = np.vstack(
+                (
+                    np.hstack((coord.ra.deg, coord.ra.deg[0])),
+                    np.hstack((coord.dec.deg, coord.dec.deg[0])),
                 )
-            )
+            ).T.tolist()
             geometry.append(tab)
 
         contour = {
@@ -125,6 +171,15 @@ class MovingObject(Base):
             + [
                 {
                     'type': 'Feature',
+                    'properties': {'credible_level': 100},
+                    'geometry': {
+                        'type': 'MultiLineString',
+                        'coordinates': geometry,
+                    },
+                },
+                {
+                    'type': 'Feature',
+                    'properties': {'credible_level': 100},
                     'geometry': {
                         'type': 'MultiLineString',
                         'coordinates': geometry,
