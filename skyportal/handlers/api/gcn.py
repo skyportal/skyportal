@@ -2311,12 +2311,25 @@ class LocalizationNoticeHandler(BaseHandler):
             if gcn_notice is None:
                 return self.error("Notice not found", status=404)
 
+            root, notice_type = None, None
+
+            # try reading xml notice
             try:
                 root = lxml.etree.fromstring(gcn_notice.content)
                 notice_type = gcn_notice.notice_type
             except lxml.etree.XMLSyntaxError:
-                root = json.loads(gcn_notice.content.decode('utf8'))
-                notice_type = None
+                pass
+
+            # try reading json notice
+            if root is None:
+                try:
+                    root = json.loads(gcn_notice.content.decode('utf8'))
+                    notice_type = None
+                except json.JSONDecodeError:
+                    pass
+
+            if root is None:
+                return self.error(f"Could not read the content of notice {notice_id}")
 
             status, skymap_metadata = get_skymap_metadata(root, notice_type)
             if status == "unavailable":
@@ -2324,6 +2337,13 @@ class LocalizationNoticeHandler(BaseHandler):
                     "Skymap present in notice isn't available (yet)", status=404
                 )
             elif status in ["available", "cone"]:
+                if (
+                    not isinstance(skymap_metadata, dict)
+                    or "name" not in skymap_metadata
+                ):
+                    return self.error(
+                        f"Could not retrieve the skymap's name for notice {notice_id}"
+                    )
                 localization = session.scalars(
                     Localization.select(session.user_or_token).where(
                         Localization.dateobs == dateobs,

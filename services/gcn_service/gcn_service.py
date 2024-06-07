@@ -121,16 +121,20 @@ def poll_events(*args, **kwargs):
                 if payload.find(b'Broker: Unknown topic or partition') != -1:
                     continue
 
-                try:
-                    payload = json.loads(payload.decode('utf8'))
-                    notice_type = None
-                    tags = get_json_tags(payload)
-                    alert_type = "json"
-                except Exception:
+                # initialize some variables tht will be used later
+                root, notice_type, tags, alert_type = None, None, None, None
+                dateobs, event_id, notice_id = None, None, None
+
+                try:  # try xml first
                     root = get_root_from_payload(payload)
                     notice_type = gcn.get_notice_type(root)
                     tags = get_tags(root)
                     alert_type = "voevent"
+                except Exception:  # then json
+                    payload = json.loads(payload.decode('utf8'))
+                    notice_type = None
+                    tags = get_json_tags(payload)
+                    alert_type = "json"
 
                 tags_intersection = list(set(tags).intersection(set(reject_tags)))
                 if len(tags_intersection) > 0:
@@ -140,7 +144,6 @@ def poll_events(*args, **kwargs):
                     continue
 
                 with DBSession() as session:
-                    root = None
                     # we skip the ingestion of a retraction of the event does not exist in the DB
                     if notice_type == gcn.NoticeType.LVC_RETRACTION:
                         dateobs = get_dateobs(root)
@@ -164,7 +167,6 @@ def poll_events(*args, **kwargs):
 
                     # event ingestion
                     log(f'Ingesting gcn_event from {message.topic()}')
-                    dateobs, event_id, notice_id = None, None, None
                     try:
                         if alert_type == "voevent":
                             dateobs, event_id, notice_id = post_gcnevent_from_xml(
@@ -238,6 +240,7 @@ def poll_events(*args, **kwargs):
                         post_notification(request_body, timeout=30)
 
         except Exception as e:
+            traceback.print_exc()
             log(f'Failed to consume gcn event: {e}')
 
 
