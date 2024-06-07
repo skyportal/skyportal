@@ -203,7 +203,7 @@ def post_gcnevent_from_xml(
         localization_ingested=False,
         dateobs=dateobs,
         sent_by_id=user_id,
-        gcn_type="voevent",
+        notice_format="voevent",
     )
     session.add(gcn_notice)
     session.commit()
@@ -523,7 +523,7 @@ def post_gcnevent_from_json(
         localization_ingested=False,
         dateobs=dateobs,
         sent_by_id=user_id,
-        gcn_type="json",
+        notice_format="json",
     )
     session.add(gcn_notice)
     session.commit()

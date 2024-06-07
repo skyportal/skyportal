@@ -417,10 +417,10 @@ class GcnNotice(Base):
         doc='GCN Notice type',
     )
 
-    gcn_type = sa.Column(
+    notice_format = sa.Column(
         sa.String,
         nullable=True,
-        doc="GCN type (voevent, json, dictionary)",
+        doc="Notice format (voevent, json, dictionary)",
     )
 
     stream = sa.Column(
@@ -701,6 +701,8 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
+        if notice.notice_format == 'json':
+            return None
         try:
             root = lxml.etree.fromstring(notice.content)
             elem = root.find(".//Param[@name='LightCurve_URL']")
@@ -722,7 +724,8 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-
+        if notice.notice_format == 'json':
+            return None
         try:
             root = lxml.etree.fromstring(notice.content)
             elem = root.find(".//Param[@name='EventPage']")
@@ -743,7 +746,8 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-
+        if notice.notice_format == 'json':
+            return None
         try:
             root = lxml.etree.fromstring(notice.content)
             elem = root.find(".//Param[@name='GraceID']")
@@ -767,7 +771,8 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-
+        if notice.notice_format == 'json':
+            return None
         try:
             root = lxml.etree.fromstring(notice.content)
             elem = root.find(".//Param[@name='HasNS']")
@@ -789,7 +794,8 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-
+        if notice.notice_format == 'json':
+            return None
         try:
             root = lxml.etree.fromstring(notice.content)
             elem = root.find(".//Param[@name='HasRemnant']")
@@ -811,7 +817,8 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-
+        if notice.notice_format == 'json':
+            return None
         try:
             root = lxml.etree.fromstring(notice.content)
             elem = root.find(".//Param[@name='FAR']")

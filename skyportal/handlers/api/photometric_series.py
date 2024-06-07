@@ -1414,11 +1414,7 @@ class PhotometricSeriesHandler(BaseHandler):
             stmt = stmt.where(PhotometricSeries.within(other, radius))
 
         if object_id:
-            stmt = stmt.where(
-                func.lower(PhotometricSeries.obj_id).contains(
-                    func.lower(object_id.strip())
-                )
-            )
+            stmt = stmt.where(PhotometricSeries.obj_id.contains(str(object_id).strip()))
         if rejected_id:
             rejected_id = rejected_id.split(',')
             rejected_id = [x.strip() for x in rejected_id]
