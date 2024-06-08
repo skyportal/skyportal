@@ -380,7 +380,7 @@ def get_skymap(root, notice_type, url_timeout=10):
     elif status == "healpix_file":
         skymap, properties, tags = from_bytes(skymap_metadata)
         skymap['localization_name'] = "healpix"
-        return skymap, "healpix", properties, tags
+        return skymap, None, properties, tags
     else:
         return None, None, None, None
 

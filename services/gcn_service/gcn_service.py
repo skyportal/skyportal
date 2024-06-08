@@ -31,7 +31,7 @@ init_db(**cfg['database'])
 client_id = cfg['gcn.client_id']
 client_secret = cfg['gcn.client_secret']
 voevent_notice_types = [
-    f'gcn.voevent.voevent.{notice_type}'
+    f'gcn.classic.voevent.{notice_type}'
     for notice_type in cfg.get("gcn.notice_types", [])
 ]
 json_notice_types = [

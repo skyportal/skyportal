@@ -506,16 +506,15 @@ def post_gcnevent_from_json(
     event.detectors = detectors
     session.commit()
 
+    date = dateobs
     if "alert_datetime" in payload:
         date = Time(payload['alert_datetime'], format="isot", precision=0)
         # FIXME: https://github.com/astropy/astropy/issues/7179
-        date = Time(dateobs.iso).datetime
-    else:
-        date = dateobs
+        date = Time(date.iso).datetime
 
     gcn_notice = GcnNotice(
         content=json.dumps(payload).encode('utf-8'),
-        ivorn=f'{payload["instrument"]}-{payload["trigger_time"]}',
+        ivorn=f'{payload["instrument"]}-{date.strftime("%Y-%m-%dT%H:%M:%S")}',
         notice_type=None,
         stream=payload["instrument"],
         date=date,
@@ -1752,7 +1751,11 @@ class GcnEventHandler(BaseHandler):
                     event.gcn_notices, key=lambda notice: notice.date, reverse=True
                 )
                 for notice in event.gcn_notices:
-                    notice.notice_type = gcn.NoticeType(notice.notice_type).name
+                    notice.notice_type = (
+                        gcn.NoticeType(notice.notice_type).name
+                        if notice.notice_type
+                        else None
+                    )
                 event_info = {
                     **event.to_dict(),
                     "tags": list(set(event.tags)),
