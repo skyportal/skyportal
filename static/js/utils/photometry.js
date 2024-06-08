@@ -1,19 +1,38 @@
 /* global Plotly */
 const baseLayout = {
+  title: {
+    font: {
+      size: 18,
+    },
+  },
+  autorange: "reversed",
+  automargin: true,
+  showline: true,
+  tickfont: {
+    size: 14,
+  },
+  ticklen: 12,
   ticks: "outside",
   nticks: 8,
-  ticklen: 12,
-  tickformat: ".2f",
-  tickcolor: "black",
   minor: {
     ticks: "outside",
-    ticklen: 6,
-    tickcolor: "black",
+    ticklen: 20,
+    tickcolor: "red",
+    nticks: 10,
+    type: "linear",
+    tickmode: "auto",
+    showline: true,
+    showgrid: true,
+    zeroline: false,
+    showticklabels: true,
+    tickfont: {
+      size: 12,
+    },
   },
-  titlefont: { size: 18 },
-  tickfont: { size: 14 },
+  minorticklen: 12,
+  type: "linear",
   zeroline: false,
-  automargin: true,
+  showgrid: true,
 };
 
 /* eslint-disable */
@@ -74,6 +93,8 @@ function getTrace(data, isDetection, key, color, isMobile) {
 
 function getResponsiveLegend(isMobile) {
   return {
+    font: { size: 14 },
+    tracegroupgap: 0,
     orientation: isMobile ? "h" : "v",
     y: isMobile ? -0.5 : 1,
     x: isMobile ? 0 : 1,
@@ -84,17 +105,27 @@ function getLayout(isMobile) {
   return {
     autosize: true,
     xaxis: {
-      title: "Days Ago",
-      autorange: "reversed",
+      title: {
+        text: "Days Ago",
+      },
       overlaying: "x",
+      side: "bottom",
+      tickformat: ".6~f",
       ...baseLayout,
     },
     yaxis: {
-      title: "AB Mag",
-      autorange: "reversed",
+      title: {
+        text: "AB Mag",
+      },
       ...baseLayout,
     },
-    margin: { l: 50, r: 50, b: 30, t: 30, pad: 1 },
+    margin: {
+      b: 75,
+      l: 70,
+      pad: 0,
+      r: 30,
+      t: 80,
+    },
     shapes: [
       {
         type: "rect",
@@ -110,6 +141,7 @@ function getLayout(isMobile) {
         },
       },
     ],
+    showlegend: true,
     legend: getResponsiveLegend(isMobile),
     hovermode: "closest",
   };
