@@ -29,6 +29,11 @@
         border-radius: 1rem;
         font-weight: bold;
         font-size: inherit;
+        line-height: 1.2rem;
+        @media screen and (max-width: 450px) {
+          font-size: 0.7rem;
+          line-height: 0.7rem;
+        }
       }
     }
 
@@ -99,26 +104,17 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+
       h2 {
         margin-left: 1rem;
       }
+
       .download {
         margin-right: 1rem;
       }
     }
-    .photometryType {
-      display: flex;
-      p {
-        color: #457b9d;
-        font-weight: 500;
-        font-size: 0.875rem;
-        padding: 0.5rem 1.5rem 1rem 1.5rem;
-        letter-spacing: 0.02857em;
-        border-bottom: solid #457b9d 2px;
-      }
-    }
     .photometryPlot {
-      margin-bottom: 1rem;
+      margin: 1rem 0;
     }
   }
   .classificationsCard {
@@ -145,6 +141,10 @@
           .name {
             font-size: 1.2rem;
             font-weight: bold;
+            @media screen and (max-width: 450px) {
+              font-size: 1rem;
+              line-height: 1rem;
+            }
           }
 
           .probability {

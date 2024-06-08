@@ -266,7 +266,13 @@
               </div>
               <div id="{{ photometry_div_id }}" style="height: 400px">
                 <script>
-                  plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`);
+                  window.isMobile = window.matchMedia("(max-width: 900px)").matches;
+                  window.addEventListener("resize", function (){
+                    if (window.isMobile !== window.matchMedia("(max-width: 900px)").matches)
+                      window.isMobile = !window.isMobile
+                    adjustLegend(window.isMobile)
+                  });
+                  plotLc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`, window.isMobile);
                 </script>
               </div>
               {% endif %}

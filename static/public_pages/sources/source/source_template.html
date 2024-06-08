@@ -158,20 +158,23 @@
               type="button"
               onclick='downloadPhotometryToCsv(`{{ photometry }}`, `{{ source_id }}`)'
             >
-              Download
+              DOWNLOAD
             </button>
           </div>
           {% endif %}
         </div>
         {% if photometry %}
-        <div class="photometryType">
-          <p>MAG</p>
-        </div>
         {% set photometry_div_id = 'photometryPlot' %}
         {% set filters_mapper = data.get('filters_mapper') | tojson | safe %}
         <div class="photometryPlot" id="{{ photometry_div_id }}">
           <script>
-            plot_lc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`);
+            window.isMobile = window.matchMedia("(max-width: 900px)").matches;
+            window.addEventListener("resize", function (){
+              if (window.isMobile !== window.matchMedia("(max-width: 900px)").matches)
+                window.isMobile = !window.isMobile
+                adjustLegend(window.isMobile)
+            });
+            plotLc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`, window.isMobile);
           </script>
         </div>
         {% else %}
@@ -187,7 +190,7 @@
             id="{{ classification.classification }}"
             class="classification boxShadow"
           >
-            <div class="author">{{ classification.author_name }}</div>
+            <div class="author">{{ classification.format_author }}</div>
             <div class="nameAndProbability">
               <p class="name">
                 {{ "ML: " if classification.ml }} {{ classification.classification }}
