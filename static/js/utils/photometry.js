@@ -1,38 +1,19 @@
 /* global Plotly */
 const baseLayout = {
-  title: {
-    font: {
-      size: 18,
-    },
-  },
-  autorange: "reversed",
+  zeroline: false,
   automargin: true,
   showline: true,
-  tickfont: {
-    size: 14,
-  },
+  autorange: "reversed",
+  titlefont: { size: 18 },
+  tickfont: { size: 14 },
   ticklen: 12,
   ticks: "outside",
   nticks: 8,
   minor: {
     ticks: "outside",
-    ticklen: 20,
-    tickcolor: "red",
-    nticks: 10,
-    type: "linear",
-    tickmode: "auto",
-    showline: true,
-    showgrid: true,
-    zeroline: false,
-    showticklabels: true,
-    tickfont: {
-      size: 12,
-    },
+    ticklen: 6,
+    tickcolor: "black",
   },
-  minorticklen: 12,
-  type: "linear",
-  zeroline: false,
-  showgrid: true,
 };
 
 /* eslint-disable */
@@ -91,17 +72,7 @@ function getTrace(data, isDetection, key, color, isMobile) {
   };
 }
 
-function getResponsiveLegend(isMobile) {
-  return {
-    font: { size: 14 },
-    tracegroupgap: 0,
-    orientation: isMobile ? "h" : "v",
-    y: isMobile ? -0.5 : 1,
-    x: isMobile ? 0 : 1,
-  };
-}
-
-function getLayout(isMobile) {
+function getLayoutGraphPart() {
   return {
     autosize: true,
     xaxis: {
@@ -142,8 +113,26 @@ function getLayout(isMobile) {
       },
     ],
     showlegend: true,
-    legend: getResponsiveLegend(isMobile),
     hovermode: "closest",
+  };
+}
+
+function getLayoutLegendPart(isMobile) {
+  return {
+    legend: {
+      font: { size: 14 },
+      tracegroupgap: 0,
+      orientation: isMobile ? "h" : "v",
+      y: isMobile ? -0.5 : 1,
+      x: isMobile ? 0 : 1,
+    },
+  };
+}
+
+function getLayout(isMobile) {
+  return {
+    ...getLayoutGraphPart(),
+    ...getLayoutLegendPart(isMobile),
   };
 }
 
@@ -168,7 +157,7 @@ function getConfig() {
         click: () => {
           Plotly.relayout(
             document.getElementsByClassName("plotly")[0].parentElement,
-            getLayout(),
+            getLayoutGraphPart(),
           );
         },
       },
@@ -191,7 +180,7 @@ function getGroupedPhotometry(photometry) {
 
 function adjustLegend(isMobile) {
   const plotDiv = document.getElementsByClassName("plotly")[0].parentElement;
-  Plotly.relayout(plotDiv, { legend: getResponsiveLegend(isMobile) });
+  Plotly.relayout(plotDiv, getLayoutLegendPart(isMobile));
   Plotly.restyle(plotDiv, { "marker.size": isMobile ? 6 : 9 });
 }
 
