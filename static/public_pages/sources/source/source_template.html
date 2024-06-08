@@ -30,7 +30,7 @@
     </script>
     {% if data.get('photometry') %}
       {% set photometry = data.get('photometry') | tojson | safe %}
-      <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+      <script src="https://cdn.plot.ly/plotly-2.25.2.min.js"></script>
       <script src="/static/js/utils/csv.js"></script>
       <script src="/static/js/utils/photometry.js"></script>
     {% endif %}
