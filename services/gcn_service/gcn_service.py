@@ -14,6 +14,7 @@ from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.gcn import (
     get_tags,
+    get_json_tags,
     post_gcnevent_from_xml,
     post_gcnevent_from_json,
     post_skymap_from_notice,
@@ -29,7 +30,7 @@ init_db(**cfg['database'])
 
 client_id = cfg['gcn.client_id']
 client_secret = cfg['gcn.client_secret']
-classic_notice_types = [
+voevent_notice_types = [
     f'gcn.classic.voevent.{notice_type}'
     for notice_type in cfg.get("gcn.notice_types", [])
 ]
@@ -69,9 +70,9 @@ def is_configured():
         log('No client_secret configured to poll gcn events (config: gcn.client_secret')
         return False
     if (
-        classic_notice_types is None
-        or classic_notice_types == ''
-        or classic_notice_types == []
+        voevent_notice_types is None
+        or voevent_notice_types == ''
+        or voevent_notice_types == []
     ) and (
         json_notice_types is None or json_notice_types == '' or json_notice_types == []
     ):
@@ -104,7 +105,7 @@ def poll_events(*args, **kwargs):
         log(f'Failed to initiate consumer to poll gcn events: {e}')
         return
     try:
-        consumer.subscribe(classic_notice_types + json_notice_types)
+        consumer.subscribe(voevent_notice_types + json_notice_types)
     except Exception as e:
         log(f'Failed to subscribe to gcn events: {e}')
         return
@@ -113,19 +114,27 @@ def poll_events(*args, **kwargs):
             for message in consumer.consume():
                 payload = message.value()
                 consumer.commit(message)
+
+                if payload is None:
+                    continue
+
                 if payload.find(b'Broker: Unknown topic or partition') != -1:
                     continue
 
-                try:
-                    payload = json.loads(payload.decode('utf8'))
-                    notice_type = None
-                    tags = []
-                    alert_type = "json"
-                except Exception:
+                # initialize some variables tht will be used later
+                root, notice_type, tags, alert_type = None, None, None, None
+                dateobs, event_id, notice_id = None, None, None
+
+                try:  # try xml first
                     root = get_root_from_payload(payload)
                     notice_type = gcn.get_notice_type(root)
                     tags = get_tags(root)
-                    alert_type = "classic"
+                    alert_type = "voevent"
+                except Exception:  # then json
+                    payload = json.loads(payload.decode('utf8'))
+                    notice_type = None
+                    tags = get_json_tags(payload)
+                    alert_type = "json"
 
                 tags_intersection = list(set(tags).intersection(set(reject_tags)))
                 if len(tags_intersection) > 0:
@@ -135,7 +144,6 @@ def poll_events(*args, **kwargs):
                     continue
 
                 with DBSession() as session:
-                    root = None
                     # we skip the ingestion of a retraction of the event does not exist in the DB
                     if notice_type == gcn.NoticeType.LVC_RETRACTION:
                         dateobs = get_dateobs(root)
@@ -159,9 +167,8 @@ def poll_events(*args, **kwargs):
 
                     # event ingestion
                     log(f'Ingesting gcn_event from {message.topic()}')
-                    dateobs, event_id, notice_id = None, None, None
                     try:
-                        if alert_type == "classic":
+                        if alert_type == "voevent":
                             dateobs, event_id, notice_id = post_gcnevent_from_xml(
                                 payload,
                                 user_id,
@@ -171,9 +178,6 @@ def poll_events(*args, **kwargs):
                                 notify=False,
                             )
                         elif alert_type == "json":
-                            # save the payload to a file
-                            with open(f'/tmp/{str(uuid.uuid4())}.json', 'w') as f:
-                                f.write(json.dumps(payload, indent=2))
                             dateobs, event_id, notice_id = post_gcnevent_from_json(
                                 payload,
                                 user_id,
@@ -188,7 +192,7 @@ def poll_events(*args, **kwargs):
                     # TODO: unify skymap ingestion to also process JSON notices sky maps
                     # after ingesting the event (to deal with timeouts better)
                     notified_on_skymap = False
-                    if alert_type == "classic":
+                    if alert_type == "voevent":
                         # skymap ingestion if available or cone
                         status, metadata = get_skymap_metadata(root, notice_type, 15)
                         if status in ['available', 'cone']:
@@ -236,6 +240,7 @@ def poll_events(*args, **kwargs):
                         post_notification(request_body, timeout=30)
 
         except Exception as e:
+            traceback.print_exc()
             log(f'Failed to consume gcn event: {e}')
 
 
