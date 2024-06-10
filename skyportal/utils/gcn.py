@@ -477,9 +477,9 @@ def from_cone(ra, dec, error, n_sigma=4):
     radius = error * u.deg
 
     # Determine resolution such that there are at least
-    # 32 pixels across the error radius.
+    # 16 pixels across the error radius.
     hpx = HEALPix(
-        pixel_resolution_to_nside(radius / 32, round='up'), 'nested', frame=ICRS()
+        pixel_resolution_to_nside(radius / 16, round='up'), 'nested', frame=ICRS()
     )
 
     # Find all pixels in the 4-sigma error circle.
