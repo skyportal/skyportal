@@ -32,7 +32,7 @@ const ThumbnailList = ({
   maxSize = null,
   noMargin = false,
   titleSize = "0.875rem",
-  displayTypes = ["new", "ref", "sub", "sdss", "ls", "ps1"],
+  displayTypes = ["new", "ref", "sub", "sdss", "ls", "ps1", "hst", "chandra"],
 }) => {
   thumbnails
     ?.filter((thumbnail) => displayTypes.includes(thumbnail.type))
@@ -42,7 +42,16 @@ const ThumbnailList = ({
     ?.map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
     ?.filter((thumbnail) => thumbnail !== undefined);
 
-  const thumbnailOrder = ["new", "ref", "sub", "sdss", "ls", "ps1"];
+  const thumbnailOrder = [
+    "new",
+    "ref",
+    "sub",
+    "sdss",
+    "ls",
+    "ps1",
+    "hst",
+    "chandra",
+  ];
   // Sort thumbnails by order of appearance in `thumbnailOrder`
   latestThumbnails?.sort((a, b) =>
     thumbnailOrder.indexOf(a.type) < thumbnailOrder.indexOf(b.type) ? -1 : 1,
@@ -150,7 +159,7 @@ ThumbnailList.defaultProps = {
   minSize: null,
   maxSize: null,
   titleSize: "0.875rem",
-  displayTypes: ["new", "ref", "sub", "sdss", "ls", "ps1"],
+  displayTypes: ["new", "ref", "sub", "sdss", "ls", "ps1", "hst", "chandra"],
   useGrid: true,
   noMargin: false,
 };
