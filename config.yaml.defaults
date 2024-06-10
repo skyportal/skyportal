@@ -564,6 +564,16 @@ external_logging:
     port:
     # which log files, if any do you not want to send over to the 3rd party?
     excluded_log_files: ["log/websocket_server.log"]
+  sentry:
+    endpoint:
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # Sentry recommends adjusting this value in production.
+    traces_sample_rate: 1.0
+    # Set profiles_sample_rate to 1.0 to profile 100%
+    # of sampled transactions.
+    # We recommend adjusting this value in production.
+    profiles_sample_rate: 1.0
 
 cron:
   # - interval: 60
@@ -701,6 +711,9 @@ gcn:
     - ICECUBE_ASTROTRACK_GOLD
     - ICECUBE_ASTROTRACK_BRONZE
     - MAXI_UNKNOWN
+  json_notice_types:
+    - einstein_probe.wxt.alert
+    - swift.bat.guano
   reject_tags: # reject notices with these tags (optional)
     - MDC
   summary:

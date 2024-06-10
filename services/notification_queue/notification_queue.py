@@ -806,10 +806,11 @@ def api(queue):
                                             > 0
                                         ):
                                             if (
-                                                not gcn.NoticeType(
+                                                notice.notice_type is not None
+                                                and gcn.NoticeType(
                                                     notice.notice_type
                                                 ).name
-                                                in gcn_pref['gcn_notice_types']
+                                                not in gcn_pref['gcn_notice_types']
                                             ):
                                                 continue
 
@@ -925,15 +926,22 @@ def api(queue):
                                                 f"with Tag *{gcn_tag.text}*"
                                             )
                                         else:
+                                            if notice.notice_type is not None:
+                                                notice_type = gcn.NoticeType(
+                                                    notice.notice_type
+                                                ).name
+                                            else:
+                                                notice_type = "json"
+
                                             if len(notices) > 1:
                                                 text = (
                                                     f"New Notice for GCN Event *{target_data['dateobs']}*, "
-                                                    f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                                    f"with Notice Type *{notice_type}*"
                                                 )
                                             else:
                                                 text = (
                                                     f"New GCN Event *{target_data['dateobs']}*, "
-                                                    f"with Notice Type *{gcn.NoticeType(notice.notice_type).name}*"
+                                                    f"with Notice Type *{notice_type}*"
                                                 )
 
                                         notification = UserNotification(

@@ -413,8 +413,14 @@ class GcnNotice(Base):
 
     notice_type = sa.Column(
         sa.Enum(gcn.NoticeType),
-        nullable=False,
+        nullable=True,
         doc='GCN Notice type',
+    )
+
+    notice_format = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Notice format (voevent, json, dictionary)",
     )
 
     stream = sa.Column(
@@ -695,8 +701,14 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        root = lxml.etree.fromstring(notice.content)
-        elem = root.find(".//Param[@name='LightCurve_URL']")
+        if notice.notice_format == 'json':
+            return None
+        try:
+            root = lxml.etree.fromstring(notice.content)
+            elem = root.find(".//Param[@name='LightCurve_URL']")
+        except lxml.etree.XMLSyntaxError:
+            return None
+
         if elem is None:
             return None
         else:
@@ -712,8 +724,14 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        root = lxml.etree.fromstring(notice.content)
-        elem = root.find(".//Param[@name='EventPage']")
+        if notice.notice_format == 'json':
+            return None
+        try:
+            root = lxml.etree.fromstring(notice.content)
+            elem = root.find(".//Param[@name='EventPage']")
+        except lxml.etree.XMLSyntaxError:
+            return None
+
         if elem is None:
             return None
         else:
@@ -728,8 +746,14 @@ class GcnEvent(Base):
             notice = self.gcn_notices[0]
         except IndexError:
             return None
-        root = lxml.etree.fromstring(notice.content)
-        elem = root.find(".//Param[@name='GraceID']")
+        if notice.notice_format == 'json':
+            return None
+        try:
+            root = lxml.etree.fromstring(notice.content)
+            elem = root.find(".//Param[@name='GraceID']")
+        except lxml.etree.XMLSyntaxError:
+            return None
+
         if elem is None:
             return None
         else:
@@ -743,9 +767,18 @@ class GcnEvent(Base):
     @property
     def HasNS(self):
         """Checking if GW event contains NS."""
-        notice = self.gcn_notices[0]
-        root = lxml.etree.fromstring(notice.content)
-        elem = root.find(".//Param[@name='HasNS']")
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
+        if notice.notice_format == 'json':
+            return None
+        try:
+            root = lxml.etree.fromstring(notice.content)
+            elem = root.find(".//Param[@name='HasNS']")
+        except lxml.etree.XMLSyntaxError:
+            return None
+
         if elem is None:
             return None
         else:
@@ -757,9 +790,18 @@ class GcnEvent(Base):
     @property
     def HasRemnant(self):
         """Checking if GW event has remnant matter."""
-        notice = self.gcn_notices[0]
-        root = lxml.etree.fromstring(notice.content)
-        elem = root.find(".//Param[@name='HasRemnant']")
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
+        if notice.notice_format == 'json':
+            return None
+        try:
+            root = lxml.etree.fromstring(notice.content)
+            elem = root.find(".//Param[@name='HasRemnant']")
+        except lxml.etree.XMLSyntaxError:
+            return None
+
         if elem is None:
             return None
         else:
@@ -771,9 +813,18 @@ class GcnEvent(Base):
     @property
     def FAR(self):
         """Returning event false alarm rate."""
-        notice = self.gcn_notices[0]
-        root = lxml.etree.fromstring(notice.content)
-        elem = root.find(".//Param[@name='FAR']")
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
+        if notice.notice_format == 'json':
+            return None
+        try:
+            root = lxml.etree.fromstring(notice.content)
+            elem = root.find(".//Param[@name='FAR']")
+        except lxml.etree.XMLSyntaxError:
+            return None
+
         if elem is None:
             return None
         else:
