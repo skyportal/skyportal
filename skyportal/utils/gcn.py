@@ -27,14 +27,21 @@ from mocpy import MOC
 def get_trigger(root):
     """Get the trigger ID from a GCN notice."""
 
-    property_name = "TrigID"
-    path = f".//Param[@name='{property_name}']"
-    elem = root.find(path)
+    elem = None
+    property_names = ["TrigID", "Burst_Id"]
+    for property_name in property_names:
+        path = f".//Param[@name='{property_name}']"
+        elem_path = root.find(path)
+        if elem_path is not None:
+            elem = elem_path
+            break
+
     if elem is None:
         return None
+
     value = elem.attrib.get('value', None)
     if value is not None:
-        value = int(value)
+        value = str(value)
 
     return value
 
@@ -178,6 +185,14 @@ def get_tags(root):
         yield from instruments
         if len(instruments) > 1:
             yield "MultiInstrument"
+
+    # Get instrument if present
+    try:
+        value = root.find(".//Param[@name='Instrument']").attrib['value']
+    except AttributeError:
+        pass
+    else:
+        yield value
 
     # Get pipeline if present.
     try:
@@ -415,6 +430,12 @@ def get_properties(root):
         # Neutrinos
         "signalness",
         "energy",
+        # SVOM
+        "SNR",
+        "Mean_Flux",
+        "Flux_Error",
+        "Lower_Energy_Bound",
+        "Upper_Energy_Bound",
     ]
     property_dict = {}
     for property_name in property_names:
@@ -424,7 +445,7 @@ def get_properties(root):
             continue
         value = elem.attrib.get('value', None)
         if value is not None:
-            value = float(value)
+            value = float(value.strip('>='))
             property_dict[property_name] = value
 
     tags_list = []
@@ -456,9 +477,9 @@ def from_cone(ra, dec, error, n_sigma=4):
     radius = error * u.deg
 
     # Determine resolution such that there are at least
-    # 16 pixels across the error radius.
+    # 32 pixels across the error radius.
     hpx = HEALPix(
-        pixel_resolution_to_nside(radius / 16, round='up'), 'nested', frame=ICRS()
+        pixel_resolution_to_nside(radius / 32, round='up'), 'nested', frame=ICRS()
     )
 
     # Find all pixels in the 4-sigma error circle.
