@@ -1,4 +1,6 @@
 import tornado.web
+import sentry_sdk
+from sentry_sdk.integrations.tornado import TornadoIntegration
 
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app.model_util import create_tables
@@ -672,6 +674,18 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
             'debug': env.debug if env is not None else False,
         }
     )
+
+    sentry_endpoint = cfg.get("external_logging.sentry.endpoint")
+    traces_sample_rate = cfg.get("external_logging.sentry.traces_sample_rate", 1.0)
+    profiles_sample_rate = cfg.get("external_logging.sentry.profiles_sample_rate", 1.0)
+
+    if sentry_endpoint is not None:
+        sentry_sdk.init(
+            sentry_endpoint,
+            traces_sample_rate=traces_sample_rate,
+            profiles_sample_rate=profiles_sample_rate,
+            integrations=[TornadoIntegration()],
+        )
 
     app = CustomApplication(handlers, **settings)
 
