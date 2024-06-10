@@ -637,7 +637,6 @@ def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
             }
             if required_cone_keys.issubset(set(skymap.keys())):
                 skymap = from_cone(skymap['ra'], skymap['dec'], skymap['error'])
-                print(skymap)
             elif required_ellipse_keys.issubset(set(skymap.keys())):
                 skymap = from_ellipse(
                     skymap['localization_name'],
@@ -1229,8 +1228,7 @@ class GcnEventHandler(BaseHandler):
 
         event_id, dateobs, notice_id = None, None, None
         with self.Session() as session:
-            # try:
-            if True:
+            try:
                 if 'xml' in data:
                     dateobs, event_id, notice_id = post_gcnevent_from_xml(
                         data['xml'], self.associated_user_object.id, session
@@ -1246,8 +1244,8 @@ class GcnEventHandler(BaseHandler):
 
                 self.push(action='skyportal/REFRESH_GCN_EVENTS')
                 self.push(action='skyportal/REFRESH_RECENT_GCNEVENTS')
-            # except Exception as e:
-            #    return self.error(f'Cannot post event: {str(e)}')
+            except Exception as e:
+                return self.error(f'Cannot post event: {str(e)}')
 
             return self.success(
                 data={
