@@ -155,9 +155,21 @@ class ObservationPlanRequest(Base):
     )
     gcnevent_id = sa.Column(
         sa.ForeignKey('gcnevents.id', ondelete='CASCADE'),
-        nullable=False,
+        nullable=True,
         index=True,
         doc="ID of the target GcnEvent.",
+    )
+
+    moving_object = relationship(
+        'MovingObject',
+        back_populates='observationplan_requests',
+        doc="The target MovingObject.",
+    )
+    moving_object_id = sa.Column(
+        sa.ForeignKey('moving_objects.id', ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        doc='Associated moving object',
     )
 
     localization = relationship(
@@ -280,9 +292,16 @@ class EventObservationPlan(Base):
 
     dateobs = sa.Column(
         sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
         doc='GCN Event timestamp that this observation plan belongs to',
+    )
+
+    moving_object_id = sa.Column(
+        sa.ForeignKey('moving_objects.id', ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        doc='Associated moving object',
     )
 
     plan_name = sa.Column(sa.String, unique=True, doc='Plan name')
@@ -392,9 +411,16 @@ class PlannedObservation(Base):
 
     dateobs = sa.Column(
         sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
         doc='GCN Event timestamp that this observation plan belongs to',
+    )
+
+    moving_object_id = sa.Column(
+        sa.ForeignKey('moving_objects.id', ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        doc='Associated moving object',
     )
 
     field_id = sa.Column(

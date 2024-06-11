@@ -69,9 +69,16 @@ class Localization(Base):
 
     dateobs = sa.Column(
         sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
         doc='UTC event timestamp',
+    )
+
+    moving_object_id = sa.Column(
+        sa.ForeignKey('moving_objects.id', ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        doc='Associated moving object',
     )
 
     localization_name = sa.Column(sa.String, doc='Localization name', index=True)

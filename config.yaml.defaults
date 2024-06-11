@@ -111,6 +111,8 @@ app:
       component: candidate/CandidateList
     - path: "/sources"
       component: source/SourceList
+    - path: "/moving_objects"
+      component: moving_object/MovingObjectPage
     - path: "/user/:id"
       component: user/UserInfo
     - path: "/upload_photometry/:id"
@@ -201,6 +203,10 @@ app:
         - name: Candidates
           icon: Search
           url: /candidates
+
+        - name: Moving Objects
+          icon: SportsVolleyball
+          url: /moving_objects
 
         - name: Favorites
           icon: Star

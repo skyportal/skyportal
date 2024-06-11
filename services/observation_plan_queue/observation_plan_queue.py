@@ -242,12 +242,15 @@ def service(*args, **kwargs):
                         session.commit()
 
                     try:
-                        flow = Flow()
-                        flow.push(
-                            '*',
-                            "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-                            payload={"gcnEvent_dateobs": plan_request.gcnevent.dateobs},
-                        )
+                        if plan_request.gcnevent is not None:
+                            flow = Flow()
+                            flow.push(
+                                '*',
+                                "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                                payload={
+                                    "gcnEvent_dateobs": plan_request.gcnevent.dateobs
+                                },
+                            )
                     except Exception as e:
                         log(
                             f'Error refreshing observation plan requests on the frontend: {e.args[0]}'
@@ -284,7 +287,9 @@ def service(*args, **kwargs):
 
                     try:
                         unique_dateobs = {
-                            plan.gcnevent.dateobs for plan in plan_requests
+                            plan.gcnevent.dateobs
+                            for plan in plan_requests
+                            if plan.gcnevent is not None
                         }
                         flow = Flow()
                         for dateobs in unique_dateobs:

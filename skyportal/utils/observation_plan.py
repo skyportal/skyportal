@@ -114,29 +114,35 @@ def generate_observation_plan_statistics(
         request = session.query(ObservationPlanRequest).get(request_id)
         event = session.query(GcnEvent).get(request.gcnevent_id)
 
-        partition_key = event.dateobs
-        # now get the dateobs in the format YYYY_MM
-        localizationtile_partition_name = (
-            f'{partition_key.year}_{partition_key.month:02d}'
-        )
-        localizationtilescls = LocalizationTile.partitions.get(
-            localizationtile_partition_name, None
-        )
-        if localizationtilescls is None:
-            localizationtilescls = LocalizationTile
-        else:
-            # check that there is actually a localizationTile with the given localization_id in the partition
-            # if not, use the default partition
-            if not (
-                session.scalars(
-                    sa.select(localizationtilescls.localization_id).where(
-                        localizationtilescls.localization_id == request.localization_id
+        if event is not None:
+            partition_key = event.dateobs
+            # now get the dateobs in the format YYYY_MM
+            localizationtile_partition_name = (
+                f'{partition_key.year}_{partition_key.month:02d}'
+            )
+            localizationtilescls = LocalizationTile.partitions.get(
+                localizationtile_partition_name, None
+            )
+            if localizationtilescls is None:
+                localizationtilescls = LocalizationTile
+            else:
+                # check that there is actually a localizationTile with the given localization_id in the partition
+                # if not, use the default partition
+                if not (
+                    session.scalars(
+                        sa.select(localizationtilescls.localization_id).where(
+                            localizationtilescls.localization_id
+                            == request.localization_id
+                        )
+                    ).first()
+                ):
+                    localizationtilescls = LocalizationTile.partitions.get(
+                        'def', LocalizationTile
                     )
-                ).first()
-            ):
-                localizationtilescls = LocalizationTile.partitions.get(
-                    'def', LocalizationTile
-                )
+        else:
+            localizationtilescls = LocalizationTile.partitions.get(
+                'def', LocalizationTile
+            )
 
         statistics = {}
 
@@ -379,7 +385,15 @@ def generate_plan(
         )
         session.user_or_token = user
 
-        event_time = Time(requests[0].gcnevent.dateobs, format='datetime', scale='utc')
+        if requests[0].gcnevent is not None:
+            event_time = Time(
+                requests[0].gcnevent.dateobs, format='datetime', scale='utc'
+            )
+        else:
+            event_time = Time(
+                requests[0].payload["start_date"], format='iso', scale='utc'
+            )
+
         start_time = Time(requests[0].payload["start_date"], format='iso', scale='utc')
         end_time = Time(requests[0].payload["end_date"], format='iso', scale='utc')
 
@@ -396,8 +410,6 @@ def generate_plan(
             'doBlocks': True
             if request.payload["filter_strategy"] == "block"
             else False,
-            # flag to indicate fields come from DB
-            'doDatabase': True,
             # only keep tiles within powerlaw_cl
             'doMinimalTiling': True,
             # single set of scheduled observations
@@ -411,8 +423,6 @@ def generate_plan(
             'filters': request.payload["filters"].split(","),
             # GPS time for event
             'gpstime': event_time.gps,
-            # Dateobs of the event in UTC, used when doDatabase is True
-            'dateobs': requests[0].gcnevent.dateobs,
             # Healpix nside for the skymap
             'nside': 512,
             # skymap probability powerlaw exponent
@@ -601,31 +611,38 @@ def generate_plan(
         # that should help not reach that "critical point" mentioned by @mcoughlin where the queries almost dont work anymore
         # locally this takes anywhere between 0.08 and 0.5 seconds, but in production right now it takes 45 minutes...
         # that is why we are considering to use a partitioned table for localization tiles
-        partition_key = requests[0].gcnevent.dateobs
-        # now get the dateobs in the format YYYY_MM
-        localizationtile_partition_name = (
-            f'{partition_key.year}_{partition_key.month:02d}'
-        )
-        localizationtilescls = LocalizationTile.partitions.get(
-            localizationtile_partition_name, None
-        )
-        if localizationtilescls is None:
-            localizationtilescls = LocalizationTile.partitions.get(
-                'def', LocalizationTile
+
+        if requests[0].gcnevent is not None:
+            partition_key = requests[0].gcnevent.dateobs
+            # now get the dateobs in the format YYYY_MM
+            localizationtile_partition_name = (
+                f'{partition_key.year}_{partition_key.month:02d}'
             )
-        else:
-            # check that there is actually a localizationTile with the given localization_id in the partition
-            # if not, use the default partition
-            if not (
-                session.scalars(
-                    sa.select(localizationtilescls.localization_id).where(
-                        localizationtilescls.localization_id == request.localization.id
-                    )
-                ).first()
-            ):
+            localizationtilescls = LocalizationTile.partitions.get(
+                localizationtile_partition_name, None
+            )
+            if localizationtilescls is None:
                 localizationtilescls = LocalizationTile.partitions.get(
                     'def', LocalizationTile
                 )
+            else:
+                # check that there is actually a localizationTile with the given localization_id in the partition
+                # if not, use the default partition
+                if not (
+                    session.scalars(
+                        sa.select(localizationtilescls.localization_id).where(
+                            localizationtilescls.localization_id
+                            == request.localization.id
+                        )
+                    ).first()
+                ):
+                    localizationtilescls = LocalizationTile.partitions.get(
+                        'def', LocalizationTile
+                    )
+        else:
+            localizationtilescls = LocalizationTile.partitions.get(
+                'def', LocalizationTile
+            )
 
         start = time.time()
 
@@ -838,6 +855,7 @@ def generate_plan(
             planned_observation = PlannedObservation(
                 obstime=tt.datetime,
                 dateobs=request.gcnevent.dateobs,
+                moving_object_id=request.moving_object_id,
                 field_id=field.id,
                 exposure_time=exposure_time,
                 weight=prob,
@@ -862,12 +880,13 @@ def generate_plan(
 
         generate_observation_plan_statistics(observation_plan_ids, request_ids, session)
 
-        flow = Flow()
-        flow.push(
-            '*',
-            "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-            payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
-        )
+        if request.gcnevent is not None:
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
+            )
 
         log(f"Finished plan(s) for ID(s): {','.join(observation_plan_id_strings)}")
 

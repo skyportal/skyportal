@@ -1284,8 +1284,13 @@ class FollowupRequestPost(_Schema):
 
 class ObservationPlanPost(_Schema):
     gcnevent_id = fields.Integer(
-        required=True,
+        required=False,
         metadata={'description': "ID of the GcnEvent."},
+    )
+
+    moving_object_id = fields.Integer(
+        required=False,
+        metadata={'description': "ID of the MovingObject."},
     )
 
     payload = fields.Field(
@@ -1512,6 +1517,30 @@ class PhotometryRangeQuery(_Schema):
         },
         load_default=None,
         dump_default=None,
+    )
+
+
+class MovingObjectObservationPlanPost(_Schema):
+    payload = fields.Field(
+        required=False,
+        metadata={
+            'description': "Content of the moving object observation plan request."
+        },
+    )
+
+    allocation_id = fields.Integer(
+        required=True,
+        metadata={'description': "Observation plan request allocation ID."},
+    )
+
+    target_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            'description': (
+                'IDs of groups to share the results of the moving object observation plan request with.'
+            )
+        },
     )
 
 
