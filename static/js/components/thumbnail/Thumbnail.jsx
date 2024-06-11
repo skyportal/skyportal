@@ -74,12 +74,6 @@ export const getThumbnailAltAndLink = (name, ra, dec) => {
       alt = "Link to PanSTARRS-1 Image Access";
       link = `https://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=${ra}+${dec}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=`;
       break;
-    case "hst":
-      alt = "HST Image";
-      break;
-    case "chandra":
-      alt = "Chandra Image";
-      break;
     default:
       break;
   }

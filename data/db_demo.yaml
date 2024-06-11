@@ -921,6 +921,13 @@ sources:
     ra: 359.98824711158005
     dec: -22.080685381789877
     origin: TESS
+  - id: Cygnus_X-1
+    ra: 299.5903155833333
+    dec: 35.201606805555556
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
 
 sources/ZTF21aaqjmps/comments:
   - obj_id: ZTF21aaqjmps
