@@ -87,7 +87,7 @@ class DefaultObservationPlanRequest(Base):
     auto_send = sa.Column(
         sa.Boolean,
         default=False,
-        nullable=False,
+        nullable=True,
         doc="Automatically send to telescope queue?",
     )
 
