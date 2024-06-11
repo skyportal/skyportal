@@ -1,6 +1,7 @@
 import datetime
 
 import gcn
+import json
 import lxml
 import requests
 import sqlalchemy as sa
@@ -45,16 +46,19 @@ def gcn_notification_content(target, session):
     if gcn_event.gcn_notices is None or len(gcn_event.gcn_notices) < 2:
         new_event = True
 
+    notice_type = 'No notice type'
+    notice_content = None
+    name = None
+
     # get the most recent notice for this event
     if gcn_event.gcn_notices is not None and len(gcn_event.gcn_notices) > 0:
         last_gcn_notice = gcn_event.gcn_notices[-1]
-        notice_type = gcn.NoticeType(last_gcn_notice.notice_type).name
-        notice_content = lxml.etree.fromstring(last_gcn_notice.content)
-        name = notice_content.find('./Why/Inference/Name')
-    else:
-        notice_type = 'No notice type'
-        notice_content = None
-        name = None
+        if last_gcn_notice.notice_type is not None:
+            notice_type = gcn.NoticeType(last_gcn_notice.notice_type).name
+            notice_content = lxml.etree.fromstring(last_gcn_notice.content)
+            name = notice_content.find('./Why/Inference/Name')
+        else:
+            notice_content = json.loads(last_gcn_notice.content.decode('utf8'))
 
     if name is not None:
         source_name = (name.text).replace(" ", "")
@@ -65,23 +69,26 @@ def gcn_notification_content(target, session):
         source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
 
     if notice_content is not None:
-        loc = notice_content.find('./WhereWhen/ObsDataLocation/ObservationLocation')
-        ra = loc.find('./AstroCoords/Position2D/Value2/C1')
-        dec = loc.find('./AstroCoords/Position2D/Value2/C2')
-        error = loc.find('./AstroCoords/Position2D/Error2Radius')
+        if isinstance(notice_content, dict):
+            ra = notice_content.get("ra")
+            dec = notice_content.get("dec")
+            error = notice_content.get("ra_dec_error")
+        else:
+            loc = notice_content.find('./WhereWhen/ObsDataLocation/ObservationLocation')
+            ra = loc.find('./AstroCoords/Position2D/Value2/C1')
+            dec = loc.find('./AstroCoords/Position2D/Value2/C2')
+            error = loc.find('./AstroCoords/Position2D/Error2Radius')
+
+            if ra is not None:
+                ra = float(ra.text)
+            if dec is not None:
+                dec = float(dec.text)
+            if error is not None:
+                error = float(error.text)
     else:
         ra = None
         dec = None
         error = None
-
-    if ra is not None:
-        ra = float(ra.text)
-
-    if dec is not None:
-        dec = float(dec.text)
-
-    if error is not None:
-        error = float(error.text)
 
     aliases = gcn_event.aliases
     links = {}

@@ -67,6 +67,10 @@ jobs:
             ~/.cache/pip
           key: ${{ runner.os }}-${{ hashFiles('**/requirements*.txt') }}
 
+      - uses: browser-actions/setup-geckodriver@latest
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Write SkyPortal configs
         run: |
           cat << EOF > config.yaml
@@ -111,7 +115,7 @@ jobs:
           sudo apt update -y
           sudo apt install nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter -y
 
-          pip install pip==23.1.2
+          pip install pip==24.0
           pip install wheel numpy
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
@@ -159,14 +163,6 @@ jobs:
 
       - name: Install Geckodriver / Selenium
         run: |
-          GECKO_VER=0.34.0
-          CACHED_DOWNLOAD_DIR=~/.local/downloads
-          FILENAME=geckodriver-v${GECKO_VER}-linux64.tar.gz
-
-          if [[ ! -f ${CACHED_DOWNLOAD_DIR=}/${FILENAME} ]]; then
-            wget https://github.com/mozilla/geckodriver/releases/download/v${GECKO_VER}/${FILENAME} --directory-prefix=${CACHED_DOWNLOAD_DIR} --no-clobber
-          fi
-          sudo tar -xzf ${CACHED_DOWNLOAD_DIR}/geckodriver-v${GECKO_VER}-linux64.tar.gz -C /usr/local/bin
           geckodriver --version
           python -c "import selenium; print(f'Selenium {selenium.__version__}')"
 

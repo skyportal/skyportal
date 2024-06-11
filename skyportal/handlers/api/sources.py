@@ -1,3 +1,4 @@
+import re
 import time
 
 import arrow
@@ -71,6 +72,11 @@ OPERATORS = {
     'lt': '<',
     'le': '<=',
 }
+
+tns_name_with_designation_pattern = re.compile(
+    r'(at|sn)\d{1,4}[a-zA-Z]*', re.IGNORECASE
+)
+tns_name_no_designation_pattern = re.compile(r'^\d{1,4}[a-zA-Z]*', re.IGNORECASE)
 
 
 def array2sql(array: list, type=sa.String, prefix='array'):
@@ -664,22 +670,40 @@ async def get_sources(
 
         # OBJ
         if sourceID not in [None, ""]:
-            sourceID = str(sourceID).strip().lower()
             try:
-                query_params.extend(
-                    [
-                        bindparam('sourceID', value=sourceID, type_=sa.String),
-                        bindparam(
-                            'sourceIDNoSpace',
-                            value=sourceID.replace(' ', ''),
-                            type_=sa.String,
-                        ),
-                    ]
+                sourceID = str(sourceID).strip()
+                query_params.append(
+                    bindparam('sourceID', value=sourceID, type_=sa.String)
                 )
+
+                # we try to detect a potential TNS name as the sourceID,
+                # and if so only keep the name without the designation
+                # e.g. SN2011fe -> 2011fe, AT 2019abc -> 2019abc
+                tns_name = sourceID.lower().replace(' ', '')
+                if tns_name_with_designation_pattern.match(tns_name) is not None:
+                    # keep only what's after the designation
+                    tns_name = tns_name[2:]
+                    query_params.append(
+                        bindparam(
+                            'tns_name',
+                            value=tns_name,
+                            type_=sa.String,
+                        )
+                    )
+                elif tns_name_no_designation_pattern.match(tns_name) is not None:
+                    query_params.append(
+                        bindparam(
+                            'tns_name',
+                            value=tns_name,
+                            type_=sa.String,
+                        )
+                    )
+                else:
+                    tns_name = None
                 statements.append(
-                    """
-                    (lower(objs.id) LIKE '%' || :sourceID || '%' OR lower(replace(objs.tns_name, ' ', '')) LIKE '%' || :sourceIDNoSpace || '%')
-                    """
+                    f"""
+                        (objs.id LIKE '%' || :sourceID || '%'{" OR objs.tns_name LIKE '%' || :tns_name || '%'" if tns_name is not None else ""})
+                        """
                 )
             except Exception as e:
                 raise ValueError(f'Invalid sourceID: {sourceID} ({e})')

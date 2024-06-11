@@ -486,7 +486,7 @@ def post_followup_request(
             existing_tns_classifications = session.scalars(
                 Obj.select(session.user_or_token).where(
                     Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius),
-                    sa.func.lower(Obj.tns_name).startswith("sn"),
+                    Obj.tns_name.startswith("SN"),
                 )
             ).first()
             if existing_tns_classifications is not None:

@@ -115,6 +115,21 @@ p {
 
 button {
   cursor: pointer;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  line-height: 1.75;
+  letter-spacing: 0.02857em;
+  border: 0;
+  padding: 6px 16px;
+  border-radius: 4px;
+  color: rgba(0, 0, 0, 0.87);
+  background-color: #e0e0e0;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+  transition:
+    background-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,
+    box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,
+    border-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,
+    color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
 }
 
 @keyframes loader {

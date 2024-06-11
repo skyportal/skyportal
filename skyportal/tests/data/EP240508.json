@@ -1,0 +1,15 @@
+{
+  "$schema": "https://gcn.nasa.gov/schema/main/gcn/notices/einstein_probe/wxt/alert.schema.json",
+  "instrument": "WXT",
+  "trigger_time": "2024-05-08T07:38:01.151Z",
+  "ra": 229.837999999,
+  "dec": -29.746999999,
+  "ra_dec_error": 0.05089517,
+  "image_energy_range": [
+    0.5,
+    4.0
+  ],
+  "net_count_rate": 0.05,
+  "image_snr": 8.2,
+  "additional_info": "The net count rate is derived from an accumulated image (up to 20 min) in 0.5-4 keV, assuming a constant flux. However, it can be significantly lower than the actual count rate of a burst with a duration much shorter than 20 min."
+}

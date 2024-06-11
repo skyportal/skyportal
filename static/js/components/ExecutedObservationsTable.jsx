@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import Paper from "@mui/material/Paper";
@@ -84,34 +84,55 @@ const ExecutedObservationsTable = ({
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const renderTelescope = (dataIndex) => {
-    const { instrument } = observations[dataIndex];
+  const { instrumentList } = useSelector((state) => state.instruments);
 
-    return <div>{instrument.telescope ? instrument.telescope.name : ""}</div>;
+  const instrumentsLookup = {};
+  if (instrumentList) {
+    instrumentList.forEach((instrument) => {
+      instrumentsLookup[instrument.id] = instrument;
+    });
+  }
+
+  const renderTelescope = (dataIndex) => {
+    const { instrument_id } = observations[dataIndex];
+
+    const instrument = instrumentsLookup[instrument_id] || null;
+
+    if (!instrument) {
+      return <div>Loading...</div>;
+    }
+
+    return <div>{instrument?.telescope?.name || ""}</div>;
   };
 
   const renderInstrument = (dataIndex) => {
-    const { instrument } = observations[dataIndex];
+    const { instrument_id } = observations[dataIndex];
 
-    return <div>{instrument ? instrument.name : ""}</div>;
+    const instrument = instrumentsLookup[instrument_id] || null;
+
+    if (!instrument) {
+      return <div>Loading...</div>;
+    }
+
+    return <div>{instrument?.name || ""}</div>;
   };
 
   const renderFieldID = (dataIndex) => {
     const { field } = observations[dataIndex];
 
-    return <div>{field ? field.field_id.toFixed(0) : ""}</div>;
+    return <div>{field ? field?.field_id?.toFixed(0) : ""}</div>;
   };
 
   const renderRA = (dataIndex) => {
     const { field } = observations[dataIndex];
 
-    return <div>{field ? field.ra.toFixed(5) : ""}</div>;
+    return <div>{field ? field?.ra?.toFixed(5) : ""}</div>;
   };
 
   const renderDeclination = (dataIndex) => {
     const { field } = observations[dataIndex];
 
-    return <div>{field ? field.dec.toFixed(5) : ""}</div>;
+    return <div>{field ? field?.dec?.toFixed(5) : ""}</div>;
   };
 
   const renderSeeing = (dataIndex) => {
@@ -304,24 +325,34 @@ const ExecutedObservationsTable = ({
     customFilterDialogFooter: customFilterDisplay,
     onDownload: (buildHead, buildBody) => {
       const renderTelescopeDownload = (observation) => {
-        const { instrument } = observation;
-        return instrument.telescope ? instrument.telescope.name : "";
+        const { instrument_id } = observation;
+        const instrument = instrumentsLookup[instrument_id] || null;
+
+        if (!instrument) {
+          return "";
+        }
+        return instrument?.telescope?.name || "";
       };
       const renderInstrumentDownload = (observation) => {
-        const { instrument } = observation;
-        return instrument ? instrument.name : "";
+        const { instrument_id } = observation;
+        const instrument = instrumentsLookup[instrument_id] || null;
+
+        if (!instrument) {
+          return "";
+        }
+        return instrument?.name || "";
       };
       const renderFieldIDDownload = (observation) => {
         const { field } = observation;
-        return field ? field.field_id : "";
+        return field ? field?.field_id : "";
       };
       const renderRADownload = (observation) => {
         const { field } = observation;
-        return field ? field.ra : "";
+        return field ? field?.ra : "";
       };
       const renderDeclinationDownload = (observation) => {
         const { field } = observation;
-        return field ? field.dec : "";
+        return field ? field?.dec : "";
       };
       downloadCallback().then((data) => {
         // if there is no data, cancel download

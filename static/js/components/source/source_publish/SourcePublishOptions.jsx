@@ -38,36 +38,40 @@ const SourcePublishOptions = ({ optionsState, isElements }) => {
         title: "Include classifications?",
         default: true,
       },
-      streams: {
-        type: "array",
-        items: {
-          type: "integer",
-          anyOf: (streams || []).map((stream) => ({
-            enum: [stream.id],
-            type: "integer",
-            title: stream.name,
-          })),
-        },
-        uniqueItems: true,
-        default: [],
-        title: "Streams to restrict photometry from",
-      },
-      groups: {
-        type: "array",
-        items: {
-          type: "integer",
-          anyOf: (groups || []).map((group) => ({
-            enum: [group.id],
-            type: "integer",
-            title: group.name,
-          })),
-        },
-        uniqueItems: true,
-        default: [],
-        title: "Groups to restrict data from",
-      },
     },
   };
+  if (streams?.length > 0) {
+    formSchema.properties.streams = {
+      type: "array",
+      items: {
+        type: "integer",
+        anyOf: streams.map((stream) => ({
+          enum: [stream.id],
+          type: "integer",
+          title: stream.name,
+        })),
+      },
+      uniqueItems: true,
+      default: [],
+      title: "Streams to restrict photometry from",
+    };
+  }
+  if (groups?.length > 0) {
+    formSchema.properties.groups = {
+      type: "array",
+      items: {
+        type: "integer",
+        anyOf: groups.map((group) => ({
+          enum: [group.id],
+          type: "integer",
+          title: group.name,
+        })),
+      },
+      uniqueItems: true,
+      default: [],
+      title: "Groups to restrict data from",
+    };
+  }
 
   return (
     <DialogContent className={styles.sourcePublishOptions}>
