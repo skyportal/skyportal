@@ -1876,7 +1876,6 @@ const SourceTable = ({
     download: downloadCallback !== null && downloadCallback !== undefined,
     customToolbar: () => (
       <>
-        {/* add a dropdown to select by what you are searching: source name, or comment */}
         <Select
           label="Search by"
           variant="standard"

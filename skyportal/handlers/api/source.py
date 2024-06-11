@@ -120,7 +120,7 @@ def remove_obj_thumbnails(obj_id):
         existing_thumbnails = session.scalars(
             sa.select(Thumbnail).where(
                 Thumbnail.obj_id == obj_id,
-                Thumbnail.type.in_(['ps1', 'sdss', 'ls', 'hst', 'chandra']),
+                Thumbnail.type.in_(['ps1', 'sdss', 'ls']),
             )
         )
         for thumbnail in existing_thumbnails:
@@ -2753,9 +2753,7 @@ class SurveyThumbnailHandler(BaseHandler):
 
             for obj in objs:
                 try:
-                    obj.add_linked_thumbnails(
-                        ['sdss', 'ps1', 'ls', 'hst', 'chandra'], session
-                    )
+                    obj.add_linked_thumbnails(['sdss', 'ps1', 'ls'], session)
                 except Exception:
                     session.rollback()
                     return self.error(f"Error adding thumbnails for {obj.id}")

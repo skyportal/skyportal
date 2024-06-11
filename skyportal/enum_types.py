@@ -57,8 +57,6 @@ THUMBNAIL_TYPES = (
     'dr8',
     'ls',
     'ps1',
-    'hst',
-    'chandra',
     "new_gz",
     'ref_gz',
     'sub_gz',
@@ -203,9 +201,7 @@ sqla_enum_types = [
     allowed_webbook_status_types,
 ]
 
-GCN_NOTICE_TYPES = tuple(
-    cfg.get('gcn.notice_types', []) + cfg.get("gcn.json_notice_types", [])
-)
+GCN_NOTICE_TYPES = tuple(cfg.get('gcn.notice_types', []))
 GCN_ACKNOWLEDGEMENTS = tuple(
     text.strip('"') if text is not None else text
     for text in cfg.get('gcn.summary.acknowledgements', [])

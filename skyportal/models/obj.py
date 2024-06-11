@@ -4,7 +4,6 @@ import uuid
 import requests
 import re
 import os
-import io
 
 import sqlalchemy as sa
 from sqlalchemy import event
@@ -13,10 +12,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from astropy import coordinates as ap_coord
 from astropy import units as u
-from astropy.io.votable import parse
-from astropy.table import unique
 import astroplan
-from astroquery.mast import Observations
 import conesearch_alchemy
 import healpix_alchemy
 import numpy as np
@@ -46,7 +42,7 @@ log = make_log('models.obj')
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
-CUTOUT_TIMEOUT = 15  # seconds
+PS1_CUTOUT_TIMEOUT = 15  # seconds
 
 # download dustmap if required
 config['data_dir'] = cfg['misc.dustmap_folder']
@@ -499,14 +495,6 @@ class Obj(Base, conesearch_alchemy.Point):
             url = self.panstarrs_url
             session.add(Thumbnail(obj=self, public_url=url, type="ps1"))
             session.commit()
-        if "hst" in thumbnails and self.hst_url is not None:
-            session.add(Thumbnail(obj=self, public_url=self.hst_url, type="hst"))
-            session.commit()
-        if "chandra" in thumbnails and self.chandra_url is not None:
-            session.add(
-                Thumbnail(obj=self, public_url=self.chandra_url, type="chandra")
-            )
-            session.commit()
 
     @property
     def sdss_url(self):
@@ -533,7 +521,7 @@ class Obj(Base, conesearch_alchemy.Point):
         best we can do is request a page that contains a link to the image we
         want (in this case a combination of the g/r/i filters).
 
-        If this page does not return without CUTOUT_TIMEOUT seconds then
+        If this page does not return without PS1_CUTOUT_TIMEOUT seconds then
         we assume that the image is not available and return None.
         """
         ps_query_url = (
@@ -543,7 +531,7 @@ class Obj(Base, conesearch_alchemy.Point):
         )
         cutout_url = "/static/images/currently_unavailable.png"
         try:
-            response = requests.get(ps_query_url, timeout=CUTOUT_TIMEOUT)
+            response = requests.get(ps_query_url, timeout=PS1_CUTOUT_TIMEOUT)
             response.raise_for_status()
             content = response.content.decode()
             no_stamps = re.search("No PS1 3PI images were found", content)
@@ -564,99 +552,6 @@ class Obj(Base, conesearch_alchemy.Point):
             log(f"Unexpected error in getting thumbnail for {self.id}: {other_err}")
         except Exception as e:
             log(f"Unexpected error in getting thumbnail for {self.id}: {e}")
-        finally:
-            return cutout_url
-
-    @property
-    def hst_url(self):
-        """Construct URL for public Hubble Space Telescope (HST) cutouts."""
-
-        instrument_name = [
-            'WFPC2/WFC',
-            'PC/WFC',
-            'ACS/WFC',
-            'ACS/HRC',
-            'ACS/SBC',
-            'WFC3/UVIS',
-            'WFC3/IR',
-            'STIS/CCD',
-        ]
-
-        radius = 1 * u.arcsec
-        coord = ap_coord.SkyCoord(self.ra, self.dec, unit='deg')
-
-        table = Observations.query_criteria(
-            coordinates=coord, radius=radius, obs_collection="HST"
-        )
-
-        mask = [inst in instrument_name for inst in table["instrument_name"]]
-        obstable = table[mask]
-
-        if obstable and len(obstable) > 0:
-            for obsid in set(obstable['obs_id']):
-                hst_query_url = (
-                    f"https://hla.stsci.edu/cgi-bin/fitscut.cgi"
-                    f"?red={obsid}&amp;RA={self.ra}&amp;DEC={self.dec}&amp;size=256"
-                    f"&amp;format=jpg&amp;config=ops&amp;asinh=1&amp;autoscale=90"
-                )
-
-                try:
-                    response = requests.get(hst_query_url, timeout=CUTOUT_TIMEOUT)
-                    if response.status_code == 200:
-                        return hst_query_url
-                except Exception:
-                    continue
-
-            return "/static/images/currently_unavailable.png"
-        else:
-            return "/static/images/outside_survey.png"
-
-    @property
-    def chandra_url(self):
-        """Construct URL for public Chandra cutouts.
-        The cutout service doesn't allow directly querying for an image; the
-        best we can do is request a page that contains a link to the image we
-        want.
-        If this page does not return without CUTOUT_TIMEOUT seconds then
-        we assume that the image is not available and return None.
-        """
-
-        radius = 0.1
-        query_url = (
-            f"https://cxcfps.cfa.harvard.edu/cgi-bin/cda/footprint/get_vo_table.pl?"
-            f"pos={self.ra},{self.dec}&size={radius}"
-            f"&inst=ACIS-I,ACIS-S&grating=NONE"
-        )
-
-        cutout_url = "/static/images/currently_unavailable.png"
-        try:
-            response = requests.get(query_url, timeout=CUTOUT_TIMEOUT)
-            response.raise_for_status()
-
-            f = io.BytesIO(response.text.encode())
-            votable = parse(f)
-            obsdata = votable.get_first_table().to_table()
-
-            if len(obsdata) > 0:
-                table = unique(obsdata, keys='ObsId')
-                uri = table['preview_uri'][0].replace('redirect', 'link')
-                response = requests.get(uri, timeout=CUTOUT_TIMEOUT)
-                match = re.search(
-                    'href="https://cdaftp.cfa.harvard.edu.*?"',
-                    response.content.decode(),
-                )
-                if match:
-                    cutout_url = match.group().replace('href="', '').replace('"', '')
-                else:
-                    cutout_url = "/static/images/outside_survey.png"
-            else:
-                cutout_url = "/static/images/outside_survey.png"
-        except requests.exceptions.HTTPError as http_err:
-            log(f"HTTPError getting thumbnail for {self.id}: {http_err}")
-        except requests.exceptions.Timeout as timeout_err:
-            log(f"Timeout in getting thumbnail for {self.id}: {timeout_err}")
-        except requests.exceptions.RequestException as other_err:
-            log(f"Unexpected error in getting thumbnail for {self.id}: {other_err}")
         finally:
             return cutout_url
 

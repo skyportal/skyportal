@@ -19,7 +19,7 @@ log = make_log('thumbnail_queue')
 
 init_db(**cfg['database'])
 
-THUMBNAIL_TYPES = {"sdss", "ls", "ps1", "hst", "chandra"}
+THUMBNAIL_TYPES = {"sdss", "ls", "ps1"}
 
 
 def fetch_obj(session):
