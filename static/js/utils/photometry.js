@@ -1,19 +1,19 @@
 /* global Plotly */
 const baseLayout = {
+  zeroline: false,
+  automargin: true,
+  showline: true,
+  autorange: "reversed",
+  titlefont: { size: 18 },
+  tickfont: { size: 14 },
+  ticklen: 12,
   ticks: "outside",
   nticks: 8,
-  ticklen: 12,
-  tickformat: ".2f",
-  tickcolor: "black",
   minor: {
     ticks: "outside",
     ticklen: 6,
     tickcolor: "black",
   },
-  titlefont: { size: 18 },
-  tickfont: { size: 14 },
-  zeroline: false,
-  automargin: true,
 };
 
 /* eslint-disable */
@@ -72,29 +72,31 @@ function getTrace(data, isDetection, key, color, isMobile) {
   };
 }
 
-function getResponsiveLegend(isMobile) {
-  return {
-    orientation: isMobile ? "h" : "v",
-    y: isMobile ? -0.5 : 1,
-    x: isMobile ? 0 : 1,
-  };
-}
-
-function getLayout(isMobile) {
+function getLayoutGraphPart() {
   return {
     autosize: true,
     xaxis: {
-      title: "Days Ago",
-      autorange: "reversed",
+      title: {
+        text: "Days Ago",
+      },
       overlaying: "x",
+      side: "bottom",
+      tickformat: ".6~f",
       ...baseLayout,
     },
     yaxis: {
-      title: "AB Mag",
-      autorange: "reversed",
+      title: {
+        text: "AB Mag",
+      },
       ...baseLayout,
     },
-    margin: { l: 50, r: 50, b: 30, t: 30, pad: 1 },
+    margin: {
+      b: 75,
+      l: 70,
+      pad: 0,
+      r: 30,
+      t: 80,
+    },
     shapes: [
       {
         type: "rect",
@@ -110,8 +112,27 @@ function getLayout(isMobile) {
         },
       },
     ],
-    legend: getResponsiveLegend(isMobile),
+    showlegend: true,
     hovermode: "closest",
+  };
+}
+
+function getLayoutLegendPart(isMobile) {
+  return {
+    legend: {
+      font: { size: 14 },
+      tracegroupgap: 0,
+      orientation: isMobile ? "h" : "v",
+      y: isMobile ? -0.5 : 1,
+      x: isMobile ? 0 : 1,
+    },
+  };
+}
+
+function getLayout(isMobile) {
+  return {
+    ...getLayoutGraphPart(),
+    ...getLayoutLegendPart(isMobile),
   };
 }
 
@@ -136,7 +157,7 @@ function getConfig() {
         click: () => {
           Plotly.relayout(
             document.getElementsByClassName("plotly")[0].parentElement,
-            getLayout(),
+            getLayoutGraphPart(),
           );
         },
       },
@@ -159,7 +180,7 @@ function getGroupedPhotometry(photometry) {
 
 function adjustLegend(isMobile) {
   const plotDiv = document.getElementsByClassName("plotly")[0].parentElement;
-  Plotly.relayout(plotDiv, { legend: getResponsiveLegend(isMobile) });
+  Plotly.relayout(plotDiv, getLayoutLegendPart(isMobile));
   Plotly.restyle(plotDiv, { "marker.size": isMobile ? 6 : 9 });
 }
 

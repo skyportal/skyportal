@@ -538,7 +538,7 @@ class GcnEvent(Base):
     dateobs = sa.Column(sa.DateTime, doc='Event time', unique=True, nullable=False)
 
     trigger_id = sa.Column(
-        sa.BigInteger, unique=True, doc='Trigger ID supplied by instrument'
+        sa.String, unique=True, doc='Trigger ID supplied by instrument'
     )
 
     gcn_notices = relationship("GcnNotice", order_by=GcnNotice.date)

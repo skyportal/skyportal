@@ -375,18 +375,23 @@ def post_skymap_from_notice(
             )
             if error < SOURCE_RADIUS_THRESHOLD:
                 source = {}
-                name = root.find('./Why/Inference/Name')
+                if isinstance(root, dict):
+                    name = root.get('name')
+                    tags = get_json_tags(root)
+                else:
+                    name = root.find('./Why/Inference/Name')
+                    tags = get_tags(root)
+                    if name is not None:
+                        name = name.text
+
                 if name is not None:
                     source = {
-                        'id': (name.text).replace(' ', ''),
+                        'id': name.replace(' ', ''),
                         'ra': ra,
                         'dec': dec,
                     }
                 elif any(
-                    [
-                        True if 'GRB' in tag.text.upper() else False
-                        for tag in get_tags(root)
-                    ]
+                    [True if 'GRB' in tag.text.upper() else False for tag in tags]
                 ):
                     dateobs_txt = Time(dateobs).isot
                     source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
@@ -395,14 +400,19 @@ def post_skymap_from_notice(
                         'ra': ra,
                         'dec': dec,
                     }
-                elif any(
-                    [
-                        True if 'GW' in tag.text.upper() else False
-                        for tag in get_tags(root)
-                    ]
-                ):
+                elif any([True if 'GW' in tag.text.upper() else False for tag in tags]):
                     dateobs_txt = Time(dateobs).isot
                     source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                    source = {
+                        'id': source_name,
+                        'ra': ra,
+                        'dec': dec,
+                    }
+                elif any(
+                    [True if 'Einstein Probe' in tag.text else False for tag in tags]
+                ):
+                    dateobs_txt = Time(dateobs).isot
+                    source_name = f"EP{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
                     source = {
                         'id': source_name,
                         'ra': ra,
