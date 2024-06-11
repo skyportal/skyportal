@@ -9,16 +9,10 @@
       type="text/css"
       href="/static/public_pages/reports/report/gcn_report_template.css"
     />
-    <script src="/static/js/utils/csv.js" type="text/javascript"></script>
+    <script src="/static/js/utils/csv.js"></script>
     {% if data.get("sources", [])|length > 0 %}
-    <script
-      src="/static/js/utils/photometry.js"
-      type="text/javascript"
-    ></script>
-    <script
-      src="https://cdn.plot.ly/plotly-latest.min.js"
-      type="text/javascript"
-    ></script>
+    <script src="/static/js/utils/photometry.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.25.2.min.js"></script>
     <script type="text/javascript">
       function toggleVisibility(id) {
         let x = document.getElementById("lc_box_" + id);
