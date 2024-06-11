@@ -1,7 +1,7 @@
 """HST/Chandra migration
 
 Revision ID: 7f0f99475b54
-Revises: b854bf5d22b3
+Revises: a8accdf50df8
 Create Date: 2024-06-10 09:46:29.229871
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '7f0f99475b54'
-down_revision = 'b854bf5d22b3'
+down_revision = 'a8accdf50df8'
 branch_labels = None
 depends_on = None
 
