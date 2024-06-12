@@ -90,10 +90,32 @@ class Classification(Base):
         doc="Classification votes for this classification.",
     )
 
+    def format_author(self):
+        user = self.author
+        if self.author.is_bot:
+            return self.author_name
+        if not user.first_name or not user.last_name:
+            return f"{self.author_name}" + (
+                f" ({user.affiliations[0]})"
+                if user.affiliations and len(user.affiliations) > 0
+                else ""
+            )
+
+        formatted_affiliations = ", ".join(
+            sorted(
+                affiliation.capitalize()
+                for affiliation in user.affiliations
+                if affiliation
+            )
+        )
+        return f"{user.first_name.capitalize()} {user.last_name.capitalize()}" + (
+            f" ({formatted_affiliations})" if formatted_affiliations else ""
+        )
+
     def to_dict_public(self):
         return {
             'classification': self.classification,
-            'author_name': self.author_name,
+            'format_author': self.format_author(),
             'probability': self.probability,
             'ml': self.ml,
             'taxname': self.taxonomy.name if self.taxonomy else None,

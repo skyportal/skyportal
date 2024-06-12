@@ -322,7 +322,7 @@ const PhotometryPlot = ({
       newPoint.text = `MJD: ${newPoint.mjd.toFixed(6)}`;
       if (newPoint.mag) {
         newPoint.text += `
-        <br>Mag: ${newPoint.mag ? newPoint.mag.toFixed(3) : "NaN"}
+        <br>Mag: ${newPoint.mag.toFixed(3)}
         <br>Magerr: ${newPoint.magerr ? newPoint.magerr.toFixed(3) : "NaN"}
         `;
         if (distance_modulus) {
