@@ -210,7 +210,7 @@ class CommentHandler(BaseHandler):
                         f'Unsupported associated resource type "{associated_resource_type}".'
                     )
 
-                stmt = table.select(self.current_user)
+                stmt = table.select(session.user_or_token)
                 if resource_id is not None:
                     stmt = stmt.where(getattr(table, resource_id_col) == resource_id)
                 if text is not None:
@@ -274,7 +274,9 @@ class CommentHandler(BaseHandler):
             # the default is to comment on an object
             if associated_resource_type.lower() == "sources":
                 comment = session.scalars(
-                    Comment.select(self.current_user).where(Comment.id == comment_id)
+                    Comment.select(session.user_or_token).where(
+                        Comment.id == comment_id
+                    )
                 ).first()
                 if comment is None:
                     return self.error(
@@ -284,7 +286,7 @@ class CommentHandler(BaseHandler):
 
             elif associated_resource_type.lower() == "spectra":
                 comment = session.scalars(
-                    CommentOnSpectrum.select(self.current_user).where(
+                    CommentOnSpectrum.select(session.user_or_token).where(
                         CommentOnSpectrum.id == comment_id
                     )
                 ).first()
@@ -295,7 +297,7 @@ class CommentHandler(BaseHandler):
                 comment_resource_id_str = str(comment.spectrum_id)
             elif associated_resource_type.lower() == "gcn_event":
                 comment = session.scalars(
-                    CommentOnGCN.select(self.current_user).where(
+                    CommentOnGCN.select(session.user_or_token).where(
                         CommentOnGCN.id == comment_id
                     )
                 ).first()
@@ -306,7 +308,7 @@ class CommentHandler(BaseHandler):
                 comment_resource_id_str = str(comment.gcn_id)
             elif associated_resource_type.lower() == "earthquake":
                 comment = session.scalars(
-                    CommentOnEarthquake.select(self.current_user).where(
+                    CommentOnEarthquake.select(session.user_or_token).where(
                         CommentOnEarthquake.id == comment_id
                     )
                 ).first()
@@ -317,7 +319,7 @@ class CommentHandler(BaseHandler):
                 comment_resource_id_str = str(comment.gcn_id)
             elif associated_resource_type.lower() == "shift":
                 comment = session.scalars(
-                    CommentOnShift.select(self.current_user).where(
+                    CommentOnShift.select(session.user_or_token).where(
                         CommentOnShift.id == comment_id
                     )
                 ).first()
@@ -450,7 +452,7 @@ class CommentHandler(BaseHandler):
                 if not group_ids:
                     group_ids = [g.id for g in self.current_user.accessible_groups]
                 groups = session.scalars(
-                    Group.select(self.current_user).where(Group.id.in_(group_ids))
+                    Group.select(session.user_or_token).where(Group.id.in_(group_ids))
                 ).all()
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
@@ -461,7 +463,7 @@ class CommentHandler(BaseHandler):
                 if associated_resource_type.lower() == "sources":
                     obj_id = resource_id
                     existing = session.scalars(
-                        Comment.select(self.current_user).where(
+                        Comment.select(session.user_or_token).where(
                             Comment.text == comment_text,
                             Comment.obj_id == obj_id,
                             Comment.attachment_bytes == attachment_bytes,
@@ -495,7 +497,7 @@ class CommentHandler(BaseHandler):
                             f'Could not find any accessible spectra with ID {spectrum_id}.'
                         )
                     existing = session.scalars(
-                        CommentOnSpectrum.select(self.current_user).where(
+                        CommentOnSpectrum.select(session.user_or_token).where(
                             CommentOnSpectrum.text == comment_text,
                             CommentOnSpectrum.spectrum_id == spectrum_id,
                             CommentOnSpectrum.attachment_bytes == attachment_bytes,
@@ -531,7 +533,7 @@ class CommentHandler(BaseHandler):
                             f'Could not find any accessible gcn events with ID {gcnevent_id}.'
                         )
                     existing = session.scalars(
-                        CommentOnGCN.select(self.current_user).where(
+                        CommentOnGCN.select(session.user_or_token).where(
                             CommentOnGCN.text == comment_text,
                             CommentOnGCN.gcn_id == gcnevent_id,
                             CommentOnGCN.attachment_bytes == attachment_bytes,
@@ -565,7 +567,7 @@ class CommentHandler(BaseHandler):
                             f'Could not find any accessible earthquakes with ID {earthquake_id}.'
                         )
                     existing = session.scalars(
-                        CommentOnEarthquake.select(self.current_user).where(
+                        CommentOnEarthquake.select(session.user_or_token).where(
                             CommentOnEarthquake.text == comment_text,
                             CommentOnEarthquake.earthquake_id == earthquake_id,
                             CommentOnEarthquake.attachment_bytes == attachment_bytes,
@@ -597,7 +599,7 @@ class CommentHandler(BaseHandler):
                             f'Could not access Shift {shift.id}.', status=403
                         )
                     existing = session.scalars(
-                        CommentOnShift.select(self.current_user).where(
+                        CommentOnShift.select(session.user_or_token).where(
                             CommentOnShift.text == comment_text,
                             CommentOnShift.shift_id == shift_id,
                             CommentOnShift.attachment_bytes == attachment_bytes,
@@ -835,7 +837,7 @@ class CommentHandler(BaseHandler):
                 if associated_resource_type.lower() == "sources":
                     schema = Comment.__schema__()
                     c = session.scalars(
-                        Comment.select(self.current_user, mode="update").where(
+                        Comment.select(session.user_or_token, mode="update").where(
                             Comment.id == comment_id
                         )
                     ).first()
@@ -849,7 +851,7 @@ class CommentHandler(BaseHandler):
                     schema = CommentOnSpectrum.__schema__()
                     c = session.scalars(
                         CommentOnSpectrum.select(
-                            self.current_user, mode="update"
+                            session.user_or_token, mode="update"
                         ).where(CommentOnSpectrum.id == comment_id)
                     ).first()
                     if c is None:
@@ -861,7 +863,7 @@ class CommentHandler(BaseHandler):
                 elif associated_resource_type.lower() == "gcn_event":
                     schema = CommentOnGCN.__schema__()
                     c = session.scalars(
-                        CommentOnGCN.select(self.current_user, mode="update").where(
+                        CommentOnGCN.select(session.user_or_token, mode="update").where(
                             CommentOnGCN.id == comment_id
                         )
                     ).first()
@@ -874,7 +876,7 @@ class CommentHandler(BaseHandler):
                     schema = CommentOnEarthquake.__schema__()
                     c = session.scalars(
                         CommentOnEarthquake.select(
-                            self.current_user, mode="update"
+                            session.user_or_token, mode="update"
                         ).where(CommentOnEarthquake.id == comment_id)
                     ).first()
                     if c is None:
@@ -885,9 +887,9 @@ class CommentHandler(BaseHandler):
                 elif associated_resource_type.lower() == "shift":
                     schema = CommentOnShift.__schema__()
                     c = session.scalars(
-                        CommentOnShift.select(self.current_user, mode="update").where(
-                            CommentOnShift.id == comment_id
-                        )
+                        CommentOnShift.select(
+                            session.user_or_token, mode="update"
+                        ).where(CommentOnShift.id == comment_id)
                     ).first()
                     if c is None:
                         return self.error(
@@ -933,7 +935,9 @@ class CommentHandler(BaseHandler):
 
                 if group_ids is not None:
                     groups = session.scalars(
-                        Group.select(self.current_user).where(Group.id.in_(group_ids))
+                        Group.select(session.user_or_token).where(
+                            Group.id.in_(group_ids)
+                        )
                     ).all()
                     if {g.id for g in groups} != set(group_ids):
                         return self.error(
@@ -1032,7 +1036,7 @@ class CommentHandler(BaseHandler):
         with self.Session() as session:
             if associated_resource_type.lower() == "sources":
                 c = session.scalars(
-                    Comment.select(self.current_user, mode="delete").where(
+                    Comment.select(session.user_or_token, mode="delete").where(
                         Comment.id == comment_id
                     )
                 ).first()
@@ -1043,9 +1047,9 @@ class CommentHandler(BaseHandler):
                 comment_resource_id_str = str(c.obj_id)
             elif associated_resource_type.lower() == "spectra":
                 c = session.scalars(
-                    CommentOnSpectrum.select(self.current_user, mode="delete").where(
-                        CommentOnSpectrum.id == comment_id
-                    )
+                    CommentOnSpectrum.select(
+                        session.user_or_token, mode="delete"
+                    ).where(CommentOnSpectrum.id == comment_id)
                 ).first()
                 if c is None:
                     return self.error(
@@ -1054,7 +1058,7 @@ class CommentHandler(BaseHandler):
                 comment_resource_id_str = str(c.spectrum_id)
             elif associated_resource_type.lower() == "gcn_event":
                 c = session.scalars(
-                    CommentOnGCN.select(self.current_user, mode="delete").where(
+                    CommentOnGCN.select(session.user_or_token, mode="delete").where(
                         CommentOnGCN.id == comment_id
                     )
                 ).first()
@@ -1065,9 +1069,9 @@ class CommentHandler(BaseHandler):
                 comment_resource_id_str = str(c.gcn_id)
             elif associated_resource_type.lower() == "earthquake":
                 c = session.scalars(
-                    CommentOnEarthquake.select(self.current_user, mode="delete").where(
-                        CommentOnEarthquake.id == comment_id
-                    )
+                    CommentOnEarthquake.select(
+                        session.user_or_token, mode="delete"
+                    ).where(CommentOnEarthquake.id == comment_id)
                 ).first()
                 if c is None:
                     return self.error(
@@ -1076,7 +1080,7 @@ class CommentHandler(BaseHandler):
                 comment_resource_id_str = str(c.earthquake_id)
             elif associated_resource_type.lower() == "shift":
                 c = session.scalars(
-                    CommentOnShift.select(self.current_user, mode="delete").where(
+                    CommentOnShift.select(session.user_or_token, mode="delete").where(
                         CommentOnShift.id == comment_id
                     )
                 ).first()
@@ -1224,7 +1228,9 @@ class CommentAttachmentHandler(BaseHandler):
         with self.Session() as session:
             if associated_resource_type.lower() == "sources":
                 comment = session.scalars(
-                    Comment.select(self.current_user).where(Comment.id == comment_id)
+                    Comment.select(session.user_or_token).where(
+                        Comment.id == comment_id
+                    )
                 ).first()
                 if comment is None:
                     return self.error(
@@ -1234,7 +1240,7 @@ class CommentAttachmentHandler(BaseHandler):
 
             elif associated_resource_type.lower() == "spectra":
                 comment = session.scalars(
-                    CommentOnSpectrum.select(self.current_user).where(
+                    CommentOnSpectrum.select(session.user_or_token).where(
                         CommentOnSpectrum.id == comment_id
                     )
                 ).first()
@@ -1246,7 +1252,7 @@ class CommentAttachmentHandler(BaseHandler):
 
             elif associated_resource_type.lower() == "gcn_event":
                 comment = session.scalars(
-                    CommentOnGCN.select(self.current_user).where(
+                    CommentOnGCN.select(session.user_or_token).where(
                         CommentOnGCN.id == comment_id
                     )
                 ).first()
@@ -1257,7 +1263,7 @@ class CommentAttachmentHandler(BaseHandler):
                 comment_resource_id_str = str(comment.gcn_id)
             elif associated_resource_type.lower() == "earthquake":
                 comment = session.scalars(
-                    CommentOnEarthquake.select(self.current_user).where(
+                    CommentOnEarthquake.select(session.user_or_token).where(
                         CommentOnEarthquake.id == comment_id
                     )
                 ).first()
@@ -1268,7 +1274,7 @@ class CommentAttachmentHandler(BaseHandler):
                 comment_resource_id_str = str(comment.earthquake_id)
             elif associated_resource_type.lower() == "shift":
                 comment = session.scalars(
-                    CommentOnShift.select(self.current_user).where(
+                    CommentOnShift.select(session.user_or_token).where(
                         CommentOnShift.id == comment_id
                     )
                 ).first()
