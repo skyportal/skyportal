@@ -69,9 +69,9 @@ class _Base:
 
     # subclasses should not modify this
     @classmethod
-    def frontend_render_info(cls, instrument, user):
+    def frontend_render_info(cls, instrument, user, **kwargs):
         try:
-            formSchema = cls.custom_json_schema(instrument, user)
+            formSchema = cls.custom_json_schema(instrument, user, **kwargs)
         except AttributeError:
             formSchema = cls.form_json_schema
         try:

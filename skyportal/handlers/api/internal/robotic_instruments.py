@@ -1,4 +1,6 @@
-from ....models import Instrument
+import sqlalchemy as sa
+
+from ....models import Instrument, Galaxy
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 
@@ -25,9 +27,18 @@ class RoboticInstrumentsHandler(BaseHandler):
                             Instrument.api_classname_obsplan.isnot(None)
                         )
                     ).all()
+
+                    # we retrieve the list of unique galaxy catalog names here
+                    # and pass them to the frontend_render_info method
+                    # to avoid having to run that query for each instrument
+                    galaxy_catalog_names = session.scalars(
+                        sa.select(Galaxy.catalog_name).distinct()
+                    ).all()
                     retval = {
                         i.id: i.api_class_obsplan.frontend_render_info(
-                            i, self.current_user
+                            i,
+                            self.current_user,
+                            galaxy_catalog_names=galaxy_catalog_names,
                         )
                         for i in instruments
                     }
