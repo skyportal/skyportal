@@ -1606,6 +1606,10 @@ async def get_sources(
             'numPerPage': num_per_page,
         }
 
+        # when querying for group sources, return the group_id used
+        if len(group_ids) == 1:
+            data['group_id'] = int(group_ids[0])
+
         if save_summary:
             all_source_ids = []
             if len(localization_queries) > 0:
@@ -2388,6 +2392,10 @@ async def get_sources(
                 'pageNumber': page_number,
                 'numPerPage': num_per_page,
             }
+
+            # when querying for group sources, return the group_id used
+            if len(group_ids) == 1:
+                data['group_id'] = int(group_ids[0])
 
             if includeGeoJSON:
                 startTime = time.time()
