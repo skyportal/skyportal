@@ -44,6 +44,9 @@ const useStyles = makeStyles({
   },
 });
 
+/**
+ * The table of targets displayed on the allocation summary page.
+ */
 const AllocationSummaryTable = ({
   allocation,
   totalMatches,

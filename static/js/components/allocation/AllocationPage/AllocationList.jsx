@@ -12,6 +12,10 @@ const useStyles = makeStyles({
   },
 });
 
+/**
+ * A container for the table of allocations displayed on the AllocationPage.
+ * It handles the pagination and sorting of the table.
+ */
 const AllocationList = () => {
   const dispatch = useDispatch();
   const classes = useStyles();

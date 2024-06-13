@@ -32,6 +32,10 @@ const useStyles = makeStyles({
   // },
 });
 
+/**
+ * This component renders the main page with the list of allocations,
+ * default observation plans and default survey efficiencies.
+ */
 const AllocationPage = () => {
   const { defaultObservationPlanList } = useSelector(
     (state) => state.default_observation_plans,

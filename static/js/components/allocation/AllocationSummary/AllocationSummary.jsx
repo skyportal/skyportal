@@ -14,6 +14,9 @@ import AllocationObservationPlansTable from "./AllocationObservationPlansTable";
 
 const defaultNumPerPage = 10;
 
+/**
+ * The allocation detail page with the list of targets and the list of observation plans.
+ */
 const AllocationSummary = ({ route }) => {
   const dispatch = useDispatch();
   const { instrumentList } = useSelector((state) => state.instruments);

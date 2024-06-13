@@ -26,6 +26,9 @@ const useStyles = makeStyles({
   // },
 });
 
+/**
+ * The observation plans table displayed at the bottom of the allocation summary page.
+ */
 const AllocationObservationPlansTable = ({
   observation_plan_requests,
   totalMatches,

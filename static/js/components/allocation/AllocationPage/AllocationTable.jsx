@@ -31,6 +31,9 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+/**
+ * The table of allocations displayed on the AllocationPage.
+ */
 const AllocationTable = ({
   groups,
   allocations,
