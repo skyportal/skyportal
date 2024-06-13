@@ -6,7 +6,7 @@ function filterSources() {
     .getElementById("search-bar")
     .value.trim()
     .toLowerCase();
-  const sources = document.getElementsByClassName("source");
+  const sources = document.getElementsByClassName("sourceAndVersions");
 
   Array.from(sources).forEach((source) => {
     const sourceId = source.id.toLowerCase();
