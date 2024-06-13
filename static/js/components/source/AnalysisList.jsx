@@ -18,12 +18,7 @@ import calendar from "dayjs/plugin/calendar";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, StyledEngineProvider, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 

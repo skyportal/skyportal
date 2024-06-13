@@ -1,6 +1,6 @@
-import React, { useEffect, useState, Suspense } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 
 import makeStyles from "@mui/styles/makeStyles";
@@ -12,7 +12,7 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
-import { log10, abs, ceil } from "mathjs";
+import { abs, ceil, log10 } from "mathjs";
 
 import CircularProgress from "@mui/material/CircularProgress";
 import AddIcon from "@mui/icons-material/Add";
@@ -58,8 +58,8 @@ import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ShowSummaryHistory from "../ShowSummaryHistory";
 import AnnotationsTable from "../AnnotationsTable";
 import GcnNotesTable from "../gcn/GcnNotesTable";
-import AnalysisList from "../analysis/AnalysisList";
-import AnalysisForm from "../analysis/AnalysisForm";
+import AnalysisList from "./AnalysisList";
+import AnalysisForm from "./AnalysisForm";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "../photometry/PhotometryTable";
 import FavoritesButton from "../FavoritesButton";
