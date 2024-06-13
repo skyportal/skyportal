@@ -8,7 +8,7 @@ import { Paper } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 
-import AllocationTable from "../allocation/AllocationTable";
+import AllocationTable from "../allocation/AllocationPage/AllocationTable";
 import InstrumentTable from "../InstrumentTable";
 import SkyCam from "../SkyCam";
 import { WeatherView } from "../WeatherWidget";

@@ -3,12 +3,7 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import DeleteIcon from "@mui/icons-material/Delete";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { StyledEngineProvider, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -18,6 +13,7 @@ import MUIDataTable from "mui-datatables";
 import Button from "./Button";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
+import { getTweakedMuiTheme } from "./allocation/util";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -34,38 +30,6 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
 
 const DefaultObservationPlanTable = ({
   instruments,
@@ -499,7 +463,7 @@ const DefaultObservationPlanTable = ({
       {default_observation_plans ? (
         <Paper className={classes.container}>
           <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
+            <ThemeProvider theme={getTweakedMuiTheme(theme)}>
               <MUIDataTable
                 title={!hideTitle ? "" : ""}
                 data={default_observation_plans}

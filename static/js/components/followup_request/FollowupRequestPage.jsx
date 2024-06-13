@@ -26,6 +26,7 @@ import Button from "../Button";
 
 import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
 import * as followupRequestActions from "../../ducks/followup_requests";
+import { getAllocationTitle } from "../allocation/util";
 
 dayjs.extend(utc);
 
@@ -71,23 +72,9 @@ export function followupRequestTitle(
   telescopeList,
 ) {
   const { allocation, default_followup_name } = default_followup_request;
-  const { instrument_id } = allocation;
-  const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
+  const allocationTitle = getAllocationTitle(allocation, instrumentList, telescopeList);
 
-  const telescope_id = instrument?.telescope_id;
-  const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
-
-  if (!(instrument?.name && telescope?.name)) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const result = `${instrument?.name}/${telescope?.nickname} - ${default_followup_name}`;
-
-  return result;
+  return `${allocationTitle} - ${default_followup_name}`;
 }
 
 export function defaultFollowupRequestInfo(default_followup_request) {

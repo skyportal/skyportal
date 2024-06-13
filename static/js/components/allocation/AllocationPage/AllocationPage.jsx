@@ -1,132 +1,36 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
-import CircularProgress from "@mui/material/CircularProgress";
-import ModifyAllocation from "../ModifyAllocation";
-import NewAllocation from "../NewAllocation";
-import NewDefaultSurveyEfficiency from "../NewDefaultSurveyEfficiency";
-import NewDefaultObservationPlan from "../NewDefaultObservationPlan";
-import * as defaultSurveyEfficienciesActions from "../../ducks/default_survey_efficiencies";
-import * as defaultObservationPlansActions from "../../ducks/default_observation_plans";
-import * as allocationsActions from "../../ducks/allocations";
-import AllocationTable from "./AllocationTable";
-import DefaultObservationPlanTable from "../DefaultObservationPlanTable";
-import DefaultSurveyEfficiencyTable from "../DefaultSurveyEfficiencyTable";
-import Spinner from "../Spinner";
+import ModifyAllocation from "../../ModifyAllocation";
+import NewAllocation from "../../NewAllocation";
+import NewDefaultSurveyEfficiency from "../../NewDefaultSurveyEfficiency";
+import NewDefaultObservationPlan from "../../NewDefaultObservationPlan";
+import * as defaultSurveyEfficienciesActions from "../../../ducks/default_survey_efficiencies";
+import * as defaultObservationPlansActions from "../../../ducks/default_observation_plans";
+import DefaultObservationPlanTable from "../../DefaultObservationPlanTable";
+import DefaultSurveyEfficiencyTable from "../../DefaultSurveyEfficiencyTable";
+import AllocationList from "./AllocationList";
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    width: "100%",
-    maxWidth: "22.5rem",
-    backgroundColor: theme.palette.background.paper,
-    whiteSpace: "pre-line",
-  },
+const useStyles = makeStyles({
+  // root: {
+  //   width: "100%",
+  //   maxWidth: "22.5rem",
+  //   backgroundColor: theme.palette.background.paper,
+  //   whiteSpace: "pre-line",
+  // },
   paperContent: {
     padding: "1rem",
   },
-  hover: {
-    "&:hover": {
-      textDecoration: "underline",
-    },
-    color: theme.palette.mode === "dark" ? "#fafafa !important" : null,
-  },
-}));
-
-export function allocationTitle(allocation, instrumentList, telescopeList) {
-  const { instrument_id } = allocation;
-  const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-
-  const telescope_id = instrument?.telescope_id;
-  const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
-
-  if (!(instrument?.name && telescope?.name)) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const result = `${instrument?.name}/${telescope?.nickname}`;
-
-  return result;
-}
-
-const AllocationList = () => {
-  const dispatch = useDispatch();
-  const classes = useStyles();
-
-  const allocationsState = useSelector((state) => state.allocations);
-  const instrumentsState = useSelector((state) => state.instruments);
-  const telescopesState = useSelector((state) => state.telescopes);
-  const groups = useSelector((state) => state.groups.all);
-  const currentUser = useSelector((state) => state.profile);
-  const [rowsPerPage, setRowsPerPage] = useState(100);
-
-  const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage allocations");
-
-  useEffect(() => {
-    dispatch(allocationsActions.fetchAllocations());
-  }, [dispatch]);
-
-  const handleAllocationTablePagination = (
-    pageNumber,
-    numPerPage,
-    sortData,
-    filterData,
-  ) => {
-    setRowsPerPage(numPerPage);
-    const data = {
-      ...filterData,
-      pageNumber,
-      numPerPage,
-    };
-    if (sortData && Object.keys(sortData).length > 0) {
-      data.sortBy = sortData.name;
-      data.sortOrder = sortData.direction;
-    }
-    dispatch(allocationsActions.fetchAllocations(data));
-  };
-
-  const handleAllocationTableSorting = (sortData, filterData) => {
-    const data = {
-      ...filterData,
-      pageNumber: 1,
-      rowsPerPage,
-      sortBy: sortData.name,
-      sortOrder: sortData.direction,
-    };
-    dispatch(allocationsActions.fetchAllocations(data));
-  };
-
-  if (!allocationsState.allocationList) {
-    return <Spinner />;
-  }
-
-  return (
-    <div className={classes.paper}>
-      {allocationsState.allocationList && (
-        <AllocationTable
-          instruments={instrumentsState.instrumentList}
-          telescopes={telescopesState.telescopeList}
-          groups={groups}
-          allocations={allocationsState.allocationList}
-          deletePermission={permission}
-          paginateCallback={handleAllocationTablePagination}
-          totalMatches={allocationsState.totalMatches}
-          pageNumber={allocationsState.pageNumber}
-          numPerPage={allocationsState.numPerPage}
-          sortingCallback={handleAllocationTableSorting}
-        />
-      )}
-    </div>
-  );
-};
+  // hover: {
+  //   "&:hover": {
+  //     textDecoration: "underline",
+  //   },
+  //   color: theme.palette.mode === "dark" ? "#fafafa !important" : null,
+  // },
+});
 
 const AllocationPage = () => {
   const { defaultObservationPlanList } = useSelector(

@@ -28,3 +28,4 @@ rules:
   react/jsx-props-no-spreading: 0
   no-param-reassign: 0
   react/jsx-curly-newline: 0
+  import/prefer-default-export: 0

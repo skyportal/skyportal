@@ -2,12 +2,7 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { StyledEngineProvider, ThemeProvider, useTheme } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Link } from "react-router-dom";
@@ -16,9 +11,10 @@ import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
 import DeleteIcon from "@mui/icons-material/Delete";
-import * as allocationActions from "../../ducks/allocation";
-import Button from "../Button";
-import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import * as allocationActions from "../../../ducks/allocation";
+import Button from "../../Button";
+import ConfirmDeletionDialog from "../../ConfirmDeletionDialog";
+import { getTweakedMuiTheme } from "../util";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -34,39 +30,6 @@ const useStyles = makeStyles((theme) => ({
     },
   },
 }));
-
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
 
 const AllocationTable = ({
   groups,
@@ -417,7 +380,7 @@ const AllocationTable = ({
       {allocations ? (
         <Paper className={classes.container}>
           <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
+            <ThemeProvider theme={getTweakedMuiTheme(theme)}>
               <MUIDataTable
                 title={!hideTitle ? "Allocations" : ""}
                 data={allocations}
