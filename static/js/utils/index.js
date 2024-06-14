@@ -10,7 +10,7 @@ export {
   rgba,
   unix2mjd,
   mjdnow,
-  colorScaleRainbow,
+  colorScaleRainbow
 } from "./calculations";
 
 export {
@@ -29,7 +29,9 @@ export {
   moonCoords,
   sunGeoJSON,
   moonGeoJSON,
-  greatCircleDistance,
+  greatCircleDistance
 } from "./positions";
 
 export { not, intersection, union } from "./sets";
+
+export { getAnnotationValueString } from "./helpers";

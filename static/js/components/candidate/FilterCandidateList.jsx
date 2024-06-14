@@ -29,14 +29,14 @@ import makeStyles from "@mui/styles/makeStyles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import * as candidatesActions from "../ducks/candidates";
-import CandidatesPreferences from "./candidate/CandidatesPreferences";
-import FormValidationError from "./FormValidationError";
-import { allowedClasses } from "./classification/ClassificationForm";
-import ClassificationSelect from "./classification/ClassificationSelect";
-import Button from "./Button";
+import * as candidatesActions from "../../ducks/candidates";
+import CandidatesPreferences from "./CandidatesPreferences";
+import FormValidationError from "../FormValidationError";
+import { allowedClasses } from "../classification/ClassificationForm";
+import ClassificationSelect from "../classification/ClassificationSelect";
+import Button from "../Button";
 
-import * as gcnEventsActions from "../ducks/gcnEvents";
+import * as gcnEventsActions from "../../ducks/gcnEvents";
 
 dayjs.extend(utc);
 
@@ -183,6 +183,10 @@ const savedStatusSelectOptions = [
   },
 ];
 
+/**
+ * Section displayed at the top of the scanning page. It contains controls
+ * to search and filter candidates.
+ */
 const FilterCandidateList = ({
   userAccessibleGroups,
   setQueryInProgress,

@@ -9,20 +9,15 @@ import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, StyledEngineProvider, ThemeProvider, useTheme } from "@mui/material/styles";
 
 import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
-import Button from "./Button";
-import * as profileActions from "../ducks/profile";
+import Button from "../Button";
+import * as profileActions from "../../ducks/profile";
 
-import CandidatesPreferencesForm from "./candidate/CandidatesPreferencesForm";
+import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
 
 const savedStatusSelectOptions = [
   { value: "all", label: "regardless of saved status" },
@@ -98,6 +93,9 @@ const getMuiTheme = (theme) =>
     },
   });
 
+/**
+ * Left panel of the CandidatePreferences dialog that displays the list of saved scanning profiles.
+ */
 const ScanningProfilesList = ({
   selectedScanningProfile,
   setSelectedScanningProfile,

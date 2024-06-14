@@ -64,10 +64,10 @@ import * as sourceActions from "../../ducks/source";
 import * as sourcesActions from "../../ducks/sources";
 import * as sourcesingcnActions from "../../ducks/sourcesingcn";
 import { filterOutEmptyValues } from "../../API";
-import { getAnnotationValueString } from "../ScanningPageCandidateAnnotations";
 import ConfirmSourceInGCN from "../ConfirmSourceInGCN";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewSource from "../NewSource";
+import { getAnnotationValueString } from "../../utils/helpers";
 
 const VegaSpectrum = React.lazy(() => import("../vega/VegaSpectrum"));
 const VegaHR = React.lazy(() => import("../vega/VegaHR"));

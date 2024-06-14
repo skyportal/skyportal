@@ -93,6 +93,11 @@ const savedStatusSelectOptions = [
   },
 ];
 
+/**
+ * Left panel of the CandidatesPreferences dialog, where users can
+ * create or edit scanning profiles. It is also being used in the ScanningProfilesList
+ * component in a dialog to edit profiles.
+ */
 const CandidatesPreferencesForm = ({
   userAccessibleGroups,
   availableAnnotationsInfo,

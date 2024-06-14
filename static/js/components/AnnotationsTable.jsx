@@ -3,12 +3,7 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import { createTheme, StyledEngineProvider, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "@mui/styles";
 import MUIDataTable from "mui-datatables";
 import IconButton from "@mui/material/IconButton";
@@ -24,10 +19,9 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
-
 import * as sourceActions from "../ducks/source";
 import * as spectraActions from "../ducks/spectra";
+import { getAnnotationValueString } from "../utils/helpers";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);

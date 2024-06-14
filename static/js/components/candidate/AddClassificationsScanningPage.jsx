@@ -9,10 +9,10 @@ import { useForm } from "react-hook-form";
 import AddIcon from "@mui/icons-material/Add";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import ClassificationSelect from "./classification/ClassificationSelect";
-import * as Actions from "../ducks/source";
-import { allowedClasses } from "./classification/ClassificationForm";
-import Button from "./Button";
+import ClassificationSelect from "../classification/ClassificationSelect";
+import * as Actions from "../../ducks/source";
+import { allowedClasses } from "../classification/ClassificationForm";
+import Button from "../Button";
 
 const AddClassificationsScanningPage = ({ obj_id }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
