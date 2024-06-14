@@ -13,7 +13,7 @@ const CandidatePhotometry = ({ sourceId }) => (
         width: "68%",
         height: "100%",
         minHeight: "18rem",
-        maxHeight: "18rem"
+        maxHeight: "18rem",
       }}
     />
   </div>

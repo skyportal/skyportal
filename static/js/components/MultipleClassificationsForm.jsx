@@ -47,7 +47,6 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-
 const MultipleClassificationsForm = ({
   objId,
   taxonomyList,

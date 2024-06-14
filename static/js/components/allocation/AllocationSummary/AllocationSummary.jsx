@@ -11,7 +11,6 @@ import { getAllocationTitle } from "../util";
 import AllocationSummaryTable from "./AllocationSummaryTable";
 import AllocationObservationPlansTable from "./AllocationObservationPlansTable";
 
-
 const defaultNumPerPage = 10;
 
 /**
@@ -81,7 +80,12 @@ const AllocationSummary = ({ route }) => {
         <Typography variant="h4" gutterBottom color="textSecondary">
           Plan for:{" "}
           <b>
-            {getAllocationTitle(allocation, instrumentList, telescopeList, groups)}
+            {getAllocationTitle(
+              allocation,
+              instrumentList,
+              telescopeList,
+              groups,
+            )}
           </b>
         </Typography>
       </div>

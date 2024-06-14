@@ -11,12 +11,12 @@ const CustomProbabilityWidget = ({ value, onChange }) => (
     type="number"
     helperText="[0-1]"
     InputLabelProps={{
-      shrink: true
+      shrink: true,
     }}
     inputProps={{
       min: "0",
       max: "1",
-      step: "0.0001"
+      step: "0.0001",
     }}
     value={value || ""}
     onChange={(event) => {

@@ -70,7 +70,7 @@ const Candidate = ({ candidate, filterGroups, index, totalMatches }) => {
             flexDirection: "column",
             justifyContent: "space-between",
             minHeight: "100%",
-            paddingLeft: "1rem"
+            paddingLeft: "1rem",
           }}
         >
           <CandidateAutoannotations
@@ -82,7 +82,7 @@ const Candidate = ({ candidate, filterGroups, index, totalMatches }) => {
             style={{
               display: "flex",
               justifyContent: "flex-end",
-              paddingTop: "0.5rem"
+              paddingTop: "0.5rem",
             }}
           >
             <Typography fontWeight="bold">

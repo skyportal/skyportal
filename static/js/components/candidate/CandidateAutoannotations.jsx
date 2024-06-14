@@ -15,7 +15,7 @@ const CandidateAutoannotations = ({ annotations, filterGroups }) => (
     ) : (
       <div
         style={{
-          overflowWrap: "break-word"
+          overflowWrap: "break-word",
         }}
       >
         {annotations && (

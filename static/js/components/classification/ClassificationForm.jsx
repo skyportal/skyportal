@@ -12,7 +12,6 @@ import CustomGroupsWidget from "./CustomGroupsWidget";
 import { allowedClasses } from "../../utils/helpers";
 import CustomClassificationWidget from "./CustomClassificationWidget";
 
-
 const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.userAccessible);

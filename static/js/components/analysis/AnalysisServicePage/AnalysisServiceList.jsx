@@ -54,10 +54,10 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     maxWidth: "22.5rem",
     backgroundColor: theme.palette.background.paper,
-    whiteSpace: "pre-line"
+    whiteSpace: "pre-line",
   },
   paperContent: {
-    padding: "1rem"
+    padding: "1rem",
   },
   analysisServiceDelete: {
     cursor: "pointer",
@@ -65,17 +65,17 @@ const useStyles = makeStyles((theme) => ({
     position: "absolute",
     padding: 0,
     right: 0,
-    top: 0
+    top: 0,
   },
   analysisServiceDeleteDisabled: {
-    opacity: 0
+    opacity: 0,
   },
   listItemText: {
     primary: {
       fontWeight: "bold",
-      fontSize: "110%"
-    }
-  }
+      fontSize: "110%",
+    },
+  },
 }));
 
 /**
@@ -98,7 +98,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
 
   const deleteAnalysisService = () => {
     dispatch(
-      analysisServicesActions.deleteAnalysisService(analysisServiceToDelete)
+      analysisServicesActions.deleteAnalysisService(analysisServiceToDelete),
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("AnalysisService deleted"));
@@ -115,13 +115,14 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
             <ListItemText
               primary={analysisServiceTitle(analysisService)}
               secondary={analysisServiceInfo(analysisService, groups)}
-              classes={classes.listItemText} />
+              classes={classes.listItemText}
+            />
             <Button
               key={analysisService.id}
               id="delete_button"
               classes={{
                 root: classes.analysisServiceDelete,
-                disabled: classes.analysisServiceDeleteDisabled
+                disabled: classes.analysisServiceDeleteDisabled,
               }}
               onClick={() => openDialog(analysisService.id)}
               disabled={!deletePermission}
@@ -141,11 +142,10 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
   );
 };
 
-
 AnalysisServiceList.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   analysisServices: PropTypes.arrayOf(PropTypes.any).isRequired,
-  deletePermission: PropTypes.bool.isRequired
+  deletePermission: PropTypes.bool.isRequired,
 };
 
 export default AnalysisServiceList;

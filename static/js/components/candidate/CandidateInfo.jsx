@@ -16,84 +16,84 @@ import DisplayPhotStats from "../DisplayPhotStats";
 import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import { getAnnotationValueString } from "../../utils/helpers";
 
-
 const useStyles = makeStyles((theme) => ({
   chip: {
-    margin: theme.spacing(0.2)
+    margin: theme.spacing(0.2),
   },
   idButton: {
     textTransform: "none",
     marginBottom: theme.spacing(0.5),
-    fontSize: "0.9rem"
+    fontSize: "0.9rem",
   },
   groupsList: {
     display: "flex",
     flexDirection: "row",
     height: "1.6rem",
     alignItems: "center",
-    gap: "0.1rem"
+    gap: "0.1rem",
   },
   saveCandidateButton: {
-    margin: "0.25rem 0"
+    margin: "0.25rem 0",
   },
   infoItem: {
     display: "flex",
     "& > span": {
       paddingLeft: "0.25rem",
-      paddingBottom: "0.1rem"
+      paddingBottom: "0.1rem",
     },
     flexFlow: "row wrap",
-    paddingBottom: "0.25rem"
+    paddingBottom: "0.25rem",
   },
   position: {
     fontWeight: "bold",
-    fontSize: "105%"
+    fontSize: "105%",
   },
   infoItemPadded: {
     "& > span": {
       paddingLeft: "0.25rem",
-      paddingBottom: "0.1rem"
+      paddingBottom: "0.1rem",
     },
-    paddingBottom: "0.25rem"
+    paddingBottom: "0.25rem",
   },
   classificationsList: {
     display: "flex",
     flexFlow: "row wrap",
-    alignItems: "center"
-  }
+    alignItems: "center",
+  },
 }));
 
 const getMostRecentClassification = (classifications) => {
   // Display the most recent non-zero probability class
   const filteredClasses = classifications?.filter((i) => i.probability > 0);
   const sortedClasses = filteredClasses?.sort((a, b) =>
-    a.modified < b.modified ? 1 : -1
+    a.modified < b.modified ? 1 : -1,
   );
-  return sortedClasses?.length > 0 ? `${sortedClasses[0].classification}` : null;
+  return sortedClasses?.length > 0
+    ? `${sortedClasses[0].classification}`
+    : null;
 };
 
 /**
  * Middle section in the Candidate card that displays information about the candidate
  * and the Save button
  */
-const CandidateInfo = (
-  {
-    candidateObj,
-    filterGroups,
-    selectedAnnotationSortOptions
-  }) => {
+const CandidateInfo = ({
+  candidateObj,
+  filterGroups,
+  selectedAnnotationSortOptions,
+}) => {
   const classes = useStyles();
 
   const allGroups = (useSelector((state) => state.groups.all) || []).filter(
-    (g) => !g.single_user_group
+    (g) => !g.single_user_group,
   );
   const userAccessibleGroups = useSelector(
-    (state) => state.groups.userAccessible
+    (state) => state.groups.userAccessible,
   );
 
   const candidateHasAnnotationWithSelectedKey = (obj) => {
     const annotation = obj.annotations.find(
-      (a) => a.origin === selectedAnnotationSortOptions.origin
+      (a) => a.origin === selectedAnnotationSortOptions.origin,
     );
     if (annotation === undefined) {
       return false;
@@ -103,27 +103,27 @@ const CandidateInfo = (
 
   const getCandidateSelectedAnnotationValue = (obj) => {
     const annotation = obj.annotations.find(
-      (a) => a.origin === selectedAnnotationSortOptions.origin
+      (a) => a.origin === selectedAnnotationSortOptions.origin,
     );
     return getAnnotationValueString(
-      annotation.data[selectedAnnotationSortOptions.key]
+      annotation.data[selectedAnnotationSortOptions.key],
     );
   };
 
   const recentHumanClassification =
     candidateObj.classifications && candidateObj.classifications.length > 0
       ? getMostRecentClassification(
-        candidateObj.classifications.filter(
-          (c) => c?.ml === false || c?.ml === null
+          candidateObj.classifications.filter(
+            (c) => c?.ml === false || c?.ml === null,
+          ),
         )
-      )
       : null;
 
   const recentMLClassification =
     candidateObj.classifications && candidateObj.classifications.length > 0
       ? getMostRecentClassification(
-        candidateObj.classifications.filter((c) => c?.ml === true)
-      )
+          candidateObj.classifications.filter((c) => c?.ml === true),
+        )
       : null;
 
   return (
@@ -160,8 +160,8 @@ const CandidateInfo = (
                     source={{
                       id: candidateObj.id,
                       currentGroupIds: candidateObj.saved_groups?.map(
-                        (g) => g.id
-                      )
+                        (g) => g.id,
+                      ),
                     }}
                     groups={allGroups}
                     icon
@@ -192,13 +192,13 @@ const CandidateInfo = (
           {/* If candidate is either unsaved or is not yet saved to all groups being filtered on, show the "Save to..." button */}{" "}
           {Boolean(
             !candidateObj.is_source ||
-            (candidateObj.is_source &&
-              filterGroups?.filter(
-                (g) =>
-                  !candidateObj.saved_groups
-                    ?.map((x) => x.id)
-                    ?.includes(g.id)
-              ).length)
+              (candidateObj.is_source &&
+                filterGroups?.filter(
+                  (g) =>
+                    !candidateObj.saved_groups
+                      ?.map((x) => x.id)
+                      ?.includes(g.id),
+                ).length),
           ) && (
             // eslint-disable-next-line react/jsx-indent
             <div className={classes.saveCandidateButton}>
@@ -208,22 +208,22 @@ const CandidateInfo = (
                   // Filter out groups the candidate is already saved to
                   candidateObj.is_source
                     ? userAccessibleGroups?.filter(
-                      (g) =>
-                        !candidateObj.saved_groups
-                          ?.map((x) => x.id)
-                          ?.includes(g.id)
-                    )
+                        (g) =>
+                          !candidateObj.saved_groups
+                            ?.map((x) => x.id)
+                            ?.includes(g.id),
+                      )
                     : userAccessibleGroups
                 }
                 filterGroups={
                   // Filter out groups the candidate is already saved to
                   candidateObj.is_source
                     ? filterGroups?.filter(
-                      (g) =>
-                        !candidateObj.saved_groups
-                          ?.map((x) => x.id)
-                          ?.includes(g.id)
-                    )
+                        (g) =>
+                          !candidateObj.saved_groups
+                            ?.map((x) => x.id)
+                            ?.includes(g.id),
+                      )
                     : filterGroups
                 }
               />
@@ -297,7 +297,7 @@ const CandidateInfo = (
                         style={{
                           display: "flex",
                           direction: "row",
-                          alignItems: "center"
+                          alignItems: "center",
                         }}
                       >
                         <Tooltip title="classification from an ML classifier">
@@ -340,18 +340,18 @@ CandidateInfo.propTypes = {
     last_detected_at: PropTypes.string,
     photstats: PropTypes.arrayOf(PropTypes.shape({})),
     classifications: PropTypes.arrayOf(PropTypes.shape({})),
-    annotations: PropTypes.arrayOf(PropTypes.shape({}))
+    annotations: PropTypes.arrayOf(PropTypes.shape({})),
   }).isRequired,
   filterGroups: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   selectedAnnotationSortOptions: PropTypes.shape({
     origin: PropTypes.string.isRequired,
     key: PropTypes.string.isRequired,
-    order: PropTypes.string
-  })
+    order: PropTypes.string,
+  }),
 };
 
 CandidateInfo.defaultProps = {
-  selectedAnnotationSortOptions: null
+  selectedAnnotationSortOptions: null,
 };
 
 export default CandidateInfo;

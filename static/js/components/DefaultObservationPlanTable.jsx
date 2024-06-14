@@ -3,7 +3,11 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { StyledEngineProvider, ThemeProvider, useTheme } from "@mui/material/styles";
+import {
+  StyledEngineProvider,
+  ThemeProvider,
+  useTheme,
+} from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -29,7 +33,6 @@ const useStyles = makeStyles((theme) => ({
     },
   },
 }));
-
 
 const DefaultObservationPlanTable = ({
   instruments,

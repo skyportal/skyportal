@@ -36,7 +36,6 @@ const addNodePaths = (nodePaths, hierarchy, prefix_path = []) => {
   });
 };
 
-
 // For each class in the hierarchy, return its name
 // as well as the path from the root of hierarchy to that class
 const allowedClasses = (hierarchy) => {
@@ -45,10 +44,9 @@ const allowedClasses = (hierarchy) => {
 
   return classPaths.map((path) => ({
     class: path.pop(),
-    context: path.reverse()
+    context: path.reverse(),
   }));
 };
-
 
 // Get unique classification names, in alphabetical order
 function useClassifications() {
@@ -57,16 +55,11 @@ function useClassifications() {
   let classifications = [];
   latestTaxonomyList?.forEach((taxonomy) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
-      (option) => option.class
+      (option) => option.class,
     );
     classifications = classifications.concat(currentClasses);
   });
   return Array.from(new Set(classifications)).sort();
 }
 
-
-export {
-  getAnnotationValueString,
-  allowedClasses,
-  useClassifications
-}
+export { getAnnotationValueString, allowedClasses, useClassifications };

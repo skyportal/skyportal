@@ -5,7 +5,6 @@ import * as allocationsActions from "../../../ducks/allocations";
 import Spinner from "../../Spinner";
 import AllocationTable from "./AllocationTable";
 
-
 const useStyles = makeStyles({
   paperContent: {
     padding: "1rem",
@@ -39,13 +38,13 @@ const AllocationList = () => {
     pageNumber,
     numPerPage,
     sortData,
-    filterData
+    filterData,
   ) => {
     setRowsPerPage(numPerPage);
     const data = {
       ...filterData,
       pageNumber,
-      numPerPage
+      numPerPage,
     };
     if (sortData && Object.keys(sortData).length > 0) {
       data.sortBy = sortData.name;
@@ -60,7 +59,7 @@ const AllocationList = () => {
       pageNumber: 1,
       rowsPerPage,
       sortBy: sortData.name,
-      sortOrder: sortData.direction
+      sortOrder: sortData.direction,
     };
     dispatch(allocationsActions.fetchAllocations(data));
   };

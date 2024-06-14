@@ -12,28 +12,27 @@ import * as candidatesActions from "../../ducks/candidates";
 const useStyles = makeStyles((theme) => ({
   sortButtton: {
     "&:hover": {
-      color: theme.palette.primary.main
-    }
+      color: theme.palette.primary.main,
+    },
   },
 }));
 
 /**
  * Sort icon that sorts the candidates based on the selected annotation
  */
-const CustomSortToolbar = (
-  {
-    filterGroups,
-    filterFormData,
-    setQueryInProgress,
-    loaded,
-    sortOrder,
-    setSortOrder,
-    numPerPage
-  }) => {
+const CustomSortToolbar = ({
+  filterGroups,
+  filterFormData,
+  setQueryInProgress,
+  loaded,
+  sortOrder,
+  setSortOrder,
+  numPerPage,
+}) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const { selectedAnnotationSortOptions } = useSelector(
-    (state) => state.candidates
+    (state) => state.candidates,
   );
 
   const handleSort = async () => {
@@ -56,12 +55,12 @@ const CustomSortToolbar = (
     let data = {
       pageNumber: 1,
       numPerPage,
-      groupIDs: filterGroups?.map((g) => g.id).join()
+      groupIDs: filterGroups?.map((g) => g.id).join(),
     };
     if (filterFormData !== null) {
       data = {
         ...data,
-        ...filterFormData
+        ...filterFormData,
       };
     }
     // apply the sorting last, in case we need to overwrite
@@ -74,14 +73,14 @@ const CustomSortToolbar = (
       sortByAnnotationKey: newSortOrder
         ? selectedAnnotationSortOptions.key
         : null,
-      sortByAnnotationOrder: newSortOrder
+      sortByAnnotationOrder: newSortOrder,
     };
 
     dispatch(
       candidatesActions.setCandidatesAnnotationSortOptions({
         ...selectedAnnotationSortOptions,
-        order: newSortOrder
-      })
+        order: newSortOrder,
+      }),
     );
 
     dispatch(candidatesActions.fetchCandidates(data)).then(() => {
@@ -120,12 +119,12 @@ CustomSortToolbar.propTypes = {
   loaded: PropTypes.bool.isRequired,
   sortOrder: PropTypes.string,
   setSortOrder: PropTypes.func.isRequired,
-  numPerPage: PropTypes.number.isRequired
+  numPerPage: PropTypes.number.isRequired,
 };
 
 CustomSortToolbar.defaultProps = {
   filterFormData: null,
-  sortOrder: null
+  sortOrder: null,
 };
 
 export default CustomSortToolbar;

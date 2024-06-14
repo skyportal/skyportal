@@ -72,7 +72,11 @@ export function followupRequestTitle(
   telescopeList,
 ) {
   const { allocation, default_followup_name } = default_followup_request;
-  const allocationTitle = getAllocationTitle(allocation, instrumentList, telescopeList);
+  const allocationTitle = getAllocationTitle(
+    allocation,
+    instrumentList,
+    telescopeList,
+  );
 
   return `${allocationTitle} - ${default_followup_name}`;
 }

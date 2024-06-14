@@ -35,20 +35,20 @@ export const getTweakedMuiTheme = (theme) =>
               // Cancel out small screen styling and replace
               padding: "0px",
               paddingRight: "2px",
-              flexFlow: "row nowrap"
-            }
+              flexFlow: "row nowrap",
+            },
           },
           tableCellContainer: {
-            padding: "1rem"
+            padding: "1rem",
           },
           selectRoot: {
             marginRight: "0.5rem",
             [theme.breakpoints.up("sm")]: {
               marginLeft: "0",
-              marginRight: "2rem"
-            }
-          }
-        }
-      }
-    }
+              marginRight: "2rem",
+            },
+          },
+        },
+      },
+    },
   });

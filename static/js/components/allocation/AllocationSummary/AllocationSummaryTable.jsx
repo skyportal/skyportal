@@ -473,5 +473,4 @@ AllocationSummaryTable.propTypes = {
   setFetchParams: PropTypes.func.isRequired,
 };
 
-
 export default AllocationSummaryTable;

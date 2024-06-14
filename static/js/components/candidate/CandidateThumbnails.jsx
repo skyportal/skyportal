@@ -7,7 +7,6 @@ import * as candidatesActions from "../../ducks/candidates";
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import Button from "../Button";
 
-
 const useStyles = makeStyles({
   thumbnailsGrid: {
     display: "grid",
@@ -31,7 +30,7 @@ const CandidateThumbnails = ({ id, ra, dec, thumbnails }) => {
     setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
     dispatch(candidatesActions.generateSurveyThumbnail(objID)).then(() => {
       setPS1GenerationInProgressList(
-        ps1GenerationInProgressList.filter((ps1_id) => ps1_id !== objID)
+        ps1GenerationInProgressList.filter((ps1_id) => ps1_id !== objID),
       );
     });
   };
@@ -92,4 +91,4 @@ CandidateThumbnails.defaultProps = {
   thumbnails: null,
 };
 
-export default CandidateThumbnails
+export default CandidateThumbnails;

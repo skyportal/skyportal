@@ -34,7 +34,6 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-
 /**
  * Main analysis service page showing the list of analysis services
  */

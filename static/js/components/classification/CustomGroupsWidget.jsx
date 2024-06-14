@@ -32,9 +32,9 @@ const CustomGroupsWidget = ({ value, onChange, options }) => {
     PaperProps: {
       style: {
         maxHeight: ITEM_HEIGHT * 4.5,
-        width: 250
-      }
-    }
+        width: 250,
+      },
+    },
   };
   return (
     <>
