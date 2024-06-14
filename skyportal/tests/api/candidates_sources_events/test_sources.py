@@ -2232,7 +2232,7 @@ def test_token_user_retrieving_source_with_comment_filter(
     )
     assert status == 200
     assert data["status"] == "success"
-    # we support partial matches now, so we should get 2 sourcesn here
+    # we support partial matches now, so we should get 2 sources here
     assert len(data["data"]["sources"]) == 2
 
     status, data = api(
