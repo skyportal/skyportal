@@ -47,43 +47,6 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-// For each node in the hierarchy tree, add its full path from root
-// to the nodePaths list
-const addNodePaths = (nodePaths, hierarchy, prefix_path = []) => {
-  const thisNodePath = [...prefix_path];
-
-  if (
-    hierarchy.class !== undefined &&
-    hierarchy.class !== "Time-domain Source"
-  ) {
-    thisNodePath.push(hierarchy.class);
-    nodePaths.push(thisNodePath);
-  }
-
-  hierarchy.subclasses?.forEach((item) => {
-    if (typeof item === "object") {
-      addNodePaths(nodePaths, item, thisNodePath);
-    }
-  });
-};
-
-// For each class in the hierarchy, return its name
-// as well as the path from the root of hierarchy to that class
-export const allowedClasses = (hierarchy) => {
-  if (!hierarchy) {
-    return null;
-  }
-
-  const classPaths = [];
-  addNodePaths(classPaths, hierarchy);
-
-  const classes = classPaths.map((path) => ({
-    class: path.pop(),
-    context: path.reverse(),
-  }));
-
-  return classes;
-};
 
 const MultipleClassificationsForm = ({
   objId,

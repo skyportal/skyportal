@@ -32,11 +32,11 @@ import utc from "dayjs/plugin/utc";
 import * as candidatesActions from "../../ducks/candidates";
 import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "../FormValidationError";
-import { allowedClasses } from "../classification/ClassificationForm";
 import ClassificationSelect from "../classification/ClassificationSelect";
 import Button from "../Button";
 
 import * as gcnEventsActions from "../../ducks/gcnEvents";
+import { allowedClasses } from "../../utils/helpers";
 
 dayjs.extend(utc);
 

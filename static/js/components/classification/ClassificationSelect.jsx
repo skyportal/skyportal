@@ -1,10 +1,9 @@
 import React from "react";
-import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
-import { allowedClasses } from "./ClassificationForm";
 import ClassificationShortcutButtons from "./ClassificationShortcutButtons";
 import SelectWithChips from "../SelectWithChips";
+import { useClassifications } from "../../utils/helpers";
 
 const useStyles = makeStyles(() => ({
   shortcutButtons: {
@@ -20,16 +19,7 @@ const ClassificationSelect = (props) => {
     inDialog = false,
   } = props;
 
-  const { taxonomyList } = useSelector((state) => state.taxonomies);
-  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
-  let classifications = [];
-  latestTaxonomyList?.forEach((taxonomy) => {
-    const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
-      (option) => option.class,
-    );
-    classifications = classifications.concat(currentClasses);
-  });
-  classifications = Array.from(new Set(classifications)).sort();
+  const classifications = useClassifications();
   const classes = useStyles();
 
   const onClassificationSelectChange = (event) => {

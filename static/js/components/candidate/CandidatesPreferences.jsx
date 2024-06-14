@@ -18,9 +18,9 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "../Button";
 
-import { allowedClasses } from "../classification/ClassificationForm";
 import ScanningProfilesList from "./ScanningProfilesList";
 import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
+import { allowedClasses } from "../../utils/helpers";
 
 dayjs.extend(utc);
 

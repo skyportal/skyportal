@@ -18,10 +18,9 @@ import { Controller, useForm } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
-import { allowedClasses } from "../classification/ClassificationForm";
-
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 import * as spatialCatalogsActions from "../../ducks/spatialCatalogs";
+import { allowedClasses } from "../../utils/helpers";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {

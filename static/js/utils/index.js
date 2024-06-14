@@ -34,4 +34,4 @@ export {
 
 export { not, intersection, union } from "./sets";
 
-export { getAnnotationValueString } from "./helpers";
+export { getAnnotationValueString, useClassifications, allowedClasses } from "./helpers";
