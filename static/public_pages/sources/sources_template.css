@@ -51,6 +51,9 @@ header {
             color: green;
           }
         }
+        button {
+          padding: 0 0.5rem;
+        }
       }
       a {
         color: rgb(29, 53, 87);

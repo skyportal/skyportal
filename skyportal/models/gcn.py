@@ -280,7 +280,8 @@ class GcnReport(Base):
                 source["filters_mapper"] = get_bandpasses_to_colors(filters)
 
         env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader("./static/public_pages/reports/report")
+            autoescape=True,
+            loader=jinja2.FileSystemLoader("./static/public_pages/reports/report"),
         )
         env.policies['json.dumps_function'] = to_json
 
