@@ -1101,8 +1101,8 @@ class ZTFMMAAPI(MMAAPI):
         if r.status_code != 200:
             raise ValueError(f'Error deleting skymap: {r.text}')
 
-    def custom_json_schema(instrument, user):
-        form_json_schema = MMAAPI.custom_json_schema(instrument, user)
+    def custom_json_schema(instrument, user, **kwargs):
+        form_json_schema = MMAAPI.custom_json_schema(instrument, user, **kwargs)
 
         # we make sure that all the boolean properties come last, which helps with the display
         non_boolean_properties = {
