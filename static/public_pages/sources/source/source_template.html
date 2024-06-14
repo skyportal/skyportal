@@ -26,15 +26,15 @@
     <script src="/static/public_pages/sources/source/source_template.js"></script>
     <script type="module">
       let source_subtitle = document.getElementById('source_subtitle')
-      source_subtitle.innerHTML = radec_hhmmss(`{{ data['ra'] }}`,`{{ data['dec'] }}`) + source_subtitle.innerHTML
+      source_subtitle.innerHTML = radec_hhmmss(`{{ data['ra'] | e }}`,`{{ data['dec'] | e }}`) + source_subtitle.innerHTML
     </script>
     {% if data.get('photometry') %}
-      {% set photometry = data.get('photometry') | tojson | safe %}
+      {% set photometry = data.get('photometry') | tojson | e %}
       <script src="https://cdn.plot.ly/plotly-2.25.2.min.js"></script>
       <script src="/static/js/utils/csv.js"></script>
       <script src="/static/js/utils/photometry.js"></script>
     {% endif %}
-    {% set classifications = data['classifications'] | tojson | safe if data.get('classifications') else None %}
+    {% set classifications = data['classifications'] | tojson | e if data.get('classifications') else None %}
   </head>
   <!-- Body -->
   <body>
@@ -58,7 +58,7 @@
       <div class="card resumeCard">
         <div class="titleAndDate">
           <h1>{{ source_id }}</h1>
-          <span class="date">{{ created_at.strftime('%m/%d/%Y %H:%M:%S') }} UTC</span>
+          <span class="date">{{ created_at.strftime('%m/%d/%Y %H:%M:%S') | e }} UTC</span>
         </div>
         {% if classifications %}
         <div class="classificationsTag">
@@ -68,7 +68,7 @@
             class="classificationTag"
             onclick="handleClassificationTag(`{{classification.classification}}`)"
           >
-            {{ "ML: " if classification.ml }} {{ classification.classification }}
+            {{ "ML: " if classification.ml }} {{ classification.classification | e }}
           </button>
           {% endfor %}
         </div>
@@ -76,25 +76,25 @@
         <div class="subtitle">
           <h3 id="source_subtitle">
             <span>
-              (&alpha;,&delta;= {{ data['ra'] }}, &nbsp{{ data['dec'] }})
+              (&alpha;,&delta;= {{ data['ra'] | e }}, &nbsp{{ data['dec'] | e }})
             </span>
             <span>
-              (<i>l</i>,<i>b</i>={{ data['gal_lon'] }}, &nbsp;{{ data['gal_lat']}})
+              (<i>l</i>,<i>b</i>={{ data['gal_lon'] | e }}, &nbsp;{{ data['gal_lat'] | e }})
             </span>
             {% if data.get('ebv') %}
-            <span> E(B-V): {{ data['ebv'] }} </span>
+            <span> E(B-V): {{ data['ebv'] | e }} </span>
             {% endif %}
           </h3>
           <h3>
             Redshift:
             <span>
-              {{ data['redshift_display'] }}
+              {{ data['redshift_display'] | e }}
             </span>
             {% if data.get('dm') %} DM:
-            <span> {{ data['dm'] }} mag </span>
+            <span> {{ data['dm'] | e }} mag </span>
             {% endif %} {% if data.get('dl') %}
             <b><i>D</i><sub>L</sub>:</b>
-            <span> {{ data['dl'] }} Mpc </span>
+            <span> {{ data['dl'] | e }} Mpc </span>
             {% endif %}
           </h3>
         </div>
@@ -104,33 +104,33 @@
             <div class="title">
               {% if thumbnail.get('link') %}
                 <a
-                  href="{{ thumbnail['link'] }}"
+                  href="{{ thumbnail['link'] | e }}"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  {{ thumbnail['header'] }}
+                  {{ thumbnail['header'] | e }}
                 </a>
               {% else %}
-                {{ thumbnail['header'] }}
+                {{ thumbnail['header'] | e }}
               {% endif %}
             </div>
             <div class="image">
               {% if thumbnail.get('link') %}
               <a
-                href="{{ thumbnail['link'] }}"
+                href="{{ thumbnail['link'] | e }}"
                 target="_blank"
                 rel="noreferrer"
               >
               {% endif %}
                 <img
-                  src="{{ thumbnail['public_url'] }}"
-                  alt="{{ thumbnail['alt'] }}"
-                  title="{{ thumbnail['alt'] }}"
+                  src="{{ thumbnail['public_url'] | e }}"
+                  alt="{{ thumbnail['alt'] | e }}"
+                  title="{{ thumbnail['alt'] | e }}"
                   loading="lazy"
                   onload="handleImageLoad(this)"
                   onerror="handleImageError(this)"
-                  data-thumbnail-type="{{ thumbnail.get('type') }}"
-                  data-thumbnail-public-url="{{ thumbnail.get('public_url') }}"
+                  data-thumbnail-type="{{ thumbnail.get('type') | e }}"
+                  data-thumbnail-public-url="{{ thumbnail.get('public_url') | e }}"
                 />
                 <img
                   class="crosshair"
@@ -156,7 +156,7 @@
           <div class="download">
             <button
               type="button"
-              onclick='downloadPhotometryToCsv(`{{ photometry }}`, `{{ source_id }}`)'
+              onclick='downloadPhotometryToCsv(`{{ photometry }}`, `{{ source_id | e }}`)'
             >
               DOWNLOAD
             </button>
@@ -165,7 +165,7 @@
         </div>
         {% if photometry %}
         {% set photometry_div_id = 'photometryPlot' %}
-        {% set filters_mapper = data.get('filters_mapper') | tojson | safe %}
+        {% set filters_mapper = data.get('filters_mapper') | tojson | e %}
         <div class="photometryPlot" id="{{ photometry_div_id }}">
           <script>
             window.isMobile = window.matchMedia("(max-width: 900px)").matches;
@@ -187,18 +187,18 @@
         <div class="classifications">
           {% for classification in data['classifications'] %}
           <div
-            id="{{ classification.classification }}"
+            id="{{ classification.classification | e }}"
             class="classification boxShadow"
           >
-            <div class="author">{{ classification.format_author }}</div>
+            <div class="author">{{ classification.format_author | e }}</div>
             <div class="nameAndProbability">
               <p class="name">
-                {{ "ML: " if classification.ml }} {{ classification.classification }}
+                {{ "ML: " if classification.ml }} {{ classification.classification | e }}
               </p>
-              <p class="probability">(P={{ classification.probability }})</p>
+              <p class="probability">(P={{ classification.probability | e }})</p>
             </div>
             <div class="taxname">
-              <i>{{ classification.taxname }}</i>
+              <i>{{ classification.taxname | e }}</i>
             </div>
           </div>
           {% endfor %}
