@@ -43,9 +43,7 @@ class PlotAssignmentAirmassHandler(AirmassHandler):
                 )
             )
             if assignment is None:
-                return self.error(
-                    'Invalid assignment ID, or you do not have access to this assignment.'
-                )
+                return self.error(f"Could not load assignment with ID {assignment_id}")
 
             obj = assignment.obj
             telescope = assignment.run.instrument.telescope
@@ -53,6 +51,9 @@ class PlotAssignmentAirmassHandler(AirmassHandler):
 
             sunrise = telescope.next_sunrise(time=time)
             sunset = telescope.next_sunset(time=time)
+
+            if sunrise is None or sunset is None:
+                return self.error('sunrise or sunset not available')
 
             if sunset > sunrise:
                 sunset = telescope.observer.sun_set_time(time, which='previous')
@@ -85,9 +86,7 @@ class PlotObjTelAirmassHandler(AirmassHandler):
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             )
             if obj is None:
-                return self.error(
-                    f'Invalid object ID {obj_id}, or you do not have access to this object.'
-                )
+                return self.error(f"Could not load object with ID {obj_id}")
 
             telescope = session.scalar(
                 Telescope.select(session.user_or_token).where(
@@ -95,12 +94,13 @@ class PlotObjTelAirmassHandler(AirmassHandler):
                 )
             )
             if telescope is None:
-                return self.error(
-                    f'Could not retrieve telescope with ID {telescope_id}.'
-                )
+                return self.error(f"Could not load telescope with ID {telescope_id}")
 
             sunrise = telescope.next_sunrise(time=time)
             sunset = telescope.next_sunset(time=time)
+
+            if sunrise is None or sunset is None:
+                return self.error('sunrise or sunset not available')
 
             if sunset > sunrise:
                 sunset = telescope.observer.sun_set_time(time, which='previous')
@@ -128,9 +128,7 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             )
             if obj is None:
-                return self.error(
-                    f'Invalid object ID {obj_id}, or you do not have access to this object.'
-                )
+                return self.error(f"Could not load object with ID {obj_id}")
 
             telescope = session.scalar(
                 Telescope.select(session.user_or_token).where(
@@ -138,9 +136,7 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
                 )
             )
             if telescope is None:
-                return self.error(
-                    f'Could not retrieve telescope with ID {telescope_id}.'
-                )
+                return self.error(f"Could not load telescope with ID {telescope_id}")
 
             year = datetime.date.today().year
             year_start = datetime.datetime(year, 1, 1, 0, 0, 0)
@@ -155,6 +151,10 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
                 # Get sunrise/sunset times for that day
                 sunrise = telescope.next_sunrise(time=day)
                 sunset = telescope.next_sunset(time=day)
+
+                if sunrise is None or sunset is None:
+                    continue
+
                 # check if is in middle of night
                 if (sunrise - sunset).to_value('hr') < 0:
                     sunrise = sunrise + ap_time.TimeDelta(1 * u.day)
