@@ -2232,8 +2232,8 @@ def test_token_user_retrieving_source_with_comment_filter(
     )
     assert status == 200
     assert data["status"] == "success"
-    # we are only currently supporting exact match
-    assert len(data["data"]["sources"]) == 1
+    # we support partial matches now, so we should get 2 sources here
+    assert len(data["data"]["sources"]) == 2
 
     status, data = api(
         "GET",
@@ -2247,6 +2247,7 @@ def test_token_user_retrieving_source_with_comment_filter(
     )
     assert status == 200
     assert data["status"] == "success"
+    # but only one source here with the full comment
     assert len(data["data"]["sources"]) == 1
 
 
