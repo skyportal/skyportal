@@ -113,6 +113,7 @@ def poll_events(*args, **kwargs):
         try:
             for message in consumer.consume():
                 payload = message.value()
+                topic = message.topic()
                 consumer.commit(message)
 
                 if payload is None:
@@ -132,6 +133,7 @@ def poll_events(*args, **kwargs):
                     alert_type = "voevent"
                 except Exception:  # then json
                     payload = json.loads(payload.decode('utf8'))
+                    payload['notice_type'] = topic
                     notice_type = None
                     tags = get_json_tags(payload)
                     alert_type = "json"

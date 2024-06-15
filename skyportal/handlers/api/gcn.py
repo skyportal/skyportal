@@ -522,10 +522,11 @@ def post_gcnevent_from_json(
         # FIXME: https://github.com/astropy/astropy/issues/7179
         date = Time(date.iso).datetime
 
+    notice_type = payload.get('notice_type')
     gcn_notice = GcnNotice(
         content=json.dumps(payload).encode('utf-8'),
         ivorn=f'{payload["instrument"]}-{date.strftime("%Y-%m-%dT%H:%M:%S")}',
-        notice_type=None,
+        notice_type=notice_type,
         stream=payload["instrument"],
         date=date,
         has_localization=True,
