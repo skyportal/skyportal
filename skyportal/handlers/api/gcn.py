@@ -522,10 +522,11 @@ def post_gcnevent_from_json(
         # FIXME: https://github.com/astropy/astropy/issues/7179
         date = Time(date.iso).datetime
 
+    notice_type = payload.get('notice_type')
     gcn_notice = GcnNotice(
         content=json.dumps(payload).encode('utf-8'),
         ivorn=f'{payload["instrument"]}-{date.strftime("%Y-%m-%dT%H:%M:%S")}',
-        notice_type=None,
+        notice_type=notice_type,
         stream=payload["instrument"],
         date=date,
         has_localization=True,
@@ -1761,11 +1762,11 @@ class GcnEventHandler(BaseHandler):
                     event.gcn_notices, key=lambda notice: notice.date, reverse=True
                 )
                 for notice in event.gcn_notices:
-                    notice.notice_type = (
-                        gcn.NoticeType(notice.notice_type).name
-                        if notice.notice_type
-                        else None
-                    )
+                    if notice.notice_type is not None:
+                        try:
+                            notice.notice_type = gcn.NoticeType(notice.notice_type).name
+                        except ValueError:
+                            pass
                 event_info = {
                     **event.to_dict(),
                     "tags": list(set(event.tags)),
@@ -2116,14 +2117,19 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     filters = gcn_observation_plan['filters']
                     if filters is not None:
                         if 'gcn_notices' in filters and len(filters['gcn_notices']) > 0:
-                            if not any(
-                                [
-                                    notice.notice_type is not None
-                                    and gcn.NoticeType(notice.notice_type).name
-                                    in filters['gcn_notices']
-                                    for notice in event.gcn_notices
-                                ]
-                            ):
+                            gcn_notice_filter = False
+                            for notice in event.gcn_notices:
+                                if notice.notice_type is not None:
+                                    try:
+                                        notice.notice_type = gcn.NoticeType(
+                                            notice.notice_type
+                                        ).name
+                                    except ValueError:
+                                        pass
+                                    if notice.notice_type in filters['gcn_notices']:
+                                        gcn_notice_filter = True
+                                        break
+                            if not gcn_notice_filter:
                                 continue
 
                         if 'gcn_tags' in filters and len(filters['gcn_tags']) > 0:

@@ -12,7 +12,6 @@ import io
 import json
 import random
 
-import gcn
 import jinja2
 from ligo.skymap import plot  # noqa: F401 F811
 from ligo.skymap import postprocess
@@ -413,7 +412,7 @@ class GcnNotice(Base):
     )
 
     notice_type = sa.Column(
-        sa.Enum(gcn.NoticeType),
+        sa.String,
         nullable=True,
         doc='GCN Notice type',
     )
