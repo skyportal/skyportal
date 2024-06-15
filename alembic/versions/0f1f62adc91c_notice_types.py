@@ -173,6 +173,8 @@ def upgrade():
         type_=sa.String(),
         existing_nullable=True,
     )
+    with op.get_context().autocommit_block():
+        op.execute('drop type "public"."noticetype";')
     # ### end Alembic commands ###
 
 
