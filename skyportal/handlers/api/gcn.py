@@ -1761,11 +1761,11 @@ class GcnEventHandler(BaseHandler):
                     event.gcn_notices, key=lambda notice: notice.date, reverse=True
                 )
                 for notice in event.gcn_notices:
-                    notice.notice_type = (
-                        gcn.NoticeType(notice.notice_type).name
-                        if notice.notice_type
-                        else None
-                    )
+                    if notice.notice_type is not None:
+                        try:
+                            notice.notice_type = gcn.NoticeType(notice.notice_type).name
+                        except ValueError:
+                            pass
                 event_info = {
                     **event.to_dict(),
                     "tags": list(set(event.tags)),
@@ -2116,16 +2116,16 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     filters = gcn_observation_plan['filters']
                     if filters is not None:
                         if 'gcn_notices' in filters and len(filters['gcn_notices']) > 0:
-                            if not any(
-                                [
-                                    notice.notice_type is not None
-                                    and gcn.NoticeType(notice.notice_type).name
-                                    in filters['gcn_notices']
-                                    for notice in event.gcn_notices
-                                ]
-                            ):
-                                continue
-
+                            for notice in event.gcn_notices:
+                                if notice.notice_type is not None:
+                                    try:
+                                        notice.notice_type = gcn.NoticeType(
+                                            notice.notice_type
+                                        ).name
+                                    except ValueError:
+                                        pass
+                                    if notice.notice_type in filters['gcn_notices']:
+                                        continue
                         if 'gcn_tags' in filters and len(filters['gcn_tags']) > 0:
                             intersection = list(
                                 set(event.tags) & set(filters["gcn_tags"])
