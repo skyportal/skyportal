@@ -2116,6 +2116,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     filters = gcn_observation_plan['filters']
                     if filters is not None:
                         if 'gcn_notices' in filters and len(filters['gcn_notices']) > 0:
+                            gcn_notice_filter = False
                             for notice in event.gcn_notices:
                                 if notice.notice_type is not None:
                                     try:
@@ -2125,7 +2126,11 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                                     except ValueError:
                                         pass
                                     if notice.notice_type in filters['gcn_notices']:
-                                        continue
+                                        gcn_notice_filter = True
+                                        break
+                            if not gcn_notice_filter:
+                                continue
+
                         if 'gcn_tags' in filters and len(filters['gcn_tags']) > 0:
                             intersection = list(
                                 set(event.tags) & set(filters["gcn_tags"])
