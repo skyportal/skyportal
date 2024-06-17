@@ -129,7 +129,7 @@ class GaiaQueryHandler(BaseHandler):
                 GaiaClass()
                 .cone_search(
                     candidate_coord,
-                    radius_arcsec * u.arcsec,
+                    radius=radius_arcsec * u.arcsec,
                     table_name=catalog,
                 )
                 .get_data()
