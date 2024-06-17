@@ -1,4 +1,3 @@
-/* global Plotly */
 const baseLayout = {
   zeroline: false,
   automargin: true,
@@ -185,7 +184,12 @@ function adjustLegend(isMobile) {
 }
 
 /* eslint-disable no-unused-vars */
-function plotLc(photometry_data, div_id, filters_used_mapper, isMobile) {
+function photometryPlot(
+  photometry_data,
+  div_id,
+  filters_used_mapper,
+  isMobile,
+) {
   const photometry = JSON.parse(photometry_data);
   const mapper = JSON.parse(filters_used_mapper);
   const plotData = [];

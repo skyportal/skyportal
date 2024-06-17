@@ -266,7 +266,7 @@
                       window.isMobile = !window.isMobile
                     adjustLegend(window.isMobile)
                   });
-                  plotLc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`, window.isMobile);
+                  photometryPlot(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`, window.isMobile);
                 </script>
               </div>
               {% endif %}
