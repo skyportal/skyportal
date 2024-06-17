@@ -22,6 +22,7 @@ def calculate_hash(data):
 
 
 def process_thumbnails(thumbnails, ra, dec):
+    # Sort thumbnails by type, and remove 'DR8' thumbnail if 'LS' (that corresponds to DR9) thumbnail are present
     has_ls = any("ls" in thumbnail["type"] for thumbnail in thumbnails)
     thumbnails = sorted(
         [thumb for thumb in thumbnails if not has_ls or "dr8" not in thumb["type"]],
