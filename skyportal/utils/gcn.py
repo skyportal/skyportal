@@ -313,9 +313,17 @@ def get_skymap_cone(root):
     ra, dec, error = None, None, None
 
     if isinstance(root, dict):
-        ra = root.get("ra")
-        dec = root.get("dec")
-        error = root.get("ra_dec_error")
+        if "coincident_events" in root:
+            for coincident_event in root["coincident_events"]:
+                if "localization" in coincident_event:
+                    ra = coincident_event["localization"].get("ra")
+                    dec = coincident_event["localization"].get("dec")
+                    error = coincident_event["localization"].get("ra_dec_error")
+                    break
+        else:
+            ra = root.get("ra")
+            dec = root.get("dec")
+            error = root.get("ra_dec_error")
     else:
         mission = urlparse(root.attrib['ivorn']).path.lstrip('/')
         # Try error cone

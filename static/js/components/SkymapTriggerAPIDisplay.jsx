@@ -10,7 +10,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "./Button";
 
-import FindGcnEvents from "./FindGcnEvents";
+import FindGcnEvents from "./gcn/FindGcnEvents";
 
 import * as skymapTriggerActions from "../ducks/skymap_triggers";
 import * as allocationActions from "../ducks/allocations";
