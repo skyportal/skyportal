@@ -3659,11 +3659,14 @@ def add_gcn_report(
                         observations.extend(data["observations"])
 
                 for o in observations:
-                    o["field_coordinates"] = o["field"]["contour_summary"]["features"][
-                        0
-                    ]["geometry"]["coordinates"]
-                    del o["field"]
-                    del o["instrument"]
+                    if "geojson" in o:
+                        o["field_coordinates"] = o["geojson"]["features"][0][
+                            "geometry"
+                        ]["coordinates"]
+                    if "field" in o:
+                        del o["field"]
+                    if "instrument" in o:
+                        del o["instrument"]
 
                 contents["observations"] = observations
                 contents["observation_statistics"] = observation_statistics
