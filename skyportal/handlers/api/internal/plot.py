@@ -37,11 +37,11 @@ class PlotAssignmentAirmassHandler(AirmassHandler):
     @auth_or_token
     async def get(self, assignment_id):
         with self.Session() as session:
-            assignment = session.scalars(
+            assignment = session.scalar(
                 ClassicalAssignment.select(session.user_or_token).where(
                     ClassicalAssignment.id == assignment_id
                 )
-            ).first()
+            )
             if assignment is None:
                 return self.error(f"Could not load assignment with ID {assignment_id}")
 
@@ -76,27 +76,23 @@ class PlotObjTelAirmassHandler(AirmassHandler):
         else:
             time = ap_time.Time.now()
 
+        try:
+            telescope_id = int(telescope_id)
+        except TypeError:
+            return self.error(f'Invalid telescope id: {telescope_id}, must be integer.')
+
         with self.Session() as session:
-            obj = session.scalars(
-                Obj.select(session.user_or_token).where(
-                    ClassicalAssignment.id == obj_id
-                )
-            ).first()
+            obj = session.scalar(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            )
             if obj is None:
                 return self.error(f"Could not load object with ID {obj_id}")
 
-            try:
-                telescope_id = int(telescope_id)
-            except TypeError:
-                return self.error(
-                    f'Invalid telescope id: {telescope_id}, must be integer.'
-                )
-
-            telescope = session.scalars(
+            telescope = session.scalar(
                 Telescope.select(session.user_or_token).where(
-                    Telescope.id == int(telescope_id)
+                    Telescope.id == telescope_id
                 )
-            ).first()
+            )
             if telescope is None:
                 return self.error(f"Could not load telescope with ID {telescope_id}")
 
@@ -122,27 +118,23 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
         if threshold is None:
             threshold = 2.9
 
+        try:
+            telescope_id = int(telescope_id)
+        except TypeError:
+            return self.error(f'Invalid telescope id: {telescope_id}, must be integer.')
+
         with self.Session() as session:
-            obj = session.scalars(
-                Obj.select(session.user_or_token).where(
-                    ClassicalAssignment.id == obj_id
-                )
-            ).first()
+            obj = session.scalar(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            )
             if obj is None:
                 return self.error(f"Could not load object with ID {obj_id}")
 
-            try:
-                telescope_id = int(telescope_id)
-            except TypeError:
-                return self.error(
-                    f'Invalid telescope id: {telescope_id}, must be integer.'
-                )
-
-            telescope = session.scalars(
+            telescope = session.scalar(
                 Telescope.select(session.user_or_token).where(
-                    Telescope.id == int(telescope_id)
+                    Telescope.id == telescope_id
                 )
-            ).first()
+            )
             if telescope is None:
                 return self.error(f"Could not load telescope with ID {telescope_id}")
 
