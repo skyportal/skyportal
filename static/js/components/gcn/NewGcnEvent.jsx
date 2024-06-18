@@ -83,7 +83,7 @@ const NewGcnEvent = ({ handleClose = null }) => {
         )
       ) {
         errors.skymap.addError(
-          "Either (i) ra, dec, and error or (ii) polygon or (iii) skymap must be defined if not uploading VOEvent",
+          "Either (i) ra, dec, and error or (ii) polygon or (iii) skymap must be defined if not uploading VOEvent / JSON",
         );
       }
       if (formData.polygon && !formData.localization_name) {
@@ -124,13 +124,13 @@ const NewGcnEvent = ({ handleClose = null }) => {
     xml: {
       type: "string",
       format: "data-url",
-      title: "VOEvent XML File",
+      title: "VOEvent XML file",
       description: "VOEvent XML file",
     },
     json: {
       type: "string",
       format: "data-url",
-      title: "JSON File",
+      title: "JSON file",
       description: "JSON file",
     },
     skymap: {

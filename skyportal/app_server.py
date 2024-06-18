@@ -305,6 +305,10 @@ skyportal_handlers = [
         EarthquakeMeasurementHandler,
     ),
     (
+        r'/api/(sources|spectra|gcn_event|shift|earthquake)/comments(/.*)?',
+        CommentHandler,
+    ),
+    (
         r'/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+]+)/comments',
         CommentHandler,
     ),

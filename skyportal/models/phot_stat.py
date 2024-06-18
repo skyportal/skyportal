@@ -431,8 +431,9 @@ class PhotStat(Base):
             A new photometry point that was added to the object.
 
         """
+
         if isinstance(phot, Photometry):
-            phot = phot.__dict__
+            phot = phot.to_dict()
         elif not isinstance(phot, dict):
             raise TypeError('phot must be a dict or Photometry object')
 
@@ -679,7 +680,7 @@ class PhotStat(Base):
         lims = []
         for phot in phot_list:
             if isinstance(phot, Photometry):
-                phot = phot.__dict__
+                phot = phot.to_dict()
             elif not isinstance(phot, dict):
                 raise TypeError('phot must be a dict or Photometry object')
 
@@ -916,11 +917,33 @@ def insert_into_phot_stat(mapper, connection, target):
             sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
         ).first()
         if phot_stat is None:
-            all_phot = session.scalars(
-                sa.select(Photometry).where(Photometry.obj_id == obj_id)
+            columns = [
+                Photometry.filter,
+                Photometry.mjd,
+                Photometry.mag,
+                Photometry.flux,
+                Photometry.fluxerr,
+                Photometry.origin,
+                Photometry.original_user_data,
+            ]
+            colnames = [
+                'filter',
+                'mjd',
+                'mag',
+                'flux',
+                'fluxerr',
+                'origin',
+                'original_user_data',
+            ]
+
+            all_phot = session.execute(
+                sa.select(*columns)
+                .select_from(Photometry)
+                .where(Photometry.obj_id == obj_id)
             ).all()
+            phot_data = [dict(zip(colnames, values)) for values in all_phot]
             phot_stat = PhotStat(obj_id=obj_id)
-            phot_stat.full_update(all_phot)
+            phot_stat.full_update(phot_data)
             session.add(phot_stat)
 
         else:

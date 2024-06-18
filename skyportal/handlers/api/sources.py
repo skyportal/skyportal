@@ -1423,10 +1423,10 @@ async def get_sources(
                 comments_filter = [str(c) for c in comments_filter]
             for i, c in enumerate(comments_filter):
                 query_params.append(
-                    bindparam(f'comments_filter_{i}', value=c, type_=sa.String)
+                    bindparam(f'comments_filter_{i}', value=f"%{c}%", type_=sa.String)
                 )
             comments_query.append(
-                f"""comments.text ilike any(array[:{', :'.join([f'comments_filter_{i}' for i in range(len(comments_filter))])}])"""
+                f"""comments.text ilike any(array[{', '.join([f':comments_filter_{i}' for i in range(len(comments_filter))])}])"""
             )
         if comments_filter_before is not None:
             try:
@@ -1605,6 +1605,10 @@ async def get_sources(
             'pageNumber': page_number,
             'numPerPage': num_per_page,
         }
+
+        # when querying for group sources, return the group_id used
+        if len(group_ids) == 1:
+            data['group_id'] = int(group_ids[0])
 
         if save_summary:
             all_source_ids = []
@@ -2388,6 +2392,10 @@ async def get_sources(
                 'pageNumber': page_number,
                 'numPerPage': num_per_page,
             }
+
+            # when querying for group sources, return the group_id used
+            if len(group_ids) == 1:
+                data['group_id'] = int(group_ids[0])
 
             if includeGeoJSON:
                 startTime = time.time()

@@ -35,8 +35,8 @@ import * as gcnEventsActions from "../../ducks/gcnEvents";
 import Spinner from "../Spinner";
 import GcnEventsFilterForm from "./GcnEventsFilterForm";
 import NewGcnEvent from "./NewGcnEvent";
-import DefaultGcnTagPage from "../DefaultGcnTagPage";
-import Crossmatch from "../CrossmatchGcnEvents";
+import DefaultGcnTagPage from "./DefaultGcnTagPage";
+import Crossmatch from "./CrossmatchGcnEvents";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 
 const useStyles = makeStyles((theme) => ({
