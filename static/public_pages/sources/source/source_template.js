@@ -1,4 +1,25 @@
-/* eslint-disable no-unused-vars */
+/* eslint-disable no-unused-vars, no-undef */
+
+window.isMobile = window.matchMedia("(max-width: 900px)").matches;
+// Move the legend and change marker size when the window is in mobile size
+window.addEventListener("resize", () => {
+  const isActualMobile = window.matchMedia("(max-width: 900px)").matches;
+  if (window.isMobile !== isActualMobile) {
+    window.isMobile = isActualMobile;
+    Array.from(document.getElementsByClassName("plotly")).forEach((plotDiv) => {
+      Plotly.relayout(plotDiv.parentElement, {
+        legend: {
+          orientation: isActualMobile ? "h" : "v",
+          y: isActualMobile ? -0.5 : 1,
+          x: isActualMobile ? 0 : 1,
+        },
+      });
+      Plotly.restyle(plotDiv.parentElement, {
+        "marker.size": isActualMobile ? 6 : 9,
+      });
+    });
+  }
+});
 
 // Add animation on the classification select by the classification tag
 function handleClassificationTag(classificationId) {

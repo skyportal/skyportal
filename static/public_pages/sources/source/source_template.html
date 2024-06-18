@@ -23,22 +23,12 @@
       href="/static/public_pages/sources/source/source_template.css"
     />
     <!-- JS for source page -->
-    <script src="/static/public_pages/sources/source/source_template.js"></script>
     <script type="module">
       let source_subtitle = document.getElementById('source_subtitle')
       source_subtitle.innerHTML = radec_hhmmss(`{{ data['ra'] | e }}`,`{{ data['dec'] | e }}`) + source_subtitle.innerHTML
     </script>
     {% if data.get('photometry') or data.get('spectroscopy') %}
       <script src="https://cdn.plot.ly/plotly-2.25.2.min.js"></script>
-      <script>
-        window.isMobile = window.matchMedia("(max-width: 900px)").matches;
-        window.addEventListener("resize", function (){
-          if (window.isMobile !== window.matchMedia("(max-width: 900px)").matches)
-            window.isMobile = !window.isMobile
-          adjustLegend(window.isMobile)
-        });
-      </script>
-
       {% if data.get('photometry') %}
         {% set photometry = data.get('photometry') | tojson | e %}
         <script src="/static/public_pages/utils/csv.js"></script>
@@ -50,8 +40,8 @@
         <script src="/static/public_pages/utils/spectroscopy.js"></script>
       {% endif %}
     {% endif %}
-
     {% set classifications = data['classifications'] | tojson | e if data.get('classifications') else None %}
+    <script src="/static/public_pages/sources/source/source_template.js"></script>
   </head>
   <!-- Body -->
   <body>

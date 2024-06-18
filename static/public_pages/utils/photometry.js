@@ -1,78 +1,28 @@
-const BASE_LAYOUT = {
-  zeroline: false,
-  automargin: true,
-  showline: true,
-  autorange: "reversed",
-  titlefont: { size: 18 },
-  tickfont: { size: 14 },
-  ticklen: 12,
-  ticks: "outside",
-  nticks: 8,
-  minor: {
+/* eslint-disable no-unused-vars, no-undef */
+
+function photometryPlot(
+  photometry_data,
+  div_id,
+  filters_used_mapper,
+  isMobile,
+) {
+  const baseLayout = {
+    zeroline: false,
+    automargin: true,
+    showline: true,
+    autorange: "reversed",
+    titlefont: { size: 18 },
+    tickfont: { size: 14 },
+    ticklen: 12,
     ticks: "outside",
-    ticklen: 6,
-    tickcolor: "black",
-  },
-};
-
-/* eslint-disable */
-function getHoverText(point) {
-  return (
-    `MJD: ${point.mjd.toFixed(6)}<br>` +
-    (point.mag !== null ? `Mag: ${point.mag.toFixed(4)}<br>` : "") +
-    (point.magerr !== null ? `Magerr: ${point.magerr.toFixed(4)}<br>` : "") +
-    (point.limiting_mag !== null
-      ? `Limiting Mag: ${point.limiting_mag.toFixed(4)}<br>`
-      : "") +
-    `Filter: ${point.filter}<br>Instrument: ${point.instrument_name}`
-  );
-}
-
-function getTrace(data, isDetection, key, color, isMobile) {
-  const now = new Date().getTime() / 86400000 + 40587;
-  const rgba = (rgb, alpha) => `rgba(${rgb[0]},${rgb[1]},${rgb[2]}, ${alpha})`;
-  const dataType = isDetection ? "detections" : "upperLimits";
-  return {
-    dataType,
-    x: data.map((point) => now - point.mjd),
-    y: data.map((point) => (isDetection ? point.mag : point.limiting_mag)),
-    ...(isDetection
-      ? {
-          error_y: {
-            type: "data",
-            array: data.map((point) => point.magerr),
-            visible: true,
-            color: rgba(color, 0.5),
-            width: 1,
-            thickness: 2,
-          },
-        }
-      : {}),
-    text: data.map((point) => getHoverText(point)),
-    mode: "markers",
-    type: "scatter",
-    name: key + (isDetection ? "" : " (UL)"),
-    legendgroup: key + dataType,
-    marker: {
-      line: {
-        width: 1,
-        color: rgba(color, 1),
-      },
-      color: isDetection ? rgba(color, 0.3) : rgba(color, 0.1),
-      size: isMobile ? 6 : 9,
-      symbol: isDetection ? "circle" : "triangle-down",
+    nticks: 8,
+    minor: {
+      ticks: "outside",
+      ticklen: 6,
+      tickcolor: "black",
     },
-    hoverlabel: {
-      bgcolor: "white",
-      font: { size: 14 },
-      align: "left",
-    },
-    hovertemplate: "%{text}<extra></extra>",
   };
-}
-
-function getLayoutGraphPart() {
-  return {
+  const layoutGraphPart = {
     autosize: true,
     xaxis: {
       title: {
@@ -81,13 +31,13 @@ function getLayoutGraphPart() {
       overlaying: "x",
       side: "bottom",
       tickformat: ".6~f",
-      ...BASE_LAYOUT,
+      ...baseLayout,
     },
     yaxis: {
       title: {
         text: "AB Mag",
       },
-      ...BASE_LAYOUT,
+      ...baseLayout,
     },
     margin: {
       b: 75,
@@ -114,10 +64,8 @@ function getLayoutGraphPart() {
     showlegend: true,
     hovermode: "closest",
   };
-}
 
-function getLayoutLegendPart(isMobile) {
-  return {
+  const layoutLegendPart = {
     legend: {
       font: { size: 14 },
       tracegroupgap: 0,
@@ -126,17 +74,8 @@ function getLayoutLegendPart(isMobile) {
       x: isMobile ? 0 : 1,
     },
   };
-}
 
-function getLayout(isMobile) {
-  return {
-    ...getLayoutGraphPart(),
-    ...getLayoutLegendPart(isMobile),
-  };
-}
-
-function getConfig() {
-  return {
+  const config = {
     responsive: true,
     displaylogo: false,
     showAxisDragHandles: false,
@@ -156,53 +95,99 @@ function getConfig() {
         click: () => {
           Plotly.relayout(
             document.getElementsByClassName("plotly")[0].parentElement,
-            getLayoutGraphPart(),
+            layoutGraphPart,
           );
         },
       },
     ],
   };
-}
 
-function getGroupedPhotometry(photometry) {
-  return photometry.reduce((acc, point) => {
-    const key = `${point.instrument_name}/${point.filter}${
-      point.origin !== "None" ? `/${point.origin}` : ""
-    }`;
-    if (!acc[key]) {
-      acc[key] = [];
-    }
-    acc[key].push(point);
-    return acc;
-  }, {});
-}
+  function getHoverTexts(photometry) {
+    return photometry.map(
+      (point) =>
+        `MJD: ${point.mjd.toFixed(6)}<br>${
+          point.mag !== null ? `Mag: ${point.mag.toFixed(4)}<br>` : ""
+        }${
+          point.magerr !== null ? `Magerr: ${point.magerr.toFixed(4)}<br>` : ""
+        }${
+          point.limiting_mag !== null
+            ? `Limiting Mag: ${point.limiting_mag.toFixed(4)}<br>`
+            : ""
+        }Filter: ${point.filter}<br>Instrument: ${point.instrument_name}`,
+    );
+  }
 
-function adjustLegend(isMobile) {
-  const plotDiv = document.getElementsByClassName("plotly")[0].parentElement;
-  Plotly.relayout(plotDiv, getLayoutLegendPart(isMobile));
-  Plotly.restyle(plotDiv, { "marker.size": isMobile ? 6 : 9 });
-}
+  function getGroupedPhotometry(photometry) {
+    return photometry.reduce((acc, point) => {
+      const key = `${point.instrument_name}/${point.filter}${
+        point.origin !== "None" ? `/${point.origin}` : ""
+      }`;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(point);
+      return acc;
+    }, {});
+  }
 
-/* eslint-disable no-unused-vars */
-function photometryPlot(
-  photometry_data,
-  div_id,
-  filters_used_mapper,
-  isMobile,
-) {
-  const photometry = JSON.parse(photometry_data);
+  function getTrace(data, isDetection, key, color) {
+    const now = new Date().getTime() / 86400000 + 40587;
+    const rgba = (rgb, alpha) =>
+      `rgba(${rgb[0]},${rgb[1]},${rgb[2]}, ${alpha})`;
+    const dataType = isDetection ? "detections" : "upperLimits";
+    return {
+      dataType,
+      x: data.map((point) => now - point.mjd),
+      y: data.map((point) => (isDetection ? point.mag : point.limiting_mag)),
+      ...(isDetection
+        ? {
+            error_y: {
+              type: "data",
+              array: data.map((point) => point.magerr),
+              visible: true,
+              color: rgba(color, 0.5),
+              width: 1,
+              thickness: 2,
+            },
+          }
+        : {}),
+      text: getHoverTexts(data),
+      mode: "markers",
+      type: "scatter",
+      name: key + (isDetection ? "" : " (UL)"),
+      legendgroup: key + dataType,
+      marker: {
+        line: {
+          width: 1,
+          color: rgba(color, 1),
+        },
+        color: isDetection ? rgba(color, 0.3) : rgba(color, 0.1),
+        size: isMobile ? 6 : 9,
+        symbol: isDetection ? "circle" : "triangle-down",
+      },
+      hoverlabel: {
+        bgcolor: "white",
+        font: { size: 14 },
+        align: "left",
+      },
+      hovertemplate: "%{text}<extra></extra>",
+    };
+  }
+
+  const photometry_tab = JSON.parse(photometry_data);
   const mapper = JSON.parse(filters_used_mapper);
   const plotData = [];
-
-  const groupedPhotometry = getGroupedPhotometry(photometry);
+  const groupedPhotometry = getGroupedPhotometry(photometry_tab);
   Object.keys(groupedPhotometry).forEach((key) => {
     const photometry = groupedPhotometry[key];
     const color = mapper[photometry[0].filter] || [0, 0, 0];
     const { detections, upperLimits } = photometry.reduce(
       (acc, point) => {
-        point.mag !== null
-          ? acc.detections.push(point)
-          : acc.upperLimits.push(point);
+        if (point.mag !== null) {
+          acc.detections.push(point);
+        } else {
+          acc.upperLimits.push(point);
+        }
         return acc;
       },
       { detections: [], upperLimits: [] },
@@ -211,10 +196,11 @@ function photometryPlot(
     const upperLimitsTrace = getTrace(upperLimits, false, key, color, isMobile);
     plotData.push(detectionsTrace, upperLimitsTrace);
   });
+
   Plotly.newPlot(
     document.getElementById(div_id),
     plotData,
-    getLayout(isMobile),
-    getConfig(),
+    { ...layoutGraphPart, ...layoutLegendPart },
+    config,
   );
 }
