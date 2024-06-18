@@ -114,7 +114,7 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
 
   const spectroscopy_tab = JSON.parse(spectroscopy_data);
   const plotData = [];
-  spectroscopy_tab.forEach((spectroscopy) => {
+  spectroscopy_tab.forEach((spectroscopy, index) => {
     plotData.push({
       mode: "lines",
       type: "scatter",
@@ -128,7 +128,9 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
       line: {
         shape: "hvh",
         width: 0.85,
-        color: "blue",
+        color: `hsl(${Math.round(
+          240 - (index / spectroscopy.length - 1) * 240,
+        )}, 90%, 50%)`,
       },
       hoverlabel: {
         bgcolor: "white",
