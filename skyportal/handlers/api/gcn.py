@@ -4042,10 +4042,10 @@ class GcnReportHandler(BaseHandler):
                 GcnReport.dateobs == dateobs,
             )
             report = session.scalars(stmt).first()
-            report.data  # get the data column (deferred)
             if report is None:
                 return self.error("Report not found", status=404)
 
+            report.data  # get the data column (deferred)
             return self.success(data=report)
 
     @auth_or_token
