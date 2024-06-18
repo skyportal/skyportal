@@ -3436,6 +3436,11 @@ class GcnSummaryHandler(BaseHandler):
         if summary_id is None:
             return self.error("Summary ID is required")
 
+        try:
+            summary_id = int(summary_id)
+        except ValueError:
+            return self.error("Invalid summary_id value.")
+
         with self.Session() as session:
             stmt = GcnSummary.select(session.user_or_token, mode="update").where(
                 GcnSummary.id == summary_id,
