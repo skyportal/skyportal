@@ -11,7 +11,14 @@ from ..source import get_source
 from ...base import BaseHandler
 from ....enum_types import THUMBNAIL_TYPES
 
-from ....models import PublicSourcePage, Group, Stream, Classification, Photometry
+from ....models import (
+    PublicSourcePage,
+    Photometry,
+    Spectrum,
+    Classification,
+    Group,
+    Stream,
+)
 from ....utils.thumbnail import get_thumbnail_alt_link, get_thumbnail_header
 
 log = make_log('api/public_source_page')
@@ -47,6 +54,44 @@ def get_redshift_to_display(source):
     elif source.get('redshift'):
         redshift_display = round(source['redshift'], 4)
     return redshift_display
+
+
+def get_photometry(data_to_publish, source_id, group_ids, stream_ids, session):
+    query = Photometry.select(session.user_or_token, mode="read").where(
+        Photometry.obj_id == source_id
+    )
+    if len(group_ids) and len(stream_ids):
+        query = query.where(
+            or_(
+                Photometry.groups.any(Group.id.in_(group_ids)),
+                Photometry.streams.any(Stream.id.in_(stream_ids)),
+            )
+        )
+    data_to_publish["photometry"] = [
+        photo.to_dict_public() for photo in session.scalars(query).all()
+    ]
+
+
+def get_spectroscopy(data_to_publish, source_id, group_ids, session):
+    query = Spectrum.select(session.user_or_token, mode="read").where(
+        Spectrum.obj_id == source_id
+    )
+    if len(group_ids):
+        query = query.where(or_(Spectrum.groups.any(Group.id.in_(group_ids))))
+    data_to_publish["spectroscopy"] = [
+        spec.to_dict_public() for spec in session.scalars(query).all()
+    ]
+
+
+def get_classifications(data_to_publish, source_id, group_ids, session):
+    query = Classification.select(session.user_or_token, mode="read").where(
+        Classification.obj_id == source_id
+    )
+    if len(group_ids):
+        query = query.where(Classification.groups.any(Group.id.in_(group_ids)))
+    data_to_publish["classifications"] = [
+        c.to_dict_public() for c in session.scalars(query).all()
+    ]
 
 
 class PublicSourcePageHandler(BaseHandler):
@@ -108,6 +153,7 @@ class PublicSourcePageHandler(BaseHandler):
             )
             if source is None:
                 return self.error("Source not found", status=404)
+
             data_to_publish = {
                 "ra": round(source["ra"], 6) if source["ra"] else None,
                 "dec": round(source["dec"], 6) if source["dec"] else None,
@@ -125,34 +171,14 @@ class PublicSourcePageHandler(BaseHandler):
                 "options": options,
             }
 
-            # get photometry
             if options.get("include_photometry"):
-                query = Photometry.select(session.user_or_token, mode="read").where(
-                    Photometry.obj_id == source_id
+                get_photometry(
+                    data_to_publish, source_id, group_ids, stream_ids, session
                 )
-                if len(group_ids) and len(stream_ids):
-                    query = query.where(
-                        or_(
-                            Photometry.groups.any(Group.id.in_(group_ids)),
-                            Photometry.streams.any(Stream.id.in_(stream_ids)),
-                        )
-                    )
-                data_to_publish["photometry"] = [
-                    photo.to_dict_public() for photo in session.scalars(query).all()
-                ]
-
-            # get classifications
+            if options.get("include_spectroscopy"):
+                get_spectroscopy(data_to_publish, source_id, group_ids, session)
             if options.get("include_classifications"):
-                query = Classification.select(session.user_or_token, mode="read").where(
-                    Classification.obj_id == source_id
-                )
-                if len(group_ids):
-                    query = query.where(
-                        Classification.groups.any(Group.id.in_(group_ids))
-                    )
-                data_to_publish["classifications"] = [
-                    c.to_dict_public() for c in session.scalars(query).all()
-                ]
+                get_classifications(data_to_publish, source_id, group_ids, session)
 
             new_page_hash = calculate_hash(data_to_publish)
             if (

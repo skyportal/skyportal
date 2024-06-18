@@ -389,6 +389,26 @@ class Spectrum(Base):
             **spec_data,
         )
 
+    def to_dict_public(self):
+        return {
+            'wavelengths': self.wavelengths.tolist(),
+            'fluxes': self.fluxes.tolist(),
+            'errors': self.errors.tolist() if self.errors is not None else None,
+            'units': self.units,
+            'origin': self.origin,
+            'type': self.type,
+            'label': self.label,
+            'instrument_id': self.instrument_id,
+            'pi': [pi.id for pi in self.pis],
+            'reducer': [reducer.id for reducer in self.reducers],
+            'observer': [observer.id for observer in self.observers],
+            'followup_request_id': self.followup_request_id,
+            'assignment_id': self.assignment_id,
+            'altdata': self.altdata,
+            'comments': [c.to_dict() for c in self.comments],
+            'reminders': [r.to_dict() for r in self.reminders],
+        }
+
 
 SpectrumPI = join_model(
     "spectrum_pis", Spectrum, User, new_name='SpectrumPI', overlaps='pis'
