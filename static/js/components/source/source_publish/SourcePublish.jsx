@@ -32,7 +32,12 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
+const SourcePublish = ({
+  sourceId,
+  isPhotometry,
+  isSpectroscopy,
+  isClassifications,
+}) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const currentUser = useSelector((state) => state.profile);
@@ -51,6 +56,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
   // Create data access options
   const [options, setOptions] = useState({
     include_photometry: true,
+    include_spectroscopy: true,
     include_classifications: true,
     groups: [],
     streams: [],
@@ -155,6 +161,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
                   optionsState={[options, setOptions]}
                   isElements={{
                     photometry: isPhotometry,
+                    spectroscopy: isSpectroscopy,
                     classifications: isClassifications,
                   }}
                 />
@@ -190,6 +197,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
 SourcePublish.propTypes = {
   sourceId: PropTypes.string.isRequired,
   isPhotometry: PropTypes.bool.isRequired,
+  isSpectroscopy: PropTypes.bool.isRequired,
   isClassifications: PropTypes.bool.isRequired,
 };
 

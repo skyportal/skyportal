@@ -33,6 +33,11 @@ const SourcePublishOptions = ({ optionsState, isElements }) => {
         title: "Include photometry?",
         default: true,
       },
+      include_spectroscopy: {
+        type: "boolean",
+        title: "Include spectroscopy?",
+        default: true,
+      },
       include_classifications: {
         type: "boolean",
         title: "Include classifications?",
@@ -82,16 +87,22 @@ const SourcePublishOptions = ({ optionsState, isElements }) => {
         liveValidate
         validator={validator}
         uiSchema={{
+          streams: {
+            "ui:disabled": !isElements.photometry,
+          },
           include_photometry: {
             "ui:disabled": !isElements.photometry,
           },
-          streams: {
-            "ui:disabled": !isElements.photometry,
+          include_spectroscopy: {
+            "ui:disabled": !isElements.spectroscopy,
           },
           include_classifications: {
             "ui:disabled": !isElements.classifications,
           },
-          "ui:disabled": !isElements.classifications && !isElements.photometry,
+          "ui:disabled":
+            !isElements.classifications &&
+            !isElements.photometry &&
+            !isElements.spectroscopy,
           "ui:submitButtonOptions": { norender: true },
         }}
       />
@@ -104,6 +115,7 @@ SourcePublishOptions.propTypes = {
     PropTypes.oneOfType([
       PropTypes.shape({
         include_photometry: PropTypes.bool,
+        include_spectroscopy: PropTypes.bool,
         include_classifications: PropTypes.bool,
         groups: PropTypes.arrayOf(PropTypes.number),
         streams: PropTypes.arrayOf(PropTypes.number),
@@ -113,6 +125,7 @@ SourcePublishOptions.propTypes = {
   ).isRequired,
   isElements: PropTypes.shape({
     photometry: PropTypes.bool,
+    spectroscopy: PropTypes.bool,
     classifications: PropTypes.bool,
   }).isRequired,
 };

@@ -986,6 +986,7 @@ const SourceContent = ({ source }) => {
               <SourcePublish
                 sourceId={source.id}
                 isPhotometry={source.photometry_exists}
+                isSpectroscopy={source.spectrum_exists}
                 isClassifications={source.classifications?.length > 0}
               />
             </div>
