@@ -522,11 +522,19 @@ def post_gcnevent_from_json(
         # FIXME: https://github.com/astropy/astropy/issues/7179
         date = Time(date.iso).datetime
 
+    if "instrument" in payload:
+        instrument = payload["instrument"]
+    elif "type" in payload:
+        instrument = payload["type"].replace(" ", "-")
+    else:
+        instrument = "Unknown"
+
+    notice_type = payload.get('notice_type')
     gcn_notice = GcnNotice(
         content=json.dumps(payload).encode('utf-8'),
-        ivorn=f'{payload["instrument"]}-{date.strftime("%Y-%m-%dT%H:%M:%S")}',
-        notice_type=None,
-        stream=payload["instrument"],
+        ivorn=f'{instrument}-{date.strftime("%Y-%m-%dT%H:%M:%S")}',
+        notice_type=notice_type,
+        stream=instrument,
         date=date,
         has_localization=True,
         localization_ingested=False,
@@ -1761,11 +1769,11 @@ class GcnEventHandler(BaseHandler):
                     event.gcn_notices, key=lambda notice: notice.date, reverse=True
                 )
                 for notice in event.gcn_notices:
-                    notice.notice_type = (
-                        gcn.NoticeType(notice.notice_type).name
-                        if notice.notice_type
-                        else None
-                    )
+                    if notice.notice_type is not None:
+                        try:
+                            notice.notice_type = gcn.NoticeType(notice.notice_type).name
+                        except ValueError:
+                            pass
                 event_info = {
                     **event.to_dict(),
                     "tags": list(set(event.tags)),
@@ -2116,14 +2124,19 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     filters = gcn_observation_plan['filters']
                     if filters is not None:
                         if 'gcn_notices' in filters and len(filters['gcn_notices']) > 0:
-                            if not any(
-                                [
-                                    notice.notice_type is not None
-                                    and gcn.NoticeType(notice.notice_type).name
-                                    in filters['gcn_notices']
-                                    for notice in event.gcn_notices
-                                ]
-                            ):
+                            gcn_notice_filter = False
+                            for notice in event.gcn_notices:
+                                if notice.notice_type is not None:
+                                    try:
+                                        notice.notice_type = gcn.NoticeType(
+                                            notice.notice_type
+                                        ).name
+                                    except ValueError:
+                                        pass
+                                    if notice.notice_type in filters['gcn_notices']:
+                                        gcn_notice_filter = True
+                                        break
+                            if not gcn_notice_filter:
                                 continue
 
                         if 'gcn_tags' in filters and len(filters['gcn_tags']) > 0:
@@ -3423,6 +3436,11 @@ class GcnSummaryHandler(BaseHandler):
         if summary_id is None:
             return self.error("Summary ID is required")
 
+        try:
+            summary_id = int(summary_id)
+        except ValueError:
+            return self.error("Invalid summary_id value.")
+
         with self.Session() as session:
             stmt = GcnSummary.select(session.user_or_token, mode="update").where(
                 GcnSummary.id == summary_id,
@@ -3650,14 +3668,16 @@ def add_gcn_report(
                                 'area': data['area'],
                             }
                         )
-                        observations.extend(data["observations"])
+                        for o in data["observations"]:
+                            idx = data["field_ids"].index(o["instrument_field_id"])
+                            if idx is not None:
+                                o["field_coordinates"] = data["geojson"][idx][
+                                    "features"
+                                ][0]["geometry"]["coordinates"]
+                            if "field" in o:
+                                del o["field"]
 
-                for o in observations:
-                    o["field_coordinates"] = o["field"]["contour_summary"]["features"][
-                        0
-                    ]["geometry"]["coordinates"]
-                    del o["field"]
-                    del o["instrument"]
+                        observations.extend(data["observations"])
 
                 contents["observations"] = observations
                 contents["observation_statistics"] = observation_statistics
@@ -4026,10 +4046,10 @@ class GcnReportHandler(BaseHandler):
                 GcnReport.dateobs == dateobs,
             )
             report = session.scalars(stmt).first()
-            report.data  # get the data column (deferred)
             if report is None:
                 return self.error("Report not found", status=404)
 
+            report.data  # get the data column (deferred)
             return self.success(data=report)
 
     @auth_or_token

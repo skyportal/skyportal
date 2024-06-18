@@ -793,11 +793,13 @@ def get_observations(
                 "probability": intprob,
                 "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees,
                 "geojson": geojson,
+                "field_ids": fields_in,
             }
         else:
             data = {
                 **data,
                 "geojson": geojson,
+                "field_ids": fields_in,
             }
 
     else:

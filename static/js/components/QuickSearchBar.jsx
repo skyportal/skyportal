@@ -11,7 +11,12 @@ import MenuItem from "@mui/material/MenuItem";
 
 import { GET } from "../API";
 
-const ALLOWED_TYPES = ["Sources", "GCN Events"];
+const ALLOWED_TYPES = [
+  "Sources",
+  "Source comments",
+  "GCN Events",
+  "GCN comments",
+];
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -108,17 +113,36 @@ const QuickSearchBar = () => {
       if (type === "GCN Events") {
         return dispatch(
           GET(
-            `/api/gcn_event?partialdateobs=${val}&pageNumber=1&totalMatches=25`,
+            `/api/gcn_event?partialdateobs=${val}&pageNumber=1&numPerPage=25&totalMatches=25`,
             "skyportal/FETCH_AUTOCOMPLETE_GCN_EVENTS",
           ),
         );
       }
-      return dispatch(
-        GET(
-          `/api/sources?sourceID=${val}&pageNumber=1&totalMatches=25&includeComments=false&removeNested=true`,
-          "skyportal/FETCH_AUTOCOMPLETE_SOURCES",
-        ),
-      );
+      if (type === "Sources") {
+        return dispatch(
+          GET(
+            `/api/sources?sourceID=${val}&pageNumber=1&numPerPage=25&totalMatches=25&includeComments=false&removeNested=true`,
+            "skyportal/FETCH_AUTOCOMPLETE_SOURCES",
+          ),
+        );
+      }
+      if (type === "Source comments") {
+        return dispatch(
+          GET(
+            `/api/sources/comments?text=${val}&pageNumber=1&numPerPage=25&totalMatches=25`,
+            "skyportal/FETCH_AUTOCOMPLETE_SOURCE_COMMENTS",
+          ),
+        );
+      }
+      if (type === "GCN comments") {
+        return dispatch(
+          GET(
+            `/api/gcn_event/comments?text=${val}&pageNumber=1&numPerPage=25&totalMatches=25`,
+            "skyportal/FETCH_AUTOCOMPLETE_SOURCE_COMMENTS",
+          ),
+        );
+      }
+      return undefined;
     };
 
     (async () => {
@@ -141,9 +165,11 @@ const QuickSearchBar = () => {
 
         let matchingEntries = [];
         if (type === "Sources") {
-          matchingEntries = await response.data.sources;
+          matchingEntries = await response?.data?.sources;
         } else if (type === "GCN Events") {
-          matchingEntries = await response.data.events;
+          matchingEntries = await response?.data?.events;
+        } else if (["Source comments", "GCN comments"].includes(type)) {
+          matchingEntries = await response?.data;
         }
 
         if (matchingEntries) {
@@ -198,6 +224,22 @@ const QuickSearchBar = () => {
                 match_name,
               };
             }
+            if (type === "Source comments") {
+              // comments here have a text field (that we are searching for a match) and an obj_id field
+              return {
+                id: matchingEntries[key].obj_id,
+                name: `${matchingEntries[key].obj_id} - ${matchingEntries[key].text}`,
+                match_name: `${matchingEntries[key].obj_id} ${matchingEntries[key].text}`,
+              };
+            }
+            if (type === "GCN comments") {
+              // comments here have a text field (that we are searching for a match) and an dateobs field
+              return {
+                id: matchingEntries[key].dateobs,
+                name: `${matchingEntries[key].dateobs} - ${matchingEntries[key].text}`,
+                match_name: `${matchingEntries[key].dateobs} ${matchingEntries[key].text}`,
+              };
+            }
             // fallback
             return {
               id: matchingEntries[key].id,
@@ -220,9 +262,9 @@ const QuickSearchBar = () => {
   };
 
   const goToPage = (id, resourceType) => {
-    if (resourceType === "Sources") {
+    if (["Sources", "Source comments"].includes(resourceType)) {
       navigate(`/source/${id}`);
-    } else if (resourceType === "GCN Events") {
+    } else if (["GCN Events", "GCN comments"].includes(resourceType)) {
       navigate(`/gcn_events/${id}`);
     }
   };

@@ -16,9 +16,9 @@ import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-import * as defaultGcnTagsActions from "../ducks/default_gcn_tags";
-import Button from "./Button";
-import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
+import * as defaultGcnTagsActions from "../../ducks/default_gcn_tags";
+import Button from "../Button";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
 const useStyles = makeStyles((theme) => ({
   container: {

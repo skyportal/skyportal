@@ -12,14 +12,14 @@ import io
 import json
 import random
 
-import gcn
+import astropy.units as u
 import jinja2
 from ligo.skymap import plot  # noqa: F401 F811
 from ligo.skymap import postprocess
 import lxml
 import matplotlib
-import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+from mocpy import MOC
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
@@ -212,29 +212,20 @@ class GcnReport(Base):
                 )
 
             for i, obs in enumerate(observations):
-                coords = np.array(obs["field_coordinates"])
-                try:
-                    ras = coords[0][:, 0]
-                except Exception:
-                    ras = coords[:, 0]
-                # cannot handle 0-crossing well
-                if (len(np.where(ras > 180)[0]) > 0) and (
-                    len(np.where(ras < 180)[0]) > 0
-                ):
-                    continue
-                poly = plt.Polygon(
-                    coords,
-                    alpha=1.0,
-                    facecolor=surveyColors[obs["filt"]],
-                    edgecolor='black',
-                    transform=ax.get_transform('world'),
-                )
-                ax.add_patch(poly)
+                field_coordinates = np.array(obs["field_coordinates"])
+                coords = np.squeeze(field_coordinates)
+                ra, dec = coords[:, 0], coords[:, 1]
+                moc = MOC.from_polygon(ra * u.deg, dec * u.deg, max_depth=10)
 
-            patches = []
-            for filt in filters:
-                patches.append(mpatches.Patch(color=surveyColors[filt], label=filt))
-            plt.legend(handles=patches)
+                moc.fill(
+                    ax=ax,
+                    wcs=ax.wcs,
+                    alpha=0.1,
+                    fill=True,
+                    color=surveyColors.get(filt, "black"),
+                    linewidth=1,
+                )
+                moc.border(ax=ax, wcs=ax.wcs, alpha=1, color="black")
 
         if "sources" in data and len(data["sources"]) > 0:
             for source in data["sources"]:
@@ -280,7 +271,8 @@ class GcnReport(Base):
                 source["filters_mapper"] = get_bandpasses_to_colors(filters)
 
         env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader("./static/public_pages/reports/report")
+            autoescape=True,
+            loader=jinja2.FileSystemLoader("./static/public_pages/reports/report"),
         )
         env.policies['json.dumps_function'] = to_json
 
@@ -412,7 +404,7 @@ class GcnNotice(Base):
     )
 
     notice_type = sa.Column(
-        sa.Enum(gcn.NoticeType),
+        sa.String,
         nullable=True,
         doc='GCN Notice type',
     )
