@@ -3663,17 +3663,16 @@ def add_gcn_report(
                                 'area': data['area'],
                             }
                         )
-                        observations.extend(data["observations"])
+                        for o in data["observations"]:
+                            idx = data["field_ids"].index(o["instrument_field_id"])
+                            if idx is not None:
+                                o["field_coordinates"] = data["geojson"][idx][
+                                    "features"
+                                ][0]["geometry"]["coordinates"]
+                            if "field" in o:
+                                del o["field"]
 
-                for o in observations:
-                    if "geojson" in o:
-                        o["field_coordinates"] = o["geojson"]["features"][0][
-                            "geometry"
-                        ]["coordinates"]
-                    if "field" in o:
-                        del o["field"]
-                    if "instrument" in o:
-                        del o["instrument"]
+                        observations.extend(data["observations"])
 
                 contents["observations"] = observations
                 contents["observation_statistics"] = observation_statistics
