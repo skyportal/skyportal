@@ -31,7 +31,6 @@
     {% if data.get('photometry') or data.get('spectroscopy') %}
       <script src="https://cdn.plot.ly/plotly-2.25.2.min.js"></script>
       <script>
-        import "https://cdn.plot.ly/plotly-2.25.2.min.js";
         window.isMobile = window.matchMedia("(max-width: 900px)").matches;
         window.addEventListener("resize", function (){
           if (window.isMobile !== window.matchMedia("(max-width: 900px)").matches)
