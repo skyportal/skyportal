@@ -55,6 +55,7 @@ import UpdateSourceTNS from "../UpdateSourceTNS";
 import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
+import SourceCandidatesHistory from "./SourceCandidatesHistory";
 import ShowSummaryHistory from "../ShowSummaryHistory";
 import AnnotationsTable from "../AnnotationsTable";
 import GcnNotesTable from "../gcn/GcnNotesTable";
@@ -208,6 +209,12 @@ export const useSourceStyles = makeStyles((theme) => ({
       display: "inline",
       padding: "0.25rem 0.5rem 0.25rem 0",
     },
+  },
+  sourceCandidates: {
+    marginLeft: "0.1rem",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 }));
 
@@ -602,6 +609,11 @@ const SourceContent = ({ source }) => {
               <div className={classes.header}>
                 <FavoritesButton sourceID={source.id} />
                 <h6 className={classes.name}>{source.id}</h6>
+                <div className={classes.sourceCandidates}>
+                  <SourceCandidatesHistory
+                    candidates={source?.candidates || []}
+                  />
+                </div>
               </div>
               {!downLg && (
                 <div className={classes.container}>
@@ -1538,6 +1550,7 @@ SourceContent.propTypes = {
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
     photstats: PropTypes.arrayOf(PropTypes.shape(Object)),
+    candidates: PropTypes.arrayOf(PropTypes.shape(Object)),
   }).isRequired,
 };
 
