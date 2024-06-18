@@ -7,6 +7,7 @@ import time
 import unicodedata
 
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from ..base import BaseHandler
@@ -28,6 +29,8 @@ from ...models import (
     UserNotification,
     Token,
 )
+
+_, cfg = load_env()
 
 log = make_log('api/comment')
 
@@ -374,8 +377,7 @@ class CommentHandler(BaseHandler):
                       type: integer
                     description: |
                       List of group IDs corresponding to which groups should be
-                      able to view comment. Defaults to all of requesting user's
-                      groups.
+                      able to view comment. Defaults to the public group.
                   attachment:
                     type: object
                     properties:
@@ -385,7 +387,6 @@ class CommentHandler(BaseHandler):
                         description: base64-encoded file contents
                       name:
                         type: string
-
                 required:
                   - text
         responses:
@@ -428,8 +429,17 @@ class CommentHandler(BaseHandler):
         with self.Session() as session:
             try:
                 group_ids = data.pop('group_ids', None)
-                if not group_ids:
-                    group_ids = [g.id for g in self.current_user.accessible_groups]
+                if not isinstance(group_ids, list) or len(group_ids) == 0:
+                    public_group = session.scalar(
+                        sa.select(Group.id).where(
+                            Group.name == cfg['misc.public_group_name']
+                        )
+                    )
+                    if public_group is None:
+                        return self.error(
+                            f'No group_ids were specified and the public group "{cfg["misc.public_group_name"]}" does not exist. Cannot post comment'
+                        )
+                    group_ids = [public_group]
                 groups = session.scalars(
                     Group.select(self.current_user).where(Group.id.in_(group_ids))
                 ).all()
