@@ -1,6 +1,23 @@
 /* eslint-disable no-unused-vars */
-function getLayoutGraphPartSpectroscopy() {
-  return {
+
+function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
+  const baseLayout = {
+    zeroline: false,
+    automargin: true,
+    showline: true,
+    titlefont: { size: 18 },
+    tickfont: { size: 14 },
+    ticklen: 12,
+    ticks: "outside",
+    nticks: 8,
+    minor: {
+      ticks: "outside",
+      ticklen: 6,
+      tickcolor: "black",
+    },
+  };
+
+  const layoutGraphPart = {
     autosize: true,
     xaxis: {
       title: "Wavelength (Å)",
@@ -8,13 +25,13 @@ function getLayoutGraphPartSpectroscopy() {
       tickformat: ".6~f",
       zeroline: false,
       // eslint-disable-next-line no-undef
-      ...BASE_LAYOUT,
+      ...baseLayout,
     },
     yaxis: {
       title: "Flux",
       side: "left",
       // eslint-disable-next-line no-undef
-      ...BASE_LAYOUT,
+      ...baseLayout,
     },
     margin: {
       l: 70,
@@ -41,10 +58,8 @@ function getLayoutGraphPartSpectroscopy() {
     ],
     showlegend: true,
   };
-}
 
-function getLayoutLegendPartSpectroscopy(isMobile) {
-  return {
+  const layoutLegendPart = {
     legend: {
       font: { size: 14 },
       tracegroupgap: 0,
@@ -53,18 +68,9 @@ function getLayoutLegendPartSpectroscopy(isMobile) {
       x: isMobile ? 0 : 1,
     },
   };
-}
 
-function getLayoutSpectroscopy(isMobile) {
-  return {
-    ...getLayoutGraphPartSpectroscopy(),
-    ...getLayoutLegendPartSpectroscopy(isMobile),
-  };
-}
-
-/* eslint-disable no-unused-vars */
-function getConfigSpectroscopy() {
-  return {
+  /* eslint-disable no-unused-vars */
+  const config = {
     responsive: true,
     displaylogo: false,
     showAxisDragHandles: false,
@@ -86,29 +92,26 @@ function getConfigSpectroscopy() {
           // eslint-disable-next-line no-undef
           Plotly.relayout(
             document.getElementsByClassName("plotly")[0].parentElement,
-            getLayoutGraphPartSpectroscopy(),
+            layoutGraphPart,
           );
         },
       },
     ],
   };
-}
 
-/* eslint-disable no-unused-vars */
-function getHoverSpectroscopy(spectroscopy) {
-  return spectroscopy.wavelengths.map(
-    (wavelength, index) =>
-      `Wavelengths: ${wavelength}<br>` +
-      `Flux: ${spectroscopy.fluxes[index]}<br>` +
-      `Telescope: ${spectroscopy.telescope}<br>` +
-      `Instrument: ${spectroscopy.instrument}<br>` +
-      `PI: ${spectroscopy.pi.length ? spectroscopy.pi[index] : ""}<br>` +
-      `Origin: ${spectroscopy.origin}`,
-  );
-}
+  /* eslint-disable no-unused-vars */
+  function getHoverTexts(spectroscopy) {
+    return spectroscopy.wavelengths.map(
+      (wavelength, index) =>
+        `Wavelengths: ${wavelength}<br>` +
+        `Flux: ${spectroscopy.fluxes[index]}<br>` +
+        `Telescope: ${spectroscopy.telescope}<br>` +
+        `Instrument: ${spectroscopy.instrument}<br>` +
+        `PI: ${spectroscopy.pi.length ? spectroscopy.pi[index] : ""}<br>` +
+        `Origin: ${spectroscopy.origin}`,
+    );
+  }
 
-/* eslint-disable no-unused-vars */
-function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
   const spectroscopy_tab = JSON.parse(spectroscopy_data);
   const plotData = [];
   spectroscopy_tab.forEach((spectroscopy) => {
@@ -119,7 +122,7 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
       spectrumId: spectroscopy.id,
       x: spectroscopy.wavelengths,
       y: spectroscopy.fluxes.map((flux) => flux),
-      text: getHoverSpectroscopy(spectroscopy),
+      text: getHoverTexts(spectroscopy),
       name: spectroscopy.instrument,
       legendgroup: spectroscopy.id,
       line: {
@@ -140,7 +143,7 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
   Plotly.newPlot(
     document.getElementById(div_id),
     plotData,
-    getLayoutSpectroscopy(isMobile),
-    getConfigSpectroscopy(),
+    { ...layoutGraphPart, ...layoutLegendPart },
+    config,
   );
 }
