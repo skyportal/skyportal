@@ -1,4 +1,4 @@
-const baseLayout = {
+const BASE_LAYOUT = {
   zeroline: false,
   automargin: true,
   showline: true,
@@ -81,13 +81,13 @@ function getLayoutGraphPart() {
       overlaying: "x",
       side: "bottom",
       tickformat: ".6~f",
-      ...baseLayout,
+      ...BASE_LAYOUT,
     },
     yaxis: {
       title: {
         text: "AB Mag",
       },
-      ...baseLayout,
+      ...BASE_LAYOUT,
     },
     margin: {
       b: 75,

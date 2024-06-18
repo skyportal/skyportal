@@ -391,6 +391,7 @@ class Spectrum(Base):
 
     def to_dict_public(self):
         return {
+            'id': self.id,
             'wavelengths': self.wavelengths.tolist(),
             'fluxes': self.fluxes.tolist(),
             'errors': self.errors.tolist() if self.errors is not None else None,
@@ -398,7 +399,8 @@ class Spectrum(Base):
             'origin': self.origin,
             'type': self.type,
             'label': self.label,
-            'instrument_id': self.instrument_id,
+            'instrument': self.instrument.name,
+            'telescope': self.instrument.telescope.name,
             'pi': [pi.id for pi in self.pis],
             'reducer': [reducer.id for reducer in self.reducers],
             'observer': [observer.id for observer in self.observers],
