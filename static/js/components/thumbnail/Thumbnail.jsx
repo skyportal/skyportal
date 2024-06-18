@@ -101,7 +101,6 @@ const Thumbnail = ({
   maxSize,
   titleSize,
   grayscale,
-  header,
   noMargin,
 }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
@@ -130,7 +129,7 @@ const Thumbnail = ({
       <CardContent className={classes.cardTitle}>
         <Typography className={classes.title} color="textSecondary">
           <a href={link} target="_blank" rel="noreferrer">
-            {header.toUpperCase()}
+            {getThumbnailHeader(name)}
           </a>
         </Typography>
       </CardContent>
@@ -176,7 +175,6 @@ Thumbnail.propTypes = {
   maxSize: PropTypes.string.isRequired,
   titleSize: PropTypes.string.isRequired,
   grayscale: PropTypes.bool.isRequired,
-  header: PropTypes.string.isRequired,
   noMargin: PropTypes.bool,
 };
 
