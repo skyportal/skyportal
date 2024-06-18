@@ -6,9 +6,9 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
-import { submitGcnEvent } from "../ducks/gcnEvent";
 
-import * as gcnTagsActions from "../ducks/gcnTags";
+import { submitGcnEvent } from "../../ducks/gcnEvent";
+import * as gcnTagsActions from "../../ducks/gcnTags";
 
 const NewGcnEvent = ({ handleClose = null }) => {
   const dispatch = useDispatch();
@@ -22,6 +22,10 @@ const NewGcnEvent = ({ handleClose = null }) => {
   }, [dispatch]);
 
   const handleSubmit = async ({ formData }) => {
+    if (Object.keys(formData).includes("json") && formData.json !== undefined) {
+      // eslint-disable-next-line prefer-destructuring
+      formData.json = dataUriToBuffer(formData.json).toString();
+    }
     if (Object.keys(formData).includes("xml") && formData.xml !== undefined) {
       // eslint-disable-next-line prefer-destructuring
       formData.xml = dataUriToBuffer(formData.xml).toString();
@@ -63,10 +67,10 @@ const NewGcnEvent = ({ handleClose = null }) => {
     if (formData.error < 0) {
       errors.error.addError("0 < error, please fix.");
     }
-    if (!formData.xml) {
+    if (!(formData.xml || formData.json)) {
       if (!formData.dateobs) {
         errors.dateobs.addError(
-          "dateobs must be defined if not uploading VOEvent",
+          "dateobs must be defined if not uploading a VOEvent or JSON notice",
         );
       }
       if (
@@ -122,6 +126,12 @@ const NewGcnEvent = ({ handleClose = null }) => {
       format: "data-url",
       title: "VOEvent XML File",
       description: "VOEvent XML file",
+    },
+    json: {
+      type: "string",
+      format: "data-url",
+      title: "JSON File",
+      description: "JSON file",
     },
     skymap: {
       type: "string",
