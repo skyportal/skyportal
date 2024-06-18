@@ -4043,9 +4043,9 @@ class GcnReportHandler(BaseHandler):
             )
             report = session.scalars(stmt).first()
             if report is None:
-                report.data  # get the data column (deferred)
                 return self.error("Report not found", status=404)
 
+            report.data  # get the data column (deferred)
             return self.success(data=report)
 
     @auth_or_token
