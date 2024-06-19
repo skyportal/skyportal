@@ -332,14 +332,18 @@ async def get_source(
         session.commit()
 
     if include_comments:
-        comments = session.scalars(
-            Comment.select(
-                user,
-                options=[
-                    joinedload(Comment.author),
-                ],
-            ).where(Comment.obj_id == obj_id)
-        ).all()
+        comments = (
+            session.scalars(
+                Comment.select(
+                    user,
+                    options=[
+                        joinedload(Comment.author),
+                    ],
+                ).where(Comment.obj_id == obj_id)
+            )
+            .unique()
+            .all()
+        )
         source_info["comments"] = sorted(
             (
                 {
