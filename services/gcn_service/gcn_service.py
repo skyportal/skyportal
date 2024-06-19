@@ -138,6 +138,13 @@ def poll_events(*args, **kwargs):
                     tags = get_json_tags(payload)
                     alert_type = "json"
 
+                    if (
+                        payload['notice_type']
+                        == "gcn.notices.icecube.lvk_nu_track_search"
+                    ):
+                        if payload.get("pval_bayesian", 1) > 0.05:
+                            continue
+
                 tags_intersection = list(set(tags).intersection(set(reject_tags)))
                 if len(tags_intersection) > 0:
                     log(

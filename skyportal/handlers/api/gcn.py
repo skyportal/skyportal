@@ -2317,8 +2317,15 @@ class LocalizationHandler(BaseHandler):
             if localization is None:
                 return self.error("Localization not found", status=404)
 
+            dateobs = localization.dateobs
+
             session.delete(localization)
             session.commit()
+
+            self.push(
+                action="skyportal/REFRESH_GCN_EVENT",
+                payload={"gcnEvent_dateobs": dateobs},
+            )
 
             return self.success()
 
