@@ -175,12 +175,25 @@ class GcnReport(Base):
         if isinstance(data, str):
             data = json.loads(data)
 
-        localization = (
-            DBSession()
-            .query(Localization)
-            .where(Localization.dateobs == self.dateobs)
-            .first()
-        )
+        localization_name = None
+        if "event" in data:
+            localization_name = data["event"].get("localization_name", None)
+
+        if localization_name is None:
+            localization = (
+                DBSession()
+                .query(Localization)
+                .where(Localization.dateobs == self.dateobs)
+                .first()
+            )
+        else:
+            localization = (
+                DBSession()
+                .query(Localization)
+                .where(Localization.dateobs == self.dateobs)
+                .where(Localization.localization_name == localization_name)
+                .first()
+            )
 
         center = postprocess.posterior_max(localization.flat_2d)
 
