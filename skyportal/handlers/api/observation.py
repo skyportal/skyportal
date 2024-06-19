@@ -1126,8 +1126,15 @@ class ObservationHandler(BaseHandler):
                     message="numberObservations must be greater than 0 if specified"
                 )
 
-        start_date = arrow.get(start_date.strip()).datetime
-        end_date = arrow.get(end_date.strip()).datetime
+        try:
+            start_date = arrow.get(start_date.strip()).datetime
+        except arrow.ParserError as e:
+            return self.error(f"Invalid input for parameter start_date : {str(e)}")
+
+        try:
+            end_date = arrow.get(end_date.strip()).datetime
+        except arrow.ParserError as e:
+            return self.error(f"Invalid input for parameter end_date : {str(e)}")
 
         with self.Session() as session:
             data = get_observations(
