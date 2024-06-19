@@ -477,7 +477,7 @@ class GalaxyCatalogHandler(BaseHandler):
 
         data = self.get_json()
         catalog_name = data.get('catalog_name', None)
-        catalog_description = data.get('catalog_description', "")
+        catalog_description = data.get('catalog_description', None)
         catalog_url = data.get('catalog_url', None)
         catalog_data = data.get('catalog_data', None)
 
@@ -869,7 +869,7 @@ def add_galaxies(catalog_metadata, catalog_data):
         if catalog is None:
             catalog = GalaxyCatalog(
                 name=catalog_metadata["name"],
-                description=catalog_metadata.get("description", ""),
+                description=catalog_metadata.get("description", None),
                 url=catalog_metadata.get("url", None),
             )
             session.add(catalog)
