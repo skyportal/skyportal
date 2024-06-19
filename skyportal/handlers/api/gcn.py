@@ -2920,6 +2920,8 @@ def add_gcn_summary(
                         stats_method=stats_method,
                         n_per_page=MAX_OBSERVATIONS,
                         page_number=1,
+                        sort_by="obstime",
+                        sort_order="asc",
                     )
 
                     observations = data["observations"]
@@ -3659,6 +3661,8 @@ def add_gcn_report(
                             stats_method=stats_method,
                             n_per_page=MAX_OBSERVATIONS,
                             page_number=1,
+                            sort_by="obstime",
+                            sort_order="asc",
                         )
                         observation_statistics.append(
                             {
