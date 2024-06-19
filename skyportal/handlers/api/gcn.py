@@ -2064,13 +2064,17 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
     try:
         user = session.scalar(sa.select(User).where(User.id == user_id))
-        localization = session.query(Localization).get(localization_id)
+        localization = session.scalars(
+            sa.select(Localization).where(Localization.id == localization_id)
+        ).first()
         dateobs = localization.dateobs
         localization_tags = [
             tags.text
-            for tags in session.query(LocalizationTag)
-            .filter(LocalizationTag.localization_id == localization_id)
-            .all()
+            for tags in session.scalars(
+                sa.select(LocalizationTag).where(
+                    LocalizationTag.localization_id == localization_id
+                )
+            ).all()
         ]
 
         default_observation_plans = (
