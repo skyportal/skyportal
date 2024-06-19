@@ -1079,8 +1079,8 @@ class ObservationHandler(BaseHandler):
 
         telescope_name = self.get_query_argument('telescopeName', None)
         instrument_name = self.get_query_argument('instrumentName', None)
-        start_date = self.get_query_argument('startDate')
-        end_date = self.get_query_argument('endDate')
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
         localization_dateobs = self.get_query_argument('localizationDateobs', None)
         localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)

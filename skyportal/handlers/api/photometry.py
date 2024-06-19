@@ -39,6 +39,7 @@ from ...models import (
     GroupPhotometry,
     StreamPhotometry,
     PhotStat,
+    User,
 )
 
 from ...models.schema import (
@@ -261,7 +262,15 @@ def serialize(
     if created_at:
         return_value['created_at'] = phot.created_at
     if groups:
-        return_value['groups'] = [group.to_dict() for group in phot.groups]
+        return_value['groups'] = [
+            {
+                'id': group.id,
+                'name': group.name,
+                'nickname': group.nickname,
+                'single_user_group': group.single_user_group,
+            }
+            for group in phot.groups
+        ]
     if annotations:
         return_value['annotations'] = (
             [annotation.to_dict() for annotation in phot.annotations]
@@ -269,9 +278,20 @@ def serialize(
             else []
         )
     if owner:
-        return_value['owner'] = phot.owner.to_dict()
+        return_value['owner'] = {
+            'id': phot.owner.id,
+            'username': phot.owner.username,
+            'first_name': phot.owner.first_name,
+            'last_name': phot.owner.last_name,
+        }
     if stream:
-        return_value['streams'] = [stream.to_dict() for stream in phot.streams]
+        return_value['streams'] = [
+            {
+                'id': stream.id,
+                'name': stream.name,
+            }
+            for stream in phot.streams
+        ]
     if USE_PHOTOMETRY_VALIDATION and validation:
         return_value['validations'] = [
             validation.to_dict() for validation in phot.validations
@@ -1841,6 +1861,9 @@ class ObjPhotometryHandler(BaseHandler):
         include_validation_info = self.get_query_argument(
             'includeValidationInfo', False
         )
+        include_annotation_info = self.get_query_argument(
+            'includeAnnotationInfo', False
+        )
         deduplicate_photometry = self.get_query_argument('deduplicatePhotometry', False)
 
         if str(include_owner_info).lower() in ['true', 't', '1']:
@@ -1858,6 +1881,11 @@ class ObjPhotometryHandler(BaseHandler):
         else:
             include_validation_info = False
 
+        if str(include_annotation_info).lower() in ['true', 't', '1']:
+            include_annotation_info = True
+        else:
+            include_annotation_info = False
+
         with self.Session() as session:
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
@@ -1873,32 +1901,45 @@ class ObjPhotometryHandler(BaseHandler):
             if individual_or_series in ["individual", "both"]:
                 options = [
                     joinedload(Photometry.instrument).load_only(Instrument.name),
-                    joinedload(Photometry.groups),
-                    joinedload(Photometry.annotations),
+                    joinedload(Photometry.groups).load_only(
+                        Group.id, Group.name, Group.nickname, Group.single_user_group
+                    ),
                 ]
+                if include_annotation_info:
+                    options.append(joinedload(Photometry.annotations))
                 if include_owner_info:
-                    options.append(joinedload(Photometry.owner))
-                if include_stream_info:
-                    options.append(joinedload(Photometry.streams))
-
-                photometry = (
-                    session.scalars(
-                        Photometry.select(
-                            session.user_or_token,
-                            options=options,
+                    options.append(
+                        joinedload(Photometry.owner).load_only(
+                            User.id,
+                            User.username,
+                            User.first_name,
+                            User.last_name,
                         )
-                        .where(Photometry.obj_id == obj_id)
-                        .distinct()
                     )
-                    .unique()
-                    .all()
+                if include_stream_info:
+                    options.append(
+                        joinedload(Photometry.streams).load_only(
+                            Stream.id,
+                            Stream.name,
+                        )
+                    )
+
+                stmt = (
+                    Photometry.select(
+                        session.user_or_token,
+                        options=options,
+                    )
+                    .where(Photometry.obj_id == obj_id)
+                    .distinct()
                 )
+                photometry = session.scalars(stmt).unique().all()
 
                 phot_data = [
                     serialize(
                         phot,
                         outsys,
                         format,
+                        annotations=include_annotation_info,
                         owner=include_owner_info,
                         stream=include_stream_info,
                         validation=include_validation_info,
