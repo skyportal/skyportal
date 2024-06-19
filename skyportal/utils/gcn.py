@@ -23,6 +23,8 @@ from astropy.time import Time
 from astropy_healpix import HEALPix, nside_to_level, pixel_resolution_to_nside
 from mocpy import MOC
 
+SKYMAP_MIN = 1e-300
+
 
 def get_trigger(root):
     """Get the trigger ID from a GCN notice."""
@@ -603,6 +605,10 @@ def from_bytes(arr):
         f.flush()
 
         skymap = ligo.skymap.io.read_sky_map(f.name, moc=True)
+
+        idx = np.where(skymap['PROBDENSITY'] < SKYMAP_MIN)[0]
+        skymap['PROBDENSITY'][idx] = 0
+
         properties_dict, tags_list = properties_tags_from_meta(skymap.meta)
 
         nside = 128
@@ -687,8 +693,7 @@ def from_url(url):
     skymap = ligo.skymap.io.read_sky_map(url, moc=True)
     properties_dict, tags_list = properties_tags_from_meta(skymap.meta)
 
-    minval = 1e-300
-    idx = np.where(skymap['PROBDENSITY'] < minval)[0]
+    idx = np.where(skymap['PROBDENSITY'] < SKYMAP_MIN)[0]
     skymap['PROBDENSITY'][idx] = 0
 
     nside = 128
