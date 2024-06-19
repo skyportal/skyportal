@@ -1030,7 +1030,7 @@ def get_stream_ids(data, user, parent_session=None):
                 "Invalid format for stream_ids parameter. Must be a list of integers."
             )
         streams = (
-            session.scalars(sa.select(Stream).where(Stream.id.in_(list(stream_ids))))
+            session.scalars(Stream.select(user).where(Stream.id.in_(list(stream_ids))))
             .unique()
             .all()
         )
