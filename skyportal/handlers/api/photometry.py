@@ -976,34 +976,43 @@ def get_group_ids(data, user, parent_session=None):
 
     group_ids = data.pop("group_ids", [])
     if isinstance(group_ids, (list, tuple)):
-        for group_id in group_ids:
-            try:
-                group_id = int(group_id)
-            except TypeError:
-                raise ValidationError(
-                    f"Invalid format for group id {group_id}, must be an integer."
-                )
-            group = session.get(Group, group_id)
-            if group is None:
-                raise ValidationError(f'No group with ID {group_id}')
-    elif group_ids == 'all':
-        public_group = (
-            session.execute(
-                sa.select(Group).filter(Group.name == cfg["misc.public_group_name"])
+        try:
+            group_ids = {int(group_id) for group_id in group_ids}
+        except ValueError:
+            raise ValidationError(
+                "Invalid format for group_ids parameter. Must be a list of integers."
             )
-            .scalars()
-            .first()
+        groups = (
+            session.scalars(sa.select(Group).where(Group.id.in_(list(group_ids))))
+            .unique()
+            .all()
         )
-        group_ids = [public_group.id]
+        available_group_ids = {group.id for group in groups}
+        diff_group_ids = group_ids - available_group_ids
+        if diff_group_ids:
+            raise ValidationError(
+                f"Invalid group IDs: {diff_group_ids}. Available group IDs: {available_group_ids}"
+            )
+    elif group_ids == 'all':
+        public_group = session.scalar(
+            sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
+        )
+        if public_group is None:
+            raise ValidationError(
+                f"Public group {cfg['misc.public_group_name']} not found."
+            )
+        group_ids = {public_group.id}
     else:
         raise ValidationError(
             "Invalid group_ids parameter value. Must be a list of IDs "
             "(integers) or the string 'all'."
         )
 
+    group_ids = list(group_ids)
     # always add the single user group
-    group_ids.append(user.single_user_group.id)
-    group_ids = list(set(group_ids))
+    if user.single_user_group.id not in group_ids:
+        group_ids.append(user.single_user_group.id)
+
     return group_ids
 
 
@@ -1014,24 +1023,29 @@ def get_stream_ids(data, user, parent_session=None):
         session = parent_session
     stream_ids = data.pop("stream_ids", [])
     if isinstance(stream_ids, (list, tuple)):
-        for stream_id in stream_ids:
-            try:
-                stream_id = int(stream_id)
-            except TypeError:
-                raise ValidationError(
-                    f"Invalid format for stream id {stream_id}, must be an integer."
-                )
-            stream = session.scalar(Stream.select(user).where(Stream.id == stream_id))
-
-            if stream is None:
-                raise ValidationError(f'No stream with ID {stream_id}')
+        try:
+            stream_ids = {int(stream_id) for stream_id in stream_ids}
+        except ValueError:
+            raise ValidationError(
+                "Invalid format for stream_ids parameter. Must be a list of integers."
+            )
+        streams = (
+            session.scalars(sa.select(Stream).where(Stream.id.in_(list(stream_ids))))
+            .unique()
+            .all()
+        )
+        available_stream_ids = {stream.id for stream in streams}
+        diff_stream_ids = stream_ids - available_stream_ids
+        if diff_stream_ids:
+            raise ValidationError(
+                f"Invalid stream IDs: {diff_stream_ids}. Available stream IDs: {available_stream_ids}"
+            )
     else:
         raise ValidationError(
             "Invalid stream_ids parameter value. Must be a list of IDs (integers)."
         )
 
-    stream_ids = list(set(stream_ids))
-    return stream_ids
+    return list(stream_ids)
 
 
 def add_external_photometry(
