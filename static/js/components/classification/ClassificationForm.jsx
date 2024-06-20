@@ -7,6 +7,7 @@ import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as Actions from "../../ducks/source";
+
 import CustomProbabilityWidget from "./CustomProbabilityWidget";
 import CustomGroupsWidget from "./CustomGroupsWidget";
 import { allowedClasses } from "../../utils/helpers";

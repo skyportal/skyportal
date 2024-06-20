@@ -80,13 +80,7 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const defaultHiddenColumns = [
-  "instrument_id",
-  "snr",
-  "magsys",
-  "annotations",
-  "created_at",
-];
+const defaultHiddenColumns = ["instrument_id", "snr", "magsys", "created_at"];
 
 // eslint-disable-next-line
 const Transition = React.forwardRef(function Transition(props, ref) {

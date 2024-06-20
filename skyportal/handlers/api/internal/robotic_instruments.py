@@ -1,6 +1,6 @@
 import sqlalchemy as sa
 
-from ....models import Instrument, Galaxy
+from ....models import Instrument, GalaxyCatalog
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 
@@ -32,7 +32,7 @@ class RoboticInstrumentsHandler(BaseHandler):
                     # and pass them to the frontend_render_info method
                     # to avoid having to run that query for each instrument
                     galaxy_catalog_names = session.scalars(
-                        sa.select(Galaxy.catalog_name).distinct()
+                        sa.select(GalaxyCatalog.name).distinct()
                     ).all()
                     retval = {
                         i.id: i.api_class_obsplan.frontend_render_info(

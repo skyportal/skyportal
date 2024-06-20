@@ -393,40 +393,49 @@ def test_comments(driver, user, public_source):
     add_comment_and_wait_for_display(driver, comment_text)
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_comment_groups_validation(
     driver, user, super_admin_token, public_source, public_group
 ):
-    _, data = api("GET", "groups/public", token=super_admin_token)
-    sitewide_group_id = data["data"]["id"]
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
+
+    # fist post a classification without specifying anything
+    # (publicly accessible if no group is selected should be the default)
     comment_text = str(uuid.uuid4())
     enter_comment_text(driver, comment_text)
     driver.click_xpath(
-        "//div[@data-testid='comments-accordion']//*[text()='Customize Group Access']"
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
     )
+    try:
+        driver.wait_for_xpath(
+            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]',
+            timeout=20,
+        )
+        driver.wait_for_xpath(
+            '//div[@data-testid="comments-accordion"]//span[text()="a few seconds ago"]'
+        )
+    except TimeoutException:
+        driver.refresh()
+        driver.wait_for_xpath(
+            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@data-testid="comments-accordion"]//span[text()="a few seconds ago"]'
+        )
 
-    # sitewide_group
-    group_checkbox_xpath = f"//div[@data-testid='comments-accordion']//*[@data-testid='commentGroupCheckBox{sitewide_group_id}']"
-    driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
-
-    # public_group that user belongs to
+    # then post a classification to a specific group
+    enter_comment_text(driver, "")
+    comment_text = str(uuid.uuid4())
+    enter_comment_text(driver, comment_text)
+    driver.click_xpath(
+        "//div[@data-testid='comments-accordion']//*[text()='Customize Group Access (public if not specified)']"
+    )
     group_checkbox_xpath = f"//div[@data-testid='comments-accordion']//*[@data-testid='commentGroupCheckBox{public_group.id}']"
     driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
     driver.click_xpath(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    )
-    driver.wait_for_xpath(
-        '//div[@data-testid="comments-accordion"]//div[contains(.,"Select at least one group")]'
-    )
-    driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
-    driver.click_xpath(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    )
-    driver.wait_for_xpath_to_disappear(
-        '//div[@data-testid="comments-accordion"]//div[contains(.,"Select at least one group")]'
     )
     try:
         driver.wait_for_xpath(

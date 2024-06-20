@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import makeStyles from "@mui/styles/makeStyles";
 
-import Button from "./Button";
+import Button from "../Button";
 import FindGcnEvents from "./FindGcnEvents";
 
 const useStyles = makeStyles(() => ({
