@@ -1,6 +1,5 @@
 import datetime
 
-import gcn
 import json
 import lxml
 import requests
@@ -54,10 +53,11 @@ def gcn_notification_content(target, session):
     if gcn_event.gcn_notices is not None and len(gcn_event.gcn_notices) > 0:
         last_gcn_notice = gcn_event.gcn_notices[-1]
         if last_gcn_notice.notice_type is not None:
-            notice_type = gcn.NoticeType(last_gcn_notice.notice_type).name
+            notice_type = last_gcn_notice.notice_type
+        if last_gcn_notice.notice_format == "voevent":
             notice_content = lxml.etree.fromstring(last_gcn_notice.content)
             name = notice_content.find('./Why/Inference/Name')
-        else:
+        elif last_gcn_notice.notice_format == "json":
             notice_content = json.loads(last_gcn_notice.content.decode('utf8'))
 
     if name is not None:

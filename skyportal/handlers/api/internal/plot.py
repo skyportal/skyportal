@@ -36,24 +36,32 @@ class AirmassHandler(BaseHandler):
 class PlotAssignmentAirmassHandler(AirmassHandler):
     @auth_or_token
     async def get(self, assignment_id):
-        assignment = ClassicalAssignment.get_if_accessible_by(
-            assignment_id, self.current_user, raise_if_none=True
-        )
-        obj = assignment.obj
-        telescope = assignment.run.instrument.telescope
-        time = assignment.run.calendar_noon
+        with self.Session() as session:
+            assignment = session.scalar(
+                ClassicalAssignment.select(session.user_or_token).where(
+                    ClassicalAssignment.id == assignment_id
+                )
+            )
+            if assignment is None:
+                return self.error(f"Could not load assignment with ID {assignment_id}")
 
-        sunrise = telescope.next_sunrise(time=time)
-        sunset = telescope.next_sunset(time=time)
+            obj = assignment.obj
+            telescope = assignment.run.instrument.telescope
+            time = assignment.run.calendar_noon
 
-        if sunset > sunrise:
-            sunset = telescope.observer.sun_set_time(time, which='previous')
+            sunrise = telescope.next_sunrise(time=time)
+            sunset = telescope.next_sunset(time=time)
 
-        json = self.calculate_airmass(obj, telescope, sunrise, sunset).to_dict(
-            orient='records'
-        )
-        self.verify_and_commit()
-        return self.success(data=json)
+            if sunrise is None or sunset is None:
+                return self.error('sunrise or sunset not available')
+
+            if sunset > sunrise:
+                sunset = telescope.observer.sun_set_time(time, which='previous')
+
+            json = self.calculate_airmass(obj, telescope, sunrise, sunset).to_dict(
+                orient='records'
+            )
+            return self.success(data=json)
 
 
 class PlotObjTelAirmassHandler(AirmassHandler):
@@ -68,27 +76,39 @@ class PlotObjTelAirmassHandler(AirmassHandler):
         else:
             time = ap_time.Time.now()
 
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
         try:
             telescope_id = int(telescope_id)
         except TypeError:
             return self.error(f'Invalid telescope id: {telescope_id}, must be integer.')
 
-        telescope = Telescope.get_if_accessible_by(
-            telescope_id, self.current_user, raise_if_none=True
-        )
+        with self.Session() as session:
+            obj = session.scalar(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            )
+            if obj is None:
+                return self.error(f"Could not load object with ID {obj_id}")
 
-        sunrise = telescope.next_sunrise(time=time)
-        sunset = telescope.next_sunset(time=time)
+            telescope = session.scalar(
+                Telescope.select(session.user_or_token).where(
+                    Telescope.id == telescope_id
+                )
+            )
+            if telescope is None:
+                return self.error(f"Could not load telescope with ID {telescope_id}")
 
-        if sunset > sunrise:
-            sunset = telescope.observer.sun_set_time(time, which='previous')
+            sunrise = telescope.next_sunrise(time=time)
+            sunset = telescope.next_sunset(time=time)
 
-        json = self.calculate_airmass(obj, telescope, sunrise, sunset).to_dict(
-            orient='records'
-        )
-        self.verify_and_commit()
-        return self.success(data=json)
+            if sunrise is None or sunset is None:
+                return self.error('sunrise or sunset not available')
+
+            if sunset > sunrise:
+                sunset = telescope.observer.sun_set_time(time, which='previous')
+
+            json = self.calculate_airmass(obj, telescope, sunrise, sunset).to_dict(
+                orient='records'
+            )
+            return self.success(data=json)
 
 
 class PlotHoursBelowAirmassHandler(AirmassHandler):
@@ -98,45 +118,60 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
         if threshold is None:
             threshold = 2.9
 
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
         try:
             telescope_id = int(telescope_id)
         except TypeError:
             return self.error(f'Invalid telescope id: {telescope_id}, must be integer.')
 
-        telescope = Telescope.get_if_accessible_by(
-            telescope_id, self.current_user, raise_if_none=True
-        )
+        with self.Session() as session:
+            obj = session.scalar(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            )
+            if obj is None:
+                return self.error(f"Could not load object with ID {obj_id}")
 
-        year = datetime.date.today().year
-        year_start = datetime.datetime(year, 1, 1, 0, 0, 0)
+            telescope = session.scalar(
+                Telescope.select(session.user_or_token).where(
+                    Telescope.id == telescope_id
+                )
+            )
+            if telescope is None:
+                return self.error(f"Could not load telescope with ID {telescope_id}")
 
-        json = []
-        # Sample every 7 days for the year
-        deltat = 7
-        for day in range(365 // deltat):
-            day = year_start + datetime.timedelta(days=day * deltat)
-            day = ap_time.Time(day.isoformat(), format='isot')
+            year = datetime.date.today().year
+            year_start = datetime.datetime(year, 1, 1, 0, 0, 0)
 
-            # Get sunrise/sunset times for that day
-            sunrise = telescope.next_sunrise(time=day)
-            sunset = telescope.next_sunset(time=day)
-            # check if is in middle of night
-            if (sunrise - sunset).to_value('hr') < 0:
-                sunrise = sunrise + ap_time.TimeDelta(1 * u.day)
+            json = []
+            # Sample every 7 days for the year
+            deltat = 7
+            for day in range(365 // deltat):
+                day = year_start + datetime.timedelta(days=day * deltat)
+                day = ap_time.Time(day.isoformat(), format='isot')
 
-            # Compute airmasses for that day
-            sample_size = 60
-            df = self.calculate_airmass(obj, telescope, sunrise, sunset, sample_size)
+                # Get sunrise/sunset times for that day
+                sunrise = telescope.next_sunrise(time=day)
+                sunset = telescope.next_sunset(time=day)
 
-            # Compute hours below airmass
-            num_times_below = df.loc[df["airmass"] < threshold].shape[0]
-            total_hours = (sunrise - sunset).to_value('hr')
-            hours_below = num_times_below / sample_size * total_hours
-            json.append({"date": day.isot, "hours_below": hours_below})
+                if sunrise is None or sunset is None:
+                    continue
 
-        self.verify_and_commit()
-        return self.success(data=json)
+                # check if is in middle of night
+                if (sunrise - sunset).to_value('hr') < 0:
+                    sunrise = sunrise + ap_time.TimeDelta(1 * u.day)
+
+                # Compute airmasses for that day
+                sample_size = 60
+                df = self.calculate_airmass(
+                    obj, telescope, sunrise, sunset, sample_size
+                )
+
+                # Compute hours below airmass
+                num_times_below = df.loc[df["airmass"] < threshold].shape[0]
+                total_hours = (sunrise - sunset).to_value('hr')
+                hours_below = num_times_below / sample_size * total_hours
+                json.append({"date": day.isot, "hours_below": hours_below})
+
+            return self.success(data=json)
 
 
 class FilterWavelengthHandler(BaseHandler):

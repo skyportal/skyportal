@@ -22,19 +22,21 @@ def calculate_hash(data):
 
 
 def process_thumbnails(thumbnails, ra, dec):
+    # Sort thumbnails by type, and remove 'DR8' thumbnail if 'LS' (that corresponds to DR9) thumbnail are present
+    has_ls = any("ls" in thumbnail["type"] for thumbnail in thumbnails)
     thumbnails = sorted(
-        thumbnails,
+        [thumb for thumb in thumbnails if not (thumb["type"] == "dr8" and has_ls)],
         key=lambda x: THUMBNAIL_TYPES.index(x["type"]),
     )
+
     for index, thumbnail in enumerate(thumbnails):
         alt, link = get_thumbnail_alt_link(thumbnail["type"], ra, dec)
-        header = get_thumbnail_header(thumbnail["type"])
         thumbnails[index] = {
             "type": thumbnail["type"],
             "public_url": thumbnail["public_url"],
             "alt": alt,
             "link": link,
-            "header": header,
+            "header": get_thumbnail_header(thumbnail["type"]),
         }
     return thumbnails
 

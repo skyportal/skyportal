@@ -2068,16 +2068,42 @@ class GroupIDList(_Schema):
 
 
 class GalaxyHandlerPost(_Schema):
-    catalog_name = fields.String(metadata={"description": 'Galaxy catalog name.'})
+    catalog_name = fields.String(
+        metadata={"description": 'Galaxy catalog name.'}, required=True
+    )
+    catalog_description = fields.String(
+        metadata={"description": 'Galaxy catalog description.'},
+        required=False,
+        load_default=None,
+    )
+    catalog_url = fields.String(
+        metadata={"description": 'Galaxy catalog URL.'},
+        required=False,
+        load_default=None,
+    )
     catalog_data = fields.List(
-        fields.Field(), metadata={"description": 'Galaxy catalog data'}
+        fields.Field(), metadata={"description": 'Galaxy catalog data'}, required=True
     )
 
 
 class GalaxyASCIIFileHandlerPost(_Schema):
-    catalogName = fields.String(metadata={"description": 'Galaxy catalog name.'})
+    catalogName = fields.String(
+        metadata={"description": 'Galaxy catalog name.'}, required=True
+    )
+    catalogDescription = fields.String(
+        metadata={"description": 'Galaxy catalog description.'},
+        required=False,
+        load_default=None,
+    )
+    catalogURL = fields.String(
+        metadata={"description": 'Galaxy catalog URL.'},
+        required=False,
+        load_default=None,
+    )
 
-    catalogData = fields.Field(metadata={'description': 'Catalog data Ascii string'})
+    catalogData = fields.Field(
+        metadata={'description': 'Catalog data Ascii string'}, required=True
+    )
 
 
 class SpatialCatalogHandlerPost(_Schema):

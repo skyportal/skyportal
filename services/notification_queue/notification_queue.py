@@ -805,11 +805,18 @@ def api(queue):
                                             len(gcn_pref.get("gcn_notice_types", []))
                                             > 0
                                         ):
-                                            if (
-                                                notice.notice_type is not None
-                                                and gcn.NoticeType(
-                                                    notice.notice_type
+                                            if notice.notice_format == "voevent":
+                                                notice_type = gcn.NoticeType(
+                                                    int(notice.notice_type)
                                                 ).name
+                                            elif notice.notice_format == "json":
+                                                notice_type = notice.notice_type
+                                            else:
+                                                notice_type = None
+
+                                            if (
+                                                notice_type is not None
+                                                and notice_type
                                                 not in gcn_pref['gcn_notice_types']
                                             ):
                                                 continue
@@ -926,12 +933,14 @@ def api(queue):
                                                 f"with Tag *{gcn_tag.text}*"
                                             )
                                         else:
-                                            if notice.notice_type is not None:
+                                            if notice.notice_format == "voevent":
                                                 notice_type = gcn.NoticeType(
-                                                    notice.notice_type
+                                                    int(notice.notice_type)
                                                 ).name
+                                            elif notice.notice_format == "json":
+                                                notice_type = notice.notice_type
                                             else:
-                                                notice_type = "json"
+                                                notice_type = "No notice type"
 
                                             if len(notices) > 1:
                                                 text = (

@@ -191,6 +191,7 @@ async def get_source(
     include_color_mag=False,
     include_gcn_crossmatches=False,
     include_gcn_notes=False,
+    include_candidates=False,
 ):
     """Query source from database.
     obj_id: int
@@ -337,7 +338,6 @@ async def get_source(
                     user,
                     options=[
                         joinedload(Comment.author),
-                        joinedload(Comment.groups),
                     ],
                 ).where(Comment.obj_id == obj_id)
             )
@@ -348,6 +348,7 @@ async def get_source(
             (
                 {
                     **{k: v for k, v in c.to_dict().items() if k != "attachment_bytes"},
+                    "groups": [g.to_dict() for g in c.groups],
                     "author": {
                         **c.author.to_dict(),
                         "gravatar_url": c.author.gravatar_url,
@@ -571,6 +572,22 @@ async def get_source(
             )
     if include_color_mag:
         source_info["color_magnitude"] = get_color_mag(annotations)
+
+    if include_candidates:
+        candidates_stmt = Candidate.select(
+            user, options=[joinedload(Candidate.filter)]
+        ).where(Candidate.obj_id == obj_id)
+        source_info["candidates"] = sorted(
+            [
+                {
+                    **c.to_dict(),
+                    "filter": c.filter.to_dict() if c.filter is not None else None,
+                }
+                for c in session.scalars(candidates_stmt).all()
+            ],
+            key=lambda x: x["passed_at"],
+            reverse=True,
+        )
 
     source_info = recursive_to_dict(source_info)
     return source_info
@@ -1736,6 +1753,7 @@ class SourceHandler(BaseHandler):
             "spatialCatalogEntryName", None
         )
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+        include_candidates = self.get_query_argument("includeCandidates", False)
 
         # optional, use caching
         use_cache = self.get_query_argument("useCache", False)
@@ -1872,6 +1890,7 @@ class SourceHandler(BaseHandler):
                         include_color_mag=include_color_mag,
                         include_gcn_crossmatches=include_gcn_crossmatches,
                         include_gcn_notes=include_gcn_notes,
+                        include_candidates=include_candidates,
                     )
                 except Exception as e:
                     traceback.print_exc()

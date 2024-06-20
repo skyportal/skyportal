@@ -4,7 +4,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import NewDefaultGcnTag from "./NewDefaultGcnTag";
 import DefaultGcnTagTable from "./DefaultGcnTagTable";
 
-import * as defaultGcnTagsActions from "../ducks/default_gcn_tags";
+import * as defaultGcnTagsActions from "../../ducks/default_gcn_tags";
 
 const useStyles = makeStyles((theme) => ({
   root: {
