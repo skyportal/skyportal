@@ -31,8 +31,8 @@
     {% if data.get('photometry') %}
       {% set photometry = data.get('photometry') | tojson | e %}
       <script src="https://cdn.plot.ly/plotly-2.25.2.min.js"></script>
-      <script src="/static/js/utils/csv.js"></script>
-      <script src="/static/js/utils/photometry.js"></script>
+      <script src="/public_pages/utils/csv.js"></script>
+      <script src="/public_pages/utils/photometry.js"></script>
     {% endif %}
     {% set classifications = data['classifications'] | tojson | e if data.get('classifications') else None %}
   </head>
