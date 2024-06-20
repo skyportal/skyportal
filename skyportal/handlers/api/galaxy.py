@@ -393,12 +393,12 @@ def get_galaxies(
         total_matches = len(galaxies)
 
     if return_probability and localization is not None:
-        PROB, DISTMU, DISTSIGMA, DISTNORM = localization.flat
         ras = np.array([galaxy.ra for galaxy in galaxies])
         decs = np.array([galaxy.dec for galaxy in galaxies])
         ipix = hp.ang2pix(localization.nside, ras, decs, lonlat=True)
 
         if localization.is_3d:
+            PROB, DISTMU, DISTSIGMA, DISTNORM = localization.flat
             dists = np.array([galaxy.distmpc for galaxy in galaxies])
 
             probability = (
@@ -407,6 +407,7 @@ def get_galaxies(
                 / hp.nside2pixarea(localization.nside)
             )
         else:
+            (PROB,) = localization.flat
             probability = PROB[ipix]
 
         galaxies = [
