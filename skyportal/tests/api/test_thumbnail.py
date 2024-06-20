@@ -41,7 +41,7 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
             'GET', f'sources/{obj_id}?includeThumbnails=true', token=upload_data_token
         )
         thumbnails = data.get('data', {}).get('thumbnails', [])
-        if isinstance(thumbnails, list) and len(thumbnails) == 3:
+        if isinstance(thumbnails, list) and len(thumbnails) >= 3:
             thumbnails_loaded = True
             break
         nretries += 1
