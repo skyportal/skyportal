@@ -410,6 +410,7 @@ export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
     includeDetectionStats: true,
     includeGCNCrossmatches: true,
     includeGCNNotes: true,
+    includeCandidates: true,
   };
   const queryString = new URLSearchParams(urlParams).toString();
   return API.GET(`/api/sources/${id}?${queryString}`, actionType);

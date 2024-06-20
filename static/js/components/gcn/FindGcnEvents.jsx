@@ -7,7 +7,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 
-import * as gcnEventsActions from "../ducks/gcnEvents";
+import * as gcnEventsActions from "../../ducks/gcnEvents";
 
 const useStyles = makeStyles(() => ({
   root: {

@@ -111,7 +111,7 @@ const CustomGroupsWidget = ({ value, onChange, options }) => {
   return (
     <>
       <InputLabel id="classificationGroupSelectLabel">
-        Choose Group (all groups if blank)
+        Choose Group (public if not specified)
       </InputLabel>
       <Select
         id="groupSelect"

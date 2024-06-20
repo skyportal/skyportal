@@ -522,12 +522,19 @@ def post_gcnevent_from_json(
         # FIXME: https://github.com/astropy/astropy/issues/7179
         date = Time(date.iso).datetime
 
+    if "instrument" in payload:
+        instrument = payload["instrument"]
+    elif "type" in payload:
+        instrument = payload["type"].replace(" ", "-")
+    else:
+        instrument = "Unknown"
+
     notice_type = payload.get('notice_type')
     gcn_notice = GcnNotice(
         content=json.dumps(payload).encode('utf-8'),
-        ivorn=f'{payload["instrument"]}-{date.strftime("%Y-%m-%dT%H:%M:%S")}',
+        ivorn=f'{instrument}-{date.strftime("%Y-%m-%dT%H:%M:%S")}',
         notice_type=notice_type,
-        stream=payload["instrument"],
+        stream=instrument,
         date=date,
         has_localization=True,
         localization_ingested=False,
@@ -2057,13 +2064,17 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
     try:
         user = session.scalar(sa.select(User).where(User.id == user_id))
-        localization = session.query(Localization).get(localization_id)
+        localization = session.scalars(
+            sa.select(Localization).where(Localization.id == localization_id)
+        ).first()
         dateobs = localization.dateobs
         localization_tags = [
             tags.text
-            for tags in session.query(LocalizationTag)
-            .filter(LocalizationTag.localization_id == localization_id)
-            .all()
+            for tags in session.scalars(
+                sa.select(LocalizationTag).where(
+                    LocalizationTag.localization_id == localization_id
+                )
+            ).all()
         ]
 
         default_observation_plans = (
@@ -2310,8 +2321,15 @@ class LocalizationHandler(BaseHandler):
             if localization is None:
                 return self.error("Localization not found", status=404)
 
+            dateobs = localization.dateobs
+
             session.delete(localization)
             session.commit()
+
+            self.push(
+                action="skyportal/REFRESH_GCN_EVENT",
+                payload={"gcnEvent_dateobs": dateobs},
+            )
 
             return self.success()
 
@@ -2913,6 +2931,8 @@ def add_gcn_summary(
                         stats_method=stats_method,
                         n_per_page=MAX_OBSERVATIONS,
                         page_number=1,
+                        sort_by="obstime",
+                        sort_order="asc",
                     )
 
                     observations = data["observations"]
@@ -2930,7 +2950,7 @@ def add_gcn_summary(
                         dt = start_observation.datetime - event.dateobs
                         before_after = "after" if dt.total_seconds() > 0 else "before"
                         observations_text.append(
-                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format='datetime').isot} UTC.  We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees of the localization at least {nb_obs_to_word(number_of_observations)}, beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.\nThe table below shows the photometry for each observation.\n"""
+                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format='datetime').isot} UTC.  We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees of the localization at least {nb_obs_to_word(number_of_observations)}, beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the trigger time). Using the {localization_name} skymap, this corresponds to ~{int(100 * probability)}% of the probability enclosed in the localization region.\n"""
                         ) if not no_text else None
                         t0s, mjds, ras, decs, filters, exposures, limmags = (
                             [],
@@ -3429,6 +3449,11 @@ class GcnSummaryHandler(BaseHandler):
         if summary_id is None:
             return self.error("Summary ID is required")
 
+        try:
+            summary_id = int(summary_id)
+        except ValueError:
+            return self.error("Invalid summary_id value.")
+
         with self.Session() as session:
             stmt = GcnSummary.select(session.user_or_token, mode="update").where(
                 GcnSummary.id == summary_id,
@@ -3647,6 +3672,8 @@ def add_gcn_report(
                             stats_method=stats_method,
                             n_per_page=MAX_OBSERVATIONS,
                             page_number=1,
+                            sort_by="obstime",
+                            sort_order="asc",
                         )
                         observation_statistics.append(
                             {
@@ -3656,17 +3683,16 @@ def add_gcn_report(
                                 'area': data['area'],
                             }
                         )
-                        observations.extend(data["observations"])
+                        for o in data["observations"]:
+                            idx = data["field_ids"].index(o["instrument_field_id"])
+                            if idx is not None:
+                                o["field_coordinates"] = data["geojson"][idx][
+                                    "features"
+                                ][0]["geometry"]["coordinates"]
+                            if "field" in o:
+                                del o["field"]
 
-                for o in observations:
-                    if "geojson" in o:
-                        o["field_coordinates"] = o["geojson"]["features"][0][
-                            "geometry"
-                        ]["coordinates"]
-                    if "field" in o:
-                        del o["field"]
-                    if "instrument" in o:
-                        del o["instrument"]
+                        observations.extend(data["observations"])
 
                 contents["observations"] = observations
                 contents["observation_statistics"] = observation_statistics
@@ -3717,6 +3743,24 @@ def add_gcn_report(
 
             gcn_report.data = to_json(contents)
             session.commit()
+
+            flow = Flow()
+            flow.push(
+                user_id='*',
+                action_type="skyportal/REFRESH_GCNEVENT_REPORTS",
+                payload={"gcnEvent_dateobs": event.dateobs},
+            )
+
+            notification = UserNotification(
+                user=user,
+                text=f"GCN report *{gcn_report.report_name}* on *{event.dateobs}* created.",
+                notification_type="gcn_report",
+                url=f"/gcn_events/{event.dateobs}",
+            )
+            session.add(notification)
+            session.commit()
+
+            log(f"Successfully generated GCN report {gcn_report.id}")
         except Exception as e:
             try:
                 session.rollback()
@@ -3727,24 +3771,6 @@ def add_gcn_report(
                 session.rollback()
                 pass
             log(f"Unable to update GCN report: {str(e)}")
-
-        flow = Flow()
-        flow.push(
-            user_id='*',
-            action_type="skyportal/REFRESH_GCNEVENT_REPORTS",
-            payload={"gcnEvent_dateobs": event.dateobs},
-        )
-
-        notification = UserNotification(
-            user=user,
-            text=f"GCN report *{gcn_report.report_name}* on *{event.dateobs}* created.",
-            notification_type="gcn_report",
-            url=f"/gcn_events/{event.dateobs}",
-        )
-        session.add(notification)
-        session.commit()
-
-        log(f"Successfully generated GCN report {gcn_report.id}")
 
     except Exception as e:
         log(f"Unable to create GCN report: {str(e)}")
@@ -4035,10 +4061,10 @@ class GcnReportHandler(BaseHandler):
                 GcnReport.dateobs == dateobs,
             )
             report = session.scalars(stmt).first()
-            report.data  # get the data column (deferred)
             if report is None:
                 return self.error("Report not found", status=404)
 
+            report.data  # get the data column (deferred)
             return self.success(data=report)
 
     @auth_or_token

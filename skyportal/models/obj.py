@@ -614,7 +614,7 @@ class Obj(Base, conesearch_alchemy.Point):
                 # stubbornly refuse to give a distance if the source
                 # is not in the Hubble flow
                 # cf. https://www.aanda.org/articles/aa/full/2003/05/aa3077/aa3077.html
-                # within ~5 Mpc (cz ~ 350 km/s) a given galaxy velocty
+                # within ~5 Mpc (cz ~ 350 km/s) a given galaxy velocity
                 # can be between between ~0-500 km/s
                 return None
             return (cosmo.luminosity_distance(self.redshift)).to(u.Mpc).value

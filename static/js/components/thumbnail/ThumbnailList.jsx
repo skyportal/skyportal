@@ -6,7 +6,7 @@ import calendar from "dayjs/plugin/calendar";
 
 import Grid from "@mui/material/Grid";
 
-import Thumbnail, { getThumbnailHeader } from "./Thumbnail";
+import Thumbnail from "./Thumbnail";
 
 dayjs.extend(calendar);
 
@@ -63,7 +63,6 @@ const ThumbnailList = ({
               minSize={minSize === null ? size : minSize}
               maxSize={maxSize === null ? size : maxSize}
               grayscale={t.is_grayscale}
-              header={getThumbnailHeader(t.type)}
               titleSize={titleSize}
             />
           </Grid>
@@ -104,7 +103,6 @@ const ThumbnailList = ({
             maxSize={maxSize === null ? size : maxSize}
             noMargin={noMargin}
             grayscale={t.is_grayscale}
-            header={getThumbnailHeader(t.type)}
             titleSize={titleSize}
           />
         </Grid>

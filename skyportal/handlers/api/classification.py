@@ -3,6 +3,7 @@ import sqlalchemy as sa
 from sqlalchemy import func
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
 from ..base import BaseHandler
@@ -10,12 +11,13 @@ from ...models import (
     Group,
     Classification,
     ClassificationVote,
-    Source,
     SourceLabel,
     Taxonomy,
     Obj,
     User,
 )
+
+_, cfg = load_env()
 
 DEFAULT_CLASSIFICATIONS_PER_PAGE = 100
 MAX_CLASSIFICATIONS_PER_PAGE = 500
@@ -34,12 +36,16 @@ def post_classification(data, user_id, session):
     user = session.scalar(sa.select(User).where(User.id == user_id))
     obj_id = data['obj_id']
 
-    sources = session.scalars(Source.select(user).where(Source.obj_id == obj_id)).all()
-    source_group_ids = [source.group_id for source in sources]
-    user_group_ids = [g.id for g in user.accessible_groups]
     group_ids = data.pop("group_ids", [])
-    if len(group_ids) == 0:
-        group_ids = list(set(source_group_ids) & set(user_group_ids))
+    if not isinstance(group_ids, list) or len(group_ids) == 0:
+        public_group = session.scalar(
+            sa.select(Group.id).where(Group.name == cfg['misc.public_group_name'])
+        )
+        if public_group is None:
+            raise ValueError(
+                f'No group_ids were specified and the public group "{cfg["misc.public_group_name"]}" does not exist. Cannot post classification'
+            )
+        group_ids = [public_group]
 
     origin = data.get('origin')
 
@@ -358,8 +364,7 @@ class ClassificationHandler(BaseHandler):
                       type: integer
                     description: |
                       List of group IDs corresponding to which groups should be
-                      able to view classification. Defaults to all of
-                      requesting user's groups.
+                      able to view classification. Defaults to the public group.
                   vote:
                     type: boolean
                     nullable: true

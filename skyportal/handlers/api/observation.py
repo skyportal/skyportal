@@ -793,11 +793,13 @@ def get_observations(
                 "probability": intprob,
                 "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees,
                 "geojson": geojson,
+                "field_ids": fields_in,
             }
         else:
             data = {
                 **data,
                 "geojson": geojson,
+                "field_ids": fields_in,
             }
 
     else:
@@ -1077,8 +1079,8 @@ class ObservationHandler(BaseHandler):
 
         telescope_name = self.get_query_argument('telescopeName', None)
         instrument_name = self.get_query_argument('instrumentName', None)
-        start_date = self.get_query_argument('startDate')
-        end_date = self.get_query_argument('endDate')
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
         localization_dateobs = self.get_query_argument('localizationDateobs', None)
         localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
@@ -1124,8 +1126,15 @@ class ObservationHandler(BaseHandler):
                     message="numberObservations must be greater than 0 if specified"
                 )
 
-        start_date = arrow.get(start_date.strip()).datetime
-        end_date = arrow.get(end_date.strip()).datetime
+        try:
+            start_date = arrow.get(start_date.strip()).datetime
+        except arrow.ParserError as e:
+            return self.error(f"Invalid input for parameter start_date : {str(e)}")
+
+        try:
+            end_date = arrow.get(end_date.strip()).datetime
+        except arrow.ParserError as e:
+            return self.error(f"Invalid input for parameter end_date : {str(e)}")
 
         with self.Session() as session:
             data = get_observations(

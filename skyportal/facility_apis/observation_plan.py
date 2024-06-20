@@ -432,12 +432,12 @@ class MMAAPI(FollowUpAPI):
         DBSession().commit()
 
     def custom_json_schema(instrument, user, **kwargs):
-        from ..models import DBSession, Galaxy, InstrumentField
+        from ..models import DBSession, GalaxyCatalog, InstrumentField
 
         galaxy_catalogs = kwargs.get("galaxy_catalog_names", [])
         if not isinstance(galaxy_catalogs, list) or len(galaxy_catalogs) == 0:
             galaxy_catalogs = [
-                g for g, in DBSession().query(Galaxy.catalog_name).distinct().all()
+                g for g, in DBSession().query(GalaxyCatalog.name).distinct().all()
             ]
         end_date = instrument.telescope.next_sunrise()
         if end_date is None:
