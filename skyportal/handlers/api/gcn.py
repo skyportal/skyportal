@@ -3743,6 +3743,24 @@ def add_gcn_report(
 
             gcn_report.data = to_json(contents)
             session.commit()
+
+            flow = Flow()
+            flow.push(
+                user_id='*',
+                action_type="skyportal/REFRESH_GCNEVENT_REPORTS",
+                payload={"gcnEvent_dateobs": event.dateobs},
+            )
+
+            notification = UserNotification(
+                user=user,
+                text=f"GCN report *{gcn_report.report_name}* on *{event.dateobs}* created.",
+                notification_type="gcn_report",
+                url=f"/gcn_events/{event.dateobs}",
+            )
+            session.add(notification)
+            session.commit()
+
+            log(f"Successfully generated GCN report {gcn_report.id}")
         except Exception as e:
             try:
                 session.rollback()
@@ -3753,24 +3771,6 @@ def add_gcn_report(
                 session.rollback()
                 pass
             log(f"Unable to update GCN report: {str(e)}")
-
-        flow = Flow()
-        flow.push(
-            user_id='*',
-            action_type="skyportal/REFRESH_GCNEVENT_REPORTS",
-            payload={"gcnEvent_dateobs": event.dateobs},
-        )
-
-        notification = UserNotification(
-            user=user,
-            text=f"GCN report *{gcn_report.report_name}* on *{event.dateobs}* created.",
-            notification_type="gcn_report",
-            url=f"/gcn_events/{event.dateobs}",
-        )
-        session.add(notification)
-        session.commit()
-
-        log(f"Successfully generated GCN report {gcn_report.id}")
 
     except Exception as e:
         log(f"Unable to create GCN report: {str(e)}")
