@@ -648,6 +648,13 @@ def standardize_photometry_data(data):
             else:
                 ref_phot_table['zp'] = PHOT_ZP
 
+    unknown_filters = set(phot_table['filter']).difference(ALLOWED_BANDPASSES)
+    if len(unknown_filters) > 0:
+        raise ValidationError(
+            f'Filter(s) {unknown_filters} is not allowed. '
+            f'Allowed filters are: {ALLOWED_BANDPASSES}'
+        )
+
     # convert to microjanskies, AB for DB storage as a vectorized operation
     pdata = PhotometricData(phot_table)
     standardized = pdata.normalized(zp=PHOT_ZP, zpsys='ab')
