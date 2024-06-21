@@ -129,11 +129,11 @@ class PublicSourcePageHandler(BaseHandler):
 
             # get photometry
             if options.get("include_photometry"):
-                query = Photometry.select(session.user_or_token, mode="read").where(
+                stmt = Photometry.select(session.user_or_token, mode="read").where(
                     Photometry.obj_id == source_id
                 )
                 if len(group_ids) and len(stream_ids):
-                    query = query.where(
+                    stmt = stmt.where(
                         or_(
                             Photometry.groups.any(Group.id.in_(group_ids)),
                             Photometry.streams.any(Stream.id.in_(stream_ids)),
@@ -141,20 +141,20 @@ class PublicSourcePageHandler(BaseHandler):
                     )
                 data_to_publish["photometry"] = [
                     photo.to_dict_public()
-                    for photo in session.scalars(query.distinct()).all()
+                    for photo in session.scalars(stmt.distinct()).all()
                 ]
 
             # get classifications
             if options.get("include_classifications"):
-                query = Classification.select(session.user_or_token, mode="read").where(
+                stmt = Classification.select(session.user_or_token, mode="read").where(
                     Classification.obj_id == source_id
                 )
                 if len(group_ids):
-                    query = query.where(
+                    stmt = stmt.where(
                         Classification.groups.any(Group.id.in_(group_ids))
                     )
                 data_to_publish["classifications"] = [
-                    c.to_dict_public() for c in session.scalars(query.distinct()).all()
+                    c.to_dict_public() for c in session.scalars(stmt.distinct()).all()
                 ]
 
             new_page_hash = calculate_hash(data_to_publish)
