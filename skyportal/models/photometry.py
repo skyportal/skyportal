@@ -449,18 +449,27 @@ class Photometry(conesearch_alchemy.Point, Base):
     def to_dict_public(self):
         from ..handlers.api.photometry import serialize
 
-        serialize_data = serialize(
-            self, 'ab', 'mag', created_at=False, groups=False, annotations=False
+        serialize_photometry = serialize(
+            self,
+            'ab',
+            'mag',
+            created_at=False,
+            groups=False,
+            annotations=False,
+            validation=True,
         )
         return {
-            "mjd": serialize_data["mjd"],
-            "mag": serialize_data["mag"],
-            "magerr": serialize_data["magerr"],
-            "filter": serialize_data["filter"],
-            "limiting_mag": serialize_data["limiting_mag"],
-            "instrument_id": serialize_data["instrument_id"],
-            "instrument_name": serialize_data["instrument_name"],
-            "origin": serialize_data["origin"],
+            "mjd": serialize_photometry["mjd"],
+            "mag": serialize_photometry["mag"],
+            "magerr": serialize_photometry["magerr"],
+            "filter": serialize_photometry["filter"],
+            "limiting_mag": serialize_photometry["limiting_mag"],
+            "instrument_id": serialize_photometry["instrument_id"],
+            "instrument_name": serialize_photometry["instrument_name"],
+            "origin": serialize_photometry["origin"],
+            "notes": serialize_photometry["validations"][0].get("notes", "")
+            if serialize_photometry["validations"]
+            else "",
         }
 
 
