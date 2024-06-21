@@ -114,6 +114,7 @@
       }
     }
     .photometryPlot {
+      height: 75vh;
       margin: 1rem 0;
     }
   }
