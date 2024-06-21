@@ -65,6 +65,12 @@ class PublicSourcePage(Base):
         doc='Whether the page is visible to the public',
     )
 
+    release_ids = sa.Column(
+        sa.ARRAY(sa.Integer),
+        nullable=False,
+        doc='IDs of the public releases the page is associated with',
+    )
+
     def to_dict(self):
         """Convert the page to a dictionary with
         the options to be displayed and the creation date in ISO format."""
