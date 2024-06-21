@@ -22,6 +22,7 @@ function downloadPhotometryToCsv(photometry_data, source_id) {
     "instrument_id",
     "instrument_name",
     "origin",
+    "notes",
   ];
   const isFloat = (x) =>
     typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
