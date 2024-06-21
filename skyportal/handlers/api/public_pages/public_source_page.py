@@ -140,7 +140,8 @@ class PublicSourcePageHandler(BaseHandler):
                         )
                     )
                 data_to_publish["photometry"] = [
-                    photo.to_dict_public() for photo in session.scalars(query).all()
+                    photo.to_dict_public()
+                    for photo in session.scalars(query.distinct()).all()
                 ]
 
             # get classifications
@@ -153,7 +154,7 @@ class PublicSourcePageHandler(BaseHandler):
                         Classification.groups.any(Group.id.in_(group_ids))
                     )
                 data_to_publish["classifications"] = [
-                    c.to_dict_public() for c in session.scalars(query).all()
+                    c.to_dict_public() for c in session.scalars(query.distinct()).all()
                 ]
 
             new_page_hash = calculate_hash(data_to_publish)
