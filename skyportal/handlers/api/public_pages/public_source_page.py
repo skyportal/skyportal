@@ -78,6 +78,10 @@ class PublicSourcePageHandler(BaseHandler):
                                 type: object
                                 required: true
                                 description: Options to manage data to display publicly
+                            releases:
+                                type: array
+                                required: false
+                                description: List of release IDs to associate with this public page
           responses:
             200:
               content:
@@ -175,6 +179,7 @@ class PublicSourcePageHandler(BaseHandler):
                 hash=new_page_hash,
                 data=data_to_publish,
                 is_visible=True,
+                release_ids=data.get("releases", []),
             )
             session.add(public_source_page)
             session.commit()
