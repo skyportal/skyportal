@@ -5,6 +5,7 @@ from baselayer.log import make_log
 from handlers import BaseHandler
 
 from models.public_pages.public_release import PublicRelease
+from models.public_pages.public_source_page import PublicSourcePage
 
 log = make_log('api/public_release')
 
@@ -117,6 +118,21 @@ class PublicReleaseHandler(BaseHandler):
 
             if public_release is None:
                 return self.error("Release not found", status=404)
+
+            public_source_pages = (
+                session.execute(
+                    PublicSourcePage.select(session.user_or_token, mode="update").where(
+                        PublicSourcePage.release_ids.contains([release_id])
+                    )
+                )
+                .unique()
+                .all()
+            )
+
+            for public_source_page in public_source_pages:
+                public_source_page.release_ids.remove(release_id)
+                session.add(public_source_page)
+
             session.delete(public_release)
             session.commit()
             return self.success()
