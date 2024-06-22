@@ -13,6 +13,7 @@ import * as publicSourcePageActions from "../../../ducks/public_pages/public_sou
 import Button from "../../Button";
 import SourcePublishOptions from "./SourcePublishOptions";
 import SourcePublishHistory from "./SourcePublishHistory";
+import SourcePublishRelease from "./SourcePublishRelease";
 
 const useStyles = makeStyles(() => ({
   expandButton: {
@@ -43,18 +44,21 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
     text: "Publish",
     color: "",
   });
+  const [sourcePublishReleaseOpen, setSourcePublishReleaseOpen] =
+    useState(false);
   const [sourcePublishOptionsOpen, setSourcePublishOptionsOpen] =
     useState(false);
   const [sourcePublishHistoryOpen, setSourcePublishHistoryOpen] =
     useState(true);
-  const [versions, setVersions] = useState([]);
   // Create data access options
+  const selectedReleaseState = useState([]);
   const [options, setOptions] = useState({
     include_photometry: true,
     include_classifications: true,
     groups: [],
     streams: [],
   });
+  const [versions, setVersions] = useState([]);
 
   const publish = () => {
     if (permissionToPublish) {
@@ -136,6 +140,24 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
                 </Button>
               </div>
             </Tooltip>
+          </div>
+          <div>
+            <Button
+              className={styles.expandButton}
+              size="small"
+              variant="text"
+              onClick={() =>
+                setSourcePublishReleaseOpen(!sourcePublishReleaseOpen)
+              }
+            >
+              Release
+              {sourcePublishReleaseOpen ? <ExpandLess /> : <ExpandMore />}
+            </Button>
+            {sourcePublishReleaseOpen && (
+              <SourcePublishRelease
+                selectedReleaseState={selectedReleaseState}
+              />
+            )}
           </div>
           {permissionToPublish && (
             <div>
