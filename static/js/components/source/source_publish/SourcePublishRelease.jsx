@@ -8,7 +8,7 @@ import { fetchPublicReleases } from "../../../ducks/public_pages/public_release"
 import Button from "../../Button";
 
 const useStyles = makeStyles(() => ({
-  sourcePublishOptions: {
+  sourcePublishRelease: {
     marginBottom: "1rem",
     display: "flex",
     flexDirection: "column",
@@ -54,7 +54,7 @@ const SourcePublishRelease = ({ selectedReleaseState }) => {
     },
   };
   return (
-    <div className={styles.sourcePublishOptions}>
+    <div className={styles.sourcePublishRelease}>
       {releases.length > 0 ? (
         <Form
           formData={selectedReleaseState[VALUE]}
@@ -67,7 +67,7 @@ const SourcePublishRelease = ({ selectedReleaseState }) => {
           }}
         />
       ) : (
-        <div>No releases yet, you can create the first one here</div>
+        <div>No releases available yet. Create the first one here.</div>
       )}
       <div>
         <Button variant="contained" onClick={createNewRelease}>

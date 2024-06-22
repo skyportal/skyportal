@@ -3,7 +3,6 @@ import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import DialogContent from "@mui/material/DialogContent";
 import { useSelector } from "react-redux";
 
 const useStyles = makeStyles(() => ({
@@ -74,7 +73,7 @@ const SourcePublishOptions = ({ optionsState, isElements }) => {
   }
 
   return (
-    <DialogContent className={styles.sourcePublishOptions}>
+    <div className={styles.sourcePublishOptions}>
       <Form
         formData={optionsState[VALUE]}
         onChange={({ formData }) => optionsState[SETTER](formData)}
@@ -95,7 +94,7 @@ const SourcePublishOptions = ({ optionsState, isElements }) => {
           "ui:submitButtonOptions": { norender: true },
         }}
       />
-    </DialogContent>
+    </div>
   );
 };
 
