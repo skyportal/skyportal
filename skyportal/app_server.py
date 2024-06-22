@@ -189,6 +189,7 @@ from skyportal.handlers.api import (
     SourcesConfirmedInGCNTNSHandler,
     GCNsAssociatedWithSourceHandler,
     PublicSourcePageHandler,
+    PublicReleaseHandler,
 )
 from skyportal.handlers.api.internal import (
     SourceViewsHandler,
@@ -566,6 +567,7 @@ skyportal_handlers = [
     ),
     # Public pages managed by the API.
     (r'/api/public_pages/source(/[0-9A-Za-z-_\.\+]+)', PublicSourcePageHandler),
+    (r'/api/public_pages/release', PublicReleaseHandler),
     # Internal API endpoints
     (r'/api/internal/tokens(/[0-9A-Za-z-]+)?', TokenHandler),
     (r"/api/internal/profile(/[0-9]+)?", ProfileHandler),

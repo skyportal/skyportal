@@ -2,10 +2,9 @@ import operator  # noqa: F401
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
-from handlers import BaseHandler
+from ...base import BaseHandler
 
-from models.public_pages.public_release import PublicRelease
-from models.public_pages.public_source_page import PublicSourcePage
+from ....models import PublicRelease, PublicSourcePage
 
 log = make_log('api/public_release')
 
