@@ -50,7 +50,7 @@ class PublicReleaseHandler(BaseHandler):
             )
             session.add(public_release)
             session.commit()
-            return self.success(data={"PublicRelease": public_release})
+            return self.success(data=public_release)
 
     def get(self):
         """
@@ -121,7 +121,7 @@ class PublicReleaseHandler(BaseHandler):
             public_source_pages = (
                 session.execute(
                     PublicSourcePage.select(session.user_or_token, mode="update").where(
-                        PublicSourcePage.release_ids.contains([release_id])
+                        PublicSourcePage.release_ids.any(release_id)
                     )
                 )
                 .unique()
