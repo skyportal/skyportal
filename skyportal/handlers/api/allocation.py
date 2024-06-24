@@ -420,6 +420,25 @@ class AllocationHandler(BaseHandler):
             # order by allocation.instrument.telescope.name, then instrument.name, then pi
 
             apiImplements = self.get_query_argument('apiImplements', None)
+            if apiImplements not in [
+                "update",
+                "delete",
+                "get",
+                "submit",
+                "send",
+                "remove",
+                "retrieve",
+                "queued",
+                "remove_queue",
+                "prepare_payload",
+                "send_skymap",
+                "queued_skymap",
+                "remove_skymap",
+                "retrieve_log",
+                "update_status",
+            ]:
+                return self.error(f"apiImplements {apiImplements} not a valid argument")
+
             if apiImplements is not None:
                 if apitype is None:
                     return self.error(
