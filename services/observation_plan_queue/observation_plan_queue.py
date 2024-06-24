@@ -321,7 +321,9 @@ def service(*args, **kwargs):
                             if defaultobsplanrequest is not None:
                                 if defaultobsplanrequest.auto_send:
                                     send_observation_plan(
-                                        plan.observation_plan_request.id, session
+                                        plan.observation_plan_request.id,
+                                        session=session,
+                                        auto_send=True,
                                     )
                                 for (
                                     default_survey_efficiency

@@ -159,11 +159,6 @@ const DefaultObservationPlanTable = ({
 
   const renderAutoSend = (dataIndex) => {
     const default_observation_plan = default_observation_plans[dataIndex];
-    console.log(
-      "default_observation_plan.auto_send",
-      default_observation_plan.auto_send,
-    );
-
     return (
       <div>
         {default_observation_plan

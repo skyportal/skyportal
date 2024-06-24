@@ -157,7 +157,7 @@ observation_plans_microservice_url = (
 MAX_OBSERVATION_PLAN_REQUESTS = 1000
 
 
-def send_observation_plan(plan_id, session):
+def send_observation_plan(plan_id, session, auto_send=False):
     """Send observation plan to queue
 
     Parameters
@@ -167,32 +167,63 @@ def send_observation_plan(plan_id, session):
     session : sqlalchemy.Session
         Database session for this transaction
     """
-
-    status_complete = False
-    while not status_complete:
-        observation_plan_request = session.scalar(
-            sa.select(ObservationPlanRequest)
-            .options(
-                joinedload(ObservationPlanRequest.observation_plans)
-                .joinedload(EventObservationPlan.planned_observations)
-                .joinedload(PlannedObservation.field)
-            )
-            .where(ObservationPlanRequest.id == plan_id)
+    observation_plan_request = session.scalar(
+        sa.select(ObservationPlanRequest)
+        .options(
+            joinedload(ObservationPlanRequest.observation_plans)
+            .joinedload(EventObservationPlan.planned_observations)
+            .joinedload(PlannedObservation.field)
         )
-        status_complete = observation_plan_request.status == "complete"
+        .where(ObservationPlanRequest.id == plan_id)
+    )
 
-        if not status_complete:
-            time.sleep(30)
+    if observation_plan_request.status != "complete":
+        raise ValueError(
+            f"Cannot send observation plan with status {observation_plan_request.status}"
+        )
+    if len(observation_plan_request.observation_plans) == 0:
+        log(
+            f"No observation plans to send for observation plan {plan_id} (event {observation_plan_request.gcnevent_id}, allocation {observation_plan_request.allocation_id})"
+        )
+        return
+    if len(observation_plan_request.observation_plans[0].planned_observations) == 0:
+        log(
+            f"No planned observations to send for observation plan {plan_id} (event {observation_plan_request.gcnevent_id}, allocation {observation_plan_request.allocation_id})"
+        )
+        return
+
+    if auto_send:
+        # if we already sent a plan for this event + allocation
+        # in the last 24 hours, we avoid auto-sending again.
+        existing_obs_plan_requests = session.scalars(
+            sa.select(ObservationPlanRequest).where(
+                ObservationPlanRequest.gcnevent_id
+                == observation_plan_request.gcnevent_id,
+                ObservationPlanRequest.allocation_id
+                == observation_plan_request.allocation_id,
+                ObservationPlanRequest.status == "submitted to telescope queue",
+                ObservationPlanRequest.modified
+                > datetime.utcnow() - timedelta(hours=24),
+            )
+        ).first()
+        if existing_obs_plan_requests:
+            log(
+                f"Skipping auto-send of observation plan {observation_plan_request.id}: plans have already been sent to the instrument in the last 24 hours for event {observation_plan_request.gcnevent_id} and allocation {observation_plan_request.allocation_id}"
+            )
+            return
 
     api = observation_plan_request.instrument.api_class_obsplan
-    if not api.implements()['send']:
+    if not api.implements().get('send', False):
         return ValueError('Cannot send observation plans on this instrument.')
 
+    if not observation_plan_request.allocation.altdata:
+        raise ValueError('Cannot send observation plan without allocation information.')
+
     try:
+        # failures to send are already handled in the send method
         api.send(observation_plan_request, session)
     except Exception as e:
-        observation_plan_request.status = 'failed to send'
-        raise ValueError(f'Error sending observation plan to telescope: {e.args[0]}')
+        raise ValueError(f"Error sending observation plan to telescope: {str(e)}")
 
     session.commit()
 
@@ -3391,6 +3422,41 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             default_observation_plan_request = (
                 DefaultObservationPlanRequest.__schema__().load(data)
             )
+
+            # if auto_send is True, we need to make sure that some filters are set
+            if default_observation_plan_request.auto_send:
+                filters = default_observation_plan_request.filters
+                if not isinstance(filters, dict) or len(filters) == 0:
+                    return self.error('Filters must be set if auto_send is True')
+
+                # make sure that there are filters on notice_types or gcn_tags
+                if 'notice_types' not in filters and 'gcn_tags' not in filters:
+                    return self.error(
+                        'Filters must contain either notice_types or gcn_tags when auto_send is True'
+                    )
+                if not (
+                    (
+                        isinstance(filters['notice_types'], list)
+                        and len(filters['notice_types']) > 0
+                    )
+                    or (
+                        isinstance(filters['gcn_tags'], list)
+                        and len(filters['gcn_tags']) > 0
+                    )
+                ):
+                    return self.error(
+                        'Filters must contain either non-empty notice_types or gcn_tags when auto_send is True'
+                    )
+
+                # make sure that there are filters on localization_tags
+                if not (
+                    isinstance(filters.get('localization_tags', []), list)
+                    and len(filters['localization_tags']) > 0
+                ):
+                    return self.error(
+                        'Filters must contain non-empty localization_tags when auto_send is True'
+                    )
+
             default_observation_plan_request.target_groups = target_groups
 
             session.add(default_observation_plan_request)
