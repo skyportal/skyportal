@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SkyPortal</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- CSS generic -->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/static/public_pages/style.css"
+    />
+    <!-- CSS for releases page -->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/static/public_pages/releases/releases_template.css"
+    />
+    <!-- JS for releases page -->
+    <script src="/static/public_pages/releases/releases_template.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1 class="websiteName">List of releases</h1>
+    </header>
+    <div class="releasesTemplate">
+      <div class="searchBar">
+        <input
+          id="search-bar"
+          type="text"
+          placeholder="Search..."
+          oninput="filterReleases()"
+        />
+      </div>
+      {% for release in releases %}
+      <div class="release">
+        <div class="nameAndTimeAgo">
+          <h2>{{ release.name }}</h2>
+          {% set time_difference = datetime.datetime.utcnow() - release.created_at %}
+          {% set days = time_difference.days %}
+          {% set hours = time_difference.seconds // 3600 %}
+          {% set minutes = (time_difference.seconds % 3600) // 60 %}
+          {% set seconds = time_difference.seconds % 60 %}
+          <span class="timeAgo {% if days < 1 %}new{% end %}">
+            {% if time_difference.seconds < 60 %}
+              {{ seconds }} seconds ago
+            {% elif time_difference.seconds < 3600 %}
+              {{ minutes }} minutes and {{ seconds }} seconds ago
+            {% elif days == 0 %}
+              {{ hours }} hours and {{ minutes }} minutes ago
+            {% else %}
+              {{ days }} days and {{ hours }} hours ago
+            {% end %}
+          </span>
+        </div>
+        <div class="description">
+            <p>{{ release.description }}</p>
+        </div>
+      </div>
+      {% end %}
+    </div>
+  </body>
+</html>
