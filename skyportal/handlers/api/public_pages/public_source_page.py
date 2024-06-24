@@ -78,10 +78,10 @@ class PublicSourcePageHandler(BaseHandler):
                                 type: object
                                 required: true
                                 description: Options to manage data to display publicly
-                            releases:
-                                type: array
+                            release_id:
+                                type: integer
                                 required: false
-                                description: List of release IDs to associate with this public page
+                                description: The ID of the public release where the public source page belongs
           responses:
             200:
               content:
