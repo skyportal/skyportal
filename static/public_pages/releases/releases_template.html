@@ -37,6 +37,11 @@
           placeholder="Search..."
           oninput="filterReleases()"
         />
+        <form>
+          <input type="checkbox" id="includeDescription" name="includeDescription"
+           onclick="filterReleases()"/>
+          <label for="includeDescription">Include description</label>
+        </form>
       </div>
       {% for release in releases %}
       <div class="release">

@@ -5,11 +5,15 @@
     justify-content: center;
     align-items: center;
     margin-bottom: 1rem;
+    column-gap: 1rem;
     input {
       margin: 1rem 0;
       padding: 0.5rem 0.5rem;
       border-radius: 0.5rem;
       font-size: 1rem;
+    }
+    label {
+      font-size: 0.8rem;
     }
   }
   .release {
