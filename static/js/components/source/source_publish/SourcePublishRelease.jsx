@@ -112,7 +112,6 @@ const SourcePublishRelease = ({ selectedReleaseState }) => {
     <div className={styles.sourcePublishRelease}>
       {releases.length > 0 ? (
         <Form
-          style={{ textAlign: "left" }}
           formData={{ releases: selectedReleaseState[VALUE] }}
           onChange={({ formData }) =>
             selectedReleaseState[SETTER](formData.releases)
