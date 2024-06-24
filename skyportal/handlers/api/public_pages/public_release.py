@@ -46,7 +46,10 @@ class PublicReleaseHandler(BaseHandler):
 
         with self.Session() as session:
             public_release = PublicRelease(
-                name=name, description=data.get("description", "")
+                name=name,
+                description=data.get("description", ""),
+                options=data.get("options", {}),
+                visible=data.get("visible", True),
             )
             session.add(public_release)
             session.commit()
@@ -118,19 +121,15 @@ class PublicReleaseHandler(BaseHandler):
             if public_release is None:
                 return self.error("Release not found", status=404)
 
-            public_source_pages = (
-                session.execute(
-                    PublicSourcePage.select(session.user_or_token, mode="update").where(
-                        PublicSourcePage.release_ids.any(release_id)
-                    )
+            if session.scalars(
+                PublicSourcePage.select(session.user_or_token, mode="read").where(
+                    PublicSourcePage.release_id == release_id
                 )
-                .unique()
-                .all()
-            )
-
-            for public_source_page in public_source_pages:
-                public_source_page.release_ids.remove(release_id)
-                session.add(public_source_page)
+            ).first():
+                return self.error(
+                    "Delete all sources associated before deleting this release",
+                    status=400,
+                )
 
             session.delete(public_release)
             session.commit()

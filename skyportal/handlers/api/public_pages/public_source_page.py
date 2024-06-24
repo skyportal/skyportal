@@ -180,7 +180,7 @@ class PublicSourcePageHandler(BaseHandler):
                 hash=new_page_hash,
                 data=data_to_publish,
                 is_visible=True,
-                release_ids=data.get("releases", []),
+                release_id=data.get("release_id"),
             )
             session.add(public_source_page)
             session.commit()
