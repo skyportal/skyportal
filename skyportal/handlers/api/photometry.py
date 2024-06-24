@@ -941,7 +941,7 @@ def insert_new_photometry_data(
 
             flow.push(
                 '*',
-                'skyportal/FETCH_SOURCE_PHOTOMETRY',
+                'skyportal/REFRESH_SOURCE_PHOTOMETRY',
                 payload={'obj_id': obj_id},
             )
 
@@ -1762,7 +1762,7 @@ class PhotometryHandler(BaseHandler):
 
                 flow.push(
                     '*',
-                    'skyportal/FETCH_SOURCE_PHOTOMETRY',
+                    'skyportal/REFRESH_SOURCE_PHOTOMETRY',
                     payload={'obj_id': photometry.obj_id, 'magsys': magsys},
                 )
 
@@ -1822,7 +1822,7 @@ class PhotometryHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action="skyportal/FETCH_SOURCE_PHOTOMETRY",
+                action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
                 payload={"obj_id": obj_id},
             )
 
