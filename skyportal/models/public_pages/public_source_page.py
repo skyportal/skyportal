@@ -65,10 +65,10 @@ class PublicSourcePage(Base):
         doc='Whether the page is visible to the public',
     )
 
-    release_ids = sa.Column(
-        sa.ARRAY(sa.Integer),
-        nullable=False,
-        doc='IDs of the public releases the page is associated with',
+    release_id = sa.Column(
+        sa.Integer,
+        nullable=True,
+        doc='ID of the public release associated with the source page',
     )
 
     def to_dict(self):

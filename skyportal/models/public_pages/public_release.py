@@ -20,3 +20,16 @@ class PublicRelease(Base):
         nullable=False,
         doc="Description of the public release",
     )
+
+    options = sa.Column(
+        sa.JSON,
+        nullable=False,
+        doc="Default options for the public source of the release",
+    )
+
+    visible = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=True,
+        doc="Whether the public release is visible to the public",
+    )
