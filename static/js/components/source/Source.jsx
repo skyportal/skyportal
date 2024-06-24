@@ -31,7 +31,7 @@ import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import withRouter from "../withRouter";
 
 import ThumbnailsOnPage from "../thumbnail/ThumbnailsOnPage";
-import CopyPhotometryDialog from "../CopyPhotometryDialog";
+import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "../classification/ClassificationList";
 import ClassificationForm from "../classification/ClassificationForm";
 import ShowClassification from "../ShowClassification";

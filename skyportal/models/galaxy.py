@@ -1,4 +1,4 @@
-__all__ = ['Galaxy']
+__all__ = ['GalaxyCatalog', 'Galaxy']
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -8,15 +8,27 @@ import healpix_alchemy
 from baselayer.app.models import Base
 
 
+class GalaxyCatalog(Base):
+    """A record of a galaxy catalog and its metadata, such as name,
+    description, and URL."""
+
+    name = sa.Column(sa.String, nullable=False, doc="Name of the catalog.", unique=True)
+    description = sa.Column(sa.String, nullable=True, doc="Description of the catalog.")
+    url = sa.Column(sa.String, nullable=True, doc="URL of the catalog.")
+
+
 class Galaxy(Base, ca.Point):
     """A record of a galaxy and its metadata, such as position,
     distance, name, and magnitude."""
 
-    catalog_name = sa.Column(
-        sa.String, nullable=False, doc="Name of the catalog.", index=True
+    catalog_id = sa.Column(
+        sa.ForeignKey("galaxycatalogs.id", ondelete="CASCADE"),
+        index=True,
+        doc="ID of the catalog this galaxy belongs to.",
+        nullable=False,
     )
 
-    name = sa.Column(sa.String, nullable=False, doc="Name of the object.", unique=True)
+    name = sa.Column(sa.String, nullable=False, doc="Name of the object.")
     alt_name = sa.Column(
         sa.String, nullable=True, doc="Alternative Name of the object."
     )
@@ -59,3 +71,8 @@ class Galaxy(Base, ca.Point):
         passive_deletes=True,
         doc='Objects that are associated with this Galaxy.',
     )
+
+
+Galaxy.__table_args__ = (
+    sa.Index("galaxy_name_catalog_id", "name", "catalog_id", unique=True),
+)

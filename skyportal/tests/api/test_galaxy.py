@@ -146,9 +146,8 @@ def test_galaxy(super_admin_token, view_only_token):
     params = {'catalog_name': catalog_name}
 
     status, data = api('GET', 'galaxy_catalog', token=view_only_token, params=params)
-    assert status == 200
-    data = data["data"]["galaxies"]
-    assert len(data) == 0
+    assert status == 400
+    assert f'Catalog with name {catalog_name} not found' in data['message']
 
 
 def test_source_host(

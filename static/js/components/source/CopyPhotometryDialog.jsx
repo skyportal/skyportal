@@ -10,9 +10,9 @@ import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 
 import { showNotification } from "baselayer/components/Notifications";
-import Button from "./Button";
-import * as sourceActions from "../ducks/source";
-import FormValidationError from "./FormValidationError";
+import Button from "../Button";
+import * as sourceActions from "../../ducks/source";
+import FormValidationError from "../FormValidationError";
 
 const CopyPhotometryDialog = ({
   source,
@@ -46,7 +46,7 @@ const CopyPhotometryDialog = ({
   };
 
   const onSubmit = async (data) => {
-    data.origin_id = duplicate;
+    data.origin_id = duplicate.obj_id;
     const savedGroupIds = savedGroups?.map((g) => g.id);
     const groupIds = savedGroupIds?.filter((ID, idx) => data.groupIds[idx]);
     data.group_ids = groupIds;
