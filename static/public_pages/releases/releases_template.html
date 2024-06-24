@@ -41,7 +41,7 @@
       {% for release in releases %}
       <div class="release">
         <div class="nameAndTimeAgo">
-          <h2>{{ release.name }}</h2>
+          <h2 class="releaseName">{{ release.name }}</h2>
           {% set time_difference = datetime.datetime.utcnow() - release.created_at %}
           {% set days = time_difference.days %}
           {% set hours = time_difference.seconds // 3600 %}
@@ -60,7 +60,7 @@
           </span>
         </div>
         <div class="description">
-            <p>{{ release.description }}</p>
+            <p class="releaseDescription">{{ release.description }}</p>
         </div>
       </div>
       {% end %}

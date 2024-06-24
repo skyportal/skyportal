@@ -9,7 +9,7 @@ function filterReleases() {
   const releases = document.getElementsByClassName("release");
 
   Array.from(releases).forEach((release) => {
-    const releaseName = release.querySelector("h2");
+    const releaseName = release.getElementsByClassName("releaseName")[0];
     if (releaseName.textContent.toLowerCase().includes(searchValue)) {
       // Mark the search value in the source name
       const re = new RegExp(searchValue, "gi");
