@@ -35,7 +35,11 @@ const NewAPIQueuedObservation = () => {
       // the new default form fields, so that the allocations list can
       // update
 
-      await dispatch(allocationActions.fetchAllocationsApiObsplan());
+      await dispatch(
+        allocationActions.fetchAllocationsApiObsplan({
+          apiImplements: "queued",
+        }),
+      );
     };
 
     getAllocations();

@@ -63,7 +63,9 @@ const SkymapTriggerAPIDisplay = () => {
       // update
 
       const result = await dispatch(
-        allocationActions.fetchAllocationsApiObsplan(),
+        allocationActions.fetchAllocationsApiObsplan({
+          apiImplements: "send_skymap",
+        }),
       );
 
       const { data } = result;
