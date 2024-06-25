@@ -55,6 +55,66 @@ class PublicReleaseHandler(BaseHandler):
             session.commit()
             return self.success(data=public_release)
 
+    def patch(self, release_id):
+        """
+        ---
+        description: Update a public release
+        tags:
+          - public_release
+        parameters:
+          - in: path
+            name: release_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  options:
+                    type: object
+                  visible:
+                    type: boolean
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+        if data is None or data == {}:
+            return self.error("No data provided")
+        name = data.get("name")
+        if name is None or name == "":
+            return self.error("Name is required")
+
+        with self.Session() as session:
+            public_release = session.scalars(
+                PublicRelease.select(session.user_or_token, mode="update").where(
+                    PublicRelease.id == release_id
+                )
+            ).first()
+
+            if public_release is None:
+                return self.error("Release not found", status=404)
+
+            public_release.name = name
+            public_release.description = data.get("description", "")
+            public_release.options = data.get("options", {})
+            public_release.visible = data.get("visible", True)
+            session.commit()
+            return self.success(data=public_release)
+
     def get(self):
         """
         ---
