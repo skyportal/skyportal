@@ -8,6 +8,7 @@ import {
   submitPublicRelease,
   updatePublicRelease,
 } from "../../ducks/public_pages/public_release";
+import Button from "../Button";
 
 const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
   const dispatch = useDispatch();
@@ -68,7 +69,13 @@ const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
           },
         },
       }}
-    />
+    >
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <Button primary type="submit">
+          Submit
+        </Button>
+      </div>
+    </Form>
   );
 };
 

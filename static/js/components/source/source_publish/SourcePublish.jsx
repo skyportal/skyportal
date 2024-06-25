@@ -96,7 +96,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
       <Dialog
         open={sourcePublishDialogOpen}
         onClose={() => setSourcePublishDialogOpen(false)}
-        PaperProps={{ style: { maxWidth: "700px" } }}
+        PaperProps={{ style: { maxWidth: "800px" } }}
       >
         <DialogTitle>Public access information</DialogTitle>
         <DialogContent style={{ paddingBottom: "0.5rem" }}>
@@ -121,12 +121,9 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
             >
               <div>
                 <Button
-                  variant="contained"
+                  primary
+                  type="submit"
                   onClick={publish}
-                  style={{
-                    backgroundColor: publishButton.color,
-                    color: "white",
-                  }}
                   disabled={
                     !permissionToPublish || publishButton.text !== "Publish"
                   }
