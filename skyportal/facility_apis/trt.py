@@ -39,11 +39,11 @@ def validate_request_to_trt(request):
             raise ValueError(f'Parameter {param} required.')
 
     if any(
-        filt not in ["B", "V", "R", "I"]
+        filt not in ["B", "V", "R", "I", "Rc", "Ic"]
         for filt in request.payload["observation_choices"]
     ):
         raise ValueError(
-            f'Filter configuration {request.payload["observation_choice"]} unknown.'
+            f'Filter configuration {request.payload["observation_choices"]} unknown.'
         )
 
     if request.payload["station_name"] not in ["SRO", "GAO", "SBO"]:
