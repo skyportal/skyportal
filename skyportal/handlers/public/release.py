@@ -10,7 +10,40 @@ from ..base import BaseHandler
 class ReleaseHandler(BaseHandler):
     def get(self, release_id=None):
         """
-        Get all public releases
+        ---
+        single:
+            description: Display the page with all sources and descriptions for a given public release
+            tags:
+              - release
+            parameters:
+                - in: path
+                  name: release_id
+                  required: true
+                  schema:
+                    type: string
+                  description: The ID of the release to display
+            responses:
+                200:
+                  content:
+                    text/html:
+                      schema:
+                        type: string
+                        description: The HTML content of the selected release page
+                404:
+                  content:
+                    application/json:
+                      schema: Error
+        multiple:
+            description: Display the page with all the public releases
+            tags:
+              - release
+            responses:
+                200:
+                  content:
+                    text/html:
+                      schema:
+                        type: string
+                        description: The HTML content of the page with a list of all public releases
         """
         with DBSession() as session:
             if release_id is None:
