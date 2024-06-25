@@ -532,7 +532,7 @@ def post_observation_plan(
 
 
 class ObservationPlanRequestHandler(BaseHandler):
-    @permissions(['Manage observation plans'])
+    @auth_or_token
     def post(self):
         """
         ---

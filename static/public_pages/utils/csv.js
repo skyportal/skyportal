@@ -22,11 +22,22 @@ function downloadPhotometryToCsv(photometry_data, source_id) {
     "instrument_id",
     "instrument_name",
     "origin",
+    "notes",
   ];
+  const isFloat = (x) =>
+    typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
+
   const csv_data = [
     headers.join(","),
     ...photometry.map((element) =>
-      headers.map((header) => element[header]).join(","),
+      headers
+        .map((header) => {
+          if (isFloat(element[header])) {
+            return element[header].toFixed(header === "mjd" ? 8 : 2);
+          }
+          return element[header];
+        })
+        .join(","),
     ),
   ].join("\n");
   downloadCSVFile(csv_data, source_id);

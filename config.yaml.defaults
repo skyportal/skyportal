@@ -714,6 +714,7 @@ gcn:
   json_notice_types:
     - einstein_probe.wxt.alert
     - swift.bat.guano
+    - icecube.lvk_nu_track_search
   reject_tags: # reject notices with these tags (optional)
     - MDC
   summary:

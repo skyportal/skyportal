@@ -55,7 +55,9 @@ const QueueAPIDisplay = () => {
       // update
 
       const result = await dispatch(
-        allocationActions.fetchAllocationsApiObsplan(),
+        allocationActions.fetchAllocationsApiObsplan({
+          apiImplements: "queued",
+        }),
       );
 
       const { data } = result;

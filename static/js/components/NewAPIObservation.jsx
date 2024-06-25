@@ -34,7 +34,11 @@ const NewAPIObservation = () => {
       // Wait for the allocations to update before setting
       // the new default form fields, so that the allocations list can
       // update
-      await dispatch(allocationActions.fetchAllocationsApiObsplan());
+      await dispatch(
+        allocationActions.fetchAllocationsApiObsplan({
+          apiImplements: "retrieve",
+        }),
+      );
     };
 
     getAllocations();
