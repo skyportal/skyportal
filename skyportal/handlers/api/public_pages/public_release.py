@@ -79,7 +79,7 @@ class PublicReleaseHandler(BaseHandler):
                     type: string
                   options:
                     type: object
-                  visible:
+                  is_visible:
                     type: boolean
         responses:
           200:
@@ -111,7 +111,7 @@ class PublicReleaseHandler(BaseHandler):
             public_release.name = name
             public_release.description = data.get("description", "")
             public_release.options = data.get("options", {})
-            public_release.visible = data.get("visible", True)
+            public_release.is_visible = data.get("is_visible", True)
             session.commit()
             return self.success(data=public_release)
 
