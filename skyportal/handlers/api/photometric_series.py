@@ -1886,7 +1886,7 @@ class PhotometricSeriesHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action="skyportal/FETCH_SOURCE_PHOTOMETRY",
+                action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
                 payload={"obj_id": obj_id},
             )
 
