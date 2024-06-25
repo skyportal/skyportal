@@ -5,19 +5,8 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
-import TextField from "@mui/material/TextField";
-import ExpandLess from "@mui/icons-material/ExpandLess";
-import ExpandMore from "@mui/icons-material/ExpandMore";
-import AddIcon from "@mui/icons-material/Add";
-import EditIcon from "@mui/icons-material/Edit";
-import SaveIcon from "@mui/icons-material/Save";
-import DeleteIcon from "@mui/icons-material/Delete";
-import {
-  createPublicRelease,
-  deletePublicRelease,
-  fetchPublicReleases,
-} from "../../../ducks/public_pages/public_release";
-import Button from "../../Button";
+import { fetchPublicReleases } from "../../../ducks/public_pages/public_release";
+import ReleasesList, { truncateText } from "../../release/ReleasesList";
 
 const useStyles = makeStyles(() => ({
   sourcePublishRelease: {
@@ -29,7 +18,7 @@ const useStyles = makeStyles(() => ({
       paddingTop: "0",
     },
   },
-  noVersion: {
+  noRelease: {
     display: "flex",
     justifyContent: "center",
     padding: "1.5rem 0",
@@ -44,17 +33,11 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublishRelease = ({ selectedReleaseState }) => {
-  const VALUE = 0;
-  const SETTER = 1;
+const SourcePublishRelease = ({ release, setRelease }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
   const [releases, setReleases] = useState([]);
-  const [newReleaseName, setNewReleaseName] = useState("");
-  const [newReleaseDescription, setNewReleaseDescription] = useState("");
-  const [openReleaseCreationForm, setOpenReleaseCreationForm] = useState(false);
-  const [openReleaseList, setOpenReleaseList] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
@@ -64,58 +47,26 @@ const SourcePublishRelease = ({ selectedReleaseState }) => {
     });
   }, [dispatch]);
 
-  const saveNewRelease = () => {
-    dispatch(
-      createPublicRelease({
-        name: newReleaseName,
-        description: newReleaseDescription,
-      }),
-    ).then((data) => {
-      setReleases([...releases, data.data]);
-      setNewReleaseName("");
-      setNewReleaseDescription("");
-      setOpenReleaseCreationForm(false);
-    });
-  };
-
-  const deleteRelease = (id) => {
-    dispatch(deletePublicRelease(id)).then((data) => {
-      if (data.status === "success") {
-        setReleases(releases.filter((release) => release.id !== id));
-      }
-    });
-  };
-
-  const truncateText = (text, length) =>
-    text.length <= length ? text : `${text.substring(0, length)}...`;
-
   const formSchema = {
     type: "object",
     properties: {
-      releases: {
-        type: "array",
-        items: {
+      release: {
+        type: "integer",
+        anyOf: releases.map((item) => ({
+          enum: [item.id],
           type: "integer",
-          anyOf: releases.map((release) => ({
-            enum: [release.id],
-            type: "integer",
-            title: release.name,
-          })),
-        },
-        uniqueItems: true,
-        default: [],
-        title: "Releases to link public source page to",
+          title: `${item.name} :  ${truncateText(item.description, 50)}`,
+        })),
       },
     },
   };
+
   return (
     <div className={styles.sourcePublishRelease}>
       {releases.length > 0 ? (
         <Form
-          formData={{ releases: selectedReleaseState[VALUE] }}
-          onChange={({ formData }) =>
-            selectedReleaseState[SETTER](formData.releases)
-          }
+          formData={release}
+          onChange={({ formData }) => setRelease(formData)}
           schema={formSchema}
           liveValidate
           validator={validator}
@@ -124,7 +75,7 @@ const SourcePublishRelease = ({ selectedReleaseState }) => {
           }}
         />
       ) : (
-        <div className={styles.noVersion}>
+        <div className={styles.noRelease}>
           {isLoading ? (
             <CircularProgress size={24} />
           ) : (
@@ -132,127 +83,25 @@ const SourcePublishRelease = ({ selectedReleaseState }) => {
           )}
         </div>
       )}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: "0.4rem",
-        }}
-      >
-        <Button
-          onClick={() => {
-            setOpenReleaseList(!openReleaseList);
-            setOpenReleaseCreationForm(false);
-          }}
-        >
-          Edit releases {openReleaseList ? <ExpandLess /> : <ExpandMore />}
-        </Button>
-        <Button
-          onClick={() => {
-            setOpenReleaseCreationForm(!openReleaseCreationForm);
-            setOpenReleaseList(false);
-          }}
-        >
-          <AddIcon />
-        </Button>
-      </div>
-      {openReleaseList &&
-        releases.map((release) => (
-          <div key={`release_${release.id}`} className={styles.releaseItem}>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <div style={{ fontWeight: "bold", marginBottom: "1rem" }}>
-                {release.name}
-              </div>
-              <div>{truncateText(release.description, 40)}</div>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <Button
-                onClick={() => {
-                  deleteRelease(release.id);
-                }}
-              >
-                <EditIcon />
-              </Button>
-              <Button
-                onClick={() => {
-                  deleteRelease(release.id);
-                }}
-              >
-                <DeleteIcon />
-              </Button>
-            </div>
-          </div>
-        ))}
-      {openReleaseCreationForm && (
-        <div
-          style={{
-            marginTop: "1rem",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            rowGap: "1rem",
-          }}
-        >
-          <TextField
-            data-testid="updateSummaryTextfield"
-            size="small"
-            label="release name"
-            value={newReleaseName}
-            name="releaseName"
-            minRows={1}
-            fullWidth
-            multiline
-            onChange={(data) => setNewReleaseName(data.target.value)}
-            variant="outlined"
-          />
-          <TextField
-            data-testid="updateSummaryTextfield"
-            size="small"
-            label="release description"
-            value={newReleaseDescription}
-            name="description"
-            minRows={3}
-            fullWidth
-            multiline
-            onChange={(data) => setNewReleaseDescription(data.target.value)}
-            variant="outlined"
-          />
-          <Button
-            secondary
-            onClick={() => {
-              saveNewRelease();
-            }}
-            endIcon={<SaveIcon />}
-            size="large"
-            data-testid="createReleaseSubmitButton"
-            disabled={newReleaseName === ""}
-          >
-            Save
-          </Button>
-        </div>
-      )}
+      <ReleasesList releases={releases} setReleases={setReleases} />
     </div>
   );
 };
 
 SourcePublishRelease.propTypes = {
-  selectedReleaseState: PropTypes.arrayOf(
-    PropTypes.oneOfType([
-      PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number,
-          name: PropTypes.string,
-        }),
-      ),
-      PropTypes.func,
-    ]),
-  ).isRequired,
+  release: PropTypes.shape({
+    id: PropTypes.number,
+    name: PropTypes.string,
+    description: PropTypes.string,
+    visible: PropTypes.bool,
+    options: PropTypes.shape({
+      include_photometry: PropTypes.bool,
+      include_spectra: PropTypes.bool,
+      groups: PropTypes.arrayOf(PropTypes.number),
+      streams: PropTypes.arrayOf(PropTypes.number),
+    }),
+  }).isRequired,
+  setRelease: PropTypes.func.isRequired,
 };
 
 export default SourcePublishRelease;

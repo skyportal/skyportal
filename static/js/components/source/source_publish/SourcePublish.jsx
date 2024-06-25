@@ -50,8 +50,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
     useState(false);
   const [sourcePublishHistoryOpen, setSourcePublishHistoryOpen] =
     useState(true);
-  // Create data access options
-  const selectedReleaseState = useState([]);
+  const [release, setRelease] = useState({});
   const [options, setOptions] = useState({
     include_photometry: true,
     include_classifications: true,
@@ -154,9 +153,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
               {sourcePublishReleaseOpen ? <ExpandLess /> : <ExpandMore />}
             </Button>
             {sourcePublishReleaseOpen && (
-              <SourcePublishRelease
-                selectedReleaseState={selectedReleaseState}
-              />
+              <SourcePublishRelease release={release} setRelease={setRelease} />
             )}
           </div>
           {permissionToPublish && (
