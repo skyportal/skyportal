@@ -22,10 +22,10 @@ import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
-import { allowedClasses } from "./classification/ClassificationForm";
 import Button from "./Button";
 
 import * as summaryActions from "../ducks/summary";
+import { useClassifications } from "../utils/helpers";
 
 const useStyles = makeStyles((theme) => ({
   chip: {
@@ -67,17 +67,7 @@ const SummarySearch = () => {
   const [runningQuery, setRunningQuery] = useState(false);
   const [formData, setFormData] = useState({});
 
-  // Get unique classification names, in alphabetical order
-  const { taxonomyList } = useSelector((state) => state.taxonomies);
-  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
-  let classifications = [];
-  latestTaxonomyList?.forEach((taxonomy) => {
-    const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
-      (option) => option.class,
-    );
-    classifications = classifications.concat(currentClasses);
-  });
-  classifications = Array.from(new Set(classifications)).sort();
+  const classifications = useClassifications();
 
   const handleSubmit = () => {
     setRunningQuery(true);

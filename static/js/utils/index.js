@@ -33,3 +33,9 @@ export {
 } from "./positions";
 
 export { not, intersection, union } from "./sets";
+
+export {
+  getAnnotationValueString,
+  useClassifications,
+  allowedClasses,
+} from "./helpers";

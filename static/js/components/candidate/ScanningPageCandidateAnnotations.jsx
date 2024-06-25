@@ -12,7 +12,8 @@ import ExpandMore from "@mui/icons-material/ExpandMore";
 import Divider from "@mui/material/Divider";
 import Paper from "@mui/material/Paper";
 
-import * as candidatesActions from "../ducks/candidates";
+import * as candidatesActions from "../../ducks/candidates";
+import { getAnnotationValueString } from "../../utils";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -34,21 +35,9 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export const getAnnotationValueString = (value) => {
-  let valueString;
-  const valueType = typeof value;
-  switch (valueType) {
-    case "number":
-      valueString = value.toFixed(4);
-      break;
-    case "object":
-      valueString = JSON.stringify(value, null, 2);
-      break;
-    default:
-      valueString = value.toString();
-  }
-  return valueString;
-};
+/**
+ * Displays the list of annotations in the candidate card.
+ */
 const ScanningPageCandidateAnnotations = ({
   annotations,
   filterGroups,

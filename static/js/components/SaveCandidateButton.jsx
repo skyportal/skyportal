@@ -21,6 +21,9 @@ import Button from "./Button";
 import * as sourceActions from "../ducks/source";
 import FormValidationError from "./FormValidationError";
 
+/**
+ * This displays the "Save candidate" button and shows the menu on click.
+ */
 const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Dialog logic:

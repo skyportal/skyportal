@@ -69,13 +69,15 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+/**
+ * Displays a list of classifications and some filters.
+ */
 const ClassificationList = () => {
   const styles = useStyles();
 
   const dispatch = useDispatch();
   const { taxonomyList } = useSelector((state) => state.taxonomies);
-  const source = useSelector((state) => state.source);
-  const obj = source;
+  const obj = useSelector((state) => state.source);
   const userProfile = useSelector((state) => state.profile);
   const groupUsers = useSelector((state) => state.group?.group_users);
   const classifications_classes = useSelector(

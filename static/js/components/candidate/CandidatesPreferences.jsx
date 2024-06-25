@@ -18,9 +18,9 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "../Button";
 
-import { allowedClasses } from "../classification/ClassificationForm";
-import ScanningProfilesList from "../ScanningProfilesList";
+import ScanningProfilesList from "./ScanningProfilesList";
 import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
+import { allowedClasses } from "../../utils/helpers";
 
 dayjs.extend(utc);
 
@@ -39,6 +39,10 @@ const Transition = React.forwardRef((props, ref) => (
   <Slide direction="up" ref={ref} {...props} />
 ));
 
+/**
+ * This displays the "Manage scanning profiles" button and shows the dialog
+ * for managing scanning profiles on click.
+ */
 const CandidatesPreferences = ({
   selectedScanningProfile,
   setSelectedScanningProfile,

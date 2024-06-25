@@ -24,10 +24,9 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
-
 import * as sourceActions from "../ducks/source";
 import * as spectraActions from "../ducks/spectra";
+import { getAnnotationValueString } from "../utils/helpers";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
