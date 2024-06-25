@@ -27,7 +27,7 @@ class PublicRelease(Base):
         doc="Default options for the public source of the release",
     )
 
-    visible = sa.Column(
+    is_visible = sa.Column(
         sa.Boolean,
         nullable=False,
         default=True,

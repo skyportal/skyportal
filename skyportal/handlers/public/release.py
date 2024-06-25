@@ -15,7 +15,9 @@ class ReleaseHandler(BaseHandler):
         with DBSession() as session:
             if release_id is None:
                 releases = session.scalars(
-                    sa.select(PublicRelease).order_by(PublicRelease.name.asc())
+                    sa.select(PublicRelease)
+                    .where(PublicRelease.is_visible)
+                    .order_by(PublicRelease.name.asc())
                 ).all()
                 return self.render(
                     "public_pages/releases/releases_template.html",
@@ -23,8 +25,13 @@ class ReleaseHandler(BaseHandler):
                 )
 
             release = session.scalars(
-                sa.select(PublicRelease).where(PublicRelease.id == release_id)
+                sa.select(PublicRelease).where(
+                    PublicRelease.id == release_id, PublicRelease.is_visible
+                )
             ).first()
+
+            if release is None:
+                return self.error("Page not found", status=404)
 
             versions = session.scalars(
                 sa.select(PublicSourcePage)

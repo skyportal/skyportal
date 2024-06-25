@@ -49,7 +49,7 @@ class PublicReleaseHandler(BaseHandler):
                 name=name,
                 description=data.get("description", ""),
                 options=data.get("options", {}),
-                visible=data.get("visible", True),
+                is_visible=data.get("is_visible", True),
             )
             session.add(public_release)
             session.commit()
