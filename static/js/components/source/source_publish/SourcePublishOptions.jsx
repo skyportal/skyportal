@@ -5,6 +5,57 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { useSelector } from "react-redux";
 
+export const sourcePublishOptionsSchema = (streams, groups) => {
+  const schema = {
+    type: "object",
+    properties: {
+      include_photometry: {
+        type: "boolean",
+        title: "Include photometry?",
+        default: true,
+      },
+      include_classifications: {
+        type: "boolean",
+        title: "Include classifications?",
+        default: true,
+      },
+    },
+  };
+  if (streams?.length > 0) {
+    schema.properties.streams = {
+      type: "array",
+      items: {
+        type: "integer",
+        anyOf: streams.map((stream) => ({
+          enum: [stream.id],
+          type: "integer",
+          title: stream.name,
+        })),
+      },
+      uniqueItems: true,
+      default: [],
+      title: "Streams to restrict photometry from",
+    };
+  }
+  if (groups?.length > 0) {
+    schema.properties.groups = {
+      type: "array",
+      items: {
+        type: "integer",
+        anyOf: groups.map((group) => ({
+          enum: [group.id],
+          type: "integer",
+          title: group.name,
+        })),
+      },
+      uniqueItems: true,
+      default: [],
+      title: "Groups to restrict data from",
+    };
+  }
+  return schema;
+};
+
 const useStyles = makeStyles(() => ({
   sourcePublishOptions: {
     marginBottom: "1rem",
@@ -24,60 +75,12 @@ const SourcePublishOptions = ({ optionsState, isElements }) => {
   const VALUE = 0;
   const SETTER = 1;
 
-  const formSchema = {
-    type: "object",
-    properties: {
-      include_photometry: {
-        type: "boolean",
-        title: "Include photometry?",
-        default: true,
-      },
-      include_classifications: {
-        type: "boolean",
-        title: "Include classifications?",
-        default: true,
-      },
-    },
-  };
-  if (streams?.length > 0) {
-    formSchema.properties.streams = {
-      type: "array",
-      items: {
-        type: "integer",
-        anyOf: streams.map((stream) => ({
-          enum: [stream.id],
-          type: "integer",
-          title: stream.name,
-        })),
-      },
-      uniqueItems: true,
-      default: [],
-      title: "Streams to restrict photometry from",
-    };
-  }
-  if (groups?.length > 0) {
-    formSchema.properties.groups = {
-      type: "array",
-      items: {
-        type: "integer",
-        anyOf: groups.map((group) => ({
-          enum: [group.id],
-          type: "integer",
-          title: group.name,
-        })),
-      },
-      uniqueItems: true,
-      default: [],
-      title: "Groups to restrict data from",
-    };
-  }
-
   return (
     <div className={styles.sourcePublishOptions}>
       <Form
         formData={optionsState[VALUE]}
         onChange={({ formData }) => optionsState[SETTER](formData)}
-        schema={formSchema}
+        schema={sourcePublishOptionsSchema(streams, groups)}
         liveValidate
         validator={validator}
         uiSchema={{
