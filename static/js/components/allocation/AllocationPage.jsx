@@ -12,7 +12,7 @@ import * as defaultObservationPlansActions from "../../ducks/default_observation
 import * as allocationsActions from "../../ducks/allocations";
 import Spinner from "../Spinner";
 import AllocationTable from "./AllocationTable";
-import DefaultObservationPlanTable from "../DefaultObservationPlanTable";
+import DefaultObservationPlanTable from "../observation_plan/DefaultObservationPlanTable";
 import DefaultSurveyEfficiencyTable from "../survey_efficiency/DefaultSurveyEfficiencyTable";
 
 const useStyles = makeStyles((theme) => ({

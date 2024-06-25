@@ -19,7 +19,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import { Paper } from "@mui/material";
+import Paper from "@mui/material/Paper";
 import IconButton from "@mui/material/IconButton";
 import JsonDashboard from "react-json-dashboard";
 import withRouter from "../withRouter";

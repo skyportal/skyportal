@@ -9,6 +9,7 @@ import IconButton from "@mui/material/IconButton";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -18,7 +19,6 @@ import Tooltip from "@mui/material/Tooltip";
 import MUIDataTable from "mui-datatables";
 import ReactJson from "react-json-view";
 
-import { Typography } from "@mui/material";
 import Button from "../Button";
 
 import UserAvatar from "../user/UserAvatar";

@@ -13,7 +13,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import CircularProgress from "@mui/material/CircularProgress";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import NewAnalysisService from "../NewAnalysisService";
+import NewAnalysisService from "./NewAnalysisService";
 
 import * as analysisServicesActions from "../../ducks/analysis_services";
 
