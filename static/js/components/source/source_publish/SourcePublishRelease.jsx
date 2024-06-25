@@ -5,6 +5,7 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
+import Link from "@mui/material/Link";
 import { fetchPublicReleases } from "../../../ducks/public_pages/public_release";
 import ReleasesList, { truncateText } from "../../release/ReleasesList";
 
@@ -83,6 +84,13 @@ const SourcePublishRelease = ({ release, setRelease }) => {
           )}
         </div>
       )}
+      <Link
+        href="/public/releases"
+        target="_blank"
+        style={{ fontSize: "0.7rem" }}
+      >
+        Public releases
+      </Link>
       <ReleasesList releases={releases} setReleases={setReleases} />
     </div>
   );
