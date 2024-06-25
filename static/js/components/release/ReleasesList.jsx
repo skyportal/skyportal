@@ -53,7 +53,7 @@ const ReleasesList = ({ releases, setReleases }) => {
         [
           ...releases.filter((release) => release.id !== releaseToEdit.id),
           releaseToEdit,
-        ].sort((a, b) => (a.name > b.name ? 1 : -1)),
+        ].sort((a, b) => a.name.localeCompare(b.name)),
       );
       setReleaseToEdit({});
       setOpenReleaseEdit(false);
@@ -69,7 +69,7 @@ const ReleasesList = ({ releases, setReleases }) => {
     });
   };
 
-  function handleEdit(releaseToProcess) {
+  function handleViewEdit(releaseToProcess) {
     if (!openReleaseEdit) setReleaseToEdit(releaseToProcess);
     setOpenReleaseEdit(!openReleaseEdit);
     setOpenReleaseList(false);
@@ -92,7 +92,7 @@ const ReleasesList = ({ releases, setReleases }) => {
         </Button>
         <Button
           onClick={() => {
-            handleEdit({});
+            handleViewEdit({});
           }}
         >
           <AddIcon />
@@ -111,7 +111,7 @@ const ReleasesList = ({ releases, setReleases }) => {
               <div className={styles.itemButtons}>
                 <Button
                   onClick={() => {
-                    handleEdit(release);
+                    handleViewEdit(release);
                   }}
                 >
                   <EditIcon />
