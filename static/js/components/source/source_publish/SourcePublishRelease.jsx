@@ -64,6 +64,13 @@ const SourcePublishRelease = ({ release, setRelease }) => {
 
   return (
     <div className={styles.sourcePublishRelease}>
+      <Link
+        href="/public/releases"
+        target="_blank"
+        style={{ fontSize: "0.7rem", textAlign: "right" }}
+      >
+        Public releases
+      </Link>
       {releases.length > 0 ? (
         <Form
           formData={release}
@@ -84,13 +91,6 @@ const SourcePublishRelease = ({ release, setRelease }) => {
           )}
         </div>
       )}
-      <Link
-        href="/public/releases"
-        target="_blank"
-        style={{ fontSize: "0.7rem" }}
-      >
-        Public releases
-      </Link>
       <ReleasesList releases={releases} setReleases={setReleases} />
     </div>
   );
