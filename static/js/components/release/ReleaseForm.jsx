@@ -36,22 +36,15 @@ const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
   };
 
   const submitRelease = () => {
-    function processIsSubmit(status) {
-      if (status === "success") {
+    const action = release.id
+      ? updatePublicRelease(release.id, release)
+      : submitPublicRelease(release);
+    dispatch(action).then((data) => {
+      if (data.status === "success") {
+        setRelease(data.data);
         setIsSubmit(true);
       }
-    }
-    if (release.id) {
-      dispatch(updatePublicRelease(release.id, release)).then((data) => {
-        setRelease(data.data);
-        processIsSubmit(data.status);
-      });
-    } else {
-      dispatch(submitPublicRelease(release)).then((data) => {
-        setRelease(data.data);
-        processIsSubmit(data.status);
-      });
-    }
+    });
   };
 
   return (
