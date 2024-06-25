@@ -418,6 +418,47 @@ class AllocationHandler(BaseHandler):
 
             allocations = session.scalars(allocations).unique().all()
             # order by allocation.instrument.telescope.name, then instrument.name, then pi
+
+            apiImplements = self.get_query_argument('apiImplements', None)
+            if apiImplements is not None:
+                if apiImplements not in [
+                    "update",
+                    "delete",
+                    "get",
+                    "submit",
+                    "send",
+                    "remove",
+                    "retrieve",
+                    "queued",
+                    "remove_queue",
+                    "prepare_payload",
+                    "send_skymap",
+                    "queued_skymap",
+                    "remove_skymap",
+                    "retrieve_log",
+                    "update_status",
+                ]:
+                    return self.error(
+                        f"apiImplements {apiImplements} not a valid argument"
+                    )
+
+                if apitype is None:
+                    return self.error(
+                        "apiImplements can only be checked if apitype is specified"
+                    )
+                if apitype == "api_classname":
+                    allocations = [
+                        a
+                        for a in allocations
+                        if a.instrument.api_class.implements()[apiImplements]
+                    ]
+                elif apitype == "api_classname_obsplan":
+                    allocations = [
+                        a
+                        for a in allocations
+                        if a.instrument.api_class_obsplan.implements()[apiImplements]
+                    ]
+
             allocations = sorted(
                 allocations,
                 key=lambda x: (
