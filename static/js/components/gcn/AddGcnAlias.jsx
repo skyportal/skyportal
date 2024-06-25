@@ -10,9 +10,9 @@ import SaveIcon from "@mui/icons-material/Save";
 import TextField from "@mui/material/TextField";
 
 import { showNotification } from "baselayer/components/Notifications";
-import Button from "./Button";
-import FormValidationError from "./FormValidationError";
-import * as gcnTagsActions from "../ducks/gcnTags";
+import Button from "../Button";
+import FormValidationError from "../FormValidationError";
+import * as gcnEventActions from "../../ducks/gcnEvent";
 
 const useStyles = makeStyles(() => ({
   saveButton: {
@@ -25,10 +25,10 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const AddGcnTag = ({ gcnEvent }) => {
+const AddGcnAlias = ({ gcnEvent }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const [tag, setTag] = useState(null);
+  const [alias, setAlias] = useState(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,22 +37,22 @@ const AddGcnTag = ({ gcnEvent }) => {
   useEffect(() => {
     setInvalid(
       // eslint-disable-next-line no-restricted-globals
-      gcnEvent?.tags?.includes(tag),
+      gcnEvent?.aliases?.includes(alias),
     );
-  }, [gcnEvent, setInvalid, tag]);
+  }, [gcnEvent, setInvalid, alias]);
 
   const handleChange = (e) => {
-    setTag(e.target.value);
+    setAlias(e.target.value);
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     const result = await dispatch(
-      gcnTagsActions.postGcnTag({ dateobs: gcnEvent.dateobs, text: tag }),
+      gcnEventActions.postGcnAlias(gcnEvent.dateobs, { alias }),
     );
     setIsSubmitting(false);
     if (result.status === "success") {
-      dispatch(showNotification("GCN Event Tag successfully added."));
+      dispatch(showNotification("GCN Event Alias successfully added."));
       setDialogOpen(false);
     }
   };
@@ -60,7 +60,7 @@ const AddGcnTag = ({ gcnEvent }) => {
   return (
     <>
       <AddIcon
-        data-testid="addGcnEventTagIconButton"
+        data-testid="addGcnEventAliasIconButton"
         fontSize="small"
         className={classes.editIcon}
         onClick={() => {
@@ -74,17 +74,17 @@ const AddGcnTag = ({ gcnEvent }) => {
         }}
         style={{ position: "fixed" }}
       >
-        <DialogTitle>Add Tag</DialogTitle>
+        <DialogTitle>Add Alias</DialogTitle>
         <DialogContent>
           <div>
             {invalid && (
-              <FormValidationError message="Please enter a new tag" />
+              <FormValidationError message="Please enter a new alias" />
             )}
             <TextField
-              data-testid="addTagTextfield"
+              data-testid="addAliasTextfield"
               size="small"
-              label="tag"
-              name="tag"
+              label="alias"
+              name="alias"
               onChange={handleChange}
               type="string"
               variant="outlined"
@@ -98,7 +98,7 @@ const AddGcnTag = ({ gcnEvent }) => {
               }}
               endIcon={<SaveIcon />}
               size="large"
-              data-testid="addTagSubmitButton"
+              data-testid="addAliasSubmitButton"
               disabled={isSubmitting || invalid}
             >
               Save
@@ -110,17 +110,11 @@ const AddGcnTag = ({ gcnEvent }) => {
   );
 };
 
-AddGcnTag.propTypes = {
+AddGcnAlias.propTypes = {
   gcnEvent: PropTypes.shape({
     dateobs: PropTypes.string,
-    tags: PropTypes.arrayOf(PropTypes.string).isRequired,
-    localizations: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number,
-        localization_name: PropTypes.string,
-      }),
-    ),
+    aliases: PropTypes.arrayOf(PropTypes.string).isRequired,
   }).isRequired,
 };
 
-export default AddGcnTag;
+export default AddGcnAlias;

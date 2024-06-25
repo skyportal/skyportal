@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -44,7 +45,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const NewDefaultObservationPlan = () => {
+const NewDefaultObservationPlan = ({ onClose }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -179,6 +180,9 @@ const NewDefaultObservationPlan = () => {
         dispatch(
           showNotification("Successfully created default observation plan"),
         );
+        if (typeof onClose === "function") {
+          onClose();
+        }
       }
     });
   };
@@ -265,6 +269,14 @@ const NewDefaultObservationPlan = () => {
       </div>
     </div>
   );
+};
+
+NewDefaultObservationPlan.propTypes = {
+  onClose: PropTypes.func,
+};
+
+NewDefaultObservationPlan.defaultProps = {
+  onClose: null,
 };
 
 export default NewDefaultObservationPlan;

@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
-import { BASE_LAYOUT, LOGTYPE_TO_COLOR, mjdnow } from "../utils";
+import { BASE_LAYOUT, LOGTYPE_TO_COLOR, mjdnow } from "../../utils";
 
 const Plot = createPlotlyComponent(Plotly);
 

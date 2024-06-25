@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -8,7 +9,8 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import makeStyles from "@mui/styles/makeStyles";
 
-import * as defaultSurveyEfficienciesActions from "../ducks/default_survey_efficiencies";
+import { showNotification } from "baselayer/components/Notifications";
+import * as defaultSurveyEfficienciesActions from "../../ducks/default_survey_efficiencies";
 
 const useStyles = makeStyles(() => ({
   chips: {
@@ -33,7 +35,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const NewDefaultSurveyEfficiency = () => {
+const NewDefaultSurveyEfficiency = ({ onClose }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -77,9 +79,18 @@ const NewDefaultSurveyEfficiency = () => {
       default_observationplan_request_id: selectedObservationPlanId,
       payload: formData,
     };
-    await dispatch(
+    const result = await dispatch(
       defaultSurveyEfficienciesActions.submitDefaultSurveyEfficiency(json),
     );
+    if (result.status === "success") {
+      dispatch(showNotification("New Default Survey Efficiency saved"));
+      dispatch(
+        defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies(),
+      );
+      if (typeof onClose === "function") {
+        onClose();
+      }
+    }
   };
 
   const SimSurveySelectionFormSchema = {
@@ -218,6 +229,14 @@ const NewDefaultSurveyEfficiency = () => {
       </div>
     </div>
   );
+};
+
+NewDefaultSurveyEfficiency.propTypes = {
+  onClose: PropTypes.func,
+};
+
+NewDefaultSurveyEfficiency.defaultProps = {
+  onClose: null,
 };
 
 export default NewDefaultSurveyEfficiency;

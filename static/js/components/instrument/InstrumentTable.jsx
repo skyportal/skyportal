@@ -15,9 +15,9 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { Link } from "react-router-dom";
 
 import MUIDataTable from "mui-datatables";
-import Button from "./Button";
-import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
-import * as instrumentActions from "../ducks/instrument";
+import Button from "../Button";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import * as instrumentActions from "../../ducks/instrument";
 
 const useStyles = makeStyles((theme) => ({
   container: {

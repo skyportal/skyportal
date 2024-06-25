@@ -22,8 +22,8 @@ import { showNotification } from "baselayer/components/Notifications";
 import { Paper } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import JsonDashboard from "react-json-dashboard";
-import withRouter from "./withRouter";
-import * as Action from "../ducks/instrument";
+import withRouter from "../withRouter";
+import * as Action from "../../ducks/instrument";
 import InstrumentLogForm from "./InstrumentLogForm";
 import InstrumentLogsPlot from "./InstrumentLogsPlot";
 

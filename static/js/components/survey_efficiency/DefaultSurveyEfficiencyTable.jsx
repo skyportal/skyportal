@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import Paper from "@mui/material/Paper";
-import DeleteIcon from "@mui/icons-material/Delete";
 import {
   createTheme,
   StyledEngineProvider,
@@ -10,14 +8,20 @@ import {
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
-import CircularProgress from "@mui/material/CircularProgress";
+import Paper from "@mui/material/Paper";
+import DeleteIcon from "@mui/icons-material/Delete";
+import IconButton from "@mui/material/IconButton";
+import AddIcon from "@mui/icons-material/Add";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
-
-import MUIDataTable from "mui-datatables";
-import Button from "./Button";
-import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
-import * as defaultSurveyEfficienciesActions from "../ducks/default_survey_efficiencies";
+import * as defaultSurveyEfficienciesActions from "../../ducks/default_survey_efficiencies";
+import Button from "../Button";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import NewDefaultSurveyEfficiency from "./NewDefaultSurveyEfficiency";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -71,8 +75,8 @@ const DefaultSurveyEfficiencyTable = ({
   default_survey_efficiencies,
   paginateCallback,
   totalMatches,
-  deletePermission,
   sortingCallback,
+  deletePermission,
   hideTitle = false,
 }) => {
   const classes = useStyles();
@@ -82,15 +86,24 @@ const DefaultSurveyEfficiencyTable = ({
 
   const [setRowsPerPage] = useState(100);
 
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newDialogOpen, setNewDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [defaultSurveyEfficiencyToDelete, setDefaultSurveyEfficiencyToDelete] =
     useState(null);
-  const openDialog = (id) => {
-    setDialogOpen(true);
+
+  const openNewDialog = () => {
+    setNewDialogOpen(true);
+  };
+  const closeNewDialog = () => {
+    setNewDialogOpen(false);
+  };
+
+  const openDeleteDialog = (id) => {
+    setDeleteDialogOpen(true);
     setDefaultSurveyEfficiencyToDelete(id);
   };
-  const closeDialog = () => {
-    setDialogOpen(false);
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
     setDefaultSurveyEfficiencyToDelete(null);
   };
 
@@ -102,7 +115,7 @@ const DefaultSurveyEfficiencyTable = ({
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Default survey efficiency deleted"));
-        closeDialog();
+        closeDeleteDialog();
       }
     });
   };
@@ -218,6 +231,9 @@ const DefaultSurveyEfficiencyTable = ({
 
   const renderDelete = (dataIndex) => {
     const default_survey_efficiency = default_survey_efficiencies[dataIndex];
+    if (!deletePermission) {
+      return null;
+    }
     return (
       <div>
         <Button
@@ -227,17 +243,11 @@ const DefaultSurveyEfficiencyTable = ({
             root: classes.defaultSurveyEfficiencyDelete,
             disabled: classes.defaultSurveyEfficiencyDeleteDisabled,
           }}
-          onClick={() => openDialog(default_survey_efficiency.id)}
+          onClick={() => openDeleteDialog(default_survey_efficiency.id)}
           disabled={!deletePermission}
         >
           <DeleteIcon />
         </Button>
-        <ConfirmDeletionDialog
-          deleteFunction={deleteDefaultSurveyEfficiency}
-          dialogOpen={dialogOpen}
-          closeDialog={closeDialog}
-          resourceName="default survey efficiency"
-        />
       </div>
     );
   };
@@ -375,26 +385,51 @@ const DefaultSurveyEfficiencyTable = ({
     count: totalMatches,
     filter: true,
     sort: true,
+    customToolbar: () => (
+      <IconButton
+        name="new_default_survey_efficiency"
+        onClick={() => {
+          openNewDialog();
+        }}
+      >
+        <AddIcon />
+      </IconButton>
+    ),
   };
 
   return (
     <div>
-      {default_survey_efficiencies ? (
-        <Paper className={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title={!hideTitle ? "" : ""}
-                data={default_survey_efficiencies}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-        </Paper>
-      ) : (
-        <CircularProgress />
+      <Paper className={classes.container}>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              title={hideTitle === true ? "" : "Default Survey Efficiencies"}
+              data={default_survey_efficiencies}
+              options={options}
+              columns={columns}
+            />
+          </ThemeProvider>
+        </StyledEngineProvider>
+      </Paper>
+      {newDialogOpen && (
+        <Dialog
+          open={newDialogOpen}
+          onClose={closeNewDialog}
+          style={{ position: "fixed" }}
+          maxWidth="md"
+        >
+          <DialogTitle>New Default Survey Efficiency</DialogTitle>
+          <DialogContent dividers>
+            <NewDefaultSurveyEfficiency onClose={closeNewDialog} />
+          </DialogContent>
+        </Dialog>
       )}
+      <ConfirmDeletionDialog
+        deleteFunction={deleteDefaultSurveyEfficiency}
+        dialogOpen={deleteDialogOpen}
+        closeDialog={closeDeleteDialog}
+        resourceName="default survey efficiency"
+      />
     </div>
   );
 };
@@ -405,13 +440,14 @@ DefaultSurveyEfficiencyTable.propTypes = {
   paginateCallback: PropTypes.func.isRequired,
   sortingCallback: PropTypes.func,
   totalMatches: PropTypes.number,
+  deletePermission: PropTypes.bool,
   hideTitle: PropTypes.bool,
-  deletePermission: PropTypes.bool.isRequired,
 };
 
 DefaultSurveyEfficiencyTable.defaultProps = {
   totalMatches: 0,
   sortingCallback: null,
+  deletePermission: false,
   hideTitle: false,
 };
 

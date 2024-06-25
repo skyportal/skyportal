@@ -10,15 +10,19 @@ import {
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
-import CircularProgress from "@mui/material/CircularProgress";
-
-import { showNotification } from "baselayer/components/Notifications";
-
+import IconButton from "@mui/material/IconButton";
+import AddIcon from "@mui/icons-material/Add";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
 import MUIDataTable from "mui-datatables";
 import { JSONTree } from "react-json-tree";
+
+import { showNotification } from "baselayer/components/Notifications";
+import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
 import Button from "./Button";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
-import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
+import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -74,8 +78,8 @@ const DefaultObservationPlanTable = ({
   default_observation_plans,
   paginateCallback,
   totalMatches,
-  deletePermission,
   sortingCallback,
+  deletePermission,
   hideTitle = false,
 }) => {
   const classes = useStyles();
@@ -85,15 +89,24 @@ const DefaultObservationPlanTable = ({
 
   const [setRowsPerPage] = useState(100);
 
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newDialogOpen, setNewDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [defaultObservationPlanToDelete, setDefaultObservationPlanToDelete] =
     useState(null);
-  const openDialog = (id) => {
-    setDialogOpen(true);
+
+  const openNewDialog = () => {
+    setNewDialogOpen(true);
+  };
+  const closeNewDialog = () => {
+    setNewDialogOpen(false);
+  };
+
+  const openDeleteDialog = (id) => {
+    setDeleteDialogOpen(true);
     setDefaultObservationPlanToDelete(id);
   };
-  const closeDialog = () => {
-    setDialogOpen(false);
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
     setDefaultObservationPlanToDelete(null);
   };
 
@@ -105,7 +118,7 @@ const DefaultObservationPlanTable = ({
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("Default observation plan deleted"));
-        closeDialog();
+        closeDeleteDialog();
       }
     });
   };
@@ -170,6 +183,9 @@ const DefaultObservationPlanTable = ({
 
   const renderDelete = (dataIndex) => {
     const default_observation_plan = default_observation_plans[dataIndex];
+    if (!deletePermission) {
+      return null;
+    }
     return (
       <div>
         <Button
@@ -179,17 +195,11 @@ const DefaultObservationPlanTable = ({
             root: classes.defaultObservationPlanDelete,
             disabled: classes.defaultObservationPlanDeleteDisabled,
           }}
-          onClick={() => openDialog(default_observation_plan.id)}
+          onClick={() => openDeleteDialog(default_observation_plan.id)}
           disabled={!deletePermission}
         >
           <DeleteIcon />
         </Button>
-        <ConfirmDeletionDialog
-          deleteFunction={deleteDefaultObservationPlan}
-          dialogOpen={dialogOpen}
-          closeDialog={closeDialog}
-          resourceName="default observation plan"
-        />
       </div>
     );
   };
@@ -277,26 +287,51 @@ const DefaultObservationPlanTable = ({
     count: totalMatches,
     filter: true,
     sort: true,
+    customToolbar: () => (
+      <IconButton
+        name="new_default_observation_plan"
+        onClick={() => {
+          openNewDialog();
+        }}
+      >
+        <AddIcon />
+      </IconButton>
+    ),
   };
 
   return (
     <div>
-      {default_observation_plans ? (
-        <Paper className={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title={!hideTitle ? "" : ""}
-                data={default_observation_plans}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-        </Paper>
-      ) : (
-        <CircularProgress />
+      <Paper className={classes.container}>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              title={hideTitle === true ? "" : "Default Observation Plans"}
+              data={default_observation_plans || []}
+              options={options}
+              columns={columns}
+            />
+          </ThemeProvider>
+        </StyledEngineProvider>
+      </Paper>
+      {newDialogOpen && (
+        <Dialog
+          open={newDialogOpen}
+          onClose={closeNewDialog}
+          style={{ position: "fixed" }}
+          maxWidth="md"
+        >
+          <DialogTitle>New Default Observation Plan</DialogTitle>
+          <DialogContent dividers>
+            <NewDefaultObservationPlan onClose={closeNewDialog} />
+          </DialogContent>
+        </Dialog>
       )}
+      <ConfirmDeletionDialog
+        deleteFunction={deleteDefaultObservationPlan}
+        dialogOpen={deleteDialogOpen}
+        closeDialog={closeDeleteDialog}
+        resourceName="default observation plan"
+      />
     </div>
   );
 };
@@ -310,14 +345,15 @@ DefaultObservationPlanTable.propTypes = {
   default_observation_plans: PropTypes.arrayOf(PropTypes.any).isRequired,
   paginateCallback: PropTypes.func.isRequired,
   sortingCallback: PropTypes.func,
+  deletePermission: PropTypes.bool,
   totalMatches: PropTypes.number,
   hideTitle: PropTypes.bool,
-  deletePermission: PropTypes.bool.isRequired,
 };
 
 DefaultObservationPlanTable.defaultProps = {
   totalMatches: 0,
   sortingCallback: null,
+  deletePermission: false,
   hideTitle: false,
 };
 

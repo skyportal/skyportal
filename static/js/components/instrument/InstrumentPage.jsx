@@ -8,8 +8,8 @@ import Typography from "@mui/material/Typography";
 
 import CircularProgress from "@mui/material/CircularProgress";
 import InstrumentTable from "./InstrumentTable";
-import Spinner from "./Spinner";
-import * as instrumentsActions from "../ducks/instruments";
+import Spinner from "../Spinner";
+import * as instrumentsActions from "../../ducks/instruments";
 import NewInstrument from "./NewInstrument";
 // eslint-disable-next-line import/no-cycle
 import ModifyInstrument from "./ModifyInstrument";

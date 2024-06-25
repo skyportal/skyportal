@@ -6,8 +6,8 @@ import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
-import { submitInstrument } from "../ducks/instrument";
-import { fetchInstruments } from "../ducks/instruments";
+import { submitInstrument } from "../../ducks/instrument";
+import { fetchInstruments } from "../../ducks/instruments";
 
 const NewInstrument = () => {
   const { instrumentList } = useSelector((state) => state.instruments);

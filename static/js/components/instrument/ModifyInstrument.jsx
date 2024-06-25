@@ -13,8 +13,8 @@ import MenuItem from "@mui/material/MenuItem";
 import makeStyles from "@mui/styles/makeStyles";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
-import { modifyInstrument } from "../ducks/instrument";
-import { fetchInstruments } from "../ducks/instruments";
+import { modifyInstrument } from "../../ducks/instrument";
+import { fetchInstruments } from "../../ducks/instruments";
 // eslint-disable-next-line import/no-cycle
 import { instrumentInfo, instrumentTitle } from "./InstrumentPage";
 

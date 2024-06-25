@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import makeStyles from "@mui/styles/makeStyles";
-import Select from "@mui/material/Select";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -15,10 +13,10 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import GroupShareSelect from "./group/GroupShareSelect";
-import { modifyAllocation } from "../ducks/allocation";
-import { fetchAllocations } from "../ducks/allocations";
-import * as groupActions from "../ducks/group";
+import { modifyAllocation } from "../../ducks/allocation";
+import { fetchAllocations } from "../../ducks/allocations";
+import * as groupActions from "../../ducks/group";
+import GroupShareSelect from "../group/GroupShareSelect";
 
 dayjs.extend(utc);
 
@@ -37,8 +35,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const ModifyAllocation = () => {
-  const [selectedAllocationId, setSelectedAllocationId] = useState(null);
+const ModifyAllocation = ({ allocation_id, onClose }) => {
   const { allocationList } = useSelector((state) => state.allocations);
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
@@ -72,27 +69,8 @@ const ModifyAllocation = () => {
   }, [selectedGroup, dispatch]);
 
   useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result = await dispatch(fetchAllocations());
-
-      const { data } = result;
-      setSelectedAllocationId(data[0]?.id);
-    };
-
-    getAllocations();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedAllocationId]);
-
-  useEffect(() => {
     const selectedAllocation = allocationList.find(
-      (allocation) => allocation?.id === selectedAllocationId,
+      (allocation) => allocation?.id === allocation_id,
     );
     if (selectedAllocation) {
       const currentGroup =
@@ -112,12 +90,12 @@ const ModifyAllocation = () => {
           .format("YYYY-MM-DDTHH:mm:ssZ"),
       );
     }
-  }, [selectedAllocationId, allocationList]);
+  }, [allocation_id, allocationList]);
 
   useEffect(() => {
-    if (group?.users && selectedAllocationId) {
+    if (group?.users && allocation_id) {
       const selectedAllocation = allocationList.find(
-        (allocation) => allocation?.id === selectedAllocationId,
+        (allocation) => allocation?.id === allocation_id,
       );
       setSelectedUsers(
         group.users.filter((user) =>
@@ -134,14 +112,6 @@ const ModifyAllocation = () => {
     instrumentList.length === 0 ||
     telescopeList.length === 0
   ) {
-    return <h3>No allocations available...</h3>;
-  }
-
-  // need to check both of these conditions as selectedAllocationId is
-  // initialized to be null and useEffect is not called on the first
-  // render to update it, so it can be null even if instruments is not
-  // empty.
-  if (!selectedAllocationId) {
     return <h3>No allocations available...</h3>;
   }
 
@@ -190,13 +160,13 @@ const ModifyAllocation = () => {
     if (selectedGroupIds.length > 0) {
       formData.default_share_group_ids = selectedGroupIds;
     }
-    formData.instrument_id =
-      allocationLookUp[selectedAllocationId].instrument_id;
-    const result = await dispatch(
-      modifyAllocation(selectedAllocationId, formData),
-    );
+    formData.instrument_id = allocationLookUp[allocation_id].instrument_id;
+    const result = await dispatch(modifyAllocation(allocation_id, formData));
     if (result.status === "success") {
-      dispatch(showNotification("Allocation saved"));
+      dispatch(showNotification("Allocation modified successfully"));
+      if (typeof onClose === "function") {
+        onClose();
+      }
       dispatch(fetchAllocations());
     }
   };
@@ -210,10 +180,6 @@ const ModifyAllocation = () => {
       }
     }
     return label;
-  };
-
-  const handleSelectedAllocationChange = (e) => {
-    setSelectedAllocationId(e.target.value);
   };
 
   function validate(formData, validationErrors) {
@@ -241,12 +207,12 @@ const ModifyAllocation = () => {
           enum: allowedAllocationTypes,
         },
         uniqueItems: true,
-        default: allocationLookUp[selectedAllocationId]?.types,
+        default: allocationLookUp[allocation_id]?.types,
       },
       pi: {
         type: "string",
         title: "PI",
-        default: allocationLookUp[selectedAllocationId]?.pi,
+        default: allocationLookUp[allocation_id]?.pi,
       },
       start_date: {
         type: "string",
@@ -263,7 +229,7 @@ const ModifyAllocation = () => {
       hours_allocated: {
         type: "number",
         title: "Hours allocated",
-        default: allocationLookUp[selectedAllocationId]?.hours_allocated,
+        default: allocationLookUp[allocation_id]?.hours_allocated,
       },
       _altdata: {
         type: "string",
@@ -275,29 +241,6 @@ const ModifyAllocation = () => {
 
   return (
     <div>
-      <InputLabel id="instrumentSelectLabel">Allocation</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="allocationSelectLabel"
-        value={selectedAllocationId}
-        onChange={handleSelectedAllocationChange}
-        name="modifyAllocationSelect"
-        className={classes.allocationSelect}
-      >
-        {allocationList?.map((allocation) => (
-          <MenuItem
-            value={allocation.id}
-            key={allocation.id}
-            className={classes.allocationSelectItem}
-          >
-            {`${
-              telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
-            } / ${instLookUp[allocation.instrument_id].name} - ${
-              groupLookUp[allocation.group_id]?.name
-            } (PI ${allocation.pi})`}
-          </MenuItem>
-        ))}
-      </Select>
       <Controller
         name="group"
         render={({ field: { onChange } }) => (
@@ -384,6 +327,15 @@ const ModifyAllocation = () => {
       />
     </div>
   );
+};
+
+ModifyAllocation.propTypes = {
+  allocation_id: PropTypes.number.isRequired,
+  onClose: PropTypes.func,
+};
+
+ModifyAllocation.defaultProps = {
+  onClose: null,
 };
 
 export default ModifyAllocation;

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
@@ -7,15 +8,15 @@ import makeStyles from "@mui/styles/makeStyles";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import GroupShareSelect from "./group/GroupShareSelect";
-import { submitAllocation } from "../ducks/allocation";
-import { fetchAllocations } from "../ducks/allocations";
-import * as groupActions from "../ducks/group";
+import { showNotification } from "baselayer/components/Notifications";
+import { submitAllocation } from "../../ducks/allocation";
+import { fetchAllocations } from "../../ducks/allocations";
+import * as groupActions from "../../ducks/group";
+import GroupShareSelect from "../group/GroupShareSelect";
 
 dayjs.extend(utc);
 
@@ -34,7 +35,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const NewAllocation = () => {
+const NewAllocation = ({ onClose }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const allowedAllocationTypes = useSelector(
@@ -97,6 +98,9 @@ const NewAllocation = () => {
     if (result.status === "success") {
       dispatch(showNotification("Allocation saved"));
       dispatch(fetchAllocations());
+      if (typeof onClose === "function") {
+        onClose();
+      }
     }
   };
 
@@ -269,6 +273,14 @@ const NewAllocation = () => {
       />
     </div>
   );
+};
+
+NewAllocation.propTypes = {
+  onClose: PropTypes.func,
+};
+
+NewAllocation.defaultProps = {
+  onClose: null,
 };
 
 export default NewAllocation;

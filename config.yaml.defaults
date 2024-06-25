@@ -132,7 +132,7 @@ app:
     - path: "/allocation/:id"
       component: allocation/AllocationSummary
     - path: "/instrument/:id"
-      component: InstrumentSummary
+      component: instrument/InstrumentSummary
     - path: "/telescope/:id"
       component: telescope/TelescopeSummary
     - path: "/observations"
@@ -162,7 +162,7 @@ app:
     - path: "/telescopes"
       component: telescope/TelescopePage
     - path: "/instruments"
-      component: InstrumentPage
+      component: instrument/InstrumentPage
     - path: "/mmadetectors"
       component: mma_detector/MMADetectorPage
     - path: "/earthquakes"
