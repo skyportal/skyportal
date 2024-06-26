@@ -129,6 +129,7 @@ class PublicSourcePageHandler(BaseHandler):
                     source["thumbnails"], source["ra"], source["dec"]
                 ),
                 "options": options,
+                "release_id": data.get("release_id"),
             }
 
             # get photometry
@@ -172,7 +173,7 @@ class PublicSourcePageHandler(BaseHandler):
                 is not None
             ):
                 return self.error(
-                    "A public page with the same data and same options already exists for this source"
+                    "A public page with the same data, options and release already exists for this source"
                 )
 
             public_source_page = PublicSourcePage(
@@ -180,7 +181,7 @@ class PublicSourcePageHandler(BaseHandler):
                 hash=new_page_hash,
                 data=data_to_publish,
                 is_visible=True,
-                release_id=data.get("release_id"),
+                release_id=data_to_publish.get("release_id"),
             )
             session.add(public_source_page)
             session.commit()
