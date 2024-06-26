@@ -117,12 +117,12 @@ class SharingHandler(BaseHandler):
         phot_obj_ids = set(phot_obj_ids)
         for obj_id in phot_obj_ids:
             self.push(
-                action="skyportal/FETCH_SOURCE_PHOTOMETRY", payload={"obj_id": obj_id}
+                action="skyportal/REFRESH_SOURCE_PHOTOMETRY", payload={"obj_id": obj_id}
             )
 
         for obj_id in spec_obj_ids:
             self.push(
-                action="skyportal/FETCH_SOURCE_SPECTRA", payload={"obj_id": obj_id}
+                action="skyportal/REFRESH_SOURCE_SPECTRA", payload={"obj_id": obj_id}
             )
 
         return self.success()
