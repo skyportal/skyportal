@@ -70,7 +70,7 @@ class ReleaseHandler(BaseHandler):
                 sa.select(PublicSourcePage)
                 .where(
                     PublicSourcePage.is_visible,
-                    PublicSourcePage.link_name == link_name,
+                    PublicSourcePage.release_id == release.id,
                 )
                 .order_by(PublicSourcePage.created_at.desc())
             ).all()
