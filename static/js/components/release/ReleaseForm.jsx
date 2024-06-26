@@ -31,7 +31,10 @@ const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
         title: "Visible",
         default: true,
       },
-      Options: sourceOptionsSchema,
+      options: {
+        title: "Options",
+        ...sourceOptionsSchema,
+      },
     },
   };
 
@@ -53,6 +56,7 @@ const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
       onChange={({ formData }) => setRelease(formData)}
       schema={releaseSchema}
       validator={validator}
+      liveValidate
       onSubmit={submitRelease}
       uiSchema={{
         description: {

@@ -158,6 +158,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
               <SourcePublishRelease
                 sourceReleaseId={sourceReleaseId}
                 setSourceReleaseId={setSourceReleaseId}
+                setOptions={setOptions}
               />
             )}
           </div>

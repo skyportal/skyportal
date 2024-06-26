@@ -34,7 +34,11 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublishRelease = ({ sourceReleaseId, setSourceReleaseId }) => {
+const SourcePublishRelease = ({
+  sourceReleaseId,
+  setSourceReleaseId,
+  setOptions,
+}) => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
@@ -68,6 +72,13 @@ const SourcePublishRelease = ({ sourceReleaseId, setSourceReleaseId }) => {
     },
   };
 
+  const handleReleaseChange = (data) => {
+    setSourceReleaseId(data.release);
+    if (releases.length > 0 && data.release) {
+      setOptions(releases.find((item) => item.id === data.release).options);
+    }
+  };
+
   return (
     <div className={styles.sourcePublishRelease}>
       <Link
@@ -80,7 +91,7 @@ const SourcePublishRelease = ({ sourceReleaseId, setSourceReleaseId }) => {
       {releases.length > 0 ? (
         <Form
           formData={sourceReleaseId ? { release: sourceReleaseId } : undefined}
-          onChange={({ formData }) => setSourceReleaseId(formData.release)}
+          onChange={({ formData }) => handleReleaseChange(formData)}
           schema={formSchema}
           liveValidate
           validator={validator}
@@ -105,6 +116,7 @@ const SourcePublishRelease = ({ sourceReleaseId, setSourceReleaseId }) => {
 SourcePublishRelease.propTypes = {
   sourceReleaseId: PropTypes.number,
   setSourceReleaseId: PropTypes.func.isRequired,
+  setOptions: PropTypes.func.isRequired,
 };
 
 SourcePublishRelease.defaultProps = {
