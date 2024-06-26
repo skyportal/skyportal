@@ -595,7 +595,7 @@ skyportal_handlers = [
     (r'/api/internal/recent_gcn_events', RecentGcnEventsHandler),
     (r'/api/.*', InvalidEndpointHandler),
     # Public pages.
-    (r'/public/releases(?:/)?([0-9]+)?', ReleaseHandler),
+    (r'/public/releases(?:/)?([0-9A-Za-z-_\.\+]+)?', ReleaseHandler),
     (
         r'/public/sources(?:/)?([0-9A-Za-z-_\.\+]+)?(?:/)?(?:version)?(?:/)?([0-9a-f]+)?',
         SourcePageHandler,
