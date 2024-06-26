@@ -68,7 +68,10 @@ class ReleaseHandler(BaseHandler):
 
             versions = session.scalars(
                 sa.select(PublicSourcePage)
-                .where(PublicSourcePage.is_visible)
+                .where(
+                    PublicSourcePage.is_visible,
+                    PublicSourcePage.release_id == release_id,
+                )
                 .order_by(PublicSourcePage.created_at.desc())
             ).all()
             versions_by_source = {}
