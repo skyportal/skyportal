@@ -15,6 +15,13 @@ class PublicRelease(Base):
         doc="Name of the public release",
     )
 
+    link_name = sa.Column(
+        sa.String,
+        unique=True,
+        nullable=False,
+        doc="Name of the public release to be used in URLs",
+    )
+
     description = sa.Column(
         sa.String,
         nullable=False,

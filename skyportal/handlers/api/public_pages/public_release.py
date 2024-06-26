@@ -1,4 +1,5 @@
 import operator  # noqa: F401
+import re
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
@@ -10,6 +11,26 @@ log = make_log('api/public_release')
 
 
 class PublicReleaseHandler(BaseHandler):
+    def validate_link_name(self, session, link_name, release_id):
+        is_unique = (
+            session.scalars(
+                PublicRelease.select(session.user_or_token, mode="read").where(
+                    PublicRelease.link_name == link_name,
+                    PublicRelease.id != release_id if release_id is not None else True,
+                )
+            ).first()
+            is None
+        )
+        if not is_unique:
+            self.error("This link name is already in use")
+
+        is_url_safe = bool(re.compile(r'^[0-9A-Za-z-_.+]+$').match(link_name))
+        if not is_url_safe:
+            self.error(
+                "Link name must contain only "
+                "alphanumeric characters, dashes, underscores, periods, or plus signs"
+            )
+
     async def post(self):
         """
         ---
@@ -25,8 +46,14 @@ class PublicReleaseHandler(BaseHandler):
                         properties:
                             name:
                                 type: string
+                            linkName:
+                                type: string
                             description:
                                 type: string
+                            options:
+                                type: object
+                            is_visible:
+                                type: boolean
           responses:
             200:
               content:
@@ -43,10 +70,16 @@ class PublicReleaseHandler(BaseHandler):
         name = data.get("name")
         if name is None or name == "":
             return self.error("Name is required")
+        link_name = data.get("link_name")
+        if link_name is None or link_name == "":
+            return self.error("Link name is required")
 
         with self.Session() as session:
+            self.validate_link_name(session, link_name, None)
+
             public_release = PublicRelease(
                 name=name,
+                link_name=link_name,
                 description=data.get("description", ""),
                 options=data.get("options", {}),
                 is_visible=data.get("is_visible", True),
@@ -75,6 +108,8 @@ class PublicReleaseHandler(BaseHandler):
                 properties:
                   name:
                     type: string
+                  link_name:
+                    type: string
                   description:
                     type: string
                   options:
@@ -97,6 +132,9 @@ class PublicReleaseHandler(BaseHandler):
         name = data.get("name")
         if name is None or name == "":
             return self.error("Name is required")
+        link_name = data.get("link_name")
+        if link_name is None or link_name == "":
+            return self.error("Link name is required")
 
         with self.Session() as session:
             public_release = session.scalars(
@@ -108,7 +146,10 @@ class PublicReleaseHandler(BaseHandler):
             if public_release is None:
                 return self.error("Release not found", status=404)
 
+            self.validate_link_name(session, link_name, release_id)
+
             public_release.name = name
+            public_release.link_name = link_name
             public_release.description = data.get("description", "")
             public_release.options = data.get("options", {})
             public_release.is_visible = data.get("is_visible", True)
