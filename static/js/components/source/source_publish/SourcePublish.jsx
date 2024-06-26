@@ -176,7 +176,8 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
               </Button>
               {sourcePublishOptionsOpen && (
                 <SourcePublishOptions
-                  optionsState={[options, setOptions]}
+                  options={options}
+                  setOptions={setOptions}
                   isElements={{
                     photometry: isPhotometry,
                     classifications: isClassifications,

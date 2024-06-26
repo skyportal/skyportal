@@ -68,18 +68,16 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublishOptions = ({ optionsState, isElements }) => {
+const SourcePublishOptions = ({ options, setOptions, isElements }) => {
   const styles = useStyles();
   const streams = useSelector((state) => state.streams);
   const groups = useSelector((state) => state.groups.userAccessible);
-  const VALUE = 0;
-  const SETTER = 1;
 
   return (
     <div className={styles.sourcePublishOptions}>
       <Form
-        formData={optionsState[VALUE]}
-        onChange={({ formData }) => optionsState[SETTER](formData)}
+        formData={options}
+        onChange={({ formData }) => setOptions(formData)}
         schema={sourcePublishOptionsSchema(streams, groups)}
         liveValidate
         validator={validator}
@@ -102,17 +100,13 @@ const SourcePublishOptions = ({ optionsState, isElements }) => {
 };
 
 SourcePublishOptions.propTypes = {
-  optionsState: PropTypes.arrayOf(
-    PropTypes.oneOfType([
-      PropTypes.shape({
-        include_photometry: PropTypes.bool,
-        include_classifications: PropTypes.bool,
-        groups: PropTypes.arrayOf(PropTypes.number),
-        streams: PropTypes.arrayOf(PropTypes.number),
-      }),
-      PropTypes.func,
-    ]),
-  ).isRequired,
+  options: PropTypes.shape({
+    include_photometry: PropTypes.bool,
+    include_classifications: PropTypes.bool,
+    groups: PropTypes.arrayOf(PropTypes.number),
+    streams: PropTypes.arrayOf(PropTypes.number),
+  }).isRequired,
+  setOptions: PropTypes.func.isRequired,
   isElements: PropTypes.shape({
     photometry: PropTypes.bool,
     classifications: PropTypes.bool,
