@@ -124,6 +124,10 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
                   primary
                   type="submit"
                   onClick={publish}
+                  style={{
+                    backgroundColor: publishButton.color,
+                    color: "white",
+                  }}
                   disabled={
                     !permissionToPublish || publishButton.text !== "Publish"
                   }
