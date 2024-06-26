@@ -22,6 +22,10 @@ const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
         type: "string",
         title: "Name",
       },
+      link_name: {
+        type: "string",
+        title: "Link name to use in the URL",
+      },
       description: {
         type: "string",
         title: "Description",
@@ -36,6 +40,7 @@ const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
         ...sourceOptionsSchema,
       },
     },
+    required: ["name", "link_name"],
   };
 
   const submitRelease = () => {
