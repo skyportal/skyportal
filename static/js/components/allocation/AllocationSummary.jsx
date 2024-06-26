@@ -39,12 +39,12 @@ import * as Action from "../../ducks/allocation";
 import * as ObservationPlansAction from "../../ducks/observationPlans";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
-import ObservationPlanGlobe from "../ObservationPlanGlobe";
-import ObservationPlanSummaryStatistics from "../ObservationPlanSummaryStatistics";
-import VegaPhotometry from "../vega/VegaPhotometry";
+import ObservationPlanGlobe from "../observation_plan/ObservationPlanGlobe";
+import ObservationPlanSummaryStatistics from "../observation_plan/ObservationPlanSummaryStatistics";
+import VegaPhotometry from "../plot/VegaPhotometry";
 import Button from "../Button";
 
-const AirmassPlot = React.lazy(() => import("../AirmassPlot"));
+const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
 
 const useStyles = makeStyles((theme) => ({
   chip: {

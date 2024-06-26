@@ -5,7 +5,8 @@ import { useDispatch, useSelector } from "react-redux";
 import Cancel from "@mui/icons-material/Cancel";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import GetAppIcon from "@mui/icons-material/GetApp";
-import { CircularProgress, useMediaQuery } from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import Accordion from "@mui/material/Accordion";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -31,11 +32,11 @@ import * as gcnEventActions from "../../ducks/gcnEvent";
 import GcnSelectionForm from "./GcnSelectionForm";
 import Spinner from "../Spinner";
 
-import ObservationPlanRequestForm from "../ObservationPlanRequestForm";
-import ObservationPlanRequestLists from "../ObservationPlanRequestLists";
+import ObservationPlanRequestForm from "../observation_plan/ObservationPlanRequestForm";
+import ObservationPlanRequestLists from "../observation_plan/ObservationPlanRequestLists";
 
 import CommentList from "../comment/CommentList";
-import DisplayGraceDB from "../DisplayGraceDB";
+import DisplayGraceDB from "./DisplayGraceDB";
 import GcnAliases from "./GcnAliases";
 import GcnCirculars from "./GcnCirculars";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";

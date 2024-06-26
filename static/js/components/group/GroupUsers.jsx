@@ -21,9 +21,9 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 
 import ManageUserButtons from "./GroupPageManageUserButtons";
-import NewGroupUserForm from "../NewGroupUserForm";
-import InviteNewGroupUserForm from "../InviteNewGroupUserForm";
-import AddUsersFromGroupForm from "../AddUsersFromGroupForm";
+import NewGroupUserForm from "./NewGroupUserForm";
+import InviteNewGroupUserForm from "./InviteNewGroupUserForm";
+import AddUsersFromGroupForm from "./AddUsersFromGroupForm";
 import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
 
 const getMuiTheme = (theme) =>

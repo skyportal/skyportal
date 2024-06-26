@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
-import { Divider } from "@mui/material";
+import Divider from "@mui/material/Divider";
 
 const useStyles = makeStyles(() => ({
   root: {

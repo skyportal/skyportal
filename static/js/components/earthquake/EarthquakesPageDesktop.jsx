@@ -5,7 +5,7 @@ import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
-import NewEarthquake from "../NewEarthquake";
+import NewEarthquake from "./NewEarthquake";
 import EarthquakeInfo from "./EarthquakeInfo";
 // lazy import the EarthquakeMap component
 const EarthquakeMap = lazy(() => import("./EarthquakeMap"));

@@ -17,8 +17,8 @@ import * as shiftActions from "../../ducks/shift";
 import * as earthquakeActions from "../../ducks/earthquake";
 
 import CommentEntry from "./CommentEntry";
-import CompactCommentList from "../CompactCommentList";
-import RegularCommentList from "../RegularCommentList";
+import CompactCommentList from "./CompactCommentList";
+import RegularCommentList from "./RegularCommentList";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
