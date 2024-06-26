@@ -17,11 +17,11 @@ class ReleaseHandler(BaseHandler):
               - release
             parameters:
                 - in: path
-                    name: link_name
-                    required: true
-                    schema:
+                  name: link_name
+                  required: true
+                  schema:
                     type: string
-                    description: The link name of the public release to display
+                  description: The link name of the public release to display
             responses:
                 200:
                   content:
