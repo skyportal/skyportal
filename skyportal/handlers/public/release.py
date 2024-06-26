@@ -8,7 +8,7 @@ from ..base import BaseHandler
 
 
 class ReleaseHandler(BaseHandler):
-    def get(self, release_id=None):
+    def get(self, link_name=None):
         """
         ---
         single:
@@ -17,11 +17,11 @@ class ReleaseHandler(BaseHandler):
               - release
             parameters:
                 - in: path
-                  name: release_id
-                  required: true
-                  schema:
+                    name: link_name
+                    required: true
+                    schema:
                     type: string
-                  description: The ID of the release to display
+                    description: The link name of the public release to display
             responses:
                 200:
                   content:
@@ -46,7 +46,7 @@ class ReleaseHandler(BaseHandler):
                         description: The HTML content of the page with a list of all public releases
         """
         with DBSession() as session:
-            if release_id is None:
+            if link_name is None:
                 releases = session.scalars(
                     sa.select(PublicRelease)
                     .where(PublicRelease.is_visible)
@@ -59,7 +59,7 @@ class ReleaseHandler(BaseHandler):
 
             release = session.scalars(
                 sa.select(PublicRelease).where(
-                    PublicRelease.id == release_id, PublicRelease.is_visible
+                    PublicRelease.link_name == link_name, PublicRelease.is_visible
                 )
             ).first()
 
@@ -70,7 +70,7 @@ class ReleaseHandler(BaseHandler):
                 sa.select(PublicSourcePage)
                 .where(
                     PublicSourcePage.is_visible,
-                    PublicSourcePage.release_id == release_id,
+                    PublicSourcePage.link_name == link_name,
                 )
                 .order_by(PublicSourcePage.created_at.desc())
             ).all()
