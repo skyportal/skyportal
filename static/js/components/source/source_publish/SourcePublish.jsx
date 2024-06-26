@@ -50,7 +50,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
     useState(false);
   const [sourcePublishHistoryOpen, setSourcePublishHistoryOpen] =
     useState(true);
-  const [release, setRelease] = useState({});
+  const [sourceReleaseId, setSourceReleaseId] = useState(null);
   const [options, setOptions] = useState({
     include_photometry: true,
     include_classifications: true,
@@ -65,6 +65,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
       dispatch(
         publicSourcePageActions.generatePublicSourcePage(sourceId, {
           options,
+          release_id: sourceReleaseId,
         }),
       ).then((data) => {
         if (data.status === "error") {
@@ -154,7 +155,10 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
               {sourcePublishReleaseOpen ? <ExpandLess /> : <ExpandMore />}
             </Button>
             {sourcePublishReleaseOpen && (
-              <SourcePublishRelease release={release} setRelease={setRelease} />
+              <SourcePublishRelease
+                sourceReleaseId={sourceReleaseId}
+                setSourceReleaseId={setSourceReleaseId}
+              />
             )}
           </div>
           {permissionToPublish && (

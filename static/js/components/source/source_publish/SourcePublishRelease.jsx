@@ -34,7 +34,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublishRelease = ({ release, setRelease }) => {
+const SourcePublishRelease = ({ sourceReleaseId, setSourceReleaseId }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
@@ -52,12 +52,18 @@ const SourcePublishRelease = ({ release, setRelease }) => {
     type: "object",
     properties: {
       release: {
-        type: "integer",
-        anyOf: releases.map((item) => ({
-          enum: [item.id],
-          type: "integer",
-          title: `${item.name} :  ${truncateText(item.description, 50)}`,
-        })),
+        type: ["integer", "null"],
+        anyOf: [
+          {
+            enum: [null],
+            title: "--",
+          },
+          ...releases.map((item) => ({
+            enum: [item.id],
+            type: "integer",
+            title: `${item.name} :  ${truncateText(item.description, 50)}`,
+          })),
+        ],
       },
     },
   };
@@ -73,8 +79,8 @@ const SourcePublishRelease = ({ release, setRelease }) => {
       </Link>
       {releases.length > 0 ? (
         <Form
-          formData={release}
-          onChange={({ formData }) => setRelease(formData)}
+          formData={sourceReleaseId ? { release: sourceReleaseId } : undefined}
+          onChange={({ formData }) => setSourceReleaseId(formData.release)}
           schema={formSchema}
           liveValidate
           validator={validator}
@@ -97,19 +103,12 @@ const SourcePublishRelease = ({ release, setRelease }) => {
 };
 
 SourcePublishRelease.propTypes = {
-  release: PropTypes.shape({
-    id: PropTypes.number,
-    name: PropTypes.string,
-    description: PropTypes.string,
-    visible: PropTypes.bool,
-    options: PropTypes.shape({
-      include_photometry: PropTypes.bool,
-      include_spectra: PropTypes.bool,
-      groups: PropTypes.arrayOf(PropTypes.number),
-      streams: PropTypes.arrayOf(PropTypes.number),
-    }),
-  }).isRequired,
-  setRelease: PropTypes.func.isRequired,
+  sourceReleaseId: PropTypes.number,
+  setSourceReleaseId: PropTypes.func.isRequired,
+};
+
+SourcePublishRelease.defaultProps = {
+  sourceReleaseId: null,
 };
 
 export default SourcePublishRelease;
