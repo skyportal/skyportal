@@ -4,14 +4,14 @@ import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";
 
 import CircularProgress from "@mui/material/CircularProgress";
-import { Paper } from "@mui/material";
+import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 
 import AllocationTable from "../allocation/AllocationTable";
-import InstrumentTable from "../InstrumentTable";
+import InstrumentTable from "../instrument/InstrumentTable";
 import SkyCam from "../SkyCam";
-import { WeatherView } from "../WeatherWidget";
+import { WeatherView } from "../widget/WeatherWidget";
 import Spinner from "../Spinner";
 
 import withRouter from "../withRouter";

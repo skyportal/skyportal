@@ -1,21 +1,19 @@
 import React, { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import Typography from "@mui/material/Typography";
-import Paper from "@mui/material/Paper";
-import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
+import Grid from "@mui/material/Grid";
 import CircularProgress from "@mui/material/CircularProgress";
-import ModifyAllocation from "../ModifyAllocation";
-import NewAllocation from "../NewAllocation";
-import NewDefaultSurveyEfficiency from "../NewDefaultSurveyEfficiency";
-import NewDefaultObservationPlan from "../NewDefaultObservationPlan";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
+
 import * as defaultSurveyEfficienciesActions from "../../ducks/default_survey_efficiencies";
 import * as defaultObservationPlansActions from "../../ducks/default_observation_plans";
 import * as allocationsActions from "../../ducks/allocations";
-import AllocationTable from "./AllocationTable";
-import DefaultObservationPlanTable from "../DefaultObservationPlanTable";
-import DefaultSurveyEfficiencyTable from "../DefaultSurveyEfficiencyTable";
 import Spinner from "../Spinner";
+import AllocationTable from "./AllocationTable";
+import DefaultObservationPlanTable from "../observation_plan/DefaultObservationPlanTable";
+import DefaultSurveyEfficiencyTable from "../survey_efficiency/DefaultSurveyEfficiencyTable";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -55,7 +53,7 @@ export function allocationTitle(allocation, instrumentList, telescopeList) {
   return result;
 }
 
-const AllocationList = () => {
+const AllocationList = ({ deletePermission }) => {
   const dispatch = useDispatch();
   const classes = useStyles();
 
@@ -63,12 +61,7 @@ const AllocationList = () => {
   const instrumentsState = useSelector((state) => state.instruments);
   const telescopesState = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
-  const currentUser = useSelector((state) => state.profile);
   const [rowsPerPage, setRowsPerPage] = useState(100);
-
-  const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage allocations");
 
   useEffect(() => {
     dispatch(allocationsActions.fetchAllocations());
@@ -116,33 +109,40 @@ const AllocationList = () => {
           telescopes={telescopesState.telescopeList}
           groups={groups}
           allocations={allocationsState.allocationList}
-          deletePermission={permission}
           paginateCallback={handleAllocationTablePagination}
           totalMatches={allocationsState.totalMatches}
           pageNumber={allocationsState.pageNumber}
           numPerPage={allocationsState.numPerPage}
           sortingCallback={handleAllocationTableSorting}
+          deletePermission={deletePermission}
         />
       )}
     </div>
   );
 };
 
+AllocationList.propTypes = {
+  deletePermission: PropTypes.bool,
+};
+
+AllocationList.defaultProps = {
+  deletePermission: false,
+};
+
 const AllocationPage = () => {
+  const dispatch = useDispatch();
+
   const { defaultObservationPlanList } = useSelector(
     (state) => state.default_observation_plans,
   );
   const { defaultSurveyEfficiencyList } = useSelector(
     (state) => state.default_survey_efficiencies,
   );
-
-  const [rowsPerPage, setRowsPerPage] = useState(100);
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const currentUser = useSelector((state) => state.profile);
-  const classes = useStyles();
 
-  const dispatch = useDispatch();
+  const [rowsPerPage, setRowsPerPage] = useState(100);
 
   const permissionAllocation =
     currentUser.permissions?.includes("System admin") ||
@@ -154,10 +154,6 @@ const AllocationPage = () => {
   const permissionDefaultObservationPlan =
     currentUser.permissions?.includes("System admin") ||
     currentUser.permissions?.includes("Manage observation plans");
-  const anyPermission =
-    permissionAllocation ||
-    permissionDefaultSurveyEfficiency ||
-    permissionDefaultObservationPlan;
 
   const handleDefaultObservationPlanTablePagination = (
     pageNumber,
@@ -223,94 +219,54 @@ const AllocationPage = () => {
     );
   };
 
+  const [tabIndex, setTabIndex] = React.useState(0);
+
+  const handleChangeTab = (event, newValue) => {
+    setTabIndex(newValue);
+  };
+
   return (
     <Grid container spacing={3}>
-      <Grid item md={anyPermission ? 8 : 12} sm={12}>
-        <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <AllocationList deletePermission={permissionAllocation} />
-          </div>
-        </Paper>
-        <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">
-              List of Default Observation Plans
-            </Typography>
-            {defaultObservationPlanList && (
-              <DefaultObservationPlanTable
-                default_observation_plans={defaultObservationPlanList}
-                instruments={instrumentList}
-                telescopes={telescopeList}
-                paginateCallback={handleDefaultObservationPlanTablePagination}
-                totalMatches={defaultObservationPlanList.totalMatches}
-                deletePermission={permissionDefaultObservationPlan}
-                pageNumber={defaultObservationPlanList.pageNumber}
-                numPerPage={defaultObservationPlanList.numPerPage}
-                sortingCallback={handleDefaultObservationPlanTableSorting}
-              />
-            )}
-          </div>
-        </Paper>
-        <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">
-              List of Default Survey Efficiencies
-            </Typography>
-            {defaultSurveyEfficiencyList && (
-              <DefaultSurveyEfficiencyTable
-                default_survey_efficiencies={defaultSurveyEfficiencyList}
-                paginateCallback={handleDefaultSurveyEfficiencyTablePagination}
-                totalMatches={defaultSurveyEfficiencyList.totalMatches}
-                deletePermission={permissionDefaultSurveyEfficiency}
-                pageNumber={defaultSurveyEfficiencyList.pageNumber}
-                numPerPage={defaultSurveyEfficiencyList.numPerPage}
-                sortingCallback={handleDefaultSurveyEfficiencyTableSorting}
-              />
-            )}
-          </div>
-        </Paper>
+      <Grid item xs={12}>
+        <Tabs value={tabIndex} onChange={handleChangeTab} centered>
+          <Tab label="Allocations" />
+          <Tab label="Default Observation Plans" />
+          <Tab label="Default Survey Efficiencies" />
+        </Tabs>
       </Grid>
-      <Grid item md={4} sm={12}>
-        {permissionAllocation && (
-          <>
-            <Paper>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">Add a New Allocation</Typography>
-                <NewAllocation />
-              </div>
-            </Paper>
-            <br />
-            <Paper>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">Modify an Allocation</Typography>
-                <ModifyAllocation />
-              </div>
-            </Paper>
-          </>
-        )}
-        <br />
-        {permissionDefaultObservationPlan && (
-          <Paper>
-            <div className={classes.paperContent}>
-              <Typography variant="h6">
-                Add a New Default Observation Plan
-              </Typography>
-              <NewDefaultObservationPlan />
-            </div>
-          </Paper>
-        )}
-        <br />
-        {permissionDefaultSurveyEfficiency && (
-          <Paper>
-            <div className={classes.paperContent}>
-              <Typography variant="h6">
-                Add a New Default Survey Efficiency
-              </Typography>
-              <NewDefaultSurveyEfficiency />
-            </div>
-          </Paper>
-        )}
-      </Grid>
+      {tabIndex === 0 && (
+        <Grid item xs={12} style={{ paddingTop: 0 }}>
+          <AllocationList deletePermission={permissionAllocation} />
+        </Grid>
+      )}
+      {tabIndex === 1 && (
+        <Grid item xs={12} style={{ paddingTop: 0 }}>
+          <DefaultObservationPlanTable
+            default_observation_plans={defaultObservationPlanList || []}
+            instruments={instrumentList}
+            telescopes={telescopeList}
+            paginateCallback={handleDefaultObservationPlanTablePagination}
+            totalMatches={defaultObservationPlanList.totalMatches}
+            pageNumber={defaultObservationPlanList.pageNumber}
+            numPerPage={defaultObservationPlanList.numPerPage}
+            sortingCallback={handleDefaultObservationPlanTableSorting}
+            deletePermission={permissionDefaultObservationPlan}
+          />
+        </Grid>
+      )}
+      {tabIndex === 2 && (
+        <Grid item xs={12} style={{ paddingTop: 0 }}>
+          <DefaultSurveyEfficiencyTable
+            default_survey_efficiencies={defaultSurveyEfficiencyList || []}
+            paginateCallback={handleDefaultSurveyEfficiencyTablePagination}
+            totalMatches={defaultSurveyEfficiencyList.totalMatches}
+            pageNumber={defaultSurveyEfficiencyList.pageNumber}
+            numPerPage={defaultSurveyEfficiencyList.numPerPage}
+            sortingCallback={handleDefaultSurveyEfficiencyTableSorting}
+            deletePermission={permissionDefaultSurveyEfficiency}
+          />
+        </Grid>
+      )}
     </Grid>
   );
 };

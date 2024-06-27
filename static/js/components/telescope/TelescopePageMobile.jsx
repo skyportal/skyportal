@@ -9,7 +9,7 @@ import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
-import NewTelescope from "../NewTelescope";
+import NewTelescope from "./NewTelescope";
 
 const useStyles = makeStyles((theme) => ({
   root: {

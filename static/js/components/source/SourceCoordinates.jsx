@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import Tooltip from "@mui/material/Tooltip";
-import UpdateSourceCoordinates from "../UpdateSourceCoordinates";
+import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 const SourceCoordinates = ({ classes, source, downMd = false }) => {

@@ -7,7 +7,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import Tooltip from "@mui/material/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
-import AddGcnTag from "../AddGcnTag";
+import AddGcnTag from "./AddGcnTag";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 

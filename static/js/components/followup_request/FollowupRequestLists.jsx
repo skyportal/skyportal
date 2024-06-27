@@ -17,11 +17,11 @@ import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
-import WatcherButton from "../WatcherButton";
+import WatcherButton from "./WatcherButton";
 
 import * as Actions from "../../ducks/source";
 
-import EditFollowupRequestDialog from "../EditFollowupRequestDialog";
+import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
 
 const useStyles = makeStyles(() => ({
   actionButtons: {

@@ -5,7 +5,7 @@ import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 import Button from "../Button";
-import NewMMADetector from "../NewMMADetector";
+import NewMMADetector from "./NewMMADetector";
 import MMADetectorInfo from "./MMADetectorInfo";
 // lazy import the MMADetectorMap component
 const MMADetectorMap = lazy(() => import("./MMADetectorMap"));

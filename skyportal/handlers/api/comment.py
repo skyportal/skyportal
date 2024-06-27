@@ -36,6 +36,54 @@ log = make_log('api/comment')
 
 MAX_COMMENTS_NO_RESOURCE_ID = 1000
 
+AUDIO_EXTENSION_TO_CONTENT_TYPE = {
+    'aac': 'audio/aac',
+    'mp3': 'audio/mpeg',
+    'oga': 'audio/ogg',
+    'wav': 'audio/wav',
+}
+
+VIDEO_EXTENSION_TO_CONTENT_TYPE = {
+    'mp4': 'video/mp4',
+    'ogg': 'video/ogg',
+    'ogv': 'video/ogg',
+    'webm': 'video/webm',
+}
+
+IMAGE_EXTENSION_TO_CONTENT_TYPE = {
+    'apng': 'image/apng',
+    'avif': 'image/avif',
+    'bmp': 'image/bmp',
+    'gif': 'image/gif',
+    'ico': 'image/x-icon',
+    'jpeg': 'image/jpeg',
+    'jpg': 'image/jpeg',
+    'png': 'image/png',
+    'svg': 'image/svg+xml',
+    'webp': 'image/webp',
+}
+
+TEXT_EXTENSION_TO_CONTENT_TYPE = {
+    'txt': 'text/plain',
+    'log': 'text/plain',
+    'logs': 'text/plain',
+    'csv': 'text/csv',
+    'htm': 'text/html',
+    'html': 'text/html',
+    'js': 'text/javascript',
+    'mjs': 'text/javascript',
+    'json': 'application/json',
+    'xml': 'application/xml',
+    'pdf': 'application/pdf',
+}
+
+EXTENSION_TO_CONTENT_TYPE = {
+    **AUDIO_EXTENSION_TO_CONTENT_TYPE,
+    **VIDEO_EXTENSION_TO_CONTENT_TYPE,
+    **IMAGE_EXTENSION_TO_CONTENT_TYPE,
+    **TEXT_EXTENSION_TO_CONTENT_TYPE,
+}
+
 
 def users_mentioned(text, session):
     punctuation = string.punctuation.replace("-", "").replace("@", "")
@@ -1224,9 +1272,6 @@ class CommentAttachmentHandler(BaseHandler):
                               description: The attachment file contents decoded as a string
 
         """
-
-        start = time.time()
-
         try:
             comment_id = int(comment_id)
         except (TypeError, ValueError):
@@ -1235,139 +1280,117 @@ class CommentAttachmentHandler(BaseHandler):
         download = self.get_query_argument('download', True)
         preview = self.get_query_argument('preview', False)
 
+        if download is True and preview is True:
+            return self.error(
+                'Cannot set both download and preview to True. Please set only one to True, or set both to False.'
+            )
+
+        table, resource_id_col = None, None
+        if associated_resource_type.lower() == "sources":
+            table, resource_id_col = Comment, "obj_id"
+        elif associated_resource_type.lower() == "spectra":
+            table, resource_id_col = CommentOnSpectrum, "spectrum_id"
+        elif associated_resource_type.lower() == "gcn_event":
+            table, resource_id_col = CommentOnGCN, "gcn_id"
+        elif associated_resource_type.lower() == "earthquake":
+            table, resource_id_col = CommentOnEarthquake, "earthquake_id"
+        elif associated_resource_type.lower() == "shift":
+            table, resource_id_col = CommentOnShift, "shift_id"
+        else:
+            return self.error(
+                f'Unsupported associated resource type "{associated_resource_type}".'
+            )
+
         with self.Session() as session:
-            if associated_resource_type.lower() == "sources":
-                comment = session.scalars(
-                    Comment.select(session.user_or_token).where(
-                        Comment.id == comment_id
-                    )
-                ).first()
-                if comment is None:
-                    return self.error(
-                        'Could not find any accessible comments.', status=403
-                    )
-                comment_resource_id_str = str(comment.obj_id)
+            comment = session.scalars(
+                table.select(session.user_or_token).where(table.id == comment_id)
+            ).first()
+            if comment is None:
+                return self.error('Could not find any accessible comments.', status=403)
 
-            elif associated_resource_type.lower() == "spectra":
-                comment = session.scalars(
-                    CommentOnSpectrum.select(session.user_or_token).where(
-                        CommentOnSpectrum.id == comment_id
-                    )
-                ).first()
-                if comment is None:
-                    return self.error(
-                        'Could not find any accessible comments.', status=403
-                    )
-                comment_resource_id_str = str(comment.spectrum_id)
-
-            elif associated_resource_type.lower() == "gcn_event":
-                comment = session.scalars(
-                    CommentOnGCN.select(session.user_or_token).where(
-                        CommentOnGCN.id == comment_id
-                    )
-                ).first()
-                if comment is None:
-                    return self.error(
-                        'Could not find any accessible comments.', status=403
-                    )
-                comment_resource_id_str = str(comment.gcn_id)
-            elif associated_resource_type.lower() == "earthquake":
-                comment = session.scalars(
-                    CommentOnEarthquake.select(session.user_or_token).where(
-                        CommentOnEarthquake.id == comment_id
-                    )
-                ).first()
-                if comment is None:
-                    return self.error(
-                        'Could not find any accessible comments.', status=403
-                    )
-                comment_resource_id_str = str(comment.earthquake_id)
-            elif associated_resource_type.lower() == "shift":
-                comment = session.scalars(
-                    CommentOnShift.select(session.user_or_token).where(
-                        CommentOnShift.id == comment_id
-                    )
-                ).first()
-                if comment is None:
-                    return self.error(
-                        'Could not find any accessible comments.', status=403
-                    )
-                comment_resource_id_str = str(comment.shift_id)
-
-            # add more options using elif
-            else:
-                return self.error(
-                    f'Unsupported associated_resource_type "{associated_resource_type}".'
-                )
-
-            if comment_resource_id_str != resource_id:
+            if str(getattr(comment, resource_id_col)) != str(resource_id):
                 return self.error(
                     f'Comment resource ID does not match resource ID given in path ({resource_id})'
                 )
 
-            if not comment.attachment_bytes and not comment.get_attachment_path():
+            data_path = comment.get_attachment_path()
+            if not comment.attachment_bytes and not data_path:
                 return self.error('Comment has no attachment')
 
-            data_path = comment.get_attachment_path()
+            if data_path is None:
+                try:
+                    attachment = base64.b64decode(comment.attachment_bytes)
+                except Exception as e:
+                    return self.error(f'Error decoding comment attachment: {e}')
+            else:
+                try:
+                    if os.path.isfile(data_path):
+                        with open(data_path, 'rb') as f:
+                            attachment = f.read()
+                    else:
+                        return self.error(
+                            f'Comment attachment cannot be found on disk: {data_path}'
+                        )
+                except Exception as e:
+                    return self.error(f'Error reading comment attachment: {e}')
 
             attachment_name = ''.join(
                 c
                 for c in unicodedata.normalize('NFD', comment.attachment_name)
                 if unicodedata.category(c) != 'Mn'
             )
-            if download:
-                if data_path is None:
-                    attachment = base64.b64decode(comment.attachment_bytes)
-                else:
-                    if os.path.isfile(data_path):
-                        with open(data_path, 'rb') as f:
-                            attachment = f.read()
-                    else:
-                        return self.error(f'Comment file missing: {data_path}')
+            # we remove all non-ascii characters from the attachment name, which tornado does not like
+            # as they can't be encoded in latin-1
+            attachment_name = ''.join(
+                [i if ord(i) < 128 else ' ' for i in attachment_name]
+            )
 
-                if preview and attachment_name.lower().endswith(
-                    ("fit", "fits", "fit.fz", "fits.fz")
+            if download:
+                self.set_header(
+                    "Content-Disposition",
+                    f'attachment; filename="{attachment_name}"',
+                )
+                self.set_header("Content-type", "application/octet-stream")
+                return self.write(attachment)
+
+            if preview:
+                if attachment_name.lower().endswith(
+                    (".fit", ".fits", ".fit.fz", ".fits.fz")
                 ):
                     try:
                         attachment = get_fits_preview(attachment_name, attachment)
                         attachment_name = os.path.splitext(attachment_name)[0] + ".png"
                     except Exception as e:
                         log(f'Cannot render {attachment_name} as image: {str(e)}')
+                        return self.error(
+                            f'Cannot render {attachment_name} as image: {str(e)}'
+                        )
 
-                # we remove all non-ascii characters from the attachment name, which tornado does not like
-                # as they can't be encoded in latin-1
-                attachment_name = ''.join(
-                    [i if ord(i) < 128 else ' ' for i in attachment_name]
-                )
+                extension = attachment_name.split('.')[-1].strip().lower()
+                if extension not in EXTENSION_TO_CONTENT_TYPE:
+                    return self.error(
+                        f'Unsupported file type "{extension}" for preview, must be one of: "{EXTENSION_TO_CONTENT_TYPE.keys()}"'
+                    )
 
                 self.set_header(
                     "Content-Disposition",
-                    "attachment; " f"filename={attachment_name}",
+                    f'inline; filename="{attachment_name}"',
                 )
-                self.set_header("Content-type", "application/octet-stream")
+                self.set_header("Content-type", EXTENSION_TO_CONTENT_TYPE[extension])
+                return self.write(attachment)
 
-                self.write(attachment)
-            else:
-                if data_path is None:
-                    data = base64.b64decode(comment.attachment_bytes).decode()
-                else:
-                    if os.path.isfile(data_path):
-                        with open(data_path, 'rb') as f:
-                            data = f.read()
-                    else:
-                        return self.error(f'Comment file missing: {data_path}')
+            comment_data = {
+                "commentId": int(comment_id),
+                "attachment": attachment.decode('utf-8')
+                if isinstance(attachment, bytes)
+                else attachment,
+                "attachmentName": attachment_name,
+            }
 
-                comment_data = {
-                    "commentId": int(comment_id),
-                    "attachment": data,
-                }
+            query_size = sizeof(comment_data)
+            if query_size >= SIZE_WARNING_THRESHOLD:
+                log(
+                    f'User {self.associated_user_object.id} comment attachment query ({table.__tablename__} with ID {comment_id}) returned {query_size} bytes'
+                )
 
-                query_size = sizeof(comment_data)
-                if query_size >= SIZE_WARNING_THRESHOLD:
-                    end = time.time()
-                    duration = end - start
-                    log(
-                        f'User {self.associated_user_object.id} comment attachment query returned {query_size} bytes in {duration} seconds'
-                    )
-
-                return self.success(data=comment_data)
+            return self.success(data=comment_data)

@@ -38,7 +38,7 @@ import Button from "../Button";
 
 import FormValidationError from "../FormValidationError";
 import UserInvitations from "./UserInvitations";
-import UpdateUserParameter from "../UpdateUserParameter";
+import UpdateUserParameter from "./UpdateUserParameter";
 import * as groupsActions from "../../ducks/groups";
 import * as usersActions from "../../ducks/users";
 import * as streamsActions from "../../ducks/streams";

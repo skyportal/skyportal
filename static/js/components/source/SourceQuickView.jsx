@@ -20,7 +20,7 @@ import { grey } from "@mui/material/colors";
 import Button from "../Button";
 
 import ThumbnailList from "../thumbnail/ThumbnailList";
-import ShowClassification from "../ShowClassification";
+import ShowClassification from "../classification/ShowClassification";
 import * as Action from "../../ducks/source";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
