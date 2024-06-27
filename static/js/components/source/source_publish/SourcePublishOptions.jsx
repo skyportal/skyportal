@@ -9,6 +9,11 @@ export const sourcePublishOptionsSchema = (streams, groups) => {
   const schema = {
     type: "object",
     properties: {
+      include_summary: {
+        type: "boolean",
+        title: "Include summary?",
+        default: true,
+      },
       include_photometry: {
         type: "boolean",
         title: "Include photometry?",
