@@ -50,6 +50,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
   const [versions, setVersions] = useState([]);
   // Create data access options
   const [options, setOptions] = useState({
+    include_summary: true,
     include_photometry: true,
     include_classifications: true,
     groups: [],
@@ -152,7 +153,8 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
               </Button>
               {sourcePublishOptionsOpen && (
                 <SourcePublishOptions
-                  optionsState={[options, setOptions]}
+                  options={options}
+                  setOptions={setOptions}
                   isElements={{
                     photometry: isPhotometry,
                     classifications: isClassifications,

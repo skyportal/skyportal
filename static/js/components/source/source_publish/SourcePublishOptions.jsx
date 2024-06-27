@@ -3,29 +3,10 @@ import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import DialogContent from "@mui/material/DialogContent";
 import { useSelector } from "react-redux";
 
-const useStyles = makeStyles(() => ({
-  sourcePublishOptions: {
-    marginBottom: "1rem",
-    display: "flex",
-    flexDirection: "column",
-    padding: "0 1rem",
-    "& .MuiGrid-item": {
-      paddingTop: "0",
-    },
-  },
-}));
-
-const SourcePublishOptions = ({ optionsState, isElements }) => {
-  const styles = useStyles();
-  const streams = useSelector((state) => state.streams);
-  const groups = useSelector((state) => state.groups.userAccessible);
-  const VALUE = 0;
-  const SETTER = 1;
-
-  const formSchema = {
+export const sourcePublishOptionsSchema = (streams, groups) => {
+  const schema = {
     type: "object",
     properties: {
       include_photometry: {
@@ -41,7 +22,7 @@ const SourcePublishOptions = ({ optionsState, isElements }) => {
     },
   };
   if (streams?.length > 0) {
-    formSchema.properties.streams = {
+    schema.properties.streams = {
       type: "array",
       items: {
         type: "integer",
@@ -57,7 +38,7 @@ const SourcePublishOptions = ({ optionsState, isElements }) => {
     };
   }
   if (groups?.length > 0) {
-    formSchema.properties.groups = {
+    schema.properties.groups = {
       type: "array",
       items: {
         type: "integer",
@@ -72,13 +53,32 @@ const SourcePublishOptions = ({ optionsState, isElements }) => {
       title: "Groups to restrict data from",
     };
   }
+  return schema;
+};
+
+const useStyles = makeStyles(() => ({
+  sourcePublishOptions: {
+    marginBottom: "1rem",
+    display: "flex",
+    flexDirection: "column",
+    padding: "0 1rem",
+    "& .MuiGrid-item": {
+      paddingTop: "0",
+    },
+  },
+}));
+
+const SourcePublishOptions = ({ options, setOptions, isElements }) => {
+  const styles = useStyles();
+  const streams = useSelector((state) => state.streams);
+  const groups = useSelector((state) => state.groups.userAccessible);
 
   return (
-    <DialogContent className={styles.sourcePublishOptions}>
+    <div className={styles.sourcePublishOptions}>
       <Form
-        formData={optionsState[VALUE]}
-        onChange={({ formData }) => optionsState[SETTER](formData)}
-        schema={formSchema}
+        formData={options}
+        onChange={({ formData }) => setOptions(formData)}
+        schema={sourcePublishOptionsSchema(streams, groups)}
         liveValidate
         validator={validator}
         uiSchema={{
@@ -95,22 +95,19 @@ const SourcePublishOptions = ({ optionsState, isElements }) => {
           "ui:submitButtonOptions": { norender: true },
         }}
       />
-    </DialogContent>
+    </div>
   );
 };
 
 SourcePublishOptions.propTypes = {
-  optionsState: PropTypes.arrayOf(
-    PropTypes.oneOfType([
-      PropTypes.shape({
-        include_photometry: PropTypes.bool,
-        include_classifications: PropTypes.bool,
-        groups: PropTypes.arrayOf(PropTypes.number),
-        streams: PropTypes.arrayOf(PropTypes.number),
-      }),
-      PropTypes.func,
-    ]),
-  ).isRequired,
+  options: PropTypes.shape({
+    include_summary: PropTypes.bool,
+    include_photometry: PropTypes.bool,
+    include_classifications: PropTypes.bool,
+    groups: PropTypes.arrayOf(PropTypes.number),
+    streams: PropTypes.arrayOf(PropTypes.number),
+  }).isRequired,
+  setOptions: PropTypes.func.isRequired,
   isElements: PropTypes.shape({
     photometry: PropTypes.bool,
     classifications: PropTypes.bool,
