@@ -38,6 +38,10 @@ const SourcePublish = ({ sourceId, isElements }) => {
   const currentUser = useSelector((state) => state.profile);
   const permissionToPublish =
     currentUser.permissions?.includes("Manage sources");
+  const displayOptions =
+    permissionToPublish &&
+    (isElements.summary || isElements.photometry || isElements.classifications);
+
   const [sourcePublishDialogOpen, setSourcePublishDialogOpen] = useState(false);
   const [publishButton, setPublishButton] = useState({
     text: "Publish",
@@ -138,7 +142,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
               </div>
             </Tooltip>
           </div>
-          {permissionToPublish && (
+          {displayOptions && (
             <div>
               <Button
                 className={styles.expandButton}
