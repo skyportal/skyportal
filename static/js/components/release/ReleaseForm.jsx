@@ -61,7 +61,6 @@ const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
       onChange={({ formData }) => setRelease(formData)}
       schema={releaseSchema}
       validator={validator}
-      liveValidate
       onSubmit={submitRelease}
       uiSchema={{
         description: {
