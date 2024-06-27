@@ -10,27 +10,31 @@ from ....models import PublicRelease, PublicSourcePage
 log = make_log('api/public_release')
 
 
-class PublicReleaseHandler(BaseHandler):
-    def validate_link_name(self, session, link_name, release_id):
-        is_unique = (
-            session.scalars(
-                PublicRelease.select(session.user_or_token, mode="read").where(
-                    PublicRelease.link_name == link_name,
-                    PublicRelease.id != release_id if release_id is not None else True,
-                )
-            ).first()
-            is None
-        )
-        if not is_unique:
-            self.error("This link name is already in use")
-
-        is_url_safe = bool(re.compile(r'^[0-9A-Za-z-_.+]+$').match(link_name))
-        if not is_url_safe:
-            self.error(
-                "Link name must contain only "
-                "alphanumeric characters, dashes, underscores, periods, or plus signs"
+def process_link_name_validation(session, link_name, release_id):
+    is_unique = (
+        session.scalars(
+            PublicRelease.select(session.user_or_token, mode="read").where(
+                PublicRelease.link_name == link_name,
+                PublicRelease.id != release_id if release_id is not None else True,
             )
+        ).first()
+        is None
+    )
+    if not is_unique:
+        return False, "This link name is already in use"
 
+    is_url_safe = bool(re.compile(r'^[0-9A-Za-z-_.+]+$').match(link_name))
+    print(is_url_safe)
+    if not is_url_safe:
+        return (
+            False,
+            "Link name must contain only alphanumeric characters, dashes, underscores, periods, or plus signs",
+        )
+
+    return True, ""
+
+
+class PublicReleaseHandler(BaseHandler):
     async def post(self):
         """
         ---
@@ -75,7 +79,9 @@ class PublicReleaseHandler(BaseHandler):
             return self.error("Link name is required")
 
         with self.Session() as session:
-            self.validate_link_name(session, link_name, None)
+            is_valid, message = process_link_name_validation(session, link_name, None)
+            if not is_valid:
+                return self.error(message)
 
             public_release = PublicRelease(
                 name=name,
@@ -146,7 +152,11 @@ class PublicReleaseHandler(BaseHandler):
             if public_release is None:
                 return self.error("Release not found", status=404)
 
-            self.validate_link_name(session, link_name, release_id)
+            is_valid, message = process_link_name_validation(
+                session, link_name, release_id
+            )
+            if not is_valid:
+                return self.error(message)
 
             public_release.name = name
             public_release.link_name = link_name
