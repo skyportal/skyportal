@@ -29,8 +29,25 @@
       gap: 0.2rem 1rem;
       align-items: baseline;
       h2 {
+        position: relative;
         margin: 0;
         font-weight: bold;
+        &::after {
+          content: " ";
+          position: absolute;
+          bottom: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          height: 2px;
+          width: 0;
+          background-color: black;
+          transition: width 0.3s;
+        }
+        &:hover {
+          &::after {
+            width: 100%;
+          }
+        }
       }
       span {
         font-size: 0.9rem;
