@@ -26,7 +26,9 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
     invite_token = strategy.session_get("invite_token")
 
     try:
-        existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
+        existing_user = (
+            DBSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
+        )
 
         if cfg["invitations.enabled"]:
             if existing_user is None and invite_token is None:
@@ -45,10 +47,10 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
 
             invitation = (
                 DBSession()
-                .query(Invitation)
-                .filter(Invitation.token == invite_token)
+                .scalars(sa.select(Invitation).where(Invitation.token == invite_token))
                 .first()
             )
+
             if invitation is None:
                 raise Exception(
                     "Authentication Error: Invalid invite token. A valid invite token is required."
@@ -61,6 +63,14 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                 raise Exception(
                     "Authentication Error: Invite token has already been used."
                 )
+
+            check_username = (
+                DBSession()
+                .scalars(sa.select(User).where(User.username == details["username"]))
+                .first()
+            )
+            if check_username is not None:
+                raise Exception("Invalid invitation: Username already in use.")
 
             user = User(
                 username=details["username"],
