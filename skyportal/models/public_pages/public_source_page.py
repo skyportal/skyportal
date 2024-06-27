@@ -4,7 +4,7 @@ import json
 import jinja2
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import deferred
+from sqlalchemy.orm import deferred, relationship
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
 from baselayer.app.models import (
@@ -67,8 +67,15 @@ class PublicSourcePage(Base):
 
     release_id = sa.Column(
         sa.Integer,
+        sa.ForeignKey('public_releases.id'),
         nullable=True,
-        doc='ID of the public release associated with the source page',
+        doc='ID of the public release associated with this source page',
+    )
+
+    release = relationship(
+        "PublicRelease",
+        back_populates="source_pages",
+        doc="The release associated with this source page",
     )
 
     def to_dict(self):
@@ -125,6 +132,11 @@ class PublicSourcePage(Base):
             }
             public_data["filters_mapper"] = get_bandpasses_to_colors(filters)
 
+        if self.release:
+            public_data["release"] = {
+                "name": self.release.name,
+                "link_name": self.release.link_name,
+            }
         environment = jinja2.Environment(
             autoescape=True,
             loader=jinja2.FileSystemLoader("./static/public_pages/sources/source"),

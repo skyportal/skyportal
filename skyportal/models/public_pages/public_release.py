@@ -1,11 +1,15 @@
 __all__ = ['PublicRelease']
 
 import sqlalchemy as sa
+from sqlalchemy.orm import relationship
+
 from baselayer.app.models import Base
 
 
 class PublicRelease(Base):
     """Public release of a group of sources."""
+
+    __tablename__ = 'public_releases'
 
     id = sa.Column(sa.Integer, primary_key=True)
 
@@ -39,4 +43,10 @@ class PublicRelease(Base):
         nullable=False,
         default=True,
         doc="Whether the public release is visible to the public",
+    )
+
+    source_pages = relationship(
+        "PublicSourcePage",
+        back_populates="release",
+        doc="The source pages in this public release",
     )
