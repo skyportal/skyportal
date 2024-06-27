@@ -32,7 +32,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
+const SourcePublish = ({ sourceId, isElements }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const currentUser = useSelector((state) => state.profile);
@@ -155,10 +155,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
                 <SourcePublishOptions
                   options={options}
                   setOptions={setOptions}
-                  isElements={{
-                    photometry: isPhotometry,
-                    classifications: isClassifications,
-                  }}
+                  isElements={isElements}
                 />
               )}
             </div>
@@ -191,8 +188,11 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
 
 SourcePublish.propTypes = {
   sourceId: PropTypes.string.isRequired,
-  isPhotometry: PropTypes.bool.isRequired,
-  isClassifications: PropTypes.bool.isRequired,
+  isElements: PropTypes.shape({
+    summary: PropTypes.bool,
+    photometry: PropTypes.bool,
+    classifications: PropTypes.bool,
+  }).isRequired,
 };
 
 export default SourcePublish;
