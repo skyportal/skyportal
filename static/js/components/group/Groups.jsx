@@ -6,8 +6,8 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 import GroupManagement from "./GroupManagement";
 import GroupList from "./GroupList";
-import NewGroupForm from "../NewGroupForm";
-import NonMemberGroupList from "../NonMemberGroupList";
+import NewGroupForm from "./NewGroupForm";
+import NonMemberGroupList from "./NonMemberGroupList";
 
 const useStyles = makeStyles(() => ({
   // Hide drag handle icon since this isn't the home page

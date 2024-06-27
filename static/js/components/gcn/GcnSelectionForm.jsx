@@ -34,10 +34,10 @@ import * as observationsActions from "../../ducks/observations";
 import * as sourcesActions from "../../ducks/sources";
 import * as sourcesingcnActions from "../../ducks/sourcesingcn";
 
-import AddCatalogQueryPage from "../AddCatalogQueryPage";
-import AddSurveyEfficiencyObservationsPage from "../AddSurveyEfficiencyObservationsPage";
-import ExecutedObservationsTable from "../ExecutedObservationsTable";
-import GalaxyTable from "../GalaxyTable";
+import AddCatalogQueryPage from "../catalog_query/AddCatalogQueryPage";
+import AddSurveyEfficiencyObservationsPage from "../survey_efficiency/AddSurveyEfficiencyObservationsPage";
+import ExecutedObservationsTable from "../observation/ExecutedObservationsTable";
+import GalaxyTable from "../galaxy/GalaxyTable";
 import LocalizationPlot from "../localization/LocalizationPlot";
 import SourceTable from "../source/SourceTable";
 import ProgressIndicator from "../ProgressIndicators";

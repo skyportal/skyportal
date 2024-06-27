@@ -338,7 +338,6 @@ def generate_plan(
     import gwemopt.coverage
     import gwemopt.io
     import gwemopt.segments
-    import gwemopt.skyportal
 
     from ..models import (
         EventObservationPlan,
@@ -415,12 +414,8 @@ def generate_plan(
             'dateobs': requests[0].gcnevent.dateobs,
             # Healpix nside for the skymap
             'nside': 512,
-            # skymap probability powerlaw exponent
-            'powerlaw_n': 1,
-            # skymap distance powerlaw exponent
-            'powerlaw_dist_exp': 1,
             # maximum integrated probability of the skymap to consider
-            'powerlaw_cl': request.payload["integrated_probability"],
+            'confidence_level': request.payload["integrated_probability"],
             'telescopes': [request.instrument.name for request in requests],
             # minimum difference between observations of the same field
             'doMindifFilt': True
@@ -480,7 +475,7 @@ def generate_plan(
             # which telescope tiles to turn off
             'unbalanced_tiles': None,
             # turn on diagnostic plotting?
-            'doPlots': False,
+            'plots': [],
             # parameters used for galaxy targeting
             'galaxies_FoV_sep': 1.0,
             'doChipGaps': False,
@@ -726,6 +721,8 @@ def generate_plan(
             catalog_struct["Sloc"] = values * probs
             catalog_struct["Smass"] = values * probs
 
+            catalog_struct = pd.DataFrame.from_dict(catalog_struct)
+
         elif params["tilesType"] == "moc":
             field_ids = {}
             if use_skyportal_fields is True:
@@ -757,10 +754,11 @@ def generate_plan(
         log(f"Retrieving fields for ID(s): {','.join(observation_plan_id_strings)}")
 
         if params["tilesType"] == "moc":
-            moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
+            moc_structs = gwemopt.moc.create_moc(
                 params,
                 map_struct=map_struct,
                 field_ids=field_ids if use_skyportal_fields is True else None,
+                from_skyportal=True,
             )
             tile_structs = gwemopt.tiles.moc(params, map_struct, moc_structs)
         elif params["tilesType"] == "galaxy":
@@ -769,7 +767,7 @@ def generate_plan(
                     error = "Must define the instrument region in the case of galaxy requests"
                     raise ValueError(error)
                 regions = Regions.parse(request.instrument.region, format='ds9')
-                tile_structs = gwemopt.skyportal.create_galaxy_from_skyportal(
+                tile_structs = gwemopt.tiles.galaxy(
                     params, map_struct, catalog_struct, regions=regions
                 )
 

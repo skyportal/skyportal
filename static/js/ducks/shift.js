@@ -120,9 +120,9 @@ export function getCommentOnShiftAttachment(shiftID, commentID) {
   );
 }
 
-export function getCommentOnShiftAttachmentPreview(shiftID, commentID) {
+export function getCommentOnShiftTextAttachment(shiftID, commentID) {
   return API.GET(
-    `/api/shift/${shiftID}/comments/${commentID}`,
+    `/api/shift/${shiftID}/comments/${commentID}/attachment?download=false&preview=false`,
     GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW,
   );
 }

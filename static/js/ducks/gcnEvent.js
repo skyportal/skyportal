@@ -256,9 +256,9 @@ export function getCommentOnGcnEventAttachment(gcnEventID, commentID) {
   );
 }
 
-export function getCommentOnGcnEventAttachmentPreview(gcnEventID, commentID) {
+export function getCommentOnGcnEventTextAttachment(gcnEventID, commentID) {
   return API.GET(
-    `/api/gcn_event/${gcnEventID}/comments/${commentID}`,
+    `/api/gcn_event/${gcnEventID}/comments/${commentID}/attachment?download=false&preview=false`,
     GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW,
   );
 }

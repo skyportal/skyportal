@@ -1,6 +1,7 @@
 import React from "react";
-import { Chip, Typography } from "@mui/material";
 import PropTypes from "prop-types";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
 
 const DeletableChips = ({ items, onDelete, title }) => (
   <div>

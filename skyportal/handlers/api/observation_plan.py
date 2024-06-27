@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 import afterglowpy
 import arrow
 import astropy
+from astropy.utils.masked import MaskedNDArray
 import geopandas
 import healpy as hp
 import humanize
@@ -154,6 +155,111 @@ observation_plans_microservice_url = (
 )
 
 MAX_OBSERVATION_PLAN_REQUESTS = 1000
+
+
+def send_observation_plan(plan_id, session, auto_send=False):
+    """Send observation plan to queue
+
+    Parameters
+    ----------
+    plan_id : int
+        SkyPortal ID of Observation plan request
+    session : sqlalchemy.Session
+        Database session for this transaction
+    """
+    observation_plan_request = session.scalar(
+        sa.select(ObservationPlanRequest)
+        .options(
+            joinedload(ObservationPlanRequest.observation_plans)
+            .joinedload(EventObservationPlan.planned_observations)
+            .joinedload(PlannedObservation.field)
+        )
+        .where(ObservationPlanRequest.id == plan_id)
+    )
+
+    if observation_plan_request.status != "complete":
+        raise ValueError(
+            f"Cannot send observation plan with status {observation_plan_request.status}"
+        )
+    if len(observation_plan_request.observation_plans) == 0:
+        log(
+            f"No observation plans to send for observation plan {plan_id} (event {observation_plan_request.gcnevent_id}, allocation {observation_plan_request.allocation_id})"
+        )
+        return
+    if len(observation_plan_request.observation_plans[0].planned_observations) == 0:
+        log(
+            f"No planned observations to send for observation plan {plan_id} (event {observation_plan_request.gcnevent_id}, allocation {observation_plan_request.allocation_id})"
+        )
+        return
+
+    if auto_send:
+        # if we already sent a plan for this event + allocation
+        # in the last 24 hours, we avoid auto-sending again.
+        existing_obs_plan_requests = session.scalars(
+            sa.select(ObservationPlanRequest).where(
+                ObservationPlanRequest.gcnevent_id
+                == observation_plan_request.gcnevent_id,
+                ObservationPlanRequest.allocation_id
+                == observation_plan_request.allocation_id,
+                ObservationPlanRequest.status == "submitted to telescope queue",
+                ObservationPlanRequest.modified
+                > datetime.utcnow() - timedelta(hours=24),
+            )
+        ).first()
+        if existing_obs_plan_requests:
+            log(
+                f"Skipping auto-send of observation plan {observation_plan_request.id}: plans have already been sent to the instrument in the last 24 hours for event {observation_plan_request.gcnevent_id} and allocation {observation_plan_request.allocation_id}"
+            )
+            return
+
+    api = observation_plan_request.instrument.api_class_obsplan
+    if not api.implements().get('send', False):
+        return ValueError('Cannot send observation plans on this instrument.')
+
+    if not observation_plan_request.allocation.altdata:
+        raise ValueError('Cannot send observation plan without allocation information.')
+
+    try:
+        # failures to send are already handled in the send method
+        api.send(observation_plan_request, session)
+    except Exception as e:
+        raise ValueError(f"Error sending observation plan to telescope: {str(e)}")
+
+    session.commit()
+
+    try:
+        if (
+            'submit' in observation_plan_request.status
+            and 'fail' not in observation_plan_request.status
+        ):  # check if there is already a GCN trigger for this dateobs and allocation, with triggered=True                                                                  # if there is one already set "triggered" to True, otherwise create it.
+            existing_gcn_trigger = session.scalar(
+                sa.select(GcnTrigger).where(
+                    GcnTrigger.dateobs == observation_plan_request.gcnevent.dateobs,
+                    GcnTrigger.allocation_id == observation_plan_request.allocation_id,
+                )
+            )
+            if existing_gcn_trigger is None:
+                gcn_triggered = GcnTrigger(
+                    dateobs=observation_plan_request.gcnevent.dateobs,
+                    allocation_id=observation_plan_request.allocation_id,
+                    triggered=True,
+                )
+                session.add(gcn_triggered)
+                session.commit()
+            elif existing_gcn_trigger.triggered is not True:
+                existing_gcn_trigger.triggered = True
+                session.commit()
+    except Exception:
+        pass  # this is not a critical error, we can continue
+
+    flow = Flow()
+    flow.push(
+        "*",
+        "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+        payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
+    )
+
+    return observation_plan_request
 
 
 def post_survey_efficiency_analysis(
@@ -816,17 +922,38 @@ class ObservationPlanRequestHandler(BaseHandler):
                                 "field_id"
                             ] = planned_observation_data['field']['field_id']
 
-                            planned_observations.append(
-                                {
-                                    **planned_observation_data,
-                                    'rise_time': rise_time.isot
-                                    if isinstance(rise_time, Time)
-                                    else None,
-                                    'set_time': set_time.isot
-                                    if isinstance(set_time, Time)
-                                    else None,
-                                }
-                            )
+                            rt = rise_time.isot
+                            st = set_time.isot
+
+                            try:
+                                planned_observation_data["rise_time"] = (
+                                    rt.item()  # 0-dimensional array (basically a scalar)
+                                    if not (
+                                        isinstance(
+                                            rt, (np.ma.core.MaskedArray, MaskedNDArray)
+                                        )
+                                        and rt.mask.any()
+                                    )  # check that the value isn't masked (not rising at date)
+                                    else ''
+                                )
+                            except AttributeError:
+                                planned_observation_data["rise_time"] = ''
+
+                            try:
+                                planned_observation_data["set_time"] = (
+                                    st.item()  # 0-dimensional array (basically a scalar)
+                                    if not (
+                                        isinstance(
+                                            st, (np.ma.core.MaskedArray, MaskedNDArray)
+                                        )
+                                        and st.mask.any()
+                                    )  # check that the value isn't masked (not rising at date)
+                                    else ''
+                                )
+                            except AttributeError:
+                                planned_observation_data["set_time"] = ''
+
+                            planned_observations.append(planned_observation_data)
                         # sort the planned observations by obstime
                         planned_observations = sorted(
                             planned_observations,
@@ -1112,71 +1239,13 @@ class ObservationPlanSubmitHandler(BaseHandler):
                 schema: SingleObservationPlanRequest
         """
 
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-        ]
-
         with self.Session() as session:
-            observation_plan_request = session.scalars(
-                ObservationPlanRequest.select(
-                    session.user_or_token, options=options
-                ).where(ObservationPlanRequest.id == observation_plan_request_id)
-            ).first()
-            if observation_plan_request is None:
-                return self.error(
-                    f'Cannot find ObservationPlanRequest with ID: {observation_plan_request_id}'
-                )
-
-            api = observation_plan_request.instrument.api_class_obsplan
-            if not api.implements()['send']:
-                return self.error('Cannot send observation plans on this instrument.')
-
             try:
-                api.send(observation_plan_request, session)
+                observation_plan_request = send_observation_plan(
+                    observation_plan_request_id, session
+                )
             except Exception as e:
-                observation_plan_request.status = 'failed to send'
-                return self.error(
-                    f'Error sending observation plan to telescope: {e.args[0]}'
-                )
-
-            session.commit()
-
-            try:
-                if (
-                    'submit' in observation_plan_request.status
-                    and 'fail' not in observation_plan_request.status
-                ):
-                    # check if there is already a GCN trigger for this dateobs and allocation, with triggered=True
-                    # if there is one already set "triggered" to True, otherwise create it.
-                    existing_gcn_trigger = session.scalar(
-                        GcnTrigger.select(session.user_or_token).where(
-                            GcnTrigger.dateobs
-                            == observation_plan_request.gcnevent.dateobs,
-                            GcnTrigger.allocation_id
-                            == observation_plan_request.allocation_id,
-                        )
-                    )
-                    if existing_gcn_trigger is None:
-                        gcn_triggered = GcnTrigger(
-                            dateobs=observation_plan_request.gcnevent.dateobs,
-                            allocation_id=observation_plan_request.allocation_id,
-                            triggered=True,
-                        )
-                        session.add(gcn_triggered)
-                        session.commit()
-                    elif existing_gcn_trigger.triggered is not True:
-                        existing_gcn_trigger.triggered = True
-                        session.commit()
-            except Exception:
-                pass  # this is not a critical error, we can continue
-
-            self.push_all(
-                action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-                payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
-            )
-
+                return self.error(str(e))
             return self.success(data=observation_plan_request)
 
     @permissions(['Manage observation plans'])
@@ -3353,6 +3422,41 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             default_observation_plan_request = (
                 DefaultObservationPlanRequest.__schema__().load(data)
             )
+
+            # if auto_send is True, we need to make sure that some filters are set
+            if default_observation_plan_request.auto_send:
+                filters = default_observation_plan_request.filters
+                if not isinstance(filters, dict) or len(filters) == 0:
+                    return self.error('Filters must be set if auto_send is True')
+
+                # make sure that there are filters on notice_types or gcn_tags
+                if 'notice_types' not in filters and 'gcn_tags' not in filters:
+                    return self.error(
+                        'Filters must contain either notice_types or gcn_tags when auto_send is True'
+                    )
+                if not (
+                    (
+                        isinstance(filters['notice_types'], list)
+                        and len(filters['notice_types']) > 0
+                    )
+                    or (
+                        isinstance(filters['gcn_tags'], list)
+                        and len(filters['gcn_tags']) > 0
+                    )
+                ):
+                    return self.error(
+                        'Filters must contain either non-empty notice_types or gcn_tags when auto_send is True'
+                    )
+
+                # make sure that there are filters on localization_tags
+                if not (
+                    isinstance(filters.get('localization_tags', []), list)
+                    and len(filters['localization_tags']) > 0
+                ):
+                    return self.error(
+                        'Filters must contain non-empty localization_tags when auto_send is True'
+                    )
+
             default_observation_plan_request.target_groups = target_groups
 
             session.add(default_observation_plan_request)

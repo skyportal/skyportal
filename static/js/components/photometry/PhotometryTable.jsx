@@ -21,8 +21,8 @@ import {
 import CircularProgress from "@mui/material/CircularProgress";
 import MUIDataTable from "mui-datatables";
 
-import { Typography } from "@mui/material";
-import UpdatePhotometry from "../UpdatePhotometry";
+import Typography from "@mui/material/Typography";
+import UpdatePhotometry from "./UpdatePhotometry";
 import PhotometryValidation from "./PhotometryValidation";
 import PhotometryMagsys from "./PhotometryMagsys";
 import Button from "../Button";

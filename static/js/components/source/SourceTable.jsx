@@ -47,30 +47,30 @@ import Typography from "@mui/material/Typography";
 import { isMobileOnly } from "react-device-detect";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
-import DisplayPhotStats from "../DisplayPhotStats";
+import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";
 import ThumbnailList from "../thumbnail/ThumbnailList";
-import ShowClassification from "../ShowClassification";
-import ShowSummaries from "../ShowSummaries";
-import ShowSummaryHistory from "../ShowSummaryHistory";
+import ShowClassification from "../classification/ShowClassification";
+import ShowSummaries from "../summary/ShowSummaries";
+import ShowSummaryHistory from "../summary/ShowSummaryHistory";
 import SourceTableFilterForm from "./SourceTableFilterForm";
 import StartBotSummary from "../StartBotSummary";
-import VegaPhotometry from "../vega/VegaPhotometry";
-import FavoritesButton from "../FavoritesButton";
-import MultipleClassificationsForm from "../MultipleClassificationsForm";
-import UpdateSourceSummary from "../UpdateSourceSummary";
+import VegaPhotometry from "../plot/VegaPhotometry";
+import FavoritesButton from "../listing/FavoritesButton";
+import MultipleClassificationsForm from "../classification/MultipleClassificationsForm";
+import UpdateSourceSummary from "./UpdateSourceSummary";
 import * as sourceActions from "../../ducks/source";
 import * as sourcesActions from "../../ducks/sources";
 import * as sourcesingcnActions from "../../ducks/sourcesingcn";
 import { filterOutEmptyValues } from "../../API";
-import { getAnnotationValueString } from "../ScanningPageCandidateAnnotations";
-import ConfirmSourceInGCN from "../ConfirmSourceInGCN";
+import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
+import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import NewSource from "../NewSource";
+import NewSource from "./NewSource";
 
-const VegaSpectrum = React.lazy(() => import("../vega/VegaSpectrum"));
-const VegaHR = React.lazy(() => import("../vega/VegaHR"));
+const VegaSpectrum = React.lazy(() => import("../plot/VegaSpectrum"));
+const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
 const useStyles = makeStyles((theme) => ({
   comment: {

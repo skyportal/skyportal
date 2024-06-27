@@ -133,7 +133,7 @@ def poll_events(*args, **kwargs):
                     alert_type = "voevent"
                 except Exception:  # then json
                     payload = json.loads(payload.decode('utf8'))
-                    payload['notice_type'] = topic
+                    payload['notice_type'] = topic.replace("gcn.notices.", "")
                     notice_type = None
                     tags = get_json_tags(payload)
                     alert_type = "json"

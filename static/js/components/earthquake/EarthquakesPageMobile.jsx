@@ -9,7 +9,7 @@ import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
-import NewEarthquake from "../NewEarthquake";
+import NewEarthquake from "./NewEarthquake";
 
 const useStyles = makeStyles((theme) => ({
   root: {
