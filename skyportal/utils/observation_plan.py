@@ -406,6 +406,7 @@ def generate_plan(
             # parallelize computation
             'doParallel': use_parallel,
             'Ncores': Ncores,
+            'parallelBackend': 'threading',
             # gwemopt scheduling algorithms
             # options: greedy, greedy_slew, sear, airmass_weighted
             'scheduleType': request.payload["schedule_type"],
