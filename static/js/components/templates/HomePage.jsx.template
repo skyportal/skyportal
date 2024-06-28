@@ -16,14 +16,14 @@ import convertLength from "convert-css-length";
 
 import * as profileActions from "../../ducks/profile";
 
-import RecentSources from "../RecentSources";
+import RecentSources from "../widget/RecentSources";
 import GroupList from "../group/GroupList";
-import NewsFeed from "../NewsFeed";
-import TopSavers from "../TopSavers";
-import TopSources from "../TopSources";
-import RecentGcnEvents from "../RecentGcnEvents";
-import SourceCounts from "../source/SourceCounts";
-import WeatherWidget from "../WeatherWidget";
+import NewsFeed from "../widget/NewsFeed";
+import TopSavers from "../widget/TopSavers";
+import TopSources from "../widget/TopSources";
+import RecentGcnEvents from "../widget/RecentGcnEvents";
+import SourceCounts from "../widget/SourceCounts";
+import WeatherWidget from "../widget/WeatherWidget";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 

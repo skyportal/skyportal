@@ -11,11 +11,11 @@ import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
+import Typography from "@mui/material/Typography";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { Typography } from "@mui/material";
 import { filterOutEmptyValues } from "../../API";
 import * as followupRequestActions from "../../ducks/followup_requests";
 import * as instrumentActions from "../../ducks/instruments";

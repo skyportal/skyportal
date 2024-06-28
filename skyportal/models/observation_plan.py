@@ -84,6 +84,13 @@ class DefaultObservationPlanRequest(Base):
         sa.String, unique=True, nullable=False, doc='Default plan name'
     )
 
+    auto_send = sa.Column(
+        sa.Boolean,
+        default=False,
+        nullable=True,
+        doc="Automatically send to telescope queue?",
+    )
+
     default_survey_efficiencies = relationship(
         'DefaultSurveyEfficiencyRequest',
         back_populates='default_observationplan_request',
