@@ -102,7 +102,7 @@ def validate_request_to_trt(request):
 
 
 def download_observations(request_id, urls):
-    """Fetch data from the LCO API.
+    """Fetch data from the TRT API.
     request_id : int
         SkyPortal ID for request
     urls : List[str]
@@ -234,7 +234,7 @@ class TRTAPI(FollowUpAPI):
 
     @staticmethod
     def get(request, session, **kwargs):
-        """Get a follow-up request from LCO queue (all instruments).
+        """Get a follow-up request from TRT queue (all instruments).
 
         Parameters
         ----------
