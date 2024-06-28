@@ -358,6 +358,13 @@ telescope:
     robotic: true
     diameter: 4.1
     =id: SOAR
+  - name: FRAM-Auger Telescope
+    nickname: FRAM-Auger
+    lat: -35.4808
+    lon: -69.5705
+    elevation: 1400.0
+    diameter: 0.3
+    =id: FRAM-Auger-0p3m
 
 instrument:
   - name: ZTF
@@ -604,6 +611,15 @@ instrument:
     type: spectrograph
     api_classname: SOARTSPECAPI
     =id: TripleSpec
+  - band: optical
+    name: FRAM-Auger
+    telescope_id: =FRAM-Auger-0p3m
+    type: imager
+    =id: FRAM-Auger
+    api_classname_obsplan: MMAAPI
+    filters: ["ps1::open", "sdssg", "sdssr", "sdssi", "sdssz"]
+    field_fov_type: rectangle
+    field_fov_attributes: [1,1]
 
 instrument/=SEDMv2/log:
   - start_date: "2023-06-02T22:00:00"
@@ -793,6 +809,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =TripleSpec
+  - pi: Michael Coughlin
+    proposal_id: FRAM-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =FRAM-Auger
 
 galaxy_catalog:
   - catalog_name: CLU_mini
