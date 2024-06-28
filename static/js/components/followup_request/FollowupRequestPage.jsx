@@ -19,7 +19,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import FollowupRequestLists from "./FollowupRequestLists";
 import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
 import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
-import NewDefaultFollowupRequest from "../NewDefaultFollowupRequest";
+import NewDefaultFollowupRequest from "./NewDefaultFollowupRequest";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ProgressIndicator from "../ProgressIndicators";
 import Button from "../Button";

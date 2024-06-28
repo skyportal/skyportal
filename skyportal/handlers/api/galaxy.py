@@ -23,8 +23,16 @@ from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 
-from ...models import DBSession, Galaxy, Localization, LocalizationTile, Obj
+from ...models import (
+    DBSession,
+    Galaxy,
+    GalaxyCatalog,
+    Localization,
+    LocalizationTile,
+    Obj,
+)
 from ..base import BaseHandler
+from ...utils.asynchronous import run_async
 
 log = make_log('api/galaxy')
 env, cfg = load_env()
@@ -59,25 +67,33 @@ def get_galaxies(
     sort_order=None,
 ):
     if catalog_names_only:
-        stmt = Galaxy.select(
-            session.user_or_token, columns=[Galaxy.catalog_name]
-        ).distinct(Galaxy.catalog_name)
+        stmt = GalaxyCatalog.select(session.user_or_token).distinct()
         catalogs = session.scalars(stmt).all()
         query_result = []
-        for catalog_name in catalogs:
+        for catalog in catalogs:
             stmt = Galaxy.select(session.user_or_token).where(
-                Galaxy.catalog_name == catalog_name
+                Galaxy.catalog_id == catalog.id
             )
             count_stmt = sa.select(func.count()).select_from(stmt)
             total_matches = session.execute(count_stmt).scalar()
             query_result.append(
                 {
-                    'catalog_name': catalog_name,
+                    'catalog_name': catalog.name,
                     'catalog_count': int(total_matches),
                 }
             )
 
         return query_result
+
+    catalog = None
+    if catalog_name is not None:
+        catalog = session.scalars(
+            GalaxyCatalog.select(session.user_or_token).where(
+                GalaxyCatalog.name == catalog_name
+            )
+        ).first()
+        if catalog is None:
+            raise ValueError(f"Catalog with name {catalog_name} not found")
 
     if min_redshift is not None:
         try:
@@ -212,20 +228,20 @@ def get_galaxies(
         if sort_by == 'prob':
             col.append(localizationtilescls.probdensity)
         elif sort_by == 'mstar_prob_weighted':
-            if catalog_name is None:
+            if catalog is None:
                 raise ValueError(
                     "Cannot sort by mstar_prob_weighted without specifying a catalog_name"
                 )
             # we normalize the mstar values in the catalog to be between 0 and 1
             min_mstar_query = (
                 sa.select(sa.func.min(Galaxy.mstar))
-                .where(Galaxy.catalog_name == catalog_name)
-                .group_by(Galaxy.catalog_name)
+                .where(Galaxy.catalog_id == catalog.id)
+                .group_by(Galaxy.catalog_id)
             )
             max_mstar_query = (
                 sa.select(sa.func.max(Galaxy.mstar))
-                .where(Galaxy.catalog_name == catalog_name)
-                .group_by(Galaxy.catalog_name)
+                .where(Galaxy.catalog_id == catalog.id)
+                .group_by(Galaxy.catalog_id)
             )
             min_mstar, max_mstar = (
                 session.scalars(min_mstar_query).first(),
@@ -262,8 +278,8 @@ def get_galaxies(
             Galaxy.id == tiles_subquery.c.id,
         )
 
-    if catalog_name is not None:
-        query = query.where(Galaxy.catalog_name == catalog_name)
+    if catalog is not None:
+        query = query.where(Galaxy.catalog_id == catalog.id)
 
     if galaxy_name is not None:
         query = query.where(
@@ -377,12 +393,12 @@ def get_galaxies(
         total_matches = len(galaxies)
 
     if return_probability and localization is not None:
-        PROB, DISTMU, DISTSIGMA, DISTNORM = localization.flat
         ras = np.array([galaxy.ra for galaxy in galaxies])
         decs = np.array([galaxy.dec for galaxy in galaxies])
         ipix = hp.ang2pix(localization.nside, ras, decs, lonlat=True)
 
         if localization.is_3d:
+            PROB, DISTMU, DISTSIGMA, DISTNORM = localization.flat
             dists = np.array([galaxy.distmpc for galaxy in galaxies])
 
             probability = (
@@ -391,6 +407,7 @@ def get_galaxies(
                 / hp.nside2pixarea(localization.nside)
             )
         else:
+            (PROB,) = localization.flat
             probability = PROB[ipix]
 
         galaxies = [
@@ -460,8 +477,10 @@ class GalaxyCatalogHandler(BaseHandler):
         """
 
         data = self.get_json()
-        catalog_name = data.get('catalog_name')
-        catalog_data = data.get('catalog_data')
+        catalog_name = data.get('catalog_name', None)
+        catalog_description = data.get('catalog_description', None)
+        catalog_url = data.get('catalog_url', None)
+        catalog_data = data.get('catalog_data', None)
 
         if catalog_name is None:
             return self.error("catalog_name is a required parameter.")
@@ -525,8 +544,14 @@ class GalaxyCatalogHandler(BaseHandler):
         if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
             return self.error("declination should span -90<dec<90.")
 
+        catalog_metadata = {
+            'name': catalog_name,
+            'description': catalog_description,
+            'url': catalog_url,
+        }
+
         IOLoop.current().run_in_executor(
-            None, lambda: add_galaxies(catalog_name, catalog_data)
+            None, lambda: add_galaxies(catalog_metadata, catalog_data)
         )
 
         return self.success()
@@ -795,41 +820,64 @@ class GalaxyCatalogHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session():
-            IOLoop.current().run_in_executor(
-                None, lambda: delete_galaxies(catalog_name)
+        with self.Session() as session:
+            catalog = session.scalar(
+                GalaxyCatalog.select(session.user_or_token).where(
+                    GalaxyCatalog.name == catalog_name
+                )
+            )
+            if catalog is None:
+                return self.error(f"Catalog with name {catalog_name} not found")
+
+            run_async(delete_galaxies, catalog.id)
+
+            self.push(
+                action="baselayer/SHOW_NOTIFICATION",
+                payload={
+                    "message": f"Deleting galaxy catalog {catalog_name}. It may take a few minutes..."
+                },
             )
 
             return self.success()
 
 
-def delete_galaxies(catalog_name):
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
-
+def delete_galaxies(catalog_id):
     try:
-        session.execute(sa.delete(Galaxy).where(Galaxy.catalog_name == catalog_name))
-        session.commit()
-        return log(f"Deleted galaxy table: {catalog_name}")
+        with DBSession() as session:
+            session.execute(sa.delete(Galaxy).where(Galaxy.catalog_id == catalog_id))
+            session.execute(
+                sa.delete(GalaxyCatalog).where(GalaxyCatalog.id == catalog_id)
+            )
+            session.commit()
+            log(f"Deleted galaxy catalog with id {catalog_id}")
     except Exception as e:
-        return log(f"Unable to generate galaxy table: {e}")
-    finally:
-        session.close()
-        Session.remove()
+        log(f"Unable to delete galaxy catalog with id {catalog_id}: {e}")
 
 
-def add_galaxies(catalog_name, catalog_data):
+def add_galaxies(catalog_metadata, catalog_data):
     if Session.registry.has():
         session = Session()
     else:
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
+        # check if the catalog already exists. If not, create it
+        catalog = session.scalar(
+            sa.select(GalaxyCatalog).where(
+                GalaxyCatalog.name == catalog_metadata["name"]
+            )
+        )
+        if catalog is None:
+            catalog = GalaxyCatalog(
+                name=catalog_metadata["name"],
+                description=catalog_metadata.get("description", None),
+                url=catalog_metadata.get("url", None),
+            )
+            session.add(catalog)
+            session.commit()
         galaxies = [
             Galaxy(
-                catalog_name=catalog_name,
+                catalog_id=catalog.id,
                 ra=ra,
                 dec=dec,
                 name=name,
@@ -918,6 +966,8 @@ class GalaxyASCIIFileHandler(BaseHandler):
         json = self.get_json()
         catalog_data = json.pop('catalogData', None)
         catalog_name = json.pop('catalogName', None)
+        catalog_description = json.pop('catalogDescription', None)
+        catalog_url = json.pop('catalogURL', None)
 
         if catalog_data is None:
             return self.error(message="Missing catalog_data")
@@ -983,8 +1033,14 @@ class GalaxyASCIIFileHandler(BaseHandler):
         if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
             return self.error("declination should span -90<dec<90.")
 
+        catalog_metadata = {
+            'name': catalog_name,
+            'description': catalog_description,
+            'url': catalog_url,
+        }
+
         IOLoop.current().run_in_executor(
-            None, lambda: add_galaxies(catalog_name, catalog_data)
+            None, lambda: add_galaxies(catalog_metadata, catalog_data)
         )
 
         return self.success()
@@ -1045,6 +1101,19 @@ def add_glade(file_path=None, file_url=None):
         log(f"add_glade - Downloading {datafile}")
     else:
         log(f"add_glade - Reading {datafile}")
+
+    # if the GLADE GalaxyCatalog does not exist in the DB yet,
+    # create it first
+    catalog_id = None
+    with DBSession() as session:
+        catalog = session.scalar(
+            sa.select(GalaxyCatalog).where(GalaxyCatalog.name == "GLADE")
+        )
+        if catalog is None:
+            catalog = GalaxyCatalog(name="GLADE")
+            session.add(catalog)
+            session.commit()
+        catalog_id = catalog.id
 
     start_dl_timer = time.perf_counter()
     tbls = ascii.read(
@@ -1181,8 +1250,8 @@ def add_glade(file_path=None, file_url=None):
                 ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
                 for ra, dec in zip(df['ra'], df['dec'])
             ]
-            # add a catalog_name column where catalog_name = 'GLADE'
-            df['catalog_name'] = 'GLADE'
+
+            df['catalog_id'] = catalog_id
             utcnow = datetime.datetime.utcnow().isoformat()
             df['created_at'] = utcnow
             df['modified_at'] = utcnow
@@ -1214,7 +1283,7 @@ def add_glade(file_path=None, file_url=None):
                 "pa",
                 "btc",
                 "healpix",
-                "catalog_name",
+                "catalog_id",
                 'created_at',
                 'modified',
             )

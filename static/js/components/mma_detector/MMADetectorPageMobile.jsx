@@ -9,7 +9,7 @@ import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
-import NewMMADetector from "../NewMMADetector";
+import NewMMADetector from "./NewMMADetector";
 
 const useStyles = makeStyles((theme) => ({
   root: {

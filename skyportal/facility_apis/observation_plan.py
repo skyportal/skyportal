@@ -431,10 +431,14 @@ class MMAAPI(FollowUpAPI):
         DBSession().delete(req)
         DBSession().commit()
 
-    def custom_json_schema(instrument, user):
-        from ..models import DBSession, Galaxy, InstrumentField
+    def custom_json_schema(instrument, user, **kwargs):
+        from ..models import DBSession, GalaxyCatalog, InstrumentField
 
-        galaxies = [g for g, in DBSession().query(Galaxy.catalog_name).distinct().all()]
+        galaxy_catalogs = kwargs.get("galaxy_catalog_names", [])
+        if not isinstance(galaxy_catalogs, list) or len(galaxy_catalogs) == 0:
+            galaxy_catalogs = [
+                g for g, in DBSession().query(GalaxyCatalog.name).distinct().all()
+            ]
         end_date = instrument.telescope.next_sunrise()
         if end_date is None:
             end_date = str(datetime.utcnow() + timedelta(days=1))
@@ -662,8 +666,10 @@ class MMAAPI(FollowUpAPI):
                                 },
                                 "galaxy_catalog": {
                                     "type": "string",
-                                    "enum": galaxies,
-                                    "default": galaxies[0] if len(galaxies) > 0 else "",
+                                    "enum": galaxy_catalogs,
+                                    "default": galaxy_catalogs[0]
+                                    if len(galaxy_catalogs) > 0
+                                    else "",
                                 },
                                 "galaxy_sorting": {
                                     "type": "string",

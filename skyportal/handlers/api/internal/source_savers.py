@@ -13,7 +13,7 @@ default_prefs = {'maxNumSavers': 100, 'sinceDaysAgo': 7, 'candidatesOnly': True}
 
 class SourceSaverHandler(BaseHandler):
     @classmethod
-    def get_top_source_savers(self, current_user, session, user_options):
+    def get_top_source_savers(cls, current_user, session, user_options):
         user_prefs = getattr(current_user, 'preferences', None) or {}
         top_savers_prefs = user_prefs.get('topSavers', {})
         top_savers_prefs = {**default_prefs, **top_savers_prefs, **user_options}

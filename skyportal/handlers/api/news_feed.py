@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 from sqlalchemy import desc, or_
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
@@ -75,6 +76,9 @@ class NewsFeedHandler(BaseHandler):
             )
 
         with self.Session() as session:
+            user_accessible_group_ids = [
+                g.id for g in self.associated_user_object.accessible_groups
+            ]
 
             def fetch_newest(
                 model, include_bot_comments=False, include_ml_classifications=False
@@ -87,10 +91,30 @@ class NewsFeedHandler(BaseHandler):
                             Photometry.assignment_id.isnot(None),
                         )
                     )
-                elif model == Comment and not include_bot_comments:
-                    query = query.where(Comment.bot.is_(False))
-                elif model == Classification and not include_ml_classifications:
-                    query = query.where(Classification.ml.is_(False))
+                elif model == Comment:
+                    if not include_bot_comments:
+                        query = query.where(Comment.bot.is_(False))
+                    if not self.associated_user_object.is_admin:
+                        query = query.where(
+                            Comment.obj_id.in_(
+                                sa.select(Source.obj_id).where(
+                                    Source.group_id.in_(user_accessible_group_ids),
+                                    Source.active.is_(True),
+                                )
+                            )
+                        )
+                elif model == Classification:
+                    if not include_ml_classifications:
+                        query = query.where(Classification.ml.is_(False))
+                    if not self.associated_user_object.is_admin:
+                        query = query.where(
+                            Classification.obj_id.in_(
+                                sa.select(Source.obj_id).where(
+                                    Source.group_id.in_(user_accessible_group_ids),
+                                    Source.active.is_(True),
+                                )
+                            )
+                        )
                 query = (
                     query.order_by(desc(model.created_at or model.saved_at))
                     .distinct(model.obj_id, model.created_at)

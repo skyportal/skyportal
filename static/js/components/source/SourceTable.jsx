@@ -18,6 +18,8 @@ import ThumbUp from "@mui/icons-material/ThumbUp";
 import ThumbDown from "@mui/icons-material/ThumbDown";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import MUIDataTable from "mui-datatables";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 import {
   createTheme,
   StyledEngineProvider,
@@ -45,30 +47,30 @@ import Typography from "@mui/material/Typography";
 import { isMobileOnly } from "react-device-detect";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
-import DisplayPhotStats from "../DisplayPhotStats";
+import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";
 import ThumbnailList from "../thumbnail/ThumbnailList";
-import ShowClassification from "../ShowClassification";
-import ShowSummaries from "../ShowSummaries";
-import ShowSummaryHistory from "../ShowSummaryHistory";
+import ShowClassification from "../classification/ShowClassification";
+import ShowSummaries from "../summary/ShowSummaries";
+import ShowSummaryHistory from "../summary/ShowSummaryHistory";
 import SourceTableFilterForm from "./SourceTableFilterForm";
 import StartBotSummary from "../StartBotSummary";
-import VegaPhotometry from "../vega/VegaPhotometry";
-import FavoritesButton from "../FavoritesButton";
-import MultipleClassificationsForm from "../MultipleClassificationsForm";
-import UpdateSourceSummary from "../UpdateSourceSummary";
+import VegaPhotometry from "../plot/VegaPhotometry";
+import FavoritesButton from "../listing/FavoritesButton";
+import MultipleClassificationsForm from "../classification/MultipleClassificationsForm";
+import UpdateSourceSummary from "./UpdateSourceSummary";
 import * as sourceActions from "../../ducks/source";
 import * as sourcesActions from "../../ducks/sources";
 import * as sourcesingcnActions from "../../ducks/sourcesingcn";
 import { filterOutEmptyValues } from "../../API";
-import { getAnnotationValueString } from "../ScanningPageCandidateAnnotations";
-import ConfirmSourceInGCN from "../ConfirmSourceInGCN";
+import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
+import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import NewSource from "../NewSource";
+import NewSource from "./NewSource";
 
-const VegaSpectrum = React.lazy(() => import("../vega/VegaSpectrum"));
-const VegaHR = React.lazy(() => import("../vega/VegaHR"));
+const VegaSpectrum = React.lazy(() => import("../plot/VegaSpectrum"));
+const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
 const useStyles = makeStyles((theme) => ({
   comment: {
@@ -730,6 +732,7 @@ const SourceTable = ({
   const classes = useStyles();
   const theme = useTheme();
 
+  const [searchBy, setSearchBy] = useState("name");
   const [openNew, setOpenNew] = useState(false);
 
   if (favoritesRemoveButton) {
@@ -777,6 +780,23 @@ const SourceTable = ({
       }
     }
   }, [sources]);
+
+  useEffect(() => {
+    const data = {
+      ...filterFormData,
+    };
+    if (data?.sourceID?.length > 0 && searchBy === "comment") {
+      data.commentsFilter = data.sourceID;
+      delete data.sourceID;
+      paginateCallback(1, rowsPerPage, {}, data);
+      setFilterFormData(data);
+    } else if (data?.commentsFilter?.length > 0 && searchBy === "name") {
+      data.sourceID = data.commentsFilter;
+      delete data.commentsFilter;
+      paginateCallback(1, rowsPerPage, {}, data);
+      setFilterFormData(data);
+    }
+  }, [searchBy]);
 
   const handleTableChange = (action, tableState) => {
     switch (action) {
@@ -1439,9 +1459,18 @@ const SourceTable = ({
   const handleSearchChange = (searchText) => {
     const data = {
       ...filterFormData,
-      sourceID: searchText,
     };
+    if (searchBy === "name") {
+      data.sourceID = searchText;
+      delete data.commentsFilter;
+    } else if (searchBy === "comment") {
+      data.commentsFilter = searchText;
+      delete data.sourceID;
+    } else {
+      dispatch(showNotification("Invalid searchBy parameter", "error"));
+    }
     paginateCallback(1, rowsPerPage, {}, data);
+    setFilterFormData(data);
   };
 
   const handleFilterSubmit = async (formData) => {
@@ -1847,6 +1876,19 @@ const SourceTable = ({
     download: downloadCallback !== null && downloadCallback !== undefined,
     customToolbar: () => (
       <>
+        <Select
+          label="Search by"
+          variant="standard"
+          value={searchBy}
+          onChange={(event) => {
+            setSearchBy(event.target.value);
+          }}
+          style={{ marginLeft: "10px" }}
+          size="small"
+        >
+          <MenuItem value="name">ID/IAU</MenuItem>
+          <MenuItem value="comment">Comment</MenuItem>
+        </Select>
         <IconButton
           name="new_source"
           onClick={() => {

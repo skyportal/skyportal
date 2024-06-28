@@ -72,7 +72,12 @@ const GroupSources = ({ route }) => {
     fetchData();
   }, [route.id, dispatch]);
 
-  if (!savedSourcesState.sources || !pendingSourcesState.sources) {
+  if (
+    !savedSourcesState.sources ||
+    !pendingSourcesState.sources ||
+    savedSourcesState.group_id !== parseInt(route.id, 10) ||
+    pendingSourcesState?.group_id !== parseInt(route.id, 10)
+  ) {
     return (
       <div>
         <CircularProgress color="secondary" />

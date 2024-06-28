@@ -40,38 +40,38 @@
           oninput="filterSources()"
         />
       </div>
-      {% for source, versions in versions_by_source.items() %}
-      <div class="sourceAndVersions" id="{{ source }}">
+      {% for source_id, versions in versions_by_source.items() %}
+      <div class="sourceAndVersions" id="{{ source_id }}">
         <div class="source">
           <div class="sourceAndTimeAgo">
-            <h2>{{ source }}</h2>
-            <!-- prettier-ignore -->
+            <h2>{{ source_id }}</h2>
             {% set time_difference = datetime.datetime.utcnow() - versions[0].created_at %}
-            <span class="timeAgo {% if time_difference.days < 1 %}new{% end %}">
-              <!-- prettier-ignore -->
-              {% set days = time_difference.days %}
-              {% set hours = time_difference.seconds // 3600 %}
-              {% set minutes = (time_difference.seconds % 3600) // 60 %}
-              {% set seconds = time_difference.seconds % 60 %}
-
-              {% if days > 0 %}{{ days }} days,{% end %}
-              {% if days > 0 or hours > 0 %}{{ hours }} hours{% end %}
-              {% if days > 0 %} and{% elif hours > 0 %},{% end %}
-              {% if hours > 0 or minutes > 0 %}{{ minutes }} minutes{% end %}
-              {% if days == 0 and seconds > 0 %} and {% elif days > 0 %} ago{% end %}
-              {% if days == 0 and seconds > 0 %}{{ seconds }} seconds ago{% end %}
+            {% set days = time_difference.days %}
+            {% set hours = time_difference.seconds // 3600 %}
+            {% set minutes = (time_difference.seconds % 3600) // 60 %}
+            {% set seconds = time_difference.seconds % 60 %}
+            <span class="timeAgo {% if days < 1 %}new{% end %}">
+              {% if time_difference.seconds < 60 %}
+                {{ seconds }} seconds ago
+              {% elif time_difference.seconds < 3600 %}
+                {{ minutes }} minutes and {{ seconds }} seconds ago
+              {% elif days == 0 %}
+                {{ hours }} hours and {{ minutes }} minutes ago
+              {% else %}
+                {{ days }} days and {{ hours }} hours ago
+              {% end %}
             </span>
-            <button type="button" onclick="displayVersions('{{ source }}')">
+            <button type="button" onclick="displayVersions('{{ source_id }}')">
               view all...
             </button>
           </div>
-          <a href="/public/sources/{{source}}" target="_blank">
+          <a href="/public/sources/{{source_id}}" target="_blank">
             Link to the latest version
           </a>
         </div>
         <div
           class="versions"
-          id="versions-of-source-{{source}}"
+          id="versions-of-source-{{source_id}}"
           style="display: none"
         >
           {% for index, version in enumerate(versions) %}
@@ -79,7 +79,7 @@
             <div class="versionId">#{{len(versions) - index}}</div>
             <a
               class="boxShadow"
-              href="/public/sources/{{ source }}/version/{{ version.hash }}"
+              href="/public/sources/{{ source_id }}/version/{{ version.hash }}"
               target="_blank"
             >
               {{ version.created_at.strftime('%m/%d/%Y %H:%M:%S') }} UTC

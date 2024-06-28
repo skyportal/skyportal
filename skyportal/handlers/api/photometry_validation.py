@@ -159,7 +159,7 @@ class PhotometryValidationHandler(BaseHandler):
                 session.commit()
 
             self.push_all(
-                action='skyportal/FETCH_SOURCE_PHOTOMETRY',
+                action='skyportal/REFRESH_SOURCE_PHOTOMETRY',
                 payload={'obj_id': phot.obj.id},
             )
             return self.success(data={'id': photometry_validation.id})
@@ -255,7 +255,7 @@ class PhotometryValidationHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action='skyportal/FETCH_SOURCE_PHOTOMETRY',
+                action='skyportal/REFRESH_SOURCE_PHOTOMETRY',
                 payload={'obj_id': photometry_validation.photometry.obj.id},
             )
             return self.success(data={'id': photometry_validation.id})
@@ -326,7 +326,7 @@ class PhotometryValidationHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action='skyportal/FETCH_SOURCE_PHOTOMETRY',
+                action='skyportal/REFRESH_SOURCE_PHOTOMETRY',
                 payload={'obj_id': obj_id},
             )
             return self.success(data={'id': photometry_validation_id})

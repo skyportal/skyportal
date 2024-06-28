@@ -20,18 +20,18 @@ import { ViewportList } from "react-viewport-list";
 
 import { showNotification } from "baselayer/components/Notifications";
 import ThumbnailList from "../thumbnail/ThumbnailList";
-import SaveCandidateButton from "../SaveCandidateButton";
-import FilterCandidateList from "../FilterCandidateList";
+import SaveCandidateButton from "./SaveCandidateButton";
+import FilterCandidateList from "./FilterCandidateList";
 import ScanningPageCandidateAnnotations, {
   getAnnotationValueString,
-} from "../ScanningPageCandidateAnnotations";
-import EditSourceGroups from "../EditSourceGroups";
+} from "./ScanningPageCandidateAnnotations";
+import EditSourceGroups from "../source/EditSourceGroups";
 import RejectButton from "../RejectButton";
-import VegaPhotometry from "../vega/VegaPhotometry";
+import VegaPhotometry from "../plot/VegaPhotometry";
 import Spinner from "../Spinner";
-import AddClassificationsScanningPage from "../AddClassificationsScanningPage";
+import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import Button from "../Button";
-import DisplayPhotStats from "../DisplayPhotStats";
+import DisplayPhotStats from "../source/DisplayPhotStats";
 import CandidatePlugins from "./CandidatePlugins";
 
 import { dec_to_dms, ra_to_hours } from "../../units";

@@ -95,12 +95,9 @@ export function getCommentOnEarthquakeAttachment(earthquakeID, commentID) {
   );
 }
 
-export function getCommentOnEarthquakeAttachmentPreview(
-  earthquakeID,
-  commentID,
-) {
+export function getCommentOnEarthquakeTextAttachment(earthquakeID, commentID) {
   return API.GET(
-    `/api/earthquake/${earthquakeID}/comments/${commentID}`,
+    `/api/earthquake/${earthquakeID}/comments/${commentID}/attachment?download=false&preview=false`,
     GET_COMMENT_ON_EARTHQUAKE_ATTACHMENT_PREVIEW,
   );
 }

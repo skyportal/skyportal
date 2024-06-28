@@ -793,6 +793,9 @@ class ZTFMMAAPI(MMAAPI):
         if not altdata:
             raise ValueError('Missing allocation information.')
 
+        if 'access_token' not in altdata:
+            raise ValueError('Missing access token in allocation information.')
+
         headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
         payload = {
@@ -1101,8 +1104,8 @@ class ZTFMMAAPI(MMAAPI):
         if r.status_code != 200:
             raise ValueError(f'Error deleting skymap: {r.text}')
 
-    def custom_json_schema(instrument, user):
-        form_json_schema = MMAAPI.custom_json_schema(instrument, user)
+    def custom_json_schema(instrument, user, **kwargs):
+        form_json_schema = MMAAPI.custom_json_schema(instrument, user, **kwargs)
 
         # we make sure that all the boolean properties come last, which helps with the display
         non_boolean_properties = {
@@ -1191,20 +1194,21 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                 df_group_median['filter'] = inv_bands[int(df_group_median["filter_id"])]
                 dfs.append(df_group_median)
 
-    obstable = pd.concat(dfs, axis=1).T
-    obstable.rename(
-        columns={
-            'obsjd': 'obstime',
-            'maglim': 'limmag',
-            'fwhm': 'seeing',  # equivalent as plate scale is 1"/pixel
-        },
-        inplace=True,
-    )
-    obstable['target_name'] = None
+    if len(dfs) > 0:
+        obstable = pd.concat(dfs, axis=1).T
+        obstable.rename(
+            columns={
+                'obsjd': 'obstime',
+                'maglim': 'limmag',
+                'fwhm': 'seeing',  # equivalent as plate scale is 1"/pixel
+            },
+            inplace=True,
+        )
+        obstable['target_name'] = None
 
-    from skyportal.handlers.api.observation import add_observations
+        from skyportal.handlers.api.observation import add_observations
 
-    add_observations(instrument_id, obstable)
+        add_observations(instrument_id, obstable)
 
 
 def fetch_tap_observations(instrument_id, client, request_str):

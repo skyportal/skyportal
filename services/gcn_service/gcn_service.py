@@ -113,6 +113,7 @@ def poll_events(*args, **kwargs):
         try:
             for message in consumer.consume():
                 payload = message.value()
+                topic = message.topic()
                 consumer.commit(message)
 
                 if payload is None:
@@ -132,9 +133,17 @@ def poll_events(*args, **kwargs):
                     alert_type = "voevent"
                 except Exception:  # then json
                     payload = json.loads(payload.decode('utf8'))
+                    payload['notice_type'] = topic.replace("gcn.notices.", "")
                     notice_type = None
                     tags = get_json_tags(payload)
                     alert_type = "json"
+
+                    if (
+                        payload['notice_type']
+                        == "gcn.notices.icecube.lvk_nu_track_search"
+                    ):
+                        if payload.get("pval_bayesian", 1) > 0.05:
+                            continue
 
                 tags_intersection = list(set(tags).intersection(set(reject_tags)))
                 if len(tags_intersection) > 0:

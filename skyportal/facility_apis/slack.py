@@ -189,7 +189,7 @@ class SLACKAPI(FollowUpAPI):
                 'skyportal/REFRESH_FOLLOWUP_REQUESTS',
             )
 
-    def custom_json_schema(instrument, user):
+    def custom_json_schema(instrument, user, **kwargs):
         form_json_schema = {
             "type": "object",
             "properties": {
