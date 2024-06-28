@@ -21,6 +21,8 @@ app:
   observation_plan:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
     use_skyportal_fields: True
+    use_parallel: False
+    Ncores: 1
 
   heasarc_endpoint: https://heasarc.gsfc.nasa.gov
 

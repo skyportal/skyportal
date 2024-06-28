@@ -108,6 +108,12 @@ app:
     port: 64502
   ps1_endpoint: http://localhost:64502
 
+  observation_plan:
+    default_filters: ["ztfg", "ztfr", "ztfi"]
+    use_skyportal_fields: True
+    use_parallel: True
+    Ncores: 2
+
 analysis_services:
   analysis_folder: analysis_data
   sn_analysis_service:
