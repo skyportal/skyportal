@@ -6,12 +6,8 @@ import validator from "@rjsf/validator-ajv8";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 import Link from "@mui/material/Link";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
 import { fetchPublicReleases } from "../../../ducks/public_pages/public_release";
 import ReleasesList, { truncateText } from "../../release/ReleasesList";
-import Button from "../../Button";
 
 const useStyles = makeStyles(() => ({
   sourcePublishRelease: {
@@ -47,7 +43,6 @@ const SourcePublishRelease = ({
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
   const [releases, setReleases] = useState([]);
-  const [overrideOptionsDialog, setOverrideOptionsDialog] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
@@ -80,16 +75,10 @@ const SourcePublishRelease = ({
   const handleReleaseChange = (data) => {
     setSourceReleaseId(data.release);
     if (releases.length > 0 && data.release) {
-      setOverrideOptionsDialog(true);
+      setOptions(releases.find((item) => item.id === data.release).options);
     }
   };
 
-  const handleOverrideOptions = (override) => {
-    if (override) {
-      setOptions(releases.find((item) => item.id === sourceReleaseId).options);
-    }
-    setOverrideOptionsDialog(false);
-  };
   return (
     <div className={styles.sourcePublishRelease}>
       <Link
@@ -109,19 +98,7 @@ const SourcePublishRelease = ({
           uiSchema={{
             "ui:submitButtonOptions": { norender: true },
           }}
-        >
-          <Dialog open={overrideOptionsDialog}>
-            <DialogTitle>
-              Override source publish options with release options?
-            </DialogTitle>
-            <DialogContent
-              style={{ display: "flex", justifyContent: "space-around" }}
-            >
-              <Button onClick={() => handleOverrideOptions(true)}>Yes</Button>
-              <Button onClick={() => handleOverrideOptions(false)}>No</Button>
-            </DialogContent>
-          </Dialog>
-        </Form>
+        />
       ) : (
         <div className={styles.noRelease}>
           {isLoading ? (
