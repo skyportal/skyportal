@@ -638,6 +638,7 @@ const PhotometryPlot = ({
           const colorBorder = rgba(colorRGB, 1);
           const colorInteriorNonDet = rgba(colorRGB, 0.1);
           const colorInteriorDet = rgba(colorRGB, 0.3);
+          const colorError = rgba(colorRGB, 0.5);
 
           const scaledPeriodValue =
             periodValue / periodUnitDividers[periodUnitValue];
@@ -650,6 +651,9 @@ const PhotometryPlot = ({
           let y = groupedPhotometry[key].map(
             (point) => point.mag || point.limiting_mag,
           );
+          let yerr = groupedPhotometry[key].map(
+            (point) => point.magerr || null,
+          );
 
           // reorder the points in y by increasing phase
           // to do so, we need to create an array of indices
@@ -659,6 +663,7 @@ const PhotometryPlot = ({
           }
           indices = indices.sort((a, b) => phases[a] - phases[b]);
           y = indices.map((i) => y[i]);
+          yerr = indices.map((i) => yerr[i]);
           const x = indices.map((i) => phases[i]);
 
           if (smoothingValue > 0) {
@@ -669,6 +674,7 @@ const PhotometryPlot = ({
           // to do so, use the indices and the groupedPhotometry[key] array to know which index corresponds to a detection or an upper limit
           let detectionsX = [];
           let detectionsY = [];
+          let detectionsYerr = [];
           let detectionsText = [];
           let upperLimitsX = [];
           let upperLimitsY = [];
@@ -678,6 +684,7 @@ const PhotometryPlot = ({
             if (groupedPhotometry[key][indices[i]].mag !== null) {
               detectionsX.push(x[i]);
               detectionsY.push(y[i]);
+              detectionsYerr.push(yerr[i]);
               detectionsText.push(groupedPhotometry[key][indices[i]].text);
             } else {
               upperLimitsX.push(x[i]);
@@ -689,6 +696,7 @@ const PhotometryPlot = ({
           if (phaseValue === 2) {
             detectionsX = detectionsX.concat(detectionsX.map((p) => p + 1));
             detectionsY = detectionsY.concat(detectionsY);
+            detectionsYerr = detectionsYerr.concat(detectionsYerr);
             detectionsText = detectionsText.concat(detectionsText);
             upperLimitsX = upperLimitsX.concat(upperLimitsX.map((p) => p + 1));
             upperLimitsY = upperLimitsY.concat(upperLimitsY);
@@ -703,6 +711,14 @@ const PhotometryPlot = ({
             dataType: "detections",
             x: detectionsX,
             y: detectionsY,
+            error_y: {
+              type: "data",
+              array: detectionsYerr,
+              visible: true,
+              color: colorError,
+              width: 1,
+              thickness: 2,
+            },
             text: detectionsText,
             mode: "markers",
             type: "scatter",
