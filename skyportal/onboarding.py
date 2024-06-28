@@ -26,9 +26,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
     invite_token = strategy.session_get("invite_token")
 
     try:
-        existing_user = (
-            DBSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
-        )
+        existing_user = DBSession().scalar(sa.select(User).where(User.oauth_uid == uid))
 
         if cfg["invitations.enabled"]:
             if existing_user is None and invite_token is None:
@@ -45,10 +43,8 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                     "Invalid invitation configuration value: invitations.days_until_expiry cannot be cast to int"
                 )
 
-            invitation = (
-                DBSession()
-                .scalars(sa.select(Invitation).where(Invitation.token == invite_token))
-                .first()
+            invitation = DBSession().scalar(
+                sa.select(Invitation).where(Invitation.token == invite_token)
             )
 
             if invitation is None:
@@ -64,10 +60,8 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                     "Authentication Error: Invite token has already been used."
                 )
 
-            check_username = (
-                DBSession()
-                .scalars(sa.select(User).where(User.username == details["username"]))
-                .first()
+            check_username = DBSession().scalar(
+                sa.select(User).where(User.username == details["username"])
             )
             if check_username is not None:
                 raise Exception("Invalid invitation: Username already in use.")
@@ -114,9 +108,7 @@ def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
         raise Exception("PSA configuration error: `username` not properly captured.")
     storage = strategy.storage
 
-    existing_user = (
-        DBSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
-    )
+    existing_user = DBSession().scalar(sa.select(User).where(User.oauth_uid == uid))
 
     if not user and existing_user is None:
         email_as_username = strategy.setting('USERNAME_IS_FULL_EMAIL', False)
@@ -136,9 +128,7 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
     if not cfg["invitations.enabled"]:
         return
 
-    existing_user = (
-        DBSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
-    )
+    existing_user = DBSession().scalar(sa.select(User).where(User.oauth_uid == uid))
 
     invite_token = strategy.session_get("invite_token")
     if invite_token is None and existing_user is None:
@@ -204,9 +194,7 @@ def user_details(strategy, details, backend, uid, user=None, *args, **kwargs):
     if not user:
         return
 
-    existing_user = (
-        DBSession().scalars(sa.select(User).where(User.oauth_uid == uid)).first()
-    )
+    existing_user = DBSession().scalar(sa.select(User).where(User.oauth_uid == uid))
 
     if not (
         existing_user.contact_email is None
