@@ -32,12 +32,6 @@ class PublicRelease(Base):
         doc="Description of the public release",
     )
 
-    options = sa.Column(
-        sa.JSON,
-        nullable=False,
-        doc="Default options for the public source of the release",
-    )
-
     is_visible = sa.Column(
         sa.Boolean,
         nullable=False,
@@ -45,8 +39,20 @@ class PublicRelease(Base):
         doc="Whether the public release is visible to the public",
     )
 
+    groups = sa.Column(
+        sa.ARRAY(sa.Numeric),
+        nullable=False,
+        doc="Groups that can manage the public release",
+    )
+
     source_pages = relationship(
         "PublicSourcePage",
         back_populates="release",
         doc="The source pages in this public release",
+    )
+
+    options = sa.Column(
+        sa.JSON,
+        nullable=False,
+        doc="Default options for the public source of the release",
     )

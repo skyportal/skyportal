@@ -87,8 +87,9 @@ class PublicReleaseHandler(BaseHandler):
                 name=name,
                 link_name=link_name,
                 description=data.get("description", ""),
-                options=data.get("options", {}),
                 is_visible=data.get("is_visible", True),
+                groups=data.get("groups", []),
+                options=data.get("options", {}),
             )
             session.add(public_release)
             session.commit()
@@ -161,8 +162,9 @@ class PublicReleaseHandler(BaseHandler):
             public_release.name = name
             public_release.link_name = link_name
             public_release.description = data.get("description", "")
-            public_release.options = data.get("options", {})
             public_release.is_visible = data.get("is_visible", True)
+            public_release.groups = data.get("groups", [])
+            public_release.options = data.get("options", {})
             session.commit()
             return self.success(data=public_release)
 
