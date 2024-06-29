@@ -1,3 +1,7 @@
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import PropTypes from "prop-types";
+
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -8,9 +12,6 @@ import TextField from "@mui/material/TextField";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-import PropTypes from "prop-types";
-import React, { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 // eslint-disable-next-line import/no-unresolved
 import CircularProgress from "@mui/material/CircularProgress";
 import Grid from "@mui/material/Grid";
@@ -21,6 +22,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
 import GeoPropTypes from "geojson-prop-types";
+
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
@@ -29,17 +31,17 @@ import * as gcnEventActions from "../../ducks/gcnEvent";
 import * as instrumentActions from "../../ducks/instrument";
 import * as instrumentsActions from "../../ducks/instruments";
 import { planWithSameNameExists } from "../../ducks/observationPlans";
+import * as localizationActions from "../../ducks/localization";
 import GroupShareSelect from "../group/GroupShareSelect";
 import LocalizationPlot from "../localization/LocalizationPlot";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
-import * as localizationActions from "../../ducks/localization";
-
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const projectionOptions = ["orthographic", "mollweide"];
+const gridOptions = ["primary & secondary", "primary", "secondary"];
 
 const useStyles = makeStyles(() => ({
   chips: {
@@ -190,18 +192,13 @@ const ObservationPlanGlobe = ({
   selectedProjection,
   airmassValue = 2.5,
 }) => {
-  const displayOptions = [
-    "localization",
-    "sources",
-    "galaxies",
-    "instrument",
-    "observations",
-  ];
-  const displayOptionsDefault = Object.fromEntries(
-    displayOptions.map((x) => [x, false]),
-  );
-  displayOptionsDefault.localization = true;
-  displayOptionsDefault.instrument = true;
+  const displayOptionsDefault = {
+    localization: true,
+    sources: false,
+    galaxies: false,
+    instrument: true,
+    observations: false,
+  };
   return !loc ||
     gcnEvent?.localizations?.length === 0 ||
     gcnEvent?.localizations?.find((l) => l.id === loc.id) === undefined ? (
@@ -406,6 +403,8 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     airmassTime,
     instrumentList,
   ]);
+
+  const [grid, setGrid] = useState("primary & secondary");
 
   useEffect(() => {
     if (gcnEvent?.localizations?.length > 0 && selectedLocalizationId) {
@@ -640,6 +639,32 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
     link.click();
   };
 
+  const filteredFieldsSkyMapInstrument = (skymap_instrument) => {
+    // if skymap_instrument.name !== ZTF, just return it as is
+    if (skymap_instrument.name !== "ZTF" || grid === "primary & secondary") {
+      return skymap_instrument;
+    }
+    if (skymap_instrument.name === "ZTF" && grid === "primary") {
+      // remove fields where field_id >= 881
+      return {
+        ...skymap_instrument,
+        fields: skymap_instrument.fields.filter(
+          (field) => field.field_id >= 881,
+        ),
+      };
+    }
+    if (skymap_instrument.name === "ZTF" && grid === "secondary") {
+      // remove fields where field_id < 881
+      return {
+        ...skymap_instrument,
+        fields: skymap_instrument.fields.filter(
+          (field) => field.field_id < 881,
+        ),
+      };
+    }
+    return skymap_instrument;
+  };
+
   return (
     <Grid container spacing={4}>
       <Grid item xs={12} sm={12} md={6} lg={4}>
@@ -648,7 +673,9 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
             <ObservationPlanGlobe
               gcnEvent={gcnEvent}
               loc={obsplanLoc}
-              skymapInstrument={skymapInstrument}
+              skymapInstrument={filteredFieldsSkyMapInstrument(
+                skymapInstrument,
+              )}
               selectedFields={selectedFields}
               setSelectedFields={setSelectedFields}
               selectedProjection={selectedProjection}
@@ -682,6 +709,30 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                   </MenuItem>
                 ))}
               </Select>
+              {skymapInstrument.name === "ZTF" && (
+                <div>
+                  {/* show an MUI select to pick primary & secondary, primary, or secondary for the grid */}
+                  <InputLabel
+                    style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
+                    id="grid"
+                  >
+                    Grid
+                  </InputLabel>
+                  <Select
+                    labelId="grid"
+                    id="grid"
+                    value={grid}
+                    onChange={(e) => setGrid(e.target.value)}
+                    style={{ width: "100%" }}
+                  >
+                    {gridOptions.map((option) => (
+                      <MenuItem value={option} key={option}>
+                        {option}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </div>
+              )}
               <InputLabel
                 id="airmassTimeSelectLabel"
                 style={{ marginBottom: "0.5rem" }}
