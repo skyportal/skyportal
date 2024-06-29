@@ -2651,18 +2651,14 @@ def add_gcn_summary(
                     ras.append(np.round(source['ra'], 5) if 'ra' in source else None)
                     decs.append(np.round(source['dec'], 5) if 'dec' in source else None)
                     if (
-                        'redshift' in source
-                        and source['redshift'] is not None
+                        source.get('redshift') is not None
                         and not pd.isna(source['redshift'])
                         and not np.isinf(source['redshift'])
                     ):
-                        redshift = source['redshift'] if 'redshift' in source else None
+                        redshift = source['redshift']
                     else:
-                        redshift = None
-                    if (
-                        source.get('redshift_error') is not None
-                        and redshift is not None
-                    ):
+                        redshift = ''
+                    if source.get('redshift_error') is not None and not redshift == '':
                         redshift = f"{redshift}±{source['redshift_error']}"
                     redshifts.append(redshift)
                     source_in_gcn = next(
@@ -3047,7 +3043,7 @@ def add_gcn_summary(
                     contents.extend(observations_text)
 
         if not no_text and acknowledgements is not None and len(acknowledgements) > 0:
-            contents.append("\n" + acknowledgements)
+            contents.append("\n*" + acknowledgements + "*")
         gcn_summary.text = "\n".join(contents)
         session.commit()
 

@@ -71,6 +71,8 @@ const useStyles = makeStyles(() => ({
         textAlign: "center",
         border: "1px solid grey",
         borderRadius: "0.5rem",
+        // add padding to the table cells and headers
+        padding: "0.5rem",
       },
     },
   },
