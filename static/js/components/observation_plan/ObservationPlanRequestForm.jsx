@@ -641,10 +641,10 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
 
   const filteredFieldsSkyMapInstrument = (skymap_instrument) => {
     // if skymap_instrument.name !== ZTF, just return it as is
-    if (skymap_instrument.name !== "ZTF" || grid === "primary & secondary") {
+    if (skymap_instrument?.name !== "ZTF" || grid === "primary & secondary") {
       return skymap_instrument;
     }
-    if (skymap_instrument.name === "ZTF" && grid === "primary") {
+    if (skymap_instrument?.name === "ZTF" && grid === "primary") {
       // remove fields where field_id >= 881
       return {
         ...skymap_instrument,
@@ -653,7 +653,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
         ),
       };
     }
-    if (skymap_instrument.name === "ZTF" && grid === "secondary") {
+    if (skymap_instrument?.name === "ZTF" && grid === "secondary") {
       // remove fields where field_id < 881
       return {
         ...skymap_instrument,
@@ -709,7 +709,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
                   </MenuItem>
                 ))}
               </Select>
-              {skymapInstrument.name === "ZTF" && (
+              {skymapInstrument?.name === "ZTF" && (
                 <div>
                   {/* show an MUI select to pick primary & secondary, primary, or secondary for the grid */}
                   <InputLabel
