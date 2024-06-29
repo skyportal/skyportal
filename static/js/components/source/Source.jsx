@@ -997,8 +997,11 @@ const SourceContent = ({ source }) => {
               ) : null}
               <SourcePublish
                 sourceId={source.id}
-                isPhotometry={source.photometry_exists}
-                isClassifications={source.classifications?.length > 0}
+                isElements={{
+                  summary: source.summary_history?.length > 0,
+                  photometry: source.photometry_exists,
+                  classifications: source.classifications?.length > 0,
+                }}
               />
             </div>
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
