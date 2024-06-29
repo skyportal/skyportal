@@ -43,17 +43,12 @@ const useStyles = makeStyles(() => ({
     alignItems: "center",
   },
   textForm: {
-    // use 100% of the width
-    // and height, but limit the height to 80vh
-    // and make sure the text is scrollable
     width: "100%",
     height: "100%",
     maxHeight: "78vh",
     overflow: "auto",
-    // add a rounded border all around
     border: "2px solid black",
     borderRadius: "0.5rem",
-    // add some padding
     padding: "0.5rem",
   },
   textField: {
@@ -61,8 +56,6 @@ const useStyles = makeStyles(() => ({
     height: "100%",
   },
   markdown: {
-    // make sure any table in the markdown has black borders
-    // and values are centered
     "& table": {
       borderCollapse: "collapse",
       border: "1px solid grey",
@@ -71,7 +64,6 @@ const useStyles = makeStyles(() => ({
         textAlign: "center",
         border: "1px solid grey",
         borderRadius: "0.5rem",
-        // add padding to the table cells and headers
         padding: "0.5rem",
       },
     },
