@@ -2645,8 +2645,8 @@ def add_gcn_summary(
                     ids.append(source['id'] if 'id' in source else None)
                     tns_name.append(
                         str(source['tns_name']).replace(" ", "")
-                        if 'tns_name' in source
-                        else None
+                        if isinstance(source.get('tns_name'), str)
+                        else ''
                     )
                     ras.append(np.round(source['ra'], 5) if 'ra' in source else None)
                     decs.append(np.round(source['dec'], 5) if 'dec' in source else None)
