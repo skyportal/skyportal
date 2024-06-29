@@ -13,8 +13,10 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import Grid from "@mui/material/Grid";
-// import TextField from "@mui/material/TextField";
 import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
+import CloseIcon from "@mui/icons-material/Close";
+import Typography from "@mui/material/Typography";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -33,6 +35,12 @@ const useStyles = makeStyles(() => ({
   container: {
     width: "100%",
     overflow: "scroll",
+    height: "80vh",
+  },
+  dialogTitle: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   textForm: {
     // use 100% of the width
@@ -158,11 +166,16 @@ const EditSummaryDialog = ({ open, onSave, onClose, text, summaryID }) => {
     <Dialog
       open={open}
       onClose={onClose}
-      fullWidth
-      maxWidth="xlg"
+      fullScreen
       scroll="paper"
+      className={classes.dialog}
     >
-      <DialogTitle onClose={onClose}>Edit GCN Summary</DialogTitle>
+      <DialogTitle onClose={onClose} className={classes.dialogTitle}>
+        <Typography variant="h6">Edit GCN Summary</Typography>
+        <IconButton onClick={onClose}>
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
       <DialogContent className={classes.content} onKeyDown={handleKeyDown}>
         <Grid container spacing={2}>
           <Grid item xs={6}>
