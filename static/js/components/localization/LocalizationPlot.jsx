@@ -377,7 +377,7 @@ const GeoJSONGlobePlot = ({
         );
 
       svg
-        .selectAll(".label")
+        .selectAll(".label_angle")
         .data(angleMarkers)
         .enter()
         .append("text")
@@ -413,7 +413,7 @@ const GeoJSONGlobePlot = ({
       }
 
       svg
-        .selectAll(".label")
+        .selectAll(".label_sun")
         .data([data.sun])
         .enter()
         .append("text")
@@ -452,7 +452,7 @@ const GeoJSONGlobePlot = ({
       }
 
       svg
-        .selectAll(".label")
+        .selectAll(".label_moon")
         .data([data.moon])
         .enter()
         .append("text")
@@ -467,6 +467,34 @@ const GeoJSONGlobePlot = ({
         const x = (d) => projection(d.geometry.coordinates)[0];
         const y = (d) => projection(d.geometry.coordinates)[1];
 
+        // Draw the contour (90th most probable region)
+        svg
+          .selectAll("path_skymap_90")
+          .data([data.skymap.features[2]])
+          .enter()
+          .append("path")
+          .attr("class", (d) => d.properties.name)
+          .attr("d", geoGenerator)
+          .style("fill", "#abd2f7")
+          .style("fill-opacity", 0.45)
+          .style("stroke", "black")
+          .style("stroke-width", "1px")
+          .style("stroke-opacity", 1)
+          .raise();
+
+        // Draw the contour (50th most probable region)
+        svg
+          .selectAll("path_skymap_50")
+          .data([data.skymap.features[1]])
+          .enter()
+          .append("path")
+          .attr("class", (d) => d.properties.name)
+          .attr("d", geoGenerator)
+          .style("fill", "#abd2f7")
+          .style("fill-opacity", 0.85)
+          .style("stroke", "none");
+        // .style("stroke-width", "1px");
+
         // Draw the center (0th most probable region)
         svg
           .selectAll("circle_skymap")
@@ -479,7 +507,7 @@ const GeoJSONGlobePlot = ({
           .attr("r", 3);
 
         svg
-          .selectAll(".label")
+          .selectAll(".label_center")
           .data([data.skymap.features[0]])
           .enter()
           .append("text")
@@ -491,18 +519,6 @@ const GeoJSONGlobePlot = ({
           .style("font-size", "0.75rem")
           .style("font-weight", "normal")
           .text("Center");
-
-        // Draw the contour (90th most probable region)
-        svg
-          .selectAll("path")
-          .data(data.skymap.features)
-          .enter()
-          .append("path")
-          .attr("class", (d) => d.properties.name)
-          .attr("d", geoGenerator)
-          .style("fill", "none")
-          .style("stroke", "black")
-          .style("stroke-width", "0.5px");
       }
 
       if (data.instrument?.fields && data.options.instrument) {
@@ -525,25 +541,33 @@ const GeoJSONGlobePlot = ({
         data.instrument.fields.forEach((f) => {
           const { field_id } = f;
           const { features } = f.contour_summary;
-          const selected = selectedFields.includes(Number(f.id));
+          const selected = selectedFields.includes(Number(f.field_id));
           const { airmass } = f;
           const references = f.reference_filters || [];
+
+          // eslint-disable-next-line no-nested-ternary
+          const fill = selected
+            ? filterColor
+            : airmass && airmass < airmass_threshold
+              ? "white"
+              : "gray";
 
           svg
             .data(features)
             .append("path")
             .attr("class", field_id)
             .classed(classes.fieldStyle, true)
+            .style("fill", fill)
+            .style("opacity", 0.9)
             .style(
-              "fill",
-              // eslint-disable-next-line no-nested-ternary
-              selected
-                ? filterColor
-                : airmass && airmass < airmass_threshold
-                  ? "white"
-                  : "gray",
-            ) // we make the field semi-transparent if it doesn't have references
-            .style("opacity", has_ref && references.length === 0 ? 0.4 : 0.95)
+              "fill-opacity",
+              has_ref && references.length === 0 ? 0.3 : 0.85,
+            )
+            .style("stroke", "blue")
+            .style(
+              "stroke-opacity",
+              has_ref && references.length === 0 ? 0 : 0.65,
+            )
             .attr("d", geoGenerator)
             .on("click", () => {
               if (!selected) {
@@ -597,7 +621,7 @@ const GeoJSONGlobePlot = ({
 
       if (data.sources?.features && data.options.sources) {
         svg
-          .selectAll(".label")
+          .selectAll(".label_sources")
           .data(data.sources.features)
           .enter()
           .append("a")
@@ -628,7 +652,7 @@ const GeoJSONGlobePlot = ({
 
       if (data.galaxies?.features && data.options.galaxies) {
         svg
-          .selectAll(".label")
+          .selectAll(".label_galaxies")
           .data(data.galaxies.features)
           .enter()
           .append("a")
@@ -647,7 +671,7 @@ const GeoJSONGlobePlot = ({
         const y = (d) => projection(d.geometry.coordinates)[1];
 
         svg
-          .selectAll("circle")
+          .selectAll("circle_galaxies")
           .data(galaxies.features)
           .enter()
           .append("circle")
