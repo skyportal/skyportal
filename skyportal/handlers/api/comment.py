@@ -991,7 +991,7 @@ class CommentHandler(BaseHandler):
                 if attachment_name:
                     c.attachment_name = attachment_name
 
-                if group_ids is not None:
+                if isinstance(group_ids, list) and len(group_ids) > 0:
                     groups = session.scalars(
                         Group.select(session.user_or_token).where(
                             Group.id.in_(group_ids)

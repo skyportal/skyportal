@@ -174,9 +174,10 @@ const DefaultObservationPlanTable = ({
     const default_observation_plan = default_observation_plans[dataIndex];
     return (
       <div>
-        {default_observation_plan
-          ? default_observation_plan.auto_send.toString()
-          : ""}
+        {default_observation_plan &&
+        Object.keys(default_observation_plan).includes("auto_send")
+          ? default_observation_plan?.auto_send?.toString()
+          : "false"}
       </div>
     );
   };
@@ -337,11 +338,8 @@ const DefaultObservationPlanTable = ({
 };
 
 DefaultObservationPlanTable.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
-  // eslint-disable-next-line react/forbid-prop-types
   telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
-  // eslint-disable-next-line react/forbid-prop-types
   default_observation_plans: PropTypes.arrayOf(PropTypes.any).isRequired,
   paginateCallback: PropTypes.func.isRequired,
   sortingCallback: PropTypes.func,
