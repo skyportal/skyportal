@@ -38,7 +38,7 @@ pytest-rerunfailures==14.0
 tables==3.9.2
 timezonefinder==6.2.0
 astroplan==0.10
-py3-validate-email==1.0.12
+email-validator==2.2.0
 alembic==1.13.1
 marshmallow-jsonschema==0.13.0
 paramiko==3.4.0
