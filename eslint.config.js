@@ -37,6 +37,8 @@ module.exports = [
   },
   {
     rules: {
+      ...reactHookPlugin.configs.recommended.rules,
+      ...prettierPlugin.rules,
       camelcase: "off",
       "jsx-a11y/click-events-have-key-events": 0,
       "jsx-a11y/label-has-associated-control": 0,
