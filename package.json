@@ -19,7 +19,7 @@
     "@rjsf/core": "5.10.0",
     "@rjsf/material-ui": "5.5.0",
     "@rjsf/mui": "5.18.3",
-    "@rjsf/utils": "5.18.4",
+    "@rjsf/utils": "5.18.5",
     "@rjsf/validator-ajv6": "5.18.4",
     "@rjsf/validator-ajv8": "5.18.4",
     "autosuggest-highlight": "3.3.4",
