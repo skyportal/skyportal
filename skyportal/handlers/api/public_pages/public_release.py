@@ -1,11 +1,9 @@
 import operator  # noqa: F401
 import re
 
-from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 from ...base import BaseHandler
-
-from ....models import PublicRelease, PublicSourcePage
+from ....models import Group, PublicRelease, PublicSourcePage
 
 log = make_log('api/public_release')
 
@@ -83,13 +81,21 @@ class PublicReleaseHandler(BaseHandler):
             if not is_valid:
                 return self.error(message)
 
+            groups = session.scalars(
+                Group.select(session.user_or_token).where(
+                    Group.id.in_(data.get("groups", []))
+                )
+            ).all()
+            if not groups:
+                groups = [session.user_or_token.single_user_group]
+
             public_release = PublicRelease(
                 name=name,
                 link_name=link_name,
                 description=data.get("description", ""),
                 is_visible=data.get("is_visible", True),
-                groups=data.get("groups", []),
                 options=data.get("options", {}),
+                groups=groups,
             )
             session.add(public_release)
             session.commit()
@@ -159,11 +165,21 @@ class PublicReleaseHandler(BaseHandler):
             if not is_valid:
                 return self.error(message)
 
+            groups_id = data.get("groups", [])
+            if len(groups_id) == 0:
+                groups = session.user_or_token.single_user_group.id
+            else:
+                groups = session.scalars(
+                    Group.select(session.user_or_token).where(Group.id.in_(groups_id))
+                ).all()
+                if len(groups) == 0:
+                    return self.error("Invalid groups")
+            public_release.groups = groups
+
             public_release.name = name
             public_release.link_name = link_name
             public_release.description = data.get("description", "")
             public_release.is_visible = data.get("is_visible", True)
-            public_release.groups = data.get("groups", [])
             public_release.options = data.get("options", {})
             session.commit()
             return self.success(data=public_release)
@@ -197,7 +213,6 @@ class PublicReleaseHandler(BaseHandler):
             ).all()
             return self.success(data=public_releases)
 
-    @auth_or_token
     def delete(self, release_id):
         """
         ---
