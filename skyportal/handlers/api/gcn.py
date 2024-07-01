@@ -2538,12 +2538,12 @@ def add_gcn_summary(
         contents = []
         if not no_text:
             header_text = []
-            header_text.append(f"""TITLE: {title.upper()}\n""")
+            header_text.append(f"""## TITLE: {title.upper()}\n""")
             if number is not None:
-                header_text.append(f"""NUMBER: {number}\n""")
-            header_text.append(f"""SUBJECT: {subject[0].upper()+subject[1:]}\n""")
+                header_text.append(f"""#### NUMBER: {number}\n""")
+            header_text.append(f"""#### SUBJECT: {subject[0].upper()+subject[1:]}\n""")
             now_date = astropy.time.Time.now()
-            header_text.append(f"""DATE: {now_date}\n""")
+            header_text.append(f"""#### DATE: {now_date}\n""")
 
             if user.affiliations is not None and len(user.affiliations) > 0:
                 affiliations = ", ".join(user.affiliations)
@@ -2552,46 +2552,47 @@ def add_gcn_summary(
 
             # add a "FROM full name and affiliation"
             from_str = (
-                f"""FROM:  {user.first_name} {user.last_name} at {affiliations}"""
+                f"""#### FROM: {user.first_name} {user.last_name} at {affiliations}"""
             )
             if user.contact_email is not None:
                 from_str += f""" <{user.contact_email}>\n"""
             header_text.append(from_str)
 
-            if len(user_ids) > 0:
-                users = []
-                for mentioned_user_id in user_ids:
-                    mentioned_user = session.query(User).get(mentioned_user_id)
-                    if mentioned_user is not None:
-                        users.append(mentioned_user)
+            if user_id not in user_ids:
+                user_ids = [user_id] + user_ids
 
-                users_txt = []
-                for mentioned_user in users:
+            user_ids = list(set(user_ids))
+
+            users = []
+            for mentioned_user_id in user_ids:
+                mentioned_user = session.query(User).get(mentioned_user_id)
+                if mentioned_user is not None:
+                    users.append(mentioned_user)
+
+            users_txt = []
+            for mentioned_user in users:
+                if (
+                    mentioned_user.first_name is not None
+                    and mentioned_user.last_name is not None
+                ):
                     if (
-                        mentioned_user.first_name is not None
-                        and mentioned_user.last_name is not None
+                        mentioned_user.affiliations is not None
+                        and len(mentioned_user.affiliations) > 0
                     ):
-                        if (
-                            mentioned_user.affiliations is not None
-                            and len(mentioned_user.affiliations) > 0
-                        ):
-                            affiliations = ", ".join(mentioned_user.affiliations)
-                        else:
-                            affiliations = "..."
+                        affiliations = ", ".join(mentioned_user.affiliations)
+                    else:
+                        affiliations = "..."
 
-                        users_txt.append(
-                            f"""{mentioned_user.first_name[0].upper()}. {mentioned_user.last_name} ({affiliations})"""
-                        )
-                # create a string of all users, with 5 users per line
-                users_txt = "\n".join(
-                    [
-                        ", ".join(users_txt[i : i + 5])
-                        for i in range(0, len(users_txt), 5)
-                    ]
-                )
-                header_text.append(f"""\n{users_txt}\n""")
-
-            header_text.append(f"""\non behalf of the {group.name}, report:\n""")
+                    users_txt.append(
+                        f"""{mentioned_user.first_name[0].upper()}. {mentioned_user.last_name} ({affiliations})"""
+                    )
+            # create a string of all users, with 5 users per line
+            users_txt = "\n".join(
+                [", ".join(users_txt[i : i + 5]) for i in range(0, len(users_txt), 5)]
+            )
+            header_text.append(
+                f"""\n{users_txt} report{'s' if len(user_ids) == 1 else ''} on behalf of the {group.name} group:\n"""
+            )
             contents.extend(header_text)
 
         if show_sources:
@@ -2643,14 +2644,22 @@ def add_gcn_summary(
                 for source in sources:
                     ids.append(source['id'] if 'id' in source else None)
                     tns_name.append(
-                        source['tns_name'] if 'tns_name' in source else None
+                        str(source['tns_name']).replace(" ", "")
+                        if isinstance(source.get('tns_name'), str)
+                        else ''
                     )
                     ras.append(np.round(source['ra'], 5) if 'ra' in source else None)
                     decs.append(np.round(source['dec'], 5) if 'dec' in source else None)
-                    redshift = source['redshift'] if 'redshift' in source else None
-                    if 'redshift_error' in source and redshift is not None:
-                        if source['redshift_error'] is not None:
-                            redshift = f"{redshift}±{source['redshift_error']}"
+                    if (
+                        source.get('redshift') is not None
+                        and not pd.isna(source['redshift'])
+                        and not np.isinf(source['redshift'])
+                    ):
+                        redshift = source['redshift']
+                    else:
+                        redshift = ''
+                    if source.get('redshift_error') is not None and not redshift == '':
+                        redshift = f"{redshift}±{source['redshift_error']}"
                     redshifts.append(redshift)
                     source_in_gcn = next(
                         (
@@ -2700,7 +2709,7 @@ def add_gcn_summary(
                 df = df.fillna("--")
 
                 sources_text.append(
-                    f"\nFound {len(sources)} {'sources' if len(sources) > 1 else 'source'} in the event's localization, {df_rejected.shape[0]} of which {'have' if df_rejected.shape[0]>1 else 'has'} been rejected after characterization:\n"
+                    f"\nFound **{len(sources)} {'sources' if len(sources) > 1 else 'source'}** in the event's localization, {df_rejected.shape[0]} of which {'have' if df_rejected.shape[0]>1 else 'has'} been rejected after characterization:\n"
                 ) if not no_text else None
 
                 if df_confirmed_or_unknown.shape[0] > 0:
@@ -2710,7 +2719,7 @@ def add_gcn_summary(
                         tabulate(
                             df_confirmed_or_unknown,
                             headers='keys',
-                            tablefmt='psql',
+                            tablefmt='github',
                             showindex=False,
                             floatfmt=".4f",
                         )
@@ -2723,7 +2732,7 @@ def add_gcn_summary(
                         tabulate(
                             df_rejected,
                             headers='keys',
-                            tablefmt='psql',
+                            tablefmt='github',
                             showindex=False,
                             floatfmt=".4f",
                         )
@@ -2742,7 +2751,7 @@ def add_gcn_summary(
                     photometry = session.scalars(stmt).all()
                     if len(photometry) > 0:
                         sources_text.append(
-                            f"""\nPhotometry for source {source['id']}:\n"""
+                            f"""\nPhotometry of **{source['id']}**:\n"""
                         ) if not no_text else None
                         mjds, mags, filters, origins, instruments = (
                             [],
@@ -2771,7 +2780,15 @@ def add_gcn_summary(
                             else:
                                 mags.append(None)
                             filters.append(phot['filter'] if 'filter' in phot else None)
-                            origins.append(phot['origin'] if 'origin' in phot else None)
+                            if (
+                                'origin' in phot
+                                and phot['origin'] is not None
+                                and not pd.isna(phot['origin'])
+                                and not len(str(phot['origin']).replace(" ", "")) == 0
+                            ):
+                                origins.append(phot['origin'])
+                            else:
+                                origins.append('')
                             instruments.append(
                                 phot['instrument_name']
                                 if 'instrument_name' in phot
@@ -2797,7 +2814,7 @@ def add_gcn_summary(
                             tabulate(
                                 df_phot,
                                 headers='keys',
-                                tablefmt='psql',
+                                tablefmt='github',
                                 showindex=False,
                                 floatfmt=".5f",
                             )
@@ -2826,7 +2843,7 @@ def add_gcn_summary(
                     break
             if len(galaxies) > 0:
                 galaxies_text.append(
-                    f"""\nFound {len(galaxies)} {'galaxies' if len(galaxies) > 1 else 'galaxy'} in the event's localization:\n"""
+                    f"""\nFound **{len(galaxies)} {'galaxies' if len(galaxies) > 1 else 'galaxy'}** in the event's localization:\n"""
                 ) if not no_text else None
                 names, ras, decs, distmpcs, magks, mag_nuvs, mag_w1s, probabilities = (
                     [],
@@ -2880,7 +2897,7 @@ def add_gcn_summary(
                             'm_W1 [mag]',
                             'dP_dV',
                         ],
-                        tablefmt='psql',
+                        tablefmt='github',
                         showindex=False,
                         floatfmt=(str, ".4f", ".4f", ".1f", ".1f", ".1f", ".1f", ".3e"),
                     )
@@ -2950,7 +2967,7 @@ def add_gcn_summary(
                         dt = start_observation.datetime - event.dateobs
                         before_after = "after" if dt.total_seconds() > 0 else "before"
                         observations_text.append(
-                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format='datetime').isot} UTC.  We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees of the localization at least {nb_obs_to_word(number_of_observations)}, beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the trigger time). Using the {localization_name} skymap, this corresponds to ~{int(100 * probability)}% of the probability enclosed in the localization region.\n"""
+                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format='datetime').isot} UTC.  We obtained a total of **{num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees of the localization at least {nb_obs_to_word(number_of_observations)} times**, beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the trigger time). Using the {localization_name} skymap, this corresponds to **~{int(100 * probability)}% of the probability enclosed in the localization region**.\n"""
                         ) if not no_text else None
                         t0s, mjds, ras, decs, filters, exposures, limmags = (
                             [],
@@ -3013,7 +3030,7 @@ def add_gcn_summary(
                             tabulate(
                                 df_obs,
                                 headers='keys',
-                                tablefmt='psql',
+                                tablefmt='github',
                                 showindex=False,
                                 floatfmt=floatfmt,
                             )
@@ -3026,7 +3043,7 @@ def add_gcn_summary(
                     contents.extend(observations_text)
 
         if not no_text and acknowledgements is not None and len(acknowledgements) > 0:
-            contents.append("\n" + acknowledgements)
+            contents.append("\n*" + acknowledgements + "*")
         gcn_summary.text = "\n".join(contents)
         session.commit()
 
@@ -3328,35 +3345,34 @@ class GcnSummaryHandler(BaseHandler):
             user_accessible_group_ids = [
                 group.id for group in self.associated_user_object.accessible_groups
             ]
+            from skyportal.utils.asynchronous import run_async
 
             try:
-                IOLoop.current().run_in_executor(
-                    None,
-                    lambda: add_gcn_summary(
-                        summary_id=summary_id,
-                        user_id=user_id,
-                        user_accessible_group_ids=user_accessible_group_ids,
-                        dateobs=dateobs,
-                        title=title,
-                        number=number,
-                        subject=subject,
-                        user_ids=user_ids,
-                        group_id=group_id,
-                        start_date=start_date,
-                        end_date=end_date,
-                        localization_name=localization_name,
-                        localization_cumprob=localization_cumprob,
-                        number_of_detections=number_of_detections,
-                        number_of_observations=number_of_observations,
-                        show_sources=show_sources,
-                        show_galaxies=show_galaxies,
-                        show_observations=show_observations,
-                        no_text=no_text,
-                        photometry_in_window=photometry_in_window,
-                        stats_method=stats_method,
-                        instrument_ids=instrument_ids,
-                        acknowledgements=acknowledgements,
-                    ),
+                run_async(
+                    add_gcn_summary,
+                    summary_id=summary_id,
+                    user_id=user_id,
+                    user_accessible_group_ids=user_accessible_group_ids,
+                    dateobs=dateobs,
+                    title=title,
+                    number=number,
+                    subject=subject,
+                    user_ids=user_ids,
+                    group_id=group_id,
+                    start_date=start_date,
+                    end_date=end_date,
+                    localization_name=localization_name,
+                    localization_cumprob=localization_cumprob,
+                    number_of_detections=number_of_detections,
+                    number_of_observations=number_of_observations,
+                    show_sources=show_sources,
+                    show_galaxies=show_galaxies,
+                    show_observations=show_observations,
+                    no_text=no_text,
+                    photometry_in_window=photometry_in_window,
+                    stats_method=stats_method,
+                    instrument_ids=instrument_ids,
+                    acknowledgements=acknowledgements,
                 )
                 return self.success({"id": summary_id})
             except Exception as e:

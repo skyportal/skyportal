@@ -289,7 +289,7 @@ export function deleteGcnEventSummary({ dateobs, summaryID }) {
   );
 }
 
-export function patchGcnEventSummary(dateobs, summaryID, formData) {
+export function patchGcnEventSummary({ dateobs, summaryID, formData }) {
   return API.PATCH(
     `/api/gcn_event/${dateobs}/summary/${summaryID}`,
     PATCH_GCNEVENT_SUMMARY,

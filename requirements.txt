@@ -38,7 +38,7 @@ pytest-rerunfailures==14.0
 tables==3.9.2
 timezonefinder==6.2.0
 astroplan==0.10
-py3-validate-email==1.0.5.post1
+email-validator==2.2.0
 alembic==1.13.1
 marshmallow-jsonschema==0.13.0
 paramiko==3.4.0
@@ -46,12 +46,12 @@ scp==0.15.0
 requests_toolbelt==0.10.1
 sendgrid==6.10.0
 responses==0.25.0
-twilio==9.1.0
-numba==0.59.1
+twilio==9.2.2
+numba==0.60.0
 pyvo==1.5.1
 lxml==5.2.2
 suds-py3==1.4.5.0
-vcrpy==5.1.0
+vcrpy==6.0.1
 aiosmtpd==1.4.6
 ligo.skymap==2.0.1
 healpy==1.17.1
@@ -69,7 +69,7 @@ xarray>=21.1
 simsurvey==0.7.5
 noaodatalab==2.20.0
 black==24.4.2
-click==8.1.6
+click==8.1.7
 arviz==0.18.0
 corner==2.2.2
 penquins==2.4.1

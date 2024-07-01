@@ -3,8 +3,61 @@ import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import DialogContent from "@mui/material/DialogContent";
 import { useSelector } from "react-redux";
+
+export const sourcePublishOptionsSchema = (streams, groups, is_elements) => {
+  const schema = { type: "object", properties: {} };
+  const includeProperty = (text) => ({
+    type: "boolean",
+    default: true,
+    title: text,
+  });
+  const selectProperty = (text, items) => ({
+    type: "array",
+    items: {
+      type: "integer",
+      anyOf: items.map((item) => ({
+        enum: [item.id],
+        type: "integer",
+        title: item.name,
+      })),
+    },
+    uniqueItems: true,
+    default: [],
+    title: text,
+  });
+  if (is_elements == null || is_elements.summary) {
+    schema.properties.include_summary = includeProperty("Include summary?");
+  }
+  if (is_elements == null || is_elements.photometry) {
+    schema.properties.include_photometry = includeProperty(
+      "Include photometry?",
+    );
+  }
+  if (is_elements == null || is_elements.classifications) {
+    schema.properties.include_classifications = includeProperty(
+      "Include classifications?",
+    );
+  }
+  if (streams?.length > 0 && (is_elements == null || is_elements?.photometry)) {
+    schema.properties.streams = selectProperty(
+      "Streams to restrict photometry from",
+      streams,
+    );
+  }
+  if (
+    groups?.length > 0 &&
+    (is_elements == null ||
+      is_elements?.classifications ||
+      is_elements?.photometry)
+  ) {
+    schema.properties.groups = selectProperty(
+      "Groups to restrict data from",
+      groups,
+    );
+  }
+  return schema;
+};
 
 const useStyles = makeStyles(() => ({
   sourcePublishOptions: {
@@ -18,99 +71,36 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublishOptions = ({ optionsState, isElements }) => {
+const SourcePublishOptions = ({ options, setOptions, isElements }) => {
   const styles = useStyles();
   const streams = useSelector((state) => state.streams);
   const groups = useSelector((state) => state.groups.userAccessible);
-  const VALUE = 0;
-  const SETTER = 1;
-
-  const formSchema = {
-    type: "object",
-    properties: {
-      include_photometry: {
-        type: "boolean",
-        title: "Include photometry?",
-        default: true,
-      },
-      include_classifications: {
-        type: "boolean",
-        title: "Include classifications?",
-        default: true,
-      },
-    },
-  };
-  if (streams?.length > 0) {
-    formSchema.properties.streams = {
-      type: "array",
-      items: {
-        type: "integer",
-        anyOf: streams.map((stream) => ({
-          enum: [stream.id],
-          type: "integer",
-          title: stream.name,
-        })),
-      },
-      uniqueItems: true,
-      default: [],
-      title: "Streams to restrict photometry from",
-    };
-  }
-  if (groups?.length > 0) {
-    formSchema.properties.groups = {
-      type: "array",
-      items: {
-        type: "integer",
-        anyOf: groups.map((group) => ({
-          enum: [group.id],
-          type: "integer",
-          title: group.name,
-        })),
-      },
-      uniqueItems: true,
-      default: [],
-      title: "Groups to restrict data from",
-    };
-  }
 
   return (
-    <DialogContent className={styles.sourcePublishOptions}>
+    <div className={styles.sourcePublishOptions}>
       <Form
-        formData={optionsState[VALUE]}
-        onChange={({ formData }) => optionsState[SETTER](formData)}
-        schema={formSchema}
+        formData={options}
+        onChange={({ formData }) => setOptions(formData)}
+        schema={sourcePublishOptionsSchema(streams, groups, isElements)}
         liveValidate
         validator={validator}
         uiSchema={{
-          include_photometry: {
-            "ui:disabled": !isElements.photometry,
-          },
-          streams: {
-            "ui:disabled": !isElements.photometry,
-          },
-          include_classifications: {
-            "ui:disabled": !isElements.classifications,
-          },
-          "ui:disabled": !isElements.classifications && !isElements.photometry,
           "ui:submitButtonOptions": { norender: true },
         }}
       />
-    </DialogContent>
+    </div>
   );
 };
 
 SourcePublishOptions.propTypes = {
-  optionsState: PropTypes.arrayOf(
-    PropTypes.oneOfType([
-      PropTypes.shape({
-        include_photometry: PropTypes.bool,
-        include_classifications: PropTypes.bool,
-        groups: PropTypes.arrayOf(PropTypes.number),
-        streams: PropTypes.arrayOf(PropTypes.number),
-      }),
-      PropTypes.func,
-    ]),
-  ).isRequired,
+  options: PropTypes.shape({
+    include_summary: PropTypes.bool,
+    include_photometry: PropTypes.bool,
+    include_classifications: PropTypes.bool,
+    groups: PropTypes.arrayOf(PropTypes.number),
+    streams: PropTypes.arrayOf(PropTypes.number),
+  }).isRequired,
+  setOptions: PropTypes.func.isRequired,
   isElements: PropTypes.shape({
     photometry: PropTypes.bool,
     classifications: PropTypes.bool,

@@ -32,12 +32,16 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
+const SourcePublish = ({ sourceId, isElements }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const currentUser = useSelector((state) => state.profile);
   const permissionToPublish =
     currentUser.permissions?.includes("Manage sources");
+  const displayOptions =
+    permissionToPublish &&
+    (isElements.summary || isElements.photometry || isElements.classifications);
+
   const [sourcePublishDialogOpen, setSourcePublishDialogOpen] = useState(false);
   const [publishButton, setPublishButton] = useState({
     text: "Publish",
@@ -50,6 +54,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
   const [versions, setVersions] = useState([]);
   // Create data access options
   const [options, setOptions] = useState({
+    include_summary: true,
     include_photometry: true,
     include_classifications: true,
     groups: [],
@@ -137,7 +142,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
               </div>
             </Tooltip>
           </div>
-          {permissionToPublish && (
+          {displayOptions && (
             <div>
               <Button
                 className={styles.expandButton}
@@ -152,11 +157,9 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
               </Button>
               {sourcePublishOptionsOpen && (
                 <SourcePublishOptions
-                  optionsState={[options, setOptions]}
-                  isElements={{
-                    photometry: isPhotometry,
-                    classifications: isClassifications,
-                  }}
+                  options={options}
+                  setOptions={setOptions}
+                  isElements={isElements}
                 />
               )}
             </div>
@@ -189,8 +192,11 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
 
 SourcePublish.propTypes = {
   sourceId: PropTypes.string.isRequired,
-  isPhotometry: PropTypes.bool.isRequired,
-  isClassifications: PropTypes.bool.isRequired,
+  isElements: PropTypes.shape({
+    summary: PropTypes.bool,
+    photometry: PropTypes.bool,
+    classifications: PropTypes.bool,
+  }).isRequired,
 };
 
 export default SourcePublish;
