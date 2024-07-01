@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import EditIcon from "@mui/icons-material/Edit";
@@ -41,6 +41,7 @@ const useStyles = makeStyles(() => ({
 const ReleasesList = ({ releases, setReleases }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
+  const groups = useSelector((state) => state.groups);
   const [isSubmit, setIsSubmit] = useState(false);
   const [releaseToEdit, setReleaseToEdit] = useState({});
   const [openReleaseEdit, setOpenReleaseEdit] = useState(false);
@@ -113,6 +114,9 @@ const ReleasesList = ({ releases, setReleases }) => {
                   onClick={() => {
                     handleViewEdit(release);
                   }}
+                  disabled={release.groups.some((release_group) =>
+                    groups.includes(release_group.id),
+                  )}
                 >
                   <EditIcon />
                 </Button>
@@ -120,6 +124,9 @@ const ReleasesList = ({ releases, setReleases }) => {
                   onClick={() => {
                     deleteRelease(release.id);
                   }}
+                  disabled={release.groups.some((release_group) =>
+                    groups.includes(release_group.id),
+                  )}
                 >
                   <DeleteIcon />
                 </Button>
