@@ -32,7 +32,7 @@
     "css-loader": "6.8.1",
     "d3": "7.9.0",
     "d3-array": "3.2.4",
-    "d3-geo": "3.1.0",
+    "d3-geo": "3.1.1",
     "d3-geo-projection": "4.0.0",
     "d3-geo-zoom": "1.4.4",
     "data-uri-to-buffer": "5.0.1",
