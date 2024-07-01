@@ -1,6 +1,8 @@
 import operator  # noqa: F401
 import re
 
+from sqlalchemy.orm import joinedload
+
 from baselayer.log import make_log
 from ...base import BaseHandler
 from ....models import Group, PublicRelease, PublicSourcePage
@@ -87,7 +89,7 @@ class PublicReleaseHandler(BaseHandler):
                 )
             ).all()
             if not groups:
-                groups = [session.user_or_token.single_user_group]
+                return self.error("Specify at least one group")
 
             public_release = PublicRelease(
                 name=name,
@@ -165,22 +167,20 @@ class PublicReleaseHandler(BaseHandler):
             if not is_valid:
                 return self.error(message)
 
-            groups_id = data.get("groups", [])
-            if len(groups_id) == 0:
-                groups = session.user_or_token.single_user_group.id
-            else:
-                groups = session.scalars(
-                    Group.select(session.user_or_token).where(Group.id.in_(groups_id))
-                ).all()
-                if len(groups) == 0:
-                    return self.error("Invalid groups")
-            public_release.groups = groups
+            groups = session.scalars(
+                Group.select(session.user_or_token).where(
+                    Group.id.in_(data.get("groups", []))
+                )
+            ).all()
+            if not groups:
+                return self.error("Specify at least one group")
 
             public_release.name = name
             public_release.link_name = link_name
             public_release.description = data.get("description", "")
             public_release.is_visible = data.get("is_visible", True)
             public_release.options = data.get("options", {})
+            public_release.groups = groups
             session.commit()
             return self.success(data=public_release)
 
@@ -206,11 +206,15 @@ class PublicReleaseHandler(BaseHandler):
                   schema: Error
         """
         with self.Session() as session:
-            public_releases = session.execute(
-                PublicRelease.select(session.user_or_token, mode="read").order_by(
-                    PublicRelease.name.asc()
+            public_releases = (
+                session.execute(
+                    PublicRelease.select(session.user_or_token, mode="read")
+                    .options(joinedload(PublicRelease.groups))
+                    .order_by(PublicRelease.name.asc())
                 )
-            ).all()
+                .unique()
+                .all()
+            )
             return self.success(data=public_releases)
 
     def delete(self, release_id):
