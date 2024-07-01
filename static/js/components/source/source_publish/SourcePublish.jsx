@@ -33,12 +33,16 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
+const SourcePublish = ({ sourceId, isElements }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const currentUser = useSelector((state) => state.profile);
   const permissionToPublish =
     currentUser.permissions?.includes("Manage sources");
+  const displayOptions =
+    permissionToPublish &&
+    (isElements.summary || isElements.photometry || isElements.classifications);
+
   const [sourcePublishDialogOpen, setSourcePublishDialogOpen] = useState(false);
   const [publishButton, setPublishButton] = useState({
     text: "Publish",
@@ -52,6 +56,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
     useState(true);
   const [sourceReleaseId, setSourceReleaseId] = useState(null);
   const [options, setOptions] = useState({
+    include_summary: true,
     include_photometry: true,
     include_classifications: true,
     groups: [],
@@ -122,8 +127,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
             >
               <div>
                 <Button
-                  primary
-                  type="submit"
+                  variant="contained"
                   onClick={publish}
                   style={{
                     backgroundColor: publishButton.color,
@@ -162,7 +166,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
               />
             )}
           </div>
-          {permissionToPublish && (
+          {displayOptions && (
             <div>
               <Button
                 className={styles.expandButton}
@@ -179,10 +183,7 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
                 <SourcePublishOptions
                   options={options}
                   setOptions={setOptions}
-                  isElements={{
-                    photometry: isPhotometry,
-                    classifications: isClassifications,
-                  }}
+                  isElements={isElements}
                 />
               )}
             </div>
@@ -215,8 +216,11 @@ const SourcePublish = ({ sourceId, isPhotometry, isClassifications }) => {
 
 SourcePublish.propTypes = {
   sourceId: PropTypes.string.isRequired,
-  isPhotometry: PropTypes.bool.isRequired,
-  isClassifications: PropTypes.bool.isRequired,
+  isElements: PropTypes.shape({
+    summary: PropTypes.bool,
+    photometry: PropTypes.bool,
+    classifications: PropTypes.bool,
+  }).isRequired,
 };
 
 export default SourcePublish;

@@ -125,6 +125,9 @@ class PublicSourcePageHandler(BaseHandler):
                 "dl": round(source["luminosity_distance"], 2)
                 if source["luminosity_distance"]
                 else None,
+                "summary": source["summary"]
+                if options.get("include_summary") and source["summary"]
+                else None,
                 "thumbnails": process_thumbnails(
                     source["thumbnails"], source["ra"], source["dec"]
                 ),

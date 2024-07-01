@@ -78,7 +78,12 @@ const ShowSummaries = ({ summaries = [], showAISummaries = true }) => {
 };
 
 ShowSummaries.propTypes = {
-  summaries: PropTypes.arrayOf(PropTypes.string),
+  summaries: PropTypes.arrayOf(
+    PropTypes.shape({
+      summary: PropTypes.string,
+      is_bot: PropTypes.bool,
+    }),
+  ),
   showAISummaries: PropTypes.bool,
 };
 

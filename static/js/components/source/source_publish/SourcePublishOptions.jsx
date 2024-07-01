@@ -5,53 +5,56 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { useSelector } from "react-redux";
 
-export const sourcePublishOptionsSchema = (streams, groups) => {
-  const schema = {
-    type: "object",
-    properties: {
-      include_photometry: {
-        type: "boolean",
-        title: "Include photometry?",
-        default: true,
-      },
-      include_classifications: {
-        type: "boolean",
-        title: "Include classifications?",
-        default: true,
-      },
+export const sourcePublishOptionsSchema = (streams, groups, is_elements) => {
+  const schema = { type: "object", properties: {} };
+  const includeProperty = (text) => ({
+    type: "boolean",
+    default: true,
+    title: text,
+  });
+  const selectProperty = (text, items) => ({
+    type: "array",
+    items: {
+      type: "integer",
+      anyOf: items.map((item) => ({
+        enum: [item.id],
+        type: "integer",
+        title: item.name,
+      })),
     },
-  };
-  if (streams?.length > 0) {
-    schema.properties.streams = {
-      type: "array",
-      items: {
-        type: "integer",
-        anyOf: streams.map((stream) => ({
-          enum: [stream.id],
-          type: "integer",
-          title: stream.name,
-        })),
-      },
-      uniqueItems: true,
-      default: [],
-      title: "Streams to restrict photometry from",
-    };
+    uniqueItems: true,
+    default: [],
+    title: text,
+  });
+  if (is_elements == null || is_elements.summary) {
+    schema.properties.include_summary = includeProperty("Include summary?");
   }
-  if (groups?.length > 0) {
-    schema.properties.groups = {
-      type: "array",
-      items: {
-        type: "integer",
-        anyOf: groups.map((group) => ({
-          enum: [group.id],
-          type: "integer",
-          title: group.name,
-        })),
-      },
-      uniqueItems: true,
-      default: [],
-      title: "Groups to restrict data from",
-    };
+  if (is_elements == null || is_elements.photometry) {
+    schema.properties.include_photometry = includeProperty(
+      "Include photometry?",
+    );
+  }
+  if (is_elements == null || is_elements.classifications) {
+    schema.properties.include_classifications = includeProperty(
+      "Include classifications?",
+    );
+  }
+  if (streams?.length > 0 && (is_elements == null || is_elements?.photometry)) {
+    schema.properties.streams = selectProperty(
+      "Streams to restrict photometry from",
+      streams,
+    );
+  }
+  if (
+    groups?.length > 0 &&
+    (is_elements == null ||
+      is_elements?.classifications ||
+      is_elements?.photometry)
+  ) {
+    schema.properties.groups = selectProperty(
+      "Groups to restrict data from",
+      groups,
+    );
   }
   return schema;
 };
@@ -78,20 +81,10 @@ const SourcePublishOptions = ({ options, setOptions, isElements }) => {
       <Form
         formData={options}
         onChange={({ formData }) => setOptions(formData)}
-        schema={sourcePublishOptionsSchema(streams, groups)}
+        schema={sourcePublishOptionsSchema(streams, groups, isElements)}
         liveValidate
         validator={validator}
         uiSchema={{
-          include_photometry: {
-            "ui:disabled": !isElements.photometry,
-          },
-          streams: {
-            "ui:disabled": !isElements.photometry,
-          },
-          include_classifications: {
-            "ui:disabled": !isElements.classifications,
-          },
-          "ui:disabled": !isElements.classifications && !isElements.photometry,
           "ui:submitButtonOptions": { norender: true },
         }}
       />
@@ -101,6 +94,7 @@ const SourcePublishOptions = ({ options, setOptions, isElements }) => {
 
 SourcePublishOptions.propTypes = {
   options: PropTypes.shape({
+    include_summary: PropTypes.bool,
     include_photometry: PropTypes.bool,
     include_classifications: PropTypes.bool,
     groups: PropTypes.arrayOf(PropTypes.number),

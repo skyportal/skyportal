@@ -102,6 +102,11 @@
             <span> {{ data['dl'] | e }} Mpc </span>
             {% endif %}
           </h3>
+          {% if data.get('summary') %}
+            <p>
+                {{ data['summary'] | e }}
+            </p>
+          {% endif %}
         </div>
         <div class="images">
           {% for thumbnail in data.get('thumbnails') %}

@@ -3,7 +3,7 @@ from copy import deepcopy
 import phonenumbers
 import sqlalchemy as sa
 from phonenumbers.phonenumberutil import NumberParseException
-from validate_email import validate_email
+from email_validator import validate_email, EmailNotValidError
 from sqlalchemy.exc import IntegrityError
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
@@ -282,14 +282,13 @@ class ProfileHandler(BaseHandler):
             if data.get("contact_email") is not None:
                 email = data.pop("contact_email")
                 if email not in [None, ""]:
-                    if not validate_email(
-                        email_address=email,
-                        check_blacklist=False,
-                        check_dns=False,
-                        check_smtp=False,
-                    ):
-                        return self.error("Email does not appear to be valid")
-                    user.contact_email = email
+                    try:
+                        emailinfo = validate_email(email, check_deliverability=False)
+                    except EmailNotValidError as e:
+                        return self.error(
+                            f"Email does not appear to be valid: {str(e)}"
+                        )
+                    user.contact_email = emailinfo.normalized
                 else:
                     user.contact_email = None
 

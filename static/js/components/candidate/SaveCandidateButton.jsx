@@ -114,17 +114,25 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
   // https://material-ui.com/components/button-group/#split-button):
 
   const options = [`Save to ${filteredGroupNames}`, "Select groups & save"];
+  // also add options to save to each selected group individually
+  if (filterGroups.length > 1) {
+    filterGroups.forEach((group) => {
+      options.push(`Save to ${group.nickname || group.name} only`);
+    });
+  }
 
   const [splitButtonMenuOpen, setSplitButtonMenuOpen] = useState(false);
   const anchorRef = useRef(null);
-  const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const handleClickMainButton = async () => {
-    if (selectedIndex === 0) {
+  const handleClickMainButton = async (index) => {
+    if (index === 0 || index > 1) {
       setIsSubmitting(true);
       const data = {
         id: candidate.id,
-        group_ids: filterGroups.map((g) => g.id),
+        group_ids:
+          index === 0
+            ? filterGroups.map((g) => g.id)
+            : [filterGroups[index - 2].id],
         refresh_source: false,
       };
       const selectedGroupNames = [];
@@ -135,19 +143,16 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
       if (result.status === "success") {
         dispatch(
           showNotification(
-            `Candidate successfully saved to groups: ${selectedGroupNames.join()}.`,
+            `Candidate successfully saved to group${
+              selectedGroupNames?.length > 1 ? "s" : ""
+            }: ${selectedGroupNames.join()}.`,
           ),
         );
       }
       setIsSubmitting(false);
-    } else if (selectedIndex === 1) {
+    } else if (index === 1) {
       handleClickOpenDialog();
     }
-  };
-
-  const handleMenuItemClick = (event, index) => {
-    setSelectedIndex(index);
-    setSplitButtonMenuOpen(false);
   };
 
   const handleToggleSplitButtonMenu = () => {
@@ -169,13 +174,13 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
         aria-label="split button"
       >
         <Button
-          onClick={handleClickMainButton}
+          onClick={() => handleClickMainButton(0)}
           name={`initialSaveCandidateButton${candidate.id}`}
           data-testid={`saveCandidateButton_${candidate.id}`}
           disabled={isSubmitting}
           size="small"
         >
-          {options[selectedIndex]}
+          {options[0]}
         </Button>
         <Button
           size="small"
@@ -195,6 +200,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
         role={undefined}
         transition
         disablePortal
+        style={{ zIndex: 1 }}
       >
         {({ TransitionProps, placement }) => (
           <Grow
@@ -212,8 +218,7 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
                     <MenuItem
                       key={option}
                       name={`buttonMenuOption${candidate.id}_${option}`}
-                      selected={index === selectedIndex}
-                      onClick={(event) => handleMenuItemClick(event, index)}
+                      onClick={() => handleClickMainButton(index)}
                     >
                       {option}
                     </MenuItem>

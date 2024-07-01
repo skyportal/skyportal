@@ -34,7 +34,7 @@ repos:
     hooks:
       - id: ESLint
         name: ESLint
-        entry: npx eslint -c .eslintrc.yaml --fix
+        entry: npx eslint -c eslint.config.js --fix
         language: system
         files: \.[j]sx?$
         types: [file]
