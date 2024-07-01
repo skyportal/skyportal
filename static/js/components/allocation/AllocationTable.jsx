@@ -480,35 +480,31 @@ const AllocationTable = ({
           </ThemeProvider>
         </StyledEngineProvider>
       </Paper>
-      {newDialogOpen && (
-        <Dialog
-          open={newDialogOpen}
-          onClose={closeNewDialog}
-          style={{ position: "fixed" }}
-          maxWidth="md"
-        >
-          <DialogTitle>New Allocation</DialogTitle>
-          <DialogContent dividers>
-            <NewAllocation onClose={closeNewDialog} />
-          </DialogContent>
-        </Dialog>
-      )}
-      {editDialogOpen && (
-        <Dialog
-          open={editDialogOpen}
-          onClose={closeEditDialog}
-          style={{ position: "fixed" }}
-          maxWidth="md"
-        >
-          <DialogTitle>Edit Allocation</DialogTitle>
-          <DialogContent dividers>
-            <ModifyAllocation
-              allocation_id={allocationToEditDelete}
-              onClose={closeEditDialog}
-            />
-          </DialogContent>
-        </Dialog>
-      )}
+      <Dialog
+        open={newDialogOpen}
+        onClose={closeNewDialog}
+        style={{ position: "fixed" }}
+        maxWidth="md"
+      >
+        <DialogTitle>New Allocation</DialogTitle>
+        <DialogContent dividers>
+          <NewAllocation onClose={closeNewDialog} />
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={editDialogOpen}
+        onClose={closeEditDialog}
+        style={{ position: "fixed" }}
+        maxWidth="md"
+      >
+        <DialogTitle>Edit Allocation</DialogTitle>
+        <DialogContent dividers>
+          <ModifyAllocation
+            allocation_id={allocationToEditDelete}
+            onClose={closeEditDialog}
+          />
+        </DialogContent>
+      </Dialog>
       <ConfirmDeletionDialog
         deleteFunction={deleteAllocation}
         dialogOpen={deleteDialogOpen}
@@ -520,13 +516,9 @@ const AllocationTable = ({
 };
 
 AllocationTable.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
   allocations: PropTypes.arrayOf(PropTypes.any).isRequired,
-  // eslint-disable-next-line react/forbid-prop-types
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
-  // eslint-disable-next-line react/forbid-prop-types
   telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
-  // eslint-disable-next-line react/forbid-prop-types
   groups: PropTypes.arrayOf(PropTypes.any),
   deletePermission: PropTypes.bool,
   paginateCallback: PropTypes.func.isRequired,

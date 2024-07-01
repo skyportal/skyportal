@@ -11,10 +11,9 @@ const { fixupPluginRules } = require("@eslint/compat");
 
 module.exports = [
   {
-    files: ["**/**.js", "**/**.jsx"],
+    files: ["static/*.js", "static/*.jsx"],
     ignores: ["docs/*"],
     languageOptions: {
-      // parser: "@babel/eslint-parser",
       parser: require("@babel/eslint-parser"),
       parserOptions: {
         requireConfigFile: false,

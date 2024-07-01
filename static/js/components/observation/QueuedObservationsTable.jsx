@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import Paper from "@mui/material/Paper";
@@ -10,9 +10,15 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import IconButton from "@mui/material/IconButton";
+import AddIcon from "@mui/icons-material/Add";
 
 import MUIDataTable from "mui-datatables";
 import ObservationFilterForm from "./ObservationFilterForm";
+import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -76,12 +82,21 @@ const QueuedObservationsTable = ({
 
   const { instrumentList } = useSelector((state) => state.instruments);
 
+  const [newDialogOpen, setNewDialogOpen] = useState(false);
+
   const instrumentsLookup = {};
   if (instrumentList) {
     instrumentList.forEach((instrument) => {
       instrumentsLookup[instrument.id] = instrument;
     });
   }
+
+  const openNewDialog = () => {
+    setNewDialogOpen(true);
+  };
+  const closeNewDialog = () => {
+    setNewDialogOpen(false);
+  };
 
   const renderTelescope = (dataIndex) => {
     const { instrument_id } = observations[dataIndex];
@@ -135,7 +150,7 @@ const QueuedObservationsTable = ({
       label: "Telescope",
       options: {
         filter: false,
-        sort: true,
+        sort: false,
         sortThirdClickReset: true,
         customBodyRenderLite: renderTelescope,
       },
@@ -153,6 +168,10 @@ const QueuedObservationsTable = ({
     {
       name: "queue_name",
       label: "Queue name",
+      options: {
+        filter: false,
+        sort: false,
+      },
     },
     {
       name: "field_id",
@@ -169,8 +188,7 @@ const QueuedObservationsTable = ({
       label: "Right Ascension",
       options: {
         filter: false,
-        sort: true,
-        sortThirdClickReset: true,
+        sort: false,
         customBodyRenderLite: renderRA,
       },
     },
@@ -179,8 +197,7 @@ const QueuedObservationsTable = ({
       label: "Declination",
       options: {
         filter: false,
-        sort: true,
-        sortThirdClickReset: true,
+        sort: false,
         customBodyRenderLite: renderDeclination,
       },
     },
@@ -220,6 +237,16 @@ const QueuedObservationsTable = ({
     filter: true,
     download: true,
     customFilterDialogFooter: customFilterDisplay,
+    customToolbar: () => (
+      <IconButton
+        name="new_queued_observation"
+        onClick={() => {
+          openNewDialog();
+        }}
+      >
+        <AddIcon />
+      </IconButton>
+    ),
     onDownload: (buildHead, buildBody) => {
       const renderTelescopeDownload = (observation) => {
         const { instrument_id } = observation;
@@ -352,6 +379,17 @@ const QueuedObservationsTable = ({
               />
             </ThemeProvider>
           </StyledEngineProvider>
+          <Dialog
+            open={newDialogOpen}
+            onClose={closeNewDialog}
+            style={{ position: "fixed" }}
+            maxWidth="md"
+          >
+            <DialogTitle>Add Queued Observations (from API)</DialogTitle>
+            <DialogContent dividers>
+              <NewAPIQueuedObservation onClose={closeNewDialog} />
+            </DialogContent>
+          </Dialog>
         </Paper>
       ) : (
         <CircularProgress />
@@ -361,7 +399,6 @@ const QueuedObservationsTable = ({
 };
 
 QueuedObservationsTable.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
   observations: PropTypes.arrayOf(PropTypes.any).isRequired,
   handleTableChange: PropTypes.func.isRequired,
   handleFilterSubmit: PropTypes.func.isRequired,
