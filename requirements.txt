@@ -51,7 +51,7 @@ numba==0.59.1
 pyvo==1.5.1
 lxml==5.2.2
 suds-py3==1.4.5.0
-vcrpy==5.1.0
+vcrpy==6.0.1
 aiosmtpd==1.4.6
 ligo.skymap==2.0.1
 healpy==1.17.1
