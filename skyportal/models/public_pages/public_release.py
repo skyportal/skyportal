@@ -9,8 +9,6 @@ from baselayer.app.models import Base
 class PublicRelease(Base):
     """Public release of a group of sources."""
 
-    __tablename__ = 'public_releases'
-
     id = sa.Column(sa.Integer, primary_key=True)
 
     name = sa.Column(
@@ -39,10 +37,12 @@ class PublicRelease(Base):
         doc="Whether the public release is visible to the public",
     )
 
-    groups = sa.Column(
-        sa.ARRAY(sa.Numeric),
-        nullable=False,
-        doc="Groups that can manage the public release",
+    groups = relationship(
+        "Group",
+        secondary="group_public_releases",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="The groups that can manage the public release",
     )
 
     source_pages = relationship(
