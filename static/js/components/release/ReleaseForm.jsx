@@ -13,7 +13,7 @@ import Button from "../Button";
 const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
   const dispatch = useDispatch();
   const streams = useSelector((state) => state.streams);
-  const groups = useSelector((state) => state.groups.userAccessible);
+  const groups = useSelector((state) => state.groups.user);
   const sourceOptionsSchema = sourcePublishOptionsSchema(streams, groups);
   const releaseSchema = {
     type: "object",

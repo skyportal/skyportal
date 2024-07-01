@@ -41,7 +41,7 @@ const useStyles = makeStyles(() => ({
 const ReleasesList = ({ releases, setReleases }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
-  const groups = useSelector((state) => state.groups);
+  const groups = useSelector((state) => state.groups.userAccessible);
   const [isSubmit, setIsSubmit] = useState(false);
   const [releaseToEdit, setReleaseToEdit] = useState({});
   const [openReleaseEdit, setOpenReleaseEdit] = useState(false);
@@ -115,7 +115,7 @@ const ReleasesList = ({ releases, setReleases }) => {
                     handleViewEdit(release);
                   }}
                   disabled={release.groups.some((release_group) =>
-                    groups.includes(release_group.id),
+                    groups.includes(release_group),
                   )}
                 >
                   <EditIcon />
@@ -125,7 +125,7 @@ const ReleasesList = ({ releases, setReleases }) => {
                     deleteRelease(release.id);
                   }}
                   disabled={release.groups.some((release_group) =>
-                    groups.includes(release_group.id),
+                    groups.includes(release_group),
                   )}
                 >
                   <DeleteIcon />
