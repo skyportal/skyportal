@@ -13,6 +13,7 @@ import * as publicSourcePageActions from "../../../ducks/public_pages/public_sou
 import Button from "../../Button";
 import SourcePublishOptions from "./SourcePublishOptions";
 import SourcePublishHistory from "./SourcePublishHistory";
+import SourcePublishRelease from "./SourcePublishRelease";
 
 const useStyles = makeStyles(() => ({
   expandButton: {
@@ -47,12 +48,13 @@ const SourcePublish = ({ sourceId, isElements }) => {
     text: "Publish",
     color: "",
   });
+  const [sourcePublishReleaseOpen, setSourcePublishReleaseOpen] =
+    useState(false);
   const [sourcePublishOptionsOpen, setSourcePublishOptionsOpen] =
     useState(false);
   const [sourcePublishHistoryOpen, setSourcePublishHistoryOpen] =
     useState(true);
-  const [versions, setVersions] = useState([]);
-  // Create data access options
+  const [sourceReleaseId, setSourceReleaseId] = useState(null);
   const [options, setOptions] = useState({
     include_summary: true,
     include_photometry: true,
@@ -60,6 +62,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
     groups: [],
     streams: [],
   });
+  const [versions, setVersions] = useState([]);
 
   const publish = () => {
     if (permissionToPublish) {
@@ -67,6 +70,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
       dispatch(
         publicSourcePageActions.generatePublicSourcePage(sourceId, {
           options,
+          release_id: sourceReleaseId,
         }),
       ).then((data) => {
         if (data.status === "error") {
@@ -98,7 +102,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
       <Dialog
         open={sourcePublishDialogOpen}
         onClose={() => setSourcePublishDialogOpen(false)}
-        PaperProps={{ style: { maxWidth: "700px" } }}
+        PaperProps={{ style: { maxWidth: "800px" } }}
       >
         <DialogTitle>Public access information</DialogTitle>
         <DialogContent style={{ paddingBottom: "0.5rem" }}>
@@ -141,6 +145,26 @@ const SourcePublish = ({ sourceId, isElements }) => {
                 </Button>
               </div>
             </Tooltip>
+          </div>
+          <div>
+            <Button
+              className={styles.expandButton}
+              size="small"
+              variant="text"
+              onClick={() =>
+                setSourcePublishReleaseOpen(!sourcePublishReleaseOpen)
+              }
+            >
+              Release
+              {sourcePublishReleaseOpen ? <ExpandLess /> : <ExpandMore />}
+            </Button>
+            {sourcePublishReleaseOpen && (
+              <SourcePublishRelease
+                sourceReleaseId={sourceReleaseId}
+                setSourceReleaseId={setSourceReleaseId}
+                setOptions={setOptions}
+              />
+            )}
           </div>
           {displayOptions && (
             <div>

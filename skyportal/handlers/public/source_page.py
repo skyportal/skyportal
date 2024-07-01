@@ -58,7 +58,7 @@ class SourcePageHandler(BaseHandler):
                         description: |
                             The HTML content of the selected version of the public source page
                             or the latest version if hash is not provided
-                400:
+                404:
                   content:
                     application/json:
                       schema: Error
@@ -119,4 +119,4 @@ class SourcePageHandler(BaseHandler):
                 self.set_header("Content-Type", "text/html; charset=utf-8")
                 return self.write(data['html'])
             else:
-                return self.error("This page is not available", status=404)
+                return self.error("Page not found", status=404)

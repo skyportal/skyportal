@@ -78,6 +78,10 @@ class PublicSourcePageHandler(BaseHandler):
                                 type: object
                                 required: true
                                 description: Options to manage data to display publicly
+                            release_id:
+                                type: integer
+                                required: false
+                                description: The ID of the public release where the public source page belongs
           responses:
             200:
               content:
@@ -128,6 +132,7 @@ class PublicSourcePageHandler(BaseHandler):
                     source["thumbnails"], source["ra"], source["dec"]
                 ),
                 "options": options,
+                "release_id": data.get("release_id"),
             }
 
             # get photometry
@@ -144,7 +149,7 @@ class PublicSourcePageHandler(BaseHandler):
                     )
                 data_to_publish["photometry"] = [
                     photo.to_dict_public()
-                    for photo in session.scalars(stmt.distinct()).all()
+                    for photo in session.scalars(stmt).unique().all()
                 ]
 
             # get classifications
@@ -157,7 +162,7 @@ class PublicSourcePageHandler(BaseHandler):
                         Classification.groups.any(Group.id.in_(group_ids))
                     )
                 data_to_publish["classifications"] = [
-                    c.to_dict_public() for c in session.scalars(stmt.distinct()).all()
+                    c.to_dict_public() for c in session.scalars(stmt).unique().all()
                 ]
 
             new_page_hash = calculate_hash(data_to_publish)
@@ -171,7 +176,7 @@ class PublicSourcePageHandler(BaseHandler):
                 is not None
             ):
                 return self.error(
-                    "A public page with the same data and same options already exists for this source"
+                    "A public page with the same data, options and release already exists for this source"
                 )
 
             public_source_page = PublicSourcePage(
@@ -179,6 +184,7 @@ class PublicSourcePageHandler(BaseHandler):
                 hash=new_page_hash,
                 data=data_to_publish,
                 is_visible=True,
+                release_id=data_to_publish.get("release_id"),
             )
             session.add(public_source_page)
             session.commit()

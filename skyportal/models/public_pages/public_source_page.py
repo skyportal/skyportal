@@ -4,16 +4,11 @@ import json
 import jinja2
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import deferred
+from sqlalchemy.orm import deferred, relationship
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
-from baselayer.app.models import (
-    Base,
-    UserAccessControl,
-    CustomUserAccessControl,
-)
-from ..source import Source
-from ..group import GroupUser
+from baselayer.app.models import Base
+from ..group import accessible_by_groups_members
 
 from ...utils.cache import Cache, dict_to_bytes
 
@@ -26,23 +21,10 @@ cache = Cache(
 )
 
 
-def published_source_access_logic(cls, user_or_token):
-    """Return a query that filters PublicSourcePage instances based on user access."""
-    # if the user is a system admin, he can update and delete all published sources
-    # otherwise, he can only delete and update the published sources associate with his group
-    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = sa.select(cls)
-    if not user_or_token.is_system_admin:
-        query = query.join(Source, cls.source_id == Source.obj_id)
-        query = query.join(GroupUser, Source.group_id == GroupUser.group_id)
-        query = query.filter(GroupUser.user_id == user_id)
-    return query
-
-
 class PublicSourcePage(Base):
     """Public page of a source on a given date."""
 
-    update = delete = CustomUserAccessControl(published_source_access_logic)
+    update = delete = accessible_by_groups_members
 
     id = sa.Column(sa.Integer, primary_key=True)
 
@@ -63,6 +45,19 @@ class PublicSourcePage(Base):
         nullable=False,
         server_default='false',
         doc='Whether the page is visible to the public',
+    )
+
+    release_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey('publicreleases.id'),
+        nullable=True,
+        doc='ID of the public release associated with this source page',
+    )
+
+    release = relationship(
+        "PublicRelease",
+        back_populates="source_pages",
+        doc="The release associated with this source page",
     )
 
     def to_dict(self):
@@ -119,6 +114,11 @@ class PublicSourcePage(Base):
             }
             public_data["filters_mapper"] = get_bandpasses_to_colors(filters)
 
+        if self.release:
+            public_data["release"] = {
+                "name": self.release.name,
+                "link_name": self.release.link_name,
+            }
         environment = jinja2.Environment(
             autoescape=True,
             loader=jinja2.FileSystemLoader("./static/public_pages/sources/source"),
