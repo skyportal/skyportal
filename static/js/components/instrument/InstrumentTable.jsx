@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import { showNotification } from "baselayer/components/Notifications";
 import Paper from "@mui/material/Paper";
 import {
   createTheme,
@@ -10,13 +9,22 @@ import {
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
-import CircularProgress from "@mui/material/CircularProgress";
-import DeleteIcon from "@mui/icons-material/Delete";
 import { Link } from "react-router-dom";
 
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import IconButton from "@mui/material/IconButton";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import MUIDataTable from "mui-datatables";
+
+import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import NewInstrument from "./NewInstrument";
+import ModifyInstrument from "./ModifyInstrument";
 import * as instrumentActions from "../../ducks/instrument";
 
 const useStyles = makeStyles((theme) => ({
@@ -31,6 +39,12 @@ const useStyles = makeStyles((theme) => ({
       color: "white",
       background: theme.palette.primary.main,
     },
+  },
+  instrumentManage: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
   },
 }));
 
@@ -82,24 +96,42 @@ const InstrumentTable = ({
   const theme = useTheme();
   const dispatch = useDispatch();
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [instrumentToDelete, setInstrumentToDelete] = useState(null);
+  const [newDialogOpen, setNewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [instrumentToEditDelete, setInstrumentToEditDelete] = useState(null);
 
-  const openDialog = (id) => {
-    setDialogOpen(true);
-    setInstrumentToDelete(id);
+  const openNewDialog = () => {
+    setNewDialogOpen(true);
   };
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setInstrumentToDelete(null);
+  const closeNewDialog = () => {
+    setNewDialogOpen(false);
+  };
+
+  const openEditDialog = (id) => {
+    setEditDialogOpen(true);
+    setInstrumentToEditDelete(id);
+  };
+  const closeEditDialog = () => {
+    setEditDialogOpen(false);
+    setInstrumentToEditDelete(null);
+  };
+
+  const openDeleteDialog = (id) => {
+    setDeleteDialogOpen(true);
+    setInstrumentToEditDelete(id);
+  };
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setInstrumentToEditDelete(null);
   };
 
   const deleteInstrument = () => {
-    dispatch(instrumentActions.deleteInstrument(instrumentToDelete)).then(
+    dispatch(instrumentActions.deleteInstrument(instrumentToEditDelete)).then(
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Instrument deleted"));
-          closeDialog();
+          closeDeleteDialog();
         }
       },
     );
@@ -217,28 +249,35 @@ const InstrumentTable = ({
     );
   };
 
-  const renderDelete = (dataIndex) => {
+  const renderManage = (dataIndex) => {
+    if (!deletePermission) {
+      return null;
+    }
     const instrument = instruments[dataIndex];
     return (
-      <div>
+      <div className={classes.instrumentManage}>
         <Button
-          key={instrument.id}
-          id="delete_button"
+          key={`edit_${instrument.id}`}
+          id={`edit_button_${instrument.id}`}
+          classes={{
+            root: classes.instrumentEdit,
+          }}
+          onClick={() => openEditDialog(instrument.id)}
+          disabled={!deletePermission}
+        >
+          <EditIcon />
+        </Button>
+        <Button
+          key={`delete_${instrument.id}`}
+          id={`delete_button_${instrument.id}`}
           classes={{
             root: classes.instrumentDelete,
-            disabled: classes.instrumentDeleteDisabled,
           }}
-          onClick={() => openDialog(instrument.id)}
+          onClick={() => openDeleteDialog(instrument.id)}
           disabled={!deletePermission}
         >
           <DeleteIcon />
         </Button>
-        <ConfirmDeletionDialog
-          deleteFunction={deleteInstrument}
-          dialogOpen={dialogOpen}
-          closeDialog={closeDialog}
-          resourceName="instrument"
-        />
       </div>
     );
   };
@@ -403,10 +442,10 @@ const InstrumentTable = ({
     },
   });
   columns.push({
-    name: "delete",
+    name: "manage",
     label: " ",
     options: {
-      customBodyRenderLite: renderDelete,
+      customBodyRenderLite: renderManage,
     },
   });
 
@@ -424,34 +463,70 @@ const InstrumentTable = ({
     count: totalMatches,
     filter: true,
     sort: true,
+    customToolbar: () => (
+      <IconButton
+        name="new_instrument"
+        onClick={() => {
+          openNewDialog();
+        }}
+      >
+        <AddIcon />
+      </IconButton>
+    ),
   };
 
   return (
     <div>
-      {instruments ? (
-        <Paper className={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title={!hideTitle ? "" : ""}
-                data={instruments}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-        </Paper>
-      ) : (
-        <CircularProgress />
-      )}
+      <Paper className={classes.container}>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              title={hideTitle === true ? "" : "Instruments"}
+              data={instruments || []}
+              options={options}
+              columns={columns}
+            />
+          </ThemeProvider>
+        </StyledEngineProvider>
+        <Dialog
+          open={newDialogOpen}
+          onClose={closeNewDialog}
+          style={{ position: "fixed" }}
+          maxWidth="md"
+        >
+          <DialogTitle>New Instrument</DialogTitle>
+          <DialogContent dividers>
+            <NewInstrument onClose={closeNewDialog} />
+          </DialogContent>
+        </Dialog>
+        <Dialog
+          open={editDialogOpen && instrumentToEditDelete !== null}
+          onClose={closeEditDialog}
+          style={{ position: "fixed" }}
+          maxWidth="md"
+        >
+          <DialogTitle>Edit Instrument</DialogTitle>
+          <DialogContent dividers>
+            <ModifyInstrument
+              instrumentID={instrumentToEditDelete}
+              onClose={closeEditDialog}
+            />
+          </DialogContent>
+        </Dialog>
+        <ConfirmDeletionDialog
+          deleteFunction={deleteInstrument}
+          dialogOpen={deleteDialogOpen}
+          closeDialog={closeDeleteDialog}
+          resourceName="instrument"
+        />
+      </Paper>
     </div>
   );
 };
 
 InstrumentTable.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
-  // eslint-disable-next-line react/forbid-prop-types
+
   telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
   paginateCallback: PropTypes.func.isRequired,
   sortingCallback: PropTypes.func,

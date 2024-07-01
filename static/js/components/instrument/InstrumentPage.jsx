@@ -11,7 +11,7 @@ import InstrumentTable from "./InstrumentTable";
 import Spinner from "../Spinner";
 import * as instrumentsActions from "../../ducks/instruments";
 import NewInstrument from "./NewInstrument";
-// eslint-disable-next-line import/no-cycle
+
 import ModifyInstrument from "./ModifyInstrument";
 
 const useStyles = makeStyles((theme) => ({
@@ -173,43 +173,20 @@ const InstrumentList = () => {
 
   return (
     <Grid container spacing={2}>
-      <Grid item md={8} sm={12}>
-        <Paper elevation={1}>
-          <div className={classes.paper}>
-            <Typography variant="h6" display="inline">
-              Instruments
-            </Typography>
-            {instrumentsState.instrumentList && (
-              <InstrumentTable
-                instruments={instrumentsState.instrumentList}
-                telescopes={telescopesState.telescopeList}
-                deletePermission={delete_permission}
-                paginateCallback={handleInstrumentTablePagination}
-                totalMatches={instrumentsState.totalMatches}
-                pageNumber={instrumentsState.pageNumber}
-                numPerPage={instrumentsState.numPerPage}
-                sortingCallback={handleInstrumentTableSorting}
-              />
-            )}
-          </div>
-        </Paper>
+      <Grid item xs={12}>
+        {instrumentsState.instrumentList && (
+          <InstrumentTable
+            instruments={instrumentsState.instrumentList}
+            telescopes={telescopesState.telescopeList}
+            deletePermission={delete_permission}
+            paginateCallback={handleInstrumentTablePagination}
+            totalMatches={instrumentsState.totalMatches}
+            pageNumber={instrumentsState.pageNumber}
+            numPerPage={instrumentsState.numPerPage}
+            sortingCallback={handleInstrumentTableSorting}
+          />
+        )}
       </Grid>
-      {post_permission && (
-        <Grid item md={4} sm={12}>
-          <Paper>
-            <div className={classes.paper}>
-              <Typography variant="h6">Add a New Instrument</Typography>
-              <NewInstrument />
-            </div>
-          </Paper>
-          <Paper>
-            <div className={classes.paper}>
-              <Typography variant="h6">Modify an Instrument</Typography>
-              <ModifyInstrument />
-            </div>
-          </Paper>
-        </Grid>
-      )}
       {!instrumentsState.instrumentList && <Spinner />}
     </Grid>
   );
