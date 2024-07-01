@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
@@ -11,12 +11,24 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import IconButton from "@mui/material/IconButton";
+import AddIcon from "@mui/icons-material/Add";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
+import Grow from "@mui/material/Grow";
+import Popper from "@mui/material/Popper";
+import MenuList from "@mui/material/MenuList";
+import MenuItem from "@mui/material/MenuItem";
 
 import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import ObservationFilterForm from "./ObservationFilterForm";
+import NewObservation from "./NewObservation";
+import NewAPIObservation from "./NewAPIObservation";
 
 import { checkSource, saveSource } from "../../ducks/source";
 
@@ -86,12 +98,36 @@ const ExecutedObservationsTable = ({
 
   const { instrumentList } = useSelector((state) => state.instruments);
 
+  const [open, setOpen] = useState(false);
+  const [newDialogFromFileOpen, setNewDialogFromFileOpen] = useState(false);
+  const [newDialogFromAPIOpen, setNewDialogFromAPIOpen] = useState(false);
+  const anchorRef = useRef(null);
+
   const instrumentsLookup = {};
   if (instrumentList) {
     instrumentList.forEach((instrument) => {
       instrumentsLookup[instrument.id] = instrument;
     });
   }
+
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  const openNewFromFileDialog = () => {
+    setOpen(false);
+    setNewDialogFromFileOpen(true);
+  };
+  const openNewFromAPIDialog = () => {
+    setOpen(false);
+    setNewDialogFromAPIOpen(true);
+  };
+  const closeNewFromFileDialog = () => {
+    setNewDialogFromFileOpen(false);
+  };
+  const closeNewFromAPIDialog = () => {
+    setNewDialogFromAPIOpen(false);
+  };
 
   const renderTelescope = (dataIndex) => {
     const { instrument_id } = observations[dataIndex];
@@ -208,8 +244,7 @@ const ExecutedObservationsTable = ({
       label: "Telescope",
       options: {
         filter: false,
-        sort: true,
-        sortThirdClickReset: true,
+        sort: false,
         customBodyRenderLite: renderTelescope,
       },
     },
@@ -232,8 +267,7 @@ const ExecutedObservationsTable = ({
       label: "Field ID",
       options: {
         filter: false,
-        sort: true,
-        sortThirdClickReset: true,
+        sort: false,
         customBodyRenderLite: renderFieldID,
       },
     },
@@ -242,8 +276,7 @@ const ExecutedObservationsTable = ({
       label: "Right Ascension",
       options: {
         filter: false,
-        sort: true,
-        sortThirdClickReset: true,
+        sort: false,
         customBodyRenderLite: renderRA,
       },
     },
@@ -252,8 +285,7 @@ const ExecutedObservationsTable = ({
       label: "Declination",
       options: {
         filter: false,
-        sort: true,
-        sortThirdClickReset: true,
+        sort: false,
         customBodyRenderLite: renderDeclination,
       },
     },
@@ -276,6 +308,10 @@ const ExecutedObservationsTable = ({
     {
       name: "airmass",
       label: "Airmass",
+      options: {
+        filter: false,
+        sort: false,
+      },
     },
     {
       name: "seeing",
@@ -302,8 +338,7 @@ const ExecutedObservationsTable = ({
       label: "Save Source",
       options: {
         filter: false,
-        sort: true,
-        sortThirdClickReset: true,
+        sort: false,
         customBodyRenderLite: renderSaveSource,
       },
     },
@@ -323,6 +358,17 @@ const ExecutedObservationsTable = ({
     filter: true,
     download: true,
     customFilterDialogFooter: customFilterDisplay,
+    customToolbar: () => (
+      <IconButton
+        name="new_executed_observation"
+        ref={anchorRef}
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        <AddIcon />
+      </IconButton>
+    ),
     onDownload: (buildHead, buildBody) => {
       const renderTelescopeDownload = (observation) => {
         const { instrument_id } = observation;
@@ -469,6 +515,61 @@ const ExecutedObservationsTable = ({
               />
             </ThemeProvider>
           </StyledEngineProvider>
+          <Popper
+            open={open}
+            anchorEl={anchorRef.current}
+            role={undefined}
+            transition
+            disablePortal
+            style={{ zIndex: 1 }}
+          >
+            {({ TransitionProps, placement }) => (
+              <Grow
+                {...TransitionProps}
+                style={{
+                  transformOrigin:
+                    placement === "bottom" ? "center top" : "center bottom",
+                }}
+              >
+                <Paper>
+                  <ClickAwayListener onClickAway={handleClose}>
+                    <MenuList autoFocusItem={open} id="menu-list-grow">
+                      <MenuItem onClick={openNewFromFileDialog}>
+                        {" "}
+                        Add from File
+                      </MenuItem>
+                      <MenuItem onClick={openNewFromAPIDialog}>
+                        {" "}
+                        Add from API
+                      </MenuItem>
+                    </MenuList>
+                  </ClickAwayListener>
+                </Paper>
+              </Grow>
+            )}
+          </Popper>
+          <Dialog
+            open={newDialogFromFileOpen}
+            onClose={closeNewFromFileDialog}
+            style={{ position: "fixed" }}
+            maxWidth="md"
+          >
+            <DialogTitle>Add Executed Observations (from file)</DialogTitle>
+            <DialogContent dividers>
+              <NewObservation onClose={closeNewFromFileDialog} />
+            </DialogContent>
+          </Dialog>
+          <Dialog
+            open={newDialogFromAPIOpen}
+            onClose={closeNewFromAPIDialog}
+            style={{ position: "fixed" }}
+            maxWidth="md"
+          >
+            <DialogTitle>Add Executed Observations (from API)</DialogTitle>
+            <DialogContent dividers>
+              <NewAPIObservation onClose={closeNewFromAPIDialog} />
+            </DialogContent>
+          </Dialog>
         </Paper>
       ) : (
         <CircularProgress />
@@ -478,7 +579,6 @@ const ExecutedObservationsTable = ({
 };
 
 ExecutedObservationsTable.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
   observations: PropTypes.arrayOf(PropTypes.any).isRequired,
   handleTableChange: PropTypes.func.isRequired,
   handleFilterSubmit: PropTypes.func.isRequired,
