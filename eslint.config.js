@@ -10,9 +10,9 @@ const airbnbPlugin = require("eslint-config-airbnb");
 const { fixupPluginRules } = require("@eslint/compat");
 
 module.exports = [
+  { files: ["static/**/*.js", "static/**/*.jsx"] },
+  { ignores: ["docs/*"] },
   {
-    files: ["static/*.js", "static/*.jsx"],
-    ignores: ["docs/*"],
     languageOptions: {
       parser: require("@babel/eslint-parser"),
       parserOptions: {
@@ -25,6 +25,8 @@ module.exports = [
         ...global.browser,
       },
     },
+  },
+  {
     plugins: {
       import: importPlugin,
       react: reactPlugin,
@@ -32,19 +34,8 @@ module.exports = [
       airbnb: airbnbPlugin,
       prettier: prettierPlugin,
     },
-    settings: {
-      import: {
-        resolver: {
-          node: {},
-          webpack: {
-            config: "webpack.config.js",
-          },
-        },
-      },
-      react: {
-        version: "detect",
-      },
-    },
+  },
+  {
     rules: {
       camelcase: "off",
       "jsx-a11y/click-events-have-key-events": 0,
@@ -57,6 +48,21 @@ module.exports = [
       "react/jsx-props-no-spreading": 0,
       "no-param-reassign": 0,
       "react/jsx-curly-newline": 0,
+    },
+  },
+  {
+    settings: {
+      import: {
+        resolver: {
+          node: {},
+          webpack: {
+            config: "webpack.config.js",
+          },
+        },
+      },
+      react: {
+        version: "detect",
+      },
     },
   },
 ];
