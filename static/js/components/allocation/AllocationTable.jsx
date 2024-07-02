@@ -272,18 +272,15 @@ const AllocationTable = ({
   };
 
   const renderManage = (dataIndex) => {
-    const allocation = allocations[dataIndex];
     if (!deletePermission) {
       return null;
     }
+    const allocation = allocations[dataIndex];
     return (
       <div className={classes.allocationManage}>
         <Button
           key={`edit_${allocation.id}`}
           id={`edit_button_${allocation.id}`}
-          classes={{
-            root: classes.allocationEdit,
-          }}
           onClick={() => openEditDialog(allocation.id)}
           disabled={!deletePermission}
         >
@@ -292,9 +289,6 @@ const AllocationTable = ({
         <Button
           key={`delete_${allocation.id}`}
           id={`delete_button_${allocation.id}`}
-          classes={{
-            root: classes.allocationDelete,
-          }}
           onClick={() => openDeleteDialog(allocation.id)}
           disabled={!deletePermission}
         >
@@ -492,7 +486,7 @@ const AllocationTable = ({
         </DialogContent>
       </Dialog>
       <Dialog
-        open={editDialogOpen}
+        open={editDialogOpen && allocationToEditDelete !== null}
         onClose={closeEditDialog}
         style={{ position: "fixed" }}
         maxWidth="md"

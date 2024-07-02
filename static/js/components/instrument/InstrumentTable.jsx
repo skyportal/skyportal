@@ -259,9 +259,6 @@ const InstrumentTable = ({
         <Button
           key={`edit_${instrument.id}`}
           id={`edit_button_${instrument.id}`}
-          classes={{
-            root: classes.instrumentEdit,
-          }}
           onClick={() => openEditDialog(instrument.id)}
           disabled={!deletePermission}
         >
@@ -270,9 +267,6 @@ const InstrumentTable = ({
         <Button
           key={`delete_${instrument.id}`}
           id={`delete_button_${instrument.id}`}
-          classes={{
-            root: classes.instrumentDelete,
-          }}
           onClick={() => openDeleteDialog(instrument.id)}
           disabled={!deletePermission}
         >

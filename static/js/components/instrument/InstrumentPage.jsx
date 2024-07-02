@@ -1,18 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import Paper from "@mui/material/Paper";
 import makeStyles from "@mui/styles/makeStyles";
 import Grid from "@mui/material/Grid";
-import Typography from "@mui/material/Typography";
-
 import CircularProgress from "@mui/material/CircularProgress";
-import InstrumentTable from "./InstrumentTable";
-import Spinner from "../Spinner";
-import * as instrumentsActions from "../../ducks/instruments";
-import NewInstrument from "./NewInstrument";
 
-import ModifyInstrument from "./ModifyInstrument";
+import InstrumentTable from "./InstrumentTable";
+import * as instrumentsActions from "../../ducks/instruments";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -115,7 +109,6 @@ export function instrumentInfo(instrument, telescopeList) {
 }
 
 const InstrumentList = () => {
-  const classes = useStyles();
   const dispatch = useDispatch();
 
   const instrumentsState = useSelector((state) => state.instruments);
@@ -167,27 +160,20 @@ const InstrumentList = () => {
     dispatch(instrumentsActions.fetchInstruments(data));
   };
 
-  if (!instrumentsState.instrumentList) {
-    return <Spinner />;
-  }
-
   return (
     <Grid container spacing={2}>
       <Grid item xs={12}>
-        {instrumentsState.instrumentList && (
-          <InstrumentTable
-            instruments={instrumentsState.instrumentList}
-            telescopes={telescopesState.telescopeList}
-            deletePermission={delete_permission}
-            paginateCallback={handleInstrumentTablePagination}
-            totalMatches={instrumentsState.totalMatches}
-            pageNumber={instrumentsState.pageNumber}
-            numPerPage={instrumentsState.numPerPage}
-            sortingCallback={handleInstrumentTableSorting}
-          />
-        )}
+        <InstrumentTable
+          instruments={instrumentsState.instrumentList || []}
+          telescopes={telescopesState.telescopeList || []}
+          deletePermission={delete_permission}
+          paginateCallback={handleInstrumentTablePagination}
+          totalMatches={instrumentsState.totalMatches}
+          pageNumber={instrumentsState.pageNumber}
+          numPerPage={instrumentsState.numPerPage}
+          sortingCallback={handleInstrumentTableSorting}
+        />
       </Grid>
-      {!instrumentsState.instrumentList && <Spinner />}
     </Grid>
   );
 };
