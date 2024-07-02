@@ -401,6 +401,7 @@ class Spectrum(Base):
             'label': self.label,
             'instrument': self.instrument.name,
             'telescope': self.instrument.telescope.name,
+            'observed_at': self.observed_at.isoformat(),
             'pi': [pi.id for pi in self.pis],
             'reducer': [reducer.id for reducer in self.reducers],
             'observer': [observer.id for observer in self.observers],

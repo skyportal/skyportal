@@ -39,7 +39,9 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
       x: spectroscopy.wavelengths,
       y: spectroscopy.fluxes,
       text: getHoverTexts(spectroscopy),
-      name: spectroscopy.instrument,
+      name: `${spectroscopy.instrument} (${new Date(
+        spectroscopy.observed_at,
+      ).toLocaleDateString()})`,
       legendgroup: spectroscopy.id,
       line: {
         shape: "hvh",
@@ -178,6 +180,7 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
         `Flux: ${spectroscopy.fluxes[index]}<br>` +
         `Telescope: ${spectroscopy.telescope}<br>` +
         `Instrument: ${spectroscopy.instrument}<br>` +
+        `Observed at (UTC): ${spectroscopy.observed_at}<br>` +
         `PI: ${spectroscopy.pi.length ? spectroscopy.pi[index] : ""}<br>` +
         `Origin: ${spectroscopy.origin}`,
     );
