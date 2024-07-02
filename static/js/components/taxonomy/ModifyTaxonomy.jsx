@@ -1,11 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import Select from "@mui/material/Select";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
 import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
 import { fetchTaxonomies, modifyTaxonomy } from "../../ducks/taxonomies";
@@ -32,10 +30,9 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const ModifyTaxonomy = () => {
+const ModifyTaxonomy = ({ taxonomy_id, onClose }) => {
   const classes = useStyles();
 
-  const [selectedTaxonomyId, setSelectedTaxonomyId] = useState(null);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const dispatch = useDispatch();
 
@@ -47,45 +44,21 @@ const ModifyTaxonomy = () => {
       formData.group_ids = selectedGroupIds;
     }
 
-    const result = await dispatch(modifyTaxonomy(selectedTaxonomyId, formData));
+    const result = await dispatch(modifyTaxonomy(taxonomy_id, formData));
     if (result.status === "success") {
       dispatch(showNotification("Taxonomy saved"));
       dispatch(fetchTaxonomies());
+      if (typeof onClose === "function") {
+        onClose();
+      }
     }
   };
 
-  useEffect(() => {
-    const getTaxonomies = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result = await dispatch(fetchTaxonomies());
-
-      const { data } = result;
-      setSelectedTaxonomyId(data[0]?.id);
-    };
-
-    getTaxonomies();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedTaxonomyId]);
-
-  if (taxonomyList.length === 0 || !selectedTaxonomyId) {
-    return <h3>No taxonomies available...</h3>;
-  }
-
   const taxonomyLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   taxonomyList?.forEach((tax) => {
     taxonomyLookUp[tax.id] = tax;
   });
-
-  const handleSelectedTaxonomyChange = (e) => {
-    setSelectedTaxonomyId(e.target.value);
-  };
 
   const taxonomyFormSchema = {
     type: "object",
@@ -112,25 +85,6 @@ const ModifyTaxonomy = () => {
 
   return (
     <div className={classes.container}>
-      <InputLabel id="taxonomySelectLabel">Taxonomy</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="taxonomySelectLabel"
-        value={selectedTaxonomyId}
-        onChange={handleSelectedTaxonomyChange}
-        name="modifyTaxonomySelect"
-        className={classes.taxonomySelect}
-      >
-        {taxonomyList?.map((taxonomy) => (
-          <MenuItem
-            value={taxonomy.id}
-            key={taxonomy.id}
-            className={classes.taxonomySelectItem}
-          >
-            {`${taxonomy.name}`}
-          </MenuItem>
-        ))}
-      </Select>
       <Form
         schema={taxonomyFormSchema}
         validator={validator}
@@ -143,6 +97,15 @@ const ModifyTaxonomy = () => {
       />
     </div>
   );
+};
+
+ModifyTaxonomy.propTypes = {
+  taxonomy_id: PropTypes.number.isRequired,
+  onClose: PropTypes.func,
+};
+
+ModifyTaxonomy.defaultProps = {
+  onClose: null,
 };
 
 export default ModifyTaxonomy;

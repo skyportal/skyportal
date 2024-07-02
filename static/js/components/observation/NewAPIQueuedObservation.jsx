@@ -1,18 +1,20 @@
 import React, { useEffect } from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
+import { showNotification } from "baselayer/components/Notifications";
 import * as queuedObservationActions from "../../ducks/queued_observations";
 import * as allocationActions from "../../ducks/allocations";
 
 dayjs.extend(utc);
 
-const NewAPIQueuedObservation = () => {
+const NewAPIQueuedObservation = ({ onClose }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiObsplan } = useSelector(
@@ -46,7 +48,6 @@ const NewAPIQueuedObservation = () => {
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
   if (
@@ -63,19 +64,19 @@ const NewAPIQueuedObservation = () => {
   }
 
   const groupLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   allGroups?.forEach((group) => {
     groupLookUp[group.id] = group;
   });
 
   const telLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
 
   const instLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   instrumentList?.forEach((instrumentObj) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
@@ -85,12 +86,22 @@ const NewAPIQueuedObservation = () => {
       startDate: formData.start_date.replace("+00:00", "").replace(".000Z", ""),
       endDate: formData.end_date.replace("+00:00", "").replace(".000Z", ""),
     };
-    await dispatch(
+    const result = await dispatch(
       queuedObservationActions.requestAPIQueuedObservations(
         formData.allocation_id,
         data,
       ),
     );
+    if (result.status === "success") {
+      dispatch(
+        showNotification(
+          "Requested API Queued Observation, the list will update shortly.",
+        ),
+      );
+      if (typeof onClose === "function") {
+        onClose();
+      }
+    }
   };
 
   function validate(formData, errors) {
@@ -144,11 +155,18 @@ const NewAPIQueuedObservation = () => {
       schema={observationFormSchema}
       validator={validator}
       onSubmit={handleSubmit}
-      // eslint-disable-next-line react/jsx-no-bind
       customValidate={validate}
       liveValidate
     />
   );
+};
+
+NewAPIQueuedObservation.propTypes = {
+  onClose: PropTypes.func,
+};
+
+NewAPIQueuedObservation.defaultProps = {
+  onClose: null,
 };
 
 export default NewAPIQueuedObservation;

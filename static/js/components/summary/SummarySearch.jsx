@@ -14,7 +14,6 @@ import { showNotification } from "baselayer/components/Notifications";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 
-// eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Table from "@mui/material/Table";
@@ -35,14 +34,23 @@ const useStyles = makeStyles((theme) => ({
   },
   button: {
     width: "100%",
+    maxWidth: "10rem",
   },
   buttons: {
     display: "flex",
     flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
     width: "100%",
     gap: theme.spacing(2),
   },
-  source: {},
+  title: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+  },
   commentListContainer: {
     height: "15rem",
     overflowY: "scroll",
@@ -54,6 +62,12 @@ const useStyles = makeStyles((theme) => ({
   parameterinline: {
     marginRight: "16px",
     display: "flex",
+  },
+  gridItem: {
+    width: "100%",
+  },
+  paper: {
+    padding: theme.spacing(2),
   },
 }));
 
@@ -155,6 +169,7 @@ const SummarySearch = () => {
   };
 
   const uiSchema = {
+    "ui:title": "Summary Search",
     q: {
       "ui:autofocus": true,
       "ui:placeholder": "What sources are associated with NGC galaxies?",
@@ -197,21 +212,14 @@ const SummarySearch = () => {
   return (
     <Grid
       container
-      spacing={3}
+      spacing={1}
       columns={12}
       direction="column"
       alignItems="center"
       justifyContent="center"
     >
-      <Grid item xs={12}>
-        <div className={classes.source}>
-          <Typography variant="h6" gutterBottom>
-            Summary Search
-          </Typography>
-        </div>
-      </Grid>
-      <Grid item xs={8}>
-        <Paper elevation={1}>
+      <Grid item xs={12} className={classes.gridItem} style={{ paddingTop: 0 }}>
+        <Paper elevation={1} className={classes.paper}>
           <Form
             schema={formSchema}
             validator={validator}
@@ -234,6 +242,7 @@ const SummarySearch = () => {
               </Button>
               <Button
                 secondary
+                className={classes.button}
                 disabled={runningQuery}
                 type="button"
                 onClick={onClear}
@@ -291,6 +300,7 @@ const SummarySearch = () => {
                         to={`/source/${source.id}`}
                         role="link"
                         key={source.id}
+                        target="_blank"
                       >
                         {source.id}
                       </Link>

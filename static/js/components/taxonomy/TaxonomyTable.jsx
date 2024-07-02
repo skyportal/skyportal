@@ -1,9 +1,7 @@
 import React, { useState } from "react";
-import { JSONTree } from "react-json-tree";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import DeleteIcon from "@mui/icons-material/Delete";
 import {
   createTheme,
   StyledEngineProvider,
@@ -11,13 +9,23 @@ import {
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
-import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import IconButton from "@mui/material/IconButton";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import ReactJson from "react-json-view";
+import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 
 import { showNotification } from "baselayer/components/Notifications";
 
 import MUIDataTable from "mui-datatables";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import ModifyTaxonomy from "./ModifyTaxonomy";
+import NewTaxonomy from "./NewTaxonomy";
 import * as taxonomyActions from "../../ducks/taxonomies";
 
 const useStyles = makeStyles((theme) => ({
@@ -94,23 +102,52 @@ const TaxonomyTable = ({
 
   const [setRowsPerPage] = useState(100);
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [taxonomyToDelete, setTaxonomyToDelete] = useState(null);
-  const openDialog = (id) => {
-    setDialogOpen(true);
-    setTaxonomyToDelete(id);
+  const [newDialogOpen, setNewDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [taxonomyToViewEditDelete, setTaxonomyToViewEditDelete] =
+    useState(null);
+  const openNewDialog = () => {
+    setNewDialogOpen(true);
   };
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setTaxonomyToDelete(null);
+  const closeNewDialog = () => {
+    setNewDialogOpen(false);
+  };
+
+  const openDetailsDialog = (id) => {
+    setDetailsDialogOpen(true);
+    setTaxonomyToViewEditDelete(id);
+  };
+  const closeDetailsDialog = () => {
+    setDetailsDialogOpen(false);
+    setTaxonomyToViewEditDelete(null);
+  };
+
+  const openEditDialog = (id) => {
+    setEditDialogOpen(true);
+    setTaxonomyToViewEditDelete(id);
+  };
+  const closeEditDialog = () => {
+    setEditDialogOpen(false);
+    setTaxonomyToViewEditDelete(null);
+  };
+
+  const openDeleteDialog = (id) => {
+    setDeleteDialogOpen(true);
+    setTaxonomyToViewEditDelete(id);
+  };
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setTaxonomyToViewEditDelete(null);
   };
 
   const deleteTaxonomy = () => {
-    dispatch(taxonomyActions.deleteTaxonomy(taxonomyToDelete)).then(
+    dispatch(taxonomyActions.deleteTaxonomy(taxonomyToViewEditDelete)).then(
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Taxonomy deleted"));
-          closeDialog();
+          closeDeleteDialog();
         }
       },
     );
@@ -126,20 +163,6 @@ const TaxonomyTable = ({
     const taxonomy = taxonomies[dataIndex];
 
     return <div>{taxonomy ? taxonomy.id : ""}</div>;
-  };
-
-  const renderHierarchy = (dataIndex) => {
-    const taxonomy = taxonomies[dataIndex];
-
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
-
-    return (
-      <div style={cellStyle}>
-        {taxonomy ? <JSONTree data={taxonomy.hierarchy} /> : ""}
-      </div>
-    );
   };
 
   const renderIsLatest = (dataIndex) => {
@@ -170,28 +193,42 @@ const TaxonomyTable = ({
     return <div>{groupNames.length > 0 ? groupNames.join("\n") : ""}</div>;
   };
 
-  const renderDelete = (dataIndex) => {
+  const renderDetails = (dataIndex) => {
     const taxonomy = taxonomies[dataIndex];
     return (
-      <div>
+      <IconButton
+        key={`details_${taxonomy.id}`}
+        id={`details_button_${taxonomy.id}`}
+        onClick={() => openDetailsDialog(taxonomy.id)}
+      >
+        <HistoryEduIcon />
+      </IconButton>
+    );
+  };
+
+  const renderManage = (dataIndex) => {
+    if (!deletePermission) {
+      return null;
+    }
+    const taxonomy = taxonomies[dataIndex];
+    return (
+      <div className={classes.taxonomyManage}>
         <Button
-          key={taxonomy.id}
-          id="delete_button"
-          classes={{
-            root: classes.taxonomyDelete,
-            disabled: classes.taxonomyDeleteDisabled,
-          }}
-          onClick={() => openDialog(taxonomy.id)}
+          key={`edit_${taxonomy.id}`}
+          id={`edit_button_${taxonomy.id}`}
+          onClick={() => openEditDialog(taxonomy.id)}
+          disabled={!deletePermission}
+        >
+          <EditIcon />
+        </Button>
+        <Button
+          key={`delete_${taxonomy.id}`}
+          id={`delete_button_${taxonomy.id}`}
+          onClick={() => openDeleteDialog(taxonomy.id)}
           disabled={!deletePermission}
         >
           <DeleteIcon />
         </Button>
-        <ConfirmDeletionDialog
-          deleteFunction={deleteTaxonomy}
-          dialogOpen={dialogOpen}
-          closeDialog={closeDialog}
-          resourceName="taxonomy"
-        />
       </div>
     );
   };
@@ -240,16 +277,6 @@ const TaxonomyTable = ({
       },
     },
     {
-      name: "hierarchy",
-      label: "Hierarchy",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderHierarchy,
-      },
-    },
-    {
       name: "isLatest",
       label: "isLatest",
       options: {
@@ -284,16 +311,24 @@ const TaxonomyTable = ({
       label: "Groups",
       options: {
         filter: false,
-        sort: true,
-        sortThirdClickReset: true,
+        sort: false,
         customBodyRenderLite: renderGroups,
       },
     },
     {
-      name: "delete",
+      name: "details",
+      label: "Hierarchy",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderDetails,
+      },
+    },
+    {
+      name: "manage",
       label: " ",
       options: {
-        customBodyRenderLite: renderDelete,
+        customBodyRenderLite: renderManage,
       },
     },
   ];
@@ -309,32 +344,86 @@ const TaxonomyTable = ({
     count: totalMatches,
     filter: true,
     sort: true,
+    customToolbar: () => (
+      <IconButton
+        name="new_taxonomy"
+        onClick={() => {
+          openNewDialog();
+        }}
+      >
+        <AddIcon />
+      </IconButton>
+    ),
   };
 
   return (
     <div>
-      {taxonomies ? (
-        <Paper className={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title={!hideTitle ? "" : ""}
-                data={taxonomies}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-        </Paper>
-      ) : (
-        <CircularProgress />
-      )}
+      <Paper className={classes.container}>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              title={hideTitle === true ? "" : "Taxonomies"}
+              data={taxonomies}
+              options={options}
+              columns={columns}
+            />
+          </ThemeProvider>
+        </StyledEngineProvider>
+      </Paper>
+      <Dialog
+        open={newDialogOpen}
+        onClose={closeNewDialog}
+        style={{ position: "fixed" }}
+        maxWidth="md"
+      >
+        <DialogTitle>New Taxonomy</DialogTitle>
+        <DialogContent dividers>
+          <NewTaxonomy onClose={closeNewDialog} />
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={detailsDialogOpen && taxonomyToViewEditDelete}
+        onClose={closeDetailsDialog}
+        style={{ position: "fixed" }}
+        maxWidth="lg"
+      >
+        <DialogTitle>Taxonomy Content</DialogTitle>
+        <DialogContent dividers>
+          <ReactJson
+            src={taxonomies[taxonomyToViewEditDelete]?.hierarchy || {}}
+            name={false}
+            displayDataTypes={false}
+            displayObjectSize={false}
+            enableClipboard={false}
+            collapsed={false}
+          />
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={editDialogOpen && taxonomyToViewEditDelete !== null}
+        onClose={closeEditDialog}
+        style={{ position: "fixed" }}
+        maxWidth="md"
+      >
+        <DialogTitle>Edit Taxonomy</DialogTitle>
+        <DialogContent dividers>
+          <ModifyTaxonomy
+            taxonomy_id={taxonomyToViewEditDelete}
+            onClose={closeEditDialog}
+          />
+        </DialogContent>
+      </Dialog>
+      <ConfirmDeletionDialog
+        deleteFunction={deleteTaxonomy}
+        dialogOpen={deleteDialogOpen && taxonomyToViewEditDelete}
+        closeDialog={closeDeleteDialog}
+        resourceName="taxonomy"
+      />
     </div>
   );
 };
 
 TaxonomyTable.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
   taxonomies: PropTypes.arrayOf(PropTypes.any).isRequired,
   paginateCallback: PropTypes.func.isRequired,
   sortingCallback: PropTypes.func,
