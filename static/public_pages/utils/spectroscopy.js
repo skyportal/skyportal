@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars */
-
 function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
   const baseLayout = {
     zeroline: false,
@@ -24,13 +22,11 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
       side: "bottom",
       tickformat: ".6~f",
       zeroline: false,
-      // eslint-disable-next-line no-undef
       ...baseLayout,
     },
     yaxis: {
       title: "Flux",
       side: "left",
-      // eslint-disable-next-line no-undef
       ...baseLayout,
     },
     margin: {
@@ -69,7 +65,6 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
     },
   };
 
-  /* eslint-disable no-unused-vars */
   const config = {
     responsive: true,
     displaylogo: false,
@@ -86,10 +81,8 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
     modeBarButtonsToAdd: [
       {
         name: "Reset",
-        // eslint-disable-next-line no-undef
         icon: Plotly.Icons.home,
         click: () => {
-          // eslint-disable-next-line no-undef
           Plotly.relayout(
             document.getElementsByClassName("plotly")[0].parentElement,
             layoutGraphPart,
@@ -99,7 +92,6 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
     ],
   };
 
-  /* eslint-disable no-unused-vars */
   function getHoverTexts(spectroscopy) {
     return spectroscopy.wavelengths.map(
       (wavelength, index) =>
@@ -141,7 +133,6 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
     });
   });
 
-  // eslint-disable-next-line no-undef
   Plotly.newPlot(
     document.getElementById(div_id),
     plotData,
