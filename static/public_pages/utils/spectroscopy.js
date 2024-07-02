@@ -1,4 +1,63 @@
 function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
+  const spectroscopy_tab = JSON.parse(spectroscopy_data);
+  const plotData = [];
+
+  // Data processing
+  spectroscopy_tab.forEach((spectroscopy, index) => {
+    const updateFluxes = [];
+    const updateWavelengths = [];
+
+    const getNormFactor = (val) => {
+      const sorted = val.slice().sort((a, b) => a - b);
+      const half = Math.floor(val.length / 2);
+      const median =
+        val.length % 2 !== 0
+          ? sorted[half]
+          : (sorted[half - 1] + sorted[half]) / 2.0;
+      return Math.abs(median) || 1e-20;
+    };
+    const normFactor = getNormFactor(spectroscopy.fluxes);
+
+    const isNullOrNaN = (val) => val === null || isNaN(val);
+    spectroscopy.fluxes.forEach((flux, index) => {
+      let wavelength = spectroscopy.wavelengths[index];
+      let normedFlux = flux / normFactor;
+      if (!isNullOrNaN(normedFlux) && !isNullOrNaN(wavelength)) {
+        updateFluxes.push(normedFlux);
+        updateWavelengths.push(wavelength);
+      }
+    });
+    spectroscopy.fluxes = updateFluxes;
+    spectroscopy.wavelengths = updateWavelengths;
+    if (spectroscopy.fluxes.length === 0) return;
+
+    plotData.push({
+      mode: "lines",
+      type: "scatter",
+      dataType: "Spectrum",
+      spectrumId: spectroscopy.id,
+      x: spectroscopy.wavelengths,
+      y: spectroscopy.fluxes,
+      text: getHoverTexts(spectroscopy),
+      name: spectroscopy.instrument,
+      legendgroup: spectroscopy.id,
+      line: {
+        shape: "hvh",
+        width: 0.85,
+        color: `hsl(${Math.round(
+          240 - (index / spectroscopy.length - 1) * 240,
+        )}, 90%, 50%)`,
+      },
+      hoverlabel: {
+        bgcolor: "white",
+        font: { size: 14 },
+        align: "left",
+      },
+      hovertemplate: "%{text}<extra></extra>",
+    });
+  });
+
+  // Plot configuration
   const baseLayout = {
     zeroline: false,
     automargin: true,
@@ -22,11 +81,31 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
       side: "bottom",
       tickformat: ".6~f",
       zeroline: false,
+      range: [
+        Math.min(
+          ...spectroscopy_tab.map((spectroscopy) =>
+            Math.min(...spectroscopy.wavelengths),
+          ),
+        ) - 100,
+        Math.max(
+          ...spectroscopy_tab.map((spectroscopy) =>
+            Math.max(...spectroscopy.wavelengths),
+          ),
+        ) + 100,
+      ],
       ...baseLayout,
     },
     yaxis: {
       title: "Flux",
       side: "left",
+      range: [
+        0,
+        Math.max(
+          ...spectroscopy_tab.map((spectroscopy) =>
+            Math.max(...spectroscopy.fluxes),
+          ),
+        ) * 1.05,
+      ],
       ...baseLayout,
     },
     margin: {
@@ -103,35 +182,6 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
         `Origin: ${spectroscopy.origin}`,
     );
   }
-
-  const spectroscopy_tab = JSON.parse(spectroscopy_data);
-  const plotData = [];
-  spectroscopy_tab.forEach((spectroscopy, index) => {
-    plotData.push({
-      mode: "lines",
-      type: "scatter",
-      dataType: "Spectrum",
-      spectrumId: spectroscopy.id,
-      x: spectroscopy.wavelengths,
-      y: spectroscopy.fluxes.map((flux) => flux),
-      text: getHoverTexts(spectroscopy),
-      name: spectroscopy.instrument,
-      legendgroup: spectroscopy.id,
-      line: {
-        shape: "hvh",
-        width: 0.85,
-        color: `hsl(${Math.round(
-          240 - (index / spectroscopy.length - 1) * 240,
-        )}, 90%, 50%)`,
-      },
-      hoverlabel: {
-        bgcolor: "white",
-        font: { size: 14 },
-        align: "left",
-      },
-      hovertemplate: "%{text}<extra></extra>",
-    });
-  });
 
   Plotly.newPlot(
     document.getElementById(div_id),
