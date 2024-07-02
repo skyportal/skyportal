@@ -1,5 +1,6 @@
 // eslint.config.js
 const global = require("globals");
+const eslint = require("@eslint/js");
 
 const reactPlugin = require("eslint-plugin-react");
 const prettierPlugin = require("eslint-config-prettier");
@@ -10,6 +11,8 @@ const airbnbPlugin = require("eslint-config-airbnb");
 const { fixupPluginRules } = require("@eslint/compat");
 
 module.exports = [
+  eslint.configs.recommended,
+  // run on all js and jsx files in the static directory and subdirectories
   { files: ["static/**/*.js", "static/**/*.jsx"] },
   { ignores: ["docs/*"] },
   {
@@ -19,6 +22,9 @@ module.exports = [
         requireConfigFile: false,
         babelOptions: {
           presets: ["@babel/preset-env", "@babel/preset-react"],
+        },
+        ecmaFeatures: {
+          jsx: true,
         },
       },
       globals: {
@@ -40,6 +46,10 @@ module.exports = [
       ...reactHookPlugin.configs.recommended.rules,
       ...prettierPlugin.rules,
       camelcase: "off",
+      "no-unused-vars": "off",
+      "no-unsafe-optional-chaining": "off",
+      "no-useless-escape": "off",
+      "no-constant-binary-expression": "warn",
       "jsx-a11y/click-events-have-key-events": 0,
       "jsx-a11y/label-has-associated-control": 0,
       "jsx-a11y/control-has-associated-label": 0,
@@ -48,8 +58,8 @@ module.exports = [
       "react/jsx-wrap-multilines": 0,
       "react/jsx-one-expression-per-line": 0,
       "react/jsx-props-no-spreading": 0,
-      "no-param-reassign": 0,
       "react/jsx-curly-newline": 0,
+      "no-param-reassign": 0,
     },
   },
   {

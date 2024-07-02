@@ -8,6 +8,7 @@ import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
+import { showNotification } from "baselayer/components/Notifications";
 import * as queuedObservationActions from "../../ducks/queued_observations";
 import * as allocationActions from "../../ducks/allocations";
 
