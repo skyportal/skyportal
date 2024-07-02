@@ -431,7 +431,6 @@ AllocationObservationPlansTable.propTypes = {
         }),
       }),
       allocation_id: PropTypes.number,
-      // eslint-disable-next-line react/forbid-prop-types
       payload: PropTypes.arrayOf(PropTypes.any),
     }),
   ).isRequired,
