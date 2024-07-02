@@ -1000,7 +1000,7 @@ const SourceContent = ({ source }) => {
                 isElements={{
                   summary: source.summary_history?.length > 0,
                   photometry: source.photometry_exists,
-                  isSpectroscopy: source.spectrum_exists,
+                  spectroscopy: source.spectrum_exists,
                   classifications: source.classifications?.length > 0,
                 }}
               />

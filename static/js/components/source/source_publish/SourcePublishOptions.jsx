@@ -54,6 +54,7 @@ export const sourcePublishOptionsSchema = (streams, groups, is_elements) => {
     groups?.length > 0 &&
     (is_elements == null ||
       is_elements?.classifications ||
+      is_elements?.spectroscopy ||
       is_elements?.photometry)
   ) {
     schema.properties.groups = selectProperty(

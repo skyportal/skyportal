@@ -199,7 +199,7 @@ SourcePublish.propTypes = {
   isElements: PropTypes.shape({
     summary: PropTypes.bool,
     photometry: PropTypes.bool,
-    isSpectroscopy: PropTypes.bool,
+    spectroscopy: PropTypes.bool,
     classifications: PropTypes.bool,
   }).isRequired,
 };
