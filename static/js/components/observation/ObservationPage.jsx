@@ -1,25 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import Divider from "@mui/material/Divider";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { filterOutEmptyValues } from "../../API";
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import QueuedObservationsTable from "./QueuedObservationsTable";
-import NewObservation from "./NewObservation";
-import NewAPIObservation from "./NewAPIObservation";
-import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
 import QueueAPIDisplay from "./QueueAPIDisplay";
 import ProgressIndicator from "../ProgressIndicators";
 import SkymapTriggerAPIDisplay from "./SkymapTriggerAPIDisplay";
@@ -91,7 +85,6 @@ const ExecutedObservationList = ({
 };
 
 ExecutedObservationList.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
   observations: PropTypes.arrayOf(PropTypes.any).isRequired,
   handleTableChange: PropTypes.func.isRequired,
   handleFilterSubmit: PropTypes.func.isRequired,
@@ -127,7 +120,6 @@ const QueuedObservationList = ({
 };
 
 QueuedObservationList.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
   observations: PropTypes.arrayOf(PropTypes.any).isRequired,
   handleTableChange: PropTypes.func.isRequired,
   handleFilterSubmit: PropTypes.func.isRequired,
@@ -158,6 +150,8 @@ const ObservationPage = () => {
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
+  const [tabIndex, setTabIndex] = React.useState(0);
+
   useEffect(() => {
     const params = {
       ...fetchExecutedParams,
@@ -183,6 +177,10 @@ const ObservationPage = () => {
   if (!queued_observations) {
     return <p>No queued observations available...</p>;
   }
+
+  const handleChangeTab = (event, newValue) => {
+    setTabIndex(newValue);
+  };
 
   const handleExecutedPageChange = async (page, numPerPage, sortData) => {
     const params = {
@@ -331,7 +329,7 @@ const ObservationPage = () => {
           ...fetchExecutedParams,
           pageNumber: i,
         };
-        /* eslint-disable no-await-in-loop */
+
         const result = await dispatch(
           observationsActions.fetchObservations(data),
         );
@@ -392,7 +390,7 @@ const ObservationPage = () => {
           ...fetchQueuedParams,
           pageNumber: i,
         };
-        /* eslint-disable no-await-in-loop */
+
         const result = await dispatch(
           queuedObservationsActions.fetchQueuedObservations(data),
         );
@@ -440,186 +438,99 @@ const ObservationPage = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item md={6} sm={12}>
-        <Paper>
-          <div className={classes.paperContent}>
-            <Accordion defaultExpanded elevation={0}>
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
-                aria-controls="executed-observations-content"
-                id="executed-observations-header"
+      <Grid item xs={12}>
+        <Tabs value={tabIndex} onChange={handleChangeTab} centered>
+          <Tab label="Executed Observations" />
+          <Tab label="Queued Observations" />
+          {currentUser.permissions?.includes("System admin") && (
+            <Tab label="Queue Interactions" />
+          )}
+        </Tabs>
+      </Grid>
+      {tabIndex === 0 && (
+        <Grid item xs={12} style={{ paddingTop: 0 }}>
+          <div className={classes.Container}>
+            <ExecutedObservationList
+              observations={observations.observations}
+              fetchParams={fetchExecutedParams}
+              handleTableChange={handleExecutedTableChange}
+              handleFilterSubmit={handleExecutedFilterSubmit}
+              downloadCallback={handleExecutedDownload}
+            />
+            <Dialog
+              open={downloadProgressTotal > 0}
+              style={{ position: "fixed" }}
+              maxWidth="md"
+            >
+              <DialogContent
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
               >
-                <Typography className={classes.accordionHeading}>
-                  List of Executed Observations
+                <Typography variant="h6" display="inline">
+                  Downloading {downloadProgressTotal} observations
                 </Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <div className={classes.Container}>
-                  <ExecutedObservationList
-                    observations={observations.observations}
-                    fetchParams={fetchExecutedParams}
-                    handleTableChange={handleExecutedTableChange}
-                    handleFilterSubmit={handleExecutedFilterSubmit}
-                    downloadCallback={handleExecutedDownload}
-                  />
-                </div>
-              </AccordionDetails>
-              <Dialog
-                open={downloadProgressTotal > 0}
-                style={{ position: "fixed" }}
-                maxWidth="md"
-              >
-                <DialogContent
+                <div
                   style={{
+                    height: "5rem",
+                    width: "5rem",
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "center",
                     alignItems: "center",
                   }}
                 >
-                  <Typography variant="h6" display="inline">
-                    Downloading {downloadProgressTotal} observations
-                  </Typography>
-                  <div
-                    style={{
-                      height: "5rem",
-                      width: "5rem",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <ProgressIndicator
-                      current={downloadProgressCurrent}
-                      total={downloadProgressTotal}
-                      percentage={false}
-                    />
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </Accordion>
-          </div>
-        </Paper>
-        <Paper>
-          <div className={classes.paperContent}>
-            <Accordion defaultExpanded elevation={0}>
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
-                aria-controls="queued-observations-content"
-                id="queued-observations-header"
-              >
-                <Typography className={classes.accordionHeading}>
-                  List of Queued Observations
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <div className={classes.Container}>
-                  <QueuedObservationList
-                    observations={queued_observations.queued_observations}
-                    fetchParams={fetchQueuedParams}
-                    handleTableChange={handleQueuedTableChange}
-                    handleFilterSubmit={handleQueuedFilterSubmit}
-                    downloadCallback={handleQueuedDownload}
+                  <ProgressIndicator
+                    current={downloadProgressCurrent}
+                    total={downloadProgressTotal}
+                    percentage={false}
                   />
                 </div>
-              </AccordionDetails>
-            </Accordion>
+              </DialogContent>
+            </Dialog>
           </div>
-        </Paper>
-      </Grid>
-      <Grid item md={6} sm={12}>
-        <Paper className={classes.paperContent}>
-          <div>
-            <Accordion defaultExpanded elevation={0}>
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
-                aria-controls="add-new-observations-content"
-                id="add-new-observations-header"
-              >
-                <Typography className={classes.accordionHeading}>
-                  Add New Observations
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <div>
-                  <br style={{ marginBottom: "1rem" }} />
-                  <Divider variant="middle" className={classes.dividerHeader} />
-                  <br />
-                  <div className={classes.content}>
-                    <Typography variant="h6">
-                      Add Observations from File
-                    </Typography>
-                    <NewObservation />
-                  </div>
-                  <br />
-                  <Divider variant="middle" className={classes.divider} />
-                  <br />
-                  <div className={classes.content}>
-                    <Typography variant="h6">
-                      Add API Executed Observations
-                    </Typography>
-                    <NewAPIObservation />
-                  </div>
-                  <br />
-                  <Divider variant="middle" className={classes.divider} />
-                  <br />
-                  <div className={classes.content}>
-                    <Typography variant="h6">
-                      Add API Queued Observations
-                    </Typography>
-                    <NewAPIQueuedObservation />
-                  </div>
-                </div>
-              </AccordionDetails>
-            </Accordion>
+        </Grid>
+      )}
+      {tabIndex === 1 && (
+        <Grid item xs={12} style={{ paddingTop: 0 }}>
+          <div className={classes.Container}>
+            <QueuedObservationList
+              observations={queued_observations.queued_observations}
+              fetchParams={fetchQueuedParams}
+              handleTableChange={handleQueuedTableChange}
+              handleFilterSubmit={handleQueuedFilterSubmit}
+              downloadCallback={handleQueuedDownload}
+            />
           </div>
-        </Paper>
-        {currentUser.permissions?.includes("System admin") && (
-          <div>
-            <Paper>
-              <div className={classes.paperContent}>
-                <Accordion defaultExpanded elevation={0}>
-                  <AccordionSummary
-                    expandIcon={<ExpandMoreIcon />}
-                    aria-controls="queue-interaction-content"
-                    id="queue-interaction-header"
-                  >
-                    <Typography className={classes.accordionHeading}>
-                      Queue Interaction
-                    </Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <div className={classes.Container}>
-                      <QueueAPIDisplay />
-                    </div>
-                  </AccordionDetails>
-                </Accordion>
+        </Grid>
+      )}
+      {tabIndex === 2 && currentUser.permissions?.includes("System admin") && (
+        <Grid container item xs={12} spacing={1} style={{ paddingTop: 0 }}>
+          <Grid item xs={12} lg={6}>
+            <Paper style={{ padding: "1rem" }}>
+              <Typography className={classes.accordionHeading}>
+                Queue Interaction
+              </Typography>
+              <div className={classes.Container}>
+                <QueueAPIDisplay />
               </div>
             </Paper>
-            <Paper>
-              <div className={classes.paperContent}>
-                <Accordion defaultExpanded elevation={0}>
-                  <AccordionSummary
-                    expandIcon={<ExpandMoreIcon />}
-                    aria-controls="queue-interaction-content"
-                    id="queue-interaction-header"
-                  >
-                    <Typography className={classes.accordionHeading}>
-                      Skymap Triggers Interaction
-                    </Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <div className={classes.Container}>
-                      <SkymapTriggerAPIDisplay />
-                    </div>
-                  </AccordionDetails>
-                </Accordion>
+          </Grid>
+          <Grid item xs={12} lg={6}>
+            <Paper style={{ padding: "1rem" }}>
+              <Typography className={classes.accordionHeading}>
+                Skymap Queue Interaction
+              </Typography>
+              <div className={classes.Container}>
+                <SkymapTriggerAPIDisplay />
               </div>
             </Paper>
-          </div>
-        )}
-      </Grid>
+          </Grid>
+        </Grid>
+      )}
     </Grid>
   );
 };

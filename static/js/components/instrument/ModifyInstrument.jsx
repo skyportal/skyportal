@@ -1,22 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
-import Select from "@mui/material/Select";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
 import makeStyles from "@mui/styles/makeStyles";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { modifyInstrument } from "../../ducks/instrument";
 import { fetchInstruments } from "../../ducks/instruments";
-// eslint-disable-next-line import/no-cycle
-import { instrumentInfo, instrumentTitle } from "./InstrumentPage";
 
 const useStyles = makeStyles(() => ({
   chips: {
@@ -54,11 +47,10 @@ const textStyles = makeStyles(() => ({
   },
 }));
 
-const ModifyInstrument = () => {
+const ModifyInstrument = ({ instrumentID, onClose }) => {
   const classes = useStyles();
   const textClasses = textStyles();
 
-  const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { enum_types } = useSelector((state) => state.enum_types);
@@ -69,14 +61,12 @@ const ModifyInstrument = () => {
       Object.keys(formData).includes("api_classname") &&
       formData.api_classname !== undefined
     ) {
-      // eslint-disable-next-line prefer-destructuring
       formData.api_classname = formData.api_classname[0];
     }
     if (
       Object.keys(formData).includes("api_classname_obsplan") &&
       formData.api_classname_obsplan !== undefined
     ) {
-      // eslint-disable-next-line prefer-destructuring
       formData.api_classname_obsplan = formData.api_classname_obsplan[0];
     }
     if (
@@ -101,43 +91,23 @@ const ModifyInstrument = () => {
       Object.keys(formData).includes("field_fov_type") &&
       formData.field_fov_type !== undefined
     ) {
-      // eslint-disable-next-line prefer-destructuring
       formData.field_fov_type = formData.field_fov_type[0];
     }
     if (
       Object.keys(formData).includes("field_fov_attributes") &&
       formData.field_fov_attributes !== undefined
     ) {
-      // eslint-disable-next-line prefer-destructuring
       formData.field_fov_attributes = formData.field_fov_attributes.split(",");
     }
-    const result = await dispatch(
-      modifyInstrument(selectedInstrumentId, formData),
-    );
+    const result = await dispatch(modifyInstrument(instrumentID, formData));
     if (result.status === "success") {
       dispatch(showNotification("Instrument saved"));
       dispatch(fetchInstruments());
+      if (typeof onClose === "function") {
+        onClose();
+      }
     }
   };
-
-  useEffect(() => {
-    const getInstruments = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result = await dispatch(fetchInstruments());
-
-      const { data } = result;
-      setSelectedInstrumentId(data[0]?.id);
-    };
-
-    getInstruments();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedInstrumentId]);
 
   if (instrumentList.length === 0 || telescopeList.length === 0) {
     return <h3>No instruments available...</h3>;
@@ -149,14 +119,6 @@ const ModifyInstrument = () => {
         <CircularProgress color="secondary" />
       </div>
     );
-  }
-
-  // need to check both of these conditions as selectedAllocationId is
-  // initialized to be null and useEffect is not called on the first
-  // render to update it, so it can be null even if instruments is not
-  // empty.
-  if (!selectedInstrumentId) {
-    return <h3>No instruments available...</h3>;
   }
 
   const api_classnames = [...enum_types.ALLOWED_API_CLASSNAMES].sort();
@@ -172,25 +134,21 @@ const ModifyInstrument = () => {
   }
 
   const telLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
 
   const instLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   instrumentList?.forEach((instrumentObj) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
 
   const oldFilters = [];
-  instLookUp[selectedInstrumentId]?.filters?.forEach((filter) => {
+  instLookUp[instrumentID]?.filters?.forEach((filter) => {
     oldFilters.push(filter);
   });
-
-  const handleSelectedInstrumentChange = (e) => {
-    setSelectedInstrumentId(e.target.value);
-  };
 
   function validate(formData, errors) {
     if (errors && formData.api_classname && formData.api_classname.length > 1) {
@@ -312,51 +270,24 @@ const ModifyInstrument = () => {
 
   return (
     <div className={classes.container}>
-      <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="instrumentSelectLabel"
-        value={selectedInstrumentId}
-        onChange={handleSelectedInstrumentChange}
-        name="modifyInstrumentSelect"
-        className={classes.instrumentSelect}
-      >
-        {instrumentList?.map((instrument) => (
-          <MenuItem
-            value={instrument.id}
-            key={instrument.id}
-            className={classes.instrumentSelectItem}
-          >
-            {`${telLookUp[instrument.telescope_id].name}
-             / ${instrument.name}`}
-          </MenuItem>
-        ))}
-      </Select>
-      <List component="nav">
-        <ListItem button key={selectedInstrumentId}>
-          <ListItemText
-            primary={instrumentTitle(
-              instLookUp[selectedInstrumentId],
-              telescopeList,
-            )}
-            secondary={instrumentInfo(
-              instLookUp[selectedInstrumentId],
-              telescopeList,
-            )}
-            classes={textClasses}
-          />
-        </ListItem>
-      </List>
       <Form
         schema={instrumentFormSchema}
         validator={validator}
         onSubmit={handleSubmit}
-        // eslint-disable-next-line react/jsx-no-bind
         customValidate={validate}
         liveValidate
       />
     </div>
   );
+};
+
+ModifyInstrument.propTypes = {
+  instrumentID: PropTypes.number.isRequired,
+  onClose: PropTypes.func,
+};
+
+ModifyInstrument.defaultProps = {
+  onClose: null,
 };
 
 export default ModifyInstrument;

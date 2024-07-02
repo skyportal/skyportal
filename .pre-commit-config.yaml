@@ -36,5 +36,5 @@ repos:
         name: ESLint
         entry: npx eslint -c eslint.config.js --fix
         language: system
-        files: \.[j]sx?$
+        files: static/.*\.jsx?$|static/.*\.js$
         types: [file]

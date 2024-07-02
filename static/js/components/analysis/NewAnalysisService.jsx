@@ -1,6 +1,7 @@
 import React, { useState } from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -17,7 +18,7 @@ import {
 
 dayjs.extend(utc);
 
-const NewAnalysisService = () => {
+const NewAnalysisService = ({ onClose }) => {
   const { enum_types } = useSelector((state) => state.enum_types);
 
   const groups = useSelector((state) => state.groups.userAccessible);
@@ -32,6 +33,9 @@ const NewAnalysisService = () => {
     if (result.status === "success") {
       dispatch(showNotification("AnalysisService saved"));
       dispatch(fetchAnalysisServices());
+      if (typeof onClose === "function") {
+        onClose();
+      }
     }
   };
 
@@ -152,6 +156,14 @@ const NewAnalysisService = () => {
       />
     </div>
   );
+};
+
+NewAnalysisService.propTypes = {
+  onClose: PropTypes.func,
+};
+
+NewAnalysisService.defaultProps = {
+  onClose: null,
 };
 
 export default NewAnalysisService;

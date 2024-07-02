@@ -1,18 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import Paper from "@mui/material/Paper";
 import makeStyles from "@mui/styles/makeStyles";
 import Grid from "@mui/material/Grid";
-import Typography from "@mui/material/Typography";
-
 import CircularProgress from "@mui/material/CircularProgress";
+
 import InstrumentTable from "./InstrumentTable";
-import Spinner from "../Spinner";
 import * as instrumentsActions from "../../ducks/instruments";
-import NewInstrument from "./NewInstrument";
-// eslint-disable-next-line import/no-cycle
-import ModifyInstrument from "./ModifyInstrument";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -115,7 +109,6 @@ export function instrumentInfo(instrument, telescopeList) {
 }
 
 const InstrumentList = () => {
-  const classes = useStyles();
   const dispatch = useDispatch();
 
   const instrumentsState = useSelector((state) => state.instruments);
@@ -167,50 +160,20 @@ const InstrumentList = () => {
     dispatch(instrumentsActions.fetchInstruments(data));
   };
 
-  if (!instrumentsState.instrumentList) {
-    return <Spinner />;
-  }
-
   return (
     <Grid container spacing={2}>
-      <Grid item md={8} sm={12}>
-        <Paper elevation={1}>
-          <div className={classes.paper}>
-            <Typography variant="h6" display="inline">
-              Instruments
-            </Typography>
-            {instrumentsState.instrumentList && (
-              <InstrumentTable
-                instruments={instrumentsState.instrumentList}
-                telescopes={telescopesState.telescopeList}
-                deletePermission={delete_permission}
-                paginateCallback={handleInstrumentTablePagination}
-                totalMatches={instrumentsState.totalMatches}
-                pageNumber={instrumentsState.pageNumber}
-                numPerPage={instrumentsState.numPerPage}
-                sortingCallback={handleInstrumentTableSorting}
-              />
-            )}
-          </div>
-        </Paper>
+      <Grid item xs={12}>
+        <InstrumentTable
+          instruments={instrumentsState.instrumentList || []}
+          telescopes={telescopesState.telescopeList || []}
+          deletePermission={delete_permission}
+          paginateCallback={handleInstrumentTablePagination}
+          totalMatches={instrumentsState.totalMatches}
+          pageNumber={instrumentsState.pageNumber}
+          numPerPage={instrumentsState.numPerPage}
+          sortingCallback={handleInstrumentTableSorting}
+        />
       </Grid>
-      {post_permission && (
-        <Grid item md={4} sm={12}>
-          <Paper>
-            <div className={classes.paper}>
-              <Typography variant="h6">Add a New Instrument</Typography>
-              <NewInstrument />
-            </div>
-          </Paper>
-          <Paper>
-            <div className={classes.paper}>
-              <Typography variant="h6">Modify an Instrument</Typography>
-              <ModifyInstrument />
-            </div>
-          </Paper>
-        </Grid>
-      )}
-      {!instrumentsState.instrumentList && <Spinner />}
     </Grid>
   );
 };
