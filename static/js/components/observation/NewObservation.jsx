@@ -1,6 +1,7 @@
 import React from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import dataUriToBuffer from "data-uri-to-buffer";
@@ -10,7 +11,7 @@ import {
   uploadObservations,
 } from "../../ducks/observations";
 
-const NewObservation = () => {
+const NewObservation = ({ onClose }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const dispatch = useDispatch();
@@ -25,6 +26,9 @@ const NewObservation = () => {
     if (result.status === "success") {
       dispatch(showNotification("Observation saved"));
       dispatch(fetchObservations());
+      if (typeof onClose === "function") {
+        onClose();
+      }
     }
   };
 
@@ -61,6 +65,14 @@ const NewObservation = () => {
       onSubmit={handleSubmit}
     />
   );
+};
+
+NewObservation.propTypes = {
+  onClose: PropTypes.func,
+};
+
+NewObservation.defaultProps = {
+  onClose: null,
 };
 
 export default NewObservation;

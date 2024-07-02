@@ -5,7 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import makeStyles from "@mui/styles/makeStyles";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -206,7 +206,6 @@ const NewAllocation = ({ onClose }) => {
             data-testid="addGroup"
             renderInput={(field) => (
               <TextField
-                // eslint-disable-next-line react/jsx-props-no-spreading
                 {...field}
                 error={!!errors.group}
                 variant="outlined"
@@ -240,7 +239,6 @@ const NewAllocation = ({ onClose }) => {
                   data-testid="addUsersFromGroupSelect"
                   renderInput={(field) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...field}
                       error={!!errors.users}
                       variant="outlined"
@@ -262,7 +260,6 @@ const NewAllocation = ({ onClose }) => {
         schema={allocationFormSchema}
         validator={validator}
         onSubmit={handleSubmit}
-        // eslint-disable-next-line react/jsx-no-bind
         customValidate={validate}
         liveValidate
       />
