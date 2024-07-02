@@ -146,15 +146,16 @@ def service(queue):
                                     "Committing photometry to database"
                                 )
                                 try:
-                                    commit_photometry(
-                                        json_response,
-                                        altdata,
-                                        followup_request.id,
-                                        instrument.id,
-                                        followup_request.requester.id,
-                                        parent_session=session,
-                                        duplicates="update",
-                                    )
+                                    if json_response['result_url'] is not None:
+                                        commit_photometry(
+                                            json_response,
+                                            altdata,
+                                            followup_request.id,
+                                            instrument.id,
+                                            followup_request.requester.id,
+                                            parent_session=session,
+                                            duplicates="update",
+                                        )
                                     req.status = 'complete'
                                     session.add(req)
                                     session.commit()
