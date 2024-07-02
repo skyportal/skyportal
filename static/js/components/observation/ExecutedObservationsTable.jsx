@@ -503,77 +503,73 @@ const ExecutedObservationsTable = ({
 
   return (
     <div>
-      {observations ? (
-        <Paper className={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title={!hideTitle ? "Executed Observations" : ""}
-                data={observations}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-          <Popper
-            open={open}
-            anchorEl={anchorRef.current}
-            role={undefined}
-            transition
-            disablePortal
-            style={{ zIndex: 1 }}
-          >
-            {({ TransitionProps, placement }) => (
-              <Grow
-                {...TransitionProps}
-                style={{
-                  transformOrigin:
-                    placement === "bottom" ? "center top" : "center bottom",
-                }}
-              >
-                <Paper>
-                  <ClickAwayListener onClickAway={handleClose}>
-                    <MenuList autoFocusItem={open} id="menu-list-grow">
-                      <MenuItem onClick={openNewFromFileDialog}>
-                        {" "}
-                        Add from File
-                      </MenuItem>
-                      <MenuItem onClick={openNewFromAPIDialog}>
-                        {" "}
-                        Add from API
-                      </MenuItem>
-                    </MenuList>
-                  </ClickAwayListener>
-                </Paper>
-              </Grow>
-            )}
-          </Popper>
-          <Dialog
-            open={newDialogFromFileOpen}
-            onClose={closeNewFromFileDialog}
-            style={{ position: "fixed" }}
-            maxWidth="md"
-          >
-            <DialogTitle>Add Executed Observations (from file)</DialogTitle>
-            <DialogContent dividers>
-              <NewObservation onClose={closeNewFromFileDialog} />
-            </DialogContent>
-          </Dialog>
-          <Dialog
-            open={newDialogFromAPIOpen}
-            onClose={closeNewFromAPIDialog}
-            style={{ position: "fixed" }}
-            maxWidth="md"
-          >
-            <DialogTitle>Add Executed Observations (from API)</DialogTitle>
-            <DialogContent dividers>
-              <NewAPIObservation onClose={closeNewFromAPIDialog} />
-            </DialogContent>
-          </Dialog>
-        </Paper>
-      ) : (
-        <CircularProgress />
-      )}
+      <Paper className={classes.container}>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              title={!hideTitle ? "Executed Observations" : ""}
+              data={observations}
+              options={options}
+              columns={columns}
+            />
+          </ThemeProvider>
+        </StyledEngineProvider>
+        <Popper
+          open={open}
+          anchorEl={anchorRef.current}
+          role={undefined}
+          transition
+          disablePortal
+          style={{ zIndex: 1 }}
+        >
+          {({ TransitionProps, placement }) => (
+            <Grow
+              {...TransitionProps}
+              style={{
+                transformOrigin:
+                  placement === "bottom" ? "center top" : "center bottom",
+              }}
+            >
+              <Paper>
+                <ClickAwayListener onClickAway={handleClose}>
+                  <MenuList autoFocusItem={open} id="menu-list-grow">
+                    <MenuItem onClick={openNewFromFileDialog}>
+                      {" "}
+                      Add from File
+                    </MenuItem>
+                    <MenuItem onClick={openNewFromAPIDialog}>
+                      {" "}
+                      Add from API
+                    </MenuItem>
+                  </MenuList>
+                </ClickAwayListener>
+              </Paper>
+            </Grow>
+          )}
+        </Popper>
+        <Dialog
+          open={newDialogFromFileOpen}
+          onClose={closeNewFromFileDialog}
+          style={{ position: "fixed" }}
+          maxWidth="md"
+        >
+          <DialogTitle>Add Executed Observations (from file)</DialogTitle>
+          <DialogContent dividers>
+            <NewObservation onClose={closeNewFromFileDialog} />
+          </DialogContent>
+        </Dialog>
+        <Dialog
+          open={newDialogFromAPIOpen}
+          onClose={closeNewFromAPIDialog}
+          style={{ position: "fixed" }}
+          maxWidth="md"
+        >
+          <DialogTitle>Add Executed Observations (from API)</DialogTitle>
+          <DialogContent dividers>
+            <NewAPIObservation onClose={closeNewFromAPIDialog} />
+          </DialogContent>
+        </Dialog>
+      </Paper>
     </div>
   );
 };

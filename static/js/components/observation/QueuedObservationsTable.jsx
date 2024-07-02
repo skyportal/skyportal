@@ -9,7 +9,6 @@ import {
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
-import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -367,33 +366,29 @@ const QueuedObservationsTable = ({
 
   return (
     <div>
-      {observations ? (
-        <Paper className={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title={!hideTitle ? "Queued Observations" : ""}
-                data={observations}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-          <Dialog
-            open={newDialogOpen}
-            onClose={closeNewDialog}
-            style={{ position: "fixed" }}
-            maxWidth="md"
-          >
-            <DialogTitle>Add Queued Observations (from API)</DialogTitle>
-            <DialogContent dividers>
-              <NewAPIQueuedObservation onClose={closeNewDialog} />
-            </DialogContent>
-          </Dialog>
-        </Paper>
-      ) : (
-        <CircularProgress />
-      )}
+      <Paper className={classes.container}>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              title={!hideTitle ? "Queued Observations" : ""}
+              data={observations}
+              options={options}
+              columns={columns}
+            />
+          </ThemeProvider>
+        </StyledEngineProvider>
+        <Dialog
+          open={newDialogOpen}
+          onClose={closeNewDialog}
+          style={{ position: "fixed" }}
+          maxWidth="md"
+        >
+          <DialogTitle>Add Queued Observations (from API)</DialogTitle>
+          <DialogContent dividers>
+            <NewAPIQueuedObservation onClose={closeNewDialog} />
+          </DialogContent>
+        </Dialog>
+      </Paper>
     </div>
   );
 };
