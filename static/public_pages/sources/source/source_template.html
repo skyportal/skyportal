@@ -162,7 +162,7 @@
         </div>
       </div>
       <!-- Photometry -->
-      <div class="card photometryCard">
+      <div class="card plotCard photometryCard">
         <div class="titleAndDownload">
           <h2>Photometry</h2>
           {% if photometry %}
@@ -179,7 +179,7 @@
         {% if photometry %}
           {% set photometry_div_id = 'photometryPlot' %}
           {% set filters_mapper = data.get('filters_mapper') | tojson | e %}
-          <div class="photometryPlot" id="{{ photometry_div_id }}">
+          <div class="plot photometryPlot" id="{{ photometry_div_id }}">
             <script>
               photometryPlot(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`, window.isMobile);
             </script>
@@ -189,13 +189,13 @@
         {% endif %}
       </div>
       <!-- Spectroscopy -->
-      <div class="card spectroscopyCard">
+      <div class="card plotCard spectroscopyCard">
         <div class="title">
           <h2>Spectroscopy</h2>
         </div>
         {% if spectroscopy %}
           {% set spectroscopy_div_id = 'spectroscopyPlot' %}
-          <div class="spectroscopyPlot" id="{{ spectroscopy_div_id }}">
+          <div class="plot spectroscopyPlot" id="{{ spectroscopy_div_id }}">
             <script>
                 spectroscopyPlot(`{{ spectroscopy }}`, `{{ spectroscopy_div_id }}`, window.isMobile);
             </script>
