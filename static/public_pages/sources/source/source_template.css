@@ -118,6 +118,12 @@
       margin: 1rem 0;
     }
   }
+  .spectroscopyCard {
+    .spectroscopyPlot {
+      height: 65vh;
+      margin: 1rem 0;
+    }
+  }
   .classificationsCard {
     .classifications {
       display: flex;
