@@ -101,7 +101,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [analysisServiceToViewDelete, setanalysisServiceToViewDelete] =
+  const [analysisServiceToViewDelete, setAnalysisServiceToViewDelete] =
     useState(null);
   const openNewDialog = () => {
     setNewDialogOpen(true);
@@ -112,20 +112,20 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
 
   const openDetailsDialog = (id) => {
     setDetailsDialogOpen(true);
-    setanalysisServiceToViewDelete(id);
+    setAnalysisServiceToViewDelete(id);
   };
   const closeDetailsDialog = () => {
     setDetailsDialogOpen(false);
-    setanalysisServiceToViewDelete(null);
+    setAnalysisServiceToViewDelete(null);
   };
 
   const openDeleteDialog = (id) => {
     setDeleteDialogOpen(true);
-    setanalysisServiceToViewDelete(id);
+    setAnalysisServiceToViewDelete(id);
   };
   const closeDeleteDialog = () => {
     setDeleteDialogOpen(false);
-    setanalysisServiceToViewDelete(null);
+    setAnalysisServiceToViewDelete(null);
   };
 
   const deleteAnalysisService = () => {
@@ -136,7 +136,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification("AnalysisService deleted"));
-        closeDialog();
+        closeDeleteDialog();
       }
     });
   };
@@ -283,7 +283,10 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
     pagination: true,
     filter: true,
     sort: true,
-    customToolbar: () => (
+  };
+
+  if (deletePermission) {
+    options.customToolbar = () => (
       <IconButton
         name="new_analysis_service"
         onClick={() => {
@@ -292,8 +295,8 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
       >
         <AddIcon />
       </IconButton>
-    ),
-  };
+    );
+  }
 
   return (
     <div className={classes.root}>
@@ -316,7 +319,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
           </DialogContent>
         </Dialog>
         <Dialog
-          open={detailsDialogOpen}
+          open={detailsDialogOpen && analysisServiceToViewDelete}
           onClose={closeDetailsDialog}
           style={{ position: "fixed" }}
           maxWidth="lg"
@@ -335,7 +338,7 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
         </Dialog>
         <ConfirmDeletionDialog
           deleteFunction={deleteAnalysisService}
-          dialogOpen={deleteDialogOpen}
+          dialogOpen={deleteDialogOpen && analysisServiceToViewDelete}
           closeDialog={closeDeleteDialog}
           resourceName="analysis service"
         />
