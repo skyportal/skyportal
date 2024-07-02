@@ -16,10 +16,8 @@ import Checkbox from "@mui/material/Checkbox";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
-import CircularProgress from "@mui/material/CircularProgress";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import LoadingButton from "@mui/lab/LoadingButton";
-import GetApp from "@mui/icons-material/GetApp";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -33,12 +31,7 @@ import {
 import { fetchGroup } from "../../ducks/group";
 import { fetchGroups } from "../../ducks/groups";
 import { fetchInstruments } from "../../ducks/instruments";
-import {
-  deleteGcnEventSummary,
-  fetchGcnEventSummary,
-  patchGcnEventSummary,
-  postGcnEventSummary,
-} from "../../ducks/gcnEvent";
+import { postGcnEventSummary } from "../../ducks/gcnEvent";
 import Button from "../Button";
 import GcnSummaryTable from "./GcnSummaryTable";
 
@@ -153,7 +146,6 @@ const GcnSummary = ({ dateobs }) => {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const gcnEvent = useSelector((state) => state.gcnEvent);
-  const [text, setText] = useState("");
   const [nb, setNb] = useState("");
   const [title, setTitle] = useState("Gcn Summary");
   const [subject, setSubject] = useState(`Follow-up on GCN Event ...`);
@@ -168,7 +160,6 @@ const GcnSummary = ({ dateobs }) => {
   const [showObservations, setShowObservations] = useState(false);
   const [noText, setNoText] = useState(false);
   const [photometryInWindow, setPhotometryInWindow] = useState(false);
-  const [selectedGcnSummaryId, setSelectedGcnSummaryId] = useState(null);
   const [selectedInstruments, setSelectedInstruments] = useState([]);
   const [selectedAcknowledgement, setSelectedAcknowledgement] = useState(null);
 
@@ -181,8 +172,6 @@ const GcnSummary = ({ dateobs }) => {
     : gcnSummaryAcknowledgements;
 
   const [loading, setLoading] = useState(false);
-
-  const [displayList, setDisplayList] = useState(true);
 
   const groups_list = groups.map((group) => ({
     id: group.id,
@@ -216,29 +205,6 @@ const GcnSummary = ({ dateobs }) => {
       dispatch(fetchInstruments());
     }
   }, []);
-
-  useEffect(() => {
-    const fetchSummary = (summaryID) => {
-      dispatch(fetchGcnEventSummary({ dateobs, summaryID })).then(
-        (response) => {
-          if (response.status === "success") {
-            setText(response.data.text);
-          } else {
-            setText("");
-            dispatch(showNotification("Error fetching summary", "error"));
-          }
-        },
-      );
-    };
-    if (gcnEvent?.summaries?.length > 0) {
-      if (selectedGcnSummaryId) {
-        fetchSummary(selectedGcnSummaryId);
-        setDisplayList(false);
-      } else {
-        setText("");
-      }
-    }
-  }, [gcnEvent, selectedGcnSummaryId]);
 
   useEffect(() => {
     if (!groups && open) {
@@ -404,34 +370,6 @@ const GcnSummary = ({ dateobs }) => {
     }
   };
 
-  const handleDeleteGcnEventSummary = (summaryID) => {
-    dispatch(deleteGcnEventSummary({ dateobs, summaryID })).then((response) => {
-      if (response.status === "success") {
-        setSelectedGcnSummaryId(null);
-        dispatch(showNotification("Summary deleted"));
-      } else {
-        dispatch(showNotification("Error deleting summary", "error"));
-      }
-    });
-  };
-
-  const handleSaveGcnSummary = () => {
-    setLoading(true);
-    const res = {
-      body: text,
-    };
-    dispatch(patchGcnEventSummary(dateobs, selectedGcnSummaryId, res)).then(
-      (response) => {
-        if (response.status === "success") {
-          dispatch(showNotification("Summary saved"));
-        } else {
-          dispatch(showNotification("Error saving summary", "error"));
-        }
-      },
-    );
-    setLoading(false);
-  };
-
   return (
     <>
       <Button secondary name="gcn_summary" onClick={() => setOpen(true)}>
@@ -447,7 +385,7 @@ const GcnSummary = ({ dateobs }) => {
           <DialogTitle onClose={handleClose}>Event {dateobs}</DialogTitle>
           <DialogContent dividers>
             <Grid container spacing={3}>
-              <Grid item md={4} sm={12}>
+              <Grid item md={5} sm={12}>
                 <Paper elevation={1} className={classes.form}>
                   <TextField
                     id="title"
@@ -629,102 +567,18 @@ const GcnSummary = ({ dateobs }) => {
                     >
                       Generate
                     </LoadingButton>
-                    <Button
-                      secondary
-                      endIcon={<GetApp />}
-                      disabled={!text || text?.length === 0}
-                      onClick={() => {
-                        const blob = new Blob([text], { type: "text/plain" });
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement("a");
-                        link.href = url;
-                        link.download = `${title}_${dateobs}.txt`;
-                        link.click();
-                      }}
-                      className={classes.button}
-                    >
-                      Download
-                    </Button>
                   </div>
                 </Paper>
               </Grid>
-              <Grid item md={8} sm={12}>
-                <Paper className={classes.menu}>
-                  <Button
-                    primary
-                    id="gcn-summary-list"
-                    onClick={() => setDisplayList(true)}
-                  >
-                    GCN Summaries List
-                  </Button>
-                  <Button onClick={handleSaveGcnSummary}>Save</Button>
-                  <Button
-                    primary
-                    id="new-telescope"
-                    onClick={() => setDisplayList(false)}
-                  >
-                    Summary Text
-                  </Button>
+              <Grid item md={7} sm={12}>
+                <Paper elevation={1} className={classes.content}>
+                  <div>
+                    <GcnSummaryTable
+                      dateobs={dateobs}
+                      summaries={gcnEvent.summaries}
+                    />
+                  </div>
                 </Paper>
-                {displayList ? (
-                  <Paper elevation={1} className={classes.content}>
-                    <div>
-                      <GcnSummaryTable
-                        summaries={gcnEvent.summaries}
-                        setSelectedGcnSummaryId={setSelectedGcnSummaryId}
-                        deleteGcnEventSummary={handleDeleteGcnEventSummary}
-                      />
-                    </div>
-                  </Paper>
-                ) : (
-                  <Paper elevation={1} className={classes.content}>
-                    {loading && (
-                      <div
-                        style={{
-                          display: "flex",
-                          width: "100%",
-                          height: "100%",
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                      >
-                        <CircularProgress />
-                      </div>
-                    )}
-                    {!loading && text && (
-                      <TextField
-                        id="text"
-                        label="Text"
-                        multiline
-                        value={text.replace(/\n/g, "\n")}
-                        onChange={(e) => setText(e.target.value)}
-                        className={classes.textField}
-                        InputProps={{
-                          style: {
-                            fontSize: "0.9rem",
-                            fontFamily: "monospace",
-                          },
-                        }}
-                      />
-                    )}
-                    {!loading && !text && (
-                      <div
-                        style={{
-                          textAlign: "center",
-                          display: "flex",
-                          width: "100%",
-                          height: "100%",
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Typography variant="h4">
-                          Use the form on the left to generate a summary.
-                        </Typography>
-                      </div>
-                    )}
-                  </Paper>
-                )}
               </Grid>
             </Grid>
           </DialogContent>

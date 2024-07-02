@@ -4,10 +4,10 @@ import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
-import { Tooltip } from "@mui/material";
+import Tooltip from "@mui/material/Tooltip";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Button from "../Button";
-import NewTelescope from "../NewTelescope";
+import NewTelescope from "./NewTelescope";
 import TelescopeInfo from "./TelescopeInfo";
 
 import TelescopeSearchBar from "./TelescopeSearchBar";

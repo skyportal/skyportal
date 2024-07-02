@@ -39,6 +39,7 @@ from ...models import (
     GroupPhotometry,
     StreamPhotometry,
     PhotStat,
+    User,
 )
 
 from ...models.schema import (
@@ -261,7 +262,15 @@ def serialize(
     if created_at:
         return_value['created_at'] = phot.created_at
     if groups:
-        return_value['groups'] = [group.to_dict() for group in phot.groups]
+        return_value['groups'] = [
+            {
+                'id': group.id,
+                'name': group.name,
+                'nickname': group.nickname,
+                'single_user_group': group.single_user_group,
+            }
+            for group in phot.groups
+        ]
     if annotations:
         return_value['annotations'] = (
             [annotation.to_dict() for annotation in phot.annotations]
@@ -269,9 +278,20 @@ def serialize(
             else []
         )
     if owner:
-        return_value['owner'] = phot.owner.to_dict()
+        return_value['owner'] = {
+            'id': phot.owner.id,
+            'username': phot.owner.username,
+            'first_name': phot.owner.first_name,
+            'last_name': phot.owner.last_name,
+        }
     if stream:
-        return_value['streams'] = [stream.to_dict() for stream in phot.streams]
+        return_value['streams'] = [
+            {
+                'id': stream.id,
+                'name': stream.name,
+            }
+            for stream in phot.streams
+        ]
     if USE_PHOTOMETRY_VALIDATION and validation:
         return_value['validations'] = [
             validation.to_dict() for validation in phot.validations
@@ -628,6 +648,13 @@ def standardize_photometry_data(data):
             else:
                 ref_phot_table['zp'] = PHOT_ZP
 
+    unknown_filters = set(phot_table['filter']).difference(ALLOWED_BANDPASSES)
+    if len(unknown_filters) > 0:
+        raise ValidationError(
+            f'Filter(s) {unknown_filters} is not allowed. '
+            f'Allowed filters are: {ALLOWED_BANDPASSES}'
+        )
+
     # convert to microjanskies, AB for DB storage as a vectorized operation
     pdata = PhotometricData(phot_table)
     standardized = pdata.normalized(zp=PHOT_ZP, zpsys='ab')
@@ -941,7 +968,7 @@ def insert_new_photometry_data(
 
             flow.push(
                 '*',
-                'skyportal/FETCH_SOURCE_PHOTOMETRY',
+                'skyportal/REFRESH_SOURCE_PHOTOMETRY',
                 payload={'obj_id': obj_id},
             )
 
@@ -956,34 +983,43 @@ def get_group_ids(data, user, parent_session=None):
 
     group_ids = data.pop("group_ids", [])
     if isinstance(group_ids, (list, tuple)):
-        for group_id in group_ids:
-            try:
-                group_id = int(group_id)
-            except TypeError:
-                raise ValidationError(
-                    f"Invalid format for group id {group_id}, must be an integer."
-                )
-            group = session.get(Group, group_id)
-            if group is None:
-                raise ValidationError(f'No group with ID {group_id}')
-    elif group_ids == 'all':
-        public_group = (
-            session.execute(
-                sa.select(Group).filter(Group.name == cfg["misc.public_group_name"])
+        try:
+            group_ids = {int(group_id) for group_id in group_ids}
+        except ValueError:
+            raise ValidationError(
+                "Invalid format for group_ids parameter. Must be a list of integers."
             )
-            .scalars()
-            .first()
+        groups = (
+            session.scalars(sa.select(Group).where(Group.id.in_(list(group_ids))))
+            .unique()
+            .all()
         )
-        group_ids = [public_group.id]
+        available_group_ids = {group.id for group in groups}
+        diff_group_ids = group_ids - available_group_ids
+        if diff_group_ids:
+            raise ValidationError(
+                f"Invalid group IDs: {diff_group_ids}. Available group IDs: {available_group_ids}"
+            )
+    elif group_ids == 'all':
+        public_group = session.scalar(
+            sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
+        )
+        if public_group is None:
+            raise ValidationError(
+                f"Public group {cfg['misc.public_group_name']} not found."
+            )
+        group_ids = {public_group.id}
     else:
         raise ValidationError(
             "Invalid group_ids parameter value. Must be a list of IDs "
             "(integers) or the string 'all'."
         )
 
+    group_ids = list(group_ids)
     # always add the single user group
-    group_ids.append(user.single_user_group.id)
-    group_ids = list(set(group_ids))
+    if user.single_user_group.id not in group_ids:
+        group_ids.append(user.single_user_group.id)
+
     return group_ids
 
 
@@ -994,24 +1030,29 @@ def get_stream_ids(data, user, parent_session=None):
         session = parent_session
     stream_ids = data.pop("stream_ids", [])
     if isinstance(stream_ids, (list, tuple)):
-        for stream_id in stream_ids:
-            try:
-                stream_id = int(stream_id)
-            except TypeError:
-                raise ValidationError(
-                    f"Invalid format for stream id {stream_id}, must be an integer."
-                )
-            stream = session.scalar(Stream.select(user).where(Stream.id == stream_id))
-
-            if stream is None:
-                raise ValidationError(f'No stream with ID {stream_id}')
+        try:
+            stream_ids = {int(stream_id) for stream_id in stream_ids}
+        except ValueError:
+            raise ValidationError(
+                "Invalid format for stream_ids parameter. Must be a list of integers."
+            )
+        streams = (
+            session.scalars(Stream.select(user).where(Stream.id.in_(list(stream_ids))))
+            .unique()
+            .all()
+        )
+        available_stream_ids = {stream.id for stream in streams}
+        diff_stream_ids = stream_ids - available_stream_ids
+        if diff_stream_ids:
+            raise ValidationError(
+                f"Invalid stream IDs: {diff_stream_ids}. Available stream IDs: {available_stream_ids}"
+            )
     else:
         raise ValidationError(
             "Invalid stream_ids parameter value. Must be a list of IDs (integers)."
         )
 
-    stream_ids = list(set(stream_ids))
-    return stream_ids
+    return list(stream_ids)
 
 
 def add_external_photometry(
@@ -1762,7 +1803,7 @@ class PhotometryHandler(BaseHandler):
 
                 flow.push(
                     '*',
-                    'skyportal/FETCH_SOURCE_PHOTOMETRY',
+                    'skyportal/REFRESH_SOURCE_PHOTOMETRY',
                     payload={'obj_id': photometry.obj_id, 'magsys': magsys},
                 )
 
@@ -1822,7 +1863,7 @@ class PhotometryHandler(BaseHandler):
             session.commit()
 
             self.push_all(
-                action="skyportal/FETCH_SOURCE_PHOTOMETRY",
+                action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
                 payload={"obj_id": obj_id},
             )
 
@@ -1841,6 +1882,9 @@ class ObjPhotometryHandler(BaseHandler):
         include_validation_info = self.get_query_argument(
             'includeValidationInfo', False
         )
+        include_annotation_info = self.get_query_argument(
+            'includeAnnotationInfo', False
+        )
         deduplicate_photometry = self.get_query_argument('deduplicatePhotometry', False)
 
         if str(include_owner_info).lower() in ['true', 't', '1']:
@@ -1858,6 +1902,11 @@ class ObjPhotometryHandler(BaseHandler):
         else:
             include_validation_info = False
 
+        if str(include_annotation_info).lower() in ['true', 't', '1']:
+            include_annotation_info = True
+        else:
+            include_annotation_info = False
+
         with self.Session() as session:
             obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
@@ -1873,32 +1922,45 @@ class ObjPhotometryHandler(BaseHandler):
             if individual_or_series in ["individual", "both"]:
                 options = [
                     joinedload(Photometry.instrument).load_only(Instrument.name),
-                    joinedload(Photometry.groups),
-                    joinedload(Photometry.annotations),
+                    joinedload(Photometry.groups).load_only(
+                        Group.id, Group.name, Group.nickname, Group.single_user_group
+                    ),
                 ]
+                if include_annotation_info:
+                    options.append(joinedload(Photometry.annotations))
                 if include_owner_info:
-                    options.append(joinedload(Photometry.owner))
-                if include_stream_info:
-                    options.append(joinedload(Photometry.streams))
-
-                photometry = (
-                    session.scalars(
-                        Photometry.select(
-                            session.user_or_token,
-                            options=options,
+                    options.append(
+                        joinedload(Photometry.owner).load_only(
+                            User.id,
+                            User.username,
+                            User.first_name,
+                            User.last_name,
                         )
-                        .where(Photometry.obj_id == obj_id)
-                        .distinct()
                     )
-                    .unique()
-                    .all()
+                if include_stream_info:
+                    options.append(
+                        joinedload(Photometry.streams).load_only(
+                            Stream.id,
+                            Stream.name,
+                        )
+                    )
+
+                stmt = (
+                    Photometry.select(
+                        session.user_or_token,
+                        options=options,
+                    )
+                    .where(Photometry.obj_id == obj_id)
+                    .distinct()
                 )
+                photometry = session.scalars(stmt).unique().all()
 
                 phot_data = [
                     serialize(
                         phot,
                         outsys,
                         format,
+                        annotations=include_annotation_info,
                         owner=include_owner_info,
                         stream=include_stream_info,
                         validation=include_validation_info,

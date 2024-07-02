@@ -135,7 +135,7 @@ def get_aliases(circular_ids, day):
             data = response.json()
             if len(data["data"]["circularBodyById"]["edges"]) > 0:
                 body = data["data"]["circularBodyById"]["edges"][0]["node"]["body"]
-                pattern = rf"((GRB|IC|S|GW)+\s?({day})([A-Za-z]{{0,2}})?)"
+                pattern = rf"((GRB|IC|S|GW|EP)+\s?({day})([A-Za-z]{{0,2}})?)"
                 matches = re.findall(pattern, body)
                 matches = (
                     list({match[0].replace(' ', '') for match in matches})

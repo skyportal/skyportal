@@ -9,16 +9,22 @@ import {
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
-import CircularProgress from "@mui/material/CircularProgress";
 import { Link } from "react-router-dom";
-
+import IconButton from "@mui/material/IconButton";
+import AddIcon from "@mui/icons-material/Add";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
-import DeleteIcon from "@mui/icons-material/Delete";
 import * as allocationActions from "../../ducks/allocation";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import NewAllocation from "./NewAllocation";
+import ModifyAllocation from "./ModifyAllocation";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -32,6 +38,12 @@ const useStyles = makeStyles((theme) => ({
       color: "white",
       background: theme.palette.primary.main,
     },
+  },
+  allocationManage: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
   },
 }));
 
@@ -77,6 +89,7 @@ const AllocationTable = ({
   totalMatches,
   numPerPage,
   sortingCallback,
+  deletePermission,
   hideTitle = false,
   telescopeInfo = true,
 }) => {
@@ -87,23 +100,42 @@ const AllocationTable = ({
 
   const [setRowsPerPage] = useState(numPerPage);
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [allocationToDelete, setAllocationToDelete] = useState(null);
-  const openDialog = (id) => {
-    setDialogOpen(true);
-    setAllocationToDelete(id);
+  const [newDialogOpen, setNewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [allocationToEditDelete, setAllocationToEditDelete] = useState(null);
+
+  const openNewDialog = () => {
+    setNewDialogOpen(true);
   };
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setAllocationToDelete(null);
+  const closeNewDialog = () => {
+    setNewDialogOpen(false);
+  };
+
+  const openEditDialog = (id) => {
+    setEditDialogOpen(true);
+    setAllocationToEditDelete(id);
+  };
+  const closeEditDialog = () => {
+    setEditDialogOpen(false);
+    setAllocationToEditDelete(null);
+  };
+
+  const openDeleteDialog = (id) => {
+    setDeleteDialogOpen(true);
+    setAllocationToEditDelete(id);
+  };
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setAllocationToEditDelete(null);
   };
 
   const deleteAllocation = () => {
-    dispatch(allocationActions.deleteAllocation(allocationToDelete)).then(
+    dispatch(allocationActions.deleteAllocation(allocationToEditDelete)).then(
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Allocation deleted"));
-          closeDialog();
+          closeDeleteDialog();
         }
       },
     );
@@ -239,26 +271,35 @@ const AllocationTable = ({
     return <div>{allocation ? allocation.types.join(", ") : ""}</div>;
   };
 
-  const renderDelete = (dataIndex) => {
+  const renderManage = (dataIndex) => {
     const allocation = allocations[dataIndex];
+    if (!deletePermission) {
+      return null;
+    }
     return (
-      <div>
+      <div className={classes.allocationManage}>
         <Button
-          key={allocation.id}
-          id="delete_button"
+          key={`edit_${allocation.id}`}
+          id={`edit_button_${allocation.id}`}
+          classes={{
+            root: classes.allocationEdit,
+          }}
+          onClick={() => openEditDialog(allocation.id)}
+          disabled={!deletePermission}
+        >
+          <EditIcon />
+        </Button>
+        <Button
+          key={`delete_${allocation.id}`}
+          id={`delete_button_${allocation.id}`}
           classes={{
             root: classes.allocationDelete,
           }}
-          onClick={() => openDialog(allocation.id)}
+          onClick={() => openDeleteDialog(allocation.id)}
+          disabled={!deletePermission}
         >
           <DeleteIcon />
         </Button>
-        <ConfirmDeletionDialog
-          deleteFunction={deleteAllocation}
-          dialogOpen={dialogOpen}
-          closeDialog={closeDialog}
-          resourceName="allocation"
-        />
       </div>
     );
   };
@@ -390,13 +431,16 @@ const AllocationTable = ({
       customBodyRenderLite: renderTypes,
     },
   });
-  columns.push({
-    name: "delete",
-    label: " ",
-    options: {
-      customBodyRenderLite: renderDelete,
-    },
-  });
+
+  if (deletePermission) {
+    columns.push({
+      name: "manage",
+      label: " ",
+      options: {
+        customBodyRenderLite: renderManage,
+      },
+    });
+  }
 
   const options = {
     search: false,
@@ -410,26 +454,67 @@ const AllocationTable = ({
     count: totalMatches,
     filter: true,
     sort: true,
+    customToolbar: () => (
+      <IconButton
+        name="new_allocation"
+        onClick={() => {
+          openNewDialog();
+        }}
+      >
+        <AddIcon />
+      </IconButton>
+    ),
   };
 
   return (
     <div>
-      {allocations ? (
-        <Paper className={classes.container}>
-          <StyledEngineProvider injectFirst>
-            <ThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title={!hideTitle ? "Allocations" : ""}
-                data={allocations}
-                options={options}
-                columns={columns}
-              />
-            </ThemeProvider>
-          </StyledEngineProvider>
-        </Paper>
-      ) : (
-        <CircularProgress />
+      <Paper className={classes.container}>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              title={!hideTitle ? "Allocations" : ""}
+              data={allocations || []}
+              options={options}
+              columns={columns}
+            />
+          </ThemeProvider>
+        </StyledEngineProvider>
+      </Paper>
+      {newDialogOpen && (
+        <Dialog
+          open={newDialogOpen}
+          onClose={closeNewDialog}
+          style={{ position: "fixed" }}
+          maxWidth="md"
+        >
+          <DialogTitle>New Allocation</DialogTitle>
+          <DialogContent dividers>
+            <NewAllocation onClose={closeNewDialog} />
+          </DialogContent>
+        </Dialog>
       )}
+      {editDialogOpen && (
+        <Dialog
+          open={editDialogOpen}
+          onClose={closeEditDialog}
+          style={{ position: "fixed" }}
+          maxWidth="md"
+        >
+          <DialogTitle>Edit Allocation</DialogTitle>
+          <DialogContent dividers>
+            <ModifyAllocation
+              allocation_id={allocationToEditDelete}
+              onClose={closeEditDialog}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+      <ConfirmDeletionDialog
+        deleteFunction={deleteAllocation}
+        dialogOpen={deleteDialogOpen}
+        closeDialog={closeDeleteDialog}
+        resourceName="allocation"
+      />
     </div>
   );
 };
@@ -443,6 +528,7 @@ AllocationTable.propTypes = {
   telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
   // eslint-disable-next-line react/forbid-prop-types
   groups: PropTypes.arrayOf(PropTypes.any),
+  deletePermission: PropTypes.bool,
   paginateCallback: PropTypes.func.isRequired,
   sortingCallback: PropTypes.func,
   totalMatches: PropTypes.number,
@@ -453,6 +539,7 @@ AllocationTable.propTypes = {
 
 AllocationTable.defaultProps = {
   groups: [],
+  deletePermission: false,
   totalMatches: 0,
   numPerPage: 10,
   sortingCallback: null,

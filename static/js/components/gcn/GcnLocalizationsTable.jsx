@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Chip from "@mui/material/Chip";
 import {
@@ -9,9 +10,14 @@ import {
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
+import DeleteIcon from "@mui/icons-material/Delete";
+
+import { showNotification } from "baselayer/components/Notifications";
 
 import Button from "../Button";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { dec_to_dms, ra_to_hours } from "../../units";
+import * as localizationActions from "../../ducks/localization";
 
 const useStyles = makeStyles(() => ({
   accordion: {
@@ -85,6 +91,32 @@ const getMuiTheme = (theme) =>
 const GcnLocalizationsTable = ({ localizations }) => {
   const classes = useStyles();
   const theme = useTheme();
+  const dispatch = useDispatch();
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [localizationToDelete, setLocalizationToDelete] = useState(null);
+  const openDialog = (dateobs, name) => {
+    setDialogOpen(true);
+    setLocalizationToDelete({ dateobs, name });
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setLocalizationToDelete(null);
+  };
+
+  const deleteLocalization = () => {
+    dispatch(
+      localizationActions.deleteLocalization(
+        localizationToDelete.dateobs,
+        localizationToDelete.name,
+      ),
+    ).then((result) => {
+      if (result.status === "success") {
+        dispatch(showNotification("Localization deleted"));
+        closeDialog();
+      }
+    });
+  };
 
   if (!localizations || localizations.length === 0) {
     return <p>No localizations for this event...</p>;
@@ -247,6 +279,40 @@ const GcnLocalizationsTable = ({ localizations }) => {
         name,
         label: name,
       });
+    });
+
+    const renderDelete = (dataIndex) => {
+      const localization = localizations[dataIndex];
+      return (
+        <div>
+          <Button
+            key={localization.id}
+            id="delete_button"
+            classes={{
+              root: classes.localizationDelete,
+            }}
+            onClick={() =>
+              openDialog(localization.dateobs, localization.localization_name)
+            }
+          >
+            <DeleteIcon />
+          </Button>
+          <ConfirmDeletionDialog
+            deleteFunction={deleteLocalization}
+            dialogOpen={dialogOpen}
+            closeDialog={closeDialog}
+            resourceName="localization"
+          />
+        </div>
+      );
+    };
+
+    columns.push({
+      name: "delete",
+      label: " ",
+      options: {
+        customBodyRenderLite: renderDelete,
+      },
     });
 
     return columns;

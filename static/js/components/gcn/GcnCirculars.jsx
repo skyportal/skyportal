@@ -1,5 +1,8 @@
 import React from "react";
-import { Divider, List, ListItem, Typography } from "@mui/material";
+import Divider from "@mui/material/Divider";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import Typography from "@mui/material/Typography";
 
 import PropTypes from "prop-types";
 import makeStyles from "@mui/styles/makeStyles";

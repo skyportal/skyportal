@@ -10,7 +10,6 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "../Button";
 
-import FormValidationError from "../FormValidationError";
 import UsernameTrie from "../../usernameTrie";
 import InstrumentTrie from "../../instrumentTrie";
 
@@ -106,7 +105,7 @@ const CommentEntry = ({
 
   useEffect(() => {
     reset({
-      group_ids: Array(groups.length).fill(true),
+      group_ids: Array(groups.length).fill(false),
     });
   }, [reset, groups]);
 
@@ -169,11 +168,6 @@ const CommentEntry = ({
   const handleFileInputChange = (event) => {
     const file = event.target.files[0];
     setValue("attachment", file);
-  };
-
-  const validateGroups = () => {
-    const formState = getValues();
-    return formState.group_ids?.filter((value) => Boolean(value)).length >= 1;
   };
 
   const handleClickSuggestedUsername = (username) => {
@@ -383,15 +377,12 @@ const CommentEntry = ({
         )}
       </div>
       <div className={styles.inputDiv}>
-        {errors.group_ids && (
-          <FormValidationError message="Select at least one group." />
-        )}
         <Button
           onClick={toggleGroupSelectVisible}
           size="small"
           style={{ textTransform: "none" }}
         >
-          Customize Group Access
+          Customize Group Access (public if not specified)
         </Button>
         <Box
           component="div"
@@ -411,9 +402,7 @@ const CommentEntry = ({
                     />
                   )}
                   name={`group_ids[${idx}]`}
-                  defaultValue
                   control={control}
-                  rules={{ validate: validateGroups }}
                 />
               }
               label={userGroup.name}

@@ -428,43 +428,43 @@ def test_gcn_summary_sources(
     assert "SUBJECT: Follow-up" in data[1]
     assert "DATE" in data[2]
     assert (
-        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
+        f"FROM: {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
         in data[3]
     )
     assert (
         f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (...)"
         in data[4]
     )
-    assert f"on behalf of the {public_group.name}, report:" in data[5]
+    assert f"reports on behalf of the {public_group.name} group:" in data[4]
 
     # sources
-    assert "Found" in data[6] and "in the event's localization" in data[6]
-    table = data[7:]
-    idx = ["Photometry for source" in line for line in table].index(True)
+    assert "Found" in data[5] and "in the event's localization" in data[5]
+    table = data[6:]
+    idx = ["Photometry of" in line for line in table].index(True)
 
     sources_table = table[1 : idx - 1]
     photometry_table = table[idx + 1 :]
 
     assert (
-        len(sources_table) >= 4
+        len(sources_table) >= 2
     )  # other sources have probably been added in previous tests
-    assert "id" in sources_table[1]
-    assert "tns" in sources_table[1]
-    assert "ra" in sources_table[1]
-    assert "dec" in sources_table[1]
-    assert "redshift" in sources_table[1]
+    assert "id" in sources_table[0]
+    assert "tns" in sources_table[0]
+    assert "ra" in sources_table[0]
+    assert "dec" in sources_table[0]
+    assert "redshift" in sources_table[0]
 
     # source phot
-    assert "Photometry for source" in table[idx]
+    assert "Photometry of" in table[idx]
 
     assert (
-        len(photometry_table) >= 5
+        len(photometry_table) >= 3
     )  # other photometry have probably been added in previous tests
-    assert "mjd" in photometry_table[1]
-    assert "mag±err (ab)" in photometry_table[1]
-    assert "filter" in photometry_table[1]
-    assert "origin" in photometry_table[1]
-    assert "instrument" in photometry_table[1]
+    assert "mjd" in photometry_table[0]
+    assert "mag±err (ab)" in photometry_table[0]
+    assert "filter" in photometry_table[0]
+    assert "origin" in photometry_table[0]
+    assert "instrument" in photometry_table[0]
 
 
 def test_gcn_summary_galaxies(
@@ -614,28 +614,28 @@ def test_gcn_summary_galaxies(
     assert "SUBJECT: Follow-up" in data[1]
     assert "DATE" in data[2]
     assert (
-        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
+        f"FROM: {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
         in data[3]
     )
     assert (
         f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (...)"
         in data[4]
     )
-    assert f"on behalf of the {public_group.name}, report:" in data[5]
+    assert f"reports on behalf of the {public_group.name} group:" in data[4]
 
     # galaxies
-    assert "Found 54 galaxies in the event's localization:" in data[6]
+    assert "Found **54 galaxies** in the event's localization:" in data[5]
 
-    galaxy_table = data[7:]
-    assert len(galaxy_table) == 58
-    assert "Galaxy" in galaxy_table[1]
-    assert "RA [deg]" in galaxy_table[1]
-    assert "Dec [deg]" in galaxy_table[1]
-    assert "Distance [Mpc]" in galaxy_table[1]
-    assert "m_Ks [mag]" in galaxy_table[1]
-    assert "m_NUV [mag]" in galaxy_table[1]
-    assert "m_W1 [mag]" in galaxy_table[1]
-    assert "dP_dV" in galaxy_table[1]
+    galaxy_table = data[6:]
+    assert len(galaxy_table) == 56
+    assert "Galaxy" in galaxy_table[0]
+    assert "RA [deg]" in galaxy_table[0]
+    assert "Dec [deg]" in galaxy_table[0]
+    assert "Distance [Mpc]" in galaxy_table[0]
+    assert "m_Ks [mag]" in galaxy_table[0]
+    assert "m_NUV [mag]" in galaxy_table[0]
+    assert "m_W1 [mag]" in galaxy_table[0]
+    assert "dP_dV" in galaxy_table[0]
 
     status, data = api(
         'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token

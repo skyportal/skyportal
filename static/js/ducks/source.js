@@ -378,9 +378,9 @@ export function getCommentAttachment(sourceID, commentID) {
   );
 }
 
-export function getCommentAttachmentPreview(sourceID, commentID) {
+export function getCommentTextAttachment(sourceID, commentID) {
   return API.GET(
-    `/api/sources/${sourceID}/comments/${commentID}`,
+    `/api/sources/${sourceID}/comments/${commentID}/attachment?download=false&preview=false`,
     GET_COMMENT_ATTACHMENT_PREVIEW,
   );
 }
@@ -392,9 +392,9 @@ export function getCommentOnSpectrumAttachment(spectrumID, commentID) {
   );
 }
 
-export function getCommentOnSpectrumAttachmentPreview(spectrumID, commentID) {
+export function getCommentOnSpectrumTextAttachment(spectrumID, commentID) {
   return API.GET(
-    `/api/spectra/${spectrumID}/comments/${commentID}`,
+    `/api/spectra/${spectrumID}/comments/${commentID}/attachment?download=false&preview=false`,
     GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW,
   );
 }
@@ -410,6 +410,7 @@ export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
     includeDetectionStats: true,
     includeGCNCrossmatches: true,
     includeGCNNotes: true,
+    includeCandidates: true,
   };
   const queryString = new URLSearchParams(urlParams).toString();
   return API.GET(`/api/sources/${id}?${queryString}`, actionType);

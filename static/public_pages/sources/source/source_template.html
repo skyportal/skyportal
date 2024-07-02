@@ -104,6 +104,11 @@
             <span> {{ data['dl'] | e }} Mpc </span>
             {% endif %}
           </h3>
+          {% if data.get('summary') %}
+            <p>
+                {{ data['summary'] | e }}
+            </p>
+          {% endif %}
         </div>
         <div class="images">
           {% for thumbnail in data.get('thumbnails') %}
@@ -156,50 +161,38 @@
           {% endfor %}
         </div>
       </div>
-      <!-- Photometry -->
       <div class="card photometryCard">
         <div class="titleAndDownload">
           <h2>Photometry</h2>
           {% if photometry %}
-            <div class="download">
-              <button
-                      type="button"
-                      onclick='downloadPhotometryToCsv(`{{ photometry }}`, `{{ source_id | e }}`)'
-              >
-                DOWNLOAD
-              </button>
-            </div>
+          <div class="download">
+            <button
+              type="button"
+              onclick='downloadPhotometryToCsv(`{{ photometry }}`, `{{ source_id | e }}`)'
+            >
+              DOWNLOAD
+            </button>
+          </div>
           {% endif %}
         </div>
         {% if photometry %}
-          {% set photometry_div_id = 'photometryPlot' %}
-          {% set filters_mapper = data.get('filters_mapper') | tojson | e %}
-          <div class="photometryPlot" id="{{ photometry_div_id }}">
-            <script>
-              photometryPlot(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`, window.isMobile);
-            </script>
-          </div>
-        {% else %}
-          <h2 class="noDataMessage">No photometry available</h2>
-        {% endif %}
-      </div>
-      <!-- Spectroscopy -->
-      <div class="card spectroscopyCard">
-        <div class="title">
-          <h2>Spectroscopy</h2>
+        {% set photometry_div_id = 'photometryPlot' %}
+        {% set filters_mapper = data.get('filters_mapper') | tojson | e %}
+        <div class="photometryPlot" id="{{ photometry_div_id }}">
+          <script>
+            window.isMobile = window.matchMedia("(max-width: 900px)").matches;
+            window.addEventListener("resize", function (){
+              if (window.isMobile !== window.matchMedia("(max-width: 900px)").matches)
+                window.isMobile = !window.isMobile
+                adjustLegend(window.isMobile)
+            });
+            plotLc(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`, window.isMobile);
+          </script>
         </div>
-        {% if spectroscopy %}
-          {% set spectroscopy_div_id = 'spectroscopyPlot' %}
-          <div class="spectroscopyPlot" id="{{ spectroscopy_div_id }}">
-            <script>
-                spectroscopyPlot(`{{ spectroscopy }}`, `{{ spectroscopy_div_id }}`, window.isMobile);
-            </script>
-          </div>
         {% else %}
-          <h2 class="noDataMessage">No spectroscopy available</h2>
+        <h2 class="noDataMessage">No photometry available</h2>
         {% endif %}
       </div>
-      <!-- Classifications -->
       <div class="card classificationsCard">
         <h2>Classifications</h2>
         {% if classifications %}

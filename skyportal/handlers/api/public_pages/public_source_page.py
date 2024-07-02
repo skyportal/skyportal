@@ -29,19 +29,21 @@ def calculate_hash(data):
 
 
 def process_thumbnails(thumbnails, ra, dec):
+    # Sort thumbnails by type, and remove 'DR8' thumbnail if 'LS' (that corresponds to DR9) thumbnail are present
+    has_ls = any("ls" in thumbnail["type"] for thumbnail in thumbnails)
     thumbnails = sorted(
-        thumbnails,
+        [thumb for thumb in thumbnails if not (thumb["type"] == "dr8" and has_ls)],
         key=lambda x: THUMBNAIL_TYPES.index(x["type"]),
     )
+
     for index, thumbnail in enumerate(thumbnails):
         alt, link = get_thumbnail_alt_link(thumbnail["type"], ra, dec)
-        header = get_thumbnail_header(thumbnail["type"])
         thumbnails[index] = {
             "type": thumbnail["type"],
             "public_url": thumbnail["public_url"],
             "alt": alt,
             "link": link,
-            "header": header,
+            "header": get_thumbnail_header(thumbnail["type"]),
         }
     return thumbnails
 
@@ -57,18 +59,18 @@ def get_redshift_to_display(source):
 
 
 def get_photometry(data_to_publish, source_id, group_ids, stream_ids, session):
-    query = Photometry.select(session.user_or_token, mode="read").where(
+    stmt = Photometry.select(session.user_or_token, mode="read").where(
         Photometry.obj_id == source_id
     )
     if len(group_ids) and len(stream_ids):
-        query = query.where(
+        stmt = stmt.where(
             or_(
                 Photometry.groups.any(Group.id.in_(group_ids)),
                 Photometry.streams.any(Stream.id.in_(stream_ids)),
             )
         )
     data_to_publish["photometry"] = [
-        photo.to_dict_public() for photo in session.scalars(query).all()
+        photo.to_dict_public() for photo in session.scalars(stmt).unique().all()
     ]
 
 
@@ -84,13 +86,13 @@ def get_spectroscopy(data_to_publish, source_id, group_ids, session):
 
 
 def get_classifications(data_to_publish, source_id, group_ids, session):
-    query = Classification.select(session.user_or_token, mode="read").where(
+    stmt = Classification.select(session.user_or_token, mode="read").where(
         Classification.obj_id == source_id
     )
     if len(group_ids):
-        query = query.where(Classification.groups.any(Group.id.in_(group_ids)))
+        stmt = stmt.where(Classification.groups.any(Group.id.in_(group_ids)))
     data_to_publish["classifications"] = [
-        c.to_dict_public() for c in session.scalars(query).all()
+        c.to_dict_public() for c in session.scalars(stmt).unique().all()
     ]
 
 
@@ -164,6 +166,9 @@ class PublicSourcePageHandler(BaseHandler):
                 "dm": round(source["dm"], 3) if source["dm"] else None,
                 "dl": round(source["luminosity_distance"], 2)
                 if source["luminosity_distance"]
+                else None,
+                "summary": source["summary"]
+                if options.get("include_summary") and source["summary"]
                 else None,
                 "thumbnails": process_thumbnails(
                     source["thumbnails"], source["ra"], source["dec"]

@@ -15,7 +15,10 @@ from skyportal.models import (
     EventObservationPlan,
     ObservationPlanRequest,
 )
-from skyportal.handlers.api.observation_plan import post_survey_efficiency_analysis
+from skyportal.handlers.api.observation_plan import (
+    send_observation_plan,
+    post_survey_efficiency_analysis,
+)
 from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
@@ -316,6 +319,12 @@ def service(*args, **kwargs):
                                 )
                             ).first()
                             if defaultobsplanrequest is not None:
+                                if defaultobsplanrequest.auto_send:
+                                    send_observation_plan(
+                                        plan.observation_plan_request.id,
+                                        session=session,
+                                        auto_send=True,
+                                    )
                                 for (
                                     default_survey_efficiency
                                 ) in defaultobsplanrequest.default_survey_efficiencies:
@@ -328,7 +337,7 @@ def service(*args, **kwargs):
                                     )
                     except Exception as e:
                         log(
-                            f"Error occured processing default survey efficiency for plan {id}: {e}"
+                            f"Error occured processing default queue submission or survey efficiency for plan {id}: {e}"
                         )
                         session.rollback()
                         time.sleep(2)

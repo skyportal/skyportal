@@ -793,6 +793,9 @@ class ZTFMMAAPI(MMAAPI):
         if not altdata:
             raise ValueError('Missing allocation information.')
 
+        if 'access_token' not in altdata:
+            raise ValueError('Missing access token in allocation information.')
+
         headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
         payload = {

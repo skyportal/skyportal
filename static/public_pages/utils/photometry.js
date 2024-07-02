@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars, no-undef */
-
 function photometryPlot(
   photometry_data,
   div_id,

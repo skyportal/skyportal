@@ -31,42 +31,43 @@ import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import withRouter from "../withRouter";
 
 import ThumbnailsOnPage from "../thumbnail/ThumbnailsOnPage";
-import CopyPhotometryDialog from "../CopyPhotometryDialog";
+import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "../classification/ClassificationList";
 import ClassificationForm from "../classification/ClassificationForm";
-import ShowClassification from "../ShowClassification";
-import ShowSummaries from "../ShowSummaries";
-import SurveyLinkList from "../SurveyLinkList";
+import ShowClassification from "../classification/ShowClassification";
+import ShowSummaries from "../summary/ShowSummaries";
+import SurveyLinkList from "./SurveyLinkList";
 import StarList from "../StarList";
 import FollowupRequestForm from "../followup_request/FollowupRequestForm";
 import FollowupRequestLists from "../followup_request/FollowupRequestLists";
-import AssignmentForm from "../AssignmentForm";
-import AssignmentList from "../AssignmentList";
+import AssignmentForm from "../observing_run/AssignmentForm";
+import AssignmentList from "../observing_run/AssignmentList";
 import SourceNotification from "./SourceNotification";
-import DisplayPhotStats from "../DisplayPhotStats";
-import DisplayTNSInfo from "../DisplayTNSInfo";
-import EditSourceGroups from "../EditSourceGroups";
-import SimilarSources from "../SimilarSources";
-import UpdateSourceGCNCrossmatch from "../UpdateSourceGCNCrossmatch";
-import UpdateSourceMPC from "../UpdateSourceMPC";
-import UpdateSourceRedshift from "../UpdateSourceRedshift";
-import UpdateSourceSummary from "../UpdateSourceSummary";
-import UpdateSourceTNS from "../UpdateSourceTNS";
+import DisplayPhotStats from "./DisplayPhotStats";
+import DisplayTNSInfo from "./DisplayTNSInfo";
+import EditSourceGroups from "./EditSourceGroups";
+import SimilarSources from "./SimilarSources";
+import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
+import UpdateSourceMPC from "./UpdateSourceMPC";
+import UpdateSourceRedshift from "./UpdateSourceRedshift";
+import UpdateSourceSummary from "./UpdateSourceSummary";
+import UpdateSourceTNS from "./UpdateSourceTNS";
 import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
-import ShowSummaryHistory from "../ShowSummaryHistory";
-import AnnotationsTable from "../AnnotationsTable";
+import SourceCandidatesHistory from "./SourceCandidatesHistory";
+import ShowSummaryHistory from "../summary/ShowSummaryHistory";
+import AnnotationsTable from "./AnnotationsTable";
 import GcnNotesTable from "../gcn/GcnNotesTable";
 import AnalysisList from "../analysis/AnalysisList";
 import AnalysisForm from "../analysis/AnalysisForm";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "../photometry/PhotometryTable";
-import FavoritesButton from "../FavoritesButton";
+import FavoritesButton from "../listing/FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "../tns/TNSATForm";
 import Reminders from "../Reminders";
-import QuickSaveButton from "../QuickSaveSource";
+import QuickSaveButton from "./QuickSaveSource";
 import Spinner from "../Spinner";
 import Button from "../Button";
 
@@ -76,8 +77,8 @@ import * as photometryActions from "../../ducks/photometry";
 import * as spectraActions from "../../ducks/spectra";
 import * as sourceActions from "../../ducks/source";
 
-import PhotometryPlot from "../photometry/PhotometryPlot";
-import SpectraPlot from "../SpectraPlot";
+import PhotometryPlot from "../plot/PhotometryPlot";
+import SpectraPlot from "../plot/SpectraPlot";
 import PhotometryMagsys from "../photometry/PhotometryMagsys";
 import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
@@ -87,10 +88,10 @@ const CommentListMobile = React.lazy(
   () => import("../comment/CommentListMobile"),
 );
 
-const VegaHR = React.lazy(() => import("../vega/VegaHR"));
+const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
 const CentroidPlot = React.lazy(
-  () => import(/* webpackChunkName: "CentroidPlot" */ "../CentroidPlot"),
+  () => import(/* webpackChunkName: "CentroidPlot" */ "../plot/CentroidPlot"),
 );
 
 export const useSourceStyles = makeStyles((theme) => ({
@@ -208,6 +209,12 @@ export const useSourceStyles = makeStyles((theme) => ({
       display: "inline",
       padding: "0.25rem 0.5rem 0.25rem 0",
     },
+  },
+  sourceCandidates: {
+    marginLeft: "0.1rem",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 }));
 
@@ -602,6 +609,11 @@ const SourceContent = ({ source }) => {
               <div className={classes.header}>
                 <FavoritesButton sourceID={source.id} />
                 <h6 className={classes.name}>{source.id}</h6>
+                <div className={classes.sourceCandidates}>
+                  <SourceCandidatesHistory
+                    candidates={source?.candidates || []}
+                  />
+                </div>
               </div>
               {!downLg && (
                 <div className={classes.container}>
@@ -985,9 +997,12 @@ const SourceContent = ({ source }) => {
               ) : null}
               <SourcePublish
                 sourceId={source.id}
-                isPhotometry={source.photometry_exists}
-                isSpectroscopy={source.spectrum_exists}
-                isClassifications={source.classifications?.length > 0}
+                isElements={{
+                  summary: source.summary_history?.length > 0,
+                  photometry: source.photometry_exists,
+                  isSpectroscopy: source.spectrum_exists,
+                  classifications: source.classifications?.length > 0,
+                }}
               />
             </div>
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
@@ -1451,7 +1466,7 @@ SourceContent.propTypes = {
     annotations: PropTypes.arrayOf(
       PropTypes.shape({
         origin: PropTypes.string.isRequired,
-        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+        data: PropTypes.object.isRequired,
       }),
     ),
     host: PropTypes.shape({
@@ -1509,9 +1524,9 @@ SourceContent.propTypes = {
         created_at: PropTypes.string,
       }),
     ),
-    followup_requests: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
-    assignments: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
-    redshift_history: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    followup_requests: PropTypes.arrayOf(PropTypes.any),
+    assignments: PropTypes.arrayOf(PropTypes.any),
+    redshift_history: PropTypes.arrayOf(PropTypes.any),
     color_magnitude: PropTypes.arrayOf(
       PropTypes.shape({
         abs_mag: PropTypes.number,
@@ -1539,6 +1554,7 @@ SourceContent.propTypes = {
     photometry_exists: PropTypes.bool,
     spectrum_exists: PropTypes.bool,
     photstats: PropTypes.arrayOf(PropTypes.shape(Object)),
+    candidates: PropTypes.arrayOf(PropTypes.shape(Object)),
   }).isRequired,
 };
 

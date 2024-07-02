@@ -32,17 +32,19 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublish = ({
-  sourceId,
-  isPhotometry,
-  isSpectroscopy,
-  isClassifications,
-}) => {
+const SourcePublish = ({ sourceId, isElements }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const currentUser = useSelector((state) => state.profile);
   const permissionToPublish =
     currentUser.permissions?.includes("Manage sources");
+  const displayOptions =
+    permissionToPublish &&
+    (isElements.summary ||
+      isElements.photometry ||
+      isElements.spectroscopy ||
+      isElements.classifications);
+
   const [sourcePublishDialogOpen, setSourcePublishDialogOpen] = useState(false);
   const [publishButton, setPublishButton] = useState({
     text: "Publish",
@@ -55,6 +57,7 @@ const SourcePublish = ({
   const [versions, setVersions] = useState([]);
   // Create data access options
   const [options, setOptions] = useState({
+    include_summary: true,
     include_photometry: true,
     include_spectroscopy: true,
     include_classifications: true,
@@ -143,7 +146,7 @@ const SourcePublish = ({
               </div>
             </Tooltip>
           </div>
-          {permissionToPublish && (
+          {displayOptions && (
             <div>
               <Button
                 className={styles.expandButton}
@@ -158,12 +161,9 @@ const SourcePublish = ({
               </Button>
               {sourcePublishOptionsOpen && (
                 <SourcePublishOptions
-                  optionsState={[options, setOptions]}
-                  isElements={{
-                    photometry: isPhotometry,
-                    spectroscopy: isSpectroscopy,
-                    classifications: isClassifications,
-                  }}
+                  options={options}
+                  setOptions={setOptions}
+                  isElements={isElements}
                 />
               )}
             </div>
@@ -196,9 +196,12 @@ const SourcePublish = ({
 
 SourcePublish.propTypes = {
   sourceId: PropTypes.string.isRequired,
-  isPhotometry: PropTypes.bool.isRequired,
-  isSpectroscopy: PropTypes.bool.isRequired,
-  isClassifications: PropTypes.bool.isRequired,
+  isElements: PropTypes.shape({
+    summary: PropTypes.bool,
+    photometry: PropTypes.bool,
+    isSpectroscopy: PropTypes.bool,
+    classifications: PropTypes.bool,
+  }).isRequired,
 };
 
 export default SourcePublish;

@@ -27,7 +27,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
     import {{ subitem.icon }}Icon from "@mui/icons-material/{{ subitem.icon }}";
   {%- endfor %}
 {%- endfor %}
-import MenuIcon from "@material-ui/icons/Menu";
+import MenuIcon from "@mui/icons-material/Menu";
 
 import HeaderContent from "./HeaderContent";
 import * as Actions from "../../ducks/sidebar";

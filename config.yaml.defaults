@@ -21,6 +21,8 @@ app:
   observation_plan:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
     use_skyportal_fields: True
+    use_parallel: False
+    Ncores: 1
 
   heasarc_endpoint: https://heasarc.gsfc.nasa.gov
 
@@ -98,7 +100,7 @@ app:
     - path: "/source/:id"
       component: source/Source
     - path: "/favorites"
-      component: FavoritesPage
+      component: listing/FavoritesPage
     - path: "/gcn_events/:dateobs"
       component: gcn/GcnEventPage
     - path: "/groups"
@@ -106,7 +108,7 @@ app:
     - path: "/group/:id"
       component: group/Group
     - path: "/profile"
-      component: Profile
+      component: user/Profile
     - path: "/candidates"
       component: candidate/CandidateList
     - path: "/sources"
@@ -114,33 +116,33 @@ app:
     - path: "/user/:id"
       component: user/UserInfo
     - path: "/upload_photometry/:id"
-      component: UploadPhotometry
+      component: photometry/UploadPhotometry
     - path: "/about"
       component: About
     - path: "/run/:id"
-      component: RunSummary
+      component: observing_run/RunSummary
     - path: "/source/:obj_id/analysis/:analysis_id"
       component: source/SourceAnalysisPage
     - path: "/share_data/:id"
-      component: ShareDataForm
+      component: source/ShareDataForm
     - path: "/filter/:fid"
-      component: Filter
+      component: filter/Filter
     - path: "/runs"
-      component: ObservingRunPage
+      component: observing_run/ObservingRunPage
     - path: "/allocations"
       component: allocation/AllocationPage
     - path: "/allocation/:id"
       component: allocation/AllocationSummary
     - path: "/instrument/:id"
-      component: InstrumentSummary
+      component: instrument/InstrumentSummary
     - path: "/telescope/:id"
       component: telescope/TelescopeSummary
     - path: "/observations"
-      component: ObservationPage
+      component: observation/ObservationPage
     - path: "/galaxies"
-      component: GalaxyPage
+      component: galaxy/GalaxyPage
     - path: "/spatial_catalogs"
-      component: SpatialCatalogPage
+      component: spatial_catalog/SpatialCatalogPage
     - path: "/followup_requests"
       component: followup_request/FollowupRequestPage
     - path: "/group_sources/:id"
@@ -148,9 +150,9 @@ app:
     - path: "/user_management"
       component: user/UserManagement
     - path: "/upload_spectrum/:id"
-      component: UploadSpectrum
+      component: spectrum/UploadSpectrum
     - path: "/observability/:id"
-      component: Observability
+      component: source/Observability
     - path: "/source/:id/finder"
       component: FindingChart
     - path: "/source/:id/periodogram"
@@ -162,7 +164,7 @@ app:
     - path: "/telescopes"
       component: telescope/TelescopePage
     - path: "/instruments"
-      component: InstrumentPage
+      component: instrument/InstrumentPage
     - path: "/mmadetectors"
       component: mma_detector/MMADetectorPage
     - path: "/earthquakes"
@@ -174,13 +176,13 @@ app:
     - path: "/recurring_apis"
       component: RecurringAPIPage
     - path: "/shifts"
-      component: ShiftNoId
+      component: shift/ShiftNoId
     - path: "/shifts/:id"
-      component: ShiftWithId
+      component: shift/ShiftWithId
     - path: "/summary_search"
-      component: SummarySearch
+      component: summary/SummarySearch
     - path: "/taxonomies"
-      component: TaxonomyPage
+      component: taxonomy/TaxonomyPage
     - path: "/tns_robots"
       component: tns/TNSRobotsPage
     - path: "/tns_robot/:id/submissions"
@@ -714,6 +716,7 @@ gcn:
   json_notice_types:
     - einstein_probe.wxt.alert
     - swift.bat.guano
+    - icecube.lvk_nu_track_search
   reject_tags: # reject notices with these tags (optional)
     - MDC
   summary:
