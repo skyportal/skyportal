@@ -272,18 +272,15 @@ const AllocationTable = ({
   };
 
   const renderManage = (dataIndex) => {
-    const allocation = allocations[dataIndex];
     if (!deletePermission) {
       return null;
     }
+    const allocation = allocations[dataIndex];
     return (
       <div className={classes.allocationManage}>
         <Button
           key={`edit_${allocation.id}`}
           id={`edit_button_${allocation.id}`}
-          classes={{
-            root: classes.allocationEdit,
-          }}
           onClick={() => openEditDialog(allocation.id)}
           disabled={!deletePermission}
         >
@@ -292,9 +289,6 @@ const AllocationTable = ({
         <Button
           key={`delete_${allocation.id}`}
           id={`delete_button_${allocation.id}`}
-          classes={{
-            root: classes.allocationDelete,
-          }}
           onClick={() => openDeleteDialog(allocation.id)}
           disabled={!deletePermission}
         >
@@ -480,35 +474,31 @@ const AllocationTable = ({
           </ThemeProvider>
         </StyledEngineProvider>
       </Paper>
-      {newDialogOpen && (
-        <Dialog
-          open={newDialogOpen}
-          onClose={closeNewDialog}
-          style={{ position: "fixed" }}
-          maxWidth="md"
-        >
-          <DialogTitle>New Allocation</DialogTitle>
-          <DialogContent dividers>
-            <NewAllocation onClose={closeNewDialog} />
-          </DialogContent>
-        </Dialog>
-      )}
-      {editDialogOpen && (
-        <Dialog
-          open={editDialogOpen}
-          onClose={closeEditDialog}
-          style={{ position: "fixed" }}
-          maxWidth="md"
-        >
-          <DialogTitle>Edit Allocation</DialogTitle>
-          <DialogContent dividers>
-            <ModifyAllocation
-              allocation_id={allocationToEditDelete}
-              onClose={closeEditDialog}
-            />
-          </DialogContent>
-        </Dialog>
-      )}
+      <Dialog
+        open={newDialogOpen}
+        onClose={closeNewDialog}
+        style={{ position: "fixed" }}
+        maxWidth="md"
+      >
+        <DialogTitle>New Allocation</DialogTitle>
+        <DialogContent dividers>
+          <NewAllocation onClose={closeNewDialog} />
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={editDialogOpen && allocationToEditDelete !== null}
+        onClose={closeEditDialog}
+        style={{ position: "fixed" }}
+        maxWidth="md"
+      >
+        <DialogTitle>Edit Allocation</DialogTitle>
+        <DialogContent dividers>
+          <ModifyAllocation
+            allocation_id={allocationToEditDelete}
+            onClose={closeEditDialog}
+          />
+        </DialogContent>
+      </Dialog>
       <ConfirmDeletionDialog
         deleteFunction={deleteAllocation}
         dialogOpen={deleteDialogOpen}
@@ -520,13 +510,9 @@ const AllocationTable = ({
 };
 
 AllocationTable.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
   allocations: PropTypes.arrayOf(PropTypes.any).isRequired,
-  // eslint-disable-next-line react/forbid-prop-types
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
-  // eslint-disable-next-line react/forbid-prop-types
   telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
-  // eslint-disable-next-line react/forbid-prop-types
   groups: PropTypes.arrayOf(PropTypes.any),
   deletePermission: PropTypes.bool,
   paginateCallback: PropTypes.func.isRequired,
