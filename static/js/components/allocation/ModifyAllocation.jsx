@@ -5,7 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import makeStyles from "@mui/styles/makeStyles";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
@@ -120,25 +120,25 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
   const validateUsers = () => selectedUsers.length > 0;
 
   const groupLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   allGroups?.forEach((thisGroup) => {
     groupLookUp[thisGroup.id] = thisGroup;
   });
 
   const telLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
 
   const allocationLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   allocationList?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
   const instLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   instrumentList?.forEach((instrumentObj) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
@@ -258,7 +258,6 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
             data-testid="addGroup"
             renderInput={(field) => (
               <TextField
-                // eslint-disable-next-line react/jsx-props-no-spreading
                 {...field}
                 error={!!errors.group}
                 variant="outlined"
@@ -294,7 +293,6 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
                   data-testid="addUsersFromGroupSelect"
                   renderInput={(field) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...field}
                       error={!!errors.users}
                       variant="outlined"
@@ -316,7 +314,6 @@ const ModifyAllocation = ({ allocation_id, onClose }) => {
         schema={allocationFormSchema}
         validator={validator}
         onSubmit={handleSubmit}
-        // eslint-disable-next-line react/jsx-no-bind
         validate={validate}
         liveValidate
       />

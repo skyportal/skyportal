@@ -1431,6 +1431,9 @@ class ObservationPlanGCNHandler(BaseHandler):
             allocation = session.scalars(stmt).first()
             instrument = allocation.instrument
 
+            if len(observation_plan_request.observation_plans) == 0:
+                return self.error(message="Need an observation plan to produce a GCN")
+
             observation_plan = observation_plan_request.observation_plans[0]
             statistics = observation_plan.statistics
             if len(statistics) == 0:

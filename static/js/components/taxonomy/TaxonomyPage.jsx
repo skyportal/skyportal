@@ -5,8 +5,6 @@ import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
-import ModifyTaxonomy from "./ModifyTaxonomy";
-import NewTaxonomy from "./NewTaxonomy";
 
 import TaxonomyTable from "./TaxonomyTable";
 import Spinner from "../Spinner";
@@ -161,30 +159,9 @@ const TaxonomyPage = () => {
   const classes = useStyles();
   return (
     <Grid container spacing={3}>
-      <Grid item md={7} sm={12}>
-        <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">List of Taxonomies</Typography>
-            <TaxonomyList />
-          </div>
-        </Paper>
+      <Grid item xs={12}>
+        <TaxonomyList />
       </Grid>
-      {permission && (
-        <Grid item md={5} sm={12}>
-          <Paper>
-            <div className={classes.paperContent}>
-              <Typography variant="h6">Add a New Taxonomy</Typography>
-              <NewTaxonomy />
-            </div>
-          </Paper>
-          <Paper>
-            <div className={classes.paperContent}>
-              <Typography variant="h6">Modify a Taxonomy</Typography>
-              <ModifyTaxonomy />
-            </div>
-          </Paper>
-        </Grid>
-      )}
     </Grid>
   );
 };

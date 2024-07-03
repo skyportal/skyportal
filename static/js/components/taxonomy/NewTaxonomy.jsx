@@ -1,6 +1,7 @@
 import React, { useState } from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import dataUriToBuffer from "data-uri-to-buffer";
@@ -9,7 +10,7 @@ import { fetchTaxonomies, submitTaxonomy } from "../../ducks/taxonomies";
 
 import GroupShareSelect from "../group/GroupShareSelect";
 
-const NewTaxonomy = () => {
+const NewTaxonomy = ({ onClose }) => {
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const dispatch = useDispatch();
 
@@ -25,6 +26,9 @@ const NewTaxonomy = () => {
     if (result.status === "success") {
       dispatch(showNotification("Taxonomy saved"));
       dispatch(fetchTaxonomies());
+      if (typeof onClose === "function") {
+        onClose();
+      }
     }
   };
 
@@ -78,7 +82,6 @@ const NewTaxonomy = () => {
         schema={taxonomyFormSchema}
         validator={validator}
         onSubmit={handleSubmit}
-        // eslint-disable-next-line react/jsx-no-bind
         customValidate={validate}
         liveValidate
       />
@@ -89,6 +92,14 @@ const NewTaxonomy = () => {
       />
     </div>
   );
+};
+
+NewTaxonomy.propTypes = {
+  onClose: PropTypes.func,
+};
+
+NewTaxonomy.defaultProps = {
+  onClose: null,
 };
 
 export default NewTaxonomy;

@@ -1,6 +1,7 @@
 import React from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -9,7 +10,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { submitInstrument } from "../../ducks/instrument";
 import { fetchInstruments } from "../../ducks/instruments";
 
-const NewInstrument = () => {
+const NewInstrument = ({ onClose }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { enum_types } = useSelector((state) => state.enum_types);
@@ -20,14 +21,12 @@ const NewInstrument = () => {
       Object.keys(formData).includes("api_classname") &&
       formData.api_classname !== undefined
     ) {
-      // eslint-disable-next-line prefer-destructuring
       formData.api_classname = formData.api_classname[0];
     }
     if (
       Object.keys(formData).includes("api_classname_obsplan") &&
       formData.api_classname_obsplan !== undefined
     ) {
-      // eslint-disable-next-line prefer-destructuring
       formData.api_classname_obsplan = formData.api_classname_obsplan[0];
     }
     if (
@@ -52,20 +51,21 @@ const NewInstrument = () => {
       Object.keys(formData).includes("field_fov_type") &&
       formData.field_fov_type !== undefined
     ) {
-      // eslint-disable-next-line prefer-destructuring
       formData.field_fov_type = formData.field_fov_type[0];
     }
     if (
       Object.keys(formData).includes("field_fov_attributes") &&
       formData.field_fov_attributes !== undefined
     ) {
-      // eslint-disable-next-line prefer-destructuring
       formData.field_fov_attributes = formData.field_fov_attributes.split(",");
     }
     const result = await dispatch(submitInstrument(formData));
     if (result.status === "success") {
       dispatch(showNotification("Instrument saved"));
       dispatch(fetchInstruments());
+      if (typeof onClose === "function") {
+        onClose();
+      }
     }
   };
 
@@ -240,11 +240,18 @@ const NewInstrument = () => {
       schema={instrumentFormSchema}
       validator={validator}
       onSubmit={handleSubmit}
-      // eslint-disable-next-line react/jsx-no-bind
       customValidate={validate}
       liveValidate
     />
   );
+};
+
+NewInstrument.propTypes = {
+  onClose: PropTypes.func,
+};
+
+NewInstrument.defaultProps = {
+  onClose: null,
 };
 
 export default NewInstrument;
