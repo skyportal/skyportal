@@ -89,8 +89,9 @@ function photometryPlot(
     modeBarButtonsToAdd: [
       {
         name: "Reset",
-        icon: Plotly.Icons.home,
+        icon: Plotly.Icons.home, // eslint-disable-line no-undef
         click: () => {
+          // eslint-disable-next-line no-undef
           Plotly.relayout(
             document.getElementsByClassName("plotly")[0].parentElement,
             layoutGraphPart,
@@ -195,6 +196,7 @@ function photometryPlot(
     plotData.push(detectionsTrace, upperLimitsTrace);
   });
 
+  // eslint-disable-next-line no-undef
   Plotly.newPlot(
     document.getElementById(div_id),
     plotData,

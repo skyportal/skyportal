@@ -162,8 +162,9 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
     modeBarButtonsToAdd: [
       {
         name: "Reset",
-        icon: Plotly.Icons.home,
+        icon: Plotly.Icons.home, // eslint-disable-line no-undef
         click: () => {
+          // eslint-disable-next-line no-undef
           Plotly.relayout(
             document.getElementsByClassName("plotly")[0].parentElement,
             layoutGraphPart,
@@ -186,6 +187,7 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
     );
   }
 
+  // eslint-disable-next-line no-undef
   Plotly.newPlot(
     document.getElementById(div_id),
     plotData,
