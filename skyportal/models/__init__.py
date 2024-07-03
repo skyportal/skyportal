@@ -22,6 +22,7 @@ from .invitation import *
 from .listing import *
 from .localization import *
 from .mmadetector import *
+from .moving_object import *
 from .obj import *
 from .observation import *
 from .observation_plan import *

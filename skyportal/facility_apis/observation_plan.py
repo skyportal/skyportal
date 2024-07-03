@@ -335,14 +335,28 @@ class MMAAPI(FollowUpAPI):
                 )
                 end_time = Time(request.payload["end_date"], format='iso', scale='utc')
 
-                plan = EventObservationPlan(
-                    observation_plan_request_id=request.id,
-                    dateobs=request.gcnevent.dateobs,
-                    plan_name=request.payload['queue_name'],
-                    instrument_id=request.instrument.id,
-                    validity_window_start=start_time.datetime,
-                    validity_window_end=end_time.datetime,
-                )
+                if request.gcnevent is not None:
+                    plan = EventObservationPlan(
+                        observation_plan_request_id=request.id,
+                        dateobs=request.gcnevent.dateobs,
+                        plan_name=request.payload['queue_name'],
+                        instrument_id=request.instrument.id,
+                        validity_window_start=start_time.datetime,
+                        validity_window_end=end_time.datetime,
+                    )
+                elif request.moving_object_id is not None:
+                    plan = EventObservationPlan(
+                        observation_plan_request_id=request.id,
+                        moving_object_id=request.moving_object_id,
+                        plan_name=request.payload['queue_name'],
+                        instrument_id=request.instrument.id,
+                        validity_window_start=start_time.datetime,
+                        validity_window_end=end_time.datetime,
+                    )
+                else:
+                    raise ValueError(
+                        'request needs either gcnevent or moving_object_id'
+                    )
 
                 session.add(plan)
                 session.commit()
@@ -357,17 +371,18 @@ class MMAAPI(FollowUpAPI):
                     f"Created observation plan request for ID {plan.id} in session {plan._sa_instance_state.session_id}"
                 )
 
-                flow = Flow()
-                flow.push(
-                    '*',
-                    "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-                    payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
-                )
+                if request.gcnevent is not None:
+                    flow = Flow()
+                    flow.push(
+                        '*',
+                        "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                        payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
+                    )
 
-                flow.push(
-                    '*',
-                    "skyportal/REFRESH_OBSERVATION_PLAN_NAMES",
-                )
+                    flow.push(
+                        '*',
+                        "skyportal/REFRESH_OBSERVATION_PLAN_NAMES",
+                    )
 
                 log(f"Generating schedule for observation plan {plan.id}")
                 requester_id = request.requester.id

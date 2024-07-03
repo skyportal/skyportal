@@ -48,12 +48,7 @@ const LocalizationPlot = ({
     }
   }
 
-  if (
-    !localization?.id ||
-    !localization?.dateobs ||
-    !localization?.localization_name ||
-    !localization?.contour
-  ) {
+  if (!localization?.id || !localization?.contour) {
     return <CircularProgress />;
   }
 
@@ -704,6 +699,8 @@ const GeoJSONGlobePlot = ({
     sun,
     moon,
   };
+
+  console.log("data", data);
 
   const svgRef = useD3(renderMap, height, width, data);
 

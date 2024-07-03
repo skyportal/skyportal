@@ -470,6 +470,13 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="TNS auto-submissions associated with this obj.",
     )
 
+    moving_objects = relationship(
+        "MovingObject",
+        secondary='moving_object_associations',
+        back_populates="objs",
+        doc="Moving objects that are associated to this object",
+    )
+
     def add_linked_thumbnails(self, thumbnails, session=None):
         """Determine the URLs of the SDSS, Legacy Survey DR9, and
         thumbnails of the object,
