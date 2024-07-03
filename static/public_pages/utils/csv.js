@@ -9,6 +9,26 @@ function downloadCSVFile(csv_data, file_name) {
   document.body.removeChild(temp_link);
 }
 
+function downloadTableToCSV(type) {
+  let csv_data = [];
+  const table = document.getElementById(type);
+  const rows = Array.from(table.querySelectorAll("tr"));
+  rows.forEach((row) => {
+    const cols = Array.from(row.querySelectorAll("td,th"));
+    const csv_row = [];
+    cols.forEach((col) => {
+      if (col.querySelector("a")) {
+        csv_row.push(col.querySelector("a").text.trim());
+      } else if (!col.querySelector("button")) {
+        csv_row.push(col.innerHTML.trim());
+      }
+    });
+    csv_data.push(csv_row.join(","));
+  });
+  csv_data = csv_data.join("\n");
+  downloadCSVFile(csv_data, type);
+}
+
 function downloadPhotometryToCsv(photometry_data, source_id) {
   const photometry = JSON.parse(photometry_data);
 
@@ -42,22 +62,20 @@ function downloadPhotometryToCsv(photometry_data, source_id) {
   downloadCSVFile(csv_data, source_id);
 }
 
-function downloadTableToCSV(type) {
-  let csv_data = [];
-  const table = document.getElementById(type);
-  const rows = Array.from(table.querySelectorAll("tr"));
-  rows.forEach((row) => {
-    const cols = Array.from(row.querySelectorAll("td,th"));
-    const csv_row = [];
-    cols.forEach((col) => {
-      if (col.querySelector("a")) {
-        csv_row.push(col.querySelector("a").text.trim());
-      } else if (!col.querySelector("button")) {
-        csv_row.push(col.innerHTML.trim());
-      }
-    });
-    csv_data.push(csv_row.join(","));
-  });
-  csv_data = csv_data.join("\n");
-  downloadCSVFile(csv_data, type);
+function downloadSpectroscopyToCsv(spectroscopy_data) {
+  const spectroscopy = JSON.parse(spectroscopy_data)[0];
+  // TODO: Implement for all spectra
+  // const data = spectroscopy?.original_file_string;
+
+  const headers = ["wavelength", "flux"];
+
+  // TODO: Implement fluxerr
+  const csv_data = [
+    headers.join(","),
+    ...spectroscopy.wavelengths?.forEach((wave, i) => {
+      return `${wave},${spectroscopy.fluxes[i]}`;
+    }),
+  ].join("\n");
+
+  downloadCSVFile(csv_data, "test");
 }

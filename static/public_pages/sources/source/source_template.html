@@ -190,8 +190,18 @@
       </div>
       <!-- Spectroscopy -->
       <div class="card plotCard spectroscopyCard">
-        <div class="title">
+        <div class="titleAndDownload">
           <h2>Spectroscopy</h2>
+          {% if spectroscopy %}
+            <div class="download">
+              <button
+                      type="button"
+                      onclick='downloadSpectroscopyToCsv(`{{ spectroscopy }}`)'
+              >
+                DOWNLOAD
+              </button>
+            </div>
+          {% endif %}
         </div>
         {% if spectroscopy %}
           {% set spectroscopy_div_id = 'spectroscopyPlot' %}
