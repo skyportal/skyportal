@@ -9,7 +9,6 @@ function downloadCSVFile(csv_data, file_name) {
   document.body.removeChild(temp_link);
 }
 
-/* eslint-disable no-unused-vars */
 function downloadPhotometryToCsv(photometry_data, source_id) {
   const photometry = JSON.parse(photometry_data);
 
@@ -43,7 +42,6 @@ function downloadPhotometryToCsv(photometry_data, source_id) {
   downloadCSVFile(csv_data, source_id);
 }
 
-/* eslint-disable no-unused-vars */
 function downloadTableToCSV(type) {
   let csv_data = [];
   const table = document.getElementById(type);
