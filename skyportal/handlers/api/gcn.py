@@ -384,8 +384,6 @@ def post_skymap_from_notice(
                     if name is not None:
                         name = name.text
 
-                print(ra, dec, error, SOURCE_RADIUS_THRESHOLD, tags)
-
                 if name is not None:
                     source = {
                         'id': name.replace(' ', ''),
