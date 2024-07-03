@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars, no-undef */
+/* eslint-disable no-undef */
 
 window.isMobile = window.matchMedia("(max-width: 900px)").matches;
 // Move the legend and change marker size when the window is in mobile size
