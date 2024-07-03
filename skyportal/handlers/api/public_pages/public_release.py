@@ -3,6 +3,7 @@ import re
 
 from sqlalchemy.orm import joinedload
 
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 from ...base import BaseHandler
 from ....models import Group, PublicRelease, PublicSourcePage
@@ -35,6 +36,7 @@ def process_link_name_validation(session, link_name, release_id):
 
 
 class PublicReleaseHandler(BaseHandler):
+    @permissions(['Manage sources'])
     async def post(self):
         """
         ---
@@ -103,6 +105,7 @@ class PublicReleaseHandler(BaseHandler):
             session.commit()
             return self.success(data=public_release)
 
+    @permissions(['Manage sources'])
     def patch(self, release_id):
         """
         ---
@@ -184,6 +187,7 @@ class PublicReleaseHandler(BaseHandler):
             session.commit()
             return self.success(data=public_release)
 
+    @auth_or_token
     def get(self):
         """
         ---
@@ -217,6 +221,7 @@ class PublicReleaseHandler(BaseHandler):
             )
             return self.success(data=public_releases)
 
+    @permissions(['Manage sources'])
     def delete(self, release_id):
         """
         ---
