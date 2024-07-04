@@ -652,7 +652,7 @@ class ShiftUserHandler(BaseHandler):
             ).first()
             if su is None:
                 return self.error(
-                    "ShiftUser does not exist, or you don't have the right to delete him.",
+                    "ShiftUser does not exist, or you don't have the right to delete them.",
                     status=403,
                 )
 

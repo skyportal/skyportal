@@ -70,6 +70,7 @@ from ...models import (
     GcnSummary,
     GcnTag,
     GcnTrigger,
+    GcnEventUser,
     Instrument,
     InstrumentField,
     InstrumentFieldTile,
@@ -1522,6 +1523,15 @@ class GcnEventHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     ),
+                    "event_users": [
+                        {
+                            **u.to_dict(),
+                            "username": u.user.username,
+                            "first_name": u.user.first_name,
+                            "last_name": u.user.last_name,
+                        }
+                        for u in event.gcnevent_users
+                    ],
                     "comments": sorted(
                         (
                             {
@@ -1864,6 +1874,154 @@ class GcnEventHandler(BaseHandler):
             except Exception as e:
                 session.rollback()
                 return self.error(f"Cannot delete event: {e}")
+
+
+class GcnEventUserHandler(BaseHandler):
+    @auth_or_token
+    def post(self, dateobs, *ignored_args):
+        """
+        ---
+        description: Add a event user
+        tags:
+          - gcnevents
+          - users
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userID:
+                    type: integer
+                required:
+                  - userID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        data = self.get_json()
+
+        user_id = data.get("userID", None)
+        if user_id is None:
+            return self.error("userID parameter must be specified")
+        try:
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            return self.error("Invalid userID parameter: unable to parse to integer")
+
+        with self.Session() as session:
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token,
+                    options=[joinedload(GcnEvent.gcnevent_users)],
+                ).where(GcnEvent.dateobs == dateobs)
+            ).first()
+
+            user = session.scalars(
+                User.select(session.user_or_token).where(User.id == user_id)
+            ).first()
+
+            gu = session.scalars(
+                GcnEventUser.select(session.user_or_token)
+                .where(GcnEventUser.gcnevent_id == event.id)
+                .where(GcnEventUser.user_id == user_id)
+            ).first()
+            if gu is not None:
+                return self.error(
+                    f"User {user_id} is already a member of event {event.dateobs}."
+                )
+
+            session.add(
+                GcnEventUser(
+                    gcnevent_id=event.id,
+                    user_id=user_id,
+                )
+            )
+            session.add(
+                UserNotification(
+                    user=user,
+                    text=f"You've been added as an advocate to event *{event.dateobs}*",
+                    url=f"/gcn_events/{event.dateobs}",
+                )
+            )
+            session.commit()
+            self.flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS", {})
+
+            self.push_all(
+                action='skyportal/REFRESH_GCN_EVENT',
+                payload={'gcnEvent_dateobs': event.dateobs},
+            )
+
+            return self.success()
+
+    @auth_or_token
+    def delete(self, dateobs, user_id):
+        """
+        ---
+        description: Delete an event user
+        tags:
+          - shifts
+          - users
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: user_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        try:
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            return self.error("Invalid userID parameter: unable to parse to integer")
+
+        with self.Session() as session:
+            event = session.scalars(
+                GcnEvent.select(
+                    session.user_or_token,
+                    options=[joinedload(GcnEvent.gcnevent_users)],
+                ).where(GcnEvent.dateobs == dateobs)
+            ).first()
+
+            gu = session.scalars(
+                GcnEventUser.select(session.user_or_token, mode='delete')
+                .where(GcnEventUser.gcnevent_id == event.id)
+                .where(GcnEventUser.user_id == user_id)
+            ).first()
+            if gu is None:
+                return self.error(
+                    "GcnEventUser does not exist, or you don't have the right to delete them.",
+                    status=403,
+                )
+
+            session.delete(gu)
+            session.commit()
+
+            self.push_all(
+                action='skyportal/REFRESH_GCN_EVENT',
+                payload={'gcnEvent_dateobs': event.dateobs},
+            )
+
+            return self.success()
 
 
 def add_tiles_and_properties_and_contour(
