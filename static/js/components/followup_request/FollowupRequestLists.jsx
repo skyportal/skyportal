@@ -305,7 +305,7 @@ const FollowupRequestLists = ({
         const isDone =
           followupRequest.status === "Photometry committed to database";
 
-        const isSubmitted = followupRequest.status === "submitted";
+        const isSubmitted = ["submitted", "pending"].includes(followupRequest);
 
         const isFailed = followupRequest.status === "failed to submit";
 
@@ -697,13 +697,12 @@ FollowupRequestLists.propTypes = {
     }),
   ).isRequired,
   instrumentFormParams: PropTypes.shape({
-    // eslint-disable-next-line react/forbid-prop-types
     formSchema: PropTypes.objectOf(PropTypes.any),
-    // eslint-disable-next-line react/forbid-prop-types
+
     uiSchema: PropTypes.objectOf(PropTypes.any),
-    // eslint-disable-next-line react/forbid-prop-types
+
     methodsImplemented: PropTypes.objectOf(PropTypes.any),
-    // eslint-disable-next-line react/forbid-prop-types
+
     aliasLookup: PropTypes.objectOf(PropTypes.any),
   }).isRequired,
   handleTableChange: PropTypes.func,
