@@ -66,28 +66,19 @@ const GcnAdvocates = ({ gcnEvent, show_title = false }) => {
   const dispatch = useDispatch();
   const userProfile = useSelector((state) => state.profile);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  console.log("userProfile", userProfile);
-  console.log("userProfile_id", userProfile.id);
-
   const addUser = async () => {
-    setIsSubmitting(true);
     const result = await dispatch(
       gcnEventsActions.addGcnEventUser(userProfile.id, gcnEvent.dateobs),
     );
-    setIsSubmitting(false);
     if (result.status === "success") {
       dispatch(showNotification("GCN Event User successfully added."));
     }
   };
 
   const deleteUser = async (id) => {
-    setIsSubmitting(true);
     const result = await dispatch(
       gcnEventsActions.deleteGcnEventUser(id, gcnEvent.dateobs),
     );
-    setIsSubmitting(false);
     if (result.status === "success") {
       dispatch(showNotification("GCN Event User successfully deleted."));
     }
