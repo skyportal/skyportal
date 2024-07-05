@@ -10,6 +10,7 @@ import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HelpIcon from "@mui/icons-material/Help";
+import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
@@ -26,7 +27,7 @@ import {
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -39,6 +40,7 @@ import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import UserInvitations from "./UserInvitations";
 import UpdateUserParameter from "./UpdateUserParameter";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import * as groupsActions from "../../ducks/groups";
 import * as usersActions from "../../ducks/users";
 import * as streamsActions from "../../ducks/streams";
@@ -114,6 +116,8 @@ const UserManagement = () => {
     editUserExpirationDateDialogOpen,
     setEditUserExpirationDateDialogOpen,
   ] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
   const [clickedUser, setClickedUser] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
 
@@ -162,6 +166,24 @@ const UserManagement = () => {
     return <div>Access denied: Insufficient permissions.</div>;
   }
   allGroups = allGroups?.filter((group) => !group.single_user_group);
+
+  const openDeleteDialog = (id) => {
+    setDeleteDialogOpen(true);
+    setUserToDelete(id);
+  };
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setUserToDelete(null);
+  };
+
+  const deleteUser = () => {
+    dispatch(usersActions.deleteUser(userToDelete)).then((result) => {
+      if (result.status === "success") {
+        dispatch(showNotification("User deleted"));
+        closeDeleteDialog();
+      }
+    });
+  };
 
   const validateGroups = () => {
     const formState = getValues();
@@ -590,7 +612,7 @@ const UserManagement = () => {
     );
   };
 
-  const renderExpirationDate = (dataIndex) => {
+  const renderManage = (dataIndex) => {
     const user = users[dataIndex];
     const isExpired = dayjs.utc().isAfter(user.expiration_date);
     return (
@@ -609,6 +631,13 @@ const UserManagement = () => {
         >
           <EditIcon color="disabled" />
         </IconButton>
+        <Button
+          key={`delete_${user.id}`}
+          id={`delete_button_${user.id}`}
+          onClick={() => openDeleteDialog(user.id)}
+        >
+          <DeleteIcon />
+        </Button>
       </div>
     );
   };
@@ -758,7 +787,6 @@ const UserManagement = () => {
         filterType: "custom",
         filterList: tableFilterList,
         filterOptions: {
-          // eslint-disable-next-line react/display-name
           display: () => <div />,
         },
       },
@@ -834,7 +862,7 @@ const UserManagement = () => {
       options: {
         sort: false,
         filter: false,
-        customBodyRenderLite: renderExpirationDate,
+        customBodyRenderLite: renderManage,
         customHeadLabelRender: renderExpirationDateHeader,
       },
     },
@@ -871,6 +899,14 @@ const UserManagement = () => {
           </ThemeProvider>
         </StyledEngineProvider>
       </Paper>
+      <div>
+        <ConfirmDeletionDialog
+          deleteFunction={deleteUser}
+          dialogOpen={deleteDialogOpen}
+          closeDialog={closeDeleteDialog}
+          resourceName="user"
+        />
+      </div>
       <br />
       {invitationsEnabled && <UserInvitations />}
       <Dialog
@@ -902,7 +938,6 @@ const UserManagement = () => {
                   data-testid="addUserToGroupsSelect"
                   renderInput={(params) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...params}
                       error={!!errors.groups}
                       variant="outlined"
@@ -963,7 +998,6 @@ const UserManagement = () => {
                   data-testid="addUserToStreamsSelect"
                   renderInput={(params) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...params}
                       error={!!errors.streams}
                       variant="outlined"
@@ -1021,7 +1055,6 @@ const UserManagement = () => {
                   data-testid="addUserACLsSelect"
                   renderInput={(params) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...params}
                       error={!!errors.acls}
                       variant="outlined"
@@ -1069,7 +1102,6 @@ const UserManagement = () => {
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={clickedUser?.affiliations?.map((aff) => aff)}
-                  // eslint-disable-next-line no-shadow
                   filterOptions={(options, params) => {
                     const filtered = filter(options, params);
 
@@ -1100,7 +1132,6 @@ const UserManagement = () => {
                   data-testid="addUserAffiliationsSelect"
                   renderInput={(params) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...params}
                       variant="outlined"
                       label="Select Affiliations"
@@ -1156,7 +1187,6 @@ const UserManagement = () => {
                   data-testid="addUserRolesSelect"
                   renderInput={(params) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...params}
                       error={!!errors.roles}
                       variant="outlined"

@@ -594,5 +594,6 @@ class UserHandler(BaseHandler):
                 return self.error(f"Cannot find/delete user with ID {user_id}")
             session.delete(user)
             session.commit()
+            self.push_all(action="skyportal/FETCH_USERS")
 
         return self.success()
