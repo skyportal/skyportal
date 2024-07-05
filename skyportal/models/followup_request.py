@@ -334,6 +334,8 @@ def add_followup(mapper, connection, target):
 
         requests_query = sa.select(DefaultFollowupRequest)
 
+        default_followup_requests = session.scalars(requests_query).all()
+
         # GroupObj is the classname for the Source table,
         # since it's a join table between Obj and Group
         if target_class_name == 'GroupObj':

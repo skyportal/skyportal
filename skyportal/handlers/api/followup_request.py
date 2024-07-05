@@ -2259,6 +2259,41 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
             return self.success()
 
 
+def load_source_filter(source_filter):
+    if isinstance(source_filter, dict):
+        return source_filter
+
+    if source_filter.startswith('"') and source_filter.endswith('"'):
+        source_filter = source_filter[1:-1]
+
+    source_filter_ingested = False
+    try:
+        source_filter_json = json.loads(source_filter)
+        source_filter_ingested = True
+    except json.decoder.JSONDecodeError:
+        source_filter = source_filter.replace("'", '"')
+        try:
+            source_filter_json = json.loads(source_filter)
+            source_filter_ingested = True
+        except json.decoder.JSONDecodeError:
+            source_filter = source_filter.replace("\\", "\\\\")
+            try:
+                source_filter_json = json.loads(source_filter)
+                source_filter_ingested = True
+            except json.decoder.JSONDecodeError:
+                source_filter = source_filter.encode().decode('unicode-escape')
+                source_filter_json = json.loads(source_filter)
+                source_filter_ingested = True
+
+    if not source_filter_ingested:
+        raise ValueError(f'Could not interpret {source_filter} as JSON')
+
+    if 'group_id' in source_filter_json:
+        source_filter_json['group_id'] = int(source_filter_json['group_id'])
+
+    return source_filter_json
+
+
 class DefaultFollowupRequestHandler(BaseHandler):
     @auth_or_token
     def post(self):
@@ -2335,14 +2370,10 @@ class DefaultFollowupRequestHandler(BaseHandler):
             if "source_filter" in data:
                 if not isinstance(data["source_filter"], dict):
                     try:
-                        data["source_filter"] = (
+                        data["source_filter"] = load_source_filter(
                             data["source_filter"]
-                            .replace("'", '"')
-                            .encode()
-                            .decode('unicode-escape')
                         )
-                        data["source_filter"] = json.loads(data["source_filter"])
-                    except json.decoder.JSONDecodeError as e:
+                    except Exception as e:
                         return self.error(
                             f'Incorrect format for source_filter. Must be a json string: {e}',
                         )
@@ -2425,6 +2456,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
                 default_followup_request_data.append(
                     {
                         **request.to_dict(),
+                        'source_filter': load_source_filter(request.source_filter),
                         'allocation': request.allocation.to_dict(),
                     }
                 )
