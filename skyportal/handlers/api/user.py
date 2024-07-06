@@ -2,6 +2,7 @@ import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 from email_validator import validate_email, EmailNotValidError
 import arrow
+from datetime import datetime
 
 import sqlalchemy as sa
 from sqlalchemy import func
@@ -313,6 +314,7 @@ class UserHandler(BaseHandler):
         acl = self.get_query_argument("acl", None)
         group = self.get_query_argument("group", None)
         stream = self.get_query_argument("stream", None)
+        include_expired = self.get_query_argument("includeExpired", False)
 
         try:
             page_number = int(page_number)
@@ -326,6 +328,14 @@ class UserHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = User.select(self.current_user).order_by(User.username)
+
+            if not include_expired:
+                stmt = stmt.where(
+                    sa.or_(
+                        User.expiration_date >= datetime.now(),
+                        User.expiration_date.is_(None),
+                    )
+                )
 
             if first_name is not None:
                 stmt = stmt.where(User.first_name.contains(first_name))
