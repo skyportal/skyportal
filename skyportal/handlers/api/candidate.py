@@ -197,8 +197,9 @@ class CandidateHandler(BaseHandler):
             if result.fetchone():
                 return self.success()
             else:
-                self.set_status(404)
-                self.finish()
+                return self.error(
+                    message=f"No candidate with object ID {obj_id}", status=404
+                )
 
     @auth_or_token
     def get(self, obj_id=None):
