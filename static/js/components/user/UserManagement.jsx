@@ -26,7 +26,7 @@ import {
   useTheme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -726,6 +726,10 @@ const UserManagement = () => {
           type: "string",
           enum: streams?.map((stream) => stream.name),
         },
+        includeExpired: {
+          title: "Include Expired?",
+          type: "boolean",
+        },
       },
     };
 
@@ -758,7 +762,6 @@ const UserManagement = () => {
         filterType: "custom",
         filterList: tableFilterList,
         filterOptions: {
-          // eslint-disable-next-line react/display-name
           display: () => <div />,
         },
       },
@@ -902,7 +905,6 @@ const UserManagement = () => {
                   data-testid="addUserToGroupsSelect"
                   renderInput={(params) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...params}
                       error={!!errors.groups}
                       variant="outlined"
@@ -963,7 +965,6 @@ const UserManagement = () => {
                   data-testid="addUserToStreamsSelect"
                   renderInput={(params) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...params}
                       error={!!errors.streams}
                       variant="outlined"
@@ -1021,7 +1022,6 @@ const UserManagement = () => {
                   data-testid="addUserACLsSelect"
                   renderInput={(params) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...params}
                       error={!!errors.acls}
                       variant="outlined"
@@ -1069,7 +1069,6 @@ const UserManagement = () => {
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={clickedUser?.affiliations?.map((aff) => aff)}
-                  // eslint-disable-next-line no-shadow
                   filterOptions={(options, params) => {
                     const filtered = filter(options, params);
 
@@ -1100,7 +1099,6 @@ const UserManagement = () => {
                   data-testid="addUserAffiliationsSelect"
                   renderInput={(params) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...params}
                       variant="outlined"
                       label="Select Affiliations"
@@ -1156,7 +1154,6 @@ const UserManagement = () => {
                   data-testid="addUserRolesSelect"
                   renderInput={(params) => (
                     <TextField
-                      // eslint-disable-next-line react/jsx-props-no-spreading
                       {...params}
                       error={!!errors.roles}
                       variant="outlined"
