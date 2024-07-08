@@ -8,7 +8,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import { geoMollweide } from "d3-geo-projection";
 import * as d3 from "d3";
 import d3GeoZoom from "d3-geo-zoom";
-// eslint-disable-next-line
+
 import GeoPropTypes from "geojson-prop-types";
 import { moonGeoJSON, sunGeoJSON } from "../../utils";
 
@@ -177,7 +177,7 @@ LocalizationPlot.propTypes = {
         GeoPropTypes.FeatureCollection,
         PropTypes.shape({
           type: PropTypes.string,
-          features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+          features: PropTypes.array,
         }),
       ]),
     ),
@@ -314,12 +314,10 @@ const GeoJSONGlobePlot = ({
       const filterStr = filters.join("");
       let hash = 0;
       for (let i = 0; i < filterStr.length; i += 1) {
-        // eslint-disable-next-line no-bitwise
         hash = filterStr.charCodeAt(i) + ((hash << 5) - hash);
       }
       let color = "#";
       for (let i = 0; i < 3; i += 1) {
-        // eslint-disable-next-line no-bitwise
         const value = (hash >> (i * 8)) & 0xff;
         color += `00${value.toString(16)}`.substr(-2);
       }
@@ -545,7 +543,6 @@ const GeoJSONGlobePlot = ({
           const { airmass } = f;
           const references = f.reference_filters || [];
 
-          // eslint-disable-next-line no-nested-ternary
           const fill = selected
             ? filterColor
             : airmass && airmass < airmass_threshold
@@ -593,6 +590,7 @@ const GeoJSONGlobePlot = ({
       }
 
       if (data.observations && data.options.observations) {
+        const opacity = data.options.instrument ? 1 : 0.9;
         data.observations.forEach((f) => {
           const { field_id } = f.properties;
           const { features } = f;
@@ -603,6 +601,9 @@ const GeoJSONGlobePlot = ({
             .style("fill", f.selected ? "red" : "white")
             .style("stroke", "blue")
             .style("stroke-width", "0.5px")
+            .style("opacity", opacity)
+            .style("stroke-opacity", opacity)
+            .style("fill-opacity", opacity)
             .attr("d", geoGenerator)
             .on("click", () => {
               if (f.selected) {
@@ -733,14 +734,14 @@ GeoJSONGlobePlot.propTypes = {
           GeoPropTypes.FeatureCollection,
           PropTypes.shape({
             type: PropTypes.string,
-            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+            features: PropTypes.array,
           }),
         ]),
         contour_summary: PropTypes.oneOfType([
           GeoPropTypes.FeatureCollection,
           PropTypes.shape({
             type: PropTypes.string,
-            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+            features: PropTypes.array,
           }),
         ]),
       }),
@@ -751,7 +752,7 @@ GeoJSONGlobePlot.propTypes = {
       GeoPropTypes.FeatureCollection,
       PropTypes.shape({
         type: PropTypes.string,
-        features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+        features: PropTypes.array,
       }),
     ]),
   ),
