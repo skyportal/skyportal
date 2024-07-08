@@ -12,7 +12,7 @@ import TextField from "@mui/material/TextField";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-// eslint-disable-next-line import/no-unresolved
+
 import CircularProgress from "@mui/material/CircularProgress";
 import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
@@ -162,14 +162,14 @@ FieldSelect.propTypes = {
           GeoPropTypes.FeatureCollection,
           PropTypes.shape({
             type: PropTypes.string,
-            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+            features: PropTypes.array,
           }),
         ]),
         contour_summary: PropTypes.oneOfType([
           GeoPropTypes.FeatureCollection,
           PropTypes.shape({
             type: PropTypes.string,
-            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+            features: PropTypes.array,
           }),
         ]),
       }),
@@ -243,14 +243,14 @@ ObservationPlanGlobe.propTypes = {
           GeoPropTypes.FeatureCollection,
           PropTypes.shape({
             type: PropTypes.string,
-            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+            features: PropTypes.array,
           }),
         ]),
         contour_summary: PropTypes.oneOfType([
           GeoPropTypes.FeatureCollection,
           PropTypes.shape({
             type: PropTypes.string,
-            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+            features: PropTypes.array,
           }),
         ]),
       }),
@@ -337,25 +337,25 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
   );
 
   const groupLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   allGroups?.forEach((group) => {
     groupLookUp[group.id] = group;
   });
 
   const telLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
 
   const allocationLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   allocationListApiObsplan?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
   const instLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   instrumentList?.forEach((instrumentObj) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
@@ -649,7 +649,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
       return {
         ...skymap_instrument,
         fields: skymap_instrument.fields.filter(
-          (field) => field.field_id >= 881,
+          (field) => field.field_id < 881,
         ),
       };
     }
@@ -658,7 +658,7 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
       return {
         ...skymap_instrument,
         fields: skymap_instrument.fields.filter(
-          (field) => field.field_id < 881,
+          (field) => field.field_id >= 881,
         ),
       };
     }
@@ -993,9 +993,9 @@ const ObservationPlanRequestForm = ({ dateobs }) => {
 ObservationPlanRequestForm.propTypes = {
   dateobs: PropTypes.string.isRequired,
   instrumentObsplanFormParams: PropTypes.shape({
-    formSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
-    uiSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
-    implementedMethods: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    formSchema: PropTypes.objectOf(PropTypes.any),
+    uiSchema: PropTypes.objectOf(PropTypes.any),
+    implementedMethods: PropTypes.objectOf(PropTypes.any),
   }),
 };
 
