@@ -47,7 +47,7 @@ const SourcePublishRelease = ({
   useEffect(() => {
     setIsLoading(true);
     dispatch(fetchPublicReleases()).then((data) => {
-      setReleases(data.data.map((item) => item.PublicRelease));
+      setReleases(data.data);
       setIsLoading(false);
     });
   }, [dispatch]);
