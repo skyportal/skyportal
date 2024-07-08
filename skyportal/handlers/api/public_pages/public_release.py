@@ -79,19 +79,25 @@ class PublicReleaseHandler(BaseHandler):
         link_name = data.get("link_name")
         if link_name is None or link_name == "":
             return self.error("Link name is required")
+        groups = data.get("groups")
+        if groups is None or len(groups) == 0:
+            return self.error("Specify at least one group")
 
         with self.Session() as session:
             is_valid, message = process_link_name_validation(session, link_name, None)
             if not is_valid:
                 return self.error(message)
 
-            groups = session.scalars(
-                Group.select(session.user_or_token).where(
-                    Group.id.in_(data.get("groups", []))
-                )
-            ).all()
+            group_ids = [g.id for g in groups]
+            if set(group_ids).issubset(
+                [g.id for g in session.user_or_token.accessible_groups]
+            ):
+                groups = session.scalars(
+                    Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+                ).all()
+
             if not groups:
-                return self.error("Specify at least one group")
+                return self.error("Invalid groups")
 
             public_release = PublicRelease(
                 name=name,
@@ -153,6 +159,9 @@ class PublicReleaseHandler(BaseHandler):
         link_name = data.get("link_name")
         if link_name is None or link_name == "":
             return self.error("Link name is required")
+        groups = data.get("groups")
+        if groups is None or len(groups) == 0:
+            return self.error("Specify at least one group")
 
         with self.Session() as session:
             public_release = session.scalars(
@@ -170,13 +179,16 @@ class PublicReleaseHandler(BaseHandler):
             if not is_valid:
                 return self.error(message)
 
-            groups = session.scalars(
-                Group.select(session.user_or_token).where(
-                    Group.id.in_(data.get("groups", []))
-                )
-            ).all()
+            group_ids = [g.id for g in groups]
+            if set(group_ids).issubset(
+                [g.id for g in session.user_or_token.accessible_groups]
+            ):
+                groups = session.scalars(
+                    Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+                ).all()
+
             if not groups:
-                return self.error("Specify at least one group")
+                return self.error("Invalid groups")
 
             public_release.name = name
             public_release.link_name = link_name
