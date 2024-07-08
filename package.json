@@ -16,7 +16,7 @@
     "@mui/styled-engine": "5.15.2",
     "@mui/styles": "5.15.21",
     "@mui/x-data-grid": "6.9.2",
-    "@mui/x-date-pickers": "7.6.1",
+    "@mui/x-date-pickers": "7.9.0",
     "@rjsf/core": "5.10.0",
     "@rjsf/material-ui": "5.5.0",
     "@rjsf/mui": "5.18.3",
@@ -137,7 +137,7 @@
     "eslint-plugin-react": "7.34.3",
     "eslint-plugin-react-hooks": "4.6.2",
     "json-loader": "0.5.7",
-    "webpack": "5.89.0",
+    "webpack": "5.92.1",
     "webpack-bundle-analyzer": "4.5.0",
     "webpack-cli": "5.1.4"
   },
