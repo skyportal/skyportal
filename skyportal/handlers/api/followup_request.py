@@ -2265,31 +2265,17 @@ def load_source_filter(source_filter):
 
     if source_filter.startswith('"') and source_filter.endswith('"'):
         source_filter = source_filter[1:-1]
-
-    source_filter_ingested = False
-    try:
-        source_filter_json = json.loads(source_filter)
-        source_filter_ingested = True
-    except json.decoder.JSONDecodeError:
-        source_filter = source_filter.replace("'", '"')
-        try:
-            source_filter_json = json.loads(source_filter)
-            source_filter_ingested = True
-        except json.decoder.JSONDecodeError:
-            source_filter = source_filter.replace("\\", "\\\\")
-            try:
-                source_filter_json = json.loads(source_filter)
-                source_filter_ingested = True
-            except json.decoder.JSONDecodeError:
-                source_filter = source_filter.encode().decode('unicode-escape')
-                source_filter_json = json.loads(source_filter)
-                source_filter_ingested = True
-
-    if not source_filter_ingested:
-        raise ValueError(f'Could not interpret {source_filter} as JSON')
+    source_filter = source_filter.replace("'", '"')
+    source_filter = source_filter.encode().decode('unicode-escape')
+    source_filter_json = json.loads(source_filter)
 
     if 'group_id' in source_filter_json:
-        source_filter_json['group_id'] = int(source_filter_json['group_id'])
+        try:
+            source_filter_json['group_id'] = int(source_filter_json['group_id'])
+        except Exception:
+            raise ValueError(
+                'The group_id provided in the source filter is not an integer.'
+            )
 
     return source_filter_json
 
@@ -2375,10 +2361,18 @@ class DefaultFollowupRequestHandler(BaseHandler):
                         )
                     except Exception as e:
                         return self.error(
-                            f'Incorrect format for source_filter. Must be a json string: {e}',
+                            f'Incorrect format for source_filter. Must be a valid json string: {e}',
                         )
+            else:
+                return self.error('source_filter is required')
 
-            default_followup_request = DefaultFollowupRequest.__schema__().load(data)
+            default_followup_request = DefaultFollowupRequest(
+                requester=self.associated_user_object,
+                allocation=allocation,
+                payload=payload,
+                default_followup_name=data['default_followup_name'],
+                source_filter=data['source_filter'],
+            )
             default_followup_request.target_groups = target_groups
 
             session.add(default_followup_request)

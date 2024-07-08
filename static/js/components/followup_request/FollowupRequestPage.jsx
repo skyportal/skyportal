@@ -1,42 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import CircularProgress from "@mui/material/CircularProgress";
-import DeleteIcon from "@mui/icons-material/Delete";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import {
-  createTheme,
-  StyledEngineProvider,
-  ThemeProvider,
-  useTheme,
-} from "@mui/material/styles";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import makeStyles from "@mui/styles/makeStyles";
-import PropTypes from "prop-types";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { JSONTree } from "react-json-tree";
-import { Link } from "react-router-dom";
-import IconButton from "@mui/material/IconButton";
-import AddIcon from "@mui/icons-material/Add";
-import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
 import FollowupRequestLists from "./FollowupRequestLists";
 import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
 import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
-import NewDefaultFollowupRequest from "./NewDefaultFollowupRequest";
-import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ProgressIndicator from "../ProgressIndicators";
-import Button from "../Button";
+import DefaultFollowupRequestList from "./DefaultFollowupRequestList";
 
-import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
 import * as followupRequestActions from "../../ducks/followup_requests";
 
 dayjs.extend(utc);
@@ -73,321 +55,6 @@ const useStyles = makeStyles((theme) => ({
     opacity: 0,
   },
 }));
-
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
-
-const textStyles = makeStyles(() => ({
-  primary: {
-    fontWeight: "bold",
-    fontSize: "110%",
-  },
-}));
-
-const DefaultFollowupRequestList = ({
-  default_followup_requests,
-  deletePermission,
-  hideTitle = false,
-}) => {
-  const dispatch = useDispatch();
-  const classes = useStyles();
-  const theme = useTheme();
-  const textClasses = textStyles();
-  const { instrumentList } = useSelector((state) => state.instruments);
-  const { telescopeList } = useSelector((state) => state.telescopes);
-  const groups = useSelector((state) => state.groups.all);
-
-  const [newDialogOpen, setNewDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-
-  const openNewDialog = () => {
-    setNewDialogOpen(true);
-  };
-  const closeNewDialog = () => {
-    setNewDialogOpen(false);
-  };
-
-  const openDeleteDialog = (id) => {
-    setDeleteDialogOpen(true);
-    setDefaultFollowupRequestToDelete(id);
-  };
-  const closeDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    setDefaultFollowupRequestToDelete(null);
-  };
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [defaultFollowupRequestToDelete, setDefaultFollowupRequestToDelete] =
-    useState(null);
-
-  const deleteDefaultFollowupRequest = () => {
-    dispatch(
-      defaultFollowupRequestsActions.deleteDefaultFollowupRequest(
-        defaultFollowupRequestToDelete,
-      ),
-    ).then((result) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Default follow-up request deleted"));
-        closeDeleteDialog();
-      }
-    });
-  };
-
-  const renderInstrumentName = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const { allocation, default_followup_name } = default_followup_request;
-    const { instrument_id } = allocation;
-    const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-
-    return (
-      <div>
-        <Link to={`/allocation/${allocation.id}`} role="link">
-          {instrument ? instrument.name : ""}
-        </Link>
-      </div>
-    );
-  };
-
-  const renderTelescopeName = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const { allocation, default_followup_name } = default_followup_request;
-    const { instrument_id } = allocation;
-    const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-
-    const telescope_id = instrument?.telescope_id;
-    const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
-
-    return (
-      <div>
-        <Link to={`/allocation/${allocation.id}`} role="link">
-          {telescope ? telescope.nickname : ""}
-        </Link>
-      </div>
-    );
-  };
-
-  const renderGroup = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const { allocation, default_followup_name } = default_followup_request;
-
-    const group = groups?.filter((g) => g.id === allocation.group_id)[0];
-
-    return <div>{group ? group.name : ""}</div>;
-  };
-
-  const renderPayload = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
-
-    return (
-      <div style={cellStyle}>
-        {default_followup_request ? (
-          <JSONTree data={default_followup_request.payload} hideRoot />
-        ) : (
-          ""
-        )}
-      </div>
-    );
-  };
-
-  const renderSourceFilter = (dataIndex) => {
-    const default_followup_request = default_followup_requests[dataIndex];
-
-    const cellStyle = {
-      whiteSpace: "nowrap",
-    };
-
-    return (
-      <div style={cellStyle}>
-        {default_followup_request ? (
-          <JSONTree data={default_followup_request.source_filter} hideRoot />
-        ) : (
-          ""
-        )}
-      </div>
-    );
-  };
-
-  const renderManage = (dataIndex) => {
-    if (!deletePermission) {
-      return null;
-    }
-    const default_followup_request = default_followup_requests[dataIndex];
-    return (
-      <div className={classes.defaultFollowupRequestManage}>
-        <Button
-          key={`delete_${default_followup_request.id}`}
-          id={`delete_button_${default_followup_request.id}`}
-          onClick={() => openDeleteDialog(default_followup_request.id)}
-          disabled={!deletePermission}
-        >
-          <DeleteIcon />
-        </Button>
-      </div>
-    );
-  };
-
-  const columns = [
-    {
-      name: "instrument_name",
-      label: "Instrument Name",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderInstrumentName,
-      },
-    },
-  ];
-  columns.push({
-    name: "telescope_name",
-    label: "Telescope Name",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderTelescopeName,
-    },
-  });
-  columns.push({
-    name: "Group",
-    label: "Group",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderGroup,
-    },
-  });
-  columns.push({
-    name: "Payload",
-    label: "Payload",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderPayload,
-    },
-  });
-  columns.push({
-    name: "Source Filter",
-    label: "Source Filter",
-    options: {
-      filter: false,
-      sort: true,
-      sortThirdClickReset: true,
-      customBodyRenderLite: renderSourceFilter,
-    },
-  });
-  columns.push({
-    name: "manage",
-    label: " ",
-    options: {
-      customBodyRenderLite: renderManage,
-    },
-  });
-
-  const options = {
-    search: false,
-    draggableColumns: { enabled: true },
-    selectableRows: "none",
-    elevation: 0,
-    jumpToPage: true,
-    pagination: true,
-    filter: true,
-    sort: true,
-    customToolbar: () => (
-      <IconButton
-        name="new_default_followup_request"
-        onClick={() => {
-          openNewDialog();
-        }}
-      >
-        <AddIcon />
-      </IconButton>
-    ),
-  };
-
-  return (
-    <div>
-      <Paper className={classes.container}>
-        <StyledEngineProvider injectFirst>
-          <ThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              title={!hideTitle ? "Default Follow-up Requests" : ""}
-              data={default_followup_requests || []}
-              options={options}
-              columns={columns}
-            />
-          </ThemeProvider>
-        </StyledEngineProvider>
-      </Paper>
-      <Dialog
-        open={newDialogOpen}
-        onClose={closeNewDialog}
-        style={{ position: "fixed" }}
-        maxWidth="md"
-      >
-        <DialogTitle>New Default Follow-up Request</DialogTitle>
-        <DialogContent dividers>
-          <NewDefaultFollowupRequest onClose={closeNewDialog} />
-        </DialogContent>
-      </Dialog>
-      <ConfirmDeletionDialog
-        deleteFunction={deleteDefaultFollowupRequest}
-        dialogOpen={deleteDialogOpen}
-        closeDialog={closeDeleteDialog}
-        resourceName="default follow-up request"
-      />
-    </div>
-  );
-};
-
-DefaultFollowupRequestList.propTypes = {
-  default_followup_requests: PropTypes.arrayOf(PropTypes.any).isRequired,
-  deletePermission: PropTypes.bool.isRequired,
-  hideTitle: PropTypes.bool,
-};
-
-DefaultFollowupRequestList.defaultProps = {
-  hideTitle: false,
-};
 
 const defaultNumPerPage = 10;
 
@@ -431,6 +98,8 @@ const FollowupRequestPage = () => {
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
+  const [tabIndex, setTabIndex] = React.useState(0);
+
   useEffect(() => {
     // everytime the list of followup requests is updated, we set the fetchParams in redux
     dispatch({
@@ -438,6 +107,11 @@ const FollowupRequestPage = () => {
       data: fetchParams,
     });
   }, [dispatch, fetchParams]);
+
+  const handleChangeTab = (event, newValue) => {
+    setTabIndex(newValue);
+  };
+
   const handlePageChange = async (page, numPerPage) => {
     const params = {
       ...fetchParams,
@@ -546,93 +220,107 @@ const FollowupRequestPage = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item md={8} sm={12}>
-        <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">List of Followup Requests</Typography>
-            {!followupRequestList ? (
-              <div>
-                <CircularProgress />
+      <Grid item xs={12}>
+        <Tabs value={tabIndex} onChange={handleChangeTab} centered>
+          <Tab label="Follow-up Requests" />
+          <Tab label="Default Follow-up Requests" />
+        </Tabs>
+      </Grid>
+      {tabIndex === 0 && (
+        <Grid container item xs={12} style={{ paddingTop: 0 }}>
+          <Grid item sm={12} md={8}>
+            <Paper elevation={1}>
+              <div className={classes.paperContent}>
+                <Typography variant="h6">List of Followup Requests</Typography>
+                {!followupRequestList ? (
+                  <div>
+                    <CircularProgress />
+                  </div>
+                ) : (
+                  <div>
+                    <FollowupRequestLists
+                      followupRequests={followupRequestList}
+                      instrumentList={instrumentList}
+                      instrumentFormParams={instrumentFormParams}
+                      pageNumber={fetchParams.pageNumber}
+                      numPerPage={fetchParams.numPerPage}
+                      handleTableChange={handleTableChange}
+                      totalMatches={totalMatches}
+                      serverSide
+                      showObject
+                      fetchParams={fetchParams}
+                      onDownload={onDownload}
+                    />
+                  </div>
+                )}
               </div>
-            ) : (
-              <div>
-                <FollowupRequestLists
-                  followupRequests={followupRequestList}
-                  instrumentList={instrumentList}
-                  instrumentFormParams={instrumentFormParams}
-                  pageNumber={fetchParams.pageNumber}
-                  numPerPage={fetchParams.numPerPage}
-                  handleTableChange={handleTableChange}
-                  totalMatches={totalMatches}
-                  serverSide
-                  showObject
+            </Paper>
+          </Grid>
+          <Grid item sm={12} md={4}>
+            <Paper>
+              <div className={classes.paperContent}>
+                <Typography variant="h6">Filter Followup Requests</Typography>
+                <FollowupRequestSelectionForm
                   fetchParams={fetchParams}
-                  onDownload={onDownload}
+                  setFetchParams={setFetchParams}
                 />
               </div>
-            )}
-          </div>
-        </Paper>
-        <Paper elevation={1}>
-          <DefaultFollowupRequestList
-            default_followup_requests={defaultFollowupRequestList}
-            deletePermission={permission}
-          />
-        </Paper>
-      </Grid>
-      <br />
-      <br />
-      <Grid item md={4} sm={12}>
-        <Paper>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">Filter Followup Requests</Typography>
-            <FollowupRequestSelectionForm
-              fetchParams={fetchParams}
-              setFetchParams={setFetchParams}
-            />
-          </div>
-        </Paper>
-        <Paper>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">Prioritize Followup Requests</Typography>
-            <FollowupRequestPrioritizationForm />
-          </div>
-        </Paper>
-        <Dialog
-          open={downloadProgressTotal > 0}
-          style={{ position: "fixed" }}
-          maxWidth="md"
-        >
-          <DialogContent
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Typography variant="h6" display="inline">
-              Downloading {downloadProgressTotal} follow-up requests
-            </Typography>
-            <div
-              style={{
-                height: "5rem",
-                width: "5rem",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
+            </Paper>
+            <Paper>
+              <div className={classes.paperContent}>
+                <Typography variant="h6">
+                  Prioritize Followup Requests
+                </Typography>
+                <FollowupRequestPrioritizationForm />
+              </div>
+            </Paper>
+            <Dialog
+              open={downloadProgressTotal > 0}
+              style={{ position: "fixed" }}
+              maxWidth="md"
             >
-              <ProgressIndicator
-                current={downloadProgressCurrent}
-                total={downloadProgressTotal}
-                percentage={false}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-      </Grid>
+              <DialogContent
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="h6" display="inline">
+                  Downloading {downloadProgressTotal} follow-up requests
+                </Typography>
+                <div
+                  style={{
+                    height: "5rem",
+                    width: "5rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <ProgressIndicator
+                    current={downloadProgressCurrent}
+                    total={downloadProgressTotal}
+                    percentage={false}
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+          </Grid>
+        </Grid>
+      )}
+      {tabIndex === 1 && (
+        <Grid item xs={12} style={{ paddingTop: 0 }}>
+          <Paper elevation={1}>
+            <DefaultFollowupRequestList
+              default_followup_requests={defaultFollowupRequestList}
+              deletePermission={permission}
+            />
+          </Paper>
+        </Grid>
+      )}
     </Grid>
   );
 };
