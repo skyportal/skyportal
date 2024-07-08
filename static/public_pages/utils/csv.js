@@ -62,7 +62,7 @@ function downloadPhotometryToCsv(photometry_data, source_id) {
   downloadCSVFile(csv_data, source_id);
 }
 
-function downloadSpectroscopyToCsv(spectroscopy_data) {
+function downloadSpectroscopyToCsv(spectroscopy_data, source_id) {
   const spectroscopy = JSON.parse(spectroscopy_data)[0];
   // TODO: Implement for all spectra
   // const data = spectroscopy?.original_file_string;
@@ -77,5 +77,5 @@ function downloadSpectroscopyToCsv(spectroscopy_data) {
     }),
   ].join("\n");
 
-  downloadCSVFile(csv_data, "test");
+  downloadCSVFile(csv_data, source_id);
 }
