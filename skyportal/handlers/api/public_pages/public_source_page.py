@@ -62,7 +62,7 @@ def get_photometry(data_to_publish, source_id, group_ids, stream_ids, session):
     stmt = Photometry.select(session.user_or_token, mode="read").where(
         Photometry.obj_id == source_id
     )
-    if len(group_ids) and len(stream_ids):
+    if len(group_ids) > 0 and len(stream_ids) > 0:
         stmt = stmt.where(
             or_(
                 Photometry.groups.any(Group.id.in_(group_ids)),
@@ -78,7 +78,7 @@ def get_spectroscopy(data_to_publish, source_id, group_ids, session):
     query = Spectrum.select(session.user_or_token, mode="read").where(
         Spectrum.obj_id == source_id
     )
-    if len(group_ids):
+    if len(group_ids) > 0:
         query = query.where(or_(Spectrum.groups.any(Group.id.in_(group_ids))))
     data_to_publish["spectroscopy"] = [
         spec.to_dict_public() for spec in session.scalars(query).all()
@@ -89,7 +89,7 @@ def get_classifications(data_to_publish, source_id, group_ids, session):
     stmt = Classification.select(session.user_or_token, mode="read").where(
         Classification.obj_id == source_id
     )
-    if len(group_ids):
+    if len(group_ids) > 0:
         stmt = stmt.where(Classification.groups.any(Group.id.in_(group_ids)))
     data_to_publish["classifications"] = [
         c.to_dict_public() for c in session.scalars(stmt).unique().all()
