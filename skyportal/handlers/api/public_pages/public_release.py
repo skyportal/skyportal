@@ -1,12 +1,11 @@
 import operator  # noqa: F401
 import re
 
-from sqlalchemy.orm import joinedload
-
+from sqlalchemy import func
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 from ...base import BaseHandler
-from ....models import Group, PublicRelease, PublicSourcePage
+from ....models import Group, PublicRelease, PublicSourcePage, GroupPublicRelease
 
 log = make_log('api/public_release')
 
@@ -223,14 +222,30 @@ class PublicReleaseHandler(BaseHandler):
         """
         with self.Session() as session:
             public_releases = (
-                session.execute(
-                    PublicRelease.select(session.user_or_token, mode="read")
-                    .options(joinedload(PublicRelease.groups))
-                    .order_by(PublicRelease.name.asc())
+                session.scalars(
+                    PublicRelease.select(session.user_or_token, mode="read").order_by(
+                        PublicRelease.name.asc()
+                    )
                 )
                 .unique()
                 .all()
             )
+
+            group_releases = (
+                session.query(
+                    GroupPublicRelease.publicrelease_id,
+                    func.array_agg(GroupPublicRelease.group_id).label("group_ids"),
+                )
+                .group_by(GroupPublicRelease.publicrelease_id)
+                .all()
+            )
+            group_releases_dict = {
+                r.publicrelease_id: r.group_ids for r in group_releases
+            }
+
+            for release in public_releases:
+                release.group_ids = group_releases_dict.get(release.id, [])
+
             return self.success(data=public_releases)
 
     @permissions(['Manage sources'])
