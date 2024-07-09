@@ -54,12 +54,6 @@ const ReleasesList = ({ releases, setReleases }) => {
   useEffect(() => {
     if (isSubmit) {
       setIsSubmit(false);
-      setReleases(
-        [
-          ...releases.filter((release) => release.id !== releaseToEdit.id),
-          releaseToEdit,
-        ].sort((a, b) => a.name.localeCompare(b.name)),
-      );
       setReleaseToEdit({});
       setOpenReleaseEdit(false);
       setOpenReleaseList(true);
@@ -118,8 +112,8 @@ const ReleasesList = ({ releases, setReleases }) => {
                   onClick={() => {
                     handleViewEdit(release);
                   }}
-                  disabled={release.groups.some((release_group) =>
-                    groups.includes(release_group),
+                  disabled={release.group_ids.some((release_group_id) =>
+                    groups.includes(release_group_id),
                   )}
                 >
                   <EditIcon />
@@ -128,8 +122,8 @@ const ReleasesList = ({ releases, setReleases }) => {
                   onClick={() => {
                     deleteRelease(release.id);
                   }}
-                  disabled={release.groups.some((release_group) =>
-                    groups.includes(release_group),
+                  disabled={release.group_ids.some((release_group_id) =>
+                    groups.includes(release_group_id),
                   )}
                 >
                   <DeleteIcon />
@@ -155,6 +149,7 @@ ReleasesList.propTypes = {
     PropTypes.shape({
       id: PropTypes.number,
       name: PropTypes.string,
+      group_ids: PropTypes.arrayOf(PropTypes.number),
       description: PropTypes.string,
     }),
   ).isRequired,

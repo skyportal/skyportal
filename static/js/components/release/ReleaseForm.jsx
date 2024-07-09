@@ -30,7 +30,7 @@ const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
         type: "string",
         title: "Description",
       },
-      groups: {
+      group_ids: {
         type: "array",
         items: {
           type: "integer",
@@ -61,9 +61,8 @@ const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
     const action = release.id
       ? updatePublicRelease(release.id, release)
       : submitPublicRelease(release);
-    dispatch(action).then((data) => {
-      if (data.status === "success") {
-        setRelease(data.data);
+    dispatch(action).then((response) => {
+      if (response.status === "success") {
         setIsSubmit(true);
       }
     });
