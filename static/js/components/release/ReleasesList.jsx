@@ -79,6 +79,13 @@ const ReleasesList = ({ releases, setReleases }) => {
     setOpenReleaseEdit(false);
   }
 
+  function isReleaseEditable(release) {
+    const accessibleGroup = groups.map((group) => group.id);
+    return release.group_ids.some((release_group) =>
+      accessibleGroup.includes(release_group),
+    );
+  }
+
   return (
     <div>
       <div className={styles.listHeader}>
@@ -107,28 +114,24 @@ const ReleasesList = ({ releases, setReleases }) => {
                 </div>
                 <div>{truncateText(release.description, 40)}</div>
               </div>
-              <div className={styles.itemButtons}>
-                <Button
-                  onClick={() => {
-                    handleViewEdit(release);
-                  }}
-                  disabled={release.group_ids.some((release_group_id) =>
-                    groups.includes(release_group_id),
-                  )}
-                >
-                  <EditIcon />
-                </Button>
-                <Button
-                  onClick={() => {
-                    deleteRelease(release.id);
-                  }}
-                  disabled={release.group_ids.some((release_group_id) =>
-                    groups.includes(release_group_id),
-                  )}
-                >
-                  <DeleteIcon />
-                </Button>
-              </div>
+              {isReleaseEditable(release) && (
+                <div className={styles.itemButtons}>
+                  <Button
+                    onClick={() => {
+                      handleViewEdit(release);
+                    }}
+                  >
+                    <EditIcon />
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      deleteRelease(release.id);
+                    }}
+                  >
+                    <DeleteIcon />
+                  </Button>
+                </div>
+              )}
             </div>
           ))}
         </div>
