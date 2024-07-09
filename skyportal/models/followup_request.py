@@ -8,11 +8,10 @@ __all__ = [
 from astropy import coordinates as ap_coord
 from astropy import time as ap_time
 from astropy import units as u
-from datetime import datetime, timedelta
 import operator  # noqa: F401
 
 import sqlalchemy as sa
-from sqlalchemy import event, inspect
+from sqlalchemy import event, inspect, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.sql.expression import cast
@@ -32,6 +31,7 @@ from .group import Group
 from .instrument import Instrument
 from .allocation import Allocation
 from .classification import Classification
+from .source import Source
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
@@ -39,6 +39,8 @@ from baselayer.log import make_log
 _, cfg = load_env()
 
 log = make_log('model/followup_request')
+
+EQ_OP = getattr(operator, 'eq')
 
 
 def updatable_by_token_with_listener_acl(cls, user_or_token):
@@ -317,42 +319,66 @@ FollowupRequestUser.update = FollowupRequestUser.delete = AccessibleIfUserMatche
 )
 
 
+@event.listens_for(Source, 'after_insert')
 @event.listens_for(Classification, 'after_insert')
 def add_followup(mapper, connection, target):
     # Add front-end user notifications
     @event.listens_for(inspect(target).session, "after_flush", once=True)
     def receive_after_flush(session, context):
-        from skyportal.handlers.api.followup_request import post_followup_request
+        if target is None:
+            return
 
-        comp_function = getattr(operator, 'eq')
+        user_id = None
+        target_class_name = target.__class__.__name__
         target_data = target.to_dict()
 
         requests_query = sa.select(DefaultFollowupRequest)
-        requests_query = requests_query.where(
-            comp_function(
-                DefaultFollowupRequest.source_filter['classification'],
-                cast(target_data['classification'], psql.JSONB),
-            )
-        )
+
         default_followup_requests = session.scalars(requests_query).all()
 
-        start_date = str(datetime.utcnow()).replace("T", "")
-        end_date = str(datetime.utcnow() + timedelta(days=1)).replace("T", "")
-        obj_id = target_data['obj_id']
-        for ii, default_followup_request in enumerate(default_followup_requests):
-            try:
-                followup_request = default_followup_request.to_dict()
-                allocation_id = followup_request['allocation_id']
-                payload = {
-                    **followup_request['payload'],
-                    'start_date': start_date,
-                    'end_date': end_date,
-                }
-                data = {
-                    'payload': payload,
-                    'allocation_id': allocation_id,
-                    'obj_id': obj_id,
-                }
-                post_followup_request(data, {}, session, refresh_source=False)
-            except Exception as e:
-                log(f"Error posting followup request: {e}")
+        # GroupObj is the classname for the Source table,
+        # since it's a join table between Obj and Group
+        if target_class_name == 'GroupObj':
+            # match by obj id/name
+            # match by group id of the source
+            requests_query = requests_query.where(
+                DefaultFollowupRequest.source_filter['name'].astext.isnot(None),
+                func.regexp_match(
+                    target_data['obj_id'],
+                    DefaultFollowupRequest.source_filter['name'].astext,
+                ).isnot(None),
+                EQ_OP(
+                    DefaultFollowupRequest.source_filter['group_id'],
+                    cast(target_data['group_id'], psql.JSONB),
+                ),
+            )
+            user_id = target_data.get('saved_by_id', None)
+        if target_class_name == 'Classification':
+            # match by classification
+            requests_query = requests_query.where(
+                EQ_OP(
+                    DefaultFollowupRequest.source_filter['classification'],
+                    cast(target_data['classification'], psql.JSONB),
+                )
+            )
+            user_id = target_data.get('author_id', None)
+        elif target_class_name not in ['Source', 'GroupObj']:
+            print(f"Unknown target class name: {target_class_name}")
+            return
+
+        default_followup_requests = session.scalars(requests_query).all()
+
+        if len(default_followup_requests) == 0:
+            return
+
+        from skyportal.utils.asynchronous import run_async
+        from skyportal.handlers.api.followup_request import (
+            post_default_followup_requests,
+        )
+
+        run_async(
+            post_default_followup_requests,
+            target_data['obj_id'],
+            default_followup_requests,
+            user_id,
+        )
