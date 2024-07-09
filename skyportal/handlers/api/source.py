@@ -49,6 +49,7 @@ from ...models import (
     ClassicalAssignment,
     Classification,
     Comment,
+    FacilityTransaction,
     FollowupRequest,
     Galaxy,
     GcnEvent,
@@ -242,7 +243,9 @@ async def get_source(
                     joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
                     joinedload(FollowupRequest.requester),
                     joinedload(FollowupRequest.watchers),
-                    joinedload(FollowupRequest.transactions),
+                    joinedload(FollowupRequest.transactions).load_only(
+                        FacilityTransaction.response
+                    ),
                 ],
             )
             .where(FollowupRequest.obj_id == obj_id)
