@@ -196,7 +196,7 @@ class PublicSourcePageHandler(BaseHandler):
                     session.delete(public_source_page)
                     session.commit()
                 return self.error(f"Error generating public page: {e}")
-            return self.success(data={"PublicSourcePage": public_source_page})
+            return self.success(data=public_source_page)
 
     @auth_or_token
     def get(self, source_id, nb_results=None):
@@ -246,7 +246,7 @@ class PublicSourcePageHandler(BaseHandler):
             )
             if nb_results is not None:
                 stmt = stmt.limit(nb_results)
-            public_source_pages = session.execute(stmt).all()
+            public_source_pages = session.scalars(stmt).all()
             return self.success(data=public_source_pages)
 
     @auth_or_token

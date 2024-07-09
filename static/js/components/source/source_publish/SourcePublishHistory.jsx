@@ -49,7 +49,7 @@ const SourcePublishHistory = ({ sourceId, versions, setVersions }) => {
   const deleteVersion = (id) => {
     dispatch(deletePublicSourcePage(id)).then((data) => {
       if (data.status === "success") {
-        setVersions(versions.filter((obj) => obj.PublicSourcePage.id !== id));
+        setVersions(versions.filter((version) => version.id !== id));
       }
     });
   };
@@ -65,8 +65,7 @@ const SourcePublishHistory = ({ sourceId, versions, setVersions }) => {
   return (
     <div className={styles.versionHistory}>
       {versions.length > 0 ? (
-        versions.map((obj) => {
-          const version = obj.PublicSourcePage;
+        versions.map((version) => {
           return (
             <div
               className={styles.versionHistoryLine}
