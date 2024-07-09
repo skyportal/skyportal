@@ -44,7 +44,7 @@ const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
         default: [],
         title: "Groups that can manage this release",
       },
-      visible: {
+      is_visible: {
         type: "boolean",
         title: "Visible",
         default: true,
@@ -99,7 +99,7 @@ ReleaseForm.propTypes = {
     name: PropTypes.string,
     description: PropTypes.string,
     groups: PropTypes.arrayOf(PropTypes.number),
-    visible: PropTypes.bool,
+    is_visible: PropTypes.bool,
     options: PropTypes.shape({
       include_photometry: PropTypes.bool,
       include_classifications: PropTypes.bool,
