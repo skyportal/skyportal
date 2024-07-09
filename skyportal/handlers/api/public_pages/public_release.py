@@ -24,7 +24,6 @@ def process_link_name_validation(session, link_name, release_id):
         return False, "This link name is already in use"
 
     is_url_safe = bool(re.compile(r'^[0-9A-Za-z-_.+]+$').match(link_name))
-    print(is_url_safe)
     if not is_url_safe:
         return (
             False,
