@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -42,14 +42,11 @@ const SourcePublishRelease = ({
   const styles = useStyles();
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
-  const [releases, setReleases] = useState([]);
+  const releases = useSelector((state) => state.public.releases);
 
   useEffect(() => {
     setIsLoading(true);
-    dispatch(fetchPublicReleases()).then((data) => {
-      setReleases(data.data);
-      setIsLoading(false);
-    });
+    dispatch(fetchPublicReleases()).then(() => setIsLoading(false));
   }, [dispatch]);
 
   const formSchema = {
@@ -108,7 +105,7 @@ const SourcePublishRelease = ({
           )}
         </div>
       )}
-      <ReleasesList releases={releases} setReleases={setReleases} />
+      <ReleasesList releases={releases} />
     </div>
   );
 };
