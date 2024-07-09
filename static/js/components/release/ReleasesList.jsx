@@ -42,7 +42,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const ReleasesList = ({ releases, setReleases }) => {
+const ReleasesList = ({ releases }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const [isSubmit, setIsSubmit] = useState(false);
@@ -60,11 +60,7 @@ const ReleasesList = ({ releases, setReleases }) => {
   }, [isSubmit]);
 
   const deleteRelease = (id) => {
-    dispatch(deletePublicRelease(id)).then((data) => {
-      if (data.status === "success") {
-        setReleases(releases.filter((release) => release.id !== id));
-      }
-    });
+    dispatch(deletePublicRelease(id));
   };
 
   function handleViewEdit(releaseToProcess) {
@@ -148,7 +144,6 @@ ReleasesList.propTypes = {
       description: PropTypes.string,
     }),
   ).isRequired,
-  setReleases: PropTypes.func.isRequired,
 };
 
 export default ReleasesList;
