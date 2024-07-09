@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars */
-
 // Filter sources based on the search bar value
 function filterSources() {
   const searchValue = document

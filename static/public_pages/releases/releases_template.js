@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars */
-
 // Filter releases based on the search bar value
 function filterReleases() {
   const searchValue = document
