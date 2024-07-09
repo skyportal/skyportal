@@ -3435,12 +3435,10 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             )
 
             filters = default_observation_plan_request.filters
-            # make sure that filters is defined
             if not isinstance(filters, dict) or len(filters) == 0:
-                return self.error('Filters must be set ')
-
-            # make sure that there are filters
-            if not any(
+                if default_observation_plan_request.auto_send:
+                    return self.error('Filters must be set if auto_send is True')
+            elif not any(
                 [
                     f in filters
                     and isinstance(filters.get(f), list)
