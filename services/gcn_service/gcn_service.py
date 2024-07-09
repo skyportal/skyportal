@@ -142,7 +142,8 @@ def poll_events(*args, **kwargs):
                         payload['notice_type']
                         == "gcn.notices.icecube.lvk_nu_track_search"
                     ):
-                        if payload.get("pval_bayesian", 1) > 0.05:
+                        # 3 sigma
+                        if payload.get("pval_bayesian", 1) > 0.003:
                             continue
 
                 tags_intersection = list(set(tags).intersection(set(reject_tags)))

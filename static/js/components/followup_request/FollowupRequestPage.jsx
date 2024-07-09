@@ -1,17 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import CircularProgress from "@mui/material/CircularProgress";
-import DeleteIcon from "@mui/icons-material/Delete";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import makeStyles from "@mui/styles/makeStyles";
-import PropTypes from "prop-types";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -19,22 +16,17 @@ import { showNotification } from "baselayer/components/Notifications";
 import FollowupRequestLists from "./FollowupRequestLists";
 import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
 import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
-import NewDefaultFollowupRequest from "./NewDefaultFollowupRequest";
-import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ProgressIndicator from "../ProgressIndicators";
-import Button from "../Button";
+import DefaultFollowupRequestList from "./DefaultFollowupRequestList";
 
-import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
 import * as followupRequestActions from "../../ducks/followup_requests";
 
 dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
-  root: {
+  container: {
     width: "100%",
-    maxWidth: "22.5rem",
-    backgroundColor: theme.palette.background.paper,
-    whiteSpace: "pre-line",
+    overflow: "scroll",
   },
   paperContent: {
     padding: "1rem",
@@ -53,140 +45,16 @@ const useStyles = makeStyles((theme) => ({
     right: 0,
     top: 0,
   },
+  defaultFollowupRequestManage: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
   defaultFollowupRequestDeleteDisabled: {
     opacity: 0,
   },
 }));
-
-const textStyles = makeStyles(() => ({
-  primary: {
-    fontWeight: "bold",
-    fontSize: "110%",
-  },
-}));
-
-export function followupRequestTitle(
-  default_followup_request,
-  instrumentList,
-  telescopeList,
-) {
-  const { allocation, default_followup_name } = default_followup_request;
-  const { instrument_id } = allocation;
-  const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-
-  const telescope_id = instrument?.telescope_id;
-  const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
-
-  if (!(instrument?.name && telescope?.name)) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const result = `${instrument?.name}/${telescope?.nickname} - ${default_followup_name}`;
-
-  return result;
-}
-
-export function defaultFollowupRequestInfo(default_followup_request) {
-  let result = "";
-  if (default_followup_request?.payload) {
-    result += `Payload: ${JSON.stringify(
-      default_followup_request?.payload,
-      null,
-      " ",
-    )}`;
-  }
-  if (default_followup_request?.source_filter) {
-    result += ` / Filter: ${JSON.stringify(
-      default_followup_request?.source_filter,
-      null,
-      " ",
-    )}`;
-  }
-
-  return result;
-}
-
-const DefaultFollowupRequestList = ({
-  default_followup_requests,
-  deletePermission,
-}) => {
-  const dispatch = useDispatch();
-  const classes = useStyles();
-  const textClasses = textStyles();
-  const { instrumentList } = useSelector((state) => state.instruments);
-  const { telescopeList } = useSelector((state) => state.telescopes);
-  const groups = useSelector((state) => state.groups.all);
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [defaultFollowupRequestToDelete, setDefaultFollowupRequestToDelete] =
-    useState(null);
-  const openDialog = (id) => {
-    setDialogOpen(true);
-    setDefaultFollowupRequestToDelete(id);
-  };
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setDefaultFollowupRequestToDelete(null);
-  };
-
-  const deleteDefaultFollowupRequest = () => {
-    dispatch(
-      defaultFollowupRequestsActions.deleteDefaultFollowupRequest(
-        defaultFollowupRequestToDelete,
-      ),
-    ).then((result) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Default follow-up request deleted"));
-        closeDialog();
-      }
-    });
-  };
-
-  return (
-    <div className={classes.root}>
-      <List component="nav">
-        {default_followup_requests?.map((default_followup_request) => (
-          <ListItem button key={default_followup_request.id}>
-            <ListItemText
-              primary={followupRequestTitle(
-                default_followup_request,
-                instrumentList,
-                telescopeList,
-              )}
-              secondary={defaultFollowupRequestInfo(
-                default_followup_request,
-                groups,
-              )}
-              classes={textClasses}
-            />
-            <Button
-              key={default_followup_request.id}
-              id="delete_button"
-              classes={{
-                root: classes.defaultFollowupRequestDelete,
-                disabled: classes.defaultFollowupRequestDeleteDisabled,
-              }}
-              onClick={() => openDialog(default_followup_request.id)}
-              disabled={!deletePermission}
-            >
-              <DeleteIcon />
-            </Button>
-            <ConfirmDeletionDialog
-              deleteFunction={deleteDefaultFollowupRequest}
-              dialogOpen={dialogOpen}
-              closeDialog={closeDialog}
-              resourceName="default follow-up request"
-            />
-          </ListItem>
-        ))}
-      </List>
-    </div>
-  );
-};
 
 const defaultNumPerPage = 10;
 
@@ -230,6 +98,8 @@ const FollowupRequestPage = () => {
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
+  const [tabIndex, setTabIndex] = React.useState(0);
+
   useEffect(() => {
     // everytime the list of followup requests is updated, we set the fetchParams in redux
     dispatch({
@@ -237,6 +107,11 @@ const FollowupRequestPage = () => {
       data: fetchParams,
     });
   }, [dispatch, fetchParams]);
+
+  const handleChangeTab = (event, newValue) => {
+    setTabIndex(newValue);
+  };
+
   const handlePageChange = async (page, numPerPage) => {
     const params = {
       ...fetchParams,
@@ -275,7 +150,7 @@ const FollowupRequestPage = () => {
   });
 
   const telLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
@@ -292,7 +167,7 @@ const FollowupRequestPage = () => {
           numPerPage: 100,
           noRedux: true,
         };
-        // eslint-disable-next-line no-await-in-loop
+
         const response = await dispatch(
           followupRequestActions.fetchFollowupRequests(params),
         );
@@ -345,114 +220,109 @@ const FollowupRequestPage = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item md={8} sm={12}>
-        <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">List of Followup Requests</Typography>
-            {!followupRequestList ? (
-              <div>
-                <CircularProgress />
+      <Grid item xs={12}>
+        <Tabs value={tabIndex} onChange={handleChangeTab} centered>
+          <Tab label="Follow-up Requests" />
+          <Tab label="Default Follow-up Requests" />
+        </Tabs>
+      </Grid>
+      {tabIndex === 0 && (
+        <Grid container item xs={12} style={{ paddingTop: 0 }}>
+          <Grid item sm={12} md={8}>
+            <Paper elevation={1}>
+              <div className={classes.paperContent}>
+                <Typography variant="h6">List of Followup Requests</Typography>
+                {!followupRequestList ? (
+                  <div>
+                    <CircularProgress />
+                  </div>
+                ) : (
+                  <div>
+                    <FollowupRequestLists
+                      followupRequests={followupRequestList}
+                      instrumentList={instrumentList}
+                      instrumentFormParams={instrumentFormParams}
+                      pageNumber={fetchParams.pageNumber}
+                      numPerPage={fetchParams.numPerPage}
+                      handleTableChange={handleTableChange}
+                      totalMatches={totalMatches}
+                      serverSide
+                      showObject
+                      fetchParams={fetchParams}
+                      onDownload={onDownload}
+                    />
+                  </div>
+                )}
               </div>
-            ) : (
-              <div>
-                <FollowupRequestLists
-                  followupRequests={followupRequestList}
-                  instrumentList={instrumentList}
-                  instrumentFormParams={instrumentFormParams}
-                  pageNumber={fetchParams.pageNumber}
-                  numPerPage={fetchParams.numPerPage}
-                  handleTableChange={handleTableChange}
-                  totalMatches={totalMatches}
-                  serverSide
-                  showObject
+            </Paper>
+          </Grid>
+          <Grid item sm={12} md={4}>
+            <Paper>
+              <div className={classes.paperContent}>
+                <Typography variant="h6">Filter Followup Requests</Typography>
+                <FollowupRequestSelectionForm
                   fetchParams={fetchParams}
-                  onDownload={onDownload}
+                  setFetchParams={setFetchParams}
                 />
               </div>
-            )}
-          </div>
-        </Paper>
-        <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">
-              List of Default Follow-up Requests
-            </Typography>
+            </Paper>
+            <Paper>
+              <div className={classes.paperContent}>
+                <Typography variant="h6">
+                  Prioritize Followup Requests
+                </Typography>
+                <FollowupRequestPrioritizationForm />
+              </div>
+            </Paper>
+            <Dialog
+              open={downloadProgressTotal > 0}
+              style={{ position: "fixed" }}
+              maxWidth="md"
+            >
+              <DialogContent
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="h6" display="inline">
+                  Downloading {downloadProgressTotal} follow-up requests
+                </Typography>
+                <div
+                  style={{
+                    height: "5rem",
+                    width: "5rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <ProgressIndicator
+                    current={downloadProgressCurrent}
+                    total={downloadProgressTotal}
+                    percentage={false}
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+          </Grid>
+        </Grid>
+      )}
+      {tabIndex === 1 && (
+        <Grid item xs={12} style={{ paddingTop: 0 }}>
+          <Paper elevation={1}>
             <DefaultFollowupRequestList
               default_followup_requests={defaultFollowupRequestList}
               deletePermission={permission}
             />
-          </div>
-        </Paper>
-      </Grid>
-      <br />
-      <br />
-      <Grid item md={4} sm={12}>
-        <Paper>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">Filter Followup Requests</Typography>
-            <FollowupRequestSelectionForm
-              fetchParams={fetchParams}
-              setFetchParams={setFetchParams}
-            />
-          </div>
-        </Paper>
-        <Paper>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">Prioritize Followup Requests</Typography>
-            <FollowupRequestPrioritizationForm />
-          </div>
-        </Paper>
-        <Paper>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">
-              Add a New Default Follow-up Request
-            </Typography>
-            <NewDefaultFollowupRequest />
-          </div>
-        </Paper>
-        <Dialog
-          open={downloadProgressTotal > 0}
-          style={{ position: "fixed" }}
-          maxWidth="md"
-        >
-          <DialogContent
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Typography variant="h6" display="inline">
-              Downloading {downloadProgressTotal} follow-up requests
-            </Typography>
-            <div
-              style={{
-                height: "5rem",
-                width: "5rem",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <ProgressIndicator
-                current={downloadProgressCurrent}
-                total={downloadProgressTotal}
-                percentage={false}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-      </Grid>
+          </Paper>
+        </Grid>
+      )}
     </Grid>
   );
-};
-
-DefaultFollowupRequestList.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types
-  default_followup_requests: PropTypes.arrayOf(PropTypes.any).isRequired,
-  deletePermission: PropTypes.bool.isRequired,
 };
 
 export default FollowupRequestPage;
