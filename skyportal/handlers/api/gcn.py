@@ -391,29 +391,25 @@ def post_skymap_from_notice(
                         'ra': ra,
                         'dec': dec,
                     }
-                elif any(
-                    [True if 'GRB' in tag.text.upper() else False for tag in tags]
-                ):
+                elif any([True if 'GRB' in tag.upper() else False for tag in tags]):
                     dateobs_txt = Time(dateobs).isot
-                    source_name = f"GRB{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                    source_name = f"GRB-{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
                     source = {
                         'id': source_name,
                         'ra': ra,
                         'dec': dec,
                     }
-                elif any([True if 'GW' in tag.text.upper() else False for tag in tags]):
+                elif any([True if 'GW' in tag.upper() else False for tag in tags]):
                     dateobs_txt = Time(dateobs).isot
-                    source_name = f"GW{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                    source_name = f"GW-{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
                     source = {
                         'id': source_name,
                         'ra': ra,
                         'dec': dec,
                     }
-                elif any(
-                    [True if 'Einstein Probe' in tag.text else False for tag in tags]
-                ):
+                elif any([True if 'Einstein Probe' in tag else False for tag in tags]):
                     dateobs_txt = Time(dateobs).isot
-                    source_name = f"EP{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}.{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
+                    source_name = f"EP-{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
                     source = {
                         'id': source_name,
                         'ra': ra,
@@ -428,7 +424,7 @@ def post_skymap_from_notice(
 
                 if source.get('id', None) is not None:
                     existing_source = session.scalars(
-                        Source.select(user).where(Source.id == source['id'])
+                        Source.select(user).where(Source.obj_id == source['id'])
                     ).first()
                     if existing_source is None:
                         post_source(source, user_id, session)
