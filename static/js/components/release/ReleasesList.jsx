@@ -11,8 +11,12 @@ import { deletePublicRelease } from "../../ducks/public_pages/public_release";
 import Button from "../Button";
 import ReleaseForm from "./ReleaseForm";
 
-export const truncateText = (text, length) =>
-  text.length <= length ? text : `${text.substring(0, length)}...`;
+export function truncateText(text, length) {
+  if (text !== null) {
+    return text.length < length ? text : `${text.substring(0, length)}...`;
+  }
+  return "";
+}
 
 const useStyles = makeStyles(() => ({
   listHeader: {
