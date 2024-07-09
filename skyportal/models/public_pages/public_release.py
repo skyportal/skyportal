@@ -4,10 +4,13 @@ import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base
+from ..group import accessible_by_groups_members
 
 
 class PublicRelease(Base):
     """Public release of a group of sources."""
+
+    update = delete = accessible_by_groups_members
 
     id = sa.Column(sa.Integer, primary_key=True)
 
