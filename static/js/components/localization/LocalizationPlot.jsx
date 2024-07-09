@@ -491,6 +491,8 @@ const GeoJSONGlobePlot = ({
           .style("fill", "none")
           .style("stroke", "grey")
           .style("stroke-width", "2px")
+          .style("stroke-linecap", "round")
+          .style("stroke-linejoin", "round")
           .style("stroke-opacity", 1);
 
         // Draw the center (0th most probable region)
