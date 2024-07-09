@@ -352,7 +352,7 @@ def add_followup(mapper, connection, target):
                     cast(target_data['group_id'], psql.JSONB),
                 ),
             )
-            user_id = target_data['saved_by_id']
+            user_id = target_data.get('saved_by_id', None)
         if target_class_name == 'Classification':
             # match by classification
             requests_query = requests_query.where(
@@ -361,7 +361,7 @@ def add_followup(mapper, connection, target):
                     cast(target_data['classification'], psql.JSONB),
                 )
             )
-            user_id = target_data['author_id']
+            user_id = target_data.get('author_id', None)
         elif target_class_name not in ['Source', 'GroupObj']:
             print(f"Unknown target class name: {target_class_name}")
             return
