@@ -4,6 +4,7 @@ import io
 import operator  # noqa: F401
 import time
 import traceback
+import json
 from json.decoder import JSONDecodeError
 
 import re
@@ -230,7 +231,7 @@ async def get_source(
         raise ValueError("Source not found")
 
     source_info = s.to_dict()
-    source_info["followup_requests"] = (
+    followup_requests = (
         session.scalars(
             FollowupRequest.select(
                 user,
@@ -241,6 +242,7 @@ async def get_source(
                     joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
                     joinedload(FollowupRequest.requester),
                     joinedload(FollowupRequest.watchers),
+                    joinedload(FollowupRequest.transactions),
                 ],
             )
             .where(FollowupRequest.obj_id == obj_id)
@@ -249,6 +251,22 @@ async def get_source(
         .unique()
         .all()
     )
+
+    followup_requests_data = []
+    for req in followup_requests:
+        req_data = req.to_dict()
+        transactions = []
+        for transaction in req.transactions:
+            try:
+                content = transaction.response["content"]
+                content = json.loads(content)
+                transactions.append(content)
+            except Exception:
+                continue
+        req_data["transactions"] = transactions
+        followup_requests_data.append(req_data)
+    source_info["followup_requests"] = followup_requests_data
+
     source_info["assignments"] = session.scalars(
         ClassicalAssignment.select(
             user,
