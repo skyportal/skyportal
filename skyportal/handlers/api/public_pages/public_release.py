@@ -92,7 +92,7 @@ class PublicReleaseHandler(BaseHandler):
                 return self.error(message)
 
             if set(group_ids).issubset(
-                [g.id for g in session.user_or_token.accessible_groups]
+                [g.id for g in self.current_user.accessible_groups]
             ):
                 groups = session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
@@ -186,7 +186,7 @@ class PublicReleaseHandler(BaseHandler):
                 return self.error(message)
 
             if set(group_ids).issubset(
-                [g.id for g in session.user_or_token.accessible_groups]
+                [g.id for g in self.current_user.accessible_groups]
             ):
                 groups = session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
@@ -238,11 +238,14 @@ class PublicReleaseHandler(BaseHandler):
                 .all()
             )
 
+            # Retrieve group ids associated with each release that the user has access to
+            accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
             group_releases = (
                 session.query(
                     GroupPublicRelease.publicrelease_id,
                     func.array_agg(GroupPublicRelease.group_id).label("group_ids"),
                 )
+                .where(GroupPublicRelease.group_id.in_(accessible_group_ids))
                 .group_by(GroupPublicRelease.publicrelease_id)
                 .all()
             )

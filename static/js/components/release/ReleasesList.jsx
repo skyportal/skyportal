@@ -45,7 +45,6 @@ const useStyles = makeStyles(() => ({
 const ReleasesList = ({ releases, setReleases }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
-  const groups = useSelector((state) => state.groups.userAccessible);
   const [isSubmit, setIsSubmit] = useState(false);
   const [releaseToEdit, setReleaseToEdit] = useState({});
   const [openReleaseEdit, setOpenReleaseEdit] = useState(false);
@@ -79,13 +78,6 @@ const ReleasesList = ({ releases, setReleases }) => {
     setOpenReleaseEdit(false);
   }
 
-  function isReleaseEditable(release) {
-    const accessibleGroup = groups.map((group) => group.id);
-    return release.group_ids.some((release_group) =>
-      accessibleGroup.includes(release_group),
-    );
-  }
-
   return (
     <div>
       <div className={styles.listHeader}>
@@ -114,7 +106,7 @@ const ReleasesList = ({ releases, setReleases }) => {
                 </div>
                 <div>{truncateText(release.description, 40)}</div>
               </div>
-              {isReleaseEditable(release) && (
+              {release.group_ids.length > 0 && (
                 <div className={styles.itemButtons}>
                   <Button
                     onClick={() => {
