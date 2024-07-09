@@ -118,6 +118,15 @@ Session = scoped_session(sessionmaker())
 
 MAX_GCNEVENTS = 1000
 
+op_options = [
+    "lt",
+    "le",
+    "eq",
+    "ne",
+    "ge",
+    "gt",
+]
+
 
 def post_gcnevent_from_xml(
     payload, user_id, session, post_skymap=True, asynchronous=True, notify=True
@@ -2076,6 +2085,24 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                 )
             ).all()
         ]
+        localization_properties = session.scalars(
+            sa.select(LocalizationProperty).where(
+                LocalizationProperty.localization_id == localization_id
+            )
+        ).first()
+        if localization_properties is not None:
+            localization_properties = localization_properties.data
+
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        ).first()
+        if not isinstance(event.gcn_notices, list) or len(event.gcn_notices) == 0:
+            log(
+                f"No GCN notices found for event {event.id}, skipping default observation plan"
+            )
+            return
+        # sort the notices by date (which is a datetime object)
+        last_notice = sorted(event.gcn_notices, key=lambda x: x.date)[-1]
 
         default_observation_plans = (
             session.scalars(DefaultObservationPlanRequest.select(user)).unique().all()
@@ -2090,9 +2117,6 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
             }
             gcn_observation_plans.append(gcn_observation_plan)
 
-        event = session.scalars(
-            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-        ).first()
         start_date = str(datetime.datetime.utcnow()).replace("T", "")
 
         for ii, gcn_observation_plan in enumerate(gcn_observation_plans):
@@ -2129,17 +2153,16 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     if filters is not None:
                         if 'gcn_notices' in filters and len(filters['gcn_notices']) > 0:
                             gcn_notice_filter = False
-                            for notice in event.gcn_notices:
-                                if notice.notice_type is not None:
-                                    try:
-                                        notice.notice_type = gcn.NoticeType(
-                                            notice.notice_type
-                                        ).name
-                                    except ValueError:
-                                        pass
-                                    if notice.notice_type in filters['gcn_notices']:
-                                        gcn_notice_filter = True
-                                        break
+                            if last_notice.notice_type is not None:
+                                try:
+                                    last_notice.notice_type = gcn.NoticeType(
+                                        last_notice.notice_type
+                                    ).name
+                                except ValueError:
+                                    pass
+                                if last_notice.notice_type in filters['gcn_notices']:
+                                    gcn_notice_filter = True
+                                    break
                             if not gcn_notice_filter:
                                 continue
 
@@ -2160,6 +2183,82 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                             )
                             if len(intersection) == 0:
                                 continue
+
+                        if len(filters.get("gcn_properties", [])) > 0:
+                            properties_bool = []
+                            for properties in event.properties:
+                                properties_dict = properties.data
+                                properties_pass = True
+                                for prop_filt in filters["gcn_properties"]:
+                                    log(f"gcn prop_filt: {prop_filt}")
+                                    prop_split = prop_filt.split(":")
+                                    if not len(prop_split) == 3:
+                                        raise ValueError(
+                                            "Invalid propertiesFilter value -- property filter must have 3 values"
+                                        )
+                                    name = prop_split[0].strip()
+                                    if name in properties_dict:
+                                        value = prop_split[1].strip()
+                                        try:
+                                            value = float(value)
+                                        except ValueError as e:
+                                            raise ValueError(
+                                                f"Invalid propertiesFilter value: {e}"
+                                            )
+                                        op = prop_split[2].strip()
+                                        if op not in op_options:
+                                            raise ValueError(f"Invalid operator: {op}")
+                                        comp_function = getattr(operator, op)
+                                        if not comp_function(
+                                            properties_dict[name], value
+                                        ):
+                                            properties_pass = False
+                                            break
+                                properties_bool.append(properties_pass)
+                            if not any(properties_bool):
+                                continue
+
+                        if len(filters.get("localization_properties", [])) > 0:
+                            if not isinstance(localization_properties, dict):
+                                log(
+                                    f"Skipping default observation plan {gcn_observation_plan.id} because localization properties are not available"
+                                )
+                                continue
+                            for prop_filt in filters.get("localization_properties", []):
+                                log(f"localization prop_filt: {prop_filt}")
+                                prop_split = prop_filt.split(":")
+                                if not len(prop_split) == 3:
+                                    raise ValueError(
+                                        "Invalid propertiesFilter value -- property filter must have 3 values"
+                                    )
+                                name = prop_split[0].strip()
+                                if name in localization_properties:
+                                    value = prop_split[1].strip()
+                                    try:
+                                        value = float(value)
+                                    except ValueError as e:
+                                        log(
+                                            f"Invalid propertiesFilter value: {e}, skipping default observation plan {gcn_observation_plan.id}"
+                                        )
+                                        continue
+                                    op = prop_split[2].strip()
+                                    if op not in op_options:
+                                        log(
+                                            f"Invalid operator: {op}, skipping default observation plan {gcn_observation_plan.id}"
+                                        )
+                                        continue
+                                    comp_function = getattr(operator, op)
+                                    if not comp_function(
+                                        localization_properties[name],
+                                        value,
+                                    ):
+                                        continue
+
+                elif gcn_observation_plan.auto_send:
+                    # default plans must have filters defined to use auto_send
+                    log(
+                        f"auto_send set to True but no filters, skipping default observation plan {gcn_observation_plan.id}"
+                    )
 
                 post_observation_plan(
                     plan,
