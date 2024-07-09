@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import EditIcon from "@mui/icons-material/Edit";
