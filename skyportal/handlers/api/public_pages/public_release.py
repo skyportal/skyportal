@@ -53,6 +53,10 @@ class PublicReleaseHandler(BaseHandler):
                                 type: string
                             linkName:
                                 type: string
+                            group_ids:
+                                type: array
+                                items:
+                                    type: integer
                             description:
                                 type: string
                             options:
@@ -78,8 +82,8 @@ class PublicReleaseHandler(BaseHandler):
         link_name = data.get("link_name")
         if link_name is None or link_name == "":
             return self.error("Link name is required")
-        groups = data.get("groups")
-        if groups is None or len(groups) == 0:
+        group_ids = data.get("group_ids")
+        if group_ids is None or len(group_ids) == 0:
             return self.error("Specify at least one group")
 
         with self.Session() as session:
@@ -87,7 +91,6 @@ class PublicReleaseHandler(BaseHandler):
             if not is_valid:
                 return self.error(message)
 
-            group_ids = [g.id for g in groups]
             if set(group_ids).issubset(
                 [g.id for g in session.user_or_token.accessible_groups]
             ):
@@ -108,7 +111,7 @@ class PublicReleaseHandler(BaseHandler):
             )
             session.add(public_release)
             session.commit()
-            return self.success(data=public_release)
+            return self.success()
 
     @permissions(['Manage sources'])
     def patch(self, release_id):
@@ -133,6 +136,10 @@ class PublicReleaseHandler(BaseHandler):
                     type: string
                   link_name:
                     type: string
+                  group_ids:
+                    type: array
+                    items:
+                      type: integer
                   description:
                     type: string
                   options:
@@ -158,8 +165,8 @@ class PublicReleaseHandler(BaseHandler):
         link_name = data.get("link_name")
         if link_name is None or link_name == "":
             return self.error("Link name is required")
-        groups = data.get("groups")
-        if groups is None or len(groups) == 0:
+        group_ids = data.get("group_ids")
+        if group_ids is None or len(group_ids) == 0:
             return self.error("Specify at least one group")
 
         with self.Session() as session:
@@ -178,7 +185,6 @@ class PublicReleaseHandler(BaseHandler):
             if not is_valid:
                 return self.error(message)
 
-            group_ids = [g.id for g in groups]
             if set(group_ids).issubset(
                 [g.id for g in session.user_or_token.accessible_groups]
             ):
@@ -196,7 +202,8 @@ class PublicReleaseHandler(BaseHandler):
             public_release.options = data.get("options", {})
             public_release.groups = groups
             session.commit()
-            return self.success(data=public_release)
+
+            return self.success()
 
     @auth_or_token
     def get(self):
