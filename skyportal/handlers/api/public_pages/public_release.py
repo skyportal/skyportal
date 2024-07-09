@@ -45,24 +45,24 @@ class PublicReleaseHandler(BaseHandler):
             - public_release
           requestBody:
             content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            name:
-                                type: string
-                            linkName:
-                                type: string
-                            group_ids:
-                                type: array
-                                items:
-                                    type: integer
-                            description:
-                                type: string
-                            options:
-                                type: object
-                            is_visible:
-                                type: boolean
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    link_name:
+                      type: string
+                    group_ids:
+                      type: array
+                      items:
+                      type: integer
+                    description:
+                      type: string
+                    options:
+                      type: object
+                    is_visible:
+                      type: boolean
           responses:
             200:
               content:
@@ -139,7 +139,7 @@ class PublicReleaseHandler(BaseHandler):
                   group_ids:
                     type: array
                     items:
-                      type: integer
+                    type: integer
                   description:
                     type: string
                   options:
