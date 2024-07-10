@@ -60,7 +60,7 @@ pysedm==0.31.1
 xmlschema==2.5.0
 requests==2.32.3
 geojson==3.1.0
-typing-extensions==4.8.0
+typing-extensions==4.12.2
 swifttools==3.0.22
 pip==24.0
 gwemopt==0.3.4
