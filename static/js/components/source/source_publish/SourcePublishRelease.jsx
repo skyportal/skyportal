@@ -42,7 +42,7 @@ const SourcePublishRelease = ({
   const styles = useStyles();
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
-  const releases = useSelector((state) => state.public.releases);
+  const releases = useSelector((state) => state.publicReleases);
 
   useEffect(() => {
     setIsLoading(true);
@@ -105,7 +105,7 @@ const SourcePublishRelease = ({
           )}
         </div>
       )}
-      <ReleasesList releases={releases} />
+      <ReleasesList />
     </div>
   );
 };

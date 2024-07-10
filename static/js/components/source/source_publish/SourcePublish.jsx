@@ -62,7 +62,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
     groups: [],
     streams: [],
   });
-  const [versions, setVersions] = useState([]);
+  const versions = useSelector((state) => state.publicSourceVersions);
 
   const publish = () => {
     if (permissionToPublish) {
@@ -77,9 +77,6 @@ const SourcePublish = ({ sourceId, isElements }) => {
           setPublishButton({ text: "Error", color: "red" });
         } else {
           setPublishButton({ text: "Done", color: "green" });
-          if (sourcePublishHistoryOpen) {
-            setVersions([data.data, ...versions]);
-          }
         }
         setTimeout(() => {
           setPublishButton({ text: "Publish", color: "" });
@@ -201,11 +198,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
               {sourcePublishHistoryOpen ? <ExpandLess /> : <ExpandMore />}
             </Button>
             {sourcePublishHistoryOpen && (
-              <SourcePublishHistory
-                sourceId={sourceId}
-                versions={versions}
-                setVersions={setVersions}
-              />
+              <SourcePublishHistory sourceId={sourceId} versions={versions} />
             )}
           </div>
         </DialogContent>

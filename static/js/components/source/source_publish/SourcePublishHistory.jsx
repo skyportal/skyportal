@@ -33,25 +33,20 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublishHistory = ({ sourceId, versions, setVersions }) => {
+const SourcePublishHistory = ({ sourceId, versions }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     setIsLoading(true);
-    dispatch(fetchPublicSourcePages(sourceId, 10)).then((data) => {
-      setVersions(data.data);
-      setIsLoading(false);
-    });
+    dispatch(fetchPublicSourcePages(sourceId, 10)).then(() =>
+      setIsLoading(false),
+    );
   }, [dispatch, sourceId]);
 
   const deleteVersion = (id) => {
-    dispatch(deletePublicSourcePage(id)).then((data) => {
-      if (data.status === "success") {
-        setVersions(versions.filter((version) => version.id !== id));
-      }
-    });
+    dispatch(deletePublicSourcePage(id));
   };
   const displayDate = (date) => {
     // Parse the date with Moment.js
@@ -118,7 +113,6 @@ SourcePublishHistory.propTypes = {
       }),
     }),
   ).isRequired,
-  setVersions: PropTypes.func.isRequired,
 };
 
 export default SourcePublishHistory;

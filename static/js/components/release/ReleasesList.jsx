@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import React, { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
-import PropTypes from "prop-types";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandLess from "@mui/icons-material/ExpandLess";
@@ -42,9 +41,10 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const ReleasesList = ({ releases }) => {
+const ReleasesList = () => {
   const styles = useStyles();
   const dispatch = useDispatch();
+  const releases = useSelector((state) => state.publicReleases);
   const [releaseToEdit, setReleaseToEdit] = useState({});
   const [openReleaseList, setOpenReleaseList] = useState(false);
   const [openReleaseForm, setOpenReleaseForm] = useState(false);
@@ -129,17 +129,6 @@ const ReleasesList = ({ releases }) => {
       )}
     </div>
   );
-};
-
-ReleasesList.propTypes = {
-  releases: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.number,
-      name: PropTypes.string,
-      group_ids: PropTypes.arrayOf(PropTypes.number),
-      description: PropTypes.string,
-    }),
-  ).isRequired,
 };
 
 export default ReleasesList;

@@ -196,7 +196,11 @@ class PublicSourcePageHandler(BaseHandler):
                     session.delete(public_source_page)
                     session.commit()
                 return self.error(f"Error generating public page: {e}")
-            return self.success(data=public_source_page)
+
+            return self.success(
+                action="skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
+                payload={'source_id': source_id},
+            )
 
     @auth_or_token
     def get(self, source_id, nb_results=None):
@@ -290,4 +294,7 @@ class PublicSourcePageHandler(BaseHandler):
 
             session.delete(public_source_page)
             session.commit()
-            return self.success()
+            return self.success(
+                action="skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
+                payload={'source_id': public_source_page.source_id},
+            )

@@ -33,18 +33,14 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-const reducer = (state = { releases: [] }, action) => {
+const reducer = (state = [], action) => {
   switch (action.type) {
     case FETCH_PUBLIC_RELEASES_OK: {
-      const releases = action.data;
-      return {
-        ...state,
-        releases,
-      };
+      return action.data;
     }
     default:
       return state;
   }
 };
 
-store.injectReducer("public", reducer);
+store.injectReducer("publicReleases", reducer);
