@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -7,14 +7,31 @@ import {
   ThemeProvider,
   useTheme,
 } from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
 import MUIDataTable from "mui-datatables";
 import dayjs from "dayjs";
 
+import { showNotification } from "baselayer/components/Notifications";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import ModifyAssignment from "./ModifyAssignment";
 import * as Actions from "../../ducks/source";
 import * as UserActions from "../../ducks/users";
+
+const useStyles = makeStyles((theme) => ({
+  assignmentManage: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+}));
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
@@ -61,12 +78,13 @@ const getMuiTheme = (theme) =>
   });
 
 const AssignmentList = ({ assignments }) => {
+  const classes = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
 
-  const deleteAssignment = (id) => {
-    dispatch(Actions.deleteAssignment(id));
-  };
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [assignmentToEditDelete, setAssignmentToEditDelete] = useState(null);
 
   const { users: allUsers } = useSelector((state) => state.users);
   const { observingRunList } = useSelector((state) => state.observingRuns);
@@ -78,6 +96,35 @@ const AssignmentList = ({ assignments }) => {
       dispatch(UserActions.fetchUsers());
     }
   }, [allUsers, dispatch]);
+
+  const openEditDialog = (id) => {
+    setEditDialogOpen(true);
+    setAssignmentToEditDelete(id);
+  };
+  const closeEditDialog = () => {
+    setEditDialogOpen(false);
+    setAssignmentToEditDelete(null);
+  };
+
+  const openDeleteDialog = (id) => {
+    setDeleteDialogOpen(true);
+    setAssignmentToEditDelete(id);
+  };
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setAssignmentToEditDelete(null);
+  };
+
+  const deleteAssignment = () => {
+    dispatch(Actions.deleteAssignment(assignmentToEditDelete)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(showNotification("Unassigned target from observing run"));
+          closeDeleteDialog();
+        }
+      },
+    );
+  };
 
   if (allUsers.length === 0) {
     return (
@@ -140,20 +187,25 @@ const AssignmentList = ({ assignments }) => {
     return run?.pi || "Loading...";
   };
 
-  const renderDelete = (dataIndex) => {
-    const { id } = assignments[dataIndex];
+  const renderManage = (dataIndex) => {
+    const assignment = assignments[dataIndex];
     return (
-      <span>
+      <div className={classes.assignmentManage}>
         <IconButton
-          aria-label="delete-assignment"
-          onClick={() => {
-            deleteAssignment(id);
-          }}
-          size="large"
+          key={`edit_assignment_${assignment.id}`}
+          id={`edit_button_assignment_${assignment.id}`}
+          onClick={() => openEditDialog(assignment.id)}
+        >
+          <EditIcon />
+        </IconButton>
+        <IconButton
+          key={`delete_assignment_${assignment.id}`}
+          id={`delete_button_assignment_${assignment.id}`}
+          onClick={() => openDeleteDialog(assignment.id)}
         >
           <DeleteIcon />
         </IconButton>
-      </span>
+      </div>
     );
   };
 
@@ -197,10 +249,10 @@ const AssignmentList = ({ assignments }) => {
     { name: "status", label: "Status" },
     { name: "comment", label: "Comment" },
     {
-      name: "delete",
-      label: "Delete",
+      name: "manage",
+      label: " ",
       options: {
-        customBodyRenderLite: renderDelete,
+        customBodyRenderLite: renderManage,
       },
     },
   ];
@@ -227,6 +279,28 @@ const AssignmentList = ({ assignments }) => {
           />
         </ThemeProvider>
       </StyledEngineProvider>
+      <Dialog
+        open={editDialogOpen && assignmentToEditDelete !== null}
+        onClose={closeEditDialog}
+        style={{ position: "fixed" }}
+        maxWidth="md"
+      >
+        <DialogTitle>Edit Assignment</DialogTitle>
+        <DialogContent dividers>
+          <ModifyAssignment
+            assignment={assignments.find(
+              (a) => a.id === assignmentToEditDelete,
+            )}
+            onClose={closeEditDialog}
+          />
+        </DialogContent>
+      </Dialog>
+      <ConfirmDeletionDialog
+        deleteFunction={deleteAssignment}
+        dialogOpen={deleteDialogOpen}
+        closeDialog={closeDeleteDialog}
+        resourceName="assignment"
+      />
     </div>
   );
 };
