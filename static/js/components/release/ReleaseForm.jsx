@@ -10,7 +10,7 @@ import {
 } from "../../ducks/public_pages/public_release";
 import Button from "../Button";
 
-const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
+const ReleaseForm = ({ release, setRelease, setOpenReleaseForm }) => {
   const dispatch = useDispatch();
   const streams = useSelector((state) => state.streams);
   const groups = useSelector((state) => state.groups.userAccessible);
@@ -63,7 +63,8 @@ const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
       : submitPublicRelease(release);
     dispatch(action).then((response) => {
       if (response.status === "success") {
-        setIsSubmit(true);
+        setOpenReleaseForm(false);
+        setRelease({});
       }
     });
   };
@@ -94,21 +95,26 @@ const ReleaseForm = ({ release, setRelease, setIsSubmit }) => {
 };
 
 ReleaseForm.propTypes = {
-  release: PropTypes.shape({
-    id: PropTypes.number,
-    name: PropTypes.string,
-    description: PropTypes.string,
-    groups: PropTypes.arrayOf(PropTypes.number),
-    is_visible: PropTypes.bool,
-    options: PropTypes.shape({
-      include_photometry: PropTypes.bool,
-      include_classifications: PropTypes.bool,
-      streams: PropTypes.arrayOf(PropTypes.number),
-      groups: PropTypes.arrayOf(PropTypes.number),
+  release: PropTypes.oneOfType([
+    PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string,
+      link_name: PropTypes.string,
+      description: PropTypes.string,
+      group_ids: PropTypes.arrayOf(PropTypes.number),
+      is_visible: PropTypes.bool,
+      options: PropTypes.shape({
+        include_summary: PropTypes.bool,
+        include_photometry: PropTypes.bool,
+        include_classifications: PropTypes.bool,
+        groups: PropTypes.arrayOf(PropTypes.number),
+        streams: PropTypes.arrayOf(PropTypes.number),
+      }),
     }),
-  }).isRequired,
+    PropTypes.shape({}),
+  ]).isRequired,
   setRelease: PropTypes.func.isRequired,
-  setIsSubmit: PropTypes.func.isRequired,
+  setOpenReleaseForm: PropTypes.func.isRequired,
 };
 
 export default ReleaseForm;

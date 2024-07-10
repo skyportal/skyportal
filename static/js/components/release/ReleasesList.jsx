@@ -45,33 +45,29 @@ const useStyles = makeStyles(() => ({
 const ReleasesList = ({ releases }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
-  const [isSubmit, setIsSubmit] = useState(false);
   const [releaseToEdit, setReleaseToEdit] = useState({});
-  const [openReleaseEdit, setOpenReleaseEdit] = useState(false);
   const [openReleaseList, setOpenReleaseList] = useState(false);
-
-  useEffect(() => {
-    if (isSubmit) {
-      setIsSubmit(false);
-      setReleaseToEdit({});
-      setOpenReleaseEdit(false);
-      setOpenReleaseList(true);
-    }
-  }, [isSubmit]);
+  const [openReleaseForm, setOpenReleaseForm] = useState(false);
 
   const deleteRelease = (id) => {
     dispatch(deletePublicRelease(id));
   };
 
-  function handleViewEdit(releaseToProcess) {
-    if (!openReleaseEdit) setReleaseToEdit(releaseToProcess);
-    setOpenReleaseEdit(!openReleaseEdit);
-    setOpenReleaseList(false);
+  function handleViewEdit(release) {
+    // If the form is closed, set the release to edit and open it, if not, close it
+    if (!openReleaseForm) {
+      setReleaseToEdit(release);
+    }
+    setOpenReleaseForm(!openReleaseForm);
   }
 
   function handleViewList() {
-    setOpenReleaseList(!openReleaseList);
-    setOpenReleaseEdit(false);
+    // if the form is open, close it, if not, change the state of the list
+    if (!openReleaseForm) {
+      setOpenReleaseList(!openReleaseList);
+    } else {
+      setOpenReleaseForm(false);
+    }
   }
 
   return (
@@ -92,7 +88,7 @@ const ReleasesList = ({ releases }) => {
           <AddIcon />
         </Button>
       </div>
-      {openReleaseList && (
+      {openReleaseList && !openReleaseForm && (
         <div>
           {releases.map((release) => (
             <div key={`release_${release.id}`} className={styles.item}>
@@ -124,11 +120,11 @@ const ReleasesList = ({ releases }) => {
           ))}
         </div>
       )}
-      {openReleaseEdit && (
+      {openReleaseForm && (
         <ReleaseForm
           release={releaseToEdit}
           setRelease={setReleaseToEdit}
-          setIsSubmit={setIsSubmit}
+          setOpenReleaseForm={setOpenReleaseForm}
         />
       )}
     </div>
