@@ -125,6 +125,20 @@ class GaiaQueryHandler(BaseHandler):
             num_matches = data.pop('crossmatchNumber', cfg['cross_match.gaia.number'])
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
+            gc = GaiaClass()
+            sub_context = gc.GAIA_MESSAGES
+            conn_handler = gc._TapPlus__getconnhandler()
+            response = conn_handler.execute_tapget(sub_context, verbose=False)
+
+            maintenance = False
+            for line in response:
+                if "Maintenance ongoing" in line.decode("utf-8"):
+                    maintenance = True
+                    break
+
+            if maintenance:
+                return self.error("Gaia server down! Please try again later.")
+
             df = (
                 GaiaClass()
                 .cone_search(
