@@ -16,7 +16,7 @@ reproject==0.13.1
 avro-python3==1.10.2
 fastavro==1.9.4
 tqdm>=4.27,<4.67
-matplotlib==3.6.2
+matplotlib==3.9.1
 astroquery==0.4.7
 apispec==6.3.0
 marshmallow==3.21.3
