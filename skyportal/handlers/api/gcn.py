@@ -2294,7 +2294,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     if not valid_properties:
                         continue
 
-            elif gcn_observation_plan.auto_send:
+            elif gcn_observation_plan.get('auto_send', False):
                 # default plans must have filters defined to use auto_send
                 log(
                     f"auto_send set to True but no filters, skipping default observation plan {gcn_observation_plan.id}"
