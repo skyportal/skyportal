@@ -82,9 +82,7 @@ const getMuiTheme = (theme) =>
 
 const defaultHiddenColumns = ["instrument_id", "snr", "magsys", "created_at"];
 
-// eslint-disable-next-line
 const Transition = React.forwardRef(function Transition(props, ref) {
-  // eslint-disable-next-line
   return <Slide direction="up" ref={ref} {...props} />;
 });
 
@@ -230,7 +228,9 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         return (
           <div>
             <div className={classes.actionButtons}>
-              <div>{phot.streams.map((stream) => stream.name).join(", ")}</div>
+              <div>
+                {(phot.streams || []).map((stream) => stream.name).join(", ")}
+              </div>
             </div>
           </div>
         );
@@ -414,7 +414,9 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
         onColumnViewChange: handleColumnViewChange,
         onDownload: (buildHead, buildBody, cols, tableData) => {
           const renderStreamsDownload = (streams) =>
-            streams ? streams.map((stream) => stream.name).join(";") : "";
+            streams?.length > 0
+              ? streams.map((stream) => stream.name).join(";")
+              : "";
           const renderOwnerDownload = (owner) => (owner ? owner.username : "");
 
           // if there is no data, cancel download
