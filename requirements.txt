@@ -44,7 +44,7 @@ marshmallow-jsonschema==0.13.0
 paramiko==3.4.0
 scp==0.15.0
 requests_toolbelt==0.10.1
-sendgrid==6.10.0
+sendgrid==6.11.0
 responses==0.25.0
 twilio==9.2.2
 numba==0.60.0
