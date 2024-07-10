@@ -31,7 +31,7 @@ healpix-alchemy==1.1.0
 mocpy==0.15.0
 obspy==1.4.0
 conesearch-alchemy==1.0.0
-regions==0.8
+regions==0.9
 jsonschema==4.21.1
 jsonpath_ng==1.6.1
 pytest-rerunfailures==14.0
