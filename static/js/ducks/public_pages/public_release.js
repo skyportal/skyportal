@@ -1,5 +1,6 @@
-import * as API from "../../API";
 import messageHandler from "baselayer/MessageHandler";
+
+import * as API from "../../API";
 import store from "../../store";
 
 const FETCH_PUBLIC_RELEASES = "skyportal/FETCH_PUBLIC_RELEASES";
