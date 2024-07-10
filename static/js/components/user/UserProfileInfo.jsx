@@ -137,8 +137,9 @@ const UserProfileInfo = () => {
             placement="bottom-start"
             title={
               <Typography variant="body2">
-                This is the email address used to log in. If you need to change
-                this, please contact a system administrator.
+                This is the email address used to log in. Unlike the
+                contact_email shown to other users, this cannot be edited. If
+                you wish to change this, please contact a system administrator.
               </Typography>
             }
           >
