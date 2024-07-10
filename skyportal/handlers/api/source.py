@@ -259,13 +259,14 @@ async def get_source(
     for req in followup_requests:
         req_data = req.to_dict()
         transactions = []
-        for transaction in req.transactions:
-            try:
-                content = transaction.response["content"]
-                content = json.loads(content)
-                transactions.append(content)
-            except Exception:
-                continue
+        if user.is_admin:
+            for transaction in req.transactions:
+                try:
+                    content = transaction.response["content"]
+                    content = json.loads(content)
+                    transactions.append(content)
+                except Exception:
+                    continue
         req_data["transactions"] = transactions
         followup_requests_data.append(req_data)
     source_info["followup_requests"] = followup_requests_data
