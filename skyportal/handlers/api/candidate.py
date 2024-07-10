@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import case, func, cast
-from sqlalchemy.sql import column, Values
+from sqlalchemy.sql import column, Values, text, bindparam
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import Float, Boolean, String, Integer
 from sqlalchemy.exc import IntegrityError
@@ -179,12 +179,22 @@ class CandidateHandler(BaseHandler):
                   schema: Error
         """
         with self.Session() as session:
-            stmt = Candidate.select(session.user_or_token).where(
-                Candidate.obj_id == obj_id
-            )
-            count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            num_c = session.execute(count_stmt).scalar()
-            if num_c > 0:
+            query_params = [bindparam('objID', value=obj_id, type_=sa.String)]
+            stmt = "SELECT id FROM candidates WHERE obj_id = :objID"
+            if not self.associated_user_object.is_admin:
+                query_params.append(
+                    bindparam(
+                        'userID', value=self.associated_user_object.id, type_=sa.Integer
+                    )
+                )
+                # inner join between filters and group_users (on group_id) to get filters accessible by user
+                stmt += " AND filter_id IN (SELECT DISTINCT(filters.id) FROM filters INNER JOIN group_users ON filters.group_id = group_users.group_id WHERE group_users.user_id = :userID)"
+            stmt += " LIMIT 1"
+
+            stmt = text(stmt).bindparams(*query_params).columns(id=sa.Integer)
+            connection = session.connection()
+            result = connection.execute(stmt)
+            if result.fetchone():
                 return self.success()
             else:
                 return self.error(
