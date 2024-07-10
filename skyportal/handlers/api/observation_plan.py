@@ -91,6 +91,14 @@ from ..base import BaseHandler
 env, cfg = load_env()
 log = make_log('api/observation_plan')
 
+DEFAULT_OBSPLAN_OPTIONS = [
+    'notice_types',
+    'gcn_tags',
+    'localization_tags',
+    'localization_properties',
+    'gcn_properties',
+]
+
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
 TREASUREMAP_INSTRUMENT_IDS = {  # https://treasuremap.space/search_instruments
@@ -3426,39 +3434,21 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                 DefaultObservationPlanRequest.__schema__().load(data)
             )
 
-            # if auto_send is True, we need to make sure that some filters are set
-            if default_observation_plan_request.auto_send:
-                filters = default_observation_plan_request.filters
-                if not isinstance(filters, dict) or len(filters) == 0:
+            filters = default_observation_plan_request.filters
+            if not isinstance(filters, dict) or len(filters) == 0:
+                if default_observation_plan_request.auto_send:
                     return self.error('Filters must be set if auto_send is True')
-
-                # make sure that there are filters on notice_types or gcn_tags
-                if 'notice_types' not in filters and 'gcn_tags' not in filters:
-                    return self.error(
-                        'Filters must contain either notice_types or gcn_tags when auto_send is True'
-                    )
-                if not (
-                    (
-                        isinstance(filters['notice_types'], list)
-                        and len(filters['notice_types']) > 0
-                    )
-                    or (
-                        isinstance(filters['gcn_tags'], list)
-                        and len(filters['gcn_tags']) > 0
-                    )
-                ):
-                    return self.error(
-                        'Filters must contain either non-empty notice_types or gcn_tags when auto_send is True'
-                    )
-
-                # make sure that there are filters on localization_tags
-                if not (
-                    isinstance(filters.get('localization_tags', []), list)
-                    and len(filters['localization_tags']) > 0
-                ):
-                    return self.error(
-                        'Filters must contain non-empty localization_tags when auto_send is True'
-                    )
+            elif not any(
+                [
+                    f in filters
+                    and isinstance(filters.get(f), list)
+                    and len(filters.get(f, [])) > 0
+                    for f in DEFAULT_OBSPLAN_OPTIONS
+                ]
+            ):
+                return self.error(
+                    f'Filters must contain at least one of: {DEFAULT_OBSPLAN_OPTIONS}'
+                )
 
             default_observation_plan_request.target_groups = target_groups
 
