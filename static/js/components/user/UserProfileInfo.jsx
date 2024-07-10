@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
+import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 import PropTypes from "prop-types";
 
@@ -131,6 +132,26 @@ const UserProfileInfo = () => {
             </Box>
           )}
         </Typography>
+        {profile.oauth_uid && (
+          <Tooltip
+            placement="bottom-start"
+            title={
+              <Typography variant="body2">
+                This is the email address used to log in. If you need to change
+                this, please contact a system administrator.
+              </Typography>
+            }
+          >
+            <Typography component="div">
+              <Box pb={1}>
+                <Box fontWeight="fontWeightBold" component="span" mr={1}>
+                  Authentication email:
+                </Box>
+                {profile.oauth_uid}
+              </Box>
+            </Typography>
+          </Tooltip>
+        )}
       </CardContent>
     </Card>
   );
