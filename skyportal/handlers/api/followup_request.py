@@ -6,6 +6,7 @@ import tempfile
 import time
 import uuid
 from datetime import datetime, timedelta
+import traceback
 
 import arrow
 import healpy as hp
@@ -58,6 +59,7 @@ from ...models import (
     Spectrum,
     User,
     cosmo,
+    DBSession,
 )
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 from ...utils.offset import get_formatted_standards_list
@@ -514,6 +516,12 @@ def post_followup_request(
     group_ids = data.pop('target_group_ids', [])
     stmt = Group.select(session.user_or_token).where(Group.id.in_(group_ids))
     target_groups = session.scalars(stmt).all()
+    obj = session.scalar(
+        Obj.select(session.user_or_token).where(Obj.id == data['obj_id'])
+    )
+    requester = session.scalar(
+        User.select(session.user_or_token).where(User.id == data['requester_id'])
+    )
 
     watcher_ids = data.pop('watcher_ids', None)
     if watcher_ids is not None:
@@ -554,7 +562,18 @@ def post_followup_request(
     else:
         jsonschema.validate(data['payload'], formSchema)
 
-    followup_request = FollowupRequest.__schema__().load(data)
+    followup_request = FollowupRequest(
+        requester_id=data['requester_id'],
+        last_modified_by_id=data['last_modified_by_id'],
+        obj_id=data['obj_id'],
+        payload=data['payload'],
+        allocation_id=data['allocation_id'],
+        comment=data.get('comment', None),
+    )
+    followup_request.obj = obj
+    followup_request.requester = requester
+    followup_request.last_modified_by = requester
+    followup_request.allocation = allocation
     followup_request.target_groups = target_groups
     followup_request.watchers = watchers
     session.add(followup_request)
@@ -604,6 +623,68 @@ def post_followup_request(
                     payload={"request_id": followup_request.id},
                 )
     return followup_request.id
+
+
+def post_default_followup_requests(obj_id, default_followup_requests, user_id):
+    # only called with `run_async`, so we open the session here with DBSession()
+    with DBSession() as session:
+        user = session.scalar(sa.select(User).where(User.id == user_id))
+        if user is None:
+            raise ValueError(
+                f"Could not find user with ID {user_id} to post default followup requests."
+            )
+        obj = None
+        n_retries = 0
+        while obj is None and n_retries < 3:
+            obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+            n_retries += 1
+            if obj is None:
+                time.sleep(1)
+        if obj is None or n_retries >= 3:
+            raise ValueError(
+                f"Could not find object with ID {obj_id} (after 3 seconds) to post default followup requests."
+            )
+
+        session.user_or_token = user
+        session.add(obj)
+        start_date = str(datetime.utcnow()).replace("T", "")
+        end_date = str(datetime.utcnow() + timedelta(days=1)).replace("T", "")
+        for ii, default_followup_request in enumerate(default_followup_requests):
+            try:
+                followup_request = default_followup_request.to_dict()
+                allocation_id = followup_request['allocation_id']
+
+                # if there is already a follow-up request for the same allocation_id and obj_id, cancel
+                existing_request = session.scalars(
+                    sa.select(FollowupRequest.id).where(
+                        FollowupRequest.obj_id == obj_id,
+                        FollowupRequest.allocation_id == allocation_id,
+                    )
+                ).first()
+                if existing_request is not None:
+                    log(
+                        f"Skipping default followup request for {obj_id} with allocation ID {allocation_id} because one already exists."
+                    )
+                    continue
+                payload = {
+                    **followup_request['payload'],
+                    'start_date': start_date,
+                    'end_date': end_date,
+                }
+                data = {
+                    'payload': payload,
+                    'allocation_id': allocation_id,
+                    'obj_id': obj_id,
+                    'requester_id': user_id,
+                    'last_modified_by_id': user_id,
+                }
+                post_followup_request(data, {}, session, refresh_source=False)
+                log(
+                    f"Posted default followup request for {obj_id} with allocation ID {allocation_id}."
+                )
+            except Exception as e:
+                traceback.print_exc()
+                log(f"Error posting default followup request: {e}")
 
 
 class FollowupRequestHandler(BaseHandler):
@@ -2178,6 +2259,27 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
             return self.success()
 
 
+def load_source_filter(source_filter):
+    if isinstance(source_filter, dict):
+        return source_filter
+
+    if source_filter.startswith('"') and source_filter.endswith('"'):
+        source_filter = source_filter[1:-1]
+    source_filter = source_filter.replace("'", '"')
+    source_filter = source_filter.encode().decode('unicode-escape')
+    source_filter_json = json.loads(source_filter)
+
+    if 'group_id' in source_filter_json:
+        try:
+            source_filter_json['group_id'] = int(source_filter_json['group_id'])
+        except Exception:
+            raise ValueError(
+                'The group_id provided in the source filter is not an integer.'
+            )
+
+    return source_filter_json
+
+
 class DefaultFollowupRequestHandler(BaseHandler):
     @auth_or_token
     def post(self):
@@ -2254,14 +2356,23 @@ class DefaultFollowupRequestHandler(BaseHandler):
             if "source_filter" in data:
                 if not isinstance(data["source_filter"], dict):
                     try:
-                        data["source_filter"] = data["source_filter"].replace("'", '"')
-                        data["source_filter"] = json.loads(data["source_filter"])
-                    except json.decoder.JSONDecodeError:
-                        return self.error(
-                            'Incorrect format for source_filter. Must be a json string.'
+                        data["source_filter"] = load_source_filter(
+                            data["source_filter"]
                         )
+                    except Exception as e:
+                        return self.error(
+                            f'Incorrect format for source_filter. Must be a valid json string: {e}',
+                        )
+            else:
+                return self.error('source_filter is required')
 
-            default_followup_request = DefaultFollowupRequest.__schema__().load(data)
+            default_followup_request = DefaultFollowupRequest(
+                requester=self.associated_user_object,
+                allocation=allocation,
+                payload=payload,
+                default_followup_name=data['default_followup_name'],
+                source_filter=data['source_filter'],
+            )
             default_followup_request.target_groups = target_groups
 
             session.add(default_followup_request)
@@ -2339,6 +2450,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
                 default_followup_request_data.append(
                     {
                         **request.to_dict(),
+                        'source_filter': load_source_filter(request.source_filter),
                         'allocation': request.allocation.to_dict(),
                     }
                 )
