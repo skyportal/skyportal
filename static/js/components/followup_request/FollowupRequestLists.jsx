@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
+import { JSONTree } from "react-json-tree";
 import CircularProgress from "@mui/material/CircularProgress";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -297,6 +298,32 @@ const FollowupRequestLists = ({
       });
     });
     columns.push({ name: "status", label: "Status" });
+
+    const renderTransactions = (dataIndex) => {
+      const followupRequest = requestsGroupedByInstId[instrument_id][dataIndex];
+      const cellStyle = {
+        whiteSpace: "nowrap",
+      };
+
+      return (
+        <div style={cellStyle}>
+          {followupRequest ? (
+            <JSONTree data={followupRequest.transactions} hideRoot />
+          ) : (
+            ""
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "Transactions",
+      label: "Transactions",
+      options: {
+        customBodyRenderLite: renderTransactions,
+        display: false,
+      },
+    });
+
     if (modifiable) {
       const renderModify = (dataIndex) => {
         const followupRequest =
