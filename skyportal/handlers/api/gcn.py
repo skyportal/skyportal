@@ -2123,6 +2123,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                 'filters': plan.filters,
                 'payload': plan.payload,
                 'default': plan.id,
+                'auto_send': plan.auto_send,
             }
             gcn_observation_plans.append(gcn_observation_plan)
 
