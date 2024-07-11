@@ -110,7 +110,7 @@ class PublicSourcePage(Base):
     def get_html(self, public_data):
         """Get the HTML content of the public source page."""
         # Create the filters mapper
-        if "photometry" in public_data and public_data["photometry"] is not None:
+        if public_data.get("photometry"):
             from skyportal.handlers.api.photometry import get_filters_mapper
 
             public_data["filters_mapper"] = get_filters_mapper(
