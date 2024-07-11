@@ -133,12 +133,10 @@ class PublicReleaseHandler(BaseHandler):
                 properties:
                   name:
                     type: string
-                  link_name:
-                    type: string
                   group_ids:
                     type: array
                     items:
-                    type: integer
+                      type: integer
                   description:
                     type: string
                   options:
@@ -161,9 +159,6 @@ class PublicReleaseHandler(BaseHandler):
         name = data.get("name")
         if name is None or name == "":
             return self.error("Name is required")
-        link_name = data.get("link_name")
-        if link_name is None or link_name == "":
-            return self.error("Link name is required")
         group_ids = data.get("group_ids")
         if group_ids is None or len(group_ids) == 0:
             return self.error("Specify at least one group")
@@ -178,12 +173,6 @@ class PublicReleaseHandler(BaseHandler):
             if public_release is None:
                 return self.error("Release not found", status=404)
 
-            is_valid, message = process_link_name_validation(
-                session, link_name, release_id
-            )
-            if not is_valid:
-                return self.error(message)
-
             if set(group_ids).issubset(
                 [g.id for g in self.current_user.accessible_groups]
             ):
@@ -195,7 +184,6 @@ class PublicReleaseHandler(BaseHandler):
                 return self.error("Invalid groups")
 
             public_release.name = name
-            public_release.link_name = link_name
             public_release.description = data.get("description", "")
             public_release.is_visible = data.get("is_visible", True)
             public_release.options = data.get("options", {})
