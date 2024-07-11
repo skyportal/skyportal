@@ -97,7 +97,10 @@ class PublicSourcePage(Base):
                 data = json.loads(data)
             except Exception:
                 raise ValueError("Invalid data provided")
-        cache_key = f"source_{self.source_id}_version_{self.hash}"
+        if self.release:
+            cache_key = f"release_{self.release.link_name}_source_{self.source_id}_version_{self.hash}"
+        else:
+            cache_key = f"source_{self.source_id}_version_{self.hash}"
         public_source_page_html = self.get_html(data)
         cache[cache_key] = dict_to_bytes(
             {"public": True, "html": public_source_page_html}
