@@ -77,6 +77,9 @@ const ReleaseForm = ({ release, setRelease, setOpenReleaseForm }) => {
       validator={validator}
       onSubmit={submitRelease}
       uiSchema={{
+        link_name: {
+          "ui:disabled": !!release.id,
+        },
         description: {
           "ui:widget": "textarea",
           "ui:options": {
