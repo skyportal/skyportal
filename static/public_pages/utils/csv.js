@@ -64,18 +64,29 @@ function downloadPhotometryToCsv(photometry_data, source_id) {
 
 function downloadSpectroscopyToCsv(spectroscopy_data, source_id) {
   const spectroscopy = JSON.parse(spectroscopy_data)[0];
-  // TODO: Implement for all spectra
-  // const data = spectroscopy?.original_file_string;
-
   const headers = ["wavelength", "flux"];
+  if (spectroscopy.fluxerr) {
+    headers.push("fluxerr");
+  }
 
-  // TODO: Implement fluxerr
-  const csv_data = [
-    headers.join(","),
-    ...spectroscopy.wavelengths?.forEach((wave, i) => {
-      return `${wave},${spectroscopy.fluxes[i]}`;
-    }),
-  ].join("\n");
+  const filename = spectroscopy.original_file_filename
+    ? spectroscopy.original_file_filename
+    : source_id;
+  let csv_data;
+  if (spectroscopy.original_file_string) {
+    csv_data = spectroscopy.original_file_string;
+  } else {
+    csv_data = [
+      headers.join(","),
+      ...spectroscopy.wavelengths?.map((wave, i) => {
+        let line = `${wave},${spectroscopy.fluxes[i]}`;
+        if (spectroscopy.fluxerr) {
+          return `${line},${spectroscopy.fluxerr[i]}`;
+        }
+        return line;
+      }),
+    ].join("\n");
+  }
 
-  downloadCSVFile(csv_data, source_id);
+  downloadCSVFile(csv_data, filename);
 }
