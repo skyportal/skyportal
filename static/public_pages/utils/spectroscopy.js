@@ -60,119 +60,124 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
   });
 
   // Plot configuration
-  const baseLayout = {
-    zeroline: false,
-    automargin: true,
-    showline: true,
-    titlefont: { size: 18 },
-    tickfont: { size: 14 },
-    ticklen: 12,
-    ticks: "outside",
-    nticks: 8,
-    minor: {
-      ticks: "outside",
-      ticklen: 6,
-      tickcolor: "black",
-    },
-  };
-
-  const layoutGraphPart = {
-    autosize: true,
-    xaxis: {
-      title: "Wavelength (Å)",
-      side: "bottom",
-      tickformat: ".6~f",
+  function getBaseLayout() {
+    return {
       zeroline: false,
-      range: [
-        Math.min(
-          ...spectroscopy_tab.map((spectroscopy) =>
-            Math.min(...spectroscopy.wavelengths),
-          ),
-        ) - 100,
-        Math.max(
-          ...spectroscopy_tab.map((spectroscopy) =>
-            Math.max(...spectroscopy.wavelengths),
-          ),
-        ) + 100,
-      ],
-      ...baseLayout,
-    },
-    yaxis: {
-      title: "Flux",
-      side: "left",
-      range: [
-        0,
-        Math.max(
-          ...spectroscopy_tab.map((spectroscopy) =>
-            Math.max(...spectroscopy.fluxes),
-          ),
-        ) * 1.05,
-      ],
-      ...baseLayout,
-    },
-    margin: {
-      l: 70,
-      r: 20,
-      b: 75,
-      t: 80,
-      pad: 0,
-    },
-    shapes: [
-      {
-        // we use a shape to draw a box around the plot to add borders to it
-        type: "rect",
-        xref: "paper",
-        yref: "paper",
-        x0: 0,
-        y0: 0,
-        x1: 1,
-        y1: 1,
-        line: {
-          color: "black",
-          width: 1,
-        },
+      automargin: true,
+      showline: true,
+      titlefont: { size: 18 },
+      tickfont: { size: 14 },
+      ticklen: 12,
+      ticks: "outside",
+      nticks: 8,
+      minor: {
+        ticks: "outside",
+        ticklen: 6,
+        tickcolor: "black",
       },
-    ],
-    showlegend: true,
-  };
+    };
+  }
 
-  const layoutLegendPart = {
-    legend: {
-      font: { size: 14 },
-      tracegroupgap: 0,
-      orientation: isMobile ? "h" : "v",
-      y: isMobile ? -0.5 : 1,
-      x: isMobile ? 0 : 1,
-    },
-  };
-
-  const config = {
-    responsive: true,
-    displaylogo: false,
-    showAxisDragHandles: false,
-    modeBarButtonsToRemove: [
-      "autoScale2d",
-      "resetScale2d",
-      "select2d",
-      "lasso2d",
-      "toggleSpikelines",
-      "hoverClosestCartesian",
-      "hoverCompareCartesian",
-    ],
-    modeBarButtonsToAdd: [
-      {
-        name: "Reset",
-        icon: Plotly.Icons.home, // eslint-disable-line no-undef
-        click: () => {
-          // eslint-disable-next-line no-undef
-          Plotly.relayout(
-            document.getElementsByClassName("plotly")[0].parentElement,
-            layoutGraphPart,
-          );
-        },
+  function getLayoutGraphPart() {
+    return {
+      autosize: true,
+      xaxis: {
+        title: "Wavelength (Å)",
+        side: "bottom",
+        tickformat: ".6~f",
+        zeroline: false,
+        range: [
+          Math.min(
+            ...spectroscopy_tab.map((spectroscopy) =>
+              Math.min(...spectroscopy.wavelengths),
+            ),
+          ) - 100,
+          Math.max(
+            ...spectroscopy_tab.map((spectroscopy) =>
+              Math.max(...spectroscopy.wavelengths),
+            ),
+          ) + 100,
+        ],
+        ...getBaseLayout(),
       },
-    ],
-  };
+      yaxis: {
+        title: "Flux",
+        side: "left",
+        range: [
+          0,
+          Math.max(
+            ...spectroscopy_tab.map((spectroscopy) =>
+              Math.max(...spectroscopy.fluxes),
+            ),
+          ) * 1.05,
+        ],
+        ...getBaseLayout(),
+      },
+      margin: {
+        l: 70,
+        r: 20,
+        b: 75,
+        t: 80,
+        pad: 0,
+      },
+      shapes: [
+        {
+          // we use a shape to draw a box around the plot to add borders to it
+          type: "rect",
+          xref: "paper",
+          yref: "paper",
+          x0: 0,
+          y0: 0,
+          x1: 1,
+          y1: 1,
+          line: {
+            color: "black",
+            width: 1,
+          },
+        },
+      ],
+      showlegend: true,
+    };
+  }
+
+  function getLayoutLegendPart() {
+    return {
+      legend: {
+        font: { size: 14 },
+        tracegroupgap: 0,
+        orientation: isMobile ? "h" : "v",
+        y: isMobile ? -0.5 : 1,
+        x: isMobile ? 0 : 1,
+      },
+    };
+  }
+
+  function getConfig() {
+    return {
+      responsive: true,
+      displaylogo: false,
+      showAxisDragHandles: false,
+      modeBarButtonsToRemove: [
+        "autoScale2d",
+        "resetScale2d",
+        "select2d",
+        "lasso2d",
+        "toggleSpikelines",
+        "hoverClosestCartesian",
+        "hoverCompareCartesian",
+      ],
+      modeBarButtonsToAdd: [
+        {
+          name: "Reset",
+          icon: Plotly.Icons.home, // eslint-disable-line no-undef
+          click: (plotElement) => {
+            // eslint-disable-next-line no-undef
+            Plotly.relayout(plotElement, getLayoutGraphPart());
+          },
+        },
+      ],
+    };
+  }
 
   function getHoverTexts(spectroscopy) {
     return spectroscopy.wavelengths.map(
@@ -191,7 +196,7 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
   Plotly.newPlot(
     document.getElementById(div_id),
     plotData,
-    { ...layoutGraphPart, ...layoutLegendPart },
-    config,
+    { ...getLayoutGraphPart(), ...getLayoutLegendPart() },
+    getConfig(),
   );
 }

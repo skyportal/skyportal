@@ -4,102 +4,108 @@ function photometryPlot(
   filters_used_mapper,
   isMobile,
 ) {
-  const baseLayout = {
-    zeroline: false,
-    automargin: true,
-    showline: true,
-    autorange: "reversed",
-    titlefont: { size: 18 },
-    tickfont: { size: 14 },
-    ticklen: 12,
-    ticks: "outside",
-    nticks: 8,
-    minor: {
+  function getBaseLayout() {
+    return {
+      zeroline: false,
+      automargin: true,
+      showline: true,
+      autorange: "reversed",
+      titlefont: { size: 18 },
+      tickfont: { size: 14 },
+      ticklen: 12,
       ticks: "outside",
-      ticklen: 6,
-      tickcolor: "black",
-    },
-  };
-  const layoutGraphPart = {
-    autosize: true,
-    xaxis: {
-      title: {
-        text: "Days Ago",
+      nticks: 8,
+      minor: {
+        ticks: "outside",
+        ticklen: 6,
+        tickcolor: "black",
       },
-      overlaying: "x",
-      side: "bottom",
-      tickformat: ".6~f",
-      ...baseLayout,
-    },
-    yaxis: {
-      title: {
-        text: "AB Mag",
-      },
-      ...baseLayout,
-    },
-    margin: {
-      b: 75,
-      l: 70,
-      pad: 0,
-      r: 30,
-      t: 80,
-    },
-    shapes: [
-      {
-        type: "rect",
-        xref: "paper",
-        yref: "paper",
-        x0: 0,
-        y0: 0,
-        x1: 1,
-        y1: 1,
-        line: {
-          color: "black",
-          width: 1,
-        },
-      },
-    ],
-    showlegend: true,
-    hovermode: "closest",
-  };
+    };
+  }
 
-  const layoutLegendPart = {
-    legend: {
-      font: { size: 14 },
-      tracegroupgap: 0,
-      orientation: isMobile ? "h" : "v",
-      y: isMobile ? -0.5 : 1,
-      x: isMobile ? 0 : 1,
-    },
-  };
-
-  const config = {
-    responsive: true,
-    displaylogo: false,
-    showAxisDragHandles: false,
-    modeBarButtonsToRemove: [
-      "autoScale2d",
-      "resetScale2d",
-      "select2d",
-      "lasso2d",
-      "toggleSpikelines",
-      "hoverClosestCartesian",
-      "hoverCompareCartesian",
-    ],
-    modeBarButtonsToAdd: [
-      {
-        name: "Reset",
-        icon: Plotly.Icons.home, // eslint-disable-line no-undef
-        click: () => {
-          // eslint-disable-next-line no-undef
-          Plotly.relayout(
-            document.getElementsByClassName("plotly")[0].parentElement,
-            layoutGraphPart,
-          );
+  function getLayoutGraphPart() {
+    return {
+      autosize: true,
+      xaxis: {
+        title: {
+          text: "Days Ago",
         },
+        overlaying: "x",
+        side: "bottom",
+        tickformat: ".6~f",
+        ...getBaseLayout(),
       },
-    ],
-  };
+      yaxis: {
+        title: {
+          text: "AB Mag",
+        },
+        ...getBaseLayout(),
+      },
+      margin: {
+        b: 75,
+        l: 70,
+        pad: 0,
+        r: 30,
+        t: 80,
+      },
+      shapes: [
+        {
+          type: "rect",
+          xref: "paper",
+          yref: "paper",
+          x0: 0,
+          y0: 0,
+          x1: 1,
+          y1: 1,
+          line: {
+            color: "black",
+            width: 1,
+          },
+        },
+      ],
+      showlegend: true,
+      hovermode: "closest",
+    };
+  }
+
+  function getLayoutLegendPart() {
+    return {
+      legend: {
+        font: { size: 14 },
+        tracegroupgap: 0,
+        orientation: isMobile ? "h" : "v",
+        y: isMobile ? -0.5 : 1,
+        x: isMobile ? 0 : 1,
+      },
+    };
+  }
+
+  function getConfig() {
+    return {
+      responsive: true,
+      displaylogo: false,
+      showAxisDragHandles: false,
+      modeBarButtonsToRemove: [
+        "autoScale2d",
+        "resetScale2d",
+        "select2d",
+        "lasso2d",
+        "toggleSpikelines",
+        "hoverClosestCartesian",
+        "hoverCompareCartesian",
+      ],
+      modeBarButtonsToAdd: [
+        {
+          name: "Reset",
+          icon: Plotly.Icons.home, // eslint-disable-line no-undef
+          click: (plotElement) => {
+            // eslint-disable-next-line no-undef
+            Plotly.relayout(plotElement, getLayoutGraphPart());
+          },
+        },
+      ],
+    };
+  }
 
   function getHoverTexts(photometry) {
     return photometry.map(
@@ -200,7 +206,7 @@ function photometryPlot(
   Plotly.newPlot(
     document.getElementById(div_id),
     plotData,
-    { ...layoutGraphPart, ...layoutLegendPart },
-    config,
+    { ...getLayoutGraphPart(), ...getLayoutLegendPart() },
+    getConfig(),
   );
 }
