@@ -183,6 +183,13 @@ class PublicReleaseHandler(BaseHandler):
             if not groups:
                 return self.error("Invalid groups")
 
+            if (
+                data.get("is_visible", False) is False
+                and public_release.is_visible is True
+            ):
+                for source_page in public_release.source_pages:
+                    source_page.remove_from_cache()
+
             public_release.name = name
             public_release.description = data.get("description", "")
             public_release.is_visible = data.get("is_visible", True)

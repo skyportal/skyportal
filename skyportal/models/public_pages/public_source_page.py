@@ -132,5 +132,8 @@ class PublicSourcePage(Base):
 
     def remove_from_cache(self):
         """Remove the page from the cache."""
-        cache_key = f"source_{self.source_id}_version_{self.hash}"
+        if self.release:
+            cache_key = f"release_{self.release.link_name}_source_{self.source_id}_version_{self.hash}"
+        else:
+            cache_key = f"source_{self.source_id}_version_{self.hash}"
         del cache[cache_key]

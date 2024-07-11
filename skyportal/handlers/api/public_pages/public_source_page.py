@@ -107,6 +107,7 @@ class PublicSourcePageHandler(BaseHandler):
         options = data.get("options")
         if options is None:
             return self.error("Options are required")
+        release_id = data.get("release_id")
 
         with self.Session() as session:
             group_ids = options.get("groups")
@@ -122,10 +123,10 @@ class PublicSourcePageHandler(BaseHandler):
             if source is None:
                 return self.error("Source not found", status=404)
 
-            if data.get("release_id"):
+            if release_id:
                 release = session.scalars(
                     PublicRelease.select(session.user_or_token, mode="read").where(
-                        PublicRelease.id == data.get("release_id")
+                        PublicRelease.id == release_id
                     )
                 ).first()
                 if release is None:
@@ -149,9 +150,7 @@ class PublicSourcePageHandler(BaseHandler):
                     source["thumbnails"], source["ra"], source["dec"]
                 ),
                 "options": options,
-                "release_link_name": release.link_name
-                if data.get("release_id")
-                else None,
+                "release_link_name": release.link_name if release_id else None,
             }
 
             # get photometry
@@ -203,18 +202,20 @@ class PublicSourcePageHandler(BaseHandler):
                 hash=new_page_hash,
                 data=data_to_publish,
                 is_visible=True,
-                release_id=data.get("release_id"),
+                release_id=release_id,
             )
             session.add(public_source_page)
             session.commit()
-            try:
-                public_source_page.generate_page()
-            except Exception as e:
-                session.rollback()
-                if public_source_page in session:
-                    session.delete(public_source_page)
-                    session.commit()
-                return self.error(f"Error generating public page: {e}")
+
+            if release_id and release.is_visible:
+                try:
+                    public_source_page.generate_page()
+                except Exception as e:
+                    session.rollback()
+                    if public_source_page in session:
+                        session.delete(public_source_page)
+                        session.commit()
+                    return self.error(f"Error generating public page: {e}")
 
             return self.success(
                 action="skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
