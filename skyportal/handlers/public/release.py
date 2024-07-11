@@ -46,6 +46,7 @@ class ReleaseHandler(BaseHandler):
                         description: The HTML content of the page with a list of all public releases
         """
         with DBSession() as session:
+            # If link_name is None, list all public releases
             if link_name is None:
                 releases = session.scalars(
                     sa.select(PublicRelease)
@@ -57,6 +58,7 @@ class ReleaseHandler(BaseHandler):
                     releases=releases,
                 )
 
+            # If link_name is provided, display the public release page
             release = session.scalars(
                 sa.select(PublicRelease).where(
                     PublicRelease.link_name == link_name, PublicRelease.is_visible

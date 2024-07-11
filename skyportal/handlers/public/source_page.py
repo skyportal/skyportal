@@ -4,6 +4,7 @@ import sqlalchemy as sa
 from baselayer.app.env import load_env
 from baselayer.app.models import DBSession
 from ...models.public_pages.public_source_page import PublicSourcePage
+from ...models.public_pages.public_release import PublicRelease
 
 from ...utils.cache import Cache
 from ..base import BaseHandler
@@ -17,10 +18,17 @@ cache = Cache(
 )
 
 
-def get_version(session, source_id, version_hash):
+def get_version(session, release_name, source_id, version_hash):
     query = sa.select(PublicSourcePage).where(
         PublicSourcePage.source_id == source_id, PublicSourcePage.is_visible
     )
+    if release_name:
+        query = query.join(PublicRelease).where(
+            PublicRelease.name == release_name and PublicRelease.is_visible
+        )
+    else:
+        query = query.where(PublicSourcePage.release_id.is_(None))
+
     if version_hash:
         query = query.where(PublicSourcePage.hash == version_hash)
     else:
@@ -75,11 +83,14 @@ class SourcePageHandler(BaseHandler):
                         description: The HTML content of the page listing all public source pages
         """
         with DBSession() as session:
-            # If source_id is None, list all public source pages
+            # If source_id is None, list all public source pages with no release
             if source_id is None:
                 versions = session.scalars(
                     sa.select(PublicSourcePage)
-                    .where(PublicSourcePage.is_visible)
+                    .where(
+                        PublicSourcePage.is_visible,
+                        PublicSourcePage.release_id.is_(None),
+                    )
                     .order_by(PublicSourcePage.created_at.desc())
                 ).all()
                 versions_by_source = {}
@@ -95,7 +106,7 @@ class SourcePageHandler(BaseHandler):
             # If version_hash is None, retrieve the latest version of the source
             version = None
             if version_hash is None:
-                version = get_version(session, source_id, None)
+                version = get_version(session, None, source_id, None)
                 if version is None:
                     return self.error("Page not found", status=404)
                 version_hash = version.hash
@@ -106,11 +117,75 @@ class SourcePageHandler(BaseHandler):
             # If the page is not cached, generate it
             if cached is None:
                 if version is None:
-                    version = get_version(session, source_id, version_hash)
+                    version = get_version(session, None, source_id, version_hash)
                     if version is None:
                         return self.error("Page not found", status=404)
                 version.generate_page()
                 cache_key = f"source_{source_id}_version_{version_hash}"
+                cached = cache[cache_key]
+
+            data = np.load(cached, allow_pickle=True)
+            data = data.item()
+            if data['public']:
+                self.set_header("Content-Type", "text/html; charset=utf-8")
+                return self.write(data['html'])
+            else:
+                return self.error("Page not found", status=404)
+
+
+class ReleaseSourcePageHandler(BaseHandler):
+    def get(self, release_name, source_id, version_hash):
+        """
+        ---
+        description: Display the public page for a given source and version in a specific release
+        tags:
+            - source_page
+        parameters:
+            - in: path
+              name: release_name
+              required: true
+              schema:
+                type: string
+              description: The link name of the public release to display
+            - in: path
+              name: source_id
+              required: true
+              schema:
+                type: string
+              description: The ID of the source for which to display the public page
+            - in: path
+              name: version_hash
+              required: true
+              schema:
+                type: string
+              description: The hash of the source data used to identify the version
+        responses:
+            200:
+              content:
+                text/html:
+                  schema:
+                    type: string
+                    description: The HTML content of the selected version of the public source page
+            404:
+              content:
+                application/json:
+                  schema: Error
+        """
+        with DBSession() as session:
+            cache_key = (
+                f"release_{release_name}_source_{source_id}_version_{version_hash}"
+            )
+            cached = cache[cache_key]
+
+            # If the page is not cached, generate it
+            if cached is None:
+                version = get_version(session, release_name, source_id, version_hash)
+                if version is None:
+                    return self.error("Page not found", status=404)
+                version.generate_page()
+                cache_key = (
+                    f"release_{release_name}_source_{source_id}_version_{version_hash}"
+                )
                 cached = cache[cache_key]
 
             data = np.load(cached, allow_pickle=True)
