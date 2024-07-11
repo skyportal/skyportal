@@ -472,9 +472,19 @@ def post_gcnevent_from_json(
     # FIXME: https://github.com/astropy/astropy/issues/7179
     dateobs = Time(dateobs.iso).datetime
 
-    event = session.scalars(
-        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-    ).first()
+    event = None
+    ref_ID = payload.get("ref_ID", None)
+    if ref_ID is not None:
+        event = session.scalars(
+            GcnEvent.select(user).where(
+                func.lower(cast(GcnEvent.aliases, String)).like(f"%{ref_ID.lower()}%")
+            )
+        ).first()
+
+    if event is None:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        ).first()
 
     if event is None:
         event = GcnEvent(
@@ -482,7 +492,14 @@ def post_gcnevent_from_json(
             sent_by_id=user.id,
         )
         session.add(event)
+        session.commit()
+
+        dateobs = event.dateobs
     else:
+        dateobs = event.dateobs
+        # we grab the dateobs from the event to overwrite the dateobs from the gcn notice
+        # this is important because unfortunately the dateobs in a gcn notice is not always the same as the dateobs in the event
+        # what matters is the trigger id if it exists, that allows us to find the actual dateobs of the event
         if not event.is_accessible_by(user, mode="update"):
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
@@ -535,7 +552,7 @@ def post_gcnevent_from_json(
         date=date,
         has_localization=True,
         localization_ingested=False,
-        dateobs=dateobs,
+        dateobs=event.dateobs,
         sent_by_id=user_id,
         notice_format="json",
     )
