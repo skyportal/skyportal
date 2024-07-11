@@ -605,7 +605,7 @@ skyportal_handlers = [
         SourcePageHandler,
     ),
     (
-        r'/public/releases/([0-9A-Za-z-_\.\+]+)/source/([0-9A-Za-z-_\.\+]+)/version/([0-9a-f]+)',
+        r'/public/releases/([0-9A-Za-z-_\.\+]+)/sources/([0-9A-Za-z-_\.\+]+)/version/([0-9a-f]+)',
         ReleaseSourcePageHandler,
     ),
     (r'/public/releases(?:/)?([0-9A-Za-z-_\.\+]+)?', ReleaseHandler),
