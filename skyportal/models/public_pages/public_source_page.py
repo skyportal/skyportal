@@ -107,12 +107,11 @@ class PublicSourcePage(Base):
         """Get the HTML content of the public source page."""
         # Create the filters mapper
         if "photometry" in public_data and public_data["photometry"] is not None:
-            from skyportal.handlers.api.photometry import get_bandpasses_to_colors
+            from skyportal.handlers.api.photometry import get_filters_mapper
 
-            filters = {
-                photometry["filter"] for photometry in public_data.get("photometry", [])
-            }
-            public_data["filters_mapper"] = get_bandpasses_to_colors(filters)
+            public_data["filters_mapper"] = get_filters_mapper(
+                public_data["photometry"]
+            )
 
         if self.release:
             public_data["release"] = {
