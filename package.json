@@ -10,7 +10,7 @@
     "@emotion/react": "11.11.4",
     "@emotion/styled": "11.11.5",
     "@eslint/compat": "1.1.0",
-    "@mui/icons-material": "5.15.15",
+    "@mui/icons-material": "5.16.0",
     "@mui/lab": "5.0.0-alpha.154",
     "@mui/material": "5.14.11",
     "@mui/styled-engine": "5.15.2",
@@ -138,7 +138,7 @@
     "eslint-plugin-react-hooks": "4.6.2",
     "json-loader": "0.5.7",
     "webpack": "5.92.1",
-    "webpack-bundle-analyzer": "4.5.0",
+    "webpack-bundle-analyzer": "4.10.2",
     "webpack-cli": "5.1.4"
   },
   "repository": {
