@@ -268,9 +268,8 @@ class PublicReleaseHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
         if release_id is None:
-            return self.error("Missing release_id")
+            return self.error("Missing release id")
 
         with self.Session() as session:
             public_release = session.scalars(

@@ -66,6 +66,7 @@ class PublicSourcePage(Base):
         return {
             'id': self.id,
             'source_id': self.source_id,
+            'release_link_name': self.release.link_name if self.release else None,
             'is_visible': self.is_visible,
             'created_at': self.created_at,
             'hash': self.hash,
@@ -116,11 +117,6 @@ class PublicSourcePage(Base):
                 public_data["photometry"]
             )
 
-        if self.release:
-            public_data["release"] = {
-                "name": self.release.name,
-                "link_name": self.release.link_name,
-            }
         environment = jinja2.Environment(
             autoescape=True,
             loader=jinja2.FileSystemLoader("./static/public_pages/sources/source"),

@@ -51,9 +51,9 @@
         <a class="websiteName" href="/">SkyPortal</a>
       </div>
       <div class="release">
-        {% if data.get('release') %}
-          <a href="/public/releases/{{ data['release']['link_name'] }}" target="_blank">
-            {{ data['release']['name'] }} ->
+        {% if data.get('release_link_name') %}
+          <a href="/public/releases/{{ data['release_link_name'] }}" target="_blank">
+            {{ data['release_link_name'] }} ->
           </a>
         {% endif %}
       </div>

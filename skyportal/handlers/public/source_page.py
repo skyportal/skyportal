@@ -24,7 +24,7 @@ def get_version(session, release_name, source_id, version_hash):
     )
     if release_name:
         query = query.join(PublicRelease).where(
-            PublicRelease.name == release_name and PublicRelease.is_visible
+            PublicRelease.link_name == release_name and PublicRelease.is_visible
         )
     else:
         query = query.where(PublicSourcePage.release_id.is_(None))

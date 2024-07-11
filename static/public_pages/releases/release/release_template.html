@@ -62,7 +62,7 @@
                 view all...
               </button>
             </div>
-            <a href="/public/sources/{{source_id}}" target="_blank">
+            <a href="/public/releases/{{release.link_name}}/sources/{{source_id}}/version/{{versions[0].hash}}" target="_blank">
               Link to the latest version
             </a>
           </div>
@@ -76,7 +76,7 @@
               <div class="versionId">#{{len(versions) - index}}</div>
               <a
                 class="boxShadow"
-                href="/public/sources/{{ source_id }}/version/{{ version.hash }}"
+                href="/public/releases/{{release.link_name}}/sources/{{ source_id }}/version/{{ version.hash }}"
                 target="_blank"
               >
                 {{ version.created_at.strftime('%m/%d/%Y %H:%M:%S') }} UTC

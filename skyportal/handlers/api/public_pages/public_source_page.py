@@ -11,7 +11,14 @@ from ..source import get_source
 from ...base import BaseHandler
 from ....enum_types import THUMBNAIL_TYPES
 
-from ....models import PublicSourcePage, Group, Stream, Classification, Photometry
+from ....models import (
+    PublicSourcePage,
+    PublicRelease,
+    Group,
+    Stream,
+    Classification,
+    Photometry,
+)
 from ....utils.thumbnail import get_thumbnail_alt_link, get_thumbnail_header
 
 log = make_log('api/public_source_page')
@@ -114,6 +121,16 @@ class PublicSourcePageHandler(BaseHandler):
             )
             if source is None:
                 return self.error("Source not found", status=404)
+
+            if data.get("release_id"):
+                release = session.scalars(
+                    PublicRelease.select(session.user_or_token, mode="read").where(
+                        PublicRelease.id == data.get("release_id")
+                    )
+                ).first()
+                if release is None:
+                    return self.error("Release not found", status=404)
+
             data_to_publish = {
                 "ra": round(source["ra"], 6) if source["ra"] else None,
                 "dec": round(source["dec"], 6) if source["dec"] else None,
@@ -132,7 +149,9 @@ class PublicSourcePageHandler(BaseHandler):
                     source["thumbnails"], source["ra"], source["dec"]
                 ),
                 "options": options,
-                "release_id": data.get("release_id"),
+                "release_link_name": release.link_name
+                if data.get("release_id")
+                else None,
             }
 
             # get photometry
@@ -184,7 +203,7 @@ class PublicSourcePageHandler(BaseHandler):
                 hash=new_page_hash,
                 data=data_to_publish,
                 is_visible=True,
-                release_id=data_to_publish.get("release_id"),
+                release_id=data.get("release_id"),
             )
             session.add(public_source_page)
             session.commit()

@@ -72,7 +72,11 @@ const SourcePublishHistory = ({ sourceId, versions }) => {
                 <div>Classifications: {version?.options?.classifications}</div>
               </div>
               <Link
-                href={`/public/sources/${sourceId}/version/${version?.hash}`}
+                href={`/public${
+                  version.release_link_name
+                    ? "/releases/" + version.release_link_name
+                    : ""
+                }/sources/${sourceId}/version/${version?.hash}`}
                 target="_blank"
                 rel="noreferrer"
                 underline="hover"
@@ -104,6 +108,7 @@ SourcePublishHistory.propTypes = {
     PropTypes.shape({
       PublicSourcePage: PropTypes.shape({
         id: PropTypes.number,
+        release_link_name: PropTypes.string,
         created_at: PropTypes.string,
         options: PropTypes.shape({
           photometry: PropTypes.string,
