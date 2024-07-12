@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import Link from "@mui/material/Link";
 import moment from "moment";
 import {
@@ -24,6 +25,16 @@ const useStyles = makeStyles(() => ({
     alignItems: "center",
     borderRadius: "0.5rem",
     marginBottom: "0.5rem",
+  },
+  dateAndRelease: {
+    display: "flex",
+    flexDirection: "column",
+  },
+  release: {
+    fontSize: "0.8rem",
+  },
+  actions: {
+    display: "flex",
   },
   noVersion: {
     display: "flex",
@@ -49,14 +60,6 @@ const SourcePublishHistory = ({ sourceId, versions }) => {
   const deleteVersion = (id) => {
     dispatch(deletePublicSourcePage(id));
   };
-  const displayDate = (date) => {
-    // Parse the date with Moment.js
-    const dateObj = moment(date);
-
-    // Format the date into a string with up to 2 fractional second digits
-    const dateString = dateObj.format("MM/DD/YYYY HH:mm:ss");
-    return `${dateString} UTC`;
-  };
 
   return (
     <div className={styles.versionHistory}>
@@ -67,26 +70,38 @@ const SourcePublishHistory = ({ sourceId, versions }) => {
               className={styles.versionHistoryLine}
               key={`version_${version.id}}`}
             >
-              <b>{displayDate(version.created_at)}</b>
-              <div>
-                <div>Photometry: {version?.options?.photometry}</div>
-                <div>Classifications: {version?.options?.classifications}</div>
+              <div className={styles.dateAndRelease}>
+                <div>
+                  {moment(version.created_at).format("MM/DD/YY HH:mm")} UTC
+                </div>
+                {version.release_link_name ? (
+                  <Link
+                    href={`/public/releases/${version.release_link_name}`}
+                    className={styles.release}
+                    target="_blank"
+                    underline="hover"
+                  >
+                    {version.release_link_name}
+                  </Link>
+                ) : (
+                  <div className={styles.release}>No release</div>
+                )}
               </div>
-              <Link
-                href={`/public${
-                  version.release_link_name
-                    ? "/releases/" + version.release_link_name
-                    : ""
-                }/sources/${sourceId}/version/${version?.hash}`}
-                target="_blank"
-                rel="noreferrer"
-                underline="hover"
-              >
-                Link to this version
-              </Link>
-              <Button onClick={() => deleteVersion(version.id)}>
-                <DeleteIcon />
-              </Button>
+              <div className={styles.actions}>
+                <Button
+                  href={`/public${
+                    version.release_link_name
+                      ? "/releases/" + version.release_link_name
+                      : ""
+                  }/sources/${sourceId}/version/${version?.hash}`}
+                  target="_blank"
+                >
+                  <VisibilityIcon />
+                </Button>
+                <Button onClick={() => deleteVersion(version.id)}>
+                  <DeleteIcon />
+                </Button>
+              </div>
             </div>
           );
         })
@@ -111,10 +126,6 @@ SourcePublishHistory.propTypes = {
         id: PropTypes.number,
         release_link_name: PropTypes.string,
         created_at: PropTypes.string,
-        options: PropTypes.shape({
-          photometry: PropTypes.string,
-          classifications: PropTypes.string,
-        }),
         hash: PropTypes.string,
       }),
     }),
