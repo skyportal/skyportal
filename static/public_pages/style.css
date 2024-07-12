@@ -131,6 +131,31 @@ button {
   }
 }
 
+.dropdown {
+  position: relative;
+  display: inline-block;
+
+  .dropdownContent {
+    display: none;
+    position: absolute;
+    box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2);
+    min-width: 100%;
+    z-index: 1;
+    right: 0;
+
+    button {
+      min-width: 100%;
+      &:hover {
+        background-color: #f1f1f1;
+      }
+    }
+
+    &.show {
+      display: block;
+    }
+  }
+}
+
 @keyframes loader {
   0% {
     transform: rotate(0deg);
