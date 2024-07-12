@@ -30,17 +30,17 @@
     {% if data.get('photometry') or data.get('spectroscopy') %}
       <script src="https://cdn.plot.ly/plotly-2.25.2.min.js"></script>
       {% if data.get('photometry') %}
-        {% set photometry = data.get('photometry') | tojson | e %}
+        {% set photometry = data['photometry'] %}
         <script src="/static/public_pages/utils/csv.js"></script>
         <script src="/static/public_pages/utils/photometry.js"></script>
       {% endif %}
 
       {% if data.get('spectroscopy') %}
-        {% set spectroscopy = data.get('spectroscopy') | tojson | e %}
+        {% set spectroscopy = data['spectroscopy'] %}
         <script src="/static/public_pages/utils/spectroscopy.js"></script>
       {% endif %}
     {% endif %}
-    {% set classifications = data['classifications'] | tojson | e if data.get('classifications') else None %}
+    {% set classifications = data['classifications'] if data.get('classifications') else None %}
     <script src="/static/public_pages/sources/source/source_template.js"></script>
   </head>
   <!-- Body -->
@@ -69,7 +69,7 @@
         </div>
         {% if classifications %}
         <div class="classificationsTag">
-          {% for classification in data['classifications'] %}
+          {% for classification in classifications %}
           <button
             type="button"
             class="classificationTag"
@@ -169,7 +169,7 @@
             <div class="download">
               <button
                       type="button"
-                      onclick='downloadPhotometryToCsv(`{{ photometry }}`, `{{ source_id | e }}`)'
+                      onclick='downloadPhotometryToCsv(`{{ photometry | tojson }}`, `{{ source_id | e }}`)'
               >
                 DOWNLOAD
               </button>
@@ -178,10 +178,9 @@
         </div>
         {% if photometry %}
           {% set photometry_div_id = 'photometryPlot' %}
-          {% set filters_mapper = data.get('filters_mapper') | tojson | e %}
           <div class="plot photometryPlot" id="{{ photometry_div_id }}">
             <script>
-              photometryPlot(`{{ photometry }}`, `{{ photometry_div_id }}`, `{{ filters_mapper }}`, window.isMobile);
+              photometryPlot(`{{ photometry | tojson }}`, `{{ photometry_div_id }}`, `{{ data.get('filters_mapper') | tojson }}`, window.isMobile);
             </script>
           </div>
         {% else %}
@@ -207,7 +206,7 @@
           {% set spectroscopy_div_id = 'spectroscopyPlot' %}
           <div class="plot spectroscopyPlot" id="{{ spectroscopy_div_id }}">
             <script>
-                spectroscopyPlot(`{{ spectroscopy }}`, `{{ spectroscopy_div_id }}`, window.isMobile);
+                spectroscopyPlot(`{{ spectroscopy | tojson }}`, `{{ spectroscopy_div_id }}`, window.isMobile);
             </script>
           </div>
         {% else %}
@@ -219,7 +218,7 @@
         <h2>Classifications</h2>
         {% if classifications %}
         <div class="classifications">
-          {% for classification in data['classifications'] %}
+          {% for classification in classifications %}
           <div
             id="{{ classification.classification | e }}"
             class="classification boxShadow"
