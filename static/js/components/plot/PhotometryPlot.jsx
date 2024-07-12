@@ -127,9 +127,10 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const PeriodAnnotationDialog = ({ obj_id, period }) => {
+const PeriodAnnotationDialog = ({ obj_id, period, periodUnit }) => {
   const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.userAccessible);
+  const periodUnits = Object.keys(periodUnitDividers);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   // to save a period as an annotation, we'll need the user to provide an origin
@@ -138,6 +139,10 @@ const PeriodAnnotationDialog = ({ obj_id, period }) => {
     type: "object",
     properties: {
       period: { type: "number", title: "Period", default: parseFloat(period) },
+      periodUnitValue: {
+        type: "string",
+        enum: periodUnits,
+      },
       origin: { type: "string", title: "Origin" },
       groupIDs: {
         type: "array",
@@ -170,7 +175,7 @@ const PeriodAnnotationDialog = ({ obj_id, period }) => {
       obj_id,
       origin: formData.origin,
       data: {
-        period: formData.period,
+        period: formData.period / periodUnitDividers[formData.periodUnitValue],
       },
       groups: formData.groupIDs,
     };
@@ -1539,7 +1544,11 @@ const PhotometryPlot = ({
               >
                 /2
               </Button>
-              <PeriodAnnotationDialog obj_id={obj_id} period={period} />
+              <PeriodAnnotationDialog
+                obj_id={obj_id}
+                period={period}
+                periodUnit={periodUnit}
+              />
             </div>
           </div>
         )}
