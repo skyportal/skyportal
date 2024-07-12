@@ -26,6 +26,7 @@ const useStyles = makeStyles(() => ({
   },
   item: {
     display: "flex",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     alignItems: "center",
     padding: "0.5rem 1rem",
