@@ -73,7 +73,7 @@
           <button
             type="button"
             class="classificationTag"
-            onclick="handleClassificationTag(`{{classification.classification}}`)"
+            onclick='handleClassificationTag(`{{classification.classification}}`)'
           >
             {{ "ML: " if classification.ml }} {{ classification.classification | e }}
           </button>
