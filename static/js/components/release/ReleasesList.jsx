@@ -5,6 +5,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import AddIcon from "@mui/icons-material/Add";
 import { deletePublicRelease } from "../../ducks/public_pages/public_release";
 import Button from "../Button";
@@ -92,13 +93,17 @@ const ReleasesList = () => {
           {releases.map((release) => (
             <div key={`release_${release.id}`} className={styles.item}>
               <div className={styles.itemNameDescription}>
-                <div style={{ fontWeight: "bold", marginBottom: "1rem" }}>
-                  {release.name}
-                </div>
+                <div style={{ fontWeight: "bold" }}>{release.name}</div>
                 <div>{truncateText(release.description, 40)}</div>
               </div>
               {release.group_ids.length > 0 && (
                 <div className={styles.itemButtons}>
+                  <Button
+                    href={`/public/releases/${release.link_name}`}
+                    target="_blank"
+                  >
+                    <VisibilityIcon />
+                  </Button>
                   <Button
                     onClick={() => {
                       handleViewEdit(release);
