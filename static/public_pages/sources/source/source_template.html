@@ -192,13 +192,15 @@
         <div class="titleAndDownload">
           <h2>Spectroscopy</h2>
           {% if spectroscopy %}
-            <div class="download">
-              <button
-                      type="button"
-                      onclick='downloadSpectroscopyToCsv(`{{ spectroscopy }}`, `{{ source_id | e }}`)'
-              >
-                DOWNLOAD
-              </button>
+            <div class="download dropdown">
+              <button onclick='this.nextElementSibling.classList.toggle("show")' class="dropdownBtn" type="button">DOWNLOAD ▼</button>
+              <div class="dropdownContent">
+                {% for oneSpectroscopy in spectroscopy %}
+                  <button onclick='downloadSpectroscopyToCsv(`{{ oneSpectroscopy | tojson }}`, `{{ source_id | e }}`)'>
+                    {{ oneSpectroscopy.instrument | e }}
+                  </button>
+                {% endfor %}
+              </div>
             </div>
           {% endif %}
         </div>
