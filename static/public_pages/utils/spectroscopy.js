@@ -49,7 +49,7 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
         shape: "hvh",
         width: 0.85,
         color: `hsl(${Math.round(
-          240 - (index / spectroscopy.length - 1) * 240,
+          240 - (index / (spectroscopy_tab.length - 1)) * 240,
         )}, 90%, 50%)`,
       },
       hoverlabel: {
