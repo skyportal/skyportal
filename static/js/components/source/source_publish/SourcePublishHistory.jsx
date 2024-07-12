@@ -10,6 +10,7 @@ import {
   deletePublicSourcePage,
   fetchPublicSourcePages,
 } from "../../../ducks/public_pages/public_source_page";
+import Button from "@mui/material/Button";
 
 const useStyles = makeStyles(() => ({
   versionHistory: {
@@ -83,9 +84,9 @@ const SourcePublishHistory = ({ sourceId, versions }) => {
               >
                 Link to this version
               </Link>
-              <button type="button" onClick={() => deleteVersion(version.id)}>
+              <Button onClick={() => deleteVersion(version.id)}>
                 <DeleteIcon />
-              </button>
+              </Button>
             </div>
           );
         })
