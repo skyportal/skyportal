@@ -37,7 +37,6 @@ const useStyles = makeStyles(() => ({
   },
   itemButtons: {
     display: "flex",
-    flexDirection: "column",
   },
 }));
 
