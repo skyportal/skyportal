@@ -153,7 +153,6 @@ const PeriodAnnotationDialog = ({ obj_id, period }) => {
   };
 
   const validate = (formData, errors) => {
-    console.log("period", formData.period);
     if (formData.period <= 0) {
       errors.period.addError("Period must be greater than 0");
     }
