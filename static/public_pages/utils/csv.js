@@ -29,8 +29,8 @@ function downloadTableToCSV(type) {
   downloadCSVFile(csv_data, type);
 }
 
-function downloadPhotometryToCsv(photometry_data, source_id) {
-  const photometry = JSON.parse(photometry_data);
+function downloadPhotometryToCsv(photometry_tab, source_id) {
+  const photometry = JSON.parse(photometry_tab);
 
   const headers = [
     "mjd",
@@ -62,8 +62,8 @@ function downloadPhotometryToCsv(photometry_data, source_id) {
   downloadCSVFile(csv_data, source_id);
 }
 
-function downloadSpectroscopyToCsv(spectroscopy_data, source_id) {
-  const spectroscopy = JSON.parse(spectroscopy_data)[0];
+function downloadSpectroscopyToCsv(oneSpectroscopy, source_id) {
+  const spectroscopy = JSON.parse(oneSpectroscopy);
   const headers = ["wavelength", "flux"];
   if (spectroscopy.fluxerr) {
     headers.push("fluxerr");
