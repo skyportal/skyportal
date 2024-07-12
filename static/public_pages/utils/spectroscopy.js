@@ -1,3 +1,15 @@
+function median(values) {
+  const sorted = values.slice().sort((a, b) => a - b);
+  const half = Math.floor(values.length / 2);
+  return values.length % 2 !== 0
+    ? sorted[half]
+    : (sorted[half - 1] + sorted[half]) / 2.0;
+}
+
+function mean(values) {
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
 function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
   const spectroscopy_tab = JSON.parse(spectroscopy_data);
   const plotData = [];
@@ -6,17 +18,7 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
   spectroscopy_tab.forEach((spectroscopy, index) => {
     const updateFluxes = [];
     const updateWavelengths = [];
-
-    const getNormFactor = (val) => {
-      const sorted = val.slice().sort((a, b) => a - b);
-      const half = Math.floor(val.length / 2);
-      const median =
-        val.length % 2 !== 0
-          ? sorted[half]
-          : (sorted[half - 1] + sorted[half]) / 2.0;
-      return Math.abs(median) || 1e-20;
-    };
-    const normFactor = getNormFactor(spectroscopy.fluxes);
+    const normFactor = Math.abs(median(spectroscopy.fluxes)) || 1e-20;
 
     const isNullOrNaN = (val) => val === null || isNaN(val);
     spectroscopy.fluxes.forEach((flux, index) => {
@@ -78,6 +80,25 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
     };
   }
 
+  function getMaxFlux(spectroscopy_tab) {
+    let max = 0;
+    spectroscopy_tab.forEach((spectroscopy) => {
+      let fluxes = spectroscopy.fluxes;
+      const maxFlux = Math.max(...fluxes);
+      if (maxFlux > 10 * median(fluxes) || maxFlux > 10 * mean(fluxes)) {
+        fluxes = fluxes.map((flux) => (flux > 0 ? flux : 0));
+        fluxes.sort((a, b) => a - b);
+        const q1 = fluxes[Math.floor(fluxes.length * 0.25)];
+        const q3 = fluxes[Math.floor(fluxes.length * 0.75)];
+        const upperFence = 2.5 * q3 - 1.5 * q1;
+        max = Math.max(max, upperFence);
+      } else {
+        max = Math.max(max, maxFlux);
+      }
+    });
+    return max;
+  }
+
   function getLayoutGraphPart() {
     return {
       autosize: true,
@@ -103,14 +124,7 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
       yaxis: {
         title: "Flux",
         side: "left",
-        range: [
-          0,
-          Math.max(
-            ...spectroscopy_tab.map((spectroscopy) =>
-              Math.max(...spectroscopy.fluxes),
-            ),
-          ) * 1.05,
-        ],
+        range: [0, getMaxFlux(spectroscopy_tab) * 1.05],
         ...getBaseLayout(),
       },
       margin: {
