@@ -71,7 +71,7 @@ function downloadSpectroscopyToCsv(oneSpectroscopy, source_id) {
 
   const filename = spectroscopy.original_file_filename
     ? spectroscopy.original_file_filename
-    : source_id;
+    : `${source_id}_${spectroscopy.instrument}`;
   let csv_data;
   if (spectroscopy.original_file_string) {
     csv_data = spectroscopy.original_file_string;
