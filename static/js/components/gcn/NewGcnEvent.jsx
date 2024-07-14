@@ -1,10 +1,10 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import dataUriToBuffer from "data-uri-to-buffer";
+import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 
 import { submitGcnEvent } from "../../ducks/gcnEvent";
@@ -23,15 +23,14 @@ const NewGcnEvent = ({ handleClose = null }) => {
 
   const handleSubmit = async ({ formData }) => {
     if (Object.keys(formData).includes("json") && formData.json !== undefined) {
-      // eslint-disable-next-line prefer-destructuring
-      formData.json = dataUriToBuffer(formData.json).toString();
+      const parsed_json = dataUriToBuffer(formData.json);
+      formData.json = new TextDecoder().decode(parsed_json.buffer);
     }
     if (Object.keys(formData).includes("xml") && formData.xml !== undefined) {
-      // eslint-disable-next-line prefer-destructuring
-      formData.xml = dataUriToBuffer(formData.xml).toString();
+      const parsed_xml = dataUriToBuffer(formData.json);
+      formData.xml = new TextDecoder().decode(parsed_xml.buffer);
     }
     if (Object.keys(formData).includes("ra") && formData.ra !== undefined) {
-      // eslint-disable-next-line prefer-destructuring
       formData.skymap = {
         ra: formData.ra,
         dec: formData.dec,
@@ -42,7 +41,6 @@ const NewGcnEvent = ({ handleClose = null }) => {
       Object.keys(formData).includes("polygon") &&
       formData.polygon !== undefined
     ) {
-      // eslint-disable-next-line prefer-destructuring
       formData.skymap = {
         localization_name: formData.localization_name,
         polygon: formData.polygon,
@@ -163,7 +161,6 @@ const NewGcnEvent = ({ handleClose = null }) => {
       schema={gcnEventFormSchema}
       validator={validator}
       onSubmit={handleSubmit}
-      // eslint-disable-next-line react/jsx-no-bind
       customValidate={validate}
       liveValidate
     />

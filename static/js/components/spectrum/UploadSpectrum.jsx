@@ -3,10 +3,10 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useSearchParams } from "react-router-dom";
 import MUIDataTable from "mui-datatables";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv6";
-import dataUriToBuffer from "data-uri-to-buffer";
+import { dataUriToBuffer } from "data-uri-to-buffer";
 import Typography from "@mui/material/Typography";
 import Accordion from "@mui/material/Accordion";
 import Grid from "@mui/material/Grid";
@@ -660,7 +660,8 @@ const UploadSpectrumForm = ({ route }) => {
 
   const parseAscii = ({ formData }) => {
     dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
-    const ascii = dataUriToBuffer(formData.file).toString();
+    const parsed = dataUriToBuffer(formData.file);
+    const ascii = new TextDecoder().decode(parsed.buffer);
     const payload = {
       ascii,
       flux_column: formData.flux_column,
