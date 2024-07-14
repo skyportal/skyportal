@@ -82,7 +82,7 @@ const NewAllocation = ({ onClose }) => {
     const formState = getValues();
     formData.group_id = formState.group.id;
     formData.allocation_admin_ids = [];
-    formState.users.forEach((user) => {
+    formState.users?.forEach((user) => {
       formData.allocation_admin_ids.push(user.id);
     });
     formData.start_date = formData.start_date
