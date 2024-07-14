@@ -660,8 +660,8 @@ const UploadSpectrumForm = ({ route }) => {
 
   const parseAscii = ({ formData }) => {
     dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
-    const parsed = dataUriToBuffer(formData.file);
-    const ascii = new TextDecoder().decode(parsed.buffer);
+    const parsed_spectrum = dataUriToBuffer(formData.file);
+    const ascii = new TextDecoder().decode(parsed_spectrum.buffer);
     const payload = {
       ascii,
       flux_column: formData.flux_column,
@@ -676,7 +676,8 @@ const UploadSpectrumForm = ({ route }) => {
     if (!parsed) {
       throw new Error("No spectrum loaded on frontend.");
     }
-    const ascii = dataUriToBuffer(persistentFormData.file).toString();
+    const parsed_form = dataUriToBuffer(persistentFormData.file);
+    const ascii = new TextDecoder().decode(parsed_form.buffer);
     const filename = persistentFormData.file.split(";")[1].split("name=")[1];
     const payload = {
       ascii,
