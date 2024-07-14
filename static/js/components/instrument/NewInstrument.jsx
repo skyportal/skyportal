@@ -104,7 +104,7 @@ const NewInstrument = ({ onClose }) => {
     ) {
       errors.field_fov_type.addError("Must only choose one FOV type.");
     }
-    if (errors && formData.field_region && formData.field_fov_typelength > 0) {
+    if (errors && formData.field_region && formData.field_fov_type.length > 0) {
       errors.field_region.addError(
         "Must only choose either field_region or field_fov_type.",
       );
