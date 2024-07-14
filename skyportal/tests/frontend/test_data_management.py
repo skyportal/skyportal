@@ -1,6 +1,5 @@
 import pytest
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.action_chains import ActionChains
 
 from skyportal.tests import IS_CI_BUILD
 
@@ -49,10 +48,11 @@ def test_delete_spectrum(driver, public_source):
     delete = driver.wait_for_xpath(
         "//*[contains(@data-testid, 'delete-spectrum-button')]"
     )
-    driver.execute_script("arguments[0].scrollIntoView();", delete)
-    ActionChains(driver).move_to_element(delete).perform()
-    driver.click_xpath("//*[contains(@data-testid, 'delete-spectrum-button')]")
-    driver.click_xpath("//*[@data-testid='yes-delete']")
+    driver.scroll_to_element_and_click(delete)
+    driver.click_xpath(
+        "//*[contains(@data-testid, 'delete-spectrum-button')]", scroll_parent=True
+    )
+    driver.click_xpath("//*[@data-testid='yes-delete']", scroll_parent=True)
 
     driver.wait_for_xpath_to_disappear(
         '//*[@data-testid="spectrum-table"]//*[@data-testid="MUIDataTableBodyRow-1"]'
