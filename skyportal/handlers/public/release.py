@@ -59,11 +59,11 @@ class ReleaseHandler(BaseHandler):
                 )
 
             # If link_name is provided, display the public release page
-            release = session.scalars(
+            release = session.scalar(
                 sa.select(PublicRelease).where(
                     PublicRelease.link_name == link_name, PublicRelease.is_visible
                 )
-            ).first()
+            )
 
             if release is None:
                 return self.error("Page not found", status=404)

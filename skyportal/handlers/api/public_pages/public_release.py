@@ -12,12 +12,12 @@ log = make_log('api/public_release')
 
 def process_link_name_validation(session, link_name, release_id):
     is_unique = (
-        session.scalars(
+        session.scalar(
             PublicRelease.select(session.user_or_token, mode="read").where(
                 PublicRelease.link_name == link_name,
                 PublicRelease.id != release_id if release_id is not None else True,
             )
-        ).first()
+        )
         is None
     )
     if not is_unique:
@@ -164,11 +164,11 @@ class PublicReleaseHandler(BaseHandler):
             return self.error("Specify at least one group")
 
         with self.Session() as session:
-            public_release = session.scalars(
+            public_release = session.scalar(
                 PublicRelease.select(session.user_or_token, mode="update").where(
                     PublicRelease.id == release_id
                 )
-            ).first()
+            )
 
             if public_release is None:
                 return self.error("Release not found", status=404)
@@ -279,20 +279,20 @@ class PublicReleaseHandler(BaseHandler):
             return self.error("Missing release id")
 
         with self.Session() as session:
-            public_release = session.scalars(
+            public_release = session.scalar(
                 PublicRelease.select(session.user_or_token, mode="delete").where(
                     PublicRelease.id == release_id
                 )
-            ).first()
+            )
 
             if public_release is None:
                 return self.error("Release not found", status=404)
 
-            if session.scalars(
+            if session.scalar(
                 PublicSourcePage.select(session.user_or_token, mode="read").where(
                     PublicSourcePage.release_id == release_id
                 )
-            ).first():
+            ):
                 return self.error(
                     "Delete all sources associated before deleting this release",
                     status=400,

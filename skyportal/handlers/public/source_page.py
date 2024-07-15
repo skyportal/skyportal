@@ -33,7 +33,7 @@ def get_version(session, release_name, source_id, version_hash):
         query = query.where(PublicSourcePage.hash == version_hash)
     else:
         query = query.order_by(PublicSourcePage.created_at.desc())
-    return session.scalars(query).first()
+    return session.scalar(query)
 
 
 class SourcePageHandler(BaseHandler):

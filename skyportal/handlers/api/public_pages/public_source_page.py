@@ -124,11 +124,11 @@ class PublicSourcePageHandler(BaseHandler):
                 return self.error("Source not found", status=404)
 
             if release_id:
-                release = session.scalars(
+                release = session.scalar(
                     PublicRelease.select(session.user_or_token, mode="read").where(
                         PublicRelease.id == release_id
                     )
-                ).first()
+                )
                 if release is None:
                     return self.error("Release not found", status=404)
 
@@ -185,12 +185,12 @@ class PublicSourcePageHandler(BaseHandler):
 
             new_page_hash = calculate_hash(data_to_publish)
             if (
-                session.scalars(
+                session.scalar(
                     PublicSourcePage.select(session.user_or_token, mode="read").where(
                         PublicSourcePage.source_id == source_id,
                         PublicSourcePage.hash == new_page_hash,
                     )
-                ).first()
+                )
                 is not None
             ):
                 return self.error(
@@ -302,11 +302,11 @@ class PublicSourcePageHandler(BaseHandler):
             return self.error("Page ID is required")
 
         with self.Session() as session:
-            public_source_page = session.scalars(
+            public_source_page = session.scalar(
                 PublicSourcePage.select(session.user_or_token, mode="delete").where(
                     PublicSourcePage.id == page_id
                 )
-            ).first()
+            )
 
             if public_source_page is None:
                 return self.error("Public source page not found", status=404)
