@@ -49,7 +49,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
     color: "",
   });
   const [sourcePublishReleaseOpen, setSourcePublishReleaseOpen] =
-    useState(false);
+    useState(true);
   const [sourcePublishOptionsOpen, setSourcePublishOptionsOpen] =
     useState(false);
   const [sourcePublishHistoryOpen, setSourcePublishHistoryOpen] =
