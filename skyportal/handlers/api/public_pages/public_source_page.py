@@ -166,8 +166,8 @@ class PublicSourcePageHandler(BaseHandler):
                         )
                     )
                 data_to_publish["photometry"] = [
-                    photo.to_dict_public()
-                    for photo in session.scalars(stmt).unique().all()
+                    phot.to_dict_public()
+                    for phot in session.scalars(stmt).unique().all()
                 ]
 
             # get classifications
