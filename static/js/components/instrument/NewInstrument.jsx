@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
-import dataUriToBuffer from "data-uri-to-buffer";
+import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitInstrument } from "../../ducks/instrument";
 import { fetchInstruments } from "../../ducks/instruments";
@@ -33,19 +33,24 @@ const NewInstrument = ({ onClose }) => {
       Object.keys(formData).includes("field_data") &&
       formData.field_data !== undefined
     ) {
-      formData.field_data = dataUriToBuffer(formData.field_data).toString();
+      const parsed_field_data = dataUriToBuffer(formData.field_data);
+      formData.field_data = new TextDecoder().decode(parsed_field_data.buffer);
     }
     if (
       Object.keys(formData).includes("field_region") &&
       formData.field_region !== undefined
     ) {
-      formData.field_region = dataUriToBuffer(formData.field_region).toString();
+      const parsed_field_region = dataUriToBuffer(formData.field_region);
+      formData.field_region = new TextDecoder().decode(
+        parsed_field_region.buffer,
+      );
     }
     if (
       Object.keys(formData).includes("references") &&
       formData.references !== undefined
     ) {
-      formData.references = dataUriToBuffer(formData.references).toString();
+      const parsed_references = dataUriToBuffer(formData.references);
+      formData.references = new TextDecoder().decode(parsed_references.buffer);
     }
     if (
       Object.keys(formData).includes("field_fov_type") &&
@@ -104,7 +109,7 @@ const NewInstrument = ({ onClose }) => {
     ) {
       errors.field_fov_type.addError("Must only choose one FOV type.");
     }
-    if (errors && formData.field_region && formData.field_fov_type) {
+    if (errors && formData.field_region && formData.field_fov_type.length > 0) {
       errors.field_region.addError(
         "Must only choose either field_region or field_fov_type.",
       );

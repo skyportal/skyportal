@@ -473,12 +473,12 @@ const GeoJSONGlobePlot = ({
           .append("path")
           .attr("class", (d) => d.properties.name)
           .attr("d", geoGenerator)
-          .style("fill", "#abd2f7")
-          .style("fill-opacity", 0.45)
+          .style("fill", "none")
           .style("stroke", "black")
-          .style("stroke-width", "1px")
-          .style("stroke-opacity", 1)
-          .raise();
+          .style("stroke-width", "2px")
+          .style("stroke-linecap", "round")
+          .style("stroke-linejoin", "round")
+          .style("stroke-opacity", 1);
 
         // Draw the contour (50th most probable region)
         svg
@@ -488,10 +488,12 @@ const GeoJSONGlobePlot = ({
           .append("path")
           .attr("class", (d) => d.properties.name)
           .attr("d", geoGenerator)
-          .style("fill", "#abd2f7")
-          .style("fill-opacity", 0.85)
-          .style("stroke", "none");
-        // .style("stroke-width", "1px");
+          .style("fill", "none")
+          .style("stroke", "grey")
+          .style("stroke-width", "2px")
+          .style("stroke-linecap", "round")
+          .style("stroke-linejoin", "round")
+          .style("stroke-opacity", 1);
 
         // Draw the center (0th most probable region)
         svg

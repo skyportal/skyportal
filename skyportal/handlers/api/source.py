@@ -4,6 +4,7 @@ import io
 import operator  # noqa: F401
 import time
 import traceback
+import json
 from json.decoder import JSONDecodeError
 
 import re
@@ -30,6 +31,7 @@ from marshmallow.exceptions import ValidationError
 from matplotlib import dates
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
+from sqlalchemy.sql import text, bindparam
 from tornado.ioloop import IOLoop
 from twilio.base.exceptions import TwilioException
 
@@ -48,6 +50,7 @@ from ...models import (
     ClassicalAssignment,
     Classification,
     Comment,
+    FacilityTransaction,
     FollowupRequest,
     Galaxy,
     GcnEvent,
@@ -230,7 +233,7 @@ async def get_source(
         raise ValueError("Source not found")
 
     source_info = s.to_dict()
-    source_info["followup_requests"] = (
+    followup_requests = (
         session.scalars(
             FollowupRequest.select(
                 user,
@@ -241,6 +244,9 @@ async def get_source(
                     joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
                     joinedload(FollowupRequest.requester),
                     joinedload(FollowupRequest.watchers),
+                    joinedload(FollowupRequest.transactions).load_only(
+                        FacilityTransaction.response
+                    ),
                 ],
             )
             .where(FollowupRequest.obj_id == obj_id)
@@ -249,6 +255,23 @@ async def get_source(
         .unique()
         .all()
     )
+
+    followup_requests_data = []
+    for req in followup_requests:
+        req_data = req.to_dict()
+        transactions = []
+        if user.is_admin:
+            for transaction in req.transactions:
+                try:
+                    content = transaction.response["content"]
+                    content = json.loads(content)
+                    transactions.append(content)
+                except Exception:
+                    continue
+        req_data["transactions"] = transactions
+        followup_requests_data.append(req_data)
+    source_info["followup_requests"] = followup_requests_data
+
     source_info["assignments"] = session.scalars(
         ClassicalAssignment.select(
             user,
@@ -961,18 +984,24 @@ class SourceHandler(BaseHandler):
         """
 
         with self.Session() as session:
-            user_group_ids = [
-                g.id for g in self.associated_user_object.accessible_groups
-            ]
-            query = (
-                Source.select(session.user_or_token)
-                .where(Source.obj_id == obj_id)
-                .where(Source.group_id.in_(user_group_ids))
-            )
-            num_s = session.scalar(
-                sa.select(func.count()).select_from(query.distinct())
-            )
-            if num_s > 0:
+            query_params = [bindparam('objID', value=obj_id, type_=sa.String)]
+            stmt = "SELECT id FROM sources WHERE obj_id = :objID"
+            if not self.associated_user_object.is_admin:
+                query_params.append(
+                    bindparam(
+                        'userID', value=self.associated_user_object.id, type_=sa.Integer
+                    )
+                )
+                stmt = (
+                    stmt
+                    + " AND group_id in (SELECT group_id FROM group_users WHERE user_id = :userID)"
+                )
+            stmt = stmt + " LIMIT 1;"
+
+            stmt = text(stmt).bindparams(*query_params).columns(id=sa.Integer)
+            connection = session.connection()
+            result = connection.execute(stmt)
+            if result.fetchone():
                 return self.success()
             else:
                 self.set_status(404)
