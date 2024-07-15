@@ -27,7 +27,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -127,9 +127,10 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const PeriodAnnotationDialog = ({ obj_id, period }) => {
+const PeriodAnnotationDialog = ({ obj_id, period, periodUnit }) => {
   const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.userAccessible);
+  const periodUnits = Object.keys(periodUnitDividers);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   // to save a period as an annotation, we'll need the user to provide an origin
@@ -137,7 +138,11 @@ const PeriodAnnotationDialog = ({ obj_id, period }) => {
   const schema = {
     type: "object",
     properties: {
-      period: { type: "number", title: "Period", default: period },
+      period: { type: "number", title: "Period", default: parseFloat(period) },
+      periodUnitValue: {
+        type: "string",
+        enum: periodUnits,
+      },
       origin: { type: "string", title: "Origin" },
       groupIDs: {
         type: "array",
@@ -170,7 +175,7 @@ const PeriodAnnotationDialog = ({ obj_id, period }) => {
       obj_id,
       origin: formData.origin,
       data: {
-        period: formData.period,
+        period: formData.period / periodUnitDividers[formData.periodUnitValue],
       },
       groups: formData.groupIDs,
     };
@@ -1236,8 +1241,8 @@ const PhotometryPlot = ({
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
               // on mobile with a lot of legend entries, we need to move the legend down to avoid overlap
-              y: mode === "desktop" ? 1 : plotData?.length > 10 ? -0.4 : -0.3, // eslint-disable-line no-nested-ternary
-              x: mode === "desktop" ? (dm ? 1.15 : 1) : 0, // eslint-disable-line no-nested-ternary
+              y: mode === "desktop" ? 1 : plotData?.length > 10 ? -0.4 : -0.3,
+              x: mode === "desktop" ? (dm ? 1.15 : 1) : 0,
               font: { size: 14 },
               tracegroupgap: 0,
             },
@@ -1539,7 +1544,11 @@ const PhotometryPlot = ({
               >
                 /2
               </Button>
-              <PeriodAnnotationDialog obj_id={obj_id} period={period} />
+              <PeriodAnnotationDialog
+                obj_id={obj_id}
+                period={period}
+                periodUnit={periodUnit}
+              />
             </div>
           </div>
         )}
