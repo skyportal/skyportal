@@ -274,7 +274,7 @@ class GcnReport(Base):
             data = json.loads(data)
 
         # Create the filters mapper
-        if "sources" in data and data["sources"] is not None:
+        if data.get("sources"):
             for source in data["sources"]:
                 if source.get("photometry"):
                     from skyportal.handlers.api.photometry import get_filters_mapper
