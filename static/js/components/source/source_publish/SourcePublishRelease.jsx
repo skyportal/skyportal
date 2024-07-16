@@ -7,7 +7,7 @@ import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
 import Link from "@mui/material/Link";
 import { fetchPublicReleases } from "../../../ducks/public_pages/public_release";
-import ReleasesList, { truncateText } from "../../release/ReleasesList";
+import ReleasesList from "../../release/ReleasesList";
 
 const useStyles = makeStyles(() => ({
   sourcePublishRelease: {
