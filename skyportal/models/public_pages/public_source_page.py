@@ -7,9 +7,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import deferred, relationship
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
-from baselayer.app.models import Base
-from ..group import accessible_by_groups_members
-
+from baselayer.app.models import Base, UserAccessControl, CustomUserAccessControl
+from .. import Source, GroupUser
 from ...utils.cache import Cache, dict_to_bytes
 
 env, cfg = load_env()
@@ -21,10 +20,23 @@ cache = Cache(
 )
 
 
+def published_source_access_logic(cls, user_or_token):
+    """Return a query that filters PublicSourcePage instances based on user access."""
+    # if the user is a system admin, he can delete all published sources
+    # otherwise, he can only delete the published sources associate with his group
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = sa.select(cls)
+    if not user_or_token.is_system_admin:
+        query = query.join(Source, cls.source_id == Source.obj_id)
+        query = query.join(GroupUser, Source.group_id == GroupUser.group_id)
+        query = query.filter(GroupUser.user_id == user_id, Source.active.is_(True))
+    return query
+
+
 class PublicSourcePage(Base):
     """Public page of a source on a given date."""
 
-    update = delete = accessible_by_groups_members
+    delete = CustomUserAccessControl(published_source_access_logic)
 
     id = sa.Column(sa.Integer, primary_key=True)
 

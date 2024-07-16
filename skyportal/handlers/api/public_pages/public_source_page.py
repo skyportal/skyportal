@@ -273,7 +273,7 @@ class PublicSourcePageHandler(BaseHandler):
             public_source_pages = session.scalars(stmt).all()
             return self.success(data=public_source_pages)
 
-    @auth_or_token
+    @permissions(['Manage sources'])
     def delete(self, page_id):
         """
         ---
