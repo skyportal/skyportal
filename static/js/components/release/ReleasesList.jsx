@@ -12,10 +12,10 @@ import Button from "../Button";
 import ReleaseForm from "./ReleaseForm";
 
 export function truncateText(text, length) {
-  if (text !== null) {
+  if (text !== null && text !== "") {
     return text.length < length ? text : `${text.substring(0, length)}...`;
   }
-  return "";
+  return "...";
 }
 
 const useStyles = makeStyles(() => ({
