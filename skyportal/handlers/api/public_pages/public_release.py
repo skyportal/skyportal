@@ -110,7 +110,8 @@ class PublicReleaseHandler(BaseHandler):
             )
             session.add(public_release)
             session.commit()
-            return self.success(action="skyportal/REFRESH_PUBLIC_RELEASES")
+            self.push_all(action="skyportal/REFRESH_PUBLIC_RELEASES")
+            return self.success()
 
     @permissions(['Manage sources'])
     def patch(self, release_id):
@@ -197,7 +198,8 @@ class PublicReleaseHandler(BaseHandler):
             public_release.groups = groups
             session.commit()
 
-            return self.success(action="skyportal/REFRESH_PUBLIC_RELEASES")
+            self.push_all(action="skyportal/REFRESH_PUBLIC_RELEASES")
+            return self.success()
 
     @auth_or_token
     def get(self):
@@ -301,4 +303,5 @@ class PublicReleaseHandler(BaseHandler):
             session.delete(public_release)
             session.commit()
 
-            return self.success(action="skyportal/REFRESH_PUBLIC_RELEASES")
+            self.push_all(action="skyportal/REFRESH_PUBLIC_RELEASES")
+            return self.success()
