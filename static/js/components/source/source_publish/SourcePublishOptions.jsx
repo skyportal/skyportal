@@ -64,7 +64,7 @@ const useStyles = makeStyles(() => ({
     marginBottom: "1rem",
     display: "flex",
     flexDirection: "column",
-    padding: "0 1rem",
+    padding: "0 0.3rem",
     "& .MuiGrid-item": {
       paddingTop: "0",
     },

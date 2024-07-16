@@ -16,6 +16,7 @@ import Button from "@mui/material/Button";
 const useStyles = makeStyles(() => ({
   versionHistory: {
     width: "100%",
+    padding: "0 0.3rem",
   },
   versionHistoryLine: {
     border: "1px solid #e0e0e0",
