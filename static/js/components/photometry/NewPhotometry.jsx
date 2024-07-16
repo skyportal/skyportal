@@ -5,7 +5,7 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import { useDispatch, useSelector } from "react-redux";
 import { showNotification } from "baselayer/components/Notifications";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -50,7 +50,6 @@ const NewPhotometryForm = ({ obj_id }) => {
   }
 
   const instLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
   instrumentList?.forEach((instrumentObj) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
@@ -320,7 +319,7 @@ const NewPhotometryForm = ({ obj_id }) => {
             >
               {instrumentList?.map((instrument) => (
                 <MenuItem value={instrument.id} key={instrument.id}>
-                  {`${instrument.name}: ${instrument.filters}`}
+                  {instrument.name}
                 </MenuItem>
               ))}
             </Select>
