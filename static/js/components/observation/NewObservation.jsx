@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import dataUriToBuffer from "data-uri-to-buffer";
+import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import {
   fetchObservations,
@@ -17,7 +17,8 @@ const NewObservation = ({ onClose }) => {
   const dispatch = useDispatch();
 
   const handleSubmit = async ({ formData }) => {
-    const ascii = dataUriToBuffer(formData.file).toString();
+    const parsed = dataUriToBuffer(formData.file);
+    const ascii = new TextDecoder().decode(parsed.buffer);
     const payload = {
       observationData: ascii,
       instrumentID: formData.instrument_id,

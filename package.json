@@ -36,7 +36,7 @@
     "d3-geo": "3.1.1",
     "d3-geo-projection": "4.0.0",
     "d3-geo-zoom": "1.4.4",
-    "data-uri-to-buffer": "5.0.1",
+    "data-uri-to-buffer": "6.0.2",
     "dayjs": "1.11.10",
     "dygraphs": "2.2.0",
     "emoji-dictionary": "1.0.11",
@@ -107,7 +107,7 @@
     "underscore.template": "0.1.7",
     "use-count-up": "3.0.1",
     "vega": "5.25.0",
-    "vega-embed": "6.25.0",
+    "vega-embed": "6.26.0",
     "vega-lite": "5.16.3",
     "versor": "0.1.2"
   },
