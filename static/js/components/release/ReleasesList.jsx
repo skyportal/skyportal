@@ -6,7 +6,6 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import AddIcon from "@mui/icons-material/Add";
 import { deletePublicRelease } from "../../ducks/public_pages/public_release";
 import Button from "../Button";
 import ReleaseForm from "./ReleaseForm";
@@ -84,7 +83,7 @@ const ReleasesList = () => {
             handleViewList();
           }}
         >
-          View releases {openReleaseList ? <ExpandLess /> : <ExpandMore />}
+          View all {openReleaseList ? <ExpandLess /> : <ExpandMore />}
         </Button>
         {manageSourcesAccess && (
           <Button
@@ -92,7 +91,7 @@ const ReleasesList = () => {
               handleViewEdit({});
             }}
           >
-            <AddIcon />
+            Add +
           </Button>
         )}
       </div>
