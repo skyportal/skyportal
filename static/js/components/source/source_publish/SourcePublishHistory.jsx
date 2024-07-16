@@ -24,7 +24,7 @@ const useStyles = makeStyles(() => ({
     justifyContent: "space-between",
     alignItems: "center",
     borderRadius: "0.5rem",
-    marginBottom: "0.5rem",
+    marginBottom: "0.3rem",
   },
   dateAndRelease: {
     display: "flex",

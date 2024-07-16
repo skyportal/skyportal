@@ -65,7 +65,7 @@ const SourcePublishRelease = ({
           ...releases.map((item) => ({
             enum: [item.id],
             type: "integer",
-            title: `${item.name} :  ${truncateText(item.description, 50)}`,
+            title: item.name,
           })),
         ],
       },
