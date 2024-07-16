@@ -38,6 +38,9 @@ const useStyles = makeStyles(() => ({
     flexDirection: "column",
     justifyContent: "space-between",
   },
+  itemDescription: {
+    fontSize: "0.8rem",
+  },
   itemButtons: {
     display: "flex",
   },
@@ -100,8 +103,10 @@ const ReleasesList = () => {
           {releases.map((release) => (
             <div key={`release_${release.id}`} className={styles.item}>
               <div className={styles.itemNameDescription}>
-                <div style={{ fontStyle: "italic" }}>{release.name}</div>
-                <div>{truncateText(release.description, 40)}</div>
+                <div>{release.name}</div>
+                <div className={styles.itemDescription}>
+                  {truncateText(release.description, 40)}
+                </div>
               </div>
               <div className={styles.itemButtons}>
                 <Button
