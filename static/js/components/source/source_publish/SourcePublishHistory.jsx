@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import makeStyles from "@mui/styles/makeStyles";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -49,6 +49,9 @@ const SourcePublishHistory = ({ sourceId, versions }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
+  const manageSourcesAccess = useSelector(
+    (state) => state.profile,
+  ).permissions?.includes("Manage sources");
 
   useEffect(() => {
     setIsLoading(true);
@@ -98,9 +101,11 @@ const SourcePublishHistory = ({ sourceId, versions }) => {
                 >
                   <VisibilityIcon />
                 </Button>
-                <Button onClick={() => deleteVersion(version.id)}>
-                  <DeleteIcon />
-                </Button>
+                {manageSourcesAccess && (
+                  <Button onClick={() => deleteVersion(version.id)}>
+                    <DeleteIcon />
+                  </Button>
+                )}
               </div>
             </div>
           );

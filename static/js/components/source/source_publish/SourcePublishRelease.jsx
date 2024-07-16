@@ -43,6 +43,9 @@ const SourcePublishRelease = ({
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
   const releases = useSelector((state) => state.publicReleases);
+  const manageSourcesAccess = useSelector(
+    (state) => state.profile,
+  ).permissions?.includes("Manage sources");
 
   useEffect(() => {
     setIsLoading(true);
@@ -85,25 +88,31 @@ const SourcePublishRelease = ({
       >
         Public releases
       </Link>
-      {releases.length > 0 ? (
-        <Form
-          formData={sourceReleaseId ? { release: sourceReleaseId } : undefined}
-          onChange={({ formData }) => handleReleaseChange(formData)}
-          schema={formSchema}
-          liveValidate
-          validator={validator}
-          uiSchema={{
-            "ui:submitButtonOptions": { norender: true },
-          }}
-        />
-      ) : (
-        <div className={styles.noRelease}>
-          {isLoading ? (
-            <CircularProgress size={24} />
+      {manageSourcesAccess && (
+        <>
+          {releases.length > 0 ? (
+            <Form
+              formData={
+                sourceReleaseId ? { release: sourceReleaseId } : undefined
+              }
+              onChange={({ formData }) => handleReleaseChange(formData)}
+              schema={formSchema}
+              liveValidate
+              validator={validator}
+              uiSchema={{
+                "ui:submitButtonOptions": { norender: true },
+              }}
+            />
           ) : (
-            <div>No releases available yet. Create the first one here.</div>
+            <div className={styles.noRelease}>
+              {isLoading ? (
+                <CircularProgress size={24} />
+              ) : (
+                <div>No releases available yet. Create the first one here.</div>
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
       <ReleasesList />
     </div>

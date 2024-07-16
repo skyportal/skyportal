@@ -46,8 +46,11 @@ const ReleasesList = () => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const releases = useSelector((state) => state.publicReleases);
+  const manageSourcesAccess = useSelector(
+    (state) => state.profile,
+  ).permissions?.includes("Manage sources");
   const [releaseToEdit, setReleaseToEdit] = useState({});
-  const [openReleaseList, setOpenReleaseList] = useState(false);
+  const [openReleaseList, setOpenReleaseList] = useState(!manageSourcesAccess);
   const [openReleaseForm, setOpenReleaseForm] = useState(false);
 
   const deleteRelease = (id) => {
@@ -81,13 +84,15 @@ const ReleasesList = () => {
         >
           View releases {openReleaseList ? <ExpandLess /> : <ExpandMore />}
         </Button>
-        <Button
-          onClick={() => {
-            handleViewEdit({});
-          }}
-        >
-          <AddIcon />
-        </Button>
+        {manageSourcesAccess && (
+          <Button
+            onClick={() => {
+              handleViewEdit({});
+            }}
+          >
+            <AddIcon />
+          </Button>
+        )}
       </div>
       {openReleaseList && !openReleaseForm && (
         <div>
@@ -97,30 +102,32 @@ const ReleasesList = () => {
                 <div style={{ fontWeight: "bold" }}>{release.name}</div>
                 <div>{truncateText(release.description, 40)}</div>
               </div>
-              {release.group_ids.length > 0 && (
-                <div className={styles.itemButtons}>
-                  <Button
-                    href={`/public/releases/${release.link_name}`}
-                    target="_blank"
-                  >
-                    <VisibilityIcon />
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      handleViewEdit(release);
-                    }}
-                  >
-                    <EditIcon />
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      deleteRelease(release.id);
-                    }}
-                  >
-                    <DeleteIcon />
-                  </Button>
-                </div>
-              )}
+              <div className={styles.itemButtons}>
+                <Button
+                  href={`/public/releases/${release.link_name}`}
+                  target="_blank"
+                >
+                  <VisibilityIcon />
+                </Button>
+                {manageSourcesAccess && release.group_ids.length > 0 && (
+                  <>
+                    <Button
+                      onClick={() => {
+                        handleViewEdit(release);
+                      }}
+                    >
+                      <EditIcon />
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        deleteRelease(release.id);
+                      }}
+                    >
+                      <DeleteIcon />
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>

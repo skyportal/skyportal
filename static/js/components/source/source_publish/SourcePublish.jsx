@@ -37,10 +37,10 @@ const SourcePublish = ({ sourceId, isElements }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const currentUser = useSelector((state) => state.profile);
-  const permissionToPublish =
+  const manageSourcesAccess =
     currentUser.permissions?.includes("Manage sources");
   const displayOptions =
-    permissionToPublish &&
+    manageSourcesAccess &&
     (isElements.summary || isElements.photometry || isElements.classifications);
 
   const [sourcePublishDialogOpen, setSourcePublishDialogOpen] = useState(false);
@@ -65,7 +65,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
   const versions = useSelector((state) => state.publicSourceVersions);
 
   const publish = () => {
-    if (permissionToPublish) {
+    if (manageSourcesAccess) {
       setPublishButton({ text: "loading", color: "" });
       dispatch(
         publicSourcePageActions.generatePublicSourcePage(sourceId, {
@@ -117,7 +117,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
           >
             <Tooltip
               title={
-                permissionToPublish
+                manageSourcesAccess
                   ? ""
                   : "You do not have permission to publish this source"
               }
@@ -131,7 +131,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
                     color: "white",
                   }}
                   disabled={
-                    !permissionToPublish || publishButton.text !== "Publish"
+                    !manageSourcesAccess || publishButton.text !== "Publish"
                   }
                 >
                   {publishButton.text === "loading" ? (
