@@ -197,7 +197,7 @@
               <div class="dropdownContent">
                 {% for spec in spectroscopy %}
                   {# Keep the original_file_string pop before the plot display to avoid JSON.parse error #}
-                  {% set original_file = spec.pop("original_file_string") %}
+                  {% set original_file = spec.pop("original_file_string") if spec.get("original_file_string") else None %}
                   <button onclick='downloadSpectroscopy(
                           `{{ original_file if original_file else (spec | tojson) }}`,
                           `{{ (spec.pop("original_file_filename") if original_file else source_id) | e  }}`,
