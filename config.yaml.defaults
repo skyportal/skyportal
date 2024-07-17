@@ -30,6 +30,7 @@ app:
   sedm_endpoint: http://minar.caltech.edu/add_fritz
   sedmv2_endpoint:
   trt_endpoint: https://trt.narit.or.th/hub/api
+  tarot_endpoint:
 
   lt_host: 161.72.57.3
   lt_port: 8080
