@@ -58,7 +58,7 @@ def get_redshift_to_display(source):
     return redshift_display
 
 
-def get_photometry(data_to_publish, source_id, group_ids, stream_ids, session):
+def get_photometry(source_id, group_ids, stream_ids, session):
     stmt = Photometry.select(session.user_or_token, mode="read").where(
         Photometry.obj_id == source_id
     )
@@ -69,31 +69,25 @@ def get_photometry(data_to_publish, source_id, group_ids, stream_ids, session):
                 Photometry.streams.any(Stream.id.in_(stream_ids)),
             )
         )
-    data_to_publish["photometry"] = [
-        photo.to_dict_public() for photo in session.scalars(stmt).unique().all()
-    ]
+    return [photo.to_dict_public() for photo in session.scalars(stmt).unique().all()]
 
 
-def get_spectroscopy(data_to_publish, source_id, group_ids, session):
+def get_spectroscopy(source_id, group_ids, session):
     query = Spectrum.select(session.user_or_token, mode="read").where(
         Spectrum.obj_id == source_id
     )
     if len(group_ids) > 0:
         query = query.where(or_(Spectrum.groups.any(Group.id.in_(group_ids))))
-    data_to_publish["spectroscopy"] = [
-        spec.to_dict_public() for spec in session.scalars(query).all()
-    ]
+    return [spec.to_dict_public() for spec in session.scalars(query).all()]
 
 
-def get_classifications(data_to_publish, source_id, group_ids, session):
+def get_classifications(source_id, group_ids, session):
     stmt = Classification.select(session.user_or_token, mode="read").where(
         Classification.obj_id == source_id
     )
     if len(group_ids) > 0:
         stmt = stmt.where(Classification.groups.any(Group.id.in_(group_ids)))
-    data_to_publish["classifications"] = [
-        c.to_dict_public() for c in session.scalars(stmt).unique().all()
-    ]
+    return [c.to_dict_public() for c in session.scalars(stmt).unique().all()]
 
 
 class PublicSourcePageHandler(BaseHandler):
@@ -177,13 +171,17 @@ class PublicSourcePageHandler(BaseHandler):
             }
 
             if options.get("include_photometry"):
-                get_photometry(
-                    data_to_publish, source_id, group_ids, stream_ids, session
+                data_to_publish["photometry"] = get_photometry(
+                    source_id, group_ids, stream_ids, session
                 )
             if options.get("include_spectroscopy"):
-                get_spectroscopy(data_to_publish, source_id, group_ids, session)
+                data_to_publish["spectroscopy"] = get_spectroscopy(
+                    source_id, group_ids, session
+                )
             if options.get("include_classifications"):
-                get_classifications(data_to_publish, source_id, group_ids, session)
+                data_to_publish["classifications"] = get_classifications(
+                    source_id, group_ids, session
+                )
 
             new_page_hash = calculate_hash(data_to_publish)
             if (
