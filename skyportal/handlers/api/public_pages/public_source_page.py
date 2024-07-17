@@ -15,6 +15,7 @@ from ....models import (
     PublicSourcePage,
     Photometry,
     Spectrum,
+    Instrument,
     Classification,
     Group,
     Stream,
@@ -73,8 +74,11 @@ def get_photometry(source_id, group_ids, stream_ids, session):
 
 
 def get_spectroscopy(source_id, group_ids, session):
-    query = Spectrum.select(session.user_or_token, mode="read").where(
-        Spectrum.obj_id == source_id
+    query = (
+        Spectrum.select(session.user_or_token, mode="read")
+        .where(Spectrum.obj_id == source_id)
+        .join(Spectrum.instrument)
+        .order_by(Instrument.name, Spectrum.observed_at.desc())
     )
     if len(group_ids) > 0:
         query = query.where(or_(Spectrum.groups.any(Group.id.in_(group_ids))))
