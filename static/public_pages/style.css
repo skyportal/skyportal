@@ -145,6 +145,7 @@ button {
 
     button {
       min-width: 100%;
+      white-space: nowrap;
       &:hover {
         background-color: #f1f1f1;
       }

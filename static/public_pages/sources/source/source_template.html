@@ -197,7 +197,7 @@
               <div class="dropdownContent">
                 {% for oneSpectroscopy in spectroscopy %}
                   <button onclick='downloadSpectroscopyToCsv(`{{ oneSpectroscopy | tojson }}`, `{{ source_id | e }}`)'>
-                    {{ oneSpectroscopy.instrument | e }}
+                    {{ oneSpectroscopy.instrument | e }} ({{ oneSpectroscopy.observed_at | format_date }})
                   </button>
                 {% endfor %}
               </div>
