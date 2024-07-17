@@ -139,9 +139,11 @@ button {
     display: none;
     position: absolute;
     box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2);
-    min-width: 100%;
     z-index: 1;
     right: 0;
+    min-width: 100%;
+    max-height: 300px;
+    overflow: scroll;
 
     button {
       min-width: 100%;
