@@ -405,11 +405,9 @@ class Spectrum(Base):
             'pi': [pi.id for pi in self.pis],
             'reducer': [reducer.id for reducer in self.reducers],
             'observer': [observer.id for observer in self.observers],
-            'followup_request_id': self.followup_request_id,
-            'assignment_id': self.assignment_id,
             'altdata': self.altdata,
-            'comments': [c.to_dict() for c in self.comments],
-            'reminders': [r.to_dict() for r in self.reminders],
+            'original_file_filename': self.original_file_filename,
+            'original_file_string': self.original_file_string,
         }
 
 
