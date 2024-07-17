@@ -1,8 +1,8 @@
-function downloadCSVFile(csv_data, file_name) {
-  const CSVFile = new Blob([csv_data], { type: "text/csv" });
+function downloadFile(data, file_name, extension = null) {
+  const file = new Blob([data], { type: `text/${extension || "plain"}` });
   const temp_link = document.createElement("a");
-  temp_link.download = `${file_name}.csv`;
-  temp_link.href = window.URL.createObjectURL(CSVFile);
+  temp_link.download = `${file_name}`;
+  temp_link.href = window.URL.createObjectURL(file);
   temp_link.style.display = "none";
   document.body.appendChild(temp_link);
   temp_link.click();
@@ -26,11 +26,11 @@ function downloadTableToCSV(type) {
     csv_data.push(csv_row.join(","));
   });
   csv_data = csv_data.join("\n");
-  downloadCSVFile(csv_data, type);
+  downloadFile(csv_data, type, "csv");
 }
 
-function downloadPhotometryToCsv(photometry_tab, source_id) {
-  const photometry = JSON.parse(photometry_tab);
+function downloadPhotometryToCsv(data, filename) {
+  const photometry = JSON.parse(data);
 
   const headers = [
     "mjd",
@@ -59,34 +59,31 @@ function downloadPhotometryToCsv(photometry_tab, source_id) {
         .join(","),
     ),
   ].join("\n");
-  downloadCSVFile(csv_data, source_id);
+  downloadFile(csv_data, filename, "csv");
 }
 
-function downloadSpectroscopyToCsv(oneSpectroscopy, source_id) {
-  const spectroscopy = JSON.parse(oneSpectroscopy);
-  const headers = ["wavelength", "flux"];
-  if (spectroscopy.fluxerr) {
-    headers.push("fluxerr");
+function downloadSpectroscopy(data, filename, isOriginalFile) {
+  if (JSON.parse(isOriginalFile)) {
+    downloadFile(data, filename, null);
+    return;
   }
 
-  const filename = spectroscopy.original_file_filename
-    ? spectroscopy.original_file_filename
-    : `${source_id}_${spectroscopy.instrument}`;
-  let csv_data;
-  if (spectroscopy.original_file_string) {
-    csv_data = spectroscopy.original_file_string;
-  } else {
-    csv_data = [
-      headers.join(","),
-      ...spectroscopy.wavelengths?.map((wave, i) => {
-        let line = `${wave},${spectroscopy.fluxes[i]}`;
-        if (spectroscopy.fluxerr) {
-          return `${line},${spectroscopy.fluxerr[i]}`;
-        }
-        return line;
-      }),
-    ].join("\n");
-  }
-
-  downloadCSVFile(csv_data, filename);
+  const spectroscopy = JSON.parse(data);
+  const headers = [
+    "wavelength",
+    "flux",
+    ...(spectroscopy.fluxerr ? ["fluxerr"] : []),
+  ];
+  const processFilename = `${filename}_${spectroscopy.instrument}`;
+  const csv_data = [
+    headers.join(","),
+    ...spectroscopy.wavelengths?.map((wave, i) => {
+      let line = `${wave},${spectroscopy.fluxes[i]}`;
+      if (spectroscopy.fluxerr) {
+        return `${line},${spectroscopy.fluxerr[i]}`;
+      }
+      return line;
+    }),
+  ].join("\n");
+  downloadFile(csv_data, processFilename, "csv");
 }

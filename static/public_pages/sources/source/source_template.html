@@ -31,7 +31,7 @@
       <script src="https://cdn.plot.ly/plotly-2.25.2.min.js"></script>
       {% if data.get('photometry') %}
         {% set photometry = data['photometry'] %}
-        <script src="/static/public_pages/utils/csv.js"></script>
+        <script src="/static/public_pages/utils/download.js"></script>
         <script src="/static/public_pages/utils/photometry.js"></script>
       {% endif %}
 
@@ -195,9 +195,15 @@
             <div class="download dropdown">
               <button onclick='this.nextElementSibling.classList.toggle("show")' class="dropdownBtn" type="button">DOWNLOAD ▼</button>
               <div class="dropdownContent">
-                {% for oneSpectroscopy in spectroscopy %}
-                  <button onclick='downloadSpectroscopyToCsv(`{{ oneSpectroscopy | tojson }}`, `{{ source_id | e }}`)'>
-                    {{ oneSpectroscopy.instrument | e }} ({{ oneSpectroscopy.observed_at | format_date }})
+                {% for spec in spectroscopy %}
+                  {# Keep the original_file_string pop before the plot display to avoid JSON.parse error #}
+                  {% set original_file = spec.pop("original_file_string") %}
+                  <button onclick='downloadSpectroscopy(
+                          `{{ original_file if original_file else (spec | tojson) }}`,
+                          `{{ (spec.pop("original_file_filename") if original_file else source_id) | e  }}`,
+                          `{{ (original_file is not none) | tojson }}`
+                          )'>
+                    {{ spec.instrument | e }} ({{ spec.observed_at | format_date }})
                   </button>
                 {% endfor %}
               </div>
