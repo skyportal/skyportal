@@ -27,7 +27,7 @@ const NewGcnEvent = ({ handleClose = null }) => {
       formData.json = new TextDecoder().decode(parsed_json.buffer);
     }
     if (Object.keys(formData).includes("xml") && formData.xml !== undefined) {
-      const parsed_xml = dataUriToBuffer(formData.json);
+      const parsed_xml = dataUriToBuffer(formData.xml);
       formData.xml = new TextDecoder().decode(parsed_xml.buffer);
     }
     if (Object.keys(formData).includes("ra") && formData.ra !== undefined) {
