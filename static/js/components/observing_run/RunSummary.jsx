@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -10,6 +10,10 @@ import IconButton from "@mui/material/IconButton";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
 import BuildIcon from "@mui/icons-material/Build";
+import CheckIcon from "@mui/icons-material/Check";
+import ClearIcon from "@mui/icons-material/Clear";
+import CloudIcon from "@mui/icons-material/Cloud";
+import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 
 import Link from "@mui/material/Link";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
@@ -20,9 +24,18 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+
 import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
+
+import { showNotification } from "baselayer/components/Notifications";
+import Button from "../Button";
+import AssignmentForm from "../observing_run/AssignmentForm";
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import { observingRunTitle } from "./AssignmentForm";
 import { ObservingRunStarList } from "../StarList";
@@ -51,8 +64,11 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const SimpleMenu = ({ assignment }) => {
-  const [anchorEl, setAnchorEl] = React.useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const dispatch = useDispatch();
+
+  const { observingRunList } = useSelector((state) => state.observingRuns);
 
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -65,6 +81,18 @@ const SimpleMenu = ({ assignment }) => {
   const updateAssignmentStatus = (status) => () => {
     handleClose();
     return dispatch(SourceAction.editAssignment({ status }, assignment.id));
+  };
+
+  const openDialog = () => {
+    setDialogOpen(true);
+  };
+  const closeDialog = () => {
+    setDialogOpen(false);
+  };
+
+  const reassignAssignment = () => () => {
+    handleClose();
+    openDialog();
   };
 
   return (
@@ -115,6 +143,15 @@ const SimpleMenu = ({ assignment }) => {
             Mark Pending
           </MenuItem>
         )}
+        {assignment.status === "not observed" && (
+          <MenuItem
+            onClick={reassignAssignment()}
+            variant="contained"
+            key={`${assignment.id}_reassign`}
+          >
+            Reassign
+          </MenuItem>
+        )}
         {assignment.status === "complete" && (
           <MenuItem key={`${assignment.id}_upload_spec`} onClick={handleClose}>
             <Link
@@ -142,6 +179,20 @@ const SimpleMenu = ({ assignment }) => {
           </MenuItem>
         )}
       </Menu>
+      <Dialog
+        open={dialogOpen}
+        onClose={closeDialog}
+        style={{ position: "fixed" }}
+        maxWidth="md"
+      >
+        <DialogTitle>Reassign to Observing Run</DialogTitle>
+        <DialogContent dividers>
+          <AssignmentForm
+            obj_id={assignment.obj_id}
+            observingRunList={observingRunList}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -164,6 +215,15 @@ const RunSummary = ({ route }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
 
+  const [dialog, setDialog] = useState(false);
+
+  const openDialog = () => {
+    setDialog(true);
+  };
+  const closeDialog = () => {
+    setDialog(false);
+  };
+
   // Load the observing run and its assignments if needed
   useEffect(() => {
     dispatch(Action.fetchObservingRun(route.id));
@@ -178,6 +238,19 @@ const RunSummary = ({ route }) => {
     );
   }
   const { assignments } = observingRun;
+
+  const notObservedFunction = () => {
+    dispatch(Action.putObservingRunNotObserved(observingRun.id)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(
+            showNotification("Observing run assignments set to not observed"),
+          );
+          closeDialog();
+        }
+      },
+    );
+  };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
@@ -237,6 +310,39 @@ const RunSummary = ({ route }) => {
       <a href={`/source/${objid}`} key={`${objid}_objid`}>
         {objid}
       </a>
+    );
+  };
+
+  const renderStatus = (dataIndex) => {
+    const assignment = assignments[dataIndex];
+    let statusIcon = null;
+    if (assignment.status === "complete") {
+      statusIcon = <CheckIcon size="small" color="green" />;
+    } else if (assignment.status === "not observed") {
+      statusIcon = <ClearIcon size="small" color="red" />;
+    } else {
+      statusIcon = <QuestionMarkIcon size="small" color="primary" />;
+    }
+
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        name={`${assignment.id}_status`}
+      >
+        {statusIcon}
+      </div>
+    );
+  };
+
+  const renderDateRequested = (dataIndex) => {
+    const assignment = assignments[dataIndex];
+    return (
+      <div key={`${assignment.id}_date_requested`}>{assignment.created_at}</div>
     );
   };
 
@@ -349,6 +455,14 @@ const RunSummary = ({ route }) => {
       name: "Status",
       options: {
         filter: true,
+        customBodyRenderLite: renderStatus,
+      },
+    },
+    {
+      name: "Date Requested",
+      options: {
+        filter: true,
+        customBodyRenderLite: renderDateRequested,
       },
     },
     {
@@ -431,11 +545,24 @@ const RunSummary = ({ route }) => {
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
     selectableRows: "none",
+    customToolbar: () => (
+      <>
+        <IconButton
+          name="clouds"
+          onClick={() => {
+            setDialog(true);
+          }}
+        >
+          <CloudIcon />
+        </IconButton>
+      </>
+    ),
   };
 
   const data = assignments?.map((assignment) => [
     assignment.obj.id,
     assignment.status,
+    assignment.created_at,
     assignment.obj.ra,
     assignment.obj.dec,
     assignment.obj.redshift,
@@ -497,6 +624,29 @@ const RunSummary = ({ route }) => {
           <SkyCam telescope={observingRun.instrument.telescope} />
         </Grid>
       </Grid>
+      <div>
+        {dialog && (
+          <Dialog
+            open={dialog}
+            onClose={closeDialog}
+            style={{ position: "fixed" }}
+            maxWidth="md"
+          >
+            <DialogContent dividers>
+              Is your observing run clouded out and want to set all pending
+              objects to not observerd?
+            </DialogContent>
+            <DialogActions>
+              <Button secondary autoFocus onClick={closeDialog}>
+                Dismiss
+              </Button>
+              <Button primary onClick={() => notObservedFunction()}>
+                Confirm
+              </Button>
+            </DialogActions>
+          </Dialog>
+        )}
+      </div>
     </div>
   );
 };

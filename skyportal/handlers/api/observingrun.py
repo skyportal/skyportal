@@ -337,3 +337,72 @@ class ObservingRunHandler(BaseHandler):
 
             self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
             return self.success()
+
+
+class ObservingRunBulkEditHandler(BaseHandler):
+    @auth_or_token
+    def put(self, run_id):
+        """
+        ---
+        description: Update observing run assignments in bulk
+        tags:
+          - observing_runs
+        parameters:
+          - in: path
+            name: run_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        run_id = int(run_id)
+
+        current_status = data.get('current_status')
+        if current_status is None:
+            return self.error('Require current status to filter')
+
+        new_status = data.get('new_status')
+        if new_status is None:
+            return self.error('Require new status to apply')
+
+        with self.Session() as session:
+            options = [joinedload(ObservingRun.assignments)]
+
+            run = session.scalars(
+                ObservingRun.select(session.user_or_token, options=options).where(
+                    ObservingRun.id == run_id
+                )
+            ).first()
+            if run is None:
+                return self.error(f'Cannot find ObservingRun with ID {run_id}')
+
+            assignments = run.assignments
+            for a in assignments:
+                assignment = session.scalars(
+                    ClassicalAssignment.select(
+                        session.user_or_token, mode="update"
+                    ).where(ClassicalAssignment.id == int(a.id))
+                ).first()
+                if assignment is None:
+                    return self.error(f'Could not find assigment with ID {a.id}.')
+                if assignment.status == current_status:
+                    assignment.status = new_status
+
+            session.commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_OBSERVING_RUN",
+                payload={"run_id": run_id},
+            )
+
+            return self.success()
