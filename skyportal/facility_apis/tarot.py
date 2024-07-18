@@ -1,0 +1,376 @@
+import json
+from datetime import datetime
+
+import requests
+from astropy.time import Time
+
+from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.log import make_log
+
+from ..utils import http
+from . import FollowUpAPI
+
+env, cfg = load_env()
+
+log = make_log('facility_apis/tarot')
+
+
+def validate_request_to_tarot(request):
+    """Validate FollowupRequest contents for TAROT queue.
+
+    Parameters
+    ----------
+    request: skyportal.models.FollowupRequest
+        The request to send to TAROT.
+    """
+
+    for param in [
+        "observation_choices",
+        "exposure_time",
+        "minimum_elevation",
+        "station_name",
+        "date",
+    ]:
+        if param not in request.payload:
+            raise ValueError(f'Parameter {param} required.')
+
+    if any(
+        filt not in ["B", "V", "R", "I", "g", "r", "i", "z", "NoFilter"]
+        for filt in request.payload["observation_choices"]
+    ):
+        raise ValueError(
+            f'Filter configuration {request.payload["observation_choices"]} unknown.'
+        )
+
+    if request.payload["station_name"] not in [
+        "Tarot_Calern",
+        "Tarot_Chili",
+        "Zadko_Australia",
+        "VIRT_STT",
+        "Tarot_Reunion",
+    ]:
+        raise ValueError(
+            'observation_type must be Tarot_Calern, Tarot_Chili, Zadko_Australia, VIRT_STT, Tarot_Reunion'
+        )
+
+    if request.payload["exposure_time"] < 0:
+        raise ValueError('exposure_time must be positive.')
+
+    if request.payload["minimum_elevation"] < 10:
+        raise ValueError('minimum_elevation must be at least 10 degrees.')
+
+    filts = {
+        'NoFilter': 0,
+        'C': 1,
+        'B': 2,
+        'V': 3,
+        'R': 4,
+        'I': 5,
+        'VN': 6,
+        'g': 13,
+        'r': 14,
+        'i': 15,
+        'z': 16,
+        'U': 19,
+    }
+
+    tt = Time(request.payload["date"], format="isot")
+    observations = []
+    for filt in request.payload["observation_choices"]:
+        observations.append(f'{request.payload["exposure_time"]} {filts[filt]}')
+    observations = sum([observations] * request.payload["exposure_counts"], [])
+
+    if len(observations) > 6:
+        raise ValueError('Please request no more than 6 observations at a time')
+
+    observations_filler = ["0 0"] * (int(6 - len(observations)))
+
+    observation_string = f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {tt.isot} 0.004180983 0.00 {" ".join(observations)} {" ".join(observations_filler)} {request.payload["priority"]} {request.payload["station_name"]}'
+
+    return observation_string
+
+
+class TAROTAPI(FollowUpAPI):
+    """SkyPortal interface to the TAROT"""
+
+    @staticmethod
+    def submit(request, session, **kwargs):
+        """Submit a follow-up request to TAROT.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to submit.
+        session: sqlalchemy.Session
+            Database session for this transaction
+        """
+
+        from ..models import FacilityTransaction
+
+        observation_string = validate_request_to_tarot(request)
+
+        if cfg['app.tarot_endpoint'] is not None:
+            altdata = request.allocation.altdata
+
+            if not altdata:
+                raise ValueError('Missing allocation information.')
+
+            headers = {
+                'Content-Type': 'application/json',
+                'TAROT': altdata['token'],
+            }
+            payload = json.dumps({"script": [observation_string]})
+            url = f"{cfg['app.tarot_endpoint']}/newobservation"
+
+            r = requests.request(
+                "POST",
+                url,
+                data=payload,
+                headers=headers,
+            )
+
+            if r.status_code == 200:
+                request.status = 'submitted'
+            else:
+                request.status = f'rejected: {r.content}'
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(r.request),
+                response=http.serialize_requests_response(r),
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+        else:
+            request.status = 'submitted'
+
+            transaction = FacilityTransaction(
+                request=None,
+                response=None,
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+        session.add(transaction)
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': request.obj.internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                request.last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
+
+    @staticmethod
+    def delete(request, session, **kwargs):
+        """Delete a follow-up request from TAROT queue.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
+        """
+
+        from ..models import DBSession, FacilityTransaction, FollowupRequest
+
+        last_modified_by_id = request.last_modified_by_id
+        obj_internal_key = request.obj.internal_key
+
+        if cfg['app.tarot_endpoint'] is not None:
+            req = (
+                DBSession()
+                .query(FollowupRequest)
+                .filter(FollowupRequest.id == request.id)
+                .one()
+            )
+
+            altdata = request.allocation.altdata
+
+            if not altdata:
+                raise ValueError('Missing allocation information.')
+
+            url = f"{cfg['app.tarot_endpoint']}/cancelobservation"
+
+            content = req.transactions[-1].response["content"]
+            content = json.loads(content)
+            uid = content[0]
+
+            payload = json.dumps({"obs_id": [uid]})
+
+            headers = {
+                'Content-Type': 'application/json',
+                'TAROT': altdata['token'],
+            }
+            r = requests.request("POST", url, headers=headers, data=payload)
+
+            r.raise_for_status()
+            request.status = "deleted"
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(r.request),
+                response=http.serialize_requests_response(r),
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+        else:
+            request.status = 'deleted'
+
+            transaction = FacilityTransaction(
+                request=None,
+                response=None,
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+        session.add(transaction)
+
+        if kwargs.get('refresh_source', False):
+            flow = Flow()
+            flow.push(
+                '*',
+                'skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_internal_key},
+            )
+        if kwargs.get('refresh_requests', False):
+            flow = Flow()
+            flow.push(
+                last_modified_by_id,
+                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+            )
+
+    form_json_schema = {
+        "type": "object",
+        "properties": {
+            "station_name": {
+                "type": "string",
+                "enum": [
+                    "Tarot_Calern",
+                    "Tarot_Chili",
+                    "Zadko_Australia",
+                    "VIRT_STT",
+                    "Tarot_Reunion",
+                ],
+                "default": "Tarot_Calern",
+            },
+            "exposure_time": {
+                "title": "Exposure Time [s]",
+                "type": "number",
+                "default": 300.0,
+            },
+            "exposure_counts": {
+                "title": "Exposure Counts",
+                "type": "number",
+                "default": 1,
+            },
+            "date": {
+                "type": "string",
+                "format": "datetime",
+                "default": datetime.utcnow().date().isoformat(),
+                "title": "Date (UT)",
+            },
+            "tolerance": {
+                "type": "number",
+                "title": "Tolerance [min.]",
+                "default": 60,
+            },
+            "minimum_elevation": {
+                "title": "Minimum Elevation [deg.] (0-90)",
+                "type": "number",
+                "default": 30.0,
+                "minimum": 10,
+                "maximum": 90,
+            },
+            "minimum_lunar_distance": {
+                "title": "Minimum Lunar Distance [deg.] (0-180)",
+                "type": "number",
+                "default": 30.0,
+                "minimum": 0,
+                "maximum": 180,
+            },
+            "priority": {
+                "title": "Priority (-5 - 5)",
+                "type": "number",
+                "default": 0,
+                "minimum": -5,
+                "maximum": 5,
+            },
+        },
+        "required": [
+            "date",
+            "tolerance",
+            "minimum_elevation",
+            "priority",
+            "station_name",
+        ],
+        "dependencies": {
+            "station_name": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "station_name": {
+                                "enum": [
+                                    "Tarot_Calern",
+                                    "Tarot_Chili",
+                                    "Zadko_Australia",
+                                ],
+                            },
+                            "observation_choices": {
+                                "type": "array",
+                                "title": "Desired Observations",
+                                "items": {
+                                    "type": "string",
+                                    "enum": ["g", "r", "i", "z"],
+                                },
+                                "uniqueItems": True,
+                                "minItems": 1,
+                            },
+                        },
+                    },
+                    {
+                        "properties": {
+                            "station_name": {
+                                "enum": ["VIRT_STT"],
+                            },
+                            "observation_choices": {
+                                "type": "array",
+                                "title": "Desired Observations",
+                                "items": {
+                                    "type": "string",
+                                    "enum": ["U", "B", "V", "R", "I"],
+                                },
+                                "uniqueItems": True,
+                                "minItems": 1,
+                            },
+                        },
+                    },
+                    {
+                        "properties": {
+                            "station_name": {
+                                "enum": ["Tarot_Reunion"],
+                            },
+                            "observation_choices": {
+                                "type": "array",
+                                "title": "Desired Observations",
+                                "items": {
+                                    "type": "string",
+                                    "enum": ["NoFilter"],
+                                },
+                                "uniqueItems": True,
+                                "minItems": 1,
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+    }
+
+    ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
