@@ -16,6 +16,7 @@ from .nicer import NICERAPI
 from .ps1 import PS1API
 from .soar import SOARGHTSAPI, SOARGHTSIMAGERAPI, SOARTSPECAPI
 from .swift import UVOTXRTAPI, UVOTXRTMMAAPI
+from .tarot import TAROTAPI
 from .tess import TESSAPI
 from .trt import TRTAPI
 from .winter import WINTERAPI
