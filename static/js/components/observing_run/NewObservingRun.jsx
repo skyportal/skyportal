@@ -44,7 +44,7 @@ const NewObservingRun = () => {
         default: defaultDate,
       },
       duration: {
-        type: "string",
+        type: "number",
         title: "Number of nights",
         default: 1,
       },
