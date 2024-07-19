@@ -67,6 +67,7 @@ const FindingChart = () => {
 
   const [params, setParams] = useState({
     imagesource: "ps1",
+    facility: "Keck",
     positionsource: "gaia",
     findersize: 4.0,
     numoffset: 3,
@@ -85,6 +86,7 @@ const FindingChart = () => {
     use_ztfref: `${params.positionsource === "ztfref"}`,
     imsize: `${params.findersize}`,
     num_offset_stars: `${params.numoffset}`,
+    facility: `${params.facility}`,
   });
 
   const placeholder = (
@@ -219,6 +221,35 @@ const FindingChart = () => {
                               >
                                 <MenuItem value="ztfref">ZTF Ref</MenuItem>
                                 <MenuItem value="gaia">Gaia DR3</MenuItem>
+                              </Select>
+                            )}
+                          />
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <FormControl>
+                          <InputLabel
+                            className={classes.items}
+                            id="FacilityLabel"
+                          >
+                            Facility
+                          </InputLabel>
+                          <p />
+                          <Controller
+                            labelid="FacilityLabel"
+                            name="facility"
+                            control={control}
+                            defaultValue={params.facility}
+                            className={classes.items}
+                            render={({ field: { onChange, value } }) => (
+                              <Select
+                                labelId="FacilitySelectLabel"
+                                value={value}
+                                onChange={onChange}
+                              >
+                                <MenuItem value="Keck">Keck</MenuItem>
+                                <MenuItem value="Shane">Shane</MenuItem>
+                                <MenuItem value="P200">P200</MenuItem>
                               </Select>
                             )}
                           />
