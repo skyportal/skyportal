@@ -1,7 +1,9 @@
 import json
 from datetime import datetime
+import numpy as np
 
 import requests
+from astroplan.moon import moon_phase_angle
 from astropy.time import Time
 
 from baselayer.app.env import load_env
@@ -54,8 +56,11 @@ def validate_request_to_tarot(request):
             'observation_type must be Tarot_Calern, Tarot_Chili, Zadko_Australia, VIRT_STT, Tarot_Reunion'
         )
 
-    if request.payload["exposure_time"] < 0:
-        raise ValueError('exposure_time must be positive.')
+    if (
+        request.payload["exposure_time"] < 0
+        and not request.payload["exposure_time"] == -1
+    ):
+        raise ValueError('exposure_time must be positive or -1.')
 
     if request.payload["minimum_elevation"] < 10:
         raise ValueError('minimum_elevation must be at least 10 degrees.')
@@ -74,21 +79,149 @@ def validate_request_to_tarot(request):
         'z': 16,
         'U': 19,
     }
-
     tt = Time(request.payload["date"], format="isot")
     observations = []
-    for filt in request.payload["observation_choices"]:
-        observations.append(f'{request.payload["exposure_time"]} {filts[filt]}')
-    observations = sum([observations] * request.payload["exposure_counts"], [])
 
-    if len(observations) > 6:
-        raise ValueError('Please request no more than 6 observations at a time')
+    if request.payload["exposure_time"] == -1:
+        photstats = request.obj.photstats
+        if len(photstats) == 0:
+            raise ValueError('No photometry to base exposure time calculation on')
+        photstats = photstats[0]
+        last_detected_mag = photstats.last_detected_mag
 
-    observations_filler = ["0 0"] * (int(6 - len(observations)))
+        if last_detected_mag is None:
+            raise ValueError('No detections to base exposure time calculation on')
 
-    observation_string = f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {tt.isot} 0.004180983 0.00 {" ".join(observations)} {" ".join(observations_filler)} {request.payload["priority"]} {request.payload["station_name"]}'
+        phase_angle = np.rad2deg(moon_phase_angle(tt).value)
 
-    return observation_string
+        if last_detected_mag <= 17.0:
+            if phase_angle > 60:
+                sequence = {
+                    "Tarot_Calern": {
+                        "r": [15, 120],
+                        "g": [0, 0],
+                        "i": [0, 0],
+                        "NoFilter": [6, 120],
+                    },
+                    "Tarot_Chili": {
+                        "r": [15, 0],
+                        "g": [0, 0],
+                        "i": [0, 0],
+                        "NoFilter": [6, 120],
+                    },
+                    "Tarot_Reunion": {"NoFilter": [12, 120]},
+                }
+            else:
+                sequence = {
+                    "Tarot_Calern": {
+                        "r": [8, 120],
+                        "g": [0, 0],
+                        "i": [8, 120],
+                        "NoFilter": [4, 120],
+                    },
+                    "Tarot_Chili": {
+                        "r": [8, 120],
+                        "g": [0, 0],
+                        "i": [8, 120],
+                        "NoFilter": [4, 120],
+                    },
+                    "Tarot_Reunion": {"NoFilter": [8, 120]},
+                }
+        elif 17.0 < last_detected_mag < 19.0:
+            if phase_angle > 60:
+                sequence = {
+                    "Tarot_Calern": {
+                        "r": [22, 120],
+                        "g": [0, 0],
+                        "i": [0, 0],
+                        "NoFilter": [15, 120],
+                    },
+                    "Tarot_Chili": {
+                        "r": [22, 120],
+                        "g": [0, 0],
+                        "i": [0, 0],
+                        "NoFilter": [15, 120],
+                    },
+                    "Tarot_Reunion": {"NoFilter": [18, 120]},
+                }
+            else:
+                sequence = {
+                    "Tarot_Calern": {
+                        "r": [8, 200],
+                        "g": [0, 0],
+                        "i": [8, 200],
+                        "NoFilter": [6, 120],
+                    },
+                    "Tarot_Chili": {
+                        "r": [8, 200],
+                        "g": [0, 0],
+                        "i": [8, 200],
+                        "NoFilter": [6, 120],
+                    },
+                    "Tarot_Reunion": {"NoFilter": [12, 200]},
+                }
+        elif last_detected_mag >= 19.0:
+            if phase_angle > 60:
+                sequence = {
+                    "Tarot_Calern": {
+                        "r": [0, 0],
+                        "g": [0, 0],
+                        "i": [0, 0],
+                        "NoFilter": [15, 200],
+                    },
+                    "Tarot_Chili": {
+                        "r": [0, 0],
+                        "g": [0, 0],
+                        "i": [0, 0],
+                        "NoFilter": [0, 0],
+                    },
+                    "Tarot_Reunion": {"NoFilter": [0, 0]},
+                }
+            else:
+                sequence = {
+                    "Tarot_Calern": {
+                        "r": [12, 200],
+                        "g": [0, 0],
+                        "i": [12, 200],
+                        "NoFilter": [12, 120],
+                    },
+                    "Tarot_Chili": {
+                        "r": [12, 200],
+                        "g": [0, 0],
+                        "i": [0, 0],
+                        "NoFilter": [12, 120],
+                    },
+                    "Tarot_Reunion": {"NoFilter": [18, 200]},
+                }
+
+        seq = sequence.get(request.payload["station_name"], None)
+        if seq is None:
+            raise ValueError('Default sequence not available for this telescope')
+
+        observations = []
+        for filt in seq.keys():
+            exp_count, exposure_time = seq[filt]
+            observations.extend([f'{exposure_time} {filts[filt]}'] * exp_count)
+
+    else:
+        for filt in request.payload["observation_choices"]:
+            observations.append(f'{request.payload["exposure_time"]} {filts[filt]}')
+        observations = sum([observations] * request.payload["exposure_counts"], [])
+
+    observation_strings = []
+    number_of_strings, remainder = np.divmod(len(observations), 6)
+    for ii in range(number_of_strings):
+        if ii == number_of_strings - 1:
+            obs_filler = ["0 0"] * (int(6 - remainder))
+        else:
+            obs_filler = []
+
+        obs = observations[ii * 6 : (ii + 1) * 6]
+
+        observation_string = f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {tt.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)} {request.payload["priority"]} {request.payload["station_name"]}'
+        observation_strings.append(observation_string)
+
+    return observation_strings
 
 
 class TAROTAPI(FollowUpAPI):
@@ -108,7 +241,7 @@ class TAROTAPI(FollowUpAPI):
 
         from ..models import FacilityTransaction
 
-        observation_string = validate_request_to_tarot(request)
+        observation_strings = validate_request_to_tarot(request)
 
         if cfg['app.tarot_endpoint'] is not None:
             altdata = request.allocation.altdata
@@ -120,7 +253,7 @@ class TAROTAPI(FollowUpAPI):
                 'Content-Type': 'application/json',
                 'TAROT': altdata['token'],
             }
-            payload = json.dumps({"script": [observation_string]})
+            payload = json.dumps({"script": observation_strings})
             url = f"{cfg['app.tarot_endpoint']}/newobservation"
 
             r = requests.request(
@@ -260,15 +393,10 @@ class TAROTAPI(FollowUpAPI):
                 ],
                 "default": "Tarot_Calern",
             },
-            "exposure_time": {
-                "title": "Exposure Time [s]",
-                "type": "number",
-                "default": 300.0,
-            },
-            "exposure_counts": {
-                "title": "Exposure Counts",
-                "type": "number",
-                "default": 1,
+            "exposure_defaults": {
+                "title": "Do you want to rely on defaults?",
+                "type": "boolean",
+                "default": True,
             },
             "date": {
                 "type": "string",
@@ -311,6 +439,27 @@ class TAROTAPI(FollowUpAPI):
             "station_name",
         ],
         "dependencies": {
+            "exposure_defaults": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "exposure_defaults": {
+                                "enum": [False],
+                            },
+                            "exposure_time": {
+                                "title": "Exposure Time [s] (use -1 if want defaults)",
+                                "type": "number",
+                                "default": 300.0,
+                            },
+                            "exposure_counts": {
+                                "title": "Exposure Counts",
+                                "type": "number",
+                                "default": 1,
+                            },
+                        }
+                    }
+                ]
+            },
             "station_name": {
                 "oneOf": [
                     {
