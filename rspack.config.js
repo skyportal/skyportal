@@ -1,5 +1,5 @@
 const path = require("path");
-const webpack = require("webpack");
+const rspack = require("@rspack/core");
 
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
@@ -75,13 +75,13 @@ const config = {
     // Uncomment the following line to enable bundle size analysis
     // new BundleAnalyzerPlugin(),
     // Needed for non-polyfilled node modules; we aim to remove this when possible
-    new webpack.ProvidePlugin({
+    new rspack.ProvidePlugin({
       process: path.resolve(__dirname, "node_modules/process/browser.js"),
     }),
-    new webpack.ProvidePlugin({
+    new rspack.ProvidePlugin({
       Buffer: ["buffer", "Buffer"],
     }),
-    new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+    new rspack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
       resource.request = resource.request.replace(/^node:/, "");
     }),
   ],
