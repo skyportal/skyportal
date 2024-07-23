@@ -31,6 +31,27 @@ XRT_URL = f"{cfg['app.swift_xrt_endpoint']}/run_userobject.php"
 log = make_log('facility_apis/swift')
 
 
+modes = {
+    '0x9999': '0x9999 - Default (Filter of the day)',
+    '0x30ed': '0x30ed - U+B+V+All UV',
+    '0x223f': '0x223f - U+B+V+All UV (UV weighted, SN Mode)',
+    '0x209a': '0x209a - U+B+V',
+    '0x308f': '0x308f - All UV',
+    '0x2019': '0x2019 - White',
+    '0x018c': '0x018c - UVW1',
+    '0x011e': '0x011e - UVW2',
+    '0x015a': '0x015a - UVM2',
+    '0x01aa': '0x01aa - U band',
+    '0x2016': '0x2016 - B band',
+    '0x2005': '0x2005 - V band',
+    '0x122f': '0x122f - Grism 1 (UV)',
+    '0x1230': '0x1230 - Grism 2 (Visible)',
+    '0x0ff3': '0x0ff3 - Blocked (in case of too bright star)',
+}
+
+modes_keys, modes_values = zip(*modes.items())
+
+
 class UVOTXRTMMAAPI(MMAAPI):
 
     """An interface to Swift MMA operations."""
@@ -158,7 +179,9 @@ class UVOTXRTRequest:
         too.monitoring_freq = "%d days" % request.payload["monitoring_freq"]
         too.num_of_visits = int(request.payload["exposure_counts"])
 
-        too.xrt_countrate = request.payload["xrt_countrate"]
+        too.opt_mag = request.payload.get("opt_mag", None)
+        too.opt_filt = request.payload.get("opt_filt", None)
+        too.xrt_countrate = request.payload.get("xrt_countrate", None)
         too.exp_time_just = request.payload["exp_time_just"]
         too.immediate_objective = request.payload["immediate_objective"]
 
@@ -179,7 +202,8 @@ class UVOTXRTRequest:
             raise ValueError('obs_type not an allowed value.')
         too.obs_type = request.payload["obs_type"]
 
-        too.uvot_mode = request.payload["uvot_mode"]
+        modes_index = modes_values.index(request.payload["uvot_mode"])
+        too.uvot_mode = modes_keys[modes_index]
         too.science_just = request.payload["science_just"]
 
         return too
@@ -658,6 +682,14 @@ class UVOTXRTAPI(FollowUpAPI):
                                 "type": "number",
                                 "default": 1,
                             },
+                            "opt_mag": {
+                                "title": "Optical Magnitude",
+                                "type": "number",
+                            },
+                            "opt_filt": {
+                                "title": "Optical Filter",
+                                "type": "string",
+                            },
                             "xrt_countrate": {
                                 "title": "XRT Count rate [counts/s]",
                                 "type": "number",
@@ -698,7 +730,8 @@ class UVOTXRTAPI(FollowUpAPI):
                             "uvot_mode": {
                                 "title": "UVOT Mode",
                                 "type": "string",
-                                "default": "default",
+                                "enum": list(modes_values),
+                                "default": "0x9999 - Default (Filter of the day)",
                             },
                             "science_just": {
                                 "title": "Science Justification",
