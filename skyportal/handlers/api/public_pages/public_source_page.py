@@ -75,15 +75,15 @@ def get_photometry(source_id, group_ids, stream_ids, session):
 
 
 def get_spectroscopy(source_id, group_ids, session):
-    query = (
+    stmt = (
         Spectrum.select(session.user_or_token, mode="read")
         .where(Spectrum.obj_id == source_id)
         .join(Spectrum.instrument)
         .order_by(Instrument.name, Spectrum.observed_at.desc())
     )
     if len(group_ids) > 0:
-        query = query.where(or_(Spectrum.groups.any(Group.id.in_(group_ids))))
-    return [spec.to_dict_public() for spec in session.scalars(query).all()]
+        stmt = stmt.where(Spectrum.groups.any(Group.id.in_(group_ids)))
+    return [spec.to_dict_public() for spec in session.scalars(stmt).unique().all()]
 
 
 def get_classifications(source_id, group_ids, session):
