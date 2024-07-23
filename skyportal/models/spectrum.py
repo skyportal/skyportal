@@ -389,6 +389,27 @@ class Spectrum(Base):
             **spec_data,
         )
 
+    def to_dict_public(self):
+        return {
+            'id': self.id,
+            'wavelengths': self.wavelengths.tolist(),
+            'fluxes': self.fluxes.tolist(),
+            'errors': self.errors.tolist() if self.errors is not None else None,
+            'units': self.units,
+            'origin': self.origin,
+            'type': self.type,
+            'label': self.label,
+            'instrument': self.instrument.name,
+            'telescope': self.instrument.telescope.name,
+            'observed_at': self.observed_at.isoformat(),
+            'pi': [pi.id for pi in self.pis],
+            'reducer': [reducer.id for reducer in self.reducers],
+            'observer': [observer.id for observer in self.observers],
+            'altdata': self.altdata,
+            'original_file_filename': self.original_file_filename,
+            'original_file_string': self.original_file_string,
+        }
+
 
 SpectrumPI = join_model(
     "spectrum_pis", Spectrum, User, new_name='SpectrumPI', overlaps='pis'

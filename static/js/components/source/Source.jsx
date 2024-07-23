@@ -1000,6 +1000,7 @@ const SourceContent = ({ source }) => {
                 isElements={{
                   summary: source.summary_history?.length > 0,
                   photometry: source.photometry_exists,
+                  spectroscopy: source.spectrum_exists,
                   classifications: source.classifications?.length > 0,
                 }}
               />
@@ -1465,7 +1466,7 @@ SourceContent.propTypes = {
     annotations: PropTypes.arrayOf(
       PropTypes.shape({
         origin: PropTypes.string.isRequired,
-        data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+        data: PropTypes.object.isRequired,
       }),
     ),
     host: PropTypes.shape({
@@ -1523,9 +1524,9 @@ SourceContent.propTypes = {
         created_at: PropTypes.string,
       }),
     ),
-    followup_requests: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
-    assignments: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
-    redshift_history: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    followup_requests: PropTypes.arrayOf(PropTypes.any),
+    assignments: PropTypes.arrayOf(PropTypes.any),
+    redshift_history: PropTypes.arrayOf(PropTypes.any),
     color_magnitude: PropTypes.arrayOf(
       PropTypes.shape({
         abs_mag: PropTypes.number,

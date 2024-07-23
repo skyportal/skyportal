@@ -40,7 +40,10 @@ const SourcePublish = ({ sourceId, isElements }) => {
     currentUser.permissions?.includes("Manage sources");
   const displayOptions =
     permissionToPublish &&
-    (isElements.summary || isElements.photometry || isElements.classifications);
+    (isElements.summary ||
+      isElements.photometry ||
+      isElements.spectroscopy ||
+      isElements.classifications);
 
   const [sourcePublishDialogOpen, setSourcePublishDialogOpen] = useState(false);
   const [publishButton, setPublishButton] = useState({
@@ -56,6 +59,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
   const [options, setOptions] = useState({
     include_summary: true,
     include_photometry: true,
+    include_spectroscopy: true,
     include_classifications: true,
     groups: [],
     streams: [],
@@ -195,6 +199,7 @@ SourcePublish.propTypes = {
   isElements: PropTypes.shape({
     summary: PropTypes.bool,
     photometry: PropTypes.bool,
+    spectroscopy: PropTypes.bool,
     classifications: PropTypes.bool,
   }).isRequired,
 };
