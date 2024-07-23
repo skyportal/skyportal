@@ -60,7 +60,7 @@ const SourcePublishRelease = ({
         anyOf: [
           {
             enum: [null],
-            title: "...",
+            title: "no release",
           },
           ...releases.map((item) => ({
             enum: [item.id],
