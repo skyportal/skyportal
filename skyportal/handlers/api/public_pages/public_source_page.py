@@ -227,7 +227,7 @@ class PublicSourcePageHandler(BaseHandler):
             session.add(public_source_page)
             session.commit()
 
-            if release_id and release.is_visible:
+            if release_id is None or release.is_visible:
                 try:
                     public_source_page.generate_page()
                 except Exception as e:
