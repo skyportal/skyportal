@@ -2,6 +2,7 @@ __all__ = ['PublicSourcePage']
 
 import json
 import jinja2
+import datetime
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import deferred, relationship
@@ -134,6 +135,9 @@ class PublicSourcePage(Base):
             loader=jinja2.FileSystemLoader("./static/public_pages/sources/source"),
         )
         environment.policies['json.dumps_function'] = to_json
+        environment.filters["format_date"] = lambda x: (
+            datetime.datetime.fromisoformat(x)
+        ).strftime("%x")
         template = environment.get_template("source_template.html")
         html = template.render(
             source_id=self.source_id,

@@ -110,23 +110,20 @@ header {
       }
     }
   }
-  .photometryCard {
-    padding-left: 0;
-    padding-right: 0;
+  .plotCard {
+    padding: 1rem 0;
+    h2 {
+      margin-left: 1rem;
+    }
+    .download {
+      margin-right: 1rem;
+    }
     .titleAndDownload {
       display: flex;
       justify-content: space-between;
       align-items: center;
-
-      h2 {
-        margin-left: 1rem;
-      }
-
-      .download {
-        margin-right: 1rem;
-      }
     }
-    .photometryPlot {
+    .plot {
       height: 75vh;
       margin: 1rem 0;
     }

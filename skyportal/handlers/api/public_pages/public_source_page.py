@@ -14,10 +14,12 @@ from ....enum_types import THUMBNAIL_TYPES
 from ....models import (
     PublicSourcePage,
     PublicRelease,
+    Photometry,
+    Spectrum,
+    Instrument,
+    Classification,
     Group,
     Stream,
-    Classification,
-    Photometry,
 )
 from ....utils.thumbnail import get_thumbnail_alt_link, get_thumbnail_header
 
@@ -56,6 +58,41 @@ def get_redshift_to_display(source):
     elif source.get('redshift'):
         redshift_display = round(source['redshift'], 4)
     return redshift_display
+
+
+def get_photometry(source_id, group_ids, stream_ids, session):
+    stmt = Photometry.select(session.user_or_token, mode="read").where(
+        Photometry.obj_id == source_id
+    )
+    if len(group_ids) > 0 and len(stream_ids) > 0:
+        stmt = stmt.where(
+            or_(
+                Photometry.groups.any(Group.id.in_(group_ids)),
+                Photometry.streams.any(Stream.id.in_(stream_ids)),
+            )
+        )
+    return [photo.to_dict_public() for photo in session.scalars(stmt).unique().all()]
+
+
+def get_spectroscopy(source_id, group_ids, session):
+    query = (
+        Spectrum.select(session.user_or_token, mode="read")
+        .where(Spectrum.obj_id == source_id)
+        .join(Spectrum.instrument)
+        .order_by(Instrument.name, Spectrum.observed_at.desc())
+    )
+    if len(group_ids) > 0:
+        query = query.where(or_(Spectrum.groups.any(Group.id.in_(group_ids))))
+    return [spec.to_dict_public() for spec in session.scalars(query).all()]
+
+
+def get_classifications(source_id, group_ids, session):
+    stmt = Classification.select(session.user_or_token, mode="read").where(
+        Classification.obj_id == source_id
+    )
+    if len(group_ids) > 0:
+        stmt = stmt.where(Classification.groups.any(Group.id.in_(group_ids)))
+    return [c.to_dict_public() for c in session.scalars(stmt).unique().all()]
 
 
 class PublicSourcePageHandler(BaseHandler):
@@ -153,35 +190,18 @@ class PublicSourcePageHandler(BaseHandler):
                 "release_link_name": release.link_name if release_id else None,
             }
 
-            # get photometry
             if options.get("include_photometry"):
-                stmt = Photometry.select(session.user_or_token, mode="read").where(
-                    Photometry.obj_id == source_id
+                data_to_publish["photometry"] = get_photometry(
+                    source_id, group_ids, stream_ids, session
                 )
-                if len(group_ids) and len(stream_ids):
-                    stmt = stmt.where(
-                        or_(
-                            Photometry.groups.any(Group.id.in_(group_ids)),
-                            Photometry.streams.any(Stream.id.in_(stream_ids)),
-                        )
-                    )
-                data_to_publish["photometry"] = [
-                    phot.to_dict_public()
-                    for phot in session.scalars(stmt).unique().all()
-                ]
-
-            # get classifications
+            if options.get("include_spectroscopy"):
+                data_to_publish["spectroscopy"] = get_spectroscopy(
+                    source_id, group_ids, session
+                )
             if options.get("include_classifications"):
-                stmt = Classification.select(session.user_or_token, mode="read").where(
-                    Classification.obj_id == source_id
+                data_to_publish["classifications"] = get_classifications(
+                    source_id, group_ids, session
                 )
-                if len(group_ids):
-                    stmt = stmt.where(
-                        Classification.groups.any(Group.id.in_(group_ids))
-                    )
-                data_to_publish["classifications"] = [
-                    c.to_dict_public() for c in session.scalars(stmt).unique().all()
-                ]
 
             new_page_hash = calculate_hash(data_to_publish)
             if (

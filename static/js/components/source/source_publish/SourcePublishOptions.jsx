@@ -34,6 +34,11 @@ export const sourcePublishOptionsSchema = (streams, groups, is_elements) => {
       "Include photometry?",
     );
   }
+  if (is_elements == null || is_elements.spectroscopy) {
+    schema.properties.include_spectroscopy = includeProperty(
+      "Include spectroscopy?",
+    );
+  }
   if (is_elements == null || is_elements.classifications) {
     schema.properties.include_classifications = includeProperty(
       "Include classifications?",
@@ -49,6 +54,7 @@ export const sourcePublishOptionsSchema = (streams, groups, is_elements) => {
     groups?.length > 0 &&
     (is_elements == null ||
       is_elements?.classifications ||
+      is_elements?.spectroscopy ||
       is_elements?.photometry)
   ) {
     schema.properties.groups = selectProperty(
@@ -96,6 +102,7 @@ SourcePublishOptions.propTypes = {
   options: PropTypes.shape({
     include_summary: PropTypes.bool,
     include_photometry: PropTypes.bool,
+    include_spectroscopy: PropTypes.bool,
     include_classifications: PropTypes.bool,
     groups: PropTypes.arrayOf(PropTypes.number),
     streams: PropTypes.arrayOf(PropTypes.number),
@@ -103,6 +110,7 @@ SourcePublishOptions.propTypes = {
   setOptions: PropTypes.func.isRequired,
   isElements: PropTypes.shape({
     photometry: PropTypes.bool,
+    spectroscopy: PropTypes.bool,
     classifications: PropTypes.bool,
   }).isRequired,
 };
