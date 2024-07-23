@@ -11,7 +11,15 @@ from ..source import get_source
 from ...base import BaseHandler
 from ....enum_types import THUMBNAIL_TYPES
 
-from ....models import PublicSourcePage, Group, Stream, Classification, Photometry
+from ....models import (
+    PublicSourcePage,
+    Photometry,
+    Spectrum,
+    Instrument,
+    Classification,
+    Group,
+    Stream,
+)
 from ....utils.thumbnail import get_thumbnail_alt_link, get_thumbnail_header
 
 log = make_log('api/public_source_page')
@@ -49,6 +57,41 @@ def get_redshift_to_display(source):
     elif source.get('redshift'):
         redshift_display = round(source['redshift'], 4)
     return redshift_display
+
+
+def get_photometry(source_id, group_ids, stream_ids, session):
+    stmt = Photometry.select(session.user_or_token, mode="read").where(
+        Photometry.obj_id == source_id
+    )
+    if len(group_ids) > 0 and len(stream_ids) > 0:
+        stmt = stmt.where(
+            or_(
+                Photometry.groups.any(Group.id.in_(group_ids)),
+                Photometry.streams.any(Stream.id.in_(stream_ids)),
+            )
+        )
+    return [photo.to_dict_public() for photo in session.scalars(stmt).unique().all()]
+
+
+def get_spectroscopy(source_id, group_ids, session):
+    query = (
+        Spectrum.select(session.user_or_token, mode="read")
+        .where(Spectrum.obj_id == source_id)
+        .join(Spectrum.instrument)
+        .order_by(Instrument.name, Spectrum.observed_at.desc())
+    )
+    if len(group_ids) > 0:
+        query = query.where(or_(Spectrum.groups.any(Group.id.in_(group_ids))))
+    return [spec.to_dict_public() for spec in session.scalars(query).all()]
+
+
+def get_classifications(source_id, group_ids, session):
+    stmt = Classification.select(session.user_or_token, mode="read").where(
+        Classification.obj_id == source_id
+    )
+    if len(group_ids) > 0:
+        stmt = stmt.where(Classification.groups.any(Group.id.in_(group_ids)))
+    return [c.to_dict_public() for c in session.scalars(stmt).unique().all()]
 
 
 class PublicSourcePageHandler(BaseHandler):
@@ -110,6 +153,7 @@ class PublicSourcePageHandler(BaseHandler):
             )
             if source is None:
                 return self.error("Source not found", status=404)
+
             data_to_publish = {
                 "ra": round(source["ra"], 6) if source["ra"] else None,
                 "dec": round(source["dec"], 6) if source["dec"] else None,
@@ -130,35 +174,18 @@ class PublicSourcePageHandler(BaseHandler):
                 "options": options,
             }
 
-            # get photometry
             if options.get("include_photometry"):
-                stmt = Photometry.select(session.user_or_token, mode="read").where(
-                    Photometry.obj_id == source_id
+                data_to_publish["photometry"] = get_photometry(
+                    source_id, group_ids, stream_ids, session
                 )
-                if len(group_ids) and len(stream_ids):
-                    stmt = stmt.where(
-                        or_(
-                            Photometry.groups.any(Group.id.in_(group_ids)),
-                            Photometry.streams.any(Stream.id.in_(stream_ids)),
-                        )
-                    )
-                data_to_publish["photometry"] = [
-                    photo.to_dict_public()
-                    for photo in session.scalars(stmt.distinct()).all()
-                ]
-
-            # get classifications
+            if options.get("include_spectroscopy"):
+                data_to_publish["spectroscopy"] = get_spectroscopy(
+                    source_id, group_ids, session
+                )
             if options.get("include_classifications"):
-                stmt = Classification.select(session.user_or_token, mode="read").where(
-                    Classification.obj_id == source_id
+                data_to_publish["classifications"] = get_classifications(
+                    source_id, group_ids, session
                 )
-                if len(group_ids):
-                    stmt = stmt.where(
-                        Classification.groups.any(Group.id.in_(group_ids))
-                    )
-                data_to_publish["classifications"] = [
-                    c.to_dict_public() for c in session.scalars(stmt.distinct()).all()
-                ]
 
             new_page_hash = calculate_hash(data_to_publish)
             if (
