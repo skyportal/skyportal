@@ -15,6 +15,10 @@ import {
   ThemeProvider,
   useTheme,
 } from "@mui/material/styles";
+import IconButton from "@mui/material/IconButton";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 
 import makeStyles from "@mui/styles/makeStyles";
 
@@ -59,11 +63,9 @@ const useStyles = makeStyles((theme) => ({
   },
   actionButtons: {
     display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-evenly",
-    "& > button": {
-      margin: "0.25rem 0",
-    },
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
   },
 }));
 
@@ -111,6 +113,7 @@ const ScanningProfilesList = ({
     (state) => state.profile.preferences.scanningProfiles,
   );
 
+  const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [profileToEdit, setProfileToEdit] = useState();
 
@@ -200,6 +203,12 @@ const ScanningProfilesList = ({
     const profile = profiles[dataIndex];
     return profile?.classifications ? (
       <div>
+        <p>
+          {" "}
+          {profile?.classificationsWith === false
+            ? "Without any of:"
+            : "With any of:"}{" "}
+        </p>
         {profile.classifications.map((classification) => (
           <Chip
             size="small"
@@ -278,20 +287,27 @@ const ScanningProfilesList = ({
     );
   };
 
-  const renderActions = (dataIndex) => (
-    <div className={classes.actionButtons}>
-      <Button secondary size="small" onClick={() => deleteProfile(dataIndex)}>
-        Delete
-      </Button>
-      <Button
-        secondary
-        size="small"
-        onClick={() => editProfile(profiles[dataIndex])}
-      >
-        Edit
-      </Button>
-    </div>
-  );
+  const renderActions = (dataIndex) => {
+    const profile = profiles[dataIndex];
+    return (
+      <div className={classes.actionButtons}>
+        <IconButton
+          key={`edit_${profile.id}`}
+          id={`edit_button_${profile.id}`}
+          onClick={() => editProfile(profile)}
+        >
+          <EditIcon />
+        </IconButton>
+        <IconButton
+          key={`delete_${profile.id}`}
+          id={`delete_button_${profile.id}`}
+          onClick={() => deleteProfile(dataIndex)}
+        >
+          <DeleteIcon />
+        </IconButton>
+      </div>
+    );
+  };
 
   const columns = [
     {
@@ -362,8 +378,8 @@ const ScanningProfilesList = ({
       },
     },
     {
-      name: "edit",
-      label: "Edit",
+      name: "manage",
+      label: " ",
       options: {
         customBodyRenderLite: renderActions,
       },
@@ -378,6 +394,16 @@ const ScanningProfilesList = ({
     search: false,
     selectableRows: "none",
     elevation: 0,
+    customToolbar: () => (
+      <IconButton
+        name="new_scanning_profile"
+        onClick={() => {
+          setNewDialogOpen(true);
+        }}
+      >
+        <AddIcon />
+      </IconButton>
+    ),
   };
 
   return (
@@ -389,7 +415,7 @@ const ScanningProfilesList = ({
               data={profiles}
               options={options}
               columns={columns}
-              title="Saved Scanning Profiles"
+              title="Scanning Profiles"
             />
           </ThemeProvider>
         </StyledEngineProvider>
@@ -410,6 +436,23 @@ const ScanningProfilesList = ({
             closeDialog={() => setEditDialogOpen(false)}
             selectedScanningProfile={selectedScanningProfile}
             setSelectedScanningProfile={setSelectedScanningProfile}
+          />
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={newDialogOpen}
+        onClose={() => {
+          setNewDialogOpen(false);
+        }}
+      >
+        <DialogContent className={classes.dialogContent}>
+          <CandidatesPreferencesForm
+            userAccessibleGroups={userAccessibleGroups}
+            availableAnnotationsInfo={availableAnnotationsInfo}
+            classifications={classifications}
+            addOrEdit="Add"
+            setSelectedScanningProfile={setSelectedScanningProfile}
+            closeDialog={() => setNewDialogOpen(false)}
           />
         </DialogContent>
       </Dialog>
