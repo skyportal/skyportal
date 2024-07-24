@@ -231,8 +231,23 @@ async def get_source(
     s = session.scalar(stmt)
     if s is None:
         raise ValueError("Source not found")
-
     source_info = s.to_dict()
+
+    # retain only the last thumbnail of each type
+    if include_thumbnails:
+        keep_thumbs = {}
+        for index, thumb in enumerate(source_info["thumbnails"]):
+            if (
+                thumb.type not in keep_thumbs
+                or thumb.created_at
+                > source_info["thumbnails"][keep_thumbs[thumb.type]].created_at
+            ):
+                keep_thumbs[thumb.type] = index
+        # sort the thumbnails index to keep the original order
+        source_info["thumbnails"] = [
+            source_info["thumbnails"][index] for index in sorted(keep_thumbs.values())
+        ]
+
     followup_requests = (
         session.scalars(
             FollowupRequest.select(
