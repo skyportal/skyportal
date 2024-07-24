@@ -10,10 +10,7 @@ import IconButton from "@mui/material/IconButton";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
 import BuildIcon from "@mui/icons-material/Build";
-import CheckIcon from "@mui/icons-material/Check";
-import ClearIcon from "@mui/icons-material/Clear";
 import CloudIcon from "@mui/icons-material/Cloud";
-import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 
 import Link from "@mui/material/Link";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
@@ -62,6 +59,23 @@ const useStyles = makeStyles((theme) => ({
     padding: "0.625rem",
   },
 }));
+
+function getStatusColors(status) {
+  // if it starts with success, green
+  if (status.startsWith("complete")) {
+    return ["black", "MediumAquaMarine"];
+  }
+  // if any of these strings are present, yellow
+  if (status.includes("not observed")) {
+    return ["black", "Orange"];
+  }
+  // if it starts with error, red
+  if (status.startsWith("error")) {
+    return ["white", "Crimson"];
+  }
+  // else grey
+  return ["black", "LightGrey"];
+}
 
 const SimpleMenu = ({ assignment }) => {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -314,28 +328,24 @@ const RunSummary = ({ route }) => {
   };
 
   const renderStatus = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    let statusIcon = null;
-    if (assignment.status === "complete") {
-      statusIcon = <CheckIcon size="small" color="green" />;
-    } else if (assignment.status === "not observed") {
-      statusIcon = <ClearIcon size="small" color="red" />;
-    } else {
-      statusIcon = <QuestionMarkIcon size="small" color="primary" />;
-    }
-
+    const { id, status } = assignments[dataIndex];
+    const colors = getStatusColors(status);
     return (
-      <div
+      <Typography
+        variant="body2"
         style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
+          backgroundColor: colors[1],
+          color: colors[0],
+          padding: "0.25rem 0.75rem 0.25rem 0.75rem",
+          borderRadius: "1rem",
+          maxWidth: "fit-content",
+          // don't allow line breaks unless the status contains "error"
+          whiteSpace: status.includes("error") ? "normal" : "nowrap",
         }}
-        name={`${assignment.id}_status`}
+        name={`${id}_status`}
       >
-        {statusIcon}
-      </div>
+        {status}
+      </Typography>
     );
   };
 
