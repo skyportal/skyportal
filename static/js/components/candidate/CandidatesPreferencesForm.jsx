@@ -257,6 +257,7 @@ const CandidatesPreferencesForm = ({
     } else if (addOrEdit === "Add") {
       // New profiles are set to default/loaded immediately
       setSelectedScanningProfile(data);
+      closeDialog();
     }
   };
 

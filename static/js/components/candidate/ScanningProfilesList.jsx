@@ -288,19 +288,18 @@ const ScanningProfilesList = ({
   };
 
   const renderActions = (dataIndex) => {
-    const profile = profiles[dataIndex];
     return (
       <div className={classes.actionButtons}>
         <IconButton
-          key={`edit_${profile.id}`}
-          id={`edit_button_${profile.id}`}
-          onClick={() => editProfile(profile)}
+          key={`edit_${dataIndex}`}
+          id={`edit_button_${dataIndex}`}
+          onClick={() => editProfile(profiles[dataIndex])}
         >
           <EditIcon />
         </IconButton>
         <IconButton
-          key={`delete_${profile.id}`}
-          id={`delete_button_${profile.id}`}
+          key={`delete_${dataIndex}`}
+          id={`delete_button_${dataIndex}`}
           onClick={() => deleteProfile(dataIndex)}
         >
           <DeleteIcon />
