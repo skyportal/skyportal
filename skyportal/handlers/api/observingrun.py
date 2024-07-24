@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import numpy as np
 from astropy.utils.masked import MaskedNDArray
 from sqlalchemy.orm import joinedload
@@ -325,9 +327,7 @@ class ObservingRunHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        print(f"run_id: {run_id}")
         run_id = int(run_id)
-        print(f"run_id: {run_id}")
         with self.Session() as session:
             orun = session.scalars(
                 ObservingRun.select(session.user_or_token, mode="delete").where(
@@ -337,6 +337,25 @@ class ObservingRunHandler(BaseHandler):
             if orun is None:
                 return self.error(
                     "Only the owner of an observing run can delete the run."
+                )
+
+            # check if any assignments are associated with this run
+            assignments = []
+            if orun.assignments is not None:
+                assignments = orun.assignments
+
+            # if any assignments have a status like completed or pending, we should not delete the run
+            # and instead return an error
+            for assignment in assignments:
+                if assignment.status in ["completed", "pending"]:
+                    return self.error(
+                        "Cannot delete an observing run with assignments that are completed or pending. Mark these targets as unobserved first."
+                    )
+
+            # don't allow deleting past runs, unless they have no assignments
+            if orun.run_end_utc < datetime.now(timezone.utc) and len(assignments) > 0:
+                return self.error(
+                    "Cannot delete an observing run that has ended and had targets assigned to it."
                 )
 
             session.delete(orun)
