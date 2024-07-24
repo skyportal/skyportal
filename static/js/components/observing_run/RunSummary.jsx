@@ -634,7 +634,7 @@ const RunSummary = ({ route }) => {
           >
             <DialogContent dividers>
               Is your observing run clouded out and want to set all pending
-              objects to not observerd?
+              objects to not observered?
             </DialogContent>
             <DialogActions>
               <Button secondary autoFocus onClick={closeDialog}>

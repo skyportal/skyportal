@@ -130,6 +130,7 @@ class ObservingRunHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        run_id = int(run_id) if run_id is not None else None
         with self.Session() as session:
             if run_id is not None:
                 # These are all read=public, including Objs
@@ -273,7 +274,9 @@ class ObservingRunHandler(BaseHandler):
 
         with self.Session() as session:
             orun = session.scalars(
-                ObservingRun.select(session.user_or_token, mode="update")
+                ObservingRun.select(session.user_or_token, mode="update").where(
+                    ObservingRun.id == run_id
+                )
             ).first()
             if orun is None:
                 return self.error(
@@ -322,10 +325,14 @@ class ObservingRunHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        print(f"run_id: {run_id}")
         run_id = int(run_id)
+        print(f"run_id: {run_id}")
         with self.Session() as session:
             orun = session.scalars(
-                ObservingRun.select(session.user_or_token, mode="delete")
+                ObservingRun.select(session.user_or_token, mode="delete").where(
+                    ObservingRun.id == run_id
+                )
             ).first()
             if orun is None:
                 return self.error(
