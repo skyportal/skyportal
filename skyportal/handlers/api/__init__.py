@@ -115,7 +115,7 @@ from .observation import (
     ObservationSimSurveyPlotHandler,
 )
 from .obj import ObjHandler, ObjPositionHandler
-from .observingrun import ObservingRunHandler
+from .observingrun import ObservingRunHandler, ObservingRunBulkEditHandler
 from .observation_plan import (
     DefaultObservationPlanRequestHandler,
     ObservationPlanRequestHandler,
