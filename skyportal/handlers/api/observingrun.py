@@ -347,17 +347,23 @@ class ObservingRunHandler(BaseHandler):
             # if any assignments have a status like completed or pending, we should not delete the run
             # and instead return an error
             for assignment in assignments:
-                if assignment.status in ["completed", "pending"]:
+                if assignment.status in ["complete", "pending"]:
                     return self.error(
                         "Cannot delete an observing run with assignments that are completed or pending. Mark these targets as unobserved first."
                     )
 
             # don't allow deleting past runs, unless they have no assignments
-            if orun.run_end_utc < datetime.now(timezone.utc) and len(assignments) > 0:
+            if (
+                orun.run_end_utc < datetime.now(timezone.utc).replace(tzinfo=None)
+                and len(assignments) > 0
+            ):
                 return self.error(
                     "Cannot delete an observing run that has ended and had targets assigned to it."
                 )
 
+            # delete the assignments associated with this run
+            for assignment in assignments:
+                session.delete(assignment)
             session.delete(orun)
             session.commit()
 
