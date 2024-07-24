@@ -134,8 +134,8 @@ class PublicSourcePage(Base):
         thumbnails_filtered = []
         for index, thumbnail in enumerate(public_data.get("thumbnails", [])):
             if (
-                index + 1 < len(public_data["thumbnails"])
-                and thumbnail["type"] != public_data["thumbnails"][index + 1]["type"]
+                index + 1 >= len(public_data["thumbnails"])
+                or thumbnail["type"] != public_data["thumbnails"][index + 1]["type"]
             ):
                 thumbnails_filtered.append(thumbnail)
         public_data["thumbnails"] = thumbnails_filtered
