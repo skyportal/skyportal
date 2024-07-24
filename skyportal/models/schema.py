@@ -1145,6 +1145,9 @@ class ObservingRunPost(_Schema):
     # name of the PI
     pi = fields.String(metadata={'description': 'The PI of the observing run.'})
     observers = fields.String(metadata={'description': 'The names of the observers'})
+    duration = fields.Integer(
+        metadata={'description': 'Number of nights in the observing run'}
+    )
     group_id = fields.Integer(
         metadata={'description': 'The ID of the group this run is associated with.'}
     )

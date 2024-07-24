@@ -1523,7 +1523,7 @@ def get_finding_chart(
     starlist_url = urllib.parse.urljoin(
         HOST,
         f"/api/sources/{source_name}/offsets?"
-        f"facility={offset_star_kwargs.get('facility', 'Keck')}",
+        f"facility={offset_star_kwargs.get('starlist_type', 'Keck')}",
     )
     starlist_str = (
         f"# Note: {origin} used for offset star positions\n"

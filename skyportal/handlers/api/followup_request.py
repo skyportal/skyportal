@@ -170,7 +170,7 @@ class AssignmentHandler(BaseHandler):
 
         with self.Session() as session:
             # get owned assignments
-            assignments = ClassicalAssignment.select(self.current_user)
+            assignments = ClassicalAssignment.select(session.user_or_token)
 
             if assignment_id is not None:
                 try:
@@ -281,7 +281,7 @@ class AssignmentHandler(BaseHandler):
 
         with self.Session() as session:
             assignment = session.scalars(
-                ClassicalAssignment.select(self.current_user, mode="update").where(
+                ClassicalAssignment.select(session.user_or_token, mode="update").where(
                     ClassicalAssignment.id == int(assignment_id)
                 )
             ).first()
@@ -346,7 +346,7 @@ class AssignmentHandler(BaseHandler):
 
         with self.Session() as session:
             assignment = session.scalars(
-                ClassicalAssignment.select(self.current_user, mode="update").where(
+                ClassicalAssignment.select(session.user_or_token, mode="update").where(
                     ClassicalAssignment.id == int(assignment_id)
                 )
             ).first()
@@ -892,7 +892,7 @@ class FollowupRequestHandler(BaseHandler):
                         'One or more of the requesters specified does not exist.'
                     )
             # get owned assignments
-            followup_requests = FollowupRequest.select(self.current_user)
+            followup_requests = FollowupRequest.select(session.user_or_token)
 
             if followup_request_id is not None:
                 try:
@@ -943,7 +943,7 @@ class FollowupRequestHandler(BaseHandler):
                     <= observation_end_date
                 )
             if sourceID:
-                obj_query = Obj.select(self.current_user).where(
+                obj_query = Obj.select(session.user_or_token).where(
                     Obj.id.contains(sourceID.strip())
                 )
                 obj_subquery = obj_query.subquery()
@@ -958,7 +958,7 @@ class FollowupRequestHandler(BaseHandler):
                 # allocation query required as only way to reach
                 # instrument_id is through allocation (as requests
                 # are associated to allocations, not instruments)
-                allocation_query = Allocation.select(self.current_user).where(
+                allocation_query = Allocation.select(session.user_or_token).where(
                     Allocation.instrument_id == instrumentID
                 )
                 allocation_subquery = allocation_query.subquery()
@@ -1226,7 +1226,7 @@ class FollowupRequestHandler(BaseHandler):
 
                 group_ids = data.pop('target_group_ids', None)
                 if group_ids is not None:
-                    stmt = Group.select(self.current_user).where(
+                    stmt = Group.select(session.user_or_token).where(
                         Group.id.in_(group_ids)
                     )
                     target_groups = session.scalars(stmt).all()
@@ -1931,7 +1931,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
         with self.Session() as session:
             instrument = session.scalars(
                 Instrument.select(
-                    self.current_user,
+                    session.user_or_token,
                 ).where(
                     Instrument.id == instrument_id,
                 )
@@ -1979,13 +1979,13 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                 observation_end = Time(arrow.get(observation_end_date.strip()).datetime)
 
             if not standards_only:
-                allocation_query = Allocation.select(self.current_user).where(
+                allocation_query = Allocation.select(session.user_or_token).where(
                     Allocation.instrument_id == instrument_id
                 )
                 allocation_subquery = allocation_query.subquery()
 
                 # get owned assignments
-                followup_requests = FollowupRequest.select(self.current_user).join(
+                followup_requests = FollowupRequest.select(session.user_or_token).join(
                     allocation_subquery,
                     FollowupRequest.allocation_id == allocation_subquery.c.id,
                 )
@@ -2001,7 +2001,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                         FollowupRequest.created_at <= end_date
                     )
                 if sourceID:
-                    obj_query = Obj.select(self.current_user).where(
+                    obj_query = Obj.select(session.user_or_token).where(
                         Obj.id.contains(sourceID.strip())
                     )
                     obj_subquery = obj_query.subquery()
@@ -2147,7 +2147,7 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
             for request_id in request_ids:
                 # get owned assignments
                 followup_request = session.scalars(
-                    FollowupRequest.select(self.current_user, mode="update")
+                    FollowupRequest.select(session.user_or_token, mode="update")
                     .options(joinedload(FollowupRequest.obj).joinedload(Obj.photstats))
                     .where(FollowupRequest.id == request_id)
                 ).first()
@@ -2167,7 +2167,7 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
                     )
 
                 localization = session.scalars(
-                    Localization.select(self.current_user).where(
+                    Localization.select(session.user_or_token).where(
                         Localization.id == localization_id,
                     )
                 ).first()
@@ -2312,7 +2312,9 @@ class DefaultFollowupRequestHandler(BaseHandler):
 
         with self.Session() as session:
             target_group_ids = data.pop('target_group_ids', [])
-            stmt = Group.select(self.current_user).where(Group.id.in_(target_group_ids))
+            stmt = Group.select(session.user_or_token).where(
+                Group.id.in_(target_group_ids)
+            )
             target_groups = session.scalars(stmt).all()
 
             stmt = Allocation.select(session.user_or_token).where(
@@ -2331,7 +2333,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
 
             try:
                 formSchema = instrument.api_class.custom_json_schema(
-                    instrument, self.current_user
+                    instrument, session.user_or_token
                 )
             except AttributeError:
                 formSchema = instrument.api_class.form_json_schema
@@ -2530,7 +2532,7 @@ class FollowupRequestWatcherHandler(BaseHandler):
 
         with self.Session() as session:
             # get owned assignments
-            followup_requests = FollowupRequest.select(self.current_user)
+            followup_requests = FollowupRequest.select(session.user_or_token)
 
             try:
                 followup_request_id = int(followup_request_id)
@@ -2547,11 +2549,11 @@ class FollowupRequestWatcherHandler(BaseHandler):
                 return self.error("Could not retrieve followup request.")
 
             watchers = followup_request.watchers
-            if any([watcher.id == self.current_user.id for watcher in watchers]):
+            if any([watcher.id == session.user_or_token.id for watcher in watchers]):
                 return self.error("User already watching this request")
 
             watcher = FollowupRequestUser(
-                user_id=self.current_user.id, followuprequest_id=followup_request_id
+                user_id=session.user_or_token.id, followuprequest_id=followup_request_id
             )
             session.add(watcher)
             session.commit()
@@ -2559,13 +2561,13 @@ class FollowupRequestWatcherHandler(BaseHandler):
             flow = Flow()
             if refresh_source:
                 flow.push(
-                    user_id=self.current_user.id,
+                    user_id=session.user_or_token.id,
                     action_type="skyportal/REFRESH_SOURCE",
                     payload={"obj_key": followup_request.obj.internal_key},
                 )
             if refresh_requests:
                 flow.push(
-                    user_id=self.current_user.id,
+                    user_id=session.user_or_token.id,
                     action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
                 )
 
@@ -2607,7 +2609,7 @@ class FollowupRequestWatcherHandler(BaseHandler):
 
         with self.Session() as session:
             # get owned assignments
-            followup_requests = FollowupRequest.select(self.current_user)
+            followup_requests = FollowupRequest.select(session.user_or_token)
 
             try:
                 followup_request_id = int(followup_request_id)
@@ -2624,14 +2626,14 @@ class FollowupRequestWatcherHandler(BaseHandler):
                 return self.error("Could not retrieve followup request.")
 
             watcher = session.scalars(
-                FollowupRequestUser.select(self.current_user, mode="delete").where(
-                    FollowupRequestUser.user_id == self.current_user.id,
+                FollowupRequestUser.select(session.user_or_token, mode="delete").where(
+                    FollowupRequestUser.user_id == session.user_or_token.id,
                     FollowupRequestUser.followuprequest_id == followup_request_id,
                 )
             ).first()
             if watcher is None:
                 return self.error(
-                    f"The user {self.current_user.id} is not watching request {followup_request_id}."
+                    f"The user {session.user_or_token.id} is not watching request {followup_request_id}."
                 )
 
             session.delete(watcher)
@@ -2640,13 +2642,13 @@ class FollowupRequestWatcherHandler(BaseHandler):
             flow = Flow()
             if refresh_source:
                 flow.push(
-                    user_id=self.current_user.id,
+                    user_id=session.user_or_token.id,
                     action_type="skyportal/REFRESH_SOURCE",
                     payload={"obj_key": followup_request.obj.internal_key},
                 )
             if refresh_requests:
                 flow.push(
-                    user_id=self.current_user.id,
+                    user_id=session.user_or_token.id,
                     action_type="skyportal/REFRESH_FOLLOWUP_REQUESTS",
                 )
 
