@@ -35,9 +35,8 @@ const useStyles = makeStyles((theme) => ({
     color: theme.palette.text.primary,
   },
   items: {
-    maxWidth: "100%",
-    width: "10rem",
-    fullWidth: "true",
+    width: "100%",
+    minWidth: "100%",
     display: "flex",
     wrap: "nowrap",
   },
@@ -49,8 +48,23 @@ const useStyles = makeStyles((theme) => ({
     fontSize: "1.25rem",
     textAlign: "center",
   },
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    minWidth: "100%",
+    // make sure the children elements use 100% of the available width
+    "& > *": {
+      width: "100%",
+    },
+    // make sure there is a 0.5rem gap between the children elements
+    gap: "1.5rem",
+  },
   labels: {
-    fontSize: "0.75rem",
+    height: "0.5rem",
+    padding: 0,
+    margin: 0,
   },
 }));
 
@@ -67,6 +81,7 @@ const FindingChart = () => {
 
   const [params, setParams] = useState({
     imagesource: "ps1",
+    facility: "Keck",
     positionsource: "gaia",
     findersize: 4.0,
     numoffset: 3,
@@ -85,6 +100,7 @@ const FindingChart = () => {
     use_ztfref: `${params.positionsource === "ztfref"}`,
     imsize: `${params.findersize}`,
     num_offset_stars: `${params.numoffset}`,
+    facility: `${params.facility}`,
   });
 
   const placeholder = (
@@ -141,7 +157,7 @@ const FindingChart = () => {
           alignItems="flex-start"
           spacing={1}
         >
-          <Grid item xs={10}>
+          <Grid item xs={12} md={10}>
             <Card>
               <CardContent ref={componentRef}>
                 <div>
@@ -152,164 +168,159 @@ const FindingChart = () => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={2} xm={2}>
+          <Grid item xs={12} md={2}>
             <Card>
-              <CardContent className={classes.items}>
+              <CardContent>
                 <div>
-                  <form onSubmit={handleSubmit(onSubmit)}>
-                    <Grid
-                      container
-                      direction="column"
-                      justifyContent="space-evenly"
-                      alignItems="flex-start"
-                      spacing={2}
+                  <form
+                    onSubmit={handleSubmit(onSubmit)}
+                    className={classes.form}
+                  >
+                    <FormControl>
+                      <InputLabel id="ImageSourceSelect">
+                        Primary Image Source
+                      </InputLabel>
+                      <p className={classes.labels} />
+                      <Controller
+                        labelid="ImageSourceSelectLabel"
+                        name="imagesource"
+                        control={control}
+                        defaultValue={params.imagesource}
+                        render={({ field: { onChange, value } }) => (
+                          <Select
+                            labelId="ImageSourceSelectLabel"
+                            value={value}
+                            onChange={onChange}
+                            style={{ minWidth: "100%" }}
+                          >
+                            <MenuItem value="desi">DESI DR8</MenuItem>
+                            <MenuItem value="ztfref">ZTF Ref Image</MenuItem>
+                            <MenuItem value="dss">DSS2</MenuItem>
+                            <MenuItem value="ps1">PS1</MenuItem>
+                          </Select>
+                        )}
+                      />
+                    </FormControl>
+                    <FormControl>
+                      <InputLabel id="PositionLabel">
+                        Offset Position Origin
+                      </InputLabel>
+                      <p className={classes.labels} />
+                      <Controller
+                        labelid="PositionLabel"
+                        name="positionsource"
+                        control={control}
+                        defaultValue={params.positionsource}
+                        render={({ field: { onChange, value } }) => (
+                          <Select
+                            labelId="PositionSelectLabel"
+                            value={value}
+                            onChange={onChange}
+                            style={{ minWidth: "100%" }}
+                          >
+                            <MenuItem value="ztfref">ZTF Ref</MenuItem>
+                            <MenuItem value="gaia">Gaia DR3</MenuItem>
+                          </Select>
+                        )}
+                      />
+                    </FormControl>
+                    <FormControl>
+                      <InputLabel id="FacilityLabel">Facility</InputLabel>
+                      <p className={classes.labels} />
+                      <Controller
+                        labelid="FacilityLabel"
+                        name="facility"
+                        control={control}
+                        defaultValue={params.facility}
+                        render={({ field: { onChange, value } }) => (
+                          <Select
+                            labelId="FacilitySelectLabel"
+                            value={value}
+                            onChange={onChange}
+                            style={{ minWidth: "100%" }}
+                          >
+                            <MenuItem value="Keck">Keck</MenuItem>
+                            <MenuItem value="Shane">Shane</MenuItem>
+                            <MenuItem value="P200">P200</MenuItem>
+                          </Select>
+                        )}
+                      />
+                    </FormControl>
+                    <FormControl>
+                      <InputLabel id="SizeSelect">
+                        Image Size (arcmin)
+                      </InputLabel>
+                      <p className={classes.labels} />
+                      <Controller
+                        render={({ field: { onChange, value } }) => (
+                          <Input
+                            type="number"
+                            margin="dense"
+                            inputProps={{
+                              step: 0.5,
+                              min: 2,
+                              max: 15,
+                              type: "number",
+                              "aria-labelledby": "SizeSelect",
+                            }}
+                            style={{ minWidth: "100%" }}
+                            onChange={onChange}
+                            value={value}
+                          />
+                        )}
+                        name="findersize"
+                        control={control}
+                        defaultValue={params.findersize}
+                        rules={rules}
+                      />
+                      {errors.findersize && (
+                        <p>Enter a number between 2 and 15</p>
+                      )}
+                    </FormControl>
+                    <FormControl>
+                      <InputLabel id="HowMany"># of Offset Stars</InputLabel>
+                      <p className={classes.labels} />
+                      <Controller
+                        render={({ field: { onChange, value } }) => (
+                          <Input
+                            type="number"
+                            margin="dense"
+                            inputProps={{
+                              step: 1,
+                              min: 0,
+                              max: 4,
+                              type: "number",
+                              "aria-labelledby": "HowMany",
+                            }}
+                            style={{ minWidth: "100%" }}
+                            onChange={onChange}
+                            value={value}
+                          />
+                        )}
+                        name="numoffset"
+                        control={control}
+                        defaultValue={params.numoffset}
+                      />
+                      {errors.numoffset && (
+                        <p>Enter an integer between 0 and 5</p>
+                      )}
+                    </FormControl>
+                    <Button
+                      primary
+                      type="submit"
+                      name="finderButton"
+                      className={classes.button}
                     >
-                      <Grid item xs={12}>
-                        <FormControl>
-                          <InputLabel
-                            className={classes.items}
-                            id="ImageSourceSelect"
-                          >
-                            Primary Image Source
-                          </InputLabel>
-                          <p />
-                          <Controller
-                            labelid="ImageSourceSelectLabel"
-                            name="imagesource"
-                            control={control}
-                            defaultValue={params.imagesource}
-                            className={classes.items}
-                            render={({ field: { onChange, value } }) => (
-                              <Select
-                                labelId="ImageSourceSelectLabel"
-                                value={value}
-                                onChange={onChange}
-                              >
-                                <MenuItem value="desi">DESI DR8</MenuItem>
-                                <MenuItem value="ztfref">
-                                  ZTF Ref Image
-                                </MenuItem>
-                                <MenuItem value="dss">DSS2</MenuItem>
-                                <MenuItem value="ps1">PS1</MenuItem>
-                              </Select>
-                            )}
-                          />
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <FormControl>
-                          <InputLabel
-                            className={classes.items}
-                            id="PositionLabel"
-                          >
-                            Offset Position Origin
-                          </InputLabel>
-                          <p />
-                          <Controller
-                            labelid="PositionLabel"
-                            name="positionsource"
-                            control={control}
-                            defaultValue={params.positionsource}
-                            className={classes.items}
-                            render={({ field: { onChange, value } }) => (
-                              <Select
-                                labelId="PositionSelectLabel"
-                                value={value}
-                                onChange={onChange}
-                              >
-                                <MenuItem value="ztfref">ZTF Ref</MenuItem>
-                                <MenuItem value="gaia">Gaia DR3</MenuItem>
-                              </Select>
-                            )}
-                          />
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <FormControl>
-                          <InputLabel className={classes.items} id="SizeSelect">
-                            Image Size (arcmin)
-                          </InputLabel>
-                          <Controller
-                            render={({ field: { onChange, value } }) => (
-                              <Input
-                                type="number"
-                                margin="dense"
-                                inputProps={{
-                                  step: 0.5,
-                                  min: 2,
-                                  max: 15,
-                                  type: "number",
-                                  "aria-labelledby": "SizeSelect",
-                                }}
-                                onChange={onChange}
-                                value={value}
-                              />
-                            )}
-                            name="findersize"
-                            control={control}
-                            defaultValue={params.findersize}
-                            rules={rules}
-                            className={classes.items}
-                          />
-                          {errors.findersize && (
-                            <p>Enter a number between 2 and 15</p>
-                          )}
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <FormControl>
-                          <InputLabel className={classes.items} id="HowMany">
-                            # of Offset Stars
-                          </InputLabel>
-                          <Controller
-                            render={({ field: { onChange, value } }) => (
-                              <Input
-                                type="number"
-                                margin="dense"
-                                inputProps={{
-                                  step: 1,
-                                  min: 0,
-                                  max: 4,
-                                  type: "number",
-                                  "aria-labelledby": "HowMany",
-                                }}
-                                onChange={onChange}
-                                value={value}
-                              />
-                            )}
-                            name="numoffset"
-                            control={control}
-                            defaultValue={params.numoffset}
-                            className={classes.items}
-                          />
-                          {errors.numoffset && (
-                            <p>Enter an integer between 0 and 5</p>
-                          )}
-                        </FormControl>
-                      </Grid>
-                      <p />
-                      <Grid item xs={8}>
-                        <Button
-                          primary
-                          type="submit"
-                          name="finderButton"
-                          className={classes.button}
-                        >
-                          Update
-                        </Button>
-                      </Grid>
-                      <p />
-                      <Grid item xs={8}>
-                        <Button
-                          secondary
-                          className={classes.button}
-                          endIcon={<PrintIcon />}
-                          onClick={handlePrint}
-                        >
-                          Print
-                        </Button>
-                      </Grid>
-                    </Grid>
+                      Update
+                    </Button>
+                    <Button
+                      secondary
+                      className={classes.button}
+                      endIcon={<PrintIcon />}
+                      onClick={handlePrint}
+                    >
+                      Print
+                    </Button>
                   </form>
                 </div>
               </CardContent>

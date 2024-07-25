@@ -1,6 +1,6 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
@@ -42,6 +42,11 @@ const NewObservingRun = () => {
         format: "date",
         title: "Calendar Date",
         default: defaultDate,
+      },
+      duration: {
+        type: "number",
+        title: "Number of nights",
+        default: 1,
       },
       observers: {
         type: "string",
