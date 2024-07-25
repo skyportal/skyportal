@@ -212,13 +212,16 @@ async def get_source(
 
     options = []
     if include_thumbnails:
-        # retain only the last thumbnail of each type
-        subquery = (
-            sa.select(func.max(Thumbnail.id).label("id"))
-            .where(Thumbnail.obj_id == str(obj_id).strip())
-            .group_by(Thumbnail.type)
-        )
-        options.append(joinedload(Obj.thumbnails.and_(Thumbnail.id.in_(subquery))))
+        if obj_id not in [None, ""]:
+            # retain only the last thumbnail of each type
+            subquery = (
+                sa.select(func.max(Thumbnail.id).label("id"))
+                .where(Thumbnail.obj_id == str(obj_id).strip())
+                .group_by(Thumbnail.type)
+            )
+            options.append(joinedload(Obj.thumbnails.and_(Thumbnail.id.in_(subquery))))
+        else:
+            options.append(joinedload(Obj.thumbnails))
     if include_detection_stats:
         options.append(joinedload(Obj.photstats))
 
