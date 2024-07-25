@@ -207,12 +207,15 @@ async def get_source(
     """
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
+    if obj_id in [None, ""] and tns_name in [None, ""]:
+        raise ValueError("Either obj_id or tns_name must be provided")
+
     options = []
     if include_thumbnails:
         # retain only the last thumbnail of each type
         subquery = (
             sa.select(func.max(Thumbnail.id).label("id"))
-            .where(Thumbnail.obj_id == obj_id)
+            .where(Thumbnail.obj_id == str(obj_id).strip())
             .group_by(Thumbnail.type)
         )
         options.append(joinedload(Obj.thumbnails.and_(Thumbnail.id.in_(subquery))))
@@ -220,9 +223,6 @@ async def get_source(
         options.append(joinedload(Obj.photstats))
 
     stmt = Obj.select(user, options=options)
-
-    if obj_id in [None, ""] and tns_name in [None, ""]:
-        raise ValueError("Either obj_id or tns_name must be provided")
 
     if obj_id not in [None, ""]:
         stmt = stmt.where(Obj.id == str(obj_id).strip())
