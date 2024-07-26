@@ -12,6 +12,7 @@ import TextField from "@mui/material/TextField";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import SaveIcon from "@mui/icons-material/Save";
+import Switch from "@mui/material/Switch";
 
 import makeStyles from "@mui/styles/makeStyles";
 
@@ -107,6 +108,7 @@ const CandidatesPreferencesForm = ({
 
   const dispatch = useDispatch();
   const [selectedClassifications, setSelectedClassifications] = useState([]);
+  const [classificationsWith, setClassificationsWith] = useState(true);
   const [selectedAnnotationOrigin, setSelectedAnnotationOrigin] = useState();
 
   const {
@@ -149,7 +151,6 @@ const CandidatesPreferencesForm = ({
     );
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
   let formState = getValues();
@@ -210,6 +211,7 @@ const CandidatesPreferencesForm = ({
     }
     if (selectedClassifications.length > 0) {
       data.classifications = selectedClassifications;
+      data.classificationsWith = classificationsWith;
     }
     if (formData.redshiftMinimum) {
       data.redshiftMinimum = formData.redshiftMinimum;
@@ -255,6 +257,7 @@ const CandidatesPreferencesForm = ({
     } else if (addOrEdit === "Add") {
       // New profiles are set to default/loaded immediately
       setSelectedScanningProfile(data);
+      closeDialog();
     }
   };
 
@@ -277,7 +280,6 @@ const CandidatesPreferencesForm = ({
                 label="Name"
                 data-testid="profile-name"
                 value={value}
-                // eslint-disable-next-line react/jsx-no-duplicate-props
                 InputProps={{ "data-testid": "name" }}
                 InputLabelProps={{
                   shrink: true,
@@ -300,7 +302,6 @@ const CandidatesPreferencesForm = ({
                 type="number"
                 value={value}
                 inputProps={{ step: 1 }}
-                // eslint-disable-next-line react/jsx-no-duplicate-props
                 InputProps={{ "data-testid": "timeRange" }}
                 InputLabelProps={{
                   shrink: true,
@@ -344,6 +345,19 @@ const CandidatesPreferencesForm = ({
             selectedClassifications={selectedClassifications}
             setSelectedClassifications={setSelectedClassifications}
             showShortcuts
+          />
+        </div>
+        <div className={classes.formRow}>
+          {/* select between including candidates with the selected classifications, or without */}
+          <InputLabel id="profile-classifications-with-select-label">
+            {classificationsWith === false ? "without" : "with"} the selected
+            classifications
+          </InputLabel>
+          <Switch
+            checked={classificationsWith}
+            onChange={() => setClassificationsWith(!classificationsWith)}
+            color="primary"
+            inputProps={{ "aria-label": "primary checkbox" }}
           />
         </div>
         <div className={classes.formRow}>
@@ -478,7 +492,6 @@ const CandidatesPreferencesForm = ({
                   data-testid="profileAnnotationSortingKeySelect"
                 >
                   {availableAnnotationsInfo ? (
-                    // eslint-disable-next-line react/prop-types
                     availableAnnotationsInfo[selectedAnnotationOrigin]?.map(
                       (option) => (
                         <MenuItem
