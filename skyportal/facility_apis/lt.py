@@ -424,7 +424,9 @@ class LTAPI(FollowUpAPI):
                     'skyportal/REFRESH_FOLLOWUP_REQUESTS',
                 )
         else:
-            log(f'Unable to delete request {request.id} from LT queue: {response}')
+            log(
+                f'Unknown mode {mode} response from LT. Unable to delete request {request.id} from LT queue: {response}'
+            )
 
 
 class IOOAPI(LTAPI):
