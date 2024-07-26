@@ -247,12 +247,8 @@ class IOOIOIRequest(LTRequest):
         etree.SubElement(setup, 'Filter', type=filt.upper())
         detector = etree.SubElement(setup, 'Detector')
         binning = etree.SubElement(detector, 'Binning')
-        etree.SubElement(binning, 'X', units='pixels').text = request.payload[
-            "binning"
-        ].split('x')[0]
-        etree.SubElement(binning, 'Y', units='pixels').text = request.payload[
-            "binning"
-        ].split('x')[1]
+        etree.SubElement(binning, 'X', units='pixels').text = '2'
+        etree.SubElement(binning, 'Y', units='pixels').text = '2'
         exposure = etree.SubElement(schedule, 'Exposure', count=str(exp_count))
         etree.SubElement(exposure, 'Value', units='seconds').text = str(exp_time)
         schedule.append(self._build_target(request))
@@ -402,9 +398,9 @@ class LTAPI(FollowUpAPI):
         )
         response_rtml = etree.fromstring(response)
         mode = response_rtml.get('mode')
-        uid = response_rtml.get('uid')
-        if mode == 'confirm':
-            request.status = "deleted"
+        if mode in ['confirm', 'reject']:
+            if mode == 'confirm':
+                request.status = "deleted"
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request_xml(cancel),
@@ -557,14 +553,6 @@ class IOOAPI(LTAPI):
                 "title": "Does this observation require photometric conditions?",
                 "type": "boolean",
             },
-            "binning": {"type": "string", "enum": ["1x1", "2x2"], "default": "1x1"},
-            "priority": {
-                "type": "number",
-                "default": 1.0,
-                "minimum": 1,
-                "maximum": 5,
-                "title": "Priority",
-            },
         },
         "required": [
             "observation_choices",
@@ -574,8 +562,6 @@ class IOOAPI(LTAPI):
             "end_date",
             "maximum_airmass",
             "maximum_seeing",
-            "binning",
-            "priority",
         ],
     }
 
@@ -708,13 +694,6 @@ class IOIAPI(LTAPI):
                 "title": "Does this observation require photometric conditions?",
                 "type": "boolean",
             },
-            "binning": {"type": "string", "enum": ["1x1", "2x2"], "default": "1x1"},
-            "priority": {
-                "type": "string",
-                "enum": ["1", "2", "3", "4", "5"],
-                "default": "1",
-                "title": "Priority",
-            },
         },
         "required": [
             "observation_choices",
@@ -724,8 +703,6 @@ class IOIAPI(LTAPI):
             "end_date",
             "maximum_airmass",
             "maximum_seeing",
-            "binning",
-            "priority",
         ],
     }
 
@@ -857,12 +834,6 @@ class SPRATAPI(LTAPI):
                 "title": "Does this observation require photometric conditions?",
                 "type": "boolean",
             },
-            "priority": {
-                "type": "string",
-                "enum": ["1", "2", "3", "4", "5"],
-                "default": "1",
-                "title": "Priority",
-            },
         },
         "required": [
             "observation_type",
@@ -870,7 +841,6 @@ class SPRATAPI(LTAPI):
             "end_date",
             "maximum_airmass",
             "maximum_seeing",
-            "priority",
         ],
     }
 
