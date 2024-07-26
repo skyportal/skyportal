@@ -21,7 +21,6 @@ import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as allocationActions from "../../ducks/allocation";
-import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewAllocation from "./NewAllocation";
 import ModifyAllocation from "./ModifyAllocation";
@@ -278,22 +277,22 @@ const AllocationTable = ({
     const allocation = allocations[dataIndex];
     return (
       <div className={classes.allocationManage}>
-        <Button
+        <IconButton
           key={`edit_${allocation.id}`}
           id={`edit_button_${allocation.id}`}
           onClick={() => openEditDialog(allocation.id)}
           disabled={!deletePermission}
         >
           <EditIcon />
-        </Button>
-        <Button
+        </IconButton>
+        <IconButton
           key={`delete_${allocation.id}`}
           id={`delete_button_${allocation.id}`}
           onClick={() => openDeleteDialog(allocation.id)}
           disabled={!deletePermission}
         >
           <DeleteIcon />
-        </Button>
+        </IconButton>
       </div>
     );
   };

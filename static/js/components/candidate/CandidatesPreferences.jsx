@@ -20,7 +20,6 @@ import Button from "../Button";
 
 import { allowedClasses } from "../classification/ClassificationForm";
 import ScanningProfilesList from "./ScanningProfilesList";
-import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
 
 dayjs.extend(utc);
 
@@ -29,13 +28,12 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: theme.palette.background.default,
   },
   header: {
-    justifyContent: "space-between",
+    width: "100%",
+    justifyContent: "flex-end",
   },
 }));
 
-// eslint-disable-next-line react/display-name
 const Transition = React.forwardRef((props, ref) => (
-  // eslint-disable-next-line react/jsx-props-no-spreading
   <Slide direction="up" ref={ref} {...props} />
 ));
 
@@ -94,7 +92,6 @@ const CandidatesPreferences = ({
         aria-describedby="alert-dialog-description"
       >
         <Toolbar className={classes.header}>
-          <Typography variant="h6">Scanning Profiles</Typography>
           <IconButton
             edge="start"
             color="inherit"
@@ -109,28 +106,13 @@ const CandidatesPreferences = ({
           </IconButton>
         </Toolbar>
         <DialogContent className={classes.dialogContent}>
-          <Grid container spacing={2}>
-            <Grid item md={7} sm={12}>
-              <ScanningProfilesList
-                selectedScanningProfile={selectedScanningProfile}
-                setSelectedScanningProfile={setSelectedScanningProfile}
-                userAccessibleGroups={userAccessibleGroups}
-                availableAnnotationsInfo={availableAnnotationsInfo}
-                classifications={classifications}
-              />
-            </Grid>
-            <Grid item md={5} sm={12}>
-              <Paper>
-                <CandidatesPreferencesForm
-                  userAccessibleGroups={userAccessibleGroups}
-                  availableAnnotationsInfo={availableAnnotationsInfo}
-                  classifications={classifications}
-                  addOrEdit="Add"
-                  setSelectedScanningProfile={setSelectedScanningProfile}
-                />
-              </Paper>
-            </Grid>
-          </Grid>
+          <ScanningProfilesList
+            selectedScanningProfile={selectedScanningProfile}
+            setSelectedScanningProfile={setSelectedScanningProfile}
+            userAccessibleGroups={userAccessibleGroups}
+            availableAnnotationsInfo={availableAnnotationsInfo}
+            classifications={classifications}
+          />
         </DialogContent>
       </Dialog>
     </div>
