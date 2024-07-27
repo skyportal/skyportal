@@ -1,6 +1,7 @@
 from skyportal.tests import api, assert_api, assert_api_fail
 
 
+# Test get method
 def test_source_with_zero_public_pages(view_only_token, public_source):
     status, data = api(
         "GET", f"public_pages/source/{public_source.id}", token=view_only_token
@@ -9,6 +10,7 @@ def test_source_with_zero_public_pages(view_only_token, public_source):
     assert len(data["data"]) == 0
 
 
+# Test post method
 def test_non_group_manage_sources_cannot_create_page(view_only_token, public_source):
     status, data = api(
         "POST",
@@ -47,6 +49,7 @@ def test_group_manage_sources_create_page_with_data(
     assert len(data["data"]) == 1
 
 
+# Test delete method
 def test_non_group_manage_sources_cannot_delete_page(
     view_only_token, manage_sources_token, public_source
 ):
@@ -93,7 +96,6 @@ def test_group_manage_sources_delete_page(manage_sources_token, public_source):
     assert_api(status, data)
 
     status, data = api(
-        "GET", f"public_pages/source/{public_source.id}", token=manage_sources_token
+        "DELETE", f"public_pages/source/{page_id}", token=manage_sources_token
     )
-    assert_api(status, data)
-    assert len(data["data"]) == 0
+    assert_api_fail(status, data, 404, "Public source page not found")
