@@ -40,7 +40,7 @@ const SourcePublishHistory = ({ sourceId, versions, setVersions }) => {
 
   useEffect(() => {
     setIsLoading(true);
-    dispatch(fetchPublicSourcePages(sourceId, 10)).then((data) => {
+    dispatch(fetchPublicSourcePages(sourceId)).then((data) => {
       setVersions(data.data);
       setIsLoading(false);
     });
