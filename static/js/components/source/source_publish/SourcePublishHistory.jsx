@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from "react";
 import makeStyles from "@mui/styles/makeStyles";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import Link from "@mui/material/Link";
 import moment from "moment";
 import {
   deletePublicSourcePage,
   fetchPublicSourcePages,
 } from "../../../ducks/public_pages/public_source_page";
+import Button from "@mui/material/Button";
 
 const useStyles = makeStyles(() => ({
   versionHistory: {
     width: "100%",
+    padding: "0 0.3rem",
   },
   versionHistoryLine: {
     border: "1px solid #e0e0e0",
@@ -22,7 +25,17 @@ const useStyles = makeStyles(() => ({
     justifyContent: "space-between",
     alignItems: "center",
     borderRadius: "0.5rem",
-    marginBottom: "0.5rem",
+    marginBottom: "0.3rem",
+  },
+  dateAndRelease: {
+    display: "flex",
+    flexDirection: "column",
+  },
+  release: {
+    fontSize: "0.8rem",
+  },
+  actions: {
+    display: "flex",
   },
   noVersion: {
     display: "flex",
@@ -33,61 +46,68 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SourcePublishHistory = ({ sourceId, versions, setVersions }) => {
+const SourcePublishHistory = ({ sourceId, versions }) => {
   const styles = useStyles();
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
+  const manageSourcesAccess = useSelector(
+    (state) => state.profile,
+  ).permissions?.includes("Manage sources");
 
   useEffect(() => {
     setIsLoading(true);
-    dispatch(fetchPublicSourcePages(sourceId, 10)).then((data) => {
-      setVersions(data.data);
-      setIsLoading(false);
-    });
+    dispatch(fetchPublicSourcePages(sourceId, 10)).then(() =>
+      setIsLoading(false),
+    );
   }, [dispatch, sourceId]);
 
   const deleteVersion = (id) => {
-    dispatch(deletePublicSourcePage(id)).then((data) => {
-      if (data.status === "success") {
-        setVersions(versions.filter((obj) => obj.PublicSourcePage.id !== id));
-      }
-    });
-  };
-  const displayDate = (date) => {
-    // Parse the date with Moment.js
-    const dateObj = moment(date);
-
-    // Format the date into a string with up to 2 fractional second digits
-    const dateString = dateObj.format("MM/DD/YYYY HH:mm:ss");
-    return `${dateString} UTC`;
+    dispatch(deletePublicSourcePage(id));
   };
 
   return (
     <div className={styles.versionHistory}>
       {versions.length > 0 ? (
-        versions.map((obj) => {
-          const version = obj.PublicSourcePage;
+        versions.map((version) => {
           return (
             <div
               className={styles.versionHistoryLine}
               key={`version_${version.id}}`}
             >
-              <b>{displayDate(version.created_at)}</b>
-              <div>
-                <div>Photometry: {version?.options?.photometry}</div>
-                <div>Classifications: {version?.options?.classifications}</div>
+              <div className={styles.dateAndRelease}>
+                <div>
+                  {moment(version.created_at).format("MM/DD/YY HH:mm")} UTC
+                </div>
+                {version.release_link_name ? (
+                  <Link
+                    href={`/public/releases/${version.release_link_name}`}
+                    className={styles.release}
+                    target="_blank"
+                    underline="hover"
+                  >
+                    {version.release_link_name}
+                  </Link>
+                ) : (
+                  <div className={styles.release}>No release</div>
+                )}
               </div>
-              <Link
-                href={`/public/sources/${sourceId}/version/${version?.hash}`}
-                target="_blank"
-                rel="noreferrer"
-                underline="hover"
-              >
-                Link to this version
-              </Link>
-              <button type="button" onClick={() => deleteVersion(version.id)}>
-                <DeleteIcon />
-              </button>
+              <div className={styles.actions}>
+                <Button
+                  href={`/public${
+                    version.release_link_name
+                      ? "/releases/" + version.release_link_name
+                      : ""
+                  }/sources/${sourceId}/version/${version?.hash}`}
+                  target="_blank"
+                >
+                  <VisibilityIcon />
+                </Button>
+                {manageSourcesAccess && (
+                  <Button onClick={() => deleteVersion(version.id)}>
+                    <DeleteIcon />
+                  </Button>
+                )}
+              </div>
             </div>
           );
         })
@@ -110,16 +130,12 @@ SourcePublishHistory.propTypes = {
     PropTypes.shape({
       PublicSourcePage: PropTypes.shape({
         id: PropTypes.number,
+        release_link_name: PropTypes.string,
         created_at: PropTypes.string,
-        options: PropTypes.shape({
-          photometry: PropTypes.string,
-          classifications: PropTypes.string,
-        }),
         hash: PropTypes.string,
       }),
     }),
   ).isRequired,
-  setVersions: PropTypes.func.isRequired,
 };
 
 export default SourcePublishHistory;

@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SkyPortal</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- CSS generic -->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/static/public_pages/style.css"
+    />
+    <!-- CSS for releases page -->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/static/public_pages/releases/release/release_template.css"
+    />
+    <!-- JS for releases page -->
+    <script src="/static/public_pages/releases/release/release_template.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1 class="websiteName">Release {{ release.name }}</h1>
+      <a href="/public/releases">Come back to all the releases -></a>
+    </header>
+    <div class="releaseTemplate">
+      <div class="name">
+        <h2>{{ release.name }}</h2>
+      </div>
+      <div class="description">
+        <p>{{ release.description }}</p>
+      </div>
+      {% for source_id, versions in versions_by_source.items() %}
+        <div class="sourceAndVersions" id="{{ source_id }}">
+          <div class="source">
+            <div class="sourceAndTimeAgo">
+              <h2 class="sourceId">{{ source_id }}</h2>
+              {% set time_difference = datetime.datetime.utcnow() - versions[0].created_at %}
+              {% set days = time_difference.days %}
+              {% set hours = time_difference.seconds // 3600 %}
+              {% set minutes = (time_difference.seconds % 3600) // 60 %}
+              {% set seconds = time_difference.seconds % 60 %}
+              <span class="timeAgo {% if days < 1 %}new{% end %}">
+                {% if time_difference.seconds < 60 %}
+                  {{ seconds }} seconds ago
+                {% elif time_difference.seconds < 3600 %}
+                  {{ minutes }} minutes and {{ seconds }} seconds ago
+                {% elif days == 0 %}
+                  {{ hours }} hours and {{ minutes }} minutes ago
+                {% else %}
+                  {{ days }} days and {{ hours }} hours ago
+                {% end %}
+              </span>
+              <button type="button" onclick="displayVersions('{{ source_id }}')">
+                view all...
+              </button>
+            </div>
+            <a href="/public/releases/{{release.link_name}}/sources/{{source_id}}/version/{{versions[0].hash}}" target="_blank">
+              Link to the latest version
+            </a>
+          </div>
+          <div
+            class="versions"
+            id="versions-of-source-{{source_id}}"
+            style="display: none"
+          >
+            {% for index, version in enumerate(versions) %}
+            <div class="version">
+              <div class="versionId">#{{len(versions) - index}}</div>
+              <a
+                class="boxShadow"
+                href="/public/releases/{{release.link_name}}/sources/{{ source_id }}/version/{{ version.hash }}"
+                target="_blank"
+              >
+                {{ version.created_at.strftime('%m/%d/%Y %H:%M:%S') }} UTC
+              </a>
+            </div>
+            {% end %}
+          </div>
+        </div>
+      {% end %}
+    </div>
+  </body>
+</html>
