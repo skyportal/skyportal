@@ -25,10 +25,25 @@ def test_group_manage_sources_create_page_no_data(manage_sources_token, public_s
     status, data = api(
         "POST",
         f"public_pages/source/{public_source.id}",
+        token=manage_sources_token,
+    )
+    assert_api_fail(status, data, 400, "No data provided")
+
+    status, data = api(
+        "POST",
+        f"public_pages/source/{public_source.id}",
         data={},
         token=manage_sources_token,
     )
     assert_api_fail(status, data, 400, "No data provided")
+
+    status, data = api(
+        "POST",
+        f"public_pages/source/{public_source.id}",
+        data={'': {}},
+        token=manage_sources_token,
+    )
+    assert_api_fail(status, data, 400, "Options are required")
 
 
 def test_group_manage_sources_create_page_with_data(
@@ -47,6 +62,18 @@ def test_group_manage_sources_create_page_with_data(
     )
     assert_api(status, data)
     assert len(data["data"]) == 1
+
+
+def test_group_manage_sources_create_page_no_source_associate(
+    manage_sources_token, public_source
+):
+    status, data = api(
+        "POST",
+        f"public_pages/source/{public_source.id[:1]}",
+        data={'options': {}},
+        token=manage_sources_token,
+    )
+    assert_api_fail(status, data, 404, "Source not found")
 
 
 # Test delete method
