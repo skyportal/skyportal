@@ -64,7 +64,7 @@ def test_group_manage_sources_create_page_with_data(
     assert len(data["data"]) == 1
 
 
-def test_group_manage_sources_create_page_no_source_associate(
+def test_group_manage_sources_create_page_bad_source(
     manage_sources_token, public_source
 ):
     status, data = api(
@@ -74,6 +74,32 @@ def test_group_manage_sources_create_page_no_source_associate(
         token=manage_sources_token,
     )
     assert_api_fail(status, data, 404, "Source not found")
+
+
+def test_group_manage_sources_create_page_bad_release(
+    manage_sources_token, public_source
+):
+    status, data = api(
+        "POST",
+        f"public_pages/source/{public_source.id}",
+        data={
+            'options': {},
+            'release_id': '',
+        },
+        token=manage_sources_token,
+    )
+    assert_api_fail(status, data, 400, "Invalid release ID")
+
+    status, data = api(
+        "POST",
+        f"public_pages/source/{public_source.id}",
+        data={
+            'options': {},
+            'release_id': 0,
+        },
+        token=manage_sources_token,
+    )
+    assert_api_fail(status, data, 404, "Release not found")
 
 
 # Test delete method
