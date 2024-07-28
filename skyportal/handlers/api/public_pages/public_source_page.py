@@ -95,6 +95,10 @@ def get_classifications(source_id, group_ids, session):
     return [c.to_dict_public() for c in session.scalars(stmt).unique().all()]
 
 
+def safe_round(number, precision):
+    return round(number, precision) if isinstance(number, (int, float)) else None
+
+
 class PublicSourcePageHandler(BaseHandler):
     @permissions(['Manage sources'])
     async def post(self, source_id):
@@ -175,26 +179,22 @@ class PublicSourcePageHandler(BaseHandler):
                     return self.error("Release not found", status=404)
 
             data_to_publish = {
-                "ra": round(source["ra"], 6) if source["ra"] else None,
-                "dec": round(source["dec"], 6) if source["dec"] else None,
+                "ra": safe_round(source.get("ra"), 6),
+                "dec": safe_round(source.get("dec"), 6),
                 "redshift_display": get_redshift_to_display(source),
-                "gal_lon": round(source["gal_lon"], 6) if source["gal_lon"] else None,
-                "gal_lat": round(source["gal_lat"], 6) if source["gal_lat"] else None,
-                "ebv": round(source["ebv"], 2) if source["ebv"] else None,
-                "dm": round(source["dm"], 3) if source["dm"] else None,
-                "dl": round(source["luminosity_distance"], 2)
-                if source["luminosity_distance"]
-                else None,
-                "summary": source["summary"]
-                if options.get("include_summary") and source["summary"]
-                else None,
+                "gal_lon": safe_round(source.get("gal_lon"), 6),
+                "gal_lat": safe_round(source.get("gal_lat"), 6),
+                "ebv": safe_round(source.get("ebv"), 2),
+                "dm": safe_round(source.get("dm"), 3),
+                "dl": safe_round(source.get("luminosity_distance"), 2),
                 "thumbnails": process_thumbnails(
                     source["thumbnails"], source["ra"], source["dec"]
                 ),
                 "options": options,
                 "release_link_name": release.link_name if release_id else None,
             }
-
+            if options.get("include_summary"):
+                data_to_publish["summary"] = source.get("summary")
             if options.get("include_photometry"):
                 data_to_publish["photometry"] = get_photometry(
                     source_id, group_ids, stream_ids, session
