@@ -150,13 +150,16 @@ class PublicSourcePageHandler(BaseHandler):
             group_ids = options.get("groups")
             stream_ids = options.get("streams")
 
-            # get source
-            source = await get_source(
-                source_id,
-                self.associated_user_object.id,
-                session=session,
-                include_thumbnails=True,
-            )
+            try:
+                source = await get_source(
+                    source_id,
+                    self.associated_user_object.id,
+                    session=session,
+                    include_thumbnails=True,
+                )
+            except ValueError:
+                return self.error("Source not found", status=404)
+
             if source is None:
                 return self.error("Source not found", status=404)
 
