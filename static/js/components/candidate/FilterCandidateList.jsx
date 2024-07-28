@@ -255,10 +255,14 @@ const FilterCandidateList = ({
     selectedScanningProfile?.classifications || [],
   );
 
+  const [classificationsWith, setClassificationsWith] = useState(
+    selectedScanningProfile?.classificationsWith === false ? false : true,
+  );
+
   const gcnEvents = useSelector((state) => state.gcnEvents);
 
   const gcnEventsLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   gcnEvents?.events.forEach((gcnEvent) => {
     gcnEventsLookUp[gcnEvent.id] = gcnEvent;
   });
@@ -332,6 +336,9 @@ const FilterCandidateList = ({
     }
     setSelectedGcnEventId("");
     setSelectedClassifications(scanningProfile?.classifications || []);
+    setClassificationsWith(
+      scanningProfile?.classificationsWith === false ? false : true,
+    );
     if (availableAnnotationsInfo) {
       const newOptions = scanningProfile?.sortingOrigin
         ? (availableAnnotationsInfo[scanningProfile?.sortingOrigin] || [])
@@ -440,7 +447,11 @@ const FilterCandidateList = ({
       data.endDate = formData.endDate.toISOString();
     }
     if (selectedClassifications.length > 0) {
-      data.classifications = selectedClassifications;
+      if (classificationsWith === false) {
+        data.classificationsReject = selectedClassifications;
+      } else {
+        data.classifications = selectedClassifications;
+      }
     }
     if (formData.redshiftMinimum) {
       data.minRedshift = formData.redshiftMinimum;
@@ -822,19 +833,35 @@ const FilterCandidateList = ({
           </Grid>
           <Grid item xs={12} lg={6}>
             <Paper variant="outlined" className={classes.simplePadding}>
-              <div className={classes.formRow} style={{ marginTop: 0 }}>
-                <Typography
-                  variant="h6"
-                  className={classes.title}
-                  style={{ marginBottom: "0.5rem" }}
-                >
-                  Classification(s)
-                </Typography>
-                <ClassificationSelect
-                  selectedClassifications={selectedClassifications}
-                  setSelectedClassifications={setSelectedClassifications}
-                  showShortcuts
-                />
+              <div className={classes.savedFiltering} style={{ marginTop: 0 }}>
+                <div className={classes.savedStatusSelect}>
+                  <Typography
+                    variant="h6"
+                    className={classes.title}
+                    style={{ marginBottom: "0.5rem" }}
+                  >
+                    Classification(s)
+                  </Typography>
+                  <ClassificationSelect
+                    selectedClassifications={selectedClassifications}
+                    setSelectedClassifications={setSelectedClassifications}
+                    showShortcuts
+                  />
+                </div>
+                <div className={classes.rejectCandidatesSelect}>
+                  <Switch
+                    checked={classificationsWith !== false}
+                    onChange={(event) => {
+                      setClassificationsWith(event.target.checked);
+                    }}
+                    data-testid="classificationsWithSelect"
+                  />
+                  <InputLabel id="classificationsWithLabel">
+                    {classificationsWith !== false
+                      ? "With classification(s)"
+                      : "Without classification(s)"}
+                  </InputLabel>
+                </div>
               </div>
               <div className={classes.formRow}>
                 <Typography variant="h6" className={classes.title}>
@@ -900,7 +927,6 @@ const FilterCandidateList = ({
                           }` || ""
                         }
                         className={classes.select}
-                        // eslint-disable-next-line no-shadow
                         onInputChange={(event, value) => {
                           if (
                             ((event?.type === "change" ||
