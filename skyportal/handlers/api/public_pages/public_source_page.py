@@ -145,6 +145,8 @@ class PublicSourcePageHandler(BaseHandler):
         if options is None:
             return self.error("Options are required")
         release_id = data.get("release_id")
+        if release_id is not None and not isinstance(release_id, int):
+            return self.error("Invalid release ID")
 
         with self.Session() as session:
             group_ids = options.get("groups")
@@ -160,7 +162,7 @@ class PublicSourcePageHandler(BaseHandler):
             if source is None:
                 return self.error("Source not found", status=404)
 
-            if release_id:
+            if release_id is not None:
                 release = session.scalar(
                     PublicRelease.select(session.user_or_token, mode="read").where(
                         PublicRelease.id == release_id
