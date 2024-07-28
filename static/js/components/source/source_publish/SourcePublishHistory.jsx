@@ -56,9 +56,7 @@ const SourcePublishHistory = ({ sourceId, versions }) => {
 
   useEffect(() => {
     setIsLoading(true);
-    dispatch(fetchPublicSourcePages(sourceId, 10)).then(() =>
-      setIsLoading(false),
-    );
+    dispatch(fetchPublicSourcePages(sourceId)).then(() => setIsLoading(false));
   }, [dispatch, sourceId]);
 
   const deleteVersion = (id) => {

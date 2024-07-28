@@ -17,10 +17,9 @@ export const generatePublicSourcePage = (sourceId, payload) =>
     payload,
   );
 
-export const fetchPublicSourcePages = (sourceId, nbResults) => {
-  const nb_results = nbResults ? `nb_results=${nbResults}` : "";
+export const fetchPublicSourcePages = (sourceId) => {
   return API.GET(
-    `/api/public_pages/source/${sourceId}?${nb_results}`,
+    `/api/public_pages/source/${sourceId}`,
     FETCH_PUBLIC_SOURCE_PAGES,
   );
 };
@@ -30,7 +29,7 @@ export const deletePublicSourcePage = (pageId) =>
 
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === REFRESH_PUBLIC_SOURCE_PAGES) {
-    dispatch(fetchPublicSourcePages(payload.source_id, 10));
+    dispatch(fetchPublicSourcePages(payload.source_id));
   }
 });
 

@@ -249,12 +249,11 @@ class PublicSourcePageHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def get(self, source_id, nb_results=None):
+    def get(self, source_id):
         """
         ---
           description:
-            Retrieve a certain number of public pages, or all pages,
-             for a given source from the most recent to the oldest
+            Retrieve all public pages for a given source from the most recent to the oldest
           tags:
             - public_source_page
           parameters:
@@ -264,12 +263,6 @@ class PublicSourcePageHandler(BaseHandler):
                 type: string
                 required: true
                 description: The ID of the source for which to retrieve the public page
-            - in: query
-              name: nb_results
-              schema:
-                type: integer
-                required: false
-                description: The number of public pages to return
           responses:
             200:
               content:
@@ -287,16 +280,13 @@ class PublicSourcePageHandler(BaseHandler):
         if source_id is None:
             return self.error("Source ID is required")
         with self.Session() as session:
-            stmt = (
+            public_source_pages = session.scalars(
                 PublicSourcePage.select(session.user_or_token, mode="read")
                 .where(
                     PublicSourcePage.source_id == source_id, PublicSourcePage.is_visible
                 )
                 .order_by(PublicSourcePage.created_at.desc())
-            )
-            if nb_results is not None:
-                stmt = stmt.limit(nb_results)
-            public_source_pages = session.scalars(stmt).all()
+            ).all()
             return self.success(data=public_source_pages)
 
     @permissions(['Manage sources'])
