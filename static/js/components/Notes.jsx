@@ -74,8 +74,17 @@ const Notes = () => {
     handleClose();
   };
 
-  const deleteNote = (idToDel) => {
-    setNotes((prevNotes) => prevNotes.filter((note) => note.id !== idToDel));
+  const deleteNote = (indexToDel) => {
+    let i = indexToDel + 1;
+    while (i < notes.length && notes[i].note === notes[indexToDel].note) {
+      i++;
+    }
+    if (indexToDel === 0 && i === notes.length) {
+      handleClose();
+      setNotes([]);
+    } else {
+      setNotes(notes.filter((_, index) => index < indexToDel || index >= i));
+    }
   };
 
   return (
@@ -125,7 +134,7 @@ const Notes = () => {
                           data-testid={`deleteNoteButton${note.id}`}
                           size="small"
                           onClick={() => {
-                            deleteNote(note.id);
+                            deleteNote(index);
                           }}
                         >
                           <CancelIcon style={{ color: "white" }} />
