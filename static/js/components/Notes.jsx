@@ -75,7 +75,7 @@ const Notes = () => {
   };
 
   const deleteNote = (indexToDel, nbNoteToDel) => {
-    if (nbNoteToDel === notes.length) {
+    if (nbNoteToDel + 1 === notes.length) {
       handleClose();
       setNotes([]);
     } else {
