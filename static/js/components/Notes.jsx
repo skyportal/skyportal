@@ -37,12 +37,11 @@ const useStyles = makeStyles((theme) => ({
     MozBoxShadow: "0 0 5px black",
     boxShadow: "0 0 5px black",
   },
-  duplicateNote: {
-    position: "relative",
-    borderBottom: "1px solid grey",
-    top: "-5px",
-    width: "100%",
-    height: "3px",
+  duplicateNoteBadge: {
+    "& .MuiBadge-badge": {
+      color: theme.palette.primary.main,
+      backgroundColor: theme.palette.primary.contrastText,
+    },
   },
 }));
 
@@ -51,6 +50,7 @@ const Notes = () => {
   const [notes, setNotes] = useState([]);
   const NotesState = useSelector((state) => state.notifications.notes);
   const [anchorEl, setAnchorEl] = useState(null);
+  const cpt = 0;
 
   const noteColor = {
     error: "Crimson",
@@ -121,15 +121,23 @@ const Notes = () => {
         <div className={classes.root}>
           <List className={classes.root}>
             {notes &&
-              notes.map((note, index) => (
-                <div key={note.id}>
-                  {index === 0 || notes[index - 1].note !== note.note ? (
-                    <>
+              notes.map(
+                (note, index) =>
+                  (index === 0 || notes[index - 1].note !== note.note) && (
+                    <div key={note.id}>
                       <div
                         className={classes.note}
                         style={{ background: noteColor[note.type] }}
                       >
                         <div>{note.note}</div>
+                        <div style={{ display: "flex", alignItems: "center" }}>
+                          <Badge
+                            badgeContent={notes.length}
+                            overlap="circular"
+                            data-testid="notesBadge"
+                            className={classes.duplicateNoteBadge}
+                          />
+                        </div>
                         <Button
                           data-testid={`deleteNoteButton${note.id}`}
                           size="small"
@@ -141,15 +149,9 @@ const Notes = () => {
                         </Button>
                       </div>
                       <Divider />
-                    </>
-                  ) : (
-                    <div
-                      className={classes.duplicateNote}
-                      style={{ background: noteColor[note.type] }}
-                    ></div>
-                  )}
-                </div>
-              ))}
+                    </div>
+                  ),
+              )}
             {notes && notes.length > 0 && (
               <div className={classes.centered}>
                 <Button
