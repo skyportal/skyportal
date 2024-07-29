@@ -8,19 +8,34 @@ import makeStyles from "@mui/styles/makeStyles";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Divider from "@mui/material/Divider";
-import ReactMarkdown from "react-markdown";
+import CancelIcon from "@mui/icons-material/Close";
 import Button from "./Button";
 import { useSelector } from "react-redux";
 
 const useStyles = makeStyles((theme) => ({
   root: {
+    paddingTop: "0.1em",
     width: "100%",
-    maxWidth: 360,
+    maxWidth: 480,
     backgroundColor: theme.palette.background.paper,
   },
   centered: {
     display: "flex",
     justifyContent: "center",
+  },
+  note: {
+    display: "flex",
+    justifyContent: "space-between",
+    color: "white",
+    fontWeight: "bold",
+    paddingTop: "0.8em",
+    paddingBottom: "0.8em",
+    paddingLeft: "1em",
+    marginBottom: 5,
+    width: "100%",
+    WebkitBoxShadow: "0 0 5px black",
+    MozBoxShadow: "0 0 5px black",
+    boxShadow: "0 0 5px black",
   },
 }));
 
@@ -30,10 +45,15 @@ const Notes = () => {
   const NotesState = useSelector((state) => state.notifications.notes);
   const [anchorEl, setAnchorEl] = useState(null);
 
+  const noteColor = {
+    error: "Crimson",
+    warning: "Orange",
+    info: "MediumAquaMarine",
+  };
+
   useEffect(() => {
-    if (NotesState.length > 0) {
-      setNotes((prevNotes) => [...prevNotes, ...NotesState]);
-    }
+    const uniqueNotes = new Set([...notes, ...NotesState]);
+    setNotes([...uniqueNotes]);
   }, [NotesState]);
 
   const handleClickOpen = (event) => {
@@ -47,8 +67,8 @@ const Notes = () => {
     handleClose();
   };
 
-  const deleteNote = (index) => {
-    setNotes((prevNotes) => prevNotes.filter((_, i) => i !== index));
+  const deleteNote = (idToDel) => {
+    setNotes((prevNotes) => prevNotes.filter((note) => note.id !== idToDel));
   };
 
   return (
@@ -85,32 +105,35 @@ const Notes = () => {
         <div className={classes.root}>
           <List className={classes.root}>
             {notes &&
-              notes.map((note, index) => (
-                <div key={index}>
-                  <ListItem data-testid={`note_${index}`}>
-                    <ReactMarkdown>{note.note}</ReactMarkdown>
-                  </ListItem>
-                  <ListItem className={classes.centered}>
+              notes.map((note) => (
+                <div key={note.id}>
+                  <div
+                    className={classes.note}
+                    style={{ background: noteColor[note.type] }}
+                  >
+                    <div>{note.note}</div>
                     <Button
-                      data-testid={`deleteNoteButton${index}`}
+                      data-testid={`deleteNoteButton${note.id}`}
                       size="small"
                       onClick={() => {
-                        deleteNote(index);
+                        deleteNote(note.id);
                       }}
                     >
-                      Delete
+                      <CancelIcon style={{ color: "white" }} />
                     </Button>
-                  </ListItem>
+                  </div>
                   <Divider />
                 </div>
               ))}
             {notes && notes.length > 0 && (
-              <Button
-                onClick={deleteAllNotes}
-                data-testid="deleteAllNotesButton"
-              >
-                Delete all
-              </Button>
+              <div className={classes.centered}>
+                <Button
+                  onClick={deleteAllNotes}
+                  data-testid="deleteAllNotesButton"
+                >
+                  Delete all
+                </Button>
+              </div>
             )}
             {(!notes || notes.length === 0) && (
               <ListItem className={classes.centered}>
