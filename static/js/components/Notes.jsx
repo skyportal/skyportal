@@ -50,7 +50,7 @@ const Notes = () => {
   const [notes, setNotes] = useState([]);
   const NotesState = useSelector((state) => state.notifications.notes);
   const [anchorEl, setAnchorEl] = useState(null);
-  const cpt = 0;
+  let sameNoteCount = 0;
 
   const noteColor = {
     error: "Crimson",
@@ -74,16 +74,17 @@ const Notes = () => {
     handleClose();
   };
 
-  const deleteNote = (indexToDel) => {
-    let i = indexToDel + 1;
-    while (i < notes.length && notes[i].note === notes[indexToDel].note) {
-      i++;
-    }
-    if (indexToDel === 0 && i === notes.length) {
+  const deleteNote = (indexToDel, nbNoteToDel) => {
+    if (nbNoteToDel === notes.length) {
       handleClose();
       setNotes([]);
     } else {
-      setNotes(notes.filter((_, index) => index < indexToDel || index >= i));
+      let firstDuplication = indexToDel - nbNoteToDel;
+      setNotes(
+        notes.filter(
+          (_, index) => index > indexToDel || index < firstDuplication,
+        ),
+      );
     }
   };
 
@@ -120,38 +121,47 @@ const Notes = () => {
       >
         <div className={classes.root}>
           <List className={classes.root}>
-            {notes &&
-              notes.map(
-                (note, index) =>
-                  (index === 0 || notes[index - 1].note !== note.note) && (
-                    <div key={note.id}>
-                      <div
-                        className={classes.note}
-                        style={{ background: noteColor[note.type] }}
-                      >
-                        <div>{note.note}</div>
-                        <div style={{ display: "flex", alignItems: "center" }}>
+            {notes?.map((note, index) => {
+              if (
+                index + 1 === notes.length ||
+                notes[index + 1].note !== note.note
+              ) {
+                const noteCount = sameNoteCount;
+                sameNoteCount = 0;
+                return (
+                  <div key={note.id}>
+                    <div
+                      className={classes.note}
+                      style={{ background: noteColor[note.type] }}
+                    >
+                      <div>{note.note}</div>
+                      <div style={{ display: "flex", alignItems: "center" }}>
+                        {noteCount > 0 && (
                           <Badge
-                            badgeContent={notes.length}
+                            badgeContent={noteCount + 1}
                             overlap="circular"
                             data-testid="notesBadge"
                             className={classes.duplicateNoteBadge}
                           />
-                        </div>
-                        <Button
-                          data-testid={`deleteNoteButton${note.id}`}
-                          size="small"
-                          onClick={() => {
-                            deleteNote(index);
-                          }}
-                        >
-                          <CancelIcon style={{ color: "white" }} />
-                        </Button>
+                        )}
                       </div>
-                      <Divider />
+                      <Button
+                        data-testid={`deleteNoteButton${note.id}`}
+                        size="small"
+                        onClick={() => {
+                          deleteNote(index, noteCount);
+                        }}
+                      >
+                        <CancelIcon style={{ color: "white" }} />
+                      </Button>
                     </div>
-                  ),
-              )}
+                    <Divider />
+                  </div>
+                );
+              } else {
+                sameNoteCount++;
+              }
+            })}
             {notes && notes.length > 0 && (
               <div className={classes.centered}>
                 <Button
