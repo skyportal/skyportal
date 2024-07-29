@@ -37,6 +37,13 @@ const useStyles = makeStyles((theme) => ({
     MozBoxShadow: "0 0 5px black",
     boxShadow: "0 0 5px black",
   },
+  duplicateNote: {
+    position: "relative",
+    borderBottom: "1px solid grey",
+    top: "-5px",
+    width: "100%",
+    height: "3px",
+  },
 }));
 
 const Notes = () => {
@@ -105,24 +112,33 @@ const Notes = () => {
         <div className={classes.root}>
           <List className={classes.root}>
             {notes &&
-              notes.map((note) => (
+              notes.map((note, index) => (
                 <div key={note.id}>
-                  <div
-                    className={classes.note}
-                    style={{ background: noteColor[note.type] }}
-                  >
-                    <div>{note.note}</div>
-                    <Button
-                      data-testid={`deleteNoteButton${note.id}`}
-                      size="small"
-                      onClick={() => {
-                        deleteNote(note.id);
-                      }}
-                    >
-                      <CancelIcon style={{ color: "white" }} />
-                    </Button>
-                  </div>
-                  <Divider />
+                  {index === 0 || notes[index - 1].note !== note.note ? (
+                    <>
+                      <div
+                        className={classes.note}
+                        style={{ background: noteColor[note.type] }}
+                      >
+                        <div>{note.note}</div>
+                        <Button
+                          data-testid={`deleteNoteButton${note.id}`}
+                          size="small"
+                          onClick={() => {
+                            deleteNote(note.id);
+                          }}
+                        >
+                          <CancelIcon style={{ color: "white" }} />
+                        </Button>
+                      </div>
+                      <Divider />
+                    </>
+                  ) : (
+                    <div
+                      className={classes.duplicateNote}
+                      style={{ background: noteColor[note.type] }}
+                    ></div>
+                  )}
                 </div>
               ))}
             {notes && notes.length > 0 && (
