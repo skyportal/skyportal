@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import Badge from "@mui/material/Badge";
-import ErrorIcon from "@mui/icons-material/ErrorOutline";
+import InfoIcon from "@mui/icons-material/Info";
 import IconButton from "@mui/material/IconButton";
 import Popover from "@mui/material/Popover";
 import makeStyles from "@mui/styles/makeStyles";
@@ -10,6 +10,7 @@ import ListItem from "@mui/material/ListItem";
 import Divider from "@mui/material/Divider";
 import ReactMarkdown from "react-markdown";
 import Button from "./Button";
+import { useSelector } from "react-redux";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -23,10 +24,17 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const Alerts = () => {
+const Notes = () => {
   const classes = useStyles();
-  const alerts = [];
+  const [notes, setNotes] = useState([]);
+  const NotesState = useSelector((state) => state.notifications.notes);
   const [anchorEl, setAnchorEl] = useState(null);
+
+  useEffect(() => {
+    if (NotesState.length > 0) {
+      setNotes((prevNotes) => [...prevNotes, ...NotesState]);
+    }
+  }, [NotesState]);
 
   const handleClickOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -34,27 +42,30 @@ const Alerts = () => {
   const handleClose = () => {
     setAnchorEl(null);
   };
-  const deleteAllAlerts = () => {
+  const deleteAllNotes = () => {
+    setNotes([]);
     handleClose();
   };
 
-  const deleteAlert = () => {};
+  const deleteNote = (index) => {
+    setNotes((prevNotes) => prevNotes.filter((_, i) => i !== index));
+  };
 
   return (
     <>
       <IconButton
         onClick={handleClickOpen}
-        data-testid="alertsButton"
+        data-testid="notesButton"
         size="large"
         style={{ padding: 0, margin: 0 }}
       >
         <Badge
-          badgeContent={alerts.length}
+          badgeContent={notes.length}
           overlap="circular"
-          color={alerts.length > 0 ? "secondary" : "primary"}
-          data-testid="alertsBadge"
+          color={notes.length > 0 ? "secondary" : "primary"}
+          data-testid="notesBadge"
         >
-          <ErrorIcon fontSize="large" color="primary" />
+          <InfoIcon fontSize="large" color="primary" />
         </Badge>
       </IconButton>
       <Popover
@@ -73,18 +84,18 @@ const Alerts = () => {
       >
         <div className={classes.root}>
           <List className={classes.root}>
-            {alerts &&
-              alerts.map((alert) => (
-                <div key={alert.id}>
-                  <ListItem data-testid={`alert_${alert.id}`}>
-                    <ReactMarkdown>{alert.text}</ReactMarkdown>
+            {notes &&
+              notes.map((note, index) => (
+                <div key={index}>
+                  <ListItem data-testid={`note_${index}`}>
+                    <ReactMarkdown>{note.note}</ReactMarkdown>
                   </ListItem>
                   <ListItem className={classes.centered}>
                     <Button
-                      data-testid={`deleteAlertButton${alert.id}`}
+                      data-testid={`deleteNoteButton${index}`}
                       size="small"
                       onClick={() => {
-                        deleteAlert(alert.id);
+                        deleteNote(index);
                       }}
                     >
                       Delete
@@ -93,17 +104,17 @@ const Alerts = () => {
                   <Divider />
                 </div>
               ))}
-            {alerts && alerts.length > 0 && (
+            {notes && notes.length > 0 && (
               <Button
-                onClick={deleteAllAlerts}
-                data-testid="deleteAllAlertsButton"
+                onClick={deleteAllNotes}
+                data-testid="deleteAllNotesButton"
               >
                 Delete all
               </Button>
             )}
-            {(!alerts || alerts.length === 0) && (
+            {(!notes || notes.length === 0) && (
               <ListItem className={classes.centered}>
-                <em>No alerts</em>
+                <em>No notes</em>
               </ListItem>
             )}
           </List>
@@ -113,4 +124,4 @@ const Alerts = () => {
   );
 };
 
-export default Alerts;
+export default Notes;
