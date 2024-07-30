@@ -1,5 +1,9 @@
 from .acls import ACLHandler, UserACLHandler
-from .allocation import AllocationHandler, AllocationReportHandler
+from .allocation import (
+    AllocationHandler,
+    AllocationReportHandler,
+    AllocationObservationPlanHandler,
+)
 from .analysis import (
     AnalysisUploadOnlyHandler,
     AnalysisServiceHandler,
@@ -41,6 +45,7 @@ from .filter import FilterHandler
 from .followup_request import (
     DefaultFollowupRequestHandler,
     FollowupRequestHandler,
+    FollowupRequestCommentHandler,
     FollowupRequestWatcherHandler,
     FollowupRequestPrioritizationHandler,
     FollowupRequestSchedulerHandler,
@@ -109,7 +114,7 @@ from .observation import (
     ObservationSimSurveyHandler,
     ObservationSimSurveyPlotHandler,
 )
-from .obj import ObjHandler
+from .obj import ObjHandler, ObjPositionHandler
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
     DefaultObservationPlanRequestHandler,
@@ -137,6 +142,7 @@ from .photometry import (
     PhotometryRangeHandler,
     PhotometryOriginHandler,
 )
+from .photometry_validation import PhotometryValidationHandler
 from .photometric_series import PhotometricSeriesHandler
 from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
 from .color_mag import ObjColorMagHandler

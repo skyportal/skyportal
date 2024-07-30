@@ -20,6 +20,7 @@ from .source import MAX_NUM_DAYS_USING_LOCALIZATION
 from skyportal.utils.tns import TNS_INSTRUMENT_IDS
 
 from .photometry import BANDPASSES_COLORS, BANDPASSES_WAVELENGTHS
+from .photometry_validation import USE_PHOTOMETRY_VALIDATION
 from .summary_query import USE_PINECONE
 
 from skyportal.models import cosmo
@@ -109,5 +110,6 @@ class ConfigHandler(BaseHandler):
                 "bandpassesColors": BANDPASSES_COLORS,
                 "bandpassesWavelengths": BANDPASSES_WAVELENGTHS,
                 "usePinecone": USE_PINECONE,
+                "usePhotometryValidation": USE_PHOTOMETRY_VALIDATION,
             }
         )

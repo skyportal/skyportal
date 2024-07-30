@@ -1601,25 +1601,33 @@ class GcnEventHandler(BaseHandler):
 
             events = []
             for event in session.scalars(query).unique().all():
-                event_info = {**event.to_dict(), "tags": list(set(event.tags))}
-                event_info["localizations"] = sorted(
-                    (
-                        {
-                            **loc.to_dict(),
-                            "tags": [tag.to_dict() for tag in loc.tags],
-                        }
-                        for loc in event.localizations
-                    ),
-                    key=lambda x: x["created_at"],
-                    reverse=True,
+                event.gcn_notices = sorted(
+                    event.gcn_notices, key=lambda notice: notice.date, reverse=True
                 )
+                for notice in event.gcn_notices:
+                    notice.notice_type = gcn.NoticeType(notice.notice_type).name
+                event_info = {
+                    **event.to_dict(),
+                    "tags": list(set(event.tags)),
+                    "localizations": sorted(
+                        (
+                            {
+                                **loc.to_dict(),
+                                "tags": [tag.to_dict() for tag in loc.tags],
+                            }
+                            for loc in event.localizations
+                        ),
+                        key=lambda x: x["created_at"],
+                        reverse=True,
+                    ),
+                }
                 events.append(event_info)
 
             query_results = {"events": events, "totalMatches": int(total_matches)}
 
             return self.success(data=query_results)
 
-    @auth_or_token
+    @permissions(["System admin"])
     def delete(self, dateobs):
         """
         ---
@@ -1651,6 +1659,35 @@ class GcnEventHandler(BaseHandler):
                 ).first()
                 if event is None:
                     return self.error("GCN event not found", status=404)
+
+                # get all of the skymaps on that event
+                localizations = session.scalars(
+                    Localization.select(session.user_or_token, mode="delete").where(
+                        Localization.dateobs == dateobs
+                    )
+                ).all()
+                for localization in localizations:
+                    session.delete(localization)
+                session.commit()
+
+                # get all of the notices of the event, and delete them
+                notices = session.scalars(
+                    GcnNotice.select(session.user_or_token, mode="delete").where(
+                        GcnNotice.dateobs == dateobs
+                    )
+                ).all()
+                for notice in notices:
+                    session.delete(notice)
+
+                # delete all GCN tags
+                tags = session.scalars(
+                    GcnTag.select(session.user_or_token, mode="delete").where(
+                        GcnTag.dateobs == dateobs
+                    )
+                ).all()
+                for tag in tags:
+                    session.delete(tag)
+                session.commit()
 
                 session.delete(event)
                 session.commit()

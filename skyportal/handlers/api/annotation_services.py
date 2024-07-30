@@ -163,13 +163,17 @@ class GaiaQueryHandler(BaseHandler):
             columns = {
                 'ra': 'ra',
                 'dec': 'dec',
+                'pm': 'pm',
                 'pm_ra': 'pmra',
+                'pm_ra_err': 'pmra_error',
                 'pm_dec': 'pmdec',
+                'pm_dec_err': 'pmdec_error',
                 'Mag_G': 'phot_g_mean_mag',
                 'Mag_BP': 'phot_bp_mean_mag',
                 'Mag_RP': 'phot_rp_mean_mag',
                 'Plx': 'parallax',
                 'Plx_err': 'parallax_error',
+                'Plx_over_err': 'parallax_over_error',
                 'A_G': 'a_g_val',
                 'RUWE': 'ruwe',
             }

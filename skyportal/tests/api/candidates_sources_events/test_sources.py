@@ -231,7 +231,7 @@ def test_duplicate_sources(public_group, upload_data_token, ztf_camera):
     assert data["data"]["duplicates"] == [obj_id1]
 
 
-def test_token_user_update_source(upload_data_token, public_source):
+def test_token_user_update_source(super_admin_token, upload_data_token, public_source):
     status, data = api(
         "PATCH",
         f"sources/{public_source.id}",
@@ -242,7 +242,7 @@ def test_token_user_update_source(upload_data_token, public_source):
             "transient": False,
             "ra_dis": 2.3,
         },
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -257,7 +257,7 @@ def test_token_user_update_source(upload_data_token, public_source):
     )
 
 
-def test_distance_modulus(upload_data_token, public_source):
+def test_distance_modulus(super_admin_token, upload_data_token, public_source):
     status, data = api(
         "PATCH",
         f"sources/{public_source.id}",
@@ -268,7 +268,7 @@ def test_distance_modulus(upload_data_token, public_source):
             "transient": False,
             "ra_dis": 2.3,
         },
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -283,7 +283,7 @@ def test_distance_modulus(upload_data_token, public_source):
     )
 
 
-def test_parallax(upload_data_token, public_source):
+def test_parallax(super_admin_token, upload_data_token, public_source):
     parallax = 0.001  # in arcsec = 1 kpc
     d_pc = 1 / parallax
     dm = 5.0 * np.log10(d_pc / (10.0))
@@ -298,7 +298,7 @@ def test_parallax(upload_data_token, public_source):
             "transient": False,
             "ra_dis": 2.3,
         },
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -310,7 +310,7 @@ def test_parallax(upload_data_token, public_source):
     npt.assert_almost_equal(dm, data["data"]["dm"])
 
 
-def test_low_redshift(upload_data_token, public_source):
+def test_low_redshift(super_admin_token, upload_data_token, public_source):
     status, data = api(
         "PATCH",
         f"sources/{public_source.id}",
@@ -321,7 +321,7 @@ def test_low_redshift(upload_data_token, public_source):
             "ra_dis": 2.3,
             "redshift": 0.00001,
         },
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -429,12 +429,62 @@ def test_add_source_without_group_id(upload_data_token, view_only_token, public_
     npt.assert_almost_equal(data["data"]["ra"], 234.22)
 
 
-def test_starlist(upload_data_token, public_source):
+def test_admin_save_source_as_other_user(
+    upload_data_token,
+    view_only_token,
+    super_admin_token,
+    view_only_user,
+    super_admin_user,
+    public_group,
+):
+    obj_id = str(uuid.uuid4())
+
+    # we shouldn't be able to save as the super admin user using
+    # the upload_data_token (which is not an admin token)
+    source_data = {
+        "id": obj_id,
+        "ra": 234.22,
+        "dec": -22.33,
+        "group_ids": [public_group.id],
+        "saver_per_group_id": {public_group.id: super_admin_user.id},
+    }
+    status, data = api(
+        "POST",
+        "sources",
+        data=source_data,
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert (
+        data['message']
+        == 'Failed to post source: You must be an admin to specify a saver_per_group_id field.'
+    )
+
+    # now save it to the public group as the view only user, using the super admin token
+    source_data['saver_per_group_id'] = {public_group.id: view_only_user.id}
+    status, data = api(
+        "POST",
+        "sources",
+        data=source_data,
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    # check that the source was saved by the view only user successfully
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+    assert len(data["data"]["groups"]) > 0
+    assert data["data"]["groups"][0]["saved_by"]["id"] == view_only_user.id
+
+
+def test_starlist(super_admin_token, upload_data_token, public_source):
     status, data = api(
         "PATCH",
         f"sources/{public_source.id}",
         data={"ra": 234.22, "dec": 22.33},
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -1803,7 +1853,9 @@ def test_source_healpix(upload_data_token, view_only_token, public_group):
     assert data["data"]["healpix"] == healpix
 
 
-def test_filter_sources_by_created_at(upload_data_token, view_only_token, public_group):
+def test_filter_sources_by_created_at(
+    super_admin_token, upload_data_token, view_only_token, public_group
+):
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
 
@@ -1883,7 +1935,9 @@ def test_filter_sources_by_created_at(upload_data_token, view_only_token, public
     assert len(data["data"]["sources"]) == 0
 
 
-def test_filter_sources_by_modified(upload_data_token, view_only_token, public_group):
+def test_filter_sources_by_modified(
+    super_admin_token, upload_data_token, view_only_token, public_group
+):
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
 
@@ -1927,7 +1981,7 @@ def test_filter_sources_by_modified(upload_data_token, view_only_token, public_g
             "ra": 234.11,
             "dec": -22.11,
         },
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
 
@@ -2180,7 +2234,9 @@ def test_token_user_retrieving_source_with_comment_filter(
     assert len(data["data"]["sources"]) == 1
 
 
-def test_patch_healpix(upload_data_token, view_only_token, public_group):
+def test_patch_healpix(
+    super_admin_token, upload_data_token, view_only_token, public_group
+):
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -2212,7 +2268,7 @@ def test_patch_healpix(upload_data_token, view_only_token, public_group):
             "ra_dis": 2.3,
             "redshift": 0.00001,
         },
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
     assert data["status"] == "success"

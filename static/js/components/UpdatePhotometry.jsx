@@ -29,7 +29,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const UpdatePhotometry = ({ phot }) => {
+const UpdatePhotometry = ({ phot, magsys }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -87,6 +87,7 @@ const UpdatePhotometry = ({ phot }) => {
     newState.magerr = subState.magerr;
     newState.limiting_mag = subState.limiting_mag;
     newState.filter = subState.filter;
+    newState.magsys = magsys;
 
     // preserved quantities
     newState.obj_id = phot.obj_id;
@@ -94,7 +95,6 @@ const UpdatePhotometry = ({ phot }) => {
     newState.dec = phot.dec;
     newState.ra_unc = phot.ra_unc;
     newState.dec_unc = phot.dec_unc;
-    newState.magsys = phot.magsys;
     newState.assignment_id = phot.assignment_id;
     newState.instrument_id = phot.instrument_id;
 
@@ -245,6 +245,7 @@ UpdatePhotometry.propTypes = {
     assignment_id: PropTypes.number,
     instrument_id: PropTypes.number,
   }).isRequired,
+  magsys: PropTypes.string.isRequired,
 };
 
 export default UpdatePhotometry;

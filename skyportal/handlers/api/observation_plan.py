@@ -57,7 +57,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from skyportal.enum_types import ALLOWED_BANDPASSES
-from skyportal.facility_apis.observation_plan import (
+from skyportal.utils.observation_plan import (
     generate_observation_plan_statistics,
 )
 from skyportal.handlers.api.followup_request import post_assignment
@@ -425,12 +425,16 @@ def post_observation_plans(
     session.commit()
 
     flow = Flow()
+    plan_ids = []
     for observation_plan_request in observation_plan_requests:
         flow.push(
             '*',
             "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
             payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
         )
+        plan_ids.append(observation_plan_request.id)
+
+    return plan_ids
 
 
 def post_observation_plan(
@@ -600,32 +604,33 @@ class ObservationPlanRequestHandler(BaseHandler):
                     )
 
             if len(observation_plans) == 1:
-                post_observation_plan(
+                plan_id = post_observation_plan(
                     observation_plans[0],
                     self.associated_user_object.id,
                     session,
                     asynchronous=True,
                 )
+                plan_ids = [plan_id]
             else:
                 if combine_plans:
-                    post_observation_plans(
+                    plan_ids = post_observation_plans(
                         observation_plans,
                         self.associated_user_object.id,
                         session,
                         asynchronous=True,
                     )
                 else:
+                    plan_ids = []
                     for plan in observation_plans:
-                        post_observation_plan(
+                        plan_id = post_observation_plan(
                             plan,
                             self.associated_user_object.id,
                             session,
                             asynchronous=True,
                         )
+                        plan_ids.append(plan_id)
 
-        return self.success(
-            "Observation plan request submitted successfully to the queue successfully."
-        )
+        return self.success(data={'ids': plan_ids})
 
     @auth_or_token
     def get(self, observation_plan_request_id=None):
@@ -932,12 +937,15 @@ class ObservationPlanRequestHandler(BaseHandler):
             if not api.implements()['delete']:
                 return self.error('Cannot delete observation plans on this instrument.')
 
-            observation_plan_request.last_modified_by_id = (
-                self.associated_user_object.id
-            )
-            api.delete(observation_plan_request.id)
+            # if the status of the plan is "submitted to telescope queue", don't allow deletion
+            if observation_plan_request.status == "submitted to telescope queue":
+                return self.error(
+                    "Cannot delete observation plan sent to the telescope queue."
+                )
 
-            session.commit()
+            api.delete(
+                observation_plan_request.id
+            )  # the session.commit() happens in this method, not need to commit here too
 
             self.push_all(
                 action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
@@ -1048,10 +1056,21 @@ class ObservationPlanManualRequestHandler(BaseHandler):
             for planned_obs in observation_plan['planned_observations']:
                 tt = Time(planned_obs['dateobs'], format='isot')
 
+                field = session.scalars(
+                    InstrumentField.select(session.user_or_token).where(
+                        InstrumentField.instrument_id == instrument.id,
+                        InstrumentField.field_id == planned_obs['field_id'],
+                    )
+                ).first()
+                if field is None:
+                    return self.error(
+                        f'No field for instrument with ID {instrument.id} available with ID {planned_obs["field_id"]}'
+                    )
+
                 planned_observation = PlannedObservation(
                     obstime=tt.datetime,
                     dateobs=event.dateobs,
-                    field_id=planned_obs['field_id'],
+                    field_id=field.id,
                     exposure_time=planned_obs['exposure_time'],
                     weight=planned_obs['weight'],
                     filt=planned_obs['filt'],
@@ -1060,7 +1079,7 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                     observation_plan_id=event_observation_plan.id,
                     overhead_per_exposure=planned_obs['overhead_per_exposure'],
                 )
-            planned_observations.append(planned_observation)
+                planned_observations.append(planned_observation)
 
             session.add_all(planned_observations)
             session.commit()
@@ -1121,21 +1140,35 @@ class ObservationPlanSubmitHandler(BaseHandler):
                 return self.error(
                     f'Error sending observation plan to telescope: {e.args[0]}'
                 )
-            finally:
-                session.commit()
+
+            session.commit()
 
             try:
                 if (
                     'submit' in observation_plan_request.status
                     and 'fail' not in observation_plan_request.status
                 ):
-                    gcn_triggered = GcnTrigger(
-                        dateobs=observation_plan_request.gcnevent.dateobs,
-                        allocation_id=observation_plan_request.allocation_id,
-                        triggered=True,
+                    # check if there is already a GCN trigger for this dateobs and allocation, with triggered=True
+                    # if there is one already set "triggered" to True, otherwise create it.
+                    existing_gcn_trigger = session.scalar(
+                        GcnTrigger.select(session.user_or_token).where(
+                            GcnTrigger.dateobs
+                            == observation_plan_request.gcnevent.dateobs,
+                            GcnTrigger.allocation_id
+                            == observation_plan_request.allocation_id,
+                        )
                     )
-                    session.add(gcn_triggered)
-                    session.commit()
+                    if existing_gcn_trigger is None:
+                        gcn_triggered = GcnTrigger(
+                            dateobs=observation_plan_request.gcnevent.dateobs,
+                            allocation_id=observation_plan_request.allocation_id,
+                            triggered=True,
+                        )
+                        session.add(gcn_triggered)
+                        session.commit()
+                    elif existing_gcn_trigger.triggered is not True:
+                        existing_gcn_trigger.triggered = True
+                        session.commit()
             except Exception:
                 pass  # this is not a critical error, we can continue
 
@@ -1143,8 +1176,6 @@ class ObservationPlanSubmitHandler(BaseHandler):
                 action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
-
-            session.commit()
 
             return self.success(data=observation_plan_request)
 
@@ -1336,6 +1367,9 @@ class ObservationPlanGCNHandler(BaseHandler):
             if len(statistics) == 0:
                 return self.error('Need statistics computed to produce a GCN')
             statistics = statistics[0].statistics
+
+            if statistics["start_observation"] is None:
+                return self.success(data="No observation plan to report")
 
             start_observation = Time(statistics["start_observation"], format='isot')
             num_observations = statistics["num_observations"]

@@ -54,7 +54,7 @@ from .observation_plan import (
     TREASUREMAP_INSTRUMENT_IDS,
     TREASUREMAP_FILTERS,
 )
-from ...facility_apis.observation_plan import combine_healpix_tuples
+from ...utils.observation_plan import combine_healpix_tuples
 from ...utils.cache import Cache
 
 
@@ -254,6 +254,10 @@ def add_observations(instrument_id, obstable):
                 return log(
                     f"Unable to add observations for instrument {instrument_id}: {e}"
                 )
+
+        flow = Flow()
+        flow.push('*', "skyportal/REFRESH_OBSERVATIONS")
+
         return log(f"Successfully added observations for instrument {instrument_id}")
     except Exception as e:
         return log(f"Unable to add observations for instrument {instrument_id}: {e}")
@@ -1512,7 +1516,7 @@ class ObservationExternalAPIHandler(BaseHandler):
     def delete(self, allocation_id):
         """
         ---
-        description: Retrieve queued observations from external API
+        description: Delete queued observations from external API
         tags:
           - observations
         parameters:
@@ -1570,11 +1574,10 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error('Cannot delete queues from this Instrument.')
 
             try:
-                # we now retrieve and commit to the database the
-                # executed observations
                 instrument.api_class_obsplan.remove_queue(
                     allocation, queue_name, self.associated_user_object.username
                 )
+                return self.success()
             except Exception as e:
                 return self.error(f"Error in querying instrument API: {e}")
 

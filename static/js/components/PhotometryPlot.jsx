@@ -12,9 +12,12 @@ import Typography from "@mui/material/Typography";
 import SaveAsIcon from "@mui/icons-material/SaveAs";
 import IconButton from "@mui/material/IconButton";
 import Switch from "@mui/material/Switch";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import makeStyles from "@mui/styles/makeStyles";
+import { useTheme } from "@mui/material/styles";
 
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -29,17 +32,27 @@ import Button from "./Button";
 import { addAnnotation } from "../ducks/source";
 import { BASE_LAYOUT, PHOT_ZP, smoothing_func, mjdnow, rgba } from "../utils";
 
+// convert any unit to days
+const periodUnitDividers = {
+  minutes: 60.0 * 24.0,
+  hours: 24.0,
+  days: 1.0,
+};
+
 const Plot = createPlotlyComponent(Plotly);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   gridContainer: {
     display: "grid",
     gridAutoFlow: "row",
-    gridTemplateColumns: "repeat(3, 1fr)",
+    gridTemplateColumns: "repeat(4, 1fr)",
     rowGap: "0.5rem",
     columnGap: "2rem",
     width: "100%",
     padding: "0.5rem 1rem 0 1rem",
+    "@media (max-width: 650px)": {
+      gridTemplateColumns: "repeat(2, 1fr)",
+    },
   },
   gridItem: {
     display: "flex",
@@ -61,6 +74,31 @@ const useStyles = makeStyles(() => ({
       width: "7rem",
       marginTop: 0,
       marginBottom: 0,
+    },
+  },
+  periodContainer: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: "1rem",
+    width: "100%",
+    paddingLeft: "0.5rem",
+    "& > .MuiTextField-root": {
+      width: "7rem",
+      marginTop: 0,
+      marginBottom: 0,
+    },
+    [theme.breakpoints.down("md")]: {
+      gridTemplateColumns: "1fr 1fr 1fr",
+      display: "grid",
+      "& > :first-child": {
+        gridColumn: "span 2",
+      },
+      "& > :last-child": {
+        gridColumn: "span 3",
+      },
+      paddingBottom: "0.5rem",
     },
   },
   switchContainer: {
@@ -179,8 +217,10 @@ const PhotometryPlot = ({
   gcn_events,
   mode,
   plotStyle,
+  magsys,
 }) => {
-  const classes = useStyles();
+  const theme = useTheme();
+  const classes = useStyles(theme);
   const [data, setData] = useState(null);
   const [plotData, setPlotData] = useState(null);
 
@@ -188,6 +228,7 @@ const PhotometryPlot = ({
   const [markerSize, setMarkerSize] = useState(6);
 
   const [period, setPeriod] = useState(1);
+  const [periodUnit, setPeriodUnit] = useState("days");
   const [phase, setPhase] = useState(2);
   const [smoothing, setSmoothing] = useState(0);
 
@@ -201,6 +242,7 @@ const PhotometryPlot = ({
   const [layoutReset, setLayoutReset] = useState(false);
 
   const [showNonDetections, setShowNonDetections] = useState(true);
+  const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
 
   const [initialized, setInitialized] = useState(false);
 
@@ -385,6 +427,7 @@ const PhotometryPlot = ({
     photometryStats,
     plotType,
     periodValue,
+    periodUnitValue,
     smoothingValue,
     phaseValue,
     showNonDetectionsValue,
@@ -425,6 +468,9 @@ const PhotometryPlot = ({
 
           const upperLimitsTrace = {
             dataType: "upperLimits",
+            isForcedPhotometry:
+              upperLimits?.length > 0 &&
+              ["fp", "fp_alert"].includes(upperLimits[0].origin),
             x: upperLimits.map((point) => point.mjd),
             y: upperLimits.map((point) =>
               plotType === "mag" ? point.limiting_mag : point.flux,
@@ -458,6 +504,9 @@ const PhotometryPlot = ({
 
           const detectionsTrace = {
             dataType: "detections",
+            isForcedPhotometry:
+              detections?.length > 0 &&
+              ["fp", "fp_alert"].includes(detections[0].origin),
             x: detections.map((point) => point.mjd),
             y: detections.map((point) =>
               plotType === "mag" ? point.mag : point.flux,
@@ -564,8 +613,11 @@ const PhotometryPlot = ({
           const colorInteriorNonDet = rgba(colorRGB, 0.1);
           const colorInteriorDet = rgba(colorRGB, 0.3);
 
+          const scaledPeriodValue =
+            periodValue / periodUnitDividers[periodUnit];
+
           const phases = groupedPhotometry[key].map(
-            (point) => (point.mjd % periodValue) / periodValue,
+            (point) => (point.mjd % scaledPeriodValue) / scaledPeriodValue,
           );
 
           // split the y in det and non det
@@ -749,7 +801,7 @@ const PhotometryPlot = ({
 
     if (plotType === "mag" || plotType === "period") {
       newLayouts.yaxis = {
-        title: "AB Mag",
+        title: magsys.toUpperCase().concat(" Mag"),
         range: [...photStats_value.mag.range],
         zeroline: false,
         ...BASE_LAYOUT,
@@ -807,6 +859,7 @@ const PhotometryPlot = ({
         newPhotStats,
         tabToPlotType(tabIndex),
         period,
+        periodUnit,
         smoothing,
         phase,
         showNonDetections,
@@ -859,6 +912,7 @@ const PhotometryPlot = ({
         photStats,
         tabToPlotType(tabIndex),
         period,
+        periodUnit,
         smoothing,
         phase,
         showNonDetections,
@@ -886,6 +940,7 @@ const PhotometryPlot = ({
         photStats,
         tabToPlotType(tabIndex),
         period,
+        periodUnit,
         smoothing,
         phase,
         showNonDetections,
@@ -894,7 +949,7 @@ const PhotometryPlot = ({
       );
       setPlotData(traces);
     }
-  }, [period, smoothing]);
+  }, [period, periodUnit, smoothing]);
 
   useEffect(() => {
     if (initialized && annotations !== null) {
@@ -939,26 +994,37 @@ const PhotometryPlot = ({
     if (plotData) {
       const newPlotData = plotData.map((trace) => {
         const newTrace = { ...trace };
+
         if (
-          showNonDetections &&
           newTrace.dataType === "upperLimits" &&
-          newTrace.visible !== true
+          newTrace.isForcedPhotometry
         ) {
-          newTrace.visible = true;
-          newTrace.showlegend = true;
-        } else if (
-          !showNonDetections &&
-          newTrace.dataType === "upperLimits" &&
-          newTrace.visible !== false
-        ) {
-          newTrace.visible = false;
-          newTrace.showlegend = false;
+          if (showNonDetections && showForcedPhotometry) {
+            newTrace.visible = true;
+            newTrace.showlegend = true;
+          } else {
+            newTrace.visible = false;
+            newTrace.showlegend = false;
+          }
+        } else if (newTrace.dataType === "upperLimits") {
+          if (showNonDetections) {
+            newTrace.visible = true;
+            newTrace.showlegend = true;
+          } else {
+            newTrace.visible = false;
+            newTrace.showlegend = false;
+          }
+        } else if (newTrace.isForcedPhotometry) {
+          newTrace.visible = showForcedPhotometry;
+          newTrace.showlegend = showForcedPhotometry;
         }
+
         return newTrace;
       });
+
       setPlotData(newPlotData);
     }
-  }, [showNonDetections]);
+  }, [showNonDetections, showForcedPhotometry]);
 
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
@@ -1116,6 +1182,7 @@ const PhotometryPlot = ({
             // scrollZoom: true, // this is not working properly, creating issues when we are around the default zooming level. TOFIX
             responsive: true,
             displaylogo: false,
+            showAxisDragHandles: false,
             // the native autoScale2d and resetScale2d buttons are not working
             // as they are not resetting to the specified ranges
             // so, we remove them and add our own
@@ -1163,6 +1230,8 @@ const PhotometryPlot = ({
               ) {
                 // if its a marker, secondary axis, or the trace that was double clicked, it's always visible
                 trace.visible = true;
+              } else if (!showForcedPhotometry && trace.isForcedPhotometry) {
+                trace.visible = false;
               } else if (
                 !showNonDetections &&
                 trace.dataType === "upperLimits"
@@ -1195,6 +1264,18 @@ const PhotometryPlot = ({
             <Switch
               checked={showNonDetections}
               onChange={() => setShowNonDetections(!showNonDetections)}
+              inputProps={{ "aria-label": "controlled" }}
+            />
+          </div>
+        </div>
+        <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
+          <Typography id="photometry-show-hide" noWrap>
+            Forced Photometry
+          </Typography>
+          <div className={classes.switchContainer}>
+            <Switch
+              checked={showForcedPhotometry}
+              onChange={() => setshowForcedPhotometry(!showForcedPhotometry)}
               inputProps={{ "aria-label": "controlled" }}
             />
           </div>
@@ -1232,8 +1313,8 @@ const PhotometryPlot = ({
         </div>
         {tabIndex === 2 && (
           <div className={classes.gridItem} style={{ gridColumn: "span 3" }}>
-            <Typography id="input-slider">Period (days)</Typography>
-            <div className={classes.sliderContainer}>
+            <Typography id="input-slider">Period</Typography>
+            <div className={classes.periodContainer}>
               <Slider
                 value={period}
                 onChange={(e, newValue) => setPeriod(newValue)}
@@ -1242,6 +1323,7 @@ const PhotometryPlot = ({
                 step={0.1}
                 min={0.1}
                 max={365}
+                style={{ minWidth: "14rem", width: "100%" }}
               />
               <TextField
                 value={period}
@@ -1254,9 +1336,19 @@ const PhotometryPlot = ({
                   max: 365,
                   "aria-labelledby": "input-slider",
                 }}
-                style={{ width: "12rem" }}
+                style={{ minWidth: "8rem", width: "100%" }}
                 size="small"
               />
+              <Select
+                value={periodUnit}
+                onChange={(e) => setPeriodUnit(e.target.value)}
+                style={{ width: "8rem" }}
+                size="small"
+              >
+                <MenuItem value="minutes">minutes</MenuItem>
+                <MenuItem value="hours">hours</MenuItem>
+                <MenuItem value="days">days</MenuItem>
+              </Select>
               <Button
                 onClick={() => setPeriod(period * 2)}
                 variant="contained"
@@ -1359,6 +1451,7 @@ PhotometryPlot.propTypes = {
   plotStyle: PropTypes.shape({
     height: PropTypes.string,
   }),
+  magsys: PropTypes.string,
 };
 
 PhotometryPlot.defaultProps = {
@@ -1370,6 +1463,7 @@ PhotometryPlot.defaultProps = {
   plotStyle: {
     height: "65vh",
   },
+  magsys: "ab",
 };
 
 export default PhotometryPlot;

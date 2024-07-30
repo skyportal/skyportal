@@ -1,11 +1,12 @@
 import asyncio
+import sqlalchemy as sa
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from ..base import BaseHandler
-from .source import get_sources, MAX_SOURCES_PER_PAGE
 
 from ...models import (
     GcnEvent,
@@ -322,26 +323,11 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         localization_name = validated['localization_name']
         localization_cumprob = validated['localization_cumprob']
 
+        source_in_gcn_id = None
+        obj_internal_key = None
+
         with self.Session() as session:
             try:
-                sources = await get_sources(
-                    user_id=self.associated_user_object.id,
-                    session=session,
-                    first_detected_date=start_date,
-                    last_detected_date=end_date,
-                    localization_dateobs=dateobs,
-                    localization_name=localization_name,
-                    localization_cumprob=localization_cumprob,
-                    page_number=1,
-                    num_per_page=MAX_SOURCES_PER_PAGE,
-                    sourceID=source_id,
-                )
-
-                sources = sources['sources']
-
-                if len(sources) == 0:
-                    return self.error("No sources found, can't confirm/reject")
-
                 stmt = Localization.select(session.user_or_token).where(
                     Localization.localization_name == localization_name,
                     Localization.dateobs == dateobs,
@@ -375,6 +361,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                             source_in_gcn.notes = notes
                         session.commit()
                         source_in_gcn_id = source_in_gcn.id
+                        obj_internal_key = source_in_gcn.obj.internal_key
                         if confirmed is True:
                             crossmatches = source_in_gcn.obj.gcn_crossmatch
                             if crossmatches is None:
@@ -416,6 +403,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     session.add(source_in_gcn)
                     session.commit()
                     source_in_gcn_id = source_in_gcn.id
+                    obj_internal_key = source_in_gcn.obj.internal_key
                     if confirmed is True:
                         crossmatches = source_in_gcn.obj.gcn_crossmatch
                         if crossmatches is None:
@@ -442,6 +430,12 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
             except Exception as e:
                 session.rollback()
                 return self.error(str(e))
+
+        if obj_internal_key is not None:
+            flow = Flow()
+            flow.push(
+                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
+            )
 
         return self.success(data={'id': source_in_gcn_id})
 
@@ -516,6 +510,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         source_id = validated['source_id'].strip()
         dateobs = validated['dateobs']
 
+        source_in_gcn_id = None
+        obj_internal_key = None
+
         with self.Session() as session:
             try:
                 stmt = GcnEvent.select(session.user_or_token).where(
@@ -542,6 +539,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     source_in_gcn.notes = notes
                 session.commit()
                 source_in_gcn_id = source_in_gcn.id
+                obj_internal_key = source_in_gcn.obj.internal_key
                 if confirmed is True:
                     crossmatches = source_in_gcn.obj.gcn_crossmatch
                     if crossmatches is None:
@@ -565,6 +563,12 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
             except Exception as e:
                 session.rollback()
                 return self.error(str(e))
+
+        if obj_internal_key is not None:
+            flow = Flow()
+            flow.push(
+                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
+            )
 
         return self.success(data={'id': source_in_gcn_id})
 
@@ -623,6 +627,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         source_id = validated['source_id'].strip()
         dateobs = validated['dateobs']
 
+        source_in_gcn_id = None
+        obj_internal_key = None
+
         with self.Session() as session:
             try:
                 stmt = GcnEvent.select(session.user_or_token).where(
@@ -651,12 +658,20 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     else:
                         setattr(source_in_gcn.obj, 'gcn_crossmatch', crossmatches)
                     session.commit()
+                source_in_gcn_id = source_in_gcn.id
+                obj_internal_key = source_in_gcn.obj.internal_key
                 session.delete(source_in_gcn)
                 session.commit()
             except Exception as e:
                 session.rollback()
                 return self.error(str(e))
-        return self.success(data={'id': source_in_gcn.id})
+
+        if obj_internal_key is not None:
+            flow = Flow()
+            flow.push(
+                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
+            )
+        return self.success(data={'id': source_in_gcn_id})
 
 
 class SourcesConfirmedInGCNTNSHandler(BaseHandler):
@@ -791,7 +806,32 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
 
+                obj_with_requests = []
                 for obj in sources_in_gcn:
+                    # verify that there isn't already a TNSRobotSubmission for this object
+                    # and TNSRobot, that is:
+                    # 1. pending
+                    # 2. processing
+                    # 3. submitted
+                    # 4. complete
+                    # if so, do not add another request
+                    existing_submission_request = session.scalars(
+                        TNSRobotSubmission.select(session.user_or_token).where(
+                            TNSRobotSubmission.obj_id == obj.id,
+                            TNSRobotSubmission.tnsrobot_id == tnsrobot.id,
+                            sa.or_(
+                                TNSRobotSubmission.status == "pending",
+                                TNSRobotSubmission.status == "processing",
+                                TNSRobotSubmission.status.like("submitted%"),
+                                TNSRobotSubmission.status.like("complete%"),
+                            ),
+                        )
+                    ).first()
+                    if existing_submission_request is not None:
+                        log(
+                            f"Skipping TNSRobotSubmission request for obj_id {obj.id} with tnsrobot_id {tnsrobot.id} for user_id {self.associated_user_object.id} as there is already a submission request with status {existing_submission_request.status}"
+                        )
+                        continue
                     submission = TNSRobotSubmission(
                         tnsrobot_id=tnsrobot.id,
                         obj_id=obj.obj_id,
@@ -799,19 +839,19 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
                         custom_reporting_string=reporters,
                         archival=archival,
                         archival_comment=archival_comment,
+                        auto_submission=False,
                     )
                     session.add(submission)
                     log(
                         f"Added TNSRobotSubmission request for obj_id {obj.id} confirmed in GCN with tnsrobot_id {tnsrobot.id} for user_id {self.associated_user_object.id}"
                     )
+                    obj_with_requests.append(obj.obj_id)
                 session.commit()
 
-                return self.success()
+                return self.success(data={'obj_ids': obj_with_requests})
 
             except Exception as e:
                 return self.error(str(e))
-
-        return self.success(data=sources_in_gcn)
 
 
 class GCNsAssociatedWithSourceHandler(BaseHandler):
