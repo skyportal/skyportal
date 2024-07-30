@@ -2,13 +2,18 @@ import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Typography from "@mui/material/Typography";
-import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
 import CircularProgress from "@mui/material/CircularProgress";
 import MUIDataTable from "mui-datatables";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import IconButton from "@mui/material/IconButton"; // Added for the "+" icon button
+import AddIcon from "@mui/icons-material/Add"; // Added for the "+" icon button
+import Tooltip from "@mui/material/Tooltip"; // Added for the "+" icon button
+import DialogTitle from "@mui/material/DialogTitle";
 import Button from "./Button";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 import NewAnalysisService from "./NewAnalysisService";
@@ -83,7 +88,11 @@ export function analysisServiceInfo(analysisService) {
   return result;
 }
 
-const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
+const AnalysisServiceList = ({
+  analysisServices,
+  deletePermission,
+  onOpenAddDialog,
+}) => {
   const dispatch = useDispatch();
   const classes = useStyles();
   const textClasses = textStyles();
@@ -155,6 +164,13 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
     filterType: "checkbox",
     responsive: "standard",
     selectableRows: "none",
+    customToolbar: () => (
+      <Tooltip title="Add new analysis service">
+        <IconButton onClick={onOpenAddDialog}>
+          <AddIcon />
+        </IconButton>
+      </Tooltip>
+    ),
   };
 
   return (
@@ -183,6 +199,15 @@ const AnalysisServicePage = () => {
   const currentUser = useSelector((state) => state.profile);
   const classes = useStyles();
   const dispatch = useDispatch();
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+
+  const handleOpenAddDialog = () => {
+    setAddDialogOpen(true); // Opens the add new service dialog
+  };
+
+  const handleCloseAddDialog = () => {
+    setAddDialogOpen(false); // Closes the add new service dialog
+  };
 
   const permission =
     currentUser.permissions?.includes("System admin") ||
@@ -209,30 +234,30 @@ const AnalysisServicePage = () => {
   }
 
   return (
-    <Grid container spacing={3}>
-      <Grid item md={6} sm={12}>
-        <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">List of Analysis Services</Typography>
-            <AnalysisServiceList
-              analysisServices={analysisServiceList}
-              deletePermission={permission}
-            />
-          </div>
-        </Paper>
+    <Grid container>
+      <Grid item xs={12}>
+        <div className={classes.paperContent}>
+          <Typography variant="h6">List of Analysis Services</Typography>
+          <AnalysisServiceList
+            analysisServices={analysisServiceList}
+            deletePermission={permission}
+            onOpenAddDialog={handleOpenAddDialog} // Passing the function to open the add dialog to AnalysisServiceList
+          />
+        </div>
       </Grid>
-      {permission && (
-        <>
-          <Grid item md={6} sm={12}>
-            <Paper>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">Add a New Analysis Service</Typography>
-                <NewAnalysisService />
-              </div>
-            </Paper>
-          </Grid>
-        </>
-      )}
+      <Dialog
+        open={addDialogOpen}
+        onClose={handleCloseAddDialog}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Add a New Analysis Service</DialogTitle>
+        <DialogContent>
+          <div style={{ paddingTop: "8px" }}>
+            <NewAnalysisService />
+          </div>
+        </DialogContent>
+      </Dialog>
     </Grid>
   );
 };
@@ -241,6 +266,7 @@ AnalysisServiceList.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   analysisServices: PropTypes.arrayOf(PropTypes.any).isRequired,
   deletePermission: PropTypes.bool.isRequired,
+  onOpenAddDialog: PropTypes.func.isRequired,
 };
 
 export default AnalysisServicePage;
