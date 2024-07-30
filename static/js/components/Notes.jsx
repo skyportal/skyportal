@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 
 import Badge from "@mui/material/Badge";
-import InfoIcon from "@mui/icons-material/Info";
+import InfoIcon from "@mui/icons-material/InfoOutlined";
 import IconButton from "@mui/material/IconButton";
 import Popover from "@mui/material/Popover";
 import makeStyles from "@mui/styles/makeStyles";
@@ -25,15 +25,23 @@ const useStyles = makeStyles((theme) => ({
   },
   note: {
     display: "flex",
+    alignItems: "center",
     justifyContent: "space-between",
     color: "white",
     fontWeight: "bold",
-    padding: "0.3em 0.5em",
+    padding: "0.5em",
+    borderRadius: "0.5em",
     marginBottom: 5,
     width: "100%",
-    WebkitBoxShadow: "0 0 5px black",
-    MozBoxShadow: "0 0 5px black",
-    boxShadow: "0 0 5px black",
+    WebkitBoxShadow: "0 2px 3px black",
+    MozBoxShadow: "0 2px 3px black",
+    boxShadow: "0 2px 3px black",
+  },
+  noteText: {
+    display: "flex",
+    alignItems: "center",
+    columnGap: "0.5em",
+    marginRight: "1em",
   },
   duplicateNoteBadge: {
     "& .MuiBadge-badge": {
@@ -132,7 +140,10 @@ const Notes = () => {
                       className={classes.note}
                       style={{ background: noteColor[note.type] }}
                     >
-                      <div>{note.note}</div>
+                      <div className={classes.noteText}>
+                        <InfoIcon />
+                        {note.note}
+                      </div>
                       <div style={{ display: "flex", alignItems: "center" }}>
                         {noteCount > 0 && (
                           <Badge
