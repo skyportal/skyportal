@@ -1,8 +1,11 @@
-import geodatasets
 import geopandas
 import numpy as np
 import pandas as pd
 from shapely.geometry import Point
+
+COUNTRIES_FILE = (
+    "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_0_countries.zip"
+)
 
 
 def get_country(latitude, longitude):
@@ -15,7 +18,7 @@ def get_country(latitude, longitude):
         Longitude of the event
     """
 
-    world = geopandas.read_file(geodatasets.data['naturalearth']['land']['url'])
+    world = geopandas.read_file(COUNTRIES_FILE)
     eq = pd.DataFrame({'lat': latitude, 'lon': longitude}, index=[0])
     gdf = geopandas.GeoDataFrame(
         eq, geometry=geopandas.points_from_xy(eq.lon, eq.lat), crs="EPSG:4326"
@@ -34,4 +37,4 @@ def get_country(latitude, longitude):
         ]
         idx = np.argmin(distances)
 
-    return world.iloc[idx]["name"]
+    return world.iloc[idx]["NAME_EN"]

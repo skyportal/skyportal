@@ -15,7 +15,6 @@ import afterglowpy
 import arrow
 import astropy
 from astropy.utils.masked import MaskedNDArray
-import geodatasets
 import geopandas
 import healpy as hp
 import humanize
@@ -87,6 +86,7 @@ from ...models import (
 )
 from ...models.schema import ObservationPlanPost
 from ...utils.simsurvey import get_simsurvey_parameters, random_parameters_notheta
+from ...utils.earthquake import COUNTRIES_FILE
 from ..base import BaseHandler
 
 env, cfg = load_env()
@@ -2231,7 +2231,7 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
                 rgba_color = cmap(norm(prob))
                 colors.append(rgba_color)
 
-            world = geopandas.read_file(geodatasets.data['naturalearth']['land']['url'])
+            world = geopandas.read_file(COUNTRIES_FILE)
             ds = [
                 telescope.to_dict()
                 for telescope in telescopes
