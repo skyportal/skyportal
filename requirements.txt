@@ -28,7 +28,7 @@ pytest==8.1.1
 sncosmo==2.10.4
 tdtax==0.1.4
 healpix-alchemy==1.1.0
-mocpy==0.15.0
+mocpy==0.16.2
 obspy==1.4.0
 conesearch-alchemy==1.0.0
 regions==0.9
