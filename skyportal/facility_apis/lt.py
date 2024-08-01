@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import time
 
 from lxml import etree
 from suds import Client
@@ -41,12 +42,13 @@ class LTRequest:
             'xsi': LT_XSI_NS,
         }
         schemaLocation = etree.QName(LT_XSI_NS, 'schemaLocation')
+        timestamp = int(time.time())
         payload = etree.Element(
             'RTML',
             {schemaLocation: LT_SCHEMA_LOCATION},
             xmlns=LT_XML_NS,
             mode='request',
-            uid=format(str(request.id)),
+            uid=f'{request.obj.id}-{request.id}-{timestamp}',
             version='3.1a',
             nsmap=namespaces,
         )
