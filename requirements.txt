@@ -87,7 +87,7 @@ tiktoken==0.7.0
 simplejson==3.19.2
 langchain==0.1.14
 langchain-openai==0.0.6
-pinecone-client==4.1.0
+pinecone-client==5.0.0
 pydantic==2.7.1
 sentry-sdk==2.8.0
 typing-inspect==0.9.0
