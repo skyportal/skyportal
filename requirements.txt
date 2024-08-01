@@ -24,7 +24,7 @@ marshmallow-sqlalchemy==1.0.0
 marshmallow-enum==1.5.1
 Pillow>=8.4.0
 pyproj==3.6.1
-pytest==8.1.1
+pytest==8.3.2
 sncosmo==2.10.4
 tdtax==0.1.4
 healpix-alchemy==1.1.0
