@@ -1,3 +1,4 @@
+import geodatasets
 import geopandas
 import numpy as np
 import pandas as pd
@@ -14,7 +15,7 @@ def get_country(latitude, longitude):
         Longitude of the event
     """
 
-    world = geopandas.read_file(geopandas.datasets.get_path('naturalearth_lowres'))
+    world = geopandas.read_file(geodatasets.get_path('naturalearth_lowres'))
     eq = pd.DataFrame({'lat': latitude, 'lon': longitude}, index=[0])
     gdf = geopandas.GeoDataFrame(
         eq, geometry=geopandas.points_from_xy(eq.lon, eq.lat), crs="EPSG:4326"
