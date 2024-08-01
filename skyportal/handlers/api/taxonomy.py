@@ -158,7 +158,7 @@ class TaxonomyHandler(BaseHandler):
 
         hierarchy_file = data.get('hierarchy_file', None)
         if hierarchy_file is not None:
-            data['hierarchy'] = yaml.load(hierarchy_file, Loader=yaml.Loader)[0]
+            data['hierarchy'] = yaml.safe_load(hierarchy_file)[0]
             del data['hierarchy_file']
 
         with self.Session() as session:
