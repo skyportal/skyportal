@@ -70,7 +70,7 @@ simsurvey==0.7.5
 noaodatalab==2.20.0
 black==24.4.2
 click==8.1.7
-arviz==0.18.0
+arviz==0.19.0
 corner==2.2.2
 penquins==2.4.1
 selenium==4.8.3
