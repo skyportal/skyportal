@@ -70,14 +70,17 @@ def get_dateobs(root):
     if t0 is None:
         return None
 
-    dateobs = Time(
-        t0.text,
-        precision=0,
-    )
-    # FIXME: https://github.com/astropy/astropy/issues/7179
-    dateobs = Time(dateobs.iso)
+    try:
+        dateobs = Time(
+            t0.text,
+            precision=0,
+        )
+        # FIXME: https://github.com/astropy/astropy/issues/7179
+        dateobs = Time(dateobs.iso)
 
-    return dateobs.datetime
+        return dateobs.datetime
+    except ValueError:
+        return None
 
 
 def get_json_tags(payload):
