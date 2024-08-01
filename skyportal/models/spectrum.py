@@ -322,7 +322,7 @@ class Spectrum(Base):
             header = {}
             for line in table.meta['comments']:
                 try:
-                    result = yaml.load(line, Loader=yaml.FullLoader)
+                    result = yaml.safe_load(line)
                 except yaml.YAMLError:
                     continue
                 if isinstance(result, dict):
