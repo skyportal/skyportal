@@ -2231,7 +2231,7 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
                 rgba_color = cmap(norm(prob))
                 colors.append(rgba_color)
 
-            world = geopandas.read_file(geodatasets.get_path('naturalearth_lowres'))
+            world = geopandas.read_file(geodatasets.data['naturalearth']['land']['url'])
             ds = [
                 telescope.to_dict()
                 for telescope in telescopes
