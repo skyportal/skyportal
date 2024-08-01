@@ -414,8 +414,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             in every position where the flux is not positive.
         """
         good_points = np.logical_and(np.invert(np.isnan(fluxes)), fluxes > 0)
-        mags = -2.5 * np.log10(fluxes, where=good_points) + PHOT_ZP
-        mags[np.invert(good_points)] = np.nan
+        mags = np.full(fluxes.shape, np.nan)
+        mags[good_points] = -2.5 * np.log10(fluxes[good_points]) + PHOT_ZP
         # should we turn this into a list and convert the NaNs into Nones?
         return mags
 
@@ -569,6 +569,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         detection_indices = np.where(self.snr > PHOT_DETECTION_THRESHOLD)[0]
         if len(detection_indices) > 0:
+            if detection_indices[-1] >= len(self.mjds) or detection_indices[-1] >= len(
+                self.mags
+            ):
+                print("Error out of bounds")
             self.mjd_last_detected = float(self.mjds[detection_indices[-1]])
             self.mag_last_detected = float(self.mags[detection_indices[-1]])
             self.is_detected = True
