@@ -207,16 +207,25 @@ async def get_source(
     """
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
+    if obj_id in [None, ""] and tns_name in [None, ""]:
+        raise ValueError("Either obj_id or tns_name must be provided")
+
     options = []
     if include_thumbnails:
-        options.append(joinedload(Obj.thumbnails))
+        if obj_id not in [None, ""]:
+            # retain only the last thumbnail of each type
+            subquery = (
+                sa.select(func.max(Thumbnail.id).label("id"))
+                .where(Thumbnail.obj_id == str(obj_id).strip())
+                .group_by(Thumbnail.type)
+            )
+            options.append(joinedload(Obj.thumbnails.and_(Thumbnail.id.in_(subquery))))
+        else:
+            options.append(joinedload(Obj.thumbnails))
     if include_detection_stats:
         options.append(joinedload(Obj.photstats))
 
     stmt = Obj.select(user, options=options)
-
-    if obj_id in [None, ""] and tns_name in [None, ""]:
-        raise ValueError("Either obj_id or tns_name must be provided")
 
     if obj_id not in [None, ""]:
         stmt = stmt.where(Obj.id == str(obj_id).strip())
@@ -231,8 +240,8 @@ async def get_source(
     s = session.scalar(stmt)
     if s is None:
         raise ValueError("Source not found")
-
     source_info = s.to_dict()
+
     followup_requests = (
         session.scalars(
             FollowupRequest.select(

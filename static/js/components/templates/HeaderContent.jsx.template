@@ -14,6 +14,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import ProfileDropdown from "../ProfileDropdown";
 import Logo from "../Logo";
 import Notifications from "../Notifications";
+import Notes from "../Notes";
 import hydrate from "../../actions";
 
 import QuickSearchBar from "../QuickSearchBar";
@@ -123,6 +124,7 @@ const HeaderContent = () => {
           </Tooltip>
         </Box>
         <Notifications />
+        <Notes />
         <ProfileDropdown />
       </div>
       <Box display={{"{{ xs: openSearch ? 'flex' : 'none', md: 'none' }}"}} style={{"{{paddingRight: '0.5rem', flexDirection: 'row', alignItems: 'center'}}"}}>
