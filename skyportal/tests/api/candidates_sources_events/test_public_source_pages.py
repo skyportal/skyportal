@@ -46,7 +46,7 @@ def test_group_manage_sources_create_page_no_data(manage_sources_token, public_s
     assert_api_fail(status, data, 400, "Options are required")
 
 
-def test_group_manage_sources_create_page_with_data(
+def test_group_manage_sources_create_page_with_empty_options(
     manage_sources_token, public_source
 ):
     status, data = api(
