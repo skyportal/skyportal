@@ -583,24 +583,31 @@ class LCOAPI(FollowUpAPI):
 
             content = request.transactions[0].response["content"]
             content = json.loads(content)
-            uid = content["id"]
 
-            r = requests.post(
-                f"{requestpath}{uid}/cancel/",
-                headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
-            )
+            if "id" in content:
+                uid = content["id"]
 
-            r.raise_for_status()
-            request.status = "deleted"
+                r = requests.post(
+                    f"{requestpath}{uid}/cancel/",
+                    headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
+                )
 
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
+                r.raise_for_status()
+                request.status = "deleted"
 
-            session.add(transaction)
+                transaction = FacilityTransaction(
+                    request=http.serialize_requests_request(r.request),
+                    response=http.serialize_requests_response(r),
+                    followup_request=request,
+                    initiator_id=request.last_modified_by_id,
+                )
+
+                session.add(transaction)
+            else:
+                session.query(FollowupRequest).filter(
+                    FollowupRequest.id == request.id
+                ).delete()
+                session.commit()
 
         if kwargs.get('refresh_source', False):
             flow = Flow()
