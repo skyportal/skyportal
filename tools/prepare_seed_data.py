@@ -26,8 +26,6 @@ if __name__ == "__main__":
                 'version': str(tdtax.__version__),
             }
         ]
-        variables_taxonomy = yaml.load(
-            open("data/variable_taxonomy.yaml"), Loader=yaml.Loader
-        )
+        variables_taxonomy = yaml.safe_load(open("data/variable_taxonomy.yaml"))
         tax_obj.append(variables_taxonomy)
         yaml.dump(tax_obj, f)

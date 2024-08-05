@@ -11,7 +11,6 @@ import requests
 import numpy as np
 import pandas as pd
 import yaml
-from yaml import Loader
 from regions import Regions
 from astropy.table import Table
 
@@ -62,7 +61,7 @@ if __name__ == "__main__":
         raise NotImplementedError("Cannot yet handle multiple data files")
 
     fname = env.data_files[0]
-    src = yaml.load(open(fname), Loader=Loader)
+    src = yaml.safe_load(open(fname))
     src_path = os.path.dirname(fname)
 
     if env.create_tables:
@@ -96,7 +95,7 @@ if __name__ == "__main__":
             return env.token
 
         try:
-            token = yaml.load(open('.tokens.yaml'), Loader=yaml.Loader)['INITIAL_ADMIN']
+            token = yaml.safe_load(open('.tokens.yaml'))['INITIAL_ADMIN']
             return token
         except (FileNotFoundError, TypeError, KeyError):
             return None
@@ -266,7 +265,7 @@ if __name__ == "__main__":
         print(f'Posting to {endpoint}: ', end='')
         if 'file' in to_post:
             filename = pjoin(src_path, to_post['file'])
-            post_objs = yaml.load(open(filename), Loader=yaml.Loader)
+            post_objs = yaml.safe_load(open(filename))
         else:
             post_objs = to_post
 
