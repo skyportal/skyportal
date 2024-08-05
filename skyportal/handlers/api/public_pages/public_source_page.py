@@ -280,7 +280,7 @@ class PublicSourcePageHandler(BaseHandler):
         if source_id is None:
             return self.error("Source ID is required")
         with self.Session() as session:
-            public_source_pages = session.execute(
+            public_source_pages = session.scalars(
                 PublicSourcePage.select(session.user_or_token, mode="read")
                 .where(
                     PublicSourcePage.source_id == source_id, PublicSourcePage.is_visible
