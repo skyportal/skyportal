@@ -513,16 +513,22 @@ class SOARAPI(FollowUpAPI):
 
                 r.raise_for_status()
 
-            request.status = "deleted"
+                request.status = "deleted"
 
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
+                transaction = FacilityTransaction(
+                    request=http.serialize_requests_request(r.request),
+                    response=http.serialize_requests_response(r),
+                    followup_request=request,
+                    initiator_id=request.last_modified_by_id,
+                )
 
-            session.add(transaction)
+                session.add(transaction)
+
+            else:
+                session.query(FollowupRequest).filter(
+                    FollowupRequest.id == request.id
+                ).delete()
+                session.commit()
 
         if kwargs.get('refresh_source', False):
             flow = Flow()
