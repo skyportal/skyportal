@@ -479,6 +479,52 @@ class SEDMV2API(FollowUpAPI):
             },
         },
     }
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "ssh_host": {
+                "type": "string",
+                "title": "SSH Host",
+                "description": "Host to retrieve the instrument current status",
+            },
+            "ssh_port": {
+                "type": "number",
+                "title": "SSH Port",
+                "description": "Port to retrieve the instrument current status",
+            },
+            "ssh_username": {
+                "type": "string",
+                "title": "SSH Username",
+                "description": "Username to retrieve the instrument current status",
+            },
+            "ssh_password": {
+                "type": "string",
+                "title": "SSH Password",
+                "description": "Password to retrieve the instrument current status",
+            },
+            "api_token": {
+                "type": "string",
+                "title": "API Token",
+                "description": "API Token to submit/edit/delete observation requests",
+            },
+            "user": {
+                "type": "string",
+                "title": "User",
+                "description": "User to retrieve the instrument logs",
+            },
+            "password": {
+                "type": "string",
+                "title": "Password",
+                "description": "Password to retrieve the instrument logs",
+            },
+            "url": {
+                "type": "string",
+                "title": "URL",
+                "description": "URL to retrieve the instrument logs",
+            },
+        },
+    }
+
     ui_json_schema = {}
     alias_lookup = {
         'observation_choice': "Request",

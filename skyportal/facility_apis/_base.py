@@ -79,6 +79,10 @@ class _Base:
         except AttributeError:
             formSchemaForcedPhotometry = None
         try:
+            formSchemaAltdata = cls.form_json_schema_altdata
+        except AttributeError:
+            formSchemaAltdata = None
+        try:
             priority_order = cls.priority_order
         except AttributeError:
             priority_order = None
@@ -86,6 +90,7 @@ class _Base:
             'methodsImplemented': cls.implements(),
             'formSchema': formSchema,
             'formSchemaForcedPhotometry': formSchemaForcedPhotometry,
+            'formSchemaAltdata': formSchemaAltdata,
             'uiSchema': cls.ui_json_schema,
             'aliasLookup': cls.alias_lookup,
             'priorityOrder': priority_order,

@@ -1,4 +1,5 @@
 import io
+import json
 
 import astropy
 import matplotlib
@@ -507,6 +508,20 @@ class AllocationHandler(BaseHandler):
         """
 
         data = self.get_json()
+        if isinstance(data.get('_altdata'), dict):
+            # sanitize the dictionnary, removing keys with null or empty values
+            data['_altdata'] = {
+                k: v
+                for k, v in data['_altdata'].items()
+                if v is not None and str(v).strip() != ""
+            }
+            # if it ends up being a dictionnary with no keys, remove it
+            # otherwise convert it to a string
+            if not data['_altdata'] or not any(data['_altdata']):
+                data.pop('_altdata')
+            else:
+                # then convert it to a string
+                data['_altdata'] = json.dumps(data['_altdata'])
         with self.Session() as session:
             allocation_admin_ids = data.pop('allocation_admin_ids', None)
             if allocation_admin_ids is not None:
@@ -598,6 +613,20 @@ class AllocationHandler(BaseHandler):
 
             data = self.get_json()
             data['id'] = allocation_id
+            if isinstance(data.get('_altdata'), dict):
+                # sanitize the dictionnary, removing keys with null or empty values
+                data['_altdata'] = {
+                    k: v
+                    for k, v in data['_altdata'].items()
+                    if v is not None and str(v).strip() != ""
+                }
+                # if it ends up being a dictionnary with no keys, remove it
+                # otherwise convert it to a string
+                if not data['_altdata'] or not any(data['_altdata']):
+                    data.pop('_altdata')
+                else:
+                    # then convert it to a string
+                    data['_altdata'] = json.dumps(data['_altdata'])
 
             allocation_admin_ids = data.pop('allocation_admin_ids', [])
 

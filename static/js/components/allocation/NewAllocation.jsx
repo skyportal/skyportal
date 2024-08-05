@@ -36,7 +36,9 @@ const useStyles = makeStyles(() => ({
 }));
 
 const NewAllocation = ({ onClose }) => {
-  const { instrumentList } = useSelector((state) => state.instruments);
+  const { instrumentList, instrumentFormParams } = useSelector(
+    (state) => state.instruments,
+  );
   const { telescopeList } = useSelector((state) => state.telescopes);
   const allowedAllocationTypes = useSelector(
     (state) => state.config.allowedAllocationTypes,
@@ -45,6 +47,7 @@ const NewAllocation = ({ onClose }) => {
   const group = useSelector((state) => state.group);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [selectedFormData, setSelectedFormData] = useState(null);
   const dispatch = useDispatch();
   const classes = useStyles();
 
@@ -93,6 +96,43 @@ const NewAllocation = ({ onClose }) => {
       .replace(".000Z", "");
     if (selectedGroupIds.length > 0) {
       formData.default_share_group_ids = selectedGroupIds;
+    }
+    // if _altdata exists in formData and its length is > 0,
+    // use that as the _altdata value
+    // but if the selected instrument has a corresponding entry in
+    // instrumentFormParams, take all the values from the form that are not the basic ones
+    // like (group_id, users, start_date, end_date, allocation_admin_ids, default_share_group_ids)
+    // and put them in _altdata, then pop out the ones that are empty
+    if (!formData._altdata || formData._altdata.length == 0) {
+      const newAltData = {};
+      if (instrumentFormParams[formData.instrument_id]) {
+        const basicKeys = [
+          "group_id",
+          "users",
+          "start_date",
+          "end_date",
+          "allocation_admin_ids",
+          "default_share_group_ids",
+          "instrument_id",
+          "pi",
+          "hours_allocated",
+          "_altdata",
+          "types",
+        ];
+        const altDataKeys = Object.keys(formData).filter(
+          (key) => !basicKeys.includes(key),
+        );
+        altDataKeys.forEach((key) => {
+          if (formData[key]) {
+            newAltData[key] = formData[key];
+          }
+        });
+        formData._altdata = newAltData;
+        // remove these keys from the main formData
+        altDataKeys.forEach((key) => {
+          delete formData[key];
+        });
+      }
     }
     const result = await dispatch(submitAllocation(formData));
     if (result.status === "success") {
@@ -172,11 +212,6 @@ const NewAllocation = ({ onClose }) => {
           } / ${instrument.name}`,
         })),
         title: "Instrument",
-        default: instrumentList[0]?.id,
-      },
-      _altdata: {
-        type: "string",
-        title: "Alternative json data (i.e. {'slack_token': 'testtoken'}",
       },
     },
     required: [
@@ -187,6 +222,31 @@ const NewAllocation = ({ onClose }) => {
       "hours_allocated",
     ],
   };
+
+  if (
+    selectedFormData?.instrument_id &&
+    instrumentFormParams[selectedFormData?.instrument_id]?.formSchemaAltdata
+      ?.properties
+  ) {
+    const formSchemaAltdata =
+      instrumentFormParams[selectedFormData?.instrument_id]?.formSchemaAltdata;
+    allocationFormSchema.properties = {
+      ...allocationFormSchema.properties,
+      ...formSchemaAltdata?.properties,
+    };
+    allocationFormSchema.required = [
+      ...allocationFormSchema.required,
+      ...(formSchemaAltdata?.required || []),
+    ];
+    if (formSchemaAltdata?.dependencies) {
+      allocationFormSchema.dependencies = formSchemaAltdata?.dependencies;
+    }
+  } else {
+    allocationFormSchema.properties._altdata = {
+      type: "string",
+      title: "Alternative json data (i.e. {'slack_token': 'testtoken'}",
+    };
+  }
 
   return (
     <div>
@@ -261,6 +321,8 @@ const NewAllocation = ({ onClose }) => {
         validator={validator}
         onSubmit={handleSubmit}
         customValidate={validate}
+        formData={selectedFormData}
+        onChange={({ formData }) => setSelectedFormData(formData)}
         liveValidate
       />
       <GroupShareSelect

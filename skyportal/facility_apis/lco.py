@@ -704,6 +704,24 @@ class LCOAPI(FollowUpAPI):
                 'skyportal/REFRESH_FOLLOWUP_REQUESTS',
             )
 
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "API_TOKEN": {
+                "type": "string",
+                "title": "API Token",
+            },
+            "API_ARCHIVE_TOKEN": {
+                "type": "string",
+                "title": "API Archive Token",
+            },
+            "PROPOSAL_ID": {
+                "type": "string",
+                "title": "Proposal ID",
+            },
+        },
+    }
+
 
 class SINISTROAPI(LCOAPI):
 
