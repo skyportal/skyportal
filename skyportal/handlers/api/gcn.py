@@ -2101,7 +2101,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
         # sort the notices by date (which is a datetime object)
         latest_notice = sorted(event.gcn_notices, key=lambda x: x.date)[-1]
         event_properties = event.properties
-        if not isinstance(event_properties, list) and len(event_properties) > 0:
+        if not isinstance(event_properties, list) or len(event_properties) == 0:
             log(
                 f"No GCN properties found for event {event.id}, skipping default observation plan"
             )

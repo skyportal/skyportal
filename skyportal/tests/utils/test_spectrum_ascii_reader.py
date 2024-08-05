@@ -20,7 +20,7 @@ def test_spectrum_read_directly_from_file(public_source, lris):
             instrument_id=instrument_id,
         )
 
-        answer = yaml.load(open(filename), Loader=yaml.FullLoader)
+        answer = yaml.safe_load(open(filename))
 
         # check the header serialization
         for key in answer:
