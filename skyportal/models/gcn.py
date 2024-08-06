@@ -916,14 +916,8 @@ def gcnevent_user_access_logic(cls, user_or_token):
 GcnEventUser = join_model('gcnevent_users', GcnEvent, User)
 GcnEventUser.__doc__ = "Join table mapping `GcnEvent`s to `User`s."
 GcnEventUser.create = GcnEventUser.read = public
-GcnEventUser.update = GcnEventUser.delete = AccessibleIfUserMatches(
-    'user'
-)  # CustomUserAccessControl(gcnevent_user_access_logic)
+GcnEventUser.update = GcnEventUser.delete = AccessibleIfUserMatches('user')
 
-# We add a column_property to GcnEvent that is an array of the ids of the gcnevent_users in the shift.
-# This is useful for the frontend, to track how many users out of the required number are in the shift,
-# and also tro track if the current user using the frontend is in the shift or not, while avoiding a joinedload with the GcnEventUser table.
-# Compared to a property or a hybrid_property, a column_property will be loaded by default and doesnt need to be called explicitly, just like a normal column.
 GcnEvent.event_users_ids = column_property(
     select(func.array_agg(GcnEventUser.user_id))
     .where(GcnEventUser.gcnevent_id == GcnEvent.id)

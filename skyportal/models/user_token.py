@@ -119,7 +119,7 @@ User.gcnevents = relationship(
     secondary='gcnevent_users',
     back_populates='users',
     passive_deletes=True,
-    doc="The GcnEvents this User is a member of.",
+    doc="The GcnEvents this User is an advocate for.",
 )
 User.comments = relationship(
     "Comment",

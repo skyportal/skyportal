@@ -1942,22 +1942,22 @@ class GcnEventUserHandler(BaseHandler):
             return self.error("Invalid userID parameter: unable to parse to integer")
 
         with self.Session() as session:
-            event = session.scalars(
+            event = session.scalar(
                 GcnEvent.select(
                     session.user_or_token,
                     options=[joinedload(GcnEvent.gcnevent_users)],
                 ).where(GcnEvent.dateobs == dateobs)
-            ).first()
+            )
 
-            user = session.scalars(
+            user = session.scalar(
                 User.select(session.user_or_token).where(User.id == user_id)
-            ).first()
+            )
 
-            gu = session.scalars(
+            gu = session.scalar(
                 GcnEventUser.select(session.user_or_token)
                 .where(GcnEventUser.gcnevent_id == event.id)
                 .where(GcnEventUser.user_id == user_id)
-            ).first()
+            )
             if gu is not None:
                 return self.error(
                     f"User {user_id} is already a member of event {event.dateobs}."
@@ -2018,18 +2018,18 @@ class GcnEventUserHandler(BaseHandler):
             return self.error("Invalid userID parameter: unable to parse to integer")
 
         with self.Session() as session:
-            event = session.scalars(
+            event = session.scalar(
                 GcnEvent.select(
                     session.user_or_token,
                     options=[joinedload(GcnEvent.gcnevent_users)],
                 ).where(GcnEvent.dateobs == dateobs)
-            ).first()
+            )
 
-            gu = session.scalars(
+            gu = session.scalar(
                 GcnEventUser.select(session.user_or_token, mode='delete')
                 .where(GcnEventUser.gcnevent_id == event.id)
                 .where(GcnEventUser.user_id == user_id)
-            ).first()
+            )
             if gu is None:
                 return self.error(
                     "GcnEventUser does not exist, or you don't have the right to delete them.",
