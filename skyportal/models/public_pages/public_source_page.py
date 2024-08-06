@@ -84,22 +84,21 @@ class PublicSourcePage(Base):
             'created_at': self.created_at,
             'hash': self.hash,
             'options': {
-                self.options_state("photometry"),
-                self.options_state("classifications"),
-                self.options_state("spectroscopy"),
-                self.options_state("summary"),
+                "photometry": self.option_state("photometry"),
+                "classifications": self.option_state("classifications"),
+                "spectroscopy": self.option_state("spectroscopy"),
+                "summary": self.option_state("summary"),
             },
         }
 
-    def options_state(self, option_name):
+    def option_state(self, option_name):
         option = self.data.get(option_name)
         if option is None:
-            option_state = "private"
+            "private"
         elif len(option) > 0:
-            option_state = "public"
+            "public"
         else:
-            option_state = "no data"
-        return {option_name: option_state}
+            "no data"
 
     def generate_page(self):
         """Generate the public page for the source and cache it."""
