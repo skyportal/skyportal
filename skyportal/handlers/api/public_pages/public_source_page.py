@@ -13,6 +13,7 @@ from ....enum_types import THUMBNAIL_TYPES
 
 from ....models import (
     PublicSourcePage,
+    PublicRelease,
     Photometry,
     Spectrum,
     Instrument,
@@ -74,15 +75,15 @@ def get_photometry(source_id, group_ids, stream_ids, session):
 
 
 def get_spectroscopy(source_id, group_ids, session):
-    query = (
+    stmt = (
         Spectrum.select(session.user_or_token, mode="read")
         .where(Spectrum.obj_id == source_id)
         .join(Spectrum.instrument)
         .order_by(Instrument.name, Spectrum.observed_at.desc())
     )
     if len(group_ids) > 0:
-        query = query.where(or_(Spectrum.groups.any(Group.id.in_(group_ids))))
-    return [spec.to_dict_public() for spec in session.scalars(query).all()]
+        stmt = stmt.where(Spectrum.groups.any(Group.id.in_(group_ids)))
+    return [spec.to_dict_public() for spec in session.scalars(stmt).unique().all()]
 
 
 def get_classifications(source_id, group_ids, session):
@@ -125,6 +126,10 @@ class PublicSourcePageHandler(BaseHandler):
                                 type: object
                                 required: true
                                 description: Options to manage data to display publicly
+                            release_id:
+                                type: integer
+                                required: false
+                                description: The ID of the public release where the public source page belongs
           responses:
             200:
               content:
@@ -143,6 +148,9 @@ class PublicSourcePageHandler(BaseHandler):
         options = data.get("options")
         if options is None:
             return self.error("Options are required")
+        release_id = data.get("release_id")
+        if release_id is not None and not isinstance(release_id, int):
+            return self.error("Invalid release ID")
 
         with self.Session() as session:
             group_ids = options.get("groups")
@@ -161,6 +169,15 @@ class PublicSourcePageHandler(BaseHandler):
             if source is None:
                 return self.error("Source not found", status=404)
 
+            if release_id is not None:
+                release = session.scalar(
+                    PublicRelease.select(session.user_or_token, mode="read").where(
+                        PublicRelease.id == release_id
+                    )
+                )
+                if release is None:
+                    return self.error("Release not found", status=404)
+
             data_to_publish = {
                 "ra": safe_round(source.get("ra"), 6),
                 "dec": safe_round(source.get("dec"), 6),
@@ -174,6 +191,7 @@ class PublicSourcePageHandler(BaseHandler):
                     source["thumbnails"], source["ra"], source["dec"]
                 ),
                 "options": options,
+                "release_link_name": release.link_name if release_id else None,
             }
             if options.get("include_summary"):
                 data_to_publish["summary"] = source.get("summary")
@@ -192,16 +210,16 @@ class PublicSourcePageHandler(BaseHandler):
 
             new_page_hash = calculate_hash(data_to_publish)
             if (
-                session.scalars(
+                session.scalar(
                     PublicSourcePage.select(session.user_or_token, mode="read").where(
                         PublicSourcePage.source_id == source_id,
                         PublicSourcePage.hash == new_page_hash,
                     )
-                ).first()
+                )
                 is not None
             ):
                 return self.error(
-                    "A public page with the same data and same options already exists for this source"
+                    "A public page with the same data, options and release already exists for this source"
                 )
 
             public_source_page = PublicSourcePage(
@@ -209,18 +227,26 @@ class PublicSourcePageHandler(BaseHandler):
                 hash=new_page_hash,
                 data=data_to_publish,
                 is_visible=True,
+                release_id=release_id,
             )
             session.add(public_source_page)
             session.commit()
-            try:
-                public_source_page.generate_page()
-            except Exception as e:
-                session.rollback()
-                if public_source_page in session:
-                    session.delete(public_source_page)
-                    session.commit()
-                return self.error(f"Error generating public page: {e}")
-            return self.success(data={"PublicSourcePage": public_source_page})
+
+            if release_id is None or release.is_visible:
+                try:
+                    public_source_page.generate_page()
+                except Exception as e:
+                    session.rollback()
+                    if public_source_page in session:
+                        session.delete(public_source_page)
+                        session.commit()
+                    return self.error(f"Error generating public page: {e}")
+
+            self.push_all(
+                action="skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
+                payload={'source_id': source_id},
+            )
+            return self.success()
 
     @auth_or_token
     def get(self, source_id):
@@ -254,7 +280,7 @@ class PublicSourcePageHandler(BaseHandler):
         if source_id is None:
             return self.error("Source ID is required")
         with self.Session() as session:
-            public_source_pages = session.execute(
+            public_source_pages = session.scalars(
                 PublicSourcePage.select(session.user_or_token, mode="read")
                 .where(
                     PublicSourcePage.source_id == source_id, PublicSourcePage.is_visible
@@ -263,7 +289,7 @@ class PublicSourcePageHandler(BaseHandler):
             ).all()
             return self.success(data=public_source_pages)
 
-    @auth_or_token
+    @permissions(['Manage sources'])
     def delete(self, page_id):
         """
         ---
@@ -292,11 +318,11 @@ class PublicSourcePageHandler(BaseHandler):
             return self.error("Page ID is required")
 
         with self.Session() as session:
-            public_source_page = session.scalars(
+            public_source_page = session.scalar(
                 PublicSourcePage.select(session.user_or_token, mode="delete").where(
                     PublicSourcePage.id == page_id
                 )
-            ).first()
+            )
 
             if public_source_page is None:
                 return self.error("Public source page not found", status=404)
@@ -304,4 +330,9 @@ class PublicSourcePageHandler(BaseHandler):
 
             session.delete(public_source_page)
             session.commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
+                payload={'source_id': public_source_page.source_id},
+            )
             return self.success()

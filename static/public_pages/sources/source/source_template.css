@@ -1,4 +1,17 @@
-.content {
+header {
+  display: flex;
+  justify-content: space-between;
+  .logoAndTitle {
+    display: flex;
+    align-items: center;
+  }
+  .release {
+    color: white;
+    font-weight: bold;
+  }
+}
+
+.sourceTemplate {
   position: relative;
   display: flex;
   flex-direction: column;
