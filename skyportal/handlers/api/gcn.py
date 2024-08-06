@@ -395,35 +395,37 @@ def post_skymap_from_notice(
                     if name is not None:
                         name = name.text
 
+                tags_formatted = [tag.upper().strip() for tag in tags]
                 if name is not None:
                     source = {
                         'id': name.replace(' ', ''),
                         'ra': ra,
                         'dec': dec,
                     }
-                elif any([True if 'GRB' in tag.upper() else False for tag in tags]):
+                elif 'GRB' in tags_formatted:
                     dateobs_txt = Time(dateobs).isot
                     source_name = f"GRB-{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                    source = {
-                        'id': source_name,
-                        'ra': ra,
-                        'dec': dec,
-                    }
-                elif any([True if 'GW' in tag.upper() else False for tag in tags]):
+                    origin = None
+                    if 'SWIFT' in tags_formatted:
+                        origin = 'Swift'
+                    elif 'FERMI' in tags_formatted:
+                        origin = 'Fermi'
+                    source = {'id': source_name, 'ra': ra, 'dec': dec, 'origin': origin}
+                elif 'GW' in tags_formatted:
                     dateobs_txt = Time(dateobs).isot
                     source_name = f"GW-{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                    source = {
-                        'id': source_name,
-                        'ra': ra,
-                        'dec': dec,
-                    }
-                elif any([True if 'Einstein Probe' in tag else False for tag in tags]):
+                    origin = None
+                    if 'LVC' in tags_formatted:
+                        origin = 'LVC'
+                    source = {'id': source_name, 'ra': ra, 'dec': dec, 'origin': origin}
+                elif 'Einstein Probe' in tags_formatted:
                     dateobs_txt = Time(dateobs).isot
                     source_name = f"EP-{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
                     source = {
                         'id': source_name,
                         'ra': ra,
                         'dec': dec,
+                        'origin': 'Einstein Probe',
                     }
                 else:
                     source = {
