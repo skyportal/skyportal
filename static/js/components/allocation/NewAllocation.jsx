@@ -35,6 +35,20 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+const basicKeys = [
+  "group_id",
+  "users",
+  "start_date",
+  "end_date",
+  "allocation_admin_ids",
+  "default_share_group_ids",
+  "instrument_id",
+  "pi",
+  "hours_allocated",
+  "_altdata",
+  "types",
+];
+
 const NewAllocation = ({ onClose }) => {
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments,
@@ -97,28 +111,15 @@ const NewAllocation = ({ onClose }) => {
     if (selectedGroupIds.length > 0) {
       formData.default_share_group_ids = selectedGroupIds;
     }
-    // if _altdata exists in formData and its length is > 0,
-    // use that as the _altdata value
-    // but if the selected instrument has a corresponding entry in
-    // instrumentFormParams, take all the values from the form that are not the basic ones
-    // like (group_id, users, start_date, end_date, allocation_admin_ids, default_share_group_ids)
-    // and put them in _altdata, then pop out the ones that are empty
+    // if _altdata is provided as a string keep it as is
+    // otherwise if the instrument has an altdata form
+    // from its API class, use that to populate _altdata
+    // its tricky to infer the keys from the formSchemaAltdata
+    // so instead just pop out the regular keys from the form data
+    // to get the _altdata
     if (!formData._altdata || formData._altdata.length == 0) {
       const newAltData = {};
       if (instrumentFormParams[formData.instrument_id]) {
-        const basicKeys = [
-          "group_id",
-          "users",
-          "start_date",
-          "end_date",
-          "allocation_admin_ids",
-          "default_share_group_ids",
-          "instrument_id",
-          "pi",
-          "hours_allocated",
-          "_altdata",
-          "types",
-        ];
         const altDataKeys = Object.keys(formData).filter(
           (key) => !basicKeys.includes(key),
         );
