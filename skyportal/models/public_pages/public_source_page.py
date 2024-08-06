@@ -2,6 +2,7 @@ __all__ = ['PublicSourcePage']
 
 import json
 import jinja2
+import datetime
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import deferred
@@ -124,7 +125,21 @@ class PublicSourcePage(Base):
             loader=jinja2.FileSystemLoader("./static/public_pages/sources/source"),
         )
         environment.policies['json.dumps_function'] = to_json
+        environment.filters["format_date"] = lambda x: (
+            datetime.datetime.fromisoformat(x)
+        ).strftime("%x")
         template = environment.get_template("source_template.html")
+
+        # retain only the last thumbnail of each type
+        thumbnails_filtered = []
+        for index, thumbnail in enumerate(public_data.get("thumbnails", [])):
+            if (
+                index + 1 >= len(public_data["thumbnails"])
+                or thumbnail["type"] != public_data["thumbnails"][index + 1]["type"]
+            ):
+                thumbnails_filtered.append(thumbnail)
+        public_data["thumbnails"] = thumbnails_filtered
+
         html = template.render(
             source_id=self.source_id,
             data=public_data,

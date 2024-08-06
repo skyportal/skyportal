@@ -562,6 +562,9 @@ def test_add_scanning_profile(
     driver.get("/candidates")
     driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
 
+    # click on the + icon on the top right of the table to open the form
+    driver.click_xpath('//button[@name="new_scanning_profile"]')
+
     # let the form initialize, load the groups, etc.
     time.sleep(1)
 
@@ -624,6 +627,9 @@ def test_delete_scanning_profile(driver, user, public_group):
     driver.get("/candidates")
     driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
 
+    # click on the + icon on the top right of the table to open the form
+    driver.click_xpath('//button[@name="new_scanning_profile"]')
+
     # let the form initialize, load the groups, etc.
     time.sleep(1)
 
@@ -644,8 +650,9 @@ def test_delete_scanning_profile(driver, user, public_group):
     # Submit and check it shows up in table of profiles
     driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
     driver.wait_for_xpath('//div[text()="123hrs"]')
+
     # Delete and check that it disappears
-    driver.click_xpath('//tr[.//div[text()="123hrs"]]//button[text()="Delete"]')
+    driver.click_xpath('//button[@id="delete_button_0"]')
     driver.wait_for_xpath_to_disappear('//div[text()="123hrs"]')
 
 
@@ -658,6 +665,9 @@ def test_load_scanning_profile(
 
     # Add two scanning profiles with different max redshifts
     driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
+
+    # click on the + icon on the top right of the table to open the form
+    driver.click_xpath('//button[@name="new_scanning_profile"]')
 
     # let the form initialize, load the groups, etc.
     time.sleep(1)
@@ -676,11 +686,20 @@ def test_load_scanning_profile(
     driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
     driver.wait_for_xpath('//div[contains(text(), "0.5")]')
 
-    redshift_maximum_input.clear()
+    # click on the + icon on the top right of the table to open the form
+    driver.click_xpath('//button[@name="new_scanning_profile"]')
+
+    redshift_maximum_input = driver.wait_for_xpath(
+        '//div[@data-testid="profile-maximum-redshift"]//input'
+    )
     redshift_maximum_input.send_keys("1.0")
     name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
     name_input.clear()
     name_input.send_keys("profile2")
+    driver.click_xpath(
+        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]',
+        scroll_parent=True,
+    )
     driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
     driver.wait_for_xpath('//div[contains(text(), "1.0")]')
 

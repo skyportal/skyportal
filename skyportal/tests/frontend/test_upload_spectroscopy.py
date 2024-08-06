@@ -1,5 +1,7 @@
 import os
+from selenium.webdriver import ActionChains
 import uuid
+
 import pytest
 from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES
 
@@ -28,14 +30,24 @@ def test_upload_spectroscopy(
     driver.scroll_to_element_and_click(mjd_element)
     mjd_element.send_keys('51232.0')
 
+    # Click somewhere outside to remove focus from MJD input
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
+
     instrument_id_element_xpath = '//*[@id="root_instrument_id"]'
-    driver.click_xpath(instrument_id_element_xpath, scroll_parent=True)
+    instrument_element = driver.wait_for_xpath(instrument_id_element_xpath)
+    driver.scroll_to_element_and_click(instrument_element)
 
     sedm_element_xpath = f'//li[contains(text(), "{sedm.name}")]'
     driver.click_xpath(sedm_element_xpath, scroll_parent=True)
 
+    # Click somewhere outside to remove focus from instrument input
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
+
     type_element_xpath = '//*[@id="root_spectrum_type"]'
-    driver.click_xpath(type_element_xpath, scroll_parent=True)
+    type_element = driver.wait_for_xpath(type_element_xpath)
+    driver.scroll_to_element_and_click(type_element)
 
     host_element_xpath = f'//li[contains(text(), "{ALLOWED_SPECTRUM_TYPES[-1]}")]'
     driver.click_xpath(host_element_xpath, scroll_parent=True)
@@ -46,10 +58,12 @@ def test_upload_spectroscopy(
     label_element.send_keys(user_defined_label)
 
     preview_button_xpath = '//button[contains(.,"Preview")]'
-    driver.click_xpath(preview_button_xpath, scroll_parent=True)
+    preview_button = driver.wait_for_xpath(preview_button_xpath)
+    driver.scroll_to_element_and_click(preview_button)
 
     submit_button_xpath = '//button[contains(.,"Upload Spectrum")]'
-    driver.click_xpath(submit_button_xpath, scroll_parent=True, timeout=30)
+    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    driver.scroll_to_element_and_click(submit_button)
 
     driver.wait_for_xpath('//*[contains(.,"successful")]', timeout=10)
 

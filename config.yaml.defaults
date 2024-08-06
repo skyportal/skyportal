@@ -30,6 +30,7 @@ app:
   sedm_endpoint: http://minar.caltech.edu/add_fritz
   sedmv2_endpoint:
   trt_endpoint: https://trt.narit.or.th/hub/api
+  tarot_endpoint:
 
   lt_host: 161.72.57.3
   lt_port: 8080
@@ -571,7 +572,7 @@ external_logging:
     # Set traces_sample_rate to 1.0 to capture 100%
     # of transactions for performance monitoring.
     # Sentry recommends adjusting this value in production.
-    traces_sample_rate: 1.0
+    traces_sample_rate: 0.25
     # Set profiles_sample_rate to 1.0 to profile 100%
     # of sampled transactions.
     # We recommend adjusting this value in production.

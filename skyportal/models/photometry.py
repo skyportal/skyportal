@@ -459,16 +459,16 @@ class Photometry(conesearch_alchemy.Point, Base):
             validation=True,
         )
         return {
-            "mjd": serialize_photometry["mjd"],
-            "mag": serialize_photometry["mag"],
-            "magerr": serialize_photometry["magerr"],
-            "filter": serialize_photometry["filter"],
-            "limiting_mag": serialize_photometry["limiting_mag"],
-            "instrument_id": serialize_photometry["instrument_id"],
-            "instrument_name": serialize_photometry["instrument_name"],
-            "origin": serialize_photometry["origin"],
+            "mjd": serialize_photometry.get("mjd"),
+            "mag": serialize_photometry.get("mag"),
+            "magerr": serialize_photometry.get("magerr"),
+            "filter": serialize_photometry.get("filter"),
+            "limiting_mag": serialize_photometry.get("limiting_mag"),
+            "instrument_id": serialize_photometry.get("instrument_id"),
+            "instrument_name": serialize_photometry.get("instrument_name"),
+            "origin": serialize_photometry.get("origin"),
             "notes": serialize_photometry["validations"][0].get("notes", "")
-            if serialize_photometry["validations"]
+            if serialize_photometry.get("validations")
             else "",
         }
 

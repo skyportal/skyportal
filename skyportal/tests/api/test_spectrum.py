@@ -1655,7 +1655,7 @@ def test_jsonify_spectrum_header(
         assert status == 200
         assert data['status'] == 'success'
 
-        answer = yaml.load(open(filename), Loader=yaml.FullLoader)
+        answer = yaml.safe_load(open(filename))
 
         # check the header serialization
         for key in answer:

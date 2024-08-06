@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import dataUriToBuffer from "data-uri-to-buffer";
+import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { fetchTaxonomies, submitTaxonomy } from "../../ducks/taxonomies";
 
@@ -19,9 +19,8 @@ const NewTaxonomy = ({ onClose }) => {
 
   const handleSubmit = async ({ formData }) => {
     formData.group_ids = selectedGroupIds;
-    formData.hierarchy_file = dataUriToBuffer(
-      formData.hierarchy_file,
-    ).toString();
+    const parsed = dataUriToBuffer(formData.hierarchy_file);
+    formData.hierarchy_file = new TextDecoder().decode(parsed.buffer);
     const result = await dispatch(submitTaxonomy(formData));
     if (result.status === "success") {
       dispatch(showNotification("Taxonomy saved"));

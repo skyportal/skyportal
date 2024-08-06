@@ -1175,6 +1175,12 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
         url = f'{depot_url}/{date}/ztf_recentproc_{date}.json'
         r = session.head(url)
 
+        if r.status_code == 401:
+            log(
+                f'Unauthorized access to depot for instrument ID {instrument_id} for JD: {jd}'
+            )
+            continue
+
         # file exists
         if r.status_code == 200:
             r = session.get(url)
@@ -1193,6 +1199,88 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                 df_group_median['processed_fraction'] = len(df_group["field_id"]) / 64.0
                 df_group_median['filter'] = inv_bands[int(df_group_median["filter_id"])]
                 dfs.append(df_group_median)
+        else:
+            # look for another similar file generated at the end of the night: goodsubs_YYYYMMDD.txt
+            url = f'{depot_url}/{date}/goodsubs_{date}.txt'
+            r = session.head(url)
+            if r.status_code == 200:
+                r = session.get(url)
+                from io import StringIO
+
+                obstable = pd.read_fwf(  # fwf is fixed width format
+                    StringIO(r.text),
+                    skiprows=[1],
+                    delimiter='|',
+                )
+                # remove spaces around the column names and str values if any
+                obstable.columns = [col.strip() for col in obstable.columns]
+                for col in obstable.columns:
+                    if obstable[col].dtype == 'object':
+                        obstable[col] = obstable[col].str.strip()
+
+                # remove the columns we do not need:
+                obstable = obstable[
+                    [
+                        'jd',
+                        'field',
+                        'fid',
+                        'expid',
+                        'diffmaglim',
+                        'difffwhm',
+                        'exptime',
+                        'subtractionstatus',
+                    ]
+                ]
+
+                # move rows with NaN values in any of the columns
+                obstable = obstable.dropna()
+
+                obstable['jd'] = obstable['jd'].astype(float)
+                obstable['field'] = obstable['field'].astype(int)
+                obstable['diffmaglim'] = obstable['diffmaglim'].astype(float)
+                obstable['difffwhm'] = obstable['difffwhm'].astype(float)
+                obstable['fid'] = obstable['fid'].astype(int)
+                obstable['expid'] = obstable['expid'].astype(int)
+                obstable['exptime'] = obstable['exptime'].astype(float)
+                obstable['subtractionstatus'] = obstable['subtractionstatus'].astype(
+                    int
+                )
+
+                if obstable.empty:
+                    log(
+                        f'No observations for instrument ID {instrument_id} for JD: {jd}'
+                    )
+                    continue
+
+                # only want successfully reduced images, the column in that file is called subtractionstatus, and 1 means success
+                obstable = obstable[obstable['subtractionstatus'] == 1]
+
+                # rename the relevant columns to have the same names as the other file
+                # and/or the name expected by the add_observation function
+                obstable.rename(
+                    columns={
+                        'jd': 'obsjd',
+                        'diffmaglim': 'maglim',
+                        'difffwhm': 'fwhm',
+                        'fid': 'filter_id',
+                        'field': 'field_id',
+                        'expid': 'exposure_id',
+                        'exptime': 'exposure_time',
+                    },
+                    inplace=True,
+                )
+
+                obs_grouped_by_exp = obstable.groupby('exposure_id')
+                for expid, df_group in obs_grouped_by_exp:
+                    df_group_median = df_group.median()
+                    df_group_median['observation_id'] = int(expid)
+                    df_group_median['processed_fraction'] = (
+                        len(df_group["field_id"]) / 64.0
+                    )
+                    df_group_median['filter'] = inv_bands[
+                        int(df_group_median["filter_id"])
+                    ]
+                    dfs.append(df_group_median)
 
     if len(dfs) > 0:
         obstable = pd.concat(dfs, axis=1).T

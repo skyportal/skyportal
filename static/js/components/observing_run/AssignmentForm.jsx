@@ -19,6 +19,24 @@ import Button from "../Button";
 
 dayjs.extend(utc);
 
+const useStyles = makeStyles((theme) => ({
+  formControl: {
+    margin: theme.spacing(1),
+    minWidth: 120,
+  },
+  formContainer: {
+    display: "flex",
+    flexFlow: "row wrap",
+    alignItems: "center",
+  },
+  observingRunSelectItem: {
+    whiteSpace: "break-spaces",
+  },
+  submitButton: {
+    margin: "0.5rem",
+  },
+}));
+
 export function observingRunTitle(
   observingRun,
   instrumentList,
@@ -59,30 +77,13 @@ export function observingRunTitle(
 
 const AssignmentForm = ({ obj_id, observingRunList }) => {
   const dispatch = useDispatch();
+  const classes = useStyles();
+
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
 
   const { handleSubmit, getValues, reset, register, control } = useForm();
-
-  const useStyles = makeStyles((theme) => ({
-    formControl: {
-      margin: theme.spacing(1),
-      minWidth: 120,
-    },
-    formContainer: {
-      display: "flex",
-      flexFlow: "row wrap",
-      alignItems: "center",
-    },
-    observingRunSelectItem: {
-      whiteSpace: "break-spaces",
-    },
-    submitButton: {
-      margin: "0.5rem",
-    },
-  }));
-  const classes = useStyles();
 
   // the use of integer dates leads to some upcoming runs being
   // left out depending on the timezone
@@ -184,17 +185,19 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
               )}
             />
           </FormControl>
-          <TextField
-            {...register("comment")}
-            id="standard-textarea"
-            label="Comment"
-            variant="outlined"
-            multiline
-            defaultValue=""
-            name="comment"
-            data-testid="assignmentCommentInput"
-            size="small"
-          />
+          <div className={classes.formControl}>
+            <TextField
+              {...register("comment")}
+              id="standard-textarea"
+              label="Comment"
+              variant="outlined"
+              multiline
+              defaultValue=""
+              name="comment"
+              data-testid="assignmentCommentInput"
+              size="small"
+            />
+          </div>
           <Button
             primary
             type="submit"

@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-// eslint-disable-next-line import/no-unresolved
+import Typography from "@mui/material/Typography";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -13,7 +13,9 @@ import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
 import GcnNoticeTypesSelect from "../gcn/GcnNoticeTypesSelect";
 import GcnTagsSelect from "../gcn/GcnTagsSelect";
+import GcnPropertiesSelect from "../gcn/GcnPropertiesSelect";
 import LocalizationTagsSelect from "../localization/LocalizationTagsSelect";
+import LocalizationPropertiesSelect from "../localization/LocalizationPropertiesSelect";
 
 import * as defaultObservationPlansActions from "../../ducks/default_observation_plans";
 import * as allocationActions from "../../ducks/allocations";
@@ -22,7 +24,25 @@ import GroupShareSelect from "../group/GroupShareSelect";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
-const useStyles = makeStyles(() => ({
+const conversions = {
+  FAR: {
+    backendUnit: "Hz",
+    frontendUnit: "Per year",
+    BackendToFrontend: (val) => parseFloat(val) * (365.25 * 24 * 60 * 60),
+    FrontendToBackend: (val) => parseFloat(val) / (365.25 * 24 * 60 * 60),
+  },
+};
+
+const comparators = {
+  lt: "<",
+  le: "<=",
+  eq: "=",
+  ne: "!=",
+  ge: ">",
+  gt: ">=",
+};
+
+const useStyles = makeStyles((theme) => ({
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -43,6 +63,41 @@ const useStyles = makeStyles(() => ({
     width: "99%",
     marginBottom: "1rem",
   },
+  form_group: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "left",
+    gap: "0.5rem",
+    width: "100%",
+    marginTop: "0.5rem",
+    marginBottom: "0.5rem",
+  },
+  form_group_title: {
+    fontSize: "1.2rem",
+  },
+  form_subgroup: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "left",
+    alignItems: "center",
+    gap: "0.25rem",
+    width: "100%",
+    "& > div": {
+      width: "100%",
+    },
+  },
+  formGroupDivider: {
+    width: "100%",
+    height: "2px",
+    background: theme.palette.grey[600],
+    margin: "0.5rem 0",
+  },
+  formSubGroupDivider: {
+    width: "100%",
+    height: "2px",
+    background: theme.palette.grey[300],
+    margin: "0.5rem 0",
+  },
 }));
 
 const NewDefaultObservationPlan = ({ onClose }) => {
@@ -51,7 +106,10 @@ const NewDefaultObservationPlan = ({ onClose }) => {
 
   const [selectedGcnNoticeTypes, setSelectedGcnNoticeTypes] = useState([]);
   const [selectedGcnTags, setSelectedGcnTags] = useState([]);
+  const [selectedGcnProperties, setSelectedGcnProperties] = useState([]);
   const [selectedLocalizationTags, setSelectedLocalizationTags] = useState([]);
+  const [selectedLocalizationProperties, setSelectedLocalizationProperties] =
+    useState([]);
 
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiObsplan } = useSelector(
@@ -128,25 +186,25 @@ const NewDefaultObservationPlan = ({ onClose }) => {
   }
 
   const groupLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   allGroups?.forEach((group) => {
     groupLookUp[group.id] = group;
   });
 
   const telLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
 
   const allocationLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   allocationListApiObsplan?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
   const instLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   instrumentList?.forEach((instrumentObj) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
@@ -163,6 +221,8 @@ const NewDefaultObservationPlan = ({ onClose }) => {
       notice_types: selectedGcnNoticeTypes,
       gcn_tags: selectedGcnTags,
       localization_tags: selectedLocalizationTags,
+      gcn_properties: selectedGcnProperties,
+      localization_properties: selectedLocalizationProperties,
     };
     const json = {
       allocation_id: selectedAllocationId,
@@ -239,25 +299,63 @@ const NewDefaultObservationPlan = ({ onClose }) => {
           </MenuItem>
         ))}
       </Select>
-      <br />
+      <div className={classes.formGroupDivider} />
       <GroupShareSelect
         groupList={allGroups}
         setGroupIDs={setSelectedGroupIds}
         groupIDs={selectedGroupIds}
       />
-      <GcnNoticeTypesSelect
-        selectedGcnNoticeTypes={selectedGcnNoticeTypes}
-        setSelectedGcnNoticeTypes={setSelectedGcnNoticeTypes}
-      />
-      <GcnTagsSelect
-        selectedGcnTags={selectedGcnTags}
-        setSelectedGcnTags={setSelectedGcnTags}
-      />
-      <LocalizationTagsSelect
-        selectedLocalizationTags={selectedLocalizationTags}
-        setSelectedLocalizationTags={setSelectedLocalizationTags}
-      />
+      <div className={classes.formGroupDivider} />
+      <div className={classes.form_group}>
+        <Typography className={classes.form_group_title}>
+          Event Filtering
+        </Typography>
+        <div className={classes.form_subgroup}>
+          <GcnNoticeTypesSelect
+            selectedGcnNoticeTypes={selectedGcnNoticeTypes}
+            setSelectedGcnNoticeTypes={setSelectedGcnNoticeTypes}
+          />
+          <GcnTagsSelect
+            selectedGcnTags={selectedGcnTags}
+            setSelectedGcnTags={setSelectedGcnTags}
+          />
+        </div>
+        <div className={classes.formSubGroupDivider} />
+        <div className={classes.form_subgroup}>
+          <GcnPropertiesSelect
+            selectedGcnProperties={selectedGcnProperties}
+            setSelectedGcnProperties={setSelectedGcnProperties}
+            conversions={conversions}
+            comparators={comparators}
+          />
+        </div>
+      </div>
+      <div className={classes.formGroupDivider} />
+      <div className={classes.form_group}>
+        <Typography className={classes.form_group_title}>
+          Localization Filtering
+        </Typography>
+        <div className={classes.form_subgroup}>
+          <LocalizationTagsSelect
+            selectedLocalizationTags={selectedLocalizationTags}
+            setSelectedLocalizationTags={setSelectedLocalizationTags}
+          />
+        </div>
+        <div className={classes.formSubGroupDivider} />
+        <div className={classes.form_subgroup}>
+          <LocalizationPropertiesSelect
+            selectedLocalizationProperties={selectedLocalizationProperties}
+            setSelectedLocalizationProperties={
+              setSelectedLocalizationProperties
+            }
+          />
+        </div>
+      </div>
+      <div className={classes.formGroupDivider} />
       <div data-testid="observationplan-request-form">
+        <Typography className={classes.form_group_title}>
+          Observation Plan Parameters
+        </Typography>
         <div>
           <Form
             schema={formSchemaCopy}

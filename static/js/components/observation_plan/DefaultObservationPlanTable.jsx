@@ -143,12 +143,17 @@ const DefaultObservationPlanTable = ({
 
   const renderGcnEventFilters = (dataIndex) => {
     const default_observation_plan = default_observation_plans[dataIndex];
+    const cellStyle = {
+      whiteSpace: "nowrap",
+    };
 
     return (
-      <div>
-        {default_observation_plan?.filters
-          ? JSON.stringify(default_observation_plan.filters)
-          : ""}
+      <div style={cellStyle}>
+        {default_observation_plan ? (
+          <JSONTree data={default_observation_plan?.filters} hideRoot />
+        ) : (
+          ""
+        )}
       </div>
     );
   };

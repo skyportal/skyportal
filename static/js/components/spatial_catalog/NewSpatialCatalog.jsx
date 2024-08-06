@@ -1,9 +1,9 @@
 import React from "react";
 import { useDispatch } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import dataUriToBuffer from "data-uri-to-buffer";
+import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import {
   fetchSpatialCatalogs,
@@ -14,7 +14,8 @@ const NewSpatialCatalog = () => {
   const dispatch = useDispatch();
 
   const handleSubmit = async ({ formData }) => {
-    const ascii = dataUriToBuffer(formData.file).toString();
+    const parsed = dataUriToBuffer(formData.file);
+    const ascii = new TextDecoder().decode(parsed.buffer);
     const payload = {
       catalogData: ascii,
       catalogName: formData.catalogName,

@@ -36,6 +36,9 @@ class ObservingRun(Base):
     # name of the PI
     pi = sa.Column(sa.String, doc="The name(s) of the PI(s) of this run.")
     observers = sa.Column(sa.String, doc="The name(s) of the observer(s) on this run.")
+    duration = sa.Column(
+        sa.Integer, default=1, doc="Number of nights in the observing run."
+    )
 
     sources = relationship(
         'Obj',
