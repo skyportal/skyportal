@@ -94,11 +94,11 @@ class PublicSourcePage(Base):
     def option_state(self, option_name):
         option = self.data.get(option_name)
         if option is None:
-            "private"
+            return "private"
         elif len(option) > 0:
-            "public"
+            return "public"
         else:
-            "no data"
+            return "no data"
 
     def generate_page(self):
         """Generate the public page for the source and cache it."""
