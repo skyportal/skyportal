@@ -65,7 +65,12 @@ const Notes = () => {
   };
 
   useEffect(() => {
-    const uniqueNotes = new Set([...notes, ...NotesState]);
+    const uniqueNotes = new Set(
+      [...notes, ...NotesState].filter(
+        (note) =>
+          !note.note.includes("WebSocket connection authentication failed"),
+      ),
+    );
     setNotes([...uniqueNotes]);
   }, [NotesState]);
 
