@@ -92,6 +92,7 @@ class PublicSourcePage(Base):
         }
 
     def option_state(self, option_name):
+        """Return the state of the option, like public, private or no data."""
         option = self.data.get(option_name)
         if option is None:
             return "private"
