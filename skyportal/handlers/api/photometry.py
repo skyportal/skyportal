@@ -182,6 +182,11 @@ def get_bandpasses_to_colors(bandpasses, colors_type="rgb"):
     return {bandpass: get_color(bandpass, colors_type) for bandpass in bandpasses}
 
 
+def get_filters_mapper(photometry):
+    filters = {phot["filter"] for phot in photometry}
+    return get_bandpasses_to_colors(filters)
+
+
 BANDPASSES_COLORS = get_bandpasses_to_colors(ALLOWED_BANDPASSES, "rgb")
 
 BANDPASSES_WAVELENGTHS = {
