@@ -433,6 +433,28 @@ class WINTERAPI(FollowUpAPI):
         ],
     }
 
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "program_name": {
+                "type": "string",
+                "title": "Program Name",
+            },
+            "program_api_key": {
+                "type": "string",
+                "title": "Program API Key",
+            },
+            "username": {
+                "type": "string",
+                "title": "Username",
+            },
+            "password": {
+                "type": "string",
+                "title": "Password",
+            },
+        },
+    }
+
     ui_json_schema = {
         'ui:order': [
             'start_date',

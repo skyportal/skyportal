@@ -167,6 +167,10 @@ class FollowUpAPI(_Base):
     # for examples.
     form_json_schema_forced_photometry = None
 
+    # jsonschema outlining the schema of the frontend form for an allocation altdata
+    # It contains credentials to access the facility's API
+    form_json_schema_altdata = None
+
     # ui dictionary outlining any ui overrides for the form. See
     # https://react-jsonschema-form.readthedocs.io/en/latest/api-reference/uiSchema/
     # for documentation

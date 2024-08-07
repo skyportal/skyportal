@@ -544,6 +544,21 @@ class SOARAPI(FollowUpAPI):
                 'skyportal/REFRESH_FOLLOWUP_REQUESTS',
             )
 
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "API_TOKEN": {
+                "type": "string",
+                "title": "API Token for SOAR",
+            },
+            "PROPOSAL_ID": {
+                "type": "string",
+                "title": "Proposal ID",
+            },
+        },
+        "required": ["API_TOKEN", "PROPOSAL_ID"],
+    }
+
 
 class SOARGHTSIMAGERAPI(SOARAPI):
 
