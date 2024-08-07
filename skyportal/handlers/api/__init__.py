@@ -65,6 +65,7 @@ from .gcn import (
     GcnEventObservationPlanRequestsHandler,
     GcnEventPropertiesHandler,
     GcnEventSurveyEfficiencyHandler,
+    GcnEventUserHandler,
     GcnEventCatalogQueryHandler,
     GcnEventInstrumentFieldHandler,
     GcnEventTagsHandler,

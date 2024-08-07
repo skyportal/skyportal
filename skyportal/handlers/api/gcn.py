@@ -71,6 +71,7 @@ from ...models import (
     GcnSummary,
     GcnTag,
     GcnTrigger,
+    GcnEventUser,
     Instrument,
     InstrumentField,
     InstrumentFieldTile,
@@ -394,35 +395,37 @@ def post_skymap_from_notice(
                     if name is not None:
                         name = name.text
 
+                tags_formatted = [tag.upper().strip() for tag in tags]
                 if name is not None:
                     source = {
                         'id': name.replace(' ', ''),
                         'ra': ra,
                         'dec': dec,
                     }
-                elif any([True if 'GRB' in tag.upper() else False for tag in tags]):
+                elif 'GRB' in tags_formatted:
                     dateobs_txt = Time(dateobs).isot
                     source_name = f"GRB-{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                    source = {
-                        'id': source_name,
-                        'ra': ra,
-                        'dec': dec,
-                    }
-                elif any([True if 'GW' in tag.upper() else False for tag in tags]):
+                    origin = None
+                    if 'SWIFT' in tags_formatted:
+                        origin = 'Swift'
+                    elif 'FERMI' in tags_formatted:
+                        origin = 'Fermi'
+                    source = {'id': source_name, 'ra': ra, 'dec': dec, 'origin': origin}
+                elif 'GW' in tags_formatted:
                     dateobs_txt = Time(dateobs).isot
                     source_name = f"GW-{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
-                    source = {
-                        'id': source_name,
-                        'ra': ra,
-                        'dec': dec,
-                    }
-                elif any([True if 'Einstein Probe' in tag else False for tag in tags]):
+                    origin = None
+                    if 'LVC' in tags_formatted:
+                        origin = 'LVC'
+                    source = {'id': source_name, 'ra': ra, 'dec': dec, 'origin': origin}
+                elif 'Einstein Probe' in tags_formatted:
                     dateobs_txt = Time(dateobs).isot
                     source_name = f"EP-{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
                     source = {
                         'id': source_name,
                         'ra': ra,
                         'dec': dec,
+                        'origin': 'Einstein Probe',
                     }
                 else:
                     source = {
@@ -481,9 +484,19 @@ def post_gcnevent_from_json(
     # FIXME: https://github.com/astropy/astropy/issues/7179
     dateobs = Time(dateobs.iso).datetime
 
-    event = session.scalars(
-        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-    ).first()
+    event = None
+    ref_ID = payload.get("ref_ID", None)
+    if ref_ID is not None:
+        event = session.scalars(
+            GcnEvent.select(user).where(
+                func.lower(cast(GcnEvent.aliases, String)).like(f"%{ref_ID.lower()}%")
+            )
+        ).first()
+
+    if event is None:
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        ).first()
 
     if event is None:
         event = GcnEvent(
@@ -491,7 +504,14 @@ def post_gcnevent_from_json(
             sent_by_id=user.id,
         )
         session.add(event)
+        session.commit()
+
+        dateobs = event.dateobs
     else:
+        dateobs = event.dateobs
+        # we grab the dateobs from the event to overwrite the dateobs from the gcn notice
+        # this is important because unfortunately the dateobs in a gcn notice is not always the same as the dateobs in the event
+        # what matters is the trigger id if it exists, that allows us to find the actual dateobs of the event
         if not event.is_accessible_by(user, mode="update"):
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
@@ -544,7 +564,7 @@ def post_gcnevent_from_json(
         date=date,
         has_localization=True,
         localization_ingested=False,
-        dateobs=dateobs,
+        dateobs=event.dateobs,
         sent_by_id=user_id,
         notice_format="json",
     )
@@ -1528,6 +1548,15 @@ class GcnEventHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     ),
+                    "event_users": [
+                        {
+                            **u.to_dict(),
+                            "username": u.user.username,
+                            "first_name": u.user.first_name,
+                            "last_name": u.user.last_name,
+                        }
+                        for u in event.gcnevent_users
+                    ],
                     "comments": sorted(
                         (
                             {
@@ -1870,6 +1899,154 @@ class GcnEventHandler(BaseHandler):
             except Exception as e:
                 session.rollback()
                 return self.error(f"Cannot delete event: {e}")
+
+
+class GcnEventUserHandler(BaseHandler):
+    @auth_or_token
+    def post(self, dateobs, *ignored_args):
+        """
+        ---
+        description: Add a event user
+        tags:
+          - gcnevents
+          - users
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userID:
+                    type: integer
+                required:
+                  - userID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        data = self.get_json()
+
+        user_id = data.get("userID", None)
+        if user_id is None:
+            return self.error("userID parameter must be specified")
+        try:
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            return self.error("Invalid userID parameter: unable to parse to integer")
+
+        with self.Session() as session:
+            event = session.scalar(
+                GcnEvent.select(
+                    session.user_or_token,
+                    options=[joinedload(GcnEvent.gcnevent_users)],
+                ).where(GcnEvent.dateobs == dateobs)
+            )
+
+            user = session.scalar(
+                User.select(session.user_or_token).where(User.id == user_id)
+            )
+
+            gu = session.scalar(
+                GcnEventUser.select(session.user_or_token)
+                .where(GcnEventUser.gcnevent_id == event.id)
+                .where(GcnEventUser.user_id == user_id)
+            )
+            if gu is not None:
+                return self.error(
+                    f"User {user_id} is already a member of event {event.dateobs}."
+                )
+
+            session.add(
+                GcnEventUser(
+                    gcnevent_id=event.id,
+                    user_id=user_id,
+                )
+            )
+            session.add(
+                UserNotification(
+                    user=user,
+                    text=f"You've been added as an advocate to event *{event.dateobs}*",
+                    url=f"/gcn_events/{event.dateobs}",
+                )
+            )
+            session.commit()
+            self.flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS", {})
+
+            self.push_all(
+                action='skyportal/REFRESH_GCN_EVENT',
+                payload={'gcnEvent_dateobs': event.dateobs},
+            )
+
+            return self.success()
+
+    @auth_or_token
+    def delete(self, dateobs, user_id):
+        """
+        ---
+        description: Delete an event user
+        tags:
+          - shifts
+          - users
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: user_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        try:
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            return self.error("Invalid userID parameter: unable to parse to integer")
+
+        with self.Session() as session:
+            event = session.scalar(
+                GcnEvent.select(
+                    session.user_or_token,
+                    options=[joinedload(GcnEvent.gcnevent_users)],
+                ).where(GcnEvent.dateobs == dateobs)
+            )
+
+            gu = session.scalar(
+                GcnEventUser.select(session.user_or_token, mode='delete')
+                .where(GcnEventUser.gcnevent_id == event.id)
+                .where(GcnEventUser.user_id == user_id)
+            )
+            if gu is None:
+                return self.error(
+                    "GcnEventUser does not exist, or you don't have the right to delete them.",
+                    status=403,
+                )
+
+            session.delete(gu)
+            session.commit()
+
+            self.push_all(
+                action='skyportal/REFRESH_GCN_EVENT',
+                payload={'gcnEvent_dateobs': event.dateobs},
+            )
+
+            return self.success()
 
 
 def add_tiles_and_properties_and_contour(

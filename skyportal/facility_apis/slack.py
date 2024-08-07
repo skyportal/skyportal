@@ -223,6 +223,25 @@ class SLACKAPI(FollowUpAPI):
 
         return form_json_schema
 
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "slack_workspace": {
+                "type": "string",
+                "title": "Slack Workspace",
+            },
+            "slack_channel": {
+                "type": "string",
+                "title": "Slack Channel",
+            },
+            "slack_token": {
+                "type": "string",
+                "title": "Slack Token",
+            },
+        },
+        "required": ["slack_workspace", "slack_channel", "slack_token"],
+    }
+
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
 
     alias_lookup = {

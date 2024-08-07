@@ -36,4 +36,4 @@ jobs:
 
       - name: Test loading demo data
         run: |
-          docker exec skyportal_web_1 bash -c 'source /skyportal_env/bin/activate && FLAGS="--create_tables --config=config.yaml" make load_demo_data'
+          docker exec skyportal-web-1 bash -c 'source /skyportal_env/bin/activate && FLAGS="--create_tables --config=config.yaml" make load_demo_data'

@@ -405,3 +405,16 @@ class ATLASAPI(FollowUpAPI):
     }
 
     ui_json_schema = {}
+
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "api_token": {
+                "type": "string",
+                "title": "API Token (required)",
+            },
+        },
+        "required": [
+            "api_token",
+        ],
+    }

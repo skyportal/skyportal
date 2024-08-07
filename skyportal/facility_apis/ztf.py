@@ -763,6 +763,34 @@ class ZTFAPI(FollowUpAPI):
         ],
     }
 
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "ipac_http_user": {
+                "type": "string",
+                "title": "IPAC HTTP User",
+                "default": "ztf",
+            },
+            "ipac_http_pass": {
+                "type": "string",
+                "title": "IPAC HTTP Password",
+                "default": "ztf",
+            },
+            "ipac_email": {
+                "type": "string",
+                "title": "IPAC Email",
+            },
+            "ipac_userpass": {
+                "type": "string",
+                "title": "IPAC User Password",
+            },
+            "access_token": {
+                "type": "string",
+                "title": "Access Token (from Kowalski)",
+            },
+        },
+    }
+
     # use the ui schema to hide the request type
     ui_json_schema = {
         "request_type": {"ui:widget": "hidden"},

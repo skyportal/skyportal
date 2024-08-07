@@ -522,4 +522,14 @@ class TAROTAPI(FollowUpAPI):
         },
     }
 
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "token": {
+                "type": "string",
+                "title": "Token",
+            },
+        },
+    }
+
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}

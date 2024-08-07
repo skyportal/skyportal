@@ -152,3 +152,29 @@ class GROWTHINDIAMMAAPI(MMAAPI):
             )
 
             session.add(transaction)
+
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "host": {
+                "type": "string",
+                "title": "Host",
+            },
+            "port": {
+                "type": "string",
+                "title": "Port",
+            },
+            "username": {
+                "type": "string",
+                "title": "Username",
+            },
+            "password": {
+                "type": "string",
+                "title": "Password",
+            },
+            "directory": {
+                "type": "string",
+                "title": "Directory",
+            },
+        },
+    }

@@ -534,3 +534,72 @@ class GENERICAPI(FollowUpAPI):
         'priority': "Priority",
         'observation_type': 'Mode',
     }
+
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "allocation_type": {
+                "type": "string",
+                "title": "Type",
+                "enum": ["API", "slack", "email"],
+            },
+        },
+        "required": ["allocation_type"],
+        "dependencies": {
+            "allocation_type": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "allocation_type": {"enum": ["API"]},
+                            "endpoint": {
+                                "type": "string",
+                                "title": "Endpoint",
+                            },
+                            "api_token": {
+                                "type": "string",
+                                "title": "API Token (Authorization header)",
+                            },
+                        },
+                        "required": [
+                            "endpoint",
+                            "api_token",
+                        ],
+                    },
+                    {
+                        "properties": {
+                            "allocation_type": {"enum": ["slack"]},
+                            "slack_workspace": {
+                                "type": "string",
+                                "title": "Slack Workspace",
+                            },
+                            "slack_channel": {
+                                "type": "string",
+                                "title": "Slack Channel",
+                            },
+                            "slack_token": {
+                                "type": "string",
+                                "title": "Slack Token",
+                            },
+                        },
+                        "required": [
+                            "slack_workspace",
+                            "slack_channel",
+                            "slack_token",
+                        ],
+                    },
+                    {
+                        "properties": {
+                            "allocation_type": {"enum": ["email"]},
+                            "email": {
+                                "type": "string",
+                                "title": "Email",
+                            },
+                        },
+                        "required": [
+                            "email",
+                        ],
+                    },
+                ]
+            },
+        },
+    }

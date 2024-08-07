@@ -430,6 +430,24 @@ class LTAPI(FollowUpAPI):
                 f'Unknown mode {mode} response from LT. Unable to delete request {request.id} from LT queue: {response}'
             )
 
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "username": {
+                "type": "string",
+                "title": "Username",
+            },
+            "password": {
+                "type": "string",
+                "title": "Password",
+            },
+            "LT_proposalID": {
+                "type": "string",
+                "title": "LT Proposal ID",
+            },
+        },
+    }
+
 
 class IOOAPI(LTAPI):
 

@@ -89,6 +89,15 @@ class UVOTXRTMMAAPI(MMAAPI):
 
         IOLoop.current().run_in_executor(None, fetch_obs)
 
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "username": {"type": "string", "title": "Username"},
+            "secret": {"type": "string", "title": "Secret"},
+            "XRT_UserID": {"type": "string", "title": "XRT User ID"},
+        },
+    }
+
 
 def fetch_observations(instrument_id, request_start, request_end):
     """Fetch executed observations from the Swift API.
@@ -742,6 +751,15 @@ class UVOTXRTAPI(FollowUpAPI):
                     },
                 ],
             },
+        },
+    }
+
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "username": {"type": "string", "title": "Username"},
+            "secret": {"type": "string", "title": "Secret"},
+            "XRT_UserID": {"type": "string", "title": "XRT User ID"},
         },
     }
 

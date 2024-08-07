@@ -2,6 +2,7 @@ __all__ = [
     'GcnNotice',
     'GcnTag',
     'GcnEvent',
+    'GcnEventUser',
     'GcnProperty',
     'GcnReport',
     'GcnSummary',
@@ -22,9 +23,10 @@ import matplotlib.pyplot as plt
 from mocpy import MOC
 import numpy as np
 import sqlalchemy as sa
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import deferred, relationship
+from sqlalchemy.orm import deferred, relationship, column_property
 
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
@@ -33,8 +35,10 @@ from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
     DBSession,
+    User,
     UserAccessControl,
     join_model,
+    public,
     restricted,
     safe_aliased,
 )
@@ -672,6 +676,23 @@ class GcnEvent(Base):
         doc="GCN triggers that contributed this event.",
     )
 
+    users = relationship(
+        'User',
+        secondary='gcnevent_users',
+        back_populates='gcnevents',
+        passive_deletes=True,
+        doc='The members of this event.',
+    )
+
+    gcnevent_users = relationship(
+        'GcnEventUser',
+        back_populates='gcnevent',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc='Elements of a join table mapping Users to GcnEvents.',
+        overlaps='gcnevents, users',
+    )
+
     @hybrid_property
     def tags(self):
         """List of tags."""
@@ -878,4 +899,25 @@ GcnTrigger.triggered = sa.Column(
 
 GcnTrigger.create = GcnTrigger.update = GcnTrigger.delete = CustomUserAccessControl(
     gcntrigger_allocationuser_access_logic
+)
+
+
+def gcnevent_user_access_logic(cls, user_or_token):
+    aliased = safe_aliased(cls)
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = DBSession().query(cls)
+    if not user_or_token.is_system_admin:
+        query = query.filter(aliased.user_id == user_id)
+    return query
+
+
+GcnEventUser = join_model('gcnevent_users', GcnEvent, User)
+GcnEventUser.__doc__ = "Join table mapping `GcnEvent`s to `User`s."
+GcnEventUser.create = GcnEventUser.read = public
+GcnEventUser.update = GcnEventUser.delete = AccessibleIfUserMatches('user')
+
+GcnEvent.event_users_ids = column_property(
+    select(func.array_agg(GcnEventUser.user_id))
+    .where(GcnEventUser.gcnevent_id == GcnEvent.id)
+    .correlate_except(GcnEventUser)
 )

@@ -490,4 +490,18 @@ class NICERAPI(FollowUpAPI):
         },
     }
 
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "username": {
+                "type": "string",
+                "title": "Username",
+            },
+            "password": {
+                "type": "string",
+                "title": "Password",
+            },
+        },
+    }
+
     ui_json_schema = {}
