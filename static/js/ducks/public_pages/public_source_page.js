@@ -29,7 +29,7 @@ export const deletePublicSourcePage = (pageId) =>
 
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === REFRESH_PUBLIC_SOURCE_PAGES) {
-    dispatch(fetchPublicSourcePages(payload.source_id, 10));
+    dispatch(fetchPublicSourcePages(payload.source_id));
   }
 });
 
