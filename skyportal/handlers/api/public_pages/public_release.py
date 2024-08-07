@@ -105,6 +105,7 @@ class PublicReleaseHandler(BaseHandler):
                 link_name=link_name,
                 description=data.get("description", ""),
                 is_visible=data.get("is_visible", True),
+                automatically_publish=data.get("automatically_publish", False),
                 options=data.get("options", {}),
                 groups=groups,
             )
@@ -192,6 +193,9 @@ class PublicReleaseHandler(BaseHandler):
                     source_page.remove_from_cache()
 
             public_release.name = name
+            public_release.automatically_publish = data.get(
+                "automatically_publish", False
+            )
             public_release.description = data.get("description", "")
             public_release.is_visible = data.get("is_visible", True)
             public_release.options = data.get("options", {})
