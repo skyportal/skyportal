@@ -5,17 +5,11 @@ import jinja2
 import datetime
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import deferred
+from sqlalchemy.orm import deferred, relationship
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
-from baselayer.app.models import (
-    Base,
-    UserAccessControl,
-    CustomUserAccessControl,
-)
-from ..source import Source
-from ..group import GroupUser
-
+from baselayer.app.models import Base, UserAccessControl, CustomUserAccessControl
+from .. import Source, GroupUser
 from ...utils.cache import Cache, dict_to_bytes
 
 env, cfg = load_env()
@@ -29,21 +23,21 @@ cache = Cache(
 
 def published_source_access_logic(cls, user_or_token):
     """Return a query that filters PublicSourcePage instances based on user access."""
-    # if the user is a system admin, he can update and delete all published sources
-    # otherwise, he can only delete and update the published sources associate with his group
+    # if the user is a system admin, he can delete all published sources
+    # otherwise, he can only delete the published sources associate with his group
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = sa.select(cls)
     if not user_or_token.is_system_admin:
         query = query.join(Source, cls.source_id == Source.obj_id)
         query = query.join(GroupUser, Source.group_id == GroupUser.group_id)
-        query = query.filter(GroupUser.user_id == user_id)
+        query = query.filter(GroupUser.user_id == user_id, Source.active.is_(True))
     return query
 
 
 class PublicSourcePage(Base):
     """Public page of a source on a given date."""
 
-    update = delete = CustomUserAccessControl(published_source_access_logic)
+    delete = CustomUserAccessControl(published_source_access_logic)
 
     id = sa.Column(sa.Integer, primary_key=True)
 
@@ -66,34 +60,46 @@ class PublicSourcePage(Base):
         doc='Whether the page is visible to the public',
     )
 
+    release_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey('publicreleases.id'),
+        nullable=True,
+        doc='ID of the public release associated with this source page',
+    )
+
+    release = relationship(
+        "PublicRelease",
+        back_populates="source_pages",
+        doc="The release associated with this source page",
+    )
+
     def to_dict(self):
         """Convert the page to a dictionary with
         the options to be displayed and the creation date in ISO format."""
         return {
             'id': self.id,
             'source_id': self.source_id,
+            'release_link_name': self.release.link_name if self.release else None,
             'is_visible': self.is_visible,
             'created_at': self.created_at,
             'hash': self.hash,
-            'options': self.get_options(),
+            'options': {
+                "photometry": self.option_state("photometry"),
+                "classifications": self.option_state("classifications"),
+                "spectroscopy": self.option_state("spectroscopy"),
+                "summary": self.option_state("summary"),
+            },
         }
 
-    def get_options(self):
-        """Get the options check to be displayed on the public page."""
-        photometry = self.data.get("photometry")
-        classifications = self.data.get("classifications")
-        return {
-            "photometry": "no data"
-            if photometry == []
-            else "public"
-            if photometry
-            else "private",
-            "classifications": "no data"
-            if classifications == []
-            else "public"
-            if classifications
-            else "private",
-        }
+    def option_state(self, option_name):
+        """Return the state of the option, like public, private or no data."""
+        option = self.data.get(option_name)
+        if option is None:
+            return "private"
+        elif len(option) > 0:
+            return "public"
+        else:
+            return "no data"
 
     def generate_page(self):
         """Generate the public page for the source and cache it."""
@@ -103,7 +109,10 @@ class PublicSourcePage(Base):
                 data = json.loads(data)
             except Exception:
                 raise ValueError("Invalid data provided")
-        cache_key = f"source_{self.source_id}_version_{self.hash}"
+        if self.release:
+            cache_key = f"release_{self.release.link_name}_source_{self.source_id}_version_{self.hash}"
+        else:
+            cache_key = f"source_{self.source_id}_version_{self.hash}"
         public_source_page_html = self.get_html(data)
         cache[cache_key] = dict_to_bytes(
             {"public": True, "html": public_source_page_html}
@@ -112,13 +121,12 @@ class PublicSourcePage(Base):
     def get_html(self, public_data):
         """Get the HTML content of the public source page."""
         # Create the filters mapper
-        if "photometry" in public_data and public_data["photometry"] is not None:
-            from skyportal.handlers.api.photometry import get_bandpasses_to_colors
+        if public_data.get("photometry"):
+            from skyportal.handlers.api.photometry import get_filters_mapper
 
-            filters = {
-                photometry["filter"] for photometry in public_data.get("photometry", [])
-            }
-            public_data["filters_mapper"] = get_bandpasses_to_colors(filters)
+            public_data["filters_mapper"] = get_filters_mapper(
+                public_data["photometry"]
+            )
 
         environment = jinja2.Environment(
             autoescape=True,
@@ -149,5 +157,8 @@ class PublicSourcePage(Base):
 
     def remove_from_cache(self):
         """Remove the page from the cache."""
-        cache_key = f"source_{self.source_id}_version_{self.hash}"
+        if self.release:
+            cache_key = f"release_{self.release.link_name}_source_{self.source_id}_version_{self.hash}"
+        else:
+            cache_key = f"source_{self.source_id}_version_{self.hash}"
         del cache[cache_key]

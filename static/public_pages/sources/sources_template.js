@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars */
-
 // Filter sources based on the search bar value
 function filterSources() {
   const searchValue = document
@@ -9,12 +7,14 @@ function filterSources() {
   const sources = document.getElementsByClassName("sourceAndVersions");
 
   Array.from(sources).forEach((source) => {
-    const sourceId = source.id.toLowerCase();
-    if (sourceId.includes(searchValue)) {
+    const sourceId = source.getElementsByClassName("sourceId")[0];
+    if (sourceId.textContent.toLowerCase().includes(searchValue)) {
       // Mark the search value in the source name
-      const h2 = source.querySelector("h2");
       const re = new RegExp(searchValue, "gi");
-      h2.innerHTML = source.id.replace(re, (match) => `<mark>${match}</mark>`);
+      sourceId.innerHTML = sourceId.textContent.replace(
+        re,
+        (match) => `<mark>${match}</mark>`,
+      );
       source.style.display = "";
     } else {
       source.style.display = "none";

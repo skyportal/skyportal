@@ -1,17 +1,29 @@
-.sourcesTemplate {
-  padding-bottom: 2rem;
-  .searchBar {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 1rem;
-    input {
-      margin: 1rem 0;
-      padding: 0.5rem 0.5rem;
-      border-radius: 0.5rem;
-      font-size: 1rem;
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1rem;
+  a {
+    color: white;
+    font-size: 0.8rem;
+    font-weight: bold;
+  }
+}
+
+.releaseTemplate {
+  .name {
+    padding-top: 2rem;
+    text-align: center;
+    h2 {
+      font-size: 2rem;
+      font-weight: bold;
     }
   }
+  .description {
+    text-align: center;
+    padding: 1.5rem;
+  }
+
   .sourceAndVersions {
     border-bottom: 1px solid lightgray;
     margin-bottom: 1rem;

@@ -46,22 +46,27 @@
   <!-- Body -->
   <body>
     <header>
-      <!--Logos-->
-      <div>
+      <div class="logoAndTitle">
+        <!--Logo-->
         <img
           src="/static/images/skyportal_logo_dark.png"
           alt="Skyportal logo"
           width="41"
           height="40"
         />
+        <!--Site title-->
+        <a class="websiteName" href="/">SkyPortal</a>
       </div>
-      <!--Site title-->
-      <div>
-        <a class="websiteName" href="/"> SkyPortal </a>
+      <div class="release">
+        {% if data.get('release_link_name') %}
+          <a href="/public/releases/{{ data['release_link_name'] }}" target="_blank">
+            {{ data['release_link_name'] }} ->
+          </a>
+        {% endif %}
       </div>
     </header>
     <!--Page content-->
-    <div class="content">
+    <div class="sourceTemplate">
       <div class="card resumeCard">
         <div class="titleAndDate">
           <h1>{{ source_id }}</h1>

@@ -191,6 +191,7 @@ from skyportal.handlers.api import (
     SourcesConfirmedInGCNTNSHandler,
     GCNsAssociatedWithSourceHandler,
     PublicSourcePageHandler,
+    PublicReleaseHandler,
 )
 from skyportal.handlers.api.internal import (
     SourceViewsHandler,
@@ -217,6 +218,8 @@ from skyportal.handlers.api.internal import (
 from skyportal.handlers.public import (
     ReportHandler,
     SourcePageHandler,
+    ReleaseSourcePageHandler,
+    ReleaseHandler,
 )
 
 from . import model_util, openapi
@@ -570,6 +573,7 @@ skyportal_handlers = [
     ),
     # Public pages managed by the API.
     (r'/api/public_pages/source(/[0-9A-Za-z-_\.\+]+)', PublicSourcePageHandler),
+    (r'/api/public_pages/release(/[0-9]+)?', PublicReleaseHandler),
     # Internal API endpoints
     (r'/api/internal/tokens(/[0-9A-Za-z-]+)?', TokenHandler),
     (r"/api/internal/profile(/[0-9]+)?", ProfileHandler),
@@ -600,11 +604,16 @@ skyportal_handlers = [
     (r'/api/internal/recent_gcn_events', RecentGcnEventsHandler),
     (r'/api/.*', InvalidEndpointHandler),
     # Public pages.
-    (r'/public/reports/(gcn)(/[0-9]+)?(/.*)?', ReportHandler),
     (
         r'/public/sources(?:/)?([0-9A-Za-z-_\.\+]+)?(?:/)?(?:version)?(?:/)?([0-9a-f]+)?',
         SourcePageHandler,
     ),
+    (
+        r'/public/releases/([0-9A-Za-z-_\.\+]+)/sources/([0-9A-Za-z-_\.\+]+)/version/([0-9a-f]+)',
+        ReleaseSourcePageHandler,
+    ),
+    (r'/public/releases(?:/)?([0-9A-Za-z-_\.\+]+)?', ReleaseHandler),
+    (r'/public/reports/(gcn)(/[0-9]+)?(/.*)?', ReportHandler),
     (r'/public/.*', InvalidEndpointHandler),
     # Debug and logout pages.
     (r'/become_user(/.*)?', BecomeUserHandler),

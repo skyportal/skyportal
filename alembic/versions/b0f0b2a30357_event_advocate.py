@@ -1,7 +1,7 @@
 """event advocate migration
 
 Revision ID: b0f0b2a30357
-Revises: ce87ed8ca4b5
+Revises: 05bda3fff04d
 Create Date: 2024-07-04 18:58:29.493558
 
 """
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'b0f0b2a30357'
-down_revision = 'ce87ed8ca4b5'
+down_revision = '05bda3fff04d'
 branch_labels = None
 depends_on = None
 
