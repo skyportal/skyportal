@@ -19,8 +19,6 @@ import { useTheme } from "@mui/material/styles";
 import Typography from "@mui/material/Typography";
 import makeStyles from "@mui/styles/makeStyles";
 
-// eslint-disable-next-line
-
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -37,6 +35,7 @@ import ObservationPlanRequestLists from "../observation_plan/ObservationPlanRequ
 
 import CommentList from "../comment/CommentList";
 import DisplayGraceDB from "./DisplayGraceDB";
+import GcnAdvocates from "./GcnAdvocates";
 import GcnAliases from "./GcnAliases";
 import GcnCirculars from "./GcnCirculars";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
@@ -220,7 +219,7 @@ const GcnEventPage = ({ route }) => {
     if (route?.dateobs !== gcnEvent?.dateobs && route?.dateobs) {
       fetchGcnEvent(route?.dateobs);
     }
-  }, [route, dispatch]);
+  }, [route, dispatch, gcnEvent]);
 
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -326,6 +325,7 @@ const GcnEventPage = ({ route }) => {
               showTitle={!isMobile}
             />
             <GcnAliases gcnEvent={gcnEvent} show_title />
+            <GcnAdvocates gcnEvent={gcnEvent} show_title />
           </div>
           <div className={styles.columnItem}>
             <Accordion defaultExpanded>

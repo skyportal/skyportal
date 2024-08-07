@@ -330,11 +330,14 @@ def add_followup(mapper, connection, target):
 
         user_id = None
         target_class_name = target.__class__.__name__
-        target_data = target.to_dict()
+        obj_origin = None
+        try:
+            obj_origin = target.obj.origin if target_class_name == 'GroupObj' else None
+        except Exception:
+            pass
+        target_data = {**target.to_dict(), 'obj_origin': obj_origin}
 
         requests_query = sa.select(DefaultFollowupRequest)
-
-        default_followup_requests = session.scalars(requests_query).all()
 
         # GroupObj is the classname for the Source table,
         # since it's a join table between Obj and Group
@@ -351,6 +354,16 @@ def add_followup(mapper, connection, target):
                     DefaultFollowupRequest.source_filter['group_id'],
                     cast(target_data['group_id'], psql.JSONB),
                 ),
+            )
+            # match by the object's origin, if an origin is provided in the DefaultFollowupRequest
+            requests_query = requests_query.where(
+                sa.or_(
+                    DefaultFollowupRequest.source_filter['origin'].is_(None),
+                    EQ_OP(
+                        DefaultFollowupRequest.source_filter['origin'],
+                        cast(target_data['obj_origin'], psql.JSONB),
+                    ),
+                )
             )
             user_id = target_data.get('saved_by_id', None)
         if target_class_name == 'Classification':
