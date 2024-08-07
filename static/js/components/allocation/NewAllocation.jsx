@@ -97,6 +97,15 @@ const NewAllocation = ({ onClose }) => {
 
   const handleSubmit = async ({ formData }) => {
     const formState = getValues();
+    if (!formState?.group?.id) {
+      dispatch(
+        showNotification(
+          "You must select a group when creating an allocation",
+          "error",
+        ),
+      );
+      return;
+    }
     formData.group_id = formState.group.id;
     formData.allocation_admin_ids = [];
     formState.users?.forEach((user) => {
@@ -117,7 +126,11 @@ const NewAllocation = ({ onClose }) => {
     // its tricky to infer the keys from the formSchemaAltdata
     // so instead just pop out the regular keys from the form data
     // to get the _altdata
-    if (!formData._altdata || formData._altdata.length == 0) {
+    if (
+      formData?.instrument_id &&
+      instrumentFormParams[formData.instrument_id]?.formSchemaAltdata
+        ?.properties
+    ) {
       const newAltData = {};
       if (instrumentFormParams[formData.instrument_id]) {
         const altDataKeys = Object.keys(formData).filter(
