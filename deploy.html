@@ -308,9 +308,10 @@ docker volume called <code class="docutils literal notranslate"><span class="pre
 <h2>Adding test data<a class="headerlink" href="#adding-test-data" title="Link to this heading">¶</a></h2>
 <p>Note that by default, the SkyPortal image will run the application in production (<code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run_production</span></code>).</p>
 <p>The key behavior to note when running production mode is that the application will not create any database tables automatically (to avoid messing with production data). This means that the very first time you spin up SkyPortal using containers, the <code class="docutils literal notranslate"><span class="pre">skyportal_dbdata</span></code> volume will only have an empty database. You will need to set up the database tables manually. The easiest way to do this would be to run:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">exec</span> <span class="n">skyportal_web_1</span> <span class="n">bash</span> <span class="o">-</span><span class="n">c</span> <span class="s1">&#39;source /skyportal_env/bin/activate &amp;&amp; FLAGS=&quot;--create_tables --config=config.yaml&quot; make load_demo_data&#39;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">exec</span> <span class="n">skyportal</span><span class="o">-</span><span class="n">web</span><span class="o">-</span><span class="mi">1</span> <span class="n">bash</span> <span class="o">-</span><span class="n">c</span> <span class="s1">&#39;source /skyportal_env/bin/activate &amp;&amp; FLAGS=&quot;--create_tables --config=config.yaml&quot; make load_demo_data&#39;</span>
 </pre></div>
 </div>
+<p><em>Note: Older versions of docker compose may use a different container name, such as <code class="docutils literal notranslate"><span class="pre">skyportal_web_1</span></code> (with underscores instead of dashes).</em></p>
 <p>This will also load in some test data to play with.</p>
 </section>
 <section id="stopping-the-deployment">
