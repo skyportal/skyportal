@@ -65,7 +65,11 @@ const Notes = () => {
   };
 
   useEffect(() => {
-    const uniqueNotes = new Set([...notes, ...NotesState]);
+    const uniqueNotes = new Set(
+      [...notes, ...NotesState].filter(
+        (note) => !note.note.includes("No WebSocket connection"),
+      ),
+    );
     setNotes([...uniqueNotes]);
   }, [NotesState]);
 
