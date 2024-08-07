@@ -137,7 +137,7 @@ class SourceGroupsHandler(BaseHandler):
                         TNSRobotGroup.auto_report,
                         TNSRobotGroupAutoreporter.group_user_id.in_(
                             sa.select(GroupUser.id).where(
-                                GroupUser.user_id == self.current_user.id,
+                                GroupUser.user_id == self.associated_user_object.id,
                                 GroupUser.group_id == group_id,
                             )
                         ),
@@ -179,13 +179,13 @@ class SourceGroupsHandler(BaseHandler):
                         submission_request = TNSRobotSubmission(
                             obj_id=obj.id,
                             tnsrobot_id=tnsrobot_group_with_autoreporter.tnsrobot_id,
-                            user_id=self.current_user.id,
+                            user_id=self.associated_user_object.id,
                             auto_submission=True,
                         )
                         session.add(submission_request)
                         session.commit()
                         log(
-                            f"Added TNSRobotSubmission request for obj_id {obj.id} saved to group {group_id} with tnsrobot_id {tnsrobot_group_with_autoreporter.tnsrobot_id} for user_id {self.current_user.id}"
+                            f"Added TNSRobotSubmission request for obj_id {obj.id} saved to group {group_id} with tnsrobot_id {tnsrobot_group_with_autoreporter.tnsrobot_id} for user_id {self.associated_user_object.id}"
                         )
                         break
 

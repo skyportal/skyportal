@@ -64,6 +64,178 @@ def test_group_manage_sources_create_page_with_empty_options(
     assert len(data["data"]) == 1
 
 
+def test_group_manage_sources_create_page_includes_no_groups_and_streams(
+    super_admin_token, manage_sources_token, public_source
+):
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}/photometry",
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    assert len(data["data"]) > 0
+
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}/spectra",
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    assert len(data["data"]) > 0
+
+    # Add summary to source
+    status, data = api(
+        "PATCH",
+        f"sources/{public_source.id}",
+        data={'summary': 'This is a summary'},
+        token=super_admin_token,
+    )
+    assert_api(status, data)
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}",
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    assert len(data["data"]["summary"]) > 0
+
+    # No classifications
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}/classifications",
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    assert len(data["data"]) == 0
+
+    # No groups and streams select
+    status, data = api(
+        "POST",
+        f"public_pages/source/{public_source.id}",
+        data={
+            'options': {
+                'include_summary': True,
+                'include_photometry': True,
+                'include_spectroscopy': True,
+                'include_classifications': True,
+                'groups': [],
+                'streams': [],
+            },
+        },
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    status, data = api(
+        "GET",
+        f"public_pages/source/{public_source.id}",
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    assert data["data"][0]["options"]["summary"] == "public"
+    assert data["data"][0]["options"]["photometry"] == "public"
+    assert data["data"][0]["options"]["spectroscopy"] == "public"
+    assert data["data"][0]["options"]["classifications"] == "no data"
+
+
+def test_group_manage_sources_create_page_no_includes_no_groups_and_streams(
+    super_admin_token, manage_sources_token, public_source
+):
+    # Add summary to source
+    status, data = api(
+        "PATCH",
+        f"sources/{public_source.id}",
+        data={'summary': 'This is a summary'},
+        token=super_admin_token,
+    )
+    assert_api(status, data)
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}",
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    assert len(data["data"]["summary"]) > 0
+
+    # Bad groups and streams select
+    status, data = api(
+        "POST",
+        f"public_pages/source/{public_source.id}",
+        data={
+            'options': {
+                'include_summary': False,
+                'include_photometry': False,
+                'include_spectroscopy': False,
+                'include_classifications': False,
+                'groups': [],
+                'streams': [],
+            },
+        },
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+
+    status, data = api(
+        "GET",
+        f"public_pages/source/{public_source.id}",
+        token=manage_sources_token,
+    )
+    assert data["data"][0]["options"]["summary"] == "private"
+    assert data["data"][0]["options"]["photometry"] == "private"
+    assert data["data"][0]["options"]["spectroscopy"] == "private"
+    assert data["data"][0]["options"]["classifications"] == "private"
+
+
+def test_group_manage_sources_create_page_includes_bad_groups_and_streams(
+    super_admin_token, manage_sources_token, public_source
+):
+    # Add summary to source
+    status, data = api(
+        "PATCH",
+        f"sources/{public_source.id}",
+        data={'summary': 'This is a summary'},
+        token=super_admin_token,
+    )
+    assert_api(status, data)
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}",
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    assert len(data["data"]["summary"]) > 0
+
+    # Bad groups and streams select
+    status, data = api(
+        "POST",
+        f"public_pages/source/{public_source.id}",
+        data={
+            'options': {
+                'include_summary': True,
+                'include_photometry': True,
+                'include_spectroscopy': True,
+                'include_classifications': True,
+                'groups': [0],
+                'streams': [0],
+            },
+        },
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+
+    status, data = api(
+        "GET",
+        f"public_pages/source/{public_source.id}",
+        token=manage_sources_token,
+    )
+    # No data found for this group and stream because they don't exist
+    assert data["data"][0]["options"]["photometry"] == "no data"
+    assert data["data"][0]["options"]["spectroscopy"] == "no data"
+    assert data["data"][0]["options"]["classifications"] == "no data"
+
+    # Summary is still public because it is not link to group or stream
+    assert data["data"][0]["options"]["summary"] == "public"
+
+
 def test_group_manage_sources_create_page_bad_source(
     manage_sources_token, public_source
 ):
