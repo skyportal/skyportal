@@ -330,10 +330,12 @@ def add_followup(mapper, connection, target):
 
         user_id = None
         target_class_name = target.__class__.__name__
-        target_data = {
-            **target.to_dict(),
-            'origin': target.obj.origin,
-        }
+        obj_origin = None
+        try:
+            obj_origin = target.obj.origin if target_class_name == 'GroupObj' else None
+        except Exception:
+            pass
+        target_data = {**target.to_dict(), 'obj_origin': obj_origin}
 
         requests_query = sa.select(DefaultFollowupRequest)
 
@@ -359,7 +361,7 @@ def add_followup(mapper, connection, target):
                     DefaultFollowupRequest.source_filter['origin'].is_(None),
                     EQ_OP(
                         DefaultFollowupRequest.source_filter['origin'],
-                        cast(target_data['origin'], psql.JSONB),
+                        cast(target_data['obj_origin'], psql.JSONB),
                     ),
                 )
             )
