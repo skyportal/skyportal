@@ -1569,7 +1569,7 @@ if __name__ == "__main__":
 
         while True:
             log(f"Current notification queue length: {len(queue)}")
-            time.sleep(120)
+            time.sleep(60)
             if not t.is_alive():
                 log("Notification queue service thread died, restarting")
                 t = Thread(target=service, args=(queue,))

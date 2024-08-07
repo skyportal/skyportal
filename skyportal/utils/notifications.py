@@ -441,10 +441,21 @@ def post_notification(request_body, timeout=2):
     notifications_microservice_url = (
         f'http://127.0.0.1:{cfg["ports.notification_queue"]}'
     )
+    try:
+        resp = requests.post(
+            notifications_microservice_url, json=request_body, timeout=timeout
+        )
+    except requests.exceptions.ReadTimeout:
+        log(
+            f'Notification request timed out for {request_body["target_class_name"]} with ID {request_body["target_id"]}'
+        )
+        return False
+    except Exception as e:
+        log(
+            f'Notification request failed for {request_body["target_class_name"]} with ID {request_body["target_id"]}: {e}'
+        )
+        return False
 
-    resp = requests.post(
-        notifications_microservice_url, json=request_body, timeout=timeout
-    )
     if resp.status_code != 200:
         log(
             f'Notification request failed for {request_body["target_class_name"]} with ID {request_body["target_id"]}: {resp.content}'
