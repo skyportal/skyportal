@@ -13,6 +13,7 @@ import * as publicSourcePageActions from "../../../ducks/public_pages/public_sou
 import Button from "../../Button";
 import SourcePublishOptions from "./SourcePublishOptions";
 import SourcePublishHistory from "./SourcePublishHistory";
+import SourcePublishRelease from "./SourcePublishRelease";
 
 const useStyles = makeStyles(() => ({
   expandButton: {
@@ -36,10 +37,10 @@ const SourcePublish = ({ sourceId, isElements }) => {
   const dispatch = useDispatch();
   const styles = useStyles();
   const currentUser = useSelector((state) => state.profile);
-  const permissionToPublish =
+  const manageSourcesAccess =
     currentUser.permissions?.includes("Manage sources");
   const displayOptions =
-    permissionToPublish &&
+    manageSourcesAccess &&
     (isElements.summary ||
       isElements.photometry ||
       isElements.spectroscopy ||
@@ -50,12 +51,13 @@ const SourcePublish = ({ sourceId, isElements }) => {
     text: "Publish",
     color: "",
   });
+  const [sourcePublishReleaseOpen, setSourcePublishReleaseOpen] =
+    useState(true);
   const [sourcePublishOptionsOpen, setSourcePublishOptionsOpen] =
     useState(false);
   const [sourcePublishHistoryOpen, setSourcePublishHistoryOpen] =
     useState(true);
-  const [versions, setVersions] = useState([]);
-  // Create data access options
+  const [sourceReleaseId, setSourceReleaseId] = useState(null);
   const [options, setOptions] = useState({
     include_summary: true,
     include_photometry: true,
@@ -64,22 +66,21 @@ const SourcePublish = ({ sourceId, isElements }) => {
     groups: [],
     streams: [],
   });
+  const versions = useSelector((state) => state.publicSourceVersions);
 
   const publish = () => {
-    if (permissionToPublish) {
+    if (manageSourcesAccess) {
       setPublishButton({ text: "loading", color: "" });
       dispatch(
         publicSourcePageActions.generatePublicSourcePage(sourceId, {
           options,
+          release_id: sourceReleaseId,
         }),
       ).then((data) => {
         if (data.status === "error") {
           setPublishButton({ text: "Error", color: "red" });
         } else {
           setPublishButton({ text: "Done", color: "green" });
-          if (sourcePublishHistoryOpen) {
-            setVersions([data.data, ...versions]);
-          }
         }
         setTimeout(() => {
           setPublishButton({ text: "Publish", color: "" });
@@ -102,7 +103,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
       <Dialog
         open={sourcePublishDialogOpen}
         onClose={() => setSourcePublishDialogOpen(false)}
-        PaperProps={{ style: { maxWidth: "700px" } }}
+        PaperProps={{ style: { maxWidth: "800px" } }}
       >
         <DialogTitle>Public access information</DialogTitle>
         <DialogContent style={{ paddingBottom: "0.5rem" }}>
@@ -120,7 +121,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
           >
             <Tooltip
               title={
-                permissionToPublish
+                manageSourcesAccess
                   ? ""
                   : "You do not have permission to publish this source"
               }
@@ -134,7 +135,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
                     color: "white",
                   }}
                   disabled={
-                    !permissionToPublish || publishButton.text !== "Publish"
+                    !manageSourcesAccess || publishButton.text !== "Publish"
                   }
                 >
                   {publishButton.text === "loading" ? (
@@ -145,6 +146,26 @@ const SourcePublish = ({ sourceId, isElements }) => {
                 </Button>
               </div>
             </Tooltip>
+          </div>
+          <div>
+            <Button
+              className={styles.expandButton}
+              size="small"
+              variant="text"
+              onClick={() =>
+                setSourcePublishReleaseOpen(!sourcePublishReleaseOpen)
+              }
+            >
+              Release
+              {sourcePublishReleaseOpen ? <ExpandLess /> : <ExpandMore />}
+            </Button>
+            {sourcePublishReleaseOpen && (
+              <SourcePublishRelease
+                sourceReleaseId={sourceReleaseId}
+                setSourceReleaseId={setSourceReleaseId}
+                setOptions={setOptions}
+              />
+            )}
           </div>
           {displayOptions && (
             <div>
@@ -181,11 +202,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
               {sourcePublishHistoryOpen ? <ExpandLess /> : <ExpandMore />}
             </Button>
             {sourcePublishHistoryOpen && (
-              <SourcePublishHistory
-                sourceId={sourceId}
-                versions={versions}
-                setVersions={setVersions}
-              />
+              <SourcePublishHistory sourceId={sourceId} versions={versions} />
             )}
           </div>
         </DialogContent>

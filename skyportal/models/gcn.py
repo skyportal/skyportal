@@ -275,13 +275,11 @@ class GcnReport(Base):
 
         # Create the filters mapper
         if data.get("sources"):
-            from skyportal.handlers.api.photometry import get_bandpasses_to_colors
-
             for source in data["sources"]:
-                filters = {
-                    photometry["filter"] for photometry in source.get("photometry", [])
-                }
-                source["filters_mapper"] = get_bandpasses_to_colors(filters)
+                if source.get("photometry"):
+                    from skyportal.handlers.api.photometry import get_filters_mapper
+
+                    source["filters_mapper"] = get_filters_mapper(source["photometry"])
 
         env = jinja2.Environment(
             autoescape=True,

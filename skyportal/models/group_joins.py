@@ -25,6 +25,7 @@ __all__ = [
     'GroupAnalysisService',
     'GroupObjAnalysis',
     'GroupDefaultAnalysis',
+    'GroupPublicRelease',
 ]
 
 import sqlalchemy as sa
@@ -64,6 +65,7 @@ from .survey_efficiency import (
 )
 from .group import Group, accessible_by_group_admins, accessible_by_group_members
 from .analysis import AnalysisService, ObjAnalysis, DefaultAnalysis
+from .public_pages.public_release import PublicRelease
 
 GroupObjAnalysis = join_model("group_obj_analyses", Group, ObjAnalysis)
 GroupObjAnalysis.__doc__ = "Join table mapping Groups to ObjAnalysis."
@@ -315,4 +317,10 @@ GroupStream.create = (
             )
         )
     )
+)
+
+GroupPublicRelease = join_model('group_public_releases', Group, PublicRelease)
+GroupPublicRelease.__doc__ = "Join table mapping Groups to Public Releases."
+GroupPublicRelease.update = GroupPublicRelease.delete = (
+    accessible_by_group_admins & GroupPublicRelease.read
 )

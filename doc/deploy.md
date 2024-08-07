@@ -58,8 +58,10 @@ Note that by default, the SkyPortal image will run the application in production
 The key behavior to note when running production mode is that the application will not create any database tables automatically (to avoid messing with production data). This means that the very first time you spin up SkyPortal using containers, the `skyportal_dbdata` volume will only have an empty database. You will need to set up the database tables manually. The easiest way to do this would be to run:
 
 ```
-docker exec skyportal_web_1 bash -c 'source /skyportal_env/bin/activate && FLAGS="--create_tables --config=config.yaml" make load_demo_data'
+docker exec skyportal-web-1 bash -c 'source /skyportal_env/bin/activate && FLAGS="--create_tables --config=config.yaml" make load_demo_data'
 ```
+
+*Note: Older versions of docker compose may use a different container name, such as `skyportal_web_1` (with underscores instead of dashes).*
 
 This will also load in some test data to play with.
 
