@@ -1,15 +1,12 @@
+import uuid
+
 from skyportal.tests import api, assert_api, assert_api_fail
 
 
-# Test get method
-def test_no_releases(view_only_token, public_source):
-    status, data = api("GET", "public_pages/release", token=view_only_token)
-    assert_api(status, data)
-    assert data["data"] == []
-
-
-# Test post method
-def test_non_group_manage_sources_cannot_create_release(view_only_token, public_source):
+def test_create_release(
+    view_only_token, manage_sources_token, public_source, public_group
+):
+    link_name = str(uuid.uuid4())
     status, data = api(
         "POST",
         "public_pages/release",
@@ -18,10 +15,6 @@ def test_non_group_manage_sources_cannot_create_release(view_only_token, public_
     )
     assert_api_fail(status, data, 401, "HTTP 401: Unauthorized")
 
-
-def test_group_manage_sources_create_release_no_data(
-    manage_sources_token, public_source
-):
     status, data = api(
         "POST",
         "public_pages/release",
@@ -30,10 +23,6 @@ def test_group_manage_sources_create_release_no_data(
     )
     assert_api_fail(status, data, 400, "No data provided")
 
-
-def test_group_manage_sources_create_release_no_precise_data(
-    manage_sources_token, public_source
-):
     status, data = api(
         "POST",
         "public_pages/release",
@@ -53,7 +42,7 @@ def test_group_manage_sources_create_release_no_precise_data(
     status, data = api(
         "POST",
         "public_pages/release",
-        data={"name": "Name", "link_name": "Link_name"},
+        data={"name": "Name", "link_name": "Link name"},
         token=manage_sources_token,
     )
     assert_api_fail(status, data, 400, "Specify at least one group")
@@ -61,18 +50,14 @@ def test_group_manage_sources_create_release_no_precise_data(
     status, data = api(
         "POST",
         "public_pages/release",
-        data={"name": "Name", "link_name": "Link_name", "group_ids": []},
+        data={"name": "Name", "link_name": "Link name", "group_ids": []},
         token=manage_sources_token,
     )
     assert_api_fail(status, data, 400, "Specify at least one group")
 
-
-def test_group_manage_sources_create_release_with_bad_link_name(
-    manage_sources_token, public_source
-):
-    error_link_name_validation_message = (
-        "Link name must contain only alphanumeric characters, dashes, underscores, "
-        "periods, or plus signs"
+    error_validation_link_name = (
+        "Link name must contain only alphanumeric characters, dashes, underscores, periods, "
+        "or plus signs"
     )
     status, data = api(
         "POST",
@@ -80,7 +65,7 @@ def test_group_manage_sources_create_release_with_bad_link_name(
         data={"name": "Name", "link_name": "Link name", "group_ids": [0]},
         token=manage_sources_token,
     )
-    assert_api_fail(status, data, 400, error_link_name_validation_message)
+    assert_api_fail(status, data, 400, error_validation_link_name)
 
     status, data = api(
         "POST",
@@ -88,7 +73,7 @@ def test_group_manage_sources_create_release_with_bad_link_name(
         data={"name": "Name", "link_name": "Link_name_é", "group_ids": [0]},
         token=manage_sources_token,
     )
-    assert_api_fail(status, data, 400, error_link_name_validation_message)
+    assert_api_fail(status, data, 400, error_validation_link_name)
 
     status, data = api(
         "POST",
@@ -96,25 +81,184 @@ def test_group_manage_sources_create_release_with_bad_link_name(
         data={"name": "Name", "link_name": "Aa0_Zz9-.+", "group_ids": [0]},
         token=manage_sources_token,
     )
-    assert_api_fail(status, data)
-    assert not data["message"] == error_link_name_validation_message
+    assert_api_fail(status, data, 400)
+    assert not data["message"] == error_validation_link_name
+    assert data["message"] == "Invalid groups"
 
-
-def test_group_manage_sources_create_release_with_bad_group(
-    manage_sources_token, public_source
-):
     status, data = api(
         "POST",
         "public_pages/release",
-        data={"name": "Name", "link_name": "Link_name", "group_ids": [0]},
+        data={
+            "name": "Name",
+            "link_name": link_name,
+            "group_ids": [public_group.id],
+        },
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    release_id = data["data"]["id"]
+
+    status, data = api("GET", "public_pages/release", token=manage_sources_token)
+    assert_api(status, data)
+    release = next(r for r in data["data"] if r["id"] == release_id)
+    assert release["is_visible"] is True
+    assert release["automatically_publish"] is False
+    assert release["group_ids"] == [public_group.id]
+
+    status, data = api(
+        "POST",
+        "public_pages/release",
+        data={
+            "name": "Name",
+            "link_name": link_name,
+            "group_ids": [public_group.id],
+        },
+        token=manage_sources_token,
+    )
+    assert_api_fail(status, data, 400, "This link name is already in use")
+
+
+def test_update_release(
+    view_only_token, manage_sources_token, public_source, public_group
+):
+    link_name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "public_pages/release",
+        data={
+            "name": "Name",
+            "link_name": link_name,
+            "group_ids": [public_group.id],
+        },
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    release_id = data["data"]["id"]
+
+    status, data = api(
+        "PATCH",
+        f"public_pages/release/{release_id}",
+        data={},
+        token=view_only_token,
+    )
+    assert_api_fail(status, data, 401, "HTTP 401: Unauthorized")
+
+    status, data = api(
+        "PATCH",
+        f"public_pages/release/{release_id}",
+        data={},
+        token=manage_sources_token,
+    )
+    assert_api_fail(status, data, 400, "No data provided")
+
+    status, data = api(
+        "PATCH",
+        f"public_pages/release/{release_id}",
+        data={"false_data": "false"},
+        token=manage_sources_token,
+    )
+    assert_api_fail(status, data, 400, "Name is required")
+
+    status, data = api(
+        "PATCH",
+        f"public_pages/release/{release_id}",
+        data={"name": "Name"},
+        token=manage_sources_token,
+    )
+    assert_api_fail(status, data, 400, "Specify at least one group")
+
+    status, data = api(
+        "PATCH",
+        f"public_pages/release/{release_id}",
+        data={"name": "Name", "group_ids": []},
+        token=manage_sources_token,
+    )
+    assert_api_fail(status, data, 400, "Specify at least one group")
+
+    status, data = api(
+        "PATCH",
+        f"public_pages/release/{release_id}",
+        data={"name": "Name", "group_ids": [0]},
         token=manage_sources_token,
     )
     assert_api_fail(status, data, 400, "Invalid groups")
 
+    status, data = api("GET", "public_pages/release", token=manage_sources_token)
+    assert_api(status, data)
+    release = next(r for r in data["data"] if r["id"] == release_id)
+    assert release["is_visible"] is True
+    assert release["automatically_publish"] is False
 
-# Test delete method
-def test_non_group_manage_sources_cannot_delete_release(
-    view_only_token, manage_sources_token, public_source
+    status, data = api(
+        "PATCH",
+        f"public_pages/release/{release_id}",
+        data={
+            "name": "Name",
+            "group_ids": [public_group.id],
+            "is_visible": False,
+            "automatically_publish": True,
+        },
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+
+    status, data = api("GET", "public_pages/release", token=manage_sources_token)
+    assert_api(status, data)
+    release = next(r for r in data["data"] if r["id"] == release_id)
+    assert release["is_visible"] is False
+    assert release["automatically_publish"] is True
+    assert release["link_name"] == link_name
+
+    status, data = api(
+        "PATCH",
+        f"public_pages/release/{release_id}",
+        data={
+            "name": "Name",
+            "group_ids": [public_group.id],
+            "link_name": "new_link_name",
+        },
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+
+    status, data = api("GET", "public_pages/release", token=manage_sources_token)
+    assert_api(status, data)
+    release = next(r for r in data["data"] if r["id"] == release_id)
+    assert not release["link_name"] == "new_link_name"
+    assert release["link_name"] == link_name
+
+
+def test_delete_release(
+    view_only_token, manage_sources_token, public_source, public_group
 ):
-    status, data = api("DELETE", f"public_pages/source/{0}", token=view_only_token)
+    link_name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "public_pages/release",
+        data={
+            "name": "Name",
+            "link_name": link_name,
+            "group_ids": [public_group.id],
+        },
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    release_id = data["data"]["id"]
+
+    status, data = api("DELETE", "public_pages/release/", token=view_only_token)
+    assert_api_fail(status, data, 405, "HTTP 405: Method Not Allowed")
+
+    status, data = api(
+        "DELETE", f"public_pages/release/{release_id}", token=view_only_token
+    )
     assert_api_fail(status, data, 401, "HTTP 401: Unauthorized")
+
+    status, data = api(
+        "DELETE", f"public_pages/release/{release_id}", token=manage_sources_token
+    )
+    assert_api(status, data)
+
+    status, data = api(
+        "DELETE", f"public_pages/release/{release_id}", token=manage_sources_token
+    )
+    assert_api_fail(status, data, 404, "Release not found")
