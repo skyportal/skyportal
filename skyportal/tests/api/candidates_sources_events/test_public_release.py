@@ -228,6 +228,101 @@ def test_update_release(
     assert release["link_name"] == link_name
 
 
+def test_automatically_publish_sources_in_same_group(
+    super_admin_token,
+    view_only_token,
+    manage_sources_token,
+    public_source,
+    public_group,
+):
+    link_name = str(uuid.uuid4())
+    # create a release with automatically_publish to false
+    status, data = api(
+        "POST",
+        "public_pages/release",
+        data={
+            "name": "Name",
+            "link_name": link_name,
+            "group_ids": [public_group.id],
+            "automatically_publish": False,
+        },
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    release_id = data["data"]["id"]
+    status, data = api(
+        "GET",
+        "public_pages/release",
+        token=super_admin_token,
+    )
+    assert_api(status, data)
+    # release = next(r for r in data["data"] if r["id"] == release_id)
+
+    # create a source in the same group
+    source_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": source_id,
+            "ra": 26.5,
+            "dec": 28.3,
+            "redshift": 0.5,
+            "group_ids": [public_group.id],
+        },
+        token=super_admin_token,
+    )
+    assert_api(status, data)
+
+    # check that the source have not been published
+    status, data = api(
+        "GET",
+        f"public_pages/source/{source_id}",
+        token=view_only_token,
+    )
+    assert_api(status, data)
+    assert len(data["data"]) == 0
+
+    # update the release to automatically_publish to true
+    status, data = api(
+        "PATCH",
+        f"public_pages/release/{release_id}",
+        data={
+            "name": "Name",
+            "group_ids": [public_group.id],
+            "automatically_publish": True,
+        },
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+
+    # create a new source in the same group
+    new_source_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": new_source_id,
+            "ra": 26.5,
+            "dec": 28.3,
+            "redshift": 0.5,
+            "group_ids": [public_group.id],
+        },
+        token=super_admin_token,
+    )
+    assert_api(status, data)
+
+    # check that the new source have been published
+    status, data = api(
+        "GET",
+        f"public_pages/source/{new_source_id}",
+        token=view_only_token,
+    )
+    assert_api(status, data)
+    assert len(data["data"]) == 1
+    assert data["data"][0]["release_id"] == release_id
+
+
 def test_delete_release(
     view_only_token, manage_sources_token, public_source, public_group
 ):
