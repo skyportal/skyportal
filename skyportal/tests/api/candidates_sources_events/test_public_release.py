@@ -256,7 +256,6 @@ def test_automatically_publish_sources_in_same_group(
         token=super_admin_token,
     )
     assert_api(status, data)
-    # release = next(r for r in data["data"] if r["id"] == release_id)
 
     # create a source in the same group
     source_id = str(uuid.uuid4())
