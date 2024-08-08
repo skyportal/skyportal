@@ -114,7 +114,7 @@ class PublicReleaseHandler(BaseHandler):
             session.add(public_release)
             session.commit()
             self.push_all(action="skyportal/REFRESH_PUBLIC_RELEASES")
-            return self.success()
+            return self.success(data={"id": public_release.id})
 
     @permissions(['Manage sources'])
     def patch(self, release_id):

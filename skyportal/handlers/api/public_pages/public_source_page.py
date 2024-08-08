@@ -246,7 +246,7 @@ class PublicSourcePageHandler(BaseHandler):
                 action="skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
                 payload={'source_id': source_id},
             )
-            return self.success()
+            return self.success(data={"id": public_source_page.id})
 
     @auth_or_token
     def get(self, source_id):
