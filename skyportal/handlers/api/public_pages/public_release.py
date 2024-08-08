@@ -96,6 +96,8 @@ class PublicReleaseHandler(BaseHandler):
                 groups = session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
                 ).all()
+            else:
+                return self.error("Invalid groups")
 
             if not groups:
                 return self.error("Invalid groups")
