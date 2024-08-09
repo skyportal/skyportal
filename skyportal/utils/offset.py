@@ -1165,7 +1165,7 @@ def get_nearby_offset_stars(
         else:
             offsets = ""
 
-        name = f"{abrev_basename}_o{i+1}"
+        name = f"{abrev_basename}_{starlist_type.lower()[0]}{i+1}"
 
         hmsdms = format_hmsdms(c, coord_sep, col_sep)
 
