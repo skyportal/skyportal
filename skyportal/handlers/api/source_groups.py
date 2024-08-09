@@ -8,10 +8,12 @@ from ..base import BaseHandler
 from ...models import (
     Obj,
     Source,
+    Thumbnail,
     TNSRobotGroup,
     TNSRobotGroupAutoreporter,
     TNSRobotSubmission,
     GroupUser,
+    PublicRelease,
 )
 
 log = make_log('api/source_groups')
@@ -192,6 +194,37 @@ class SourceGroupsHandler(BaseHandler):
                             f"Added TNSRobotSubmission request for obj_id {obj.id} saved to group {group_id} with tnsrobot_id {tnsrobot_group_with_autoreporter.tnsrobot_id} for user_id {self.associated_user_object.id}"
                         )
                         break
+
+                # if there is releases with automatically_publish and one of the source groups,
+                # a public page is published for this source
+                releases = session.scalars(
+                    PublicRelease.select(session.user_or_token).where(
+                        PublicRelease.groups.any(id=group_id),
+                        PublicRelease.automatically_publish,
+                    )
+                ).all()
+                if releases is not None and len(releases) > 0:
+                    from .public_pages.public_source_page import post_public_source_page
+
+                    dict_obj = obj.to_dict()
+                    thumbnails = session.scalars(
+                        sa.select(Thumbnail).where(
+                            Thumbnail.obj_id == obj_id,
+                        )
+                    ).all()
+                    dict_obj['thumbnails'] = [
+                        thumbnail.to_dict() for thumbnail in thumbnails
+                    ]
+                    try:
+                        for release in releases:
+                            post_public_source_page(
+                                options=release.options,
+                                source=dict_obj,
+                                release=release,
+                                session=session,
+                            )
+                    except Exception as e:
+                        raise AttributeError(str(e))
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}

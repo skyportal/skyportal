@@ -6,6 +6,7 @@ import numpy as np
 from sqlalchemy import or_
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from ..source import get_source
 from ...base import BaseHandler
@@ -101,6 +102,80 @@ def safe_round(number, precision):
     return round(number, precision) if isinstance(number, (int, float)) else None
 
 
+def post_public_source_page(options, source, release, session):
+    group_ids = options.get("groups")
+    stream_ids = options.get("streams")
+    source_id = source["id"]
+
+    data_to_publish = {
+        "ra": safe_round(source.get("ra"), 6),
+        "dec": safe_round(source.get("dec"), 6),
+        "redshift_display": get_redshift_to_display(source),
+        "gal_lon": safe_round(source.get("gal_lon"), 6),
+        "gal_lat": safe_round(source.get("gal_lat"), 6),
+        "ebv": safe_round(source.get("ebv"), 2),
+        "dm": safe_round(source.get("dm"), 3),
+        "dl": safe_round(source.get("luminosity_distance"), 2),
+        "thumbnails": process_thumbnails(
+            source.get("thumbnails"), source.get("ra"), source.get("dec")
+        ),
+        "options": options,
+        "release_link_name": release.link_name if release is not None else None,
+    }
+    if options.get("include_summary"):
+        data_to_publish["summary"] = source.get("summary")
+    if options.get("include_photometry"):
+        data_to_publish["photometry"] = get_photometry(
+            source_id, group_ids, stream_ids, session
+        )
+    if options.get("include_spectroscopy"):
+        data_to_publish["spectroscopy"] = get_spectroscopy(
+            source_id, group_ids, session
+        )
+    if options.get("include_classifications"):
+        data_to_publish["classifications"] = get_classifications(
+            source_id, group_ids, session
+        )
+
+    new_page_hash = calculate_hash(data_to_publish)
+    same_page = session.scalar(
+        PublicSourcePage.select(session.user_or_token, mode="read").where(
+            PublicSourcePage.source_id == source_id,
+            PublicSourcePage.hash == new_page_hash,
+        )
+    )
+    if same_page is not None:
+        raise AttributeError(
+            "A public page with the same data, options and release already exists for this source"
+        )
+
+    public_source_page = PublicSourcePage(
+        source_id=source_id,
+        hash=new_page_hash,
+        data=data_to_publish,
+        is_visible=True,
+        release_id=release.id if release is not None else None,
+    )
+    session.add(public_source_page)
+    session.commit()
+
+    if release is None or release.is_visible:
+        try:
+            public_source_page.generate_page()
+        except Exception as e:
+            session.rollback()
+            if public_source_page in session:
+                session.delete(public_source_page)
+                session.commit()
+            raise AttributeError(f"Error generating public page: {e}")
+
+    flow = Flow()
+    flow.push(
+        '*', "skyportal/REFRESH_PUBLIC_SOURCE_PAGES", payload={'source_id': source_id}
+    )
+    return public_source_page.id
+
+
 class PublicSourcePageHandler(BaseHandler):
     @permissions(['Manage sources'])
     async def post(self, source_id):
@@ -155,22 +230,19 @@ class PublicSourcePageHandler(BaseHandler):
             return self.error("Invalid release ID")
 
         with self.Session() as session:
-            group_ids = options.get("groups")
-            stream_ids = options.get("streams")
-
             try:
                 source = await get_source(
-                    source_id,
-                    self.associated_user_object.id,
+                    obj_id=source_id,
+                    user_id=self.associated_user_object.id,
                     session=session,
                     include_thumbnails=True,
                 )
             except ValueError:
                 return self.error("Source not found", status=404)
-
             if source is None:
                 return self.error("Source not found", status=404)
 
+            release = None
             if release_id is not None:
                 release = session.scalar(
                     PublicRelease.select(session.user_or_token, mode="read").where(
@@ -180,75 +252,16 @@ class PublicSourcePageHandler(BaseHandler):
                 if release is None:
                     return self.error("Release not found", status=404)
 
-            data_to_publish = {
-                "ra": safe_round(source.get("ra"), 6),
-                "dec": safe_round(source.get("dec"), 6),
-                "redshift_display": get_redshift_to_display(source),
-                "gal_lon": safe_round(source.get("gal_lon"), 6),
-                "gal_lat": safe_round(source.get("gal_lat"), 6),
-                "ebv": safe_round(source.get("ebv"), 2),
-                "dm": safe_round(source.get("dm"), 3),
-                "dl": safe_round(source.get("luminosity_distance"), 2),
-                "thumbnails": process_thumbnails(
-                    source["thumbnails"], source["ra"], source["dec"]
-                ),
-                "options": options,
-                "release_link_name": release.link_name if release_id else None,
-            }
-            if options.get("include_summary"):
-                data_to_publish["summary"] = source.get("summary")
-            if options.get("include_photometry"):
-                data_to_publish["photometry"] = get_photometry(
-                    source_id, group_ids, stream_ids, session
+            try:
+                public_source_page_id = post_public_source_page(
+                    options=options,
+                    source=source,
+                    release=release,
+                    session=session,
                 )
-            if options.get("include_spectroscopy"):
-                data_to_publish["spectroscopy"] = get_spectroscopy(
-                    source_id, group_ids, session
-                )
-            if options.get("include_classifications"):
-                data_to_publish["classifications"] = get_classifications(
-                    source_id, group_ids, session
-                )
-
-            new_page_hash = calculate_hash(data_to_publish)
-            if (
-                session.scalar(
-                    PublicSourcePage.select(session.user_or_token, mode="read").where(
-                        PublicSourcePage.source_id == source_id,
-                        PublicSourcePage.hash == new_page_hash,
-                    )
-                )
-                is not None
-            ):
-                return self.error(
-                    "A public page with the same data, options and release already exists for this source"
-                )
-
-            public_source_page = PublicSourcePage(
-                source_id=source_id,
-                hash=new_page_hash,
-                data=data_to_publish,
-                is_visible=True,
-                release_id=release_id,
-            )
-            session.add(public_source_page)
-            session.commit()
-
-            if release_id is None or release.is_visible:
-                try:
-                    public_source_page.generate_page()
-                except Exception as e:
-                    session.rollback()
-                    if public_source_page in session:
-                        session.delete(public_source_page)
-                        session.commit()
-                    return self.error(f"Error generating public page: {e}")
-
-            self.push_all(
-                action="skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
-                payload={'source_id': source_id},
-            )
-            return self.success(data={"id": public_source_page.id})
+                return self.success(data={"id": public_source_page_id})
+            except Exception as e:
+                return self.error(str(e))
 
     @auth_or_token
     def get(self, source_id):

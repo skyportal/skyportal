@@ -73,6 +73,7 @@ from ...models import (
     TNSRobotGroupAutoreporter,
     TNSRobotGroup,
     TNSRobotSubmission,
+    PublicRelease,
     Token,
     User,
 )
@@ -932,6 +933,34 @@ def post_source(data, user_id, session, refresh_source=True):
                 )
                 break
 
+        # if there is releases with automatically_publish and one of the source groups,
+        # a public page is published
+        releases = session.scalars(
+            PublicRelease.select(session.user_or_token).where(
+                PublicRelease.groups.any(id=group.id),
+                PublicRelease.automatically_publish,
+            )
+        ).all()
+        if releases is not None and len(releases) > 0:
+            from .public_pages.public_source_page import post_public_source_page
+
+            dict_obj = obj.to_dict()
+            dict_obj['thumbnails'] = [
+                thumbnail.to_dict()
+                for thumbnail in session.scalars(
+                    sa.select(Thumbnail).where(Thumbnail.obj_id == obj.id)
+                ).all()
+            ]
+            try:
+                for release in releases:
+                    post_public_source_page(
+                        options=release.options,
+                        source=obj.to_dict(),
+                        release=release,
+                        session=session,
+                    )
+            except Exception as e:
+                raise AttributeError(str(e))
     else:
         if refresh_source:
             flow = Flow()
