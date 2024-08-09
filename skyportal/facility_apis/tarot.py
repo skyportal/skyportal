@@ -5,6 +5,7 @@ import numpy as np
 import requests
 from astroplan.moon import moon_phase_angle
 from astropy.time import Time
+import astropy.units as u
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -218,7 +219,19 @@ def validate_request_to_tarot(request):
 
         obs = observations[ii * 6 : (ii + 1) * 6]
 
-        observation_string = f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {tt.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)} {request.payload["priority"]} {request.payload["station_name"]}'
+        total_time = 0.0
+        for o in obs:
+            exposure_time, filt = o.split(" ")
+            total_time = int(exposure_time) + total_time
+
+        if ii == 0:
+            ttdiff = 0 * u.s
+        else:
+            ttdiff = (total_time + 40) * u.s
+
+        ttline = tt + ttdiff
+
+        observation_string = f'"{request.obj.id}" {request.obj.ra} {request.obj.dec} {ttline.isot} 0.004180983 0.00 {" ".join(obs)} {" ".join(obs_filler)} {request.payload["priority"]} {request.payload["station_name"]}'
         observation_strings.append(observation_string)
 
     return observation_strings
