@@ -105,7 +105,7 @@ def validate_request_to_tarot(request):
                         "NoFilter": [6, 120],
                     },
                     "Tarot_Chili": {
-                        "r": [15, 0],
+                        "r": [15, 120],
                         "g": [0, 0],
                         "i": [0, 0],
                         "NoFilter": [6, 120],
@@ -210,9 +210,10 @@ def validate_request_to_tarot(request):
         observations = sum([observations] * request.payload["exposure_counts"], [])
 
     observation_strings = []
+    total_time = 0.0
     number_of_strings, remainder = np.divmod(len(observations), 6)
-    for ii in range(number_of_strings):
-        if ii == number_of_strings - 1:
+    for ii in range(number_of_strings + 1):
+        if ii == number_of_strings:
             obs_filler = ["0 0"] * (int(6 - remainder))
         else:
             obs_filler = []
@@ -222,12 +223,12 @@ def validate_request_to_tarot(request):
         total_time = 0.0
         for o in obs:
             exposure_time, filt = o.split(" ")
-            total_time = int(exposure_time) + total_time
+            total_time = 40 + int(exposure_time) + total_time
 
         if ii == 0:
             ttdiff = 0 * u.s
         else:
-            ttdiff = (total_time + 40) * u.s
+            ttdiff = total_time * u.s
 
         ttline = tt + ttdiff
 
