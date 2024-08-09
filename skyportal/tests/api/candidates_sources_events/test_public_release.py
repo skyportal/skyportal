@@ -319,7 +319,7 @@ def test_automatically_publish_sources_in_same_group(
     )
     assert_api(status, data)
     assert len(data["data"]) == 1
-    assert data["data"][0]["release_id"] == release_id
+    assert data["data"][0]["release_link_name"] == link_name
 
 
 def test_delete_release(
