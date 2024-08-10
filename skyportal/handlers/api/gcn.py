@@ -2072,6 +2072,7 @@ def add_tiles_and_properties_and_contour(
             sa.select(Localization).where(Localization.id == localization_id)
         )
 
+        log(f"Retrieving skymap properties for localization {localization_id}")
         properties_dict, tags_list = get_skymap_properties(localization)
         if properties is not None:
             properties_dict.update(properties)
@@ -2093,6 +2094,7 @@ def add_tiles_and_properties_and_contour(
         ]
         session.add_all(tags)
 
+        log(f"Adding default localization tags for localization {localization_id}")
         gcn_tags = add_default_gcn_tags(user, session, localization=localization)
         if gcn_tags is not None and len(gcn_tags) > 0:
             session.add_all(gcn_tags)
@@ -2114,6 +2116,7 @@ def add_tiles_and_properties_and_contour(
                 lambda: post_notification(request_body, timeout=30),
             )
 
+        log(f"Adding tiles for localization {localization_id}")
         tiles = [
             LocalizationTile(
                 localization_id=localization_id,
@@ -2129,11 +2132,13 @@ def add_tiles_and_properties_and_contour(
         session.add_all(tiles)
         session.commit()
 
+        log(f"Adding contour for localization {localization_id}")
         localization = get_contour(localization)
         session.add(localization)
         session.commit()
 
         if url is not None:
+            log(f"Fetching and saving raw skymap data to disk {localization_id}")
             try:
                 r = requests.get(url, allow_redirects=True, timeout=15)
                 data_to_disk = r.content
@@ -2146,11 +2151,12 @@ def add_tiles_and_properties_and_contour(
                 log(
                     f"Localization {localization_id} URL {url} failed to download: {str(e)}."
                 )
-
-        return log(
+        log(
             f"Generated tiles / properties / contour for localization {localization_id}"
         )
+        return
     except Exception as e:
+        traceback.print_exc()
         log(
             f"Unable to generate tiles / properties / contour for localization {localization_id}: {e}"
         )
@@ -2526,6 +2532,7 @@ def add_tiles_properties_contour_and_obsplan(
         )
         add_observation_plans(localization_id, user_id, session)
     except Exception as e:
+        traceback.print_exc()
         log(
             f"Unable to generate tiles / properties / observation plans / contour for localization {localization_id}: {e}"
         )

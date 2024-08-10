@@ -138,7 +138,7 @@ const FollowupRequestLists = ({
         dispatch(
           showNotification(
             "Successfully retrieved photometry request, please wait for it to be processed.",
-            "success",
+            "info",
           ),
         );
         setHasRetrieved([...hasRetrieved, id]);

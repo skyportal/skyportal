@@ -35,6 +35,7 @@ modes = {
     '0x9999': '0x9999 - Default (Filter of the day)',
     '0x30ed': '0x30ed - U+B+V+All UV',
     '0x223f': '0x223f - U+B+V+All UV (UV weighted, SN Mode)',
+    '0x0270': '0x0270 - U+B+V+All UV (ToO Upload Mode)',
     '0x209a': '0x209a - U+B+V',
     '0x308f': '0x308f - All UV',
     '0x2019': '0x2019 - White',
