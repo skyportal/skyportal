@@ -1,6 +1,7 @@
 import json
 import requests
-from datetime import datetime, timedelta
+from astropy.time import Time, TimeDelta
+import astropy.units as u
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
@@ -105,8 +106,8 @@ class SOAR_GHTS_IMAGER_Request:
                 }
             )
 
-        tstart = request.payload["start_date"] + ' 00:00:00'
-        tend = request.payload["end_date"] + ' 00:00:00'
+        tstart = request.payload["start_date"]
+        tend = request.payload["end_date"]
 
         windows = [{'start': tstart, 'end': tend}]
 
@@ -335,8 +336,8 @@ class SOAR_GHTS_Request:
                 },
             ]
 
-        tstart = request.payload["start_date"] + ' 00:00:00'
-        tend = request.payload["end_date"] + ' 00:00:00'
+        tstart = request.payload["start_date"]
+        tend = request.payload["end_date"]
 
         windows = [{'start': tstart, 'end': tend}]
 
@@ -442,8 +443,8 @@ class SOAR_TripleSpec_Request:
             },
         ]
 
-        tstart = request.payload["start_date"] + ' 00:00:00'
-        tend = request.payload["end_date"] + ' 00:00:00'
+        tstart = request.payload["start_date"]
+        tend = request.payload["end_date"]
 
         windows = [{'start': tstart, 'end': tend}]
 
@@ -647,15 +648,13 @@ class SOARGHTSIMAGERAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": Time.now().iso,
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
-                "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (Time.now() + TimeDelta(7 * u.day)).iso,
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -822,15 +821,13 @@ class SOARGHTSAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": Time.now().iso,
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
-                "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (Time.now() + TimeDelta(7 * u.day)).iso,
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -999,15 +996,13 @@ class SOARTSPECAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": Time.now().iso,
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
-                "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (Time.now() + TimeDelta(7 * u.day)).iso,
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
