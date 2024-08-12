@@ -4,6 +4,7 @@ import sqlalchemy as sa
 
 from baselayer.app.access import permissions
 from baselayer.log import make_log
+from ...utils.asynchronous import run_async
 from ..base import BaseHandler
 from ...models import (
     Obj,
@@ -215,16 +216,14 @@ class SourceGroupsHandler(BaseHandler):
                     dict_obj['thumbnails'] = [
                         thumbnail.to_dict() for thumbnail in thumbnails
                     ]
-                    try:
-                        for release in releases:
-                            post_public_source_page(
-                                options=release.options,
-                                source=dict_obj,
-                                release=release,
-                                session=session,
-                            )
-                    except Exception as e:
-                        raise AttributeError(str(e))
+                    for release in releases:
+                        run_async(
+                            post_public_source_page,
+                            options=release.options,
+                            source=dict_obj,
+                            release=release,
+                            session=session,
+                        )
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}

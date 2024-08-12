@@ -951,16 +951,14 @@ def post_source(data, user_id, session, refresh_source=True):
                     sa.select(Thumbnail).where(Thumbnail.obj_id == obj.id)
                 ).all()
             ]
-            try:
-                for release in releases:
-                    post_public_source_page(
-                        options=release.options,
-                        source=obj.to_dict(),
-                        release=release,
-                        session=session,
-                    )
-            except Exception as e:
-                raise AttributeError(str(e))
+            for release in releases:
+                run_async(
+                    post_public_source_page,
+                    options=release.options,
+                    source=dict_obj,
+                    release=release,
+                    session=session,
+                )
     else:
         if refresh_source:
             flow = Flow()
