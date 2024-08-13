@@ -957,7 +957,7 @@ def post_source(data, user_id, session, refresh_source=True):
                     options=release.options,
                     source=dict_obj,
                     release=release,
-                    session=session,
+                    auto_publish=True,
                 )
     else:
         if refresh_source:

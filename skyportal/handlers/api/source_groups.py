@@ -222,7 +222,7 @@ class SourceGroupsHandler(BaseHandler):
                             options=release.options,
                             source=dict_obj,
                             release=release,
-                            session=session,
+                            auto_publish=True,
                         )
 
             self.push_all(

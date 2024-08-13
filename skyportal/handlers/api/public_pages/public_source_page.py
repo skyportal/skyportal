@@ -102,7 +102,7 @@ def safe_round(number, precision):
     return round(number, precision) if isinstance(number, (int, float)) else None
 
 
-def post_public_source_page(options, source, release, session):
+def post_public_source_page(options, source, release, auto_publish, session):
     group_ids = options.get("groups")
     stream_ids = options.get("streams")
     source_id = source["id"]
@@ -153,6 +153,7 @@ def post_public_source_page(options, source, release, session):
         source_id=source_id,
         hash=new_page_hash,
         data=data_to_publish,
+        auto_publish=auto_publish,
         is_visible=True,
         release_id=release.id if release is not None else None,
     )
@@ -257,6 +258,7 @@ class PublicSourcePageHandler(BaseHandler):
                     options=options,
                     source=source,
                     release=release,
+                    auto_publish=False,
                     session=session,
                 )
                 return self.success(data={"id": public_source_page_id})
