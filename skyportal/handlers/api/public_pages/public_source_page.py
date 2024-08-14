@@ -3,10 +3,12 @@ import json
 
 import joblib
 import numpy as np
-from sqlalchemy import or_
+import sqlalchemy as sa
+from sqlalchemy import or_, not_
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
+from baselayer.app.models import DBSession
 from baselayer.log import make_log
 from ..source import get_source
 from ...base import BaseHandler
@@ -102,7 +104,24 @@ def safe_round(number, precision):
     return round(number, precision) if isinstance(number, (int, float)) else None
 
 
+def async_post_public_source_page(options, source, release):
+    """Asynchronously create a public page for a source
+    options: The options for managing data to display publicly.
+    source: The source data to publish.
+    release: The release where the public source page belongs.
+    """
+    with DBSession() as session:
+        post_public_source_page(options, source, release, True, session)
+
+
 def post_public_source_page(options, source, release, auto_publish, session):
+    """Create a public page for a source.
+    options: The options for managing data to display publicly.
+    source: The source data to publish.
+    release: The release where the public source page belongs.
+    auto_publish: Whether the page has been auto-published.
+    session: The session used to interact with the database.
+    """
     group_ids = options.get("groups")
     stream_ids = options.get("streams")
     source_id = source["id"]
@@ -139,7 +158,7 @@ def post_public_source_page(options, source, release, auto_publish, session):
 
     new_page_hash = calculate_hash(data_to_publish)
     same_page = session.scalar(
-        PublicSourcePage.select(session.user_or_token, mode="read").where(
+        sa.select(PublicSourcePage).where(
             PublicSourcePage.source_id == source_id,
             PublicSourcePage.hash == new_page_hash,
         )
@@ -175,6 +194,38 @@ def post_public_source_page(options, source, release, auto_publish, session):
         '*', "skyportal/REFRESH_PUBLIC_SOURCE_PAGES", payload={'source_id': source_id}
     )
     return public_source_page.id
+
+
+def delete_auto_published_page(source_id, remaining_group_ids):
+    """
+    Delete auto-published public pages for a source.
+    But only if the release, link to the page, share no groups with the remaining source groups.
+    source_id: The ID of the source for which to delete auto-published pages.
+    remaining_group_ids: The IDs of the groups that the source is still associated with.
+    """
+    # only called with `run_async`, so we open the session here with DBSession()
+    with DBSession() as session:
+        public_source_pages = session.scalars(
+            sa.select(PublicSourcePage)
+            .join(PublicRelease)
+            .where(
+                not_(PublicRelease.groups.any(Group.id.in_(remaining_group_ids))),
+                PublicSourcePage.source_id == source_id,
+                PublicSourcePage.auto_publish,
+            )
+        ).all()
+
+        flow = Flow()
+        for public_source_page in public_source_pages:
+            public_source_page.remove_from_cache()
+            session.delete(public_source_page)
+            flow.push(
+                '*',
+                "skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
+                payload={'source_id': public_source_page.source_id},
+            )
+
+        session.commit()
 
 
 class PublicSourcePageHandler(BaseHandler):
