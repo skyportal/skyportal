@@ -128,6 +128,20 @@ class SourceGroupsHandler(BaseHandler):
                 source.active = False
                 source.unsaved_at = datetime.datetime.utcnow()
 
+            if len(unsave_group_ids) > 0:
+                # Delete all this source auto-published pages, link to a release and sharing no groups with this source
+                from .public_pages.public_source_page import delete_auto_published_page
+
+                all_saved_groups = session.scalars(
+                    sa.select(Source.group_id).where(
+                        Source.obj_id == obj_id, ~Source.group_id.in_(unsave_group_ids)
+                    )
+                ).all()
+                run_async(
+                    delete_auto_published_page,
+                    source_id=obj_id,
+                    remaining_group_ids=all_saved_groups,
+                )
             session.commit()
 
             for group_id in saved_to_group_ids:
@@ -205,7 +219,9 @@ class SourceGroupsHandler(BaseHandler):
                     )
                 ).all()
                 if releases is not None and len(releases) > 0:
-                    from .public_pages.public_source_page import post_public_source_page
+                    from .public_pages.public_source_page import (
+                        async_post_public_source_page,
+                    )
 
                     dict_obj = obj.to_dict()
                     thumbnails = session.scalars(
@@ -218,11 +234,10 @@ class SourceGroupsHandler(BaseHandler):
                     ]
                     for release in releases:
                         run_async(
-                            post_public_source_page,
+                            async_post_public_source_page,
                             options=release.options,
                             source=dict_obj,
                             release=release,
-                            auto_publish=True,
                         )
 
             self.push_all(

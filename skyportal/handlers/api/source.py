@@ -942,7 +942,7 @@ def post_source(data, user_id, session, refresh_source=True):
             )
         ).all()
         if releases is not None and len(releases) > 0:
-            from .public_pages.public_source_page import post_public_source_page
+            from .public_pages.public_source_page import async_post_public_source_page
 
             dict_obj = obj.to_dict()
             dict_obj['thumbnails'] = [
@@ -953,11 +953,10 @@ def post_source(data, user_id, session, refresh_source=True):
             ]
             for release in releases:
                 run_async(
-                    post_public_source_page,
+                    async_post_public_source_page,
                     options=release.options,
                     source=dict_obj,
                     release=release,
-                    auto_publish=True,
                 )
     else:
         if refresh_source:
