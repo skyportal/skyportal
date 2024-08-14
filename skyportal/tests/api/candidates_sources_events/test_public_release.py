@@ -1,3 +1,4 @@
+import time
 import uuid
 
 from skyportal.tests import api, assert_api, assert_api_fail
@@ -228,9 +229,10 @@ def test_update_release(
     assert release["link_name"] == link_name
 
 
-def test_automatically_publish_sources_in_same_group_when_create_source(
+def test_automatically_publish_and_delete_sources_in_same_group_when_create_or_update_source(
     super_admin_token,
     view_only_token,
+    upload_data_token,
     manage_sources_token,
     public_source,
     public_group,
@@ -306,79 +308,85 @@ def test_automatically_publish_sources_in_same_group_when_create_source(
     assert_api(status, data)
 
     # check that the new source have been published
-    status, data = api(
-        "GET",
-        f"public_pages/source/{new_source_id}",
-        token=view_only_token,
-    )
-    assert_api(status, data)
-    assert len(data["data"]) == 1
-    assert data["data"][0]["release_link_name"] == link_name
+    for n_times in range(3):
+        status, data = api(
+            "GET",
+            f"public_pages/source/{new_source_id}",
+            token=view_only_token,
+        )
+        assert_api(status, data)
+        if len(data["data"]) == 1:
+            assert data["data"][0]["release_link_name"] == link_name
+            break
+        time.sleep(2)
+    assert n_times < 2
 
-
-def test_automatically_publish_sources_in_same_group_when_update_source(
-    super_admin_token,
-    view_only_token,
-    manage_sources_token,
-    upload_data_token,
-    public_source,
-    public_group,
-):
-    link_name = str(uuid.uuid4())
-    # create a release with automatically_publish to true
-    status, data = api(
-        "POST",
-        "public_pages/release",
-        data={
-            "name": "Name",
-            "link_name": link_name,
-            "group_ids": [public_group.id],
-            "automatically_publish": True,
-        },
-        token=manage_sources_token,
-    )
-    assert_api(status, data)
-
-    # check how many public pages are available
-    status, data = api(
-        "GET",
-        f"public_pages/source/{public_source.id}",
-        token=view_only_token,
-    )
-    assert_api(status, data)
-    nb_public_page = len(data["data"])
-
-    # update the source, unsave and save back the same group then the release
+    # Update the source by first unregister it to the release group.
     status, data = api(
         "POST",
         "source_groups",
         data={
-            "objId": public_source.id,
+            "objId": new_source_id,
             "unsaveGroupIds": [public_group.id],
         },
         token=upload_data_token,
     )
     assert_api(status, data)
+
+    # check that the automatically published source have been deleted
+    for n_times in range(3):
+        status, data = api(
+            "GET",
+            f"public_pages/source/{new_source_id}",
+            token=view_only_token,
+        )
+        assert_api(status, data)
+        if len(data["data"]) == 0:
+            break
+        time.sleep(2)
+    assert n_times < 2
+
+    # Update the source by register it back to the release group.
     status, data = api(
         "POST",
         "source_groups",
         data={
-            "objId": public_source.id,
+            "objId": new_source_id,
             "inviteGroupIds": [public_group.id],
         },
         token=upload_data_token,
     )
     assert_api(status, data)
 
-    # check that the source have been published
+    for n_time in range(3):
+        # check that the new source have been published
+        status, data = api(
+            "GET",
+            f"public_pages/source/{new_source_id}",
+            token=view_only_token,
+        )
+        assert_api(status, data)
+
+        if len(data["data"]) == 1:
+            assert data["data"][0]["release_link_name"] == link_name
+            break
+        else:
+            time.sleep(2)
+    assert n_time < 2
+
     status, data = api(
-        "GET",
-        f"public_pages/source/{public_source.id}",
+        "DELETE",
+        f"objs/{source_id}",
         token=view_only_token,
     )
     assert_api(status, data)
-    assert len(data["data"]) == nb_public_page + 1
-    assert data["data"][0]["release_link_name"] == link_name
+
+    status, data = api(
+        "DELETE",
+        f"objs/{new_source_id}",
+        token=view_only_token,
+    )
+    assert_api(status, data)
 
 
 def test_delete_release(
