@@ -238,6 +238,7 @@ class SourceGroupsHandler(BaseHandler):
                             options=release.options,
                             source=dict_obj,
                             release=release,
+                            user_id=self.associated_user_object.id,
                         )
 
             self.push_all(

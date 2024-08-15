@@ -23,6 +23,7 @@ from ....models import (
     Classification,
     Group,
     Stream,
+    User,
 )
 from ....utils.thumbnail import get_thumbnail_alt_link, get_thumbnail_header
 
@@ -104,13 +105,16 @@ def safe_round(number, precision):
     return round(number, precision) if isinstance(number, (int, float)) else None
 
 
-def async_post_public_source_page(options, source, release):
+def async_post_public_source_page(options, source, release, user_id):
     """Asynchronously create a public page for a source
     options: The options for managing data to display publicly.
     source: The source data to publish.
     release: The release where the public source page belongs.
     """
     with DBSession() as session:
+        session.user_or_token = session.scalar(
+            sa.select(User).where(User.id == user_id)
+        )
         post_public_source_page(options, source, release, True, session)
 
 
