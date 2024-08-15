@@ -234,7 +234,6 @@ def test_analysis_with_file_input_start(
     )
 
 
-# @pytest.mark.flaky(reruns=3)
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
     simple = {
         'class': 'Cepheid',
@@ -555,7 +554,7 @@ def test_show_starlist(driver, user, public_source):
     driver.get(f"/source/{public_source.id}")
     button = driver.wait_for_xpath('//button[text()="Show Starlist"]')
     button.click()
-    driver.wait_for_xpath("//code/div/pre[text()[contains(., '_o1')]]", timeout=45)
+    driver.wait_for_xpath("//code/div/pre[text()[contains(., '_k1')]]", timeout=45)
 
 
 @pytest.mark.flaky(reruns=2)
