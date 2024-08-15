@@ -389,6 +389,78 @@ def test_automatically_publish_and_delete_sources_in_same_group_when_create_or_u
     assert_api(status, data)
 
 
+def test_automatically_publish_and_delete_sources_in_same_group_when_update_source_with_photometry(
+    super_admin_token,
+    view_only_token,
+    upload_data_token,
+    manage_sources_token,
+    public_source,
+    public_group,
+):
+    link_name = str(uuid.uuid4())
+    # create a release with automatically_publish to true
+    status, data = api(
+        "POST",
+        "public_pages/release",
+        data={
+            "name": "Name",
+            "link_name": link_name,
+            "group_ids": [public_group.id],
+            "automatically_publish": True,
+        },
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+
+    # Update the source by first unregister it to the release group.
+    status, data = api(
+        "POST",
+        "source_groups",
+        data={
+            "objId": public_source.id,
+            "unsaveGroupIds": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+
+    # check that no source have been already published in the release
+    status, data = api(
+        "GET",
+        f"public_pages/source/{public_source.id}",
+        token=view_only_token,
+    )
+    assert_api(status, data)
+    assert all(x["release_link_name"] != link_name for x in data["data"])
+
+    # Update the source by register it back to the release group.
+    status, data = api(
+        "POST",
+        "source_groups",
+        data={
+            "objId": public_source.id,
+            "inviteGroupIds": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+
+    for n_time in range(3):
+        # check that the source have been published
+        status, data = api(
+            "GET",
+            f"public_pages/source/{public_source.id}",
+            token=view_only_token,
+        )
+        assert_api(status, data)
+
+        if any(x["release_link_name"] == link_name for x in data["data"]):
+            break
+        else:
+            time.sleep(2)
+    assert n_time < 2
+
+
 def test_delete_release(
     view_only_token, manage_sources_token, public_source, public_group
 ):
