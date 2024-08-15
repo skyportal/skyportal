@@ -2,11 +2,12 @@ import os
 import uuid
 import pandas as pd
 import time
+from datetime import datetime
 from regions import Regions
 from astropy.table import Table
 import numpy as np
 
-from skyportal.tests import api
+from skyportal.tests import api, assert_api
 
 
 def test_observation_plan_tiling(super_admin_token, public_group):
@@ -272,37 +273,22 @@ def test_observation_plan_tiling(super_admin_token, public_group):
 
 
 def test_observation_plan_galaxy(super_admin_token, view_only_token, public_group):
-    catalog_name = 'test_galaxy_catalog'
-
-    # in case the catalog already exists, delete it.
-    status, data = api(
-        'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
-    )
+    catalog_name = str(uuid.uuid4())
+    dateobs = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    event_data = {'xml': payload}
+        unique_payload = payload.replace(b'2019-08-14T21:10:39', dateobs.encode())
+    event_data = {'xml': unique_payload}
 
-    dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
-
-        gcnevent_id = data['data']['gcnevent_id']
-    else:
-        gcnevent_id = data['data']['id']
+    status, data = api('POST', 'gcn_event', data=event_data, token=super_admin_token)
+    assert_api(status, data)
+    gcnevent_id = data['data']['gcnevent_id']
 
     # wait for event to load
     for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
+        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
         if data['status'] == 'success':
             break
         time.sleep(2)
@@ -313,21 +299,21 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
     for n_times_2 in range(26):
         status, data = api(
             'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
+            f'localization/{dateobs}/name/LALInference.v1.fits.gz',
             token=super_admin_token,
             params=params,
         )
 
         if data['status'] == 'success':
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
+            localization = data["data"]
+            assert localization["dateobs"] == dateobs
+            assert localization["localization_name"] == "LALInference.v1.fits.gz"
+            assert np.isclose(np.sum(localization["flat_2d"]), 1)
             break
         else:
             time.sleep(2)
     assert n_times_2 < 25
-    localization_id = data['id']
+    localization_id = localization['id']
 
     name = str(uuid.uuid4())
     status, data = api(
@@ -343,8 +329,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
         },
         token=super_admin_token,
     )
-    assert status == 200
-    assert data['status'] == 'success'
+    assert_api(status, data)
     telescope_id = data['data']['id']
 
     fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
@@ -367,8 +352,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
         },
         token=super_admin_token,
     )
-    assert status == 200
-    assert data['status'] == 'success'
+    assert_api(status, data)
     instrument_id = data['data']['id']
 
     # wait for the fields to populate
@@ -382,8 +366,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
                 token=super_admin_token,
                 params={'localizationDateobs': dateobs, 'ignoreCache': True},
             )
-            assert status == 200
-            assert data['status'] == 'success'
+            assert_api(status, data)
             assert data['data']['band'] == 'Optical'
 
             assert len(data['data']['fields']) == 5
@@ -402,33 +385,28 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
     }
 
     status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
+    assert_api(status, data)
 
     params = {'catalog_name': catalog_name}
 
-    nretries = 0
-    galaxies_loaded = False
-    while nretries < 10:
+    for n_retries in range(10):
         status, data = api(
             'GET', 'galaxy_catalog', token=view_only_token, params=params
         )
-        assert status == 200
-        data = data["data"]["galaxies"]
-        if len(data) == 92 and any(
+        assert_api(status, data)
+        galaxies = data["data"]["galaxies"]
+        if len(galaxies) == 92 and any(
             [
-                d['name'] == '6dFgs gJ0001313-055904'
-                and d['mstar'] == 336.60756522868667
-                for d in data
+                galaxy['name'] == '6dFgs gJ0001313-055904'
+                and galaxy['mstar'] == 336.60756522868667
+                for galaxy in galaxies
             ]
         ):
-            galaxies_loaded = True
             break
-        nretries = nretries + 1
-        time.sleep(5)
+        else:
+            time.sleep(5)
 
-    assert nretries < 10
-    assert galaxies_loaded
+    assert n_retries < 9
 
     request_data = {
         'group_id': public_group.id,
@@ -441,8 +419,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
     }
 
     status, data = api('POST', 'allocation', data=request_data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
+    assert_api(status, data)
     allocation_id = data['data']['id']
 
     requests_data = [
@@ -475,8 +452,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
         status, data = api(
             'POST', 'observation_plan', data=request_data, token=super_admin_token
         )
-        assert status == 200
-        assert data['status'] == 'success'
+        assert_api(status, data)
 
     # wait for the observation plans to finish, we added some patience later, but we know that it takes at least 30 seconds
     time.sleep(30)
@@ -490,27 +466,26 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
                 params={"includePlannedObservations": "true"},
                 token=super_admin_token,
             )
-            assert status == 200
-            assert data['status'] == 'success'
+            assert_api(status, data)
 
             # get those which have been created on the right event
-            data = [
-                d
-                for d in data['data']['requests']
-                if d['gcnevent_id'] == gcnevent_id
-                and d['allocation_id'] == allocation_id
+            requests = [
+                request
+                for request in data['data']['requests']
+                if request['gcnevent_id'] == gcnevent_id
+                and request['allocation_id'] == allocation_id
             ]
-            assert len(data) == len(requests_data)
+            assert len(requests) == len(requests_data)
 
-            for i, d in enumerate(data):
+            for i, request in enumerate(requests):
                 assert any(
                     [
-                        d['payload']['queue_name']
+                        request['payload']['queue_name']
                         == request_data["payload"]['queue_name']
                         for request_data in requests_data
                     ]
                 )
-                observation_plans = d['observation_plans']
+                observation_plans = request['observation_plans']
                 assert len(observation_plans) == 1
                 observation_plan = observation_plans[0]
 
