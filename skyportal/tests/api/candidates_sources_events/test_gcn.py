@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-from skyportal.tests import api
+from skyportal.tests import api, assert_api
 from skyportal.utils.gcn import from_url
 
 import time
@@ -9,6 +9,7 @@ import uuid
 import pandas as pd
 from regions import Regions
 from astropy.table import Table
+from datetime import datetime
 
 import pytest
 
@@ -645,20 +646,15 @@ def test_gcn_summary_galaxies(
 def test_gcn_instrument_field(
     super_admin_token,
 ):
+    dateobs = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
-    event_data = {'xml': payload}
+        unique_payload = payload.replace(b'2019-08-14T21:10:39', dateobs.encode())
+    event_data = {'xml': unique_payload}
 
-    dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
+    status, data = api('POST', 'gcn_event', data=event_data, token=super_admin_token)
+    assert_api(status, data)
 
     # wait for event to load
     for n_times in range(26):
@@ -673,16 +669,16 @@ def test_gcn_instrument_field(
     for n_times_2 in range(26):
         status, data = api(
             'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
+            f'localization/{dateobs}/name/LALInference.v1.fits.gz',
             token=super_admin_token,
             params=params,
         )
 
         if data['status'] == 'success':
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
+            localization = data["data"]
+            assert localization["dateobs"] == dateobs
+            assert localization["localization_name"] == "LALInference.v1.fits.gz"
+            assert np.isclose(np.sum(localization["flat_2d"]), 1)
             break
         else:
             time.sleep(2)
@@ -702,8 +698,7 @@ def test_gcn_instrument_field(
         },
         token=super_admin_token,
     )
-    assert status == 200
-    assert data['status'] == 'success'
+    assert_api(status, data)
     telescope_id = data['data']['id']
 
     fielddatafile = f'{os.path.dirname(__file__)}/../../../../data/ZTF_Fields.csv'
@@ -726,8 +721,7 @@ def test_gcn_instrument_field(
         },
         token=super_admin_token,
     )
-    assert status == 200
-    assert data['status'] == 'success'
+    assert_api(status, data)
     instrument_id = data['data']['id']
 
     # wait for the fields to populate
@@ -740,10 +734,8 @@ def test_gcn_instrument_field(
                 f'instrument/{instrument_id}',
                 token=super_admin_token,
             )
-            assert status == 200
-            assert data['status'] == 'success'
+            assert_api(status, data)
             assert data['data']['band'] == 'NIR'
-
             assert len(data['data']['fields']) == 5
             fields_loaded = True
         except AssertionError:
@@ -755,8 +747,7 @@ def test_gcn_instrument_field(
         f'gcn_event/{dateobs}/instrument/{instrument_id}',
         token=super_admin_token,
     )
-    assert status == 200
-    assert data['status'] == 'success'
+    assert_api(status, data)
 
     assert 'field_ids' in data['data']
     assert 'probabilities' in data['data']
