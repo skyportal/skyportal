@@ -157,6 +157,11 @@ for bandpass_name in ALLOWED_BANDPASSES:
     except Exception as e:
         log(f'Error adding bandpass {bandpass_name} to treasuremap filters: {e}')
 
+# overwrite the filters for ZTF, as i-band is will otherwise be matched to TESS by treasuremap
+TREASUREMAP_FILTERS["ztfg"] = "g"
+TREASUREMAP_FILTERS["ztfr"] = "r"
+TREASUREMAP_FILTERS["ztfi"] = "i"
+
 Session = scoped_session(sessionmaker())
 
 observation_plans_microservice_url = (
