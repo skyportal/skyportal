@@ -386,6 +386,7 @@ def post_skymap_from_notice(
             )
             if error < SOURCE_RADIUS_THRESHOLD:
                 source = {}
+                name = None
                 if isinstance(root, dict):
                     name = root.get('name')
                     tags = get_json_tags(root)
@@ -418,7 +419,7 @@ def post_skymap_from_notice(
                     if 'LVC' in tags_formatted:
                         origin = 'LVC'
                     source = {'id': source_name, 'ra': ra, 'dec': dec, 'origin': origin}
-                elif 'Einstein Probe' in tags_formatted:
+                elif 'EINSTEIN PROBE' in tags_formatted:
                     dateobs_txt = Time(dateobs).isot
                     source_name = f"EP-{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
                     source = {

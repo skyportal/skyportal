@@ -60,7 +60,7 @@ cache = Cache(
     max_age=cfg["misc.minutes_to_keep_reports_cache"] * 60,
 )
 
-SOURCE_RADIUS_THRESHOLD = 5 / 60.0  # 5 arcmin in degrees
+SOURCE_RADIUS_THRESHOLD = 8 / 60.0  # 8 arcmin in degrees
 
 
 def gcn_update_delete_logic(cls, user_or_token):
