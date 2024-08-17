@@ -33,30 +33,31 @@ Please refer to the <a href="https://skyportal.io/docs">project documentation</a
 ## Citing SkyPortal
 
 When utilizing this code for a publication, kindly make a reference to the package by its name, SkyPortal, and citations to the companion papers [SkyPortal: An Astronomical Data Platform](https://joss.theoj.org/papers/10.21105/joss.01247) and [A data science platform to enable time-domain astronomy
-]([https://www.nature.com/articles/s41467-023-43932-6](https://iopscience.iop.org/article/10.3847/1538-4365/acdee1)). The BibTeX entries for the papers are:
+](https://www.nature.com/articles/s41467-023-43932-6](https://iopscience.iop.org/article/10.3847/1538-4365/acdee1). The BibTeX entries for the papers are:
 ```bibtex
 @article{vanderWalt2019,
-doi = {10.21105/joss.01247},
-url = {https://doi.org/10.21105/joss.01247},
-year = {2019},
-publisher = {The Open Journal},
-volume = {4},
-number = {37},
-pages = {1247},
-author = {Stéfan J. van der Walt and Arien Crellin-Quick and Joshua S. Bloom},
-title = {SkyPortal: An Astronomical Data Platform},
-journal = {Journal of Open Source Software} }
+  doi = {10.21105/joss.01247},
+  url = {https://doi.org/10.21105/joss.01247},
+  year = {2019},
+  publisher = {The Open Journal},
+  volume = {4},
+  number = {37},
+  pages = {1247},
+  author = {Stéfan J. van der Walt and Arien Crellin-Quick and Joshua S. Bloom},
+  title = {SkyPortal: An Astronomical Data Platform},
+  journal = {Journal of Open Source Software} }
 
 @article{Coughlin_2023,
-   title={A Data Science Platform to Enable Time-domain Astronomy},
-   volume={267},
-   ISSN={1538-4365},
-   url={http://dx.doi.org/10.3847/1538-4365/acdee1},
-   DOI={10.3847/1538-4365/acdee1},
-   number={2},
-   journal={The Astrophysical Journal Supplement Series},
-   publisher={American Astronomical Society},
-   author={Coughlin, Michael W. and Bloom, Joshua S. and Nir, Guy and Antier, Sarah and du Laz, Theophile Jegou and van der Walt, Stéfan and Crellin-Quick, Arien and Culino, Thomas and Duev, Dmitry A. and Goldstein, Daniel A. and Healy, Brian F. and Karambelkar, Viraj and Lilleboe, Jada and Shin, Kyung Min and Singer, Leo P. and Ahumada, Tomás and Anand, Shreya and Bellm, Eric C. and Dekany, Richard and Graham, Matthew J. and Kasliwal, Mansi M. and Kostadinova, Ivona and Kiendrebeogo, R. Weizmann and Kulkarni, Shrinivas R. and Jenkins, Sydney and LeBaron, Natalie and Mahabal, Ashish A. and Neill, James D. and Parazin, B. and Peloton, Julien and Perley, Daniel A. and Riddle, Reed and Rusholme, Ben and van Santen, Jakob and Sollerman, Jesper and Stein, Robert and Turpin, D. and Wold, Avery and Amat, Carla and Bonnefon, Adrien and Bonnefoy, Adrien and Flament, Manon and Kerkow, Frank and Kishore, Sulekha and Jani, Shloke and Mahanty, Stephen K. and Liu, Céline and Llinares, Laura and Makarison, Jolyane and Olliéric, Alix and Perez, Inès and Pont, Lydie and Sharma, Vyom},
-   year={2023},
-   month=jul, pages={31} }
+  title={A Data Science Platform to Enable Time-domain Astronomy},
+  volume={267},
+  ISSN={1538-4365},
+  url={http://dx.doi.org/10.3847/1538-4365/acdee1},
+  DOI={10.3847/1538-4365/acdee1},
+  number={2},
+  journal={The Astrophysical Journal Supplement Series},
+  publisher={American Astronomical Society},
+  author={Coughlin, Michael W. and Bloom, Joshua S. and Nir, Guy and Antier, Sarah and du Laz, Theophile Jegou and van der Walt, Stéfan and Crellin-Quick, Arien and Culino, Thomas and Duev, Dmitry A. and Goldstein, Daniel A. and Healy, Brian F. and Karambelkar, Viraj and Lilleboe, Jada and Shin, Kyung Min and Singer, Leo P. and Ahumada, Tomás and Anand, Shreya and Bellm, Eric C. and Dekany, Richard and Graham, Matthew J. and Kasliwal, Mansi M. and Kostadinova, Ivona and Kiendrebeogo, R. Weizmann and Kulkarni, Shrinivas R. and Jenkins, Sydney and LeBaron, Natalie and Mahabal, Ashish A. and Neill, James D. and Parazin, B. and Peloton, Julien and Perley, Daniel A. and Riddle, Reed and Rusholme, Ben and van Santen, Jakob and Sollerman, Jesper and Stein, Robert and Turpin, D. and Wold, Avery and Amat, Carla and Bonnefon, Adrien and Bonnefoy, Adrien and Flament, Manon and Kerkow, Frank and Kishore, Sulekha and Jani, Shloke and Mahanty, Stephen K. and Liu, Céline and Llinares, Laura and Makarison, Jolyane and Olliéric, Alix and Perez, Inès and Pont, Lydie and Sharma, Vyom},
+  year={2023},
+  month=jul,
+  pages={31} }
 ```
