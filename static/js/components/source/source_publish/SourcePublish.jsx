@@ -156,7 +156,7 @@ const SourcePublish = ({ sourceId, isElements }) => {
                 setSourcePublishReleaseOpen(!sourcePublishReleaseOpen)
               }
             >
-              Release
+              Release (optional)
               {sourcePublishReleaseOpen ? <ExpandLess /> : <ExpandMore />}
             </Button>
             {sourcePublishReleaseOpen && (
