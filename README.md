@@ -61,3 +61,16 @@ When utilizing this code for a publication, kindly make a reference to the packa
   month=jul,
   pages={31} }
 ```
+
+### Acknowledgments
+If you benefited from participating in our community, we ask that you please acknowledge the SkyPortal collaboration, and particular individuals who helped you, in any publications.
+Please use the following text for this acknowledgment:
+  > We acknowledge the SkyPortal collective as an open community of multi-domain experts and collaborators. This community and \<names of individuals\>, in particular, were important for the development of this project.
+
+### Funding
+We gratefully acknowledge previous and current support from the Gordon and Betty Moore Foundation, through both the Data-Driven Investigator Program (No. <a href="https://www.moore.org/grant-detail?grantId=GBMF4550">GBMF4550</a>) and a dedicated grant (No. <a href="https://www.moore.org/grant-detail?grantId=GBMF9122">GBMF9122</a>) and the U.S. National Science Foundation (NSF) Harnessing the Data Revolution (HDR) Institute for <a href="https://a3d3.ai">Accelerating AI Algorithms for Data Driven Discovery (A3D3)</a> under Cooperative Agreement No. <a href="https://www.nsf.gov/awardsearch/showAward?AWD_ID=2117997">PHY-2117997</a> to develop SkyPortal.
+
+<p align="center">
+<img src="https://github.com/skyportal/skyportal/blob/main/assets/moore.png" alt="Moore" width="200"/>
+<img src="https://github.com/skyportal/skyportal/blob/main/assets/nsf.png" alt="NSF" width="200"/>
+<img src="https://github.com/skyportal/skyportal/blob/main/assets/a3d3.png" alt="A3D3" width="200"/>
