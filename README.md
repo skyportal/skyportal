@@ -33,7 +33,7 @@ Please refer to the <a href="https://skyportal.io/docs">project documentation</a
 ## Citing SkyPortal
 
 When utilizing this code for a publication, kindly make a reference to the package by its name, SkyPortal, and citations to the companion papers [SkyPortal: An Astronomical Data Platform](https://joss.theoj.org/papers/10.21105/joss.01247) and [A data science platform to enable time-domain astronomy
-](https://www.nature.com/articles/s41467-023-43932-6](https://iopscience.iop.org/article/10.3847/1538-4365/acdee1). The BibTeX entries for the papers are:
+](https://iopscience.iop.org/article/10.3847/1538-4365/acdee1). The BibTeX entries for the papers are:
 ```bibtex
 @article{vanderWalt2019,
   doi = {10.21105/joss.01247},
