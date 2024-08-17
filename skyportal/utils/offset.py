@@ -1294,7 +1294,8 @@ def fits_image(
         hdu.writeto(buf)
         buf.seek(0)
         cache[hash_name] = buf.read()
-        return hdu
+
+        return fits.open(cache[hash_name])[0]
 
     return get_hdu(url)
 
