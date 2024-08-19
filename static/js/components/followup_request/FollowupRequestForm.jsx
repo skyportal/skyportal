@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-// eslint-disable-next-line import/no-unresolved
+
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -275,12 +275,12 @@ const FollowupRequestForm = ({
       // edit the start and end date to be 30 days ending right now (in UTC)
       const endDate = new Date();
       const startDate = new Date(endDate - 30 * 24 * 60 * 60 * 1000);
-      schema.properties.start_date.default = startDate // eslint-disable-line prefer-destructuring
+      schema.properties.start_date.default = startDate
         .toISOString()
         .replace("Z", "")
         .replace("T", " ")
         .split(".")[0];
-      schema.properties.end_date.default = endDate // eslint-disable-line prefer-destructuring
+      schema.properties.end_date.default = endDate
         .toISOString()
         .replace("Z", "")
         .replace("T", " ")
@@ -296,12 +296,16 @@ const FollowupRequestForm = ({
       const range = endDate - startDate;
       const newStartDate = new Date();
       const newEndDate = new Date(newStartDate.getTime() + range);
-      schema.properties.start_date.default = newStartDate // eslint-disable-line prefer-destructuring
-        .toISOString()
-        .split("T")[0];
-      schema.properties.end_date.default = newEndDate // eslint-disable-line prefer-destructuring
-        .toISOString()
-        .split("T")[0];
+      if (start_date.format === "date") {
+        schema.properties.start_date.default = newStartDate
+          .toISOString()
+          .split("T")[0];
+      }
+      if (end_date.format === "date") {
+        schema.properties.end_date.default = newEndDate
+          .toISOString()
+          .split("T")[0];
+      }
     }
   }
 
@@ -387,9 +391,9 @@ FollowupRequestForm.propTypes = {
     }),
   ).isRequired,
   instrumentFormParams: PropTypes.shape({
-    formSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
-    uiSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
-    implementedMethods: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    formSchema: PropTypes.objectOf(PropTypes.any),
+    uiSchema: PropTypes.objectOf(PropTypes.any),
+    implementedMethods: PropTypes.objectOf(PropTypes.any),
   }).isRequired,
   requestType: PropTypes.string,
 };
