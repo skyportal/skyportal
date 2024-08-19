@@ -33,6 +33,9 @@ const UpdateSourceRedshift = ({ source }) => {
   const [state, setState] = useState({
     redshift: source.redshift ? String(source.redshift) : "",
     redshift_error: source.redshift_error ? String(source.redshift_error) : "",
+    redshift_origin: source.redshift_origin
+      ? String(source.redshift_origin)
+      : "",
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -40,14 +43,14 @@ const UpdateSourceRedshift = ({ source }) => {
   const [invalid, setInvalid] = useState(true);
 
   useEffect(() => {
-    setInvalid(
-      // eslint-disable-next-line no-restricted-globals
-      !String(source.redshift) || isNaN(String(source.redshift)),
-    );
+    setInvalid(!String(source.redshift) || isNaN(String(source.redshift)));
     setState({
       redshift: source.redshift ? String(source.redshift) : "",
       redshift_error: source.redshift_error
         ? String(source.redshift_error)
+        : "",
+      redshift_origin: source.redshift_origin
+        ? String(source.redshift_origin)
         : "",
     });
   }, [source, setInvalid]);
@@ -57,7 +60,6 @@ const UpdateSourceRedshift = ({ source }) => {
     newState[e.target.name] = e.target.value;
     const value = String(e.target.value).trim();
     if (e.target.name === "redshift") {
-      // eslint-disable-next-line no-restricted-globals
       setInvalid(!value || isNaN(value));
     }
     setState({
@@ -72,6 +74,9 @@ const UpdateSourceRedshift = ({ source }) => {
     newState.redshift = subState.redshift ? subState.redshift : null;
     newState.redshift_error = subState.redshift_error
       ? subState.redshift_error
+      : null;
+    newState.redshift_origin = subState.redshift_origin
+      ? subState.redshift_origin
       : null;
     const result = await dispatch(
       sourceActions.updateSource(source.id, {
@@ -130,6 +135,18 @@ const UpdateSourceRedshift = ({ source }) => {
               variant="outlined"
             />
           </div>
+          <p />
+          <div>
+            <TextField
+              data-testid="updateRedshiftOriginTextfield"
+              size="small"
+              label="z_origin (optional)"
+              value={state.redshift_origin}
+              name="redshift_origin"
+              onChange={handleChange}
+              variant="outlined"
+            />
+          </div>
           <div className={classes.saveButton}>
             <Button
               secondary
@@ -150,7 +167,11 @@ const UpdateSourceRedshift = ({ source }) => {
                 <Button
                   primary
                   onClick={() => {
-                    handleSubmit({ redshift: null, redshift_error: null });
+                    handleSubmit({
+                      redshift: null,
+                      redshift_error: null,
+                      redshift_origin: null,
+                    });
                   }}
                   endIcon={<ClearIcon />}
                   size="large"
@@ -173,6 +194,7 @@ UpdateSourceRedshift.propTypes = {
     id: PropTypes.string,
     redshift: PropTypes.number,
     redshift_error: PropTypes.number,
+    redshift_origin: PropTypes.string,
   }).isRequired,
 };
 
