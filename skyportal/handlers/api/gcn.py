@@ -1449,7 +1449,7 @@ class GcnEventHandler(BaseHandler):
             if isinstance(gcn_tag_keep, str):
                 gcn_tag_keep = [c.strip() for c in gcn_tag_keep.split(",")]
             else:
-                raise ValueError(
+                return self.error(
                     "Invalid gcnTagKeep value -- must provide at least one string value"
                 )
 
@@ -1457,7 +1457,7 @@ class GcnEventHandler(BaseHandler):
             if isinstance(gcn_tag_remove, str):
                 gcn_tag_remove = [c.strip() for c in gcn_tag_remove.split(",")]
             else:
-                raise ValueError(
+                return self.error(
                     "Invalid gcnTagRemove value -- must provide at least one string value"
                 )
 
@@ -1467,7 +1467,7 @@ class GcnEventHandler(BaseHandler):
                     c.strip() for c in localization_tag_keep.split(",")
                 ]
             else:
-                raise ValueError(
+                return self.error(
                     "Invalid localizationTagKeep value -- must provide at least one string value"
                 )
 
@@ -1477,7 +1477,7 @@ class GcnEventHandler(BaseHandler):
                     c.strip() for c in localization_tag_remove.split(",")
                 ]
             else:
-                raise ValueError(
+                return self.error(
                     "Invalid localizationTagRemove value -- must provide at least one string value"
                 )
 
@@ -1487,7 +1487,7 @@ class GcnEventHandler(BaseHandler):
                     c.strip() for c in gcn_properties_filter.split(",")
                 ]
             else:
-                raise ValueError(
+                return self.error(
                     "Invalid gcnPropertiesFilter value -- must provide at least one string value"
                 )
 
@@ -1501,7 +1501,7 @@ class GcnEventHandler(BaseHandler):
                     c.strip() for c in localization_properties_filter.split(",")
                 ]
             else:
-                raise ValueError(
+                return self.error(
                     "Invalid localizationPropertiesFilter value -- must provide at least one string value"
                 )
 
@@ -1691,7 +1691,7 @@ class GcnEventHandler(BaseHandler):
                 for prop_filt in gcn_properties_filter:
                     prop_split = prop_filt.split(":")
                     if not (len(prop_split) == 1 or len(prop_split) == 3):
-                        raise ValueError(
+                        return self.error(
                             "Invalid gcnPropertiesFilter value -- property filter must have 1 or 3 values"
                         )
                     name = prop_split[0].strip()
@@ -1702,13 +1702,13 @@ class GcnEventHandler(BaseHandler):
                         try:
                             value = float(value)
                         except ValueError as e:
-                            raise ValueError(
+                            return self.error(
                                 f"Invalid GCN properties filter value: {e}"
                             )
                         op = prop_split[2].strip()
                         op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
                         if op not in op_options:
-                            raise ValueError(f"Invalid operator: {op}")
+                            return self.error(f"Invalid operator: {op}")
                         comp_function = getattr(operator, op)
 
                         properties_query = properties_query.where(
@@ -1729,7 +1729,7 @@ class GcnEventHandler(BaseHandler):
                 for prop_filt in localization_properties_filter:
                     prop_split = prop_filt.split(":")
                     if not (len(prop_split) == 1 or len(prop_split) == 3):
-                        raise ValueError(
+                        return self.error(
                             "Invalid localizationPropertiesFilter value -- property filter must have 1 or 3 values"
                         )
                     name = prop_split[0].strip()
@@ -1742,13 +1742,13 @@ class GcnEventHandler(BaseHandler):
                         try:
                             value = float(value)
                         except ValueError as e:
-                            raise ValueError(
+                            return self.error(
                                 f"Invalid localization properties filter value: {e}"
                             )
                         op = prop_split[2].strip()
                         op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
                         if op not in op_options:
-                            raise ValueError(f"Invalid operator: {op}")
+                            return self.error(f"Invalid operator: {op}")
                         comp_function = getattr(operator, op)
 
                         properties_query = properties_query.where(
