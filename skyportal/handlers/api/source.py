@@ -692,14 +692,19 @@ def post_source(data, user_id, session, refresh_source=True):
         raise AttributeError(
             "You must belong to one or more groups before you can add sources."
         )
-    try:
-        group_ids = [
-            int(id)
-            for id in data.pop('group_ids')
-            if int(id) in user_accessible_group_ids
-        ]
-    except KeyError:
+
+    group_ids = data.pop('group_ids')
+    if group_ids is None:
         group_ids = user_group_ids
+    else:
+        group_ids = []
+        for id in group_ids:
+            if int(id) in user_accessible_group_ids:
+                group_ids.append(int(id))
+            else:
+                raise ValueError(
+                    f'Cannot find group_id {id}. Please remove and try again.'
+                )
 
     if not group_ids:
         raise AttributeError(
