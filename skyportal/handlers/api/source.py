@@ -697,14 +697,15 @@ def post_source(data, user_id, session, refresh_source=True):
     if group_ids is None:
         group_ids = user_group_ids
     else:
-        group_ids = []
+        group_ids_tmp = []
         for id in group_ids:
             if int(id) in user_accessible_group_ids:
-                group_ids.append(int(id))
+                group_ids_tmp.append(int(id))
             else:
                 raise ValueError(
                     f'Cannot find group_id {id}. Please remove and try again.'
                 )
+        group_ids = group_ids_tmp
 
     if not group_ids:
         raise AttributeError(
