@@ -280,6 +280,14 @@ class GroupHandler(BaseHandler):
             ] and not isinstance(self.current_user, Token):
                 group_admins.append(self.current_user)
 
+            existing_group = session.scalars(
+                Group.select(session.user_or_token).where(Group.name == data["name"])
+            ).first()
+            if existing_group is not None:
+                return self.error(
+                    f'Group with name {data["name"]} already exists. Please select a new one.'
+                )
+
             g = Group(
                 name=data["name"],
                 nickname=data.get("nickname") or None,

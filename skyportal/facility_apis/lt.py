@@ -119,8 +119,8 @@ class LTRequest:
             etree.SubElement(photom_const, 'Clouds').text = 'light'
 
         date_const = etree.Element('DateTimeConstraint', type='include')
-        start = request.payload["start_date"] + 'T00:00:00+00:00'
-        end = request.payload["end_date"] + 'T00:00:00+00:00'
+        start = request.payload["start_date"].replace("Z", "+00:00")
+        end = request.payload["end_date"].replace("Z", "+00:00")
         etree.SubElement(date_const, 'DateTimeStart', system='UT', value=start)
         etree.SubElement(date_const, 'DateTimeEnd', system='UT', value=end)
 
@@ -540,15 +540,15 @@ class IOOAPI(LTAPI):
             },
             "start_date": {
                 "type": "string",
-                "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "format": "date-time",
+                "default": datetime.utcnow().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
-                "format": "date",
+                "format": "date-time",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -682,14 +682,14 @@ class IOIAPI(LTAPI):
             "start_date": {
                 "type": "string",
                 "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": datetime.utcnow().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -822,14 +822,14 @@ class SPRATAPI(LTAPI):
             "start_date": {
                 "type": "string",
                 "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": datetime.utcnow().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
