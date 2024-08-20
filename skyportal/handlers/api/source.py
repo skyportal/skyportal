@@ -693,7 +693,7 @@ def post_source(data, user_id, session, refresh_source=True):
             "You must belong to one or more groups before you can add sources."
         )
 
-    group_ids = data.pop('group_ids')
+    group_ids = data.pop('group_ids', None)
     if group_ids is None:
         group_ids = user_group_ids
     else:
