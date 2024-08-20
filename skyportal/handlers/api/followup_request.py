@@ -410,9 +410,20 @@ def post_followup_request(
         if constraints.get('not_if_duplicates', False):
             # verify that there is no follow-up requests with the same allocation and within the radius
             # that are in the "submitted" or "completed" state
+            # apply the same logic to a list of allocations if provided, not just the one for the new request
+            try:
+                ignore_allocation_ids = constraints.get('ignore_allocation_ids', [])
+                ignore_allocation_ids = [int(i) for i in ignore_allocation_ids]
+            except ValueError:
+                raise ValueError(
+                    'ignore_allocation_ids must be a valid list of integers.'
+                )
+
             existing_requests = session.scalars(
                 FollowupRequest.select(session.user_or_token).where(
-                    FollowupRequest.allocation_id == data['allocation_id'],
+                    FollowupRequest.allocation_id.in_(
+                        list(set([data['allocation_id']] + ignore_allocation_ids))
+                    ),
                     sa.or_(
                         func.lower(FollowupRequest.status)
                         .contains("submitted")
@@ -429,9 +440,14 @@ def post_followup_request(
                 )
             ).first()
             if existing_requests is not None:
-                raise ValueError(
-                    'There is already a follow-up request for this source and allocation, not submitting request.'
-                )
+                if existing_requests.allocation_id == data['allocation_id']:
+                    raise ValueError(
+                        'There is already a follow-up request for this source and allocation, not submitting request.'
+                    )
+                else:
+                    raise ValueError(
+                        'There is already a follow-up request for this source and one of the ignore_allocation_ids, not submitting request.'
+                    )
 
         if len(constraints.get('ignore_source_group_ids', [])) > 0:
             # verify that there is NO source saved to any of the group IDs (within the radius)
@@ -1109,6 +1125,8 @@ class FollowupRequestHandler(BaseHandler):
             constraints['not_if_spectra_exist'] = data.pop('not_if_spectra_exist')
         if 'not_if_tns_classified' in data:
             constraints['not_if_tns_classified'] = data.pop('not_if_tns_classified')
+        if 'ignore_allocation_ids' in data:
+            constraints['ignore_allocation_ids'] = data.pop('ignore_allocation_ids')
         if len(list(constraints.keys())) == 0:
             constraints = None
         if constraints is not None:
@@ -1137,6 +1155,9 @@ class FollowupRequestHandler(BaseHandler):
                     'not submitting request' in str(e)
                     and len(list(constraints.keys())) > 0
                 ):
+                    log(
+                        f'Not submitting request with allocation_id {data["allocation_id"]}: {e}'
+                    )
                     return self.success(
                         data={"id": None, "ignored": True, "message": str(e)}
                     )

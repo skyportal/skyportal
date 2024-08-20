@@ -1284,6 +1284,16 @@ class FollowupRequestPost(_Schema):
         metadata={'description': "Radius of to use when checking constraints."},
     )
 
+    allocation_deduplication_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            'description': (
+                'If there are any existing requests from the allocations that are pending or completed, the followup request will not be executed.'
+            )
+        },
+    )
+
 
 class ObservationPlanPost(_Schema):
     gcnevent_id = fields.Integer(
