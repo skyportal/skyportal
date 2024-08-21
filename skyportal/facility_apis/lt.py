@@ -119,8 +119,9 @@ class LTRequest:
             etree.SubElement(photom_const, 'Clouds').text = 'light'
 
         date_const = etree.Element('DateTimeConstraint', type='include')
-        start = request.payload["start_date"].replace("Z", "+00:00")
-        end = request.payload["end_date"].replace("Z", "+00:00")
+
+        start = request.payload["start_date"] + "+00:00"
+        end = request.payload["end_date"] + "+00:00"
         etree.SubElement(date_const, 'DateTimeStart', system='UT', value=start)
         etree.SubElement(date_const, 'DateTimeEnd', system='UT', value=end)
 
@@ -540,13 +541,11 @@ class IOOAPI(LTAPI):
             },
             "start_date": {
                 "type": "string",
-                "format": "date-time",
                 "default": datetime.utcnow().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
-                "format": "date-time",
                 "title": "End Date (UT)",
                 "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
             },

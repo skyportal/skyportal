@@ -647,13 +647,11 @@ class SOARGHTSIMAGERAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "format": "date-time",
                 "default": datetime.utcnow().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
-                "format": "date-time",
                 "title": "End Date (UT)",
                 "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
             },
@@ -823,13 +821,11 @@ class SOARGHTSAPI(SOARAPI):
             "start_date": {
                 "type": "string",
                 "default": datetime.utcnow().isoformat(),
-                "format": "date-time",
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "format": "date-time",
                 "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
@@ -999,13 +995,11 @@ class SOARTSPECAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "format": "date-time",
                 "default": datetime.utcnow().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
-                "format": "date-time",
                 "title": "End Date (UT)",
                 "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
             },
