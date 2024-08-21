@@ -296,16 +296,12 @@ const FollowupRequestForm = ({
       const range = endDate - startDate;
       const newStartDate = new Date();
       const newEndDate = new Date(newStartDate.getTime() + range);
-      if (start_date.format === "date") {
-        schema.properties.start_date.default = newStartDate
-          .toISOString()
-          .split("T")[0];
-      }
-      if (end_date.format === "date") {
-        schema.properties.end_date.default = newEndDate
-          .toISOString()
-          .split("T")[0];
-      }
+      schema.properties.start_date.default = newStartDate
+        .toISOString()
+        .split("T")[0];
+      schema.properties.end_date.default = newEndDate
+        .toISOString()
+        .split("T")[0];
     }
   }
 
