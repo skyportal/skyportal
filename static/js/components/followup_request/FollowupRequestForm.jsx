@@ -294,14 +294,27 @@ const FollowupRequestForm = ({
       const startDate = new Date(start_date.default);
       const endDate = new Date(end_date.default);
       const range = endDate - startDate;
-      const newStartDate = new Date();
-      const newEndDate = new Date(newStartDate.getTime() + range);
+
+      let newStartDate = new Date();
+      let newEndDate = new Date(newStartDate.getTime() + range);
+
+      newStartDate = newStartDate.toISOString();
+      newEndDate = newEndDate.toISOString();
+
+      if (start_date.format === "date") {
+        newStartDate = newStartDate.split("T")[0];
+      }
+      if (end_date.format === "date") {
+        newEndDate = newEndDate.split("T")[0];
+      }
       schema.properties.start_date.default = newStartDate
-        .toISOString()
-        .split("T")[0];
+        .replace("Z", "")
+        .replace("T", " ")
+        .split(".")[0];
       schema.properties.end_date.default = newEndDate
-        .toISOString()
-        .split("T")[0];
+        .replace("Z", "")
+        .replace("T", " ")
+        .split(".")[0];
     }
   }
 
