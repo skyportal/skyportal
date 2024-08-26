@@ -1284,7 +1284,7 @@ class FollowupRequestPost(_Schema):
         metadata={'description': "Radius of to use when checking constraints."},
     )
 
-    allocation_deduplication_ids = fields.List(
+    ignore_allocation_ids = fields.List(
         fields.Integer,
         required=False,
         metadata={
