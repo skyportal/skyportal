@@ -680,13 +680,11 @@ class IOIAPI(LTAPI):
             },
             "start_date": {
                 "type": "string",
-                "format": "date",
                 "default": datetime.utcnow().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
-                "format": "date",
                 "title": "End Date (UT)",
                 "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
             },
@@ -820,13 +818,11 @@ class SPRATAPI(LTAPI):
             },
             "start_date": {
                 "type": "string",
-                "format": "date",
                 "default": datetime.utcnow().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
-                "format": "date",
                 "title": "End Date (UT)",
                 "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
             },

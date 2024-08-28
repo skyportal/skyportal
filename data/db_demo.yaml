@@ -286,6 +286,14 @@ telescope:
     nickname: KAIT
     skycam_link: null
     =id: KAIT
+  - diameter: 1.3
+    elevation: 2800
+    lat: 31.0441
+    lon: 115.4637
+    name: COLIBRI Telescope
+    nickname: COLIBRI
+    skycam_link: null
+    =id: COLIBRI
   - diameter: 2.1
     elevation: 2096.0
     lat: 31.9599
@@ -524,6 +532,13 @@ instrument:
     filters: ['bessellux', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'bessellb', 'bessellv', 'bessellr', 'besselli']
     api_classname: KAITAPI
     =id: KAIT
+  - band: optical
+    name: COLIBRI
+    telescope_id: =COLIBRI
+    type: imager
+    filters: ['sdssg', 'sdssr', 'sdssi', 'sdssz']
+    api_classname: COLIBRIAPI
+    =id: COLIBRI
   - name: SEDMv2
     type: imaging spectrograph
     band: V
@@ -766,6 +781,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =KAIT
+  - pi: Michael Coughlin
+    proposal_id: COLIBRI-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =COLIBRI
   - pi: Michael Coughlin
     proposal_id: T80CAM-001
     start_date: "3020-02-12T00:00:00"
