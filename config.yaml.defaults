@@ -73,6 +73,11 @@ app:
     host: herculesii.astro.berkeley.edu
     port:
 
+  colibri:
+    protocol: http
+    host:
+    port:
+
   treasuremap_endpoint: https://treasuremap.space
 
   tns:
