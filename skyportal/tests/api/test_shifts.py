@@ -1,9 +1,6 @@
 from skyportal.tests import api
 from datetime import date, timedelta
 import uuid
-import os
-import time
-import numpy as np
 
 
 def test_shift(public_group, super_admin_token, view_only_token, super_admin_user):
@@ -85,9 +82,7 @@ def test_shift(public_group, super_admin_token, view_only_token, super_admin_use
 
 
 def test_shift_summary(
-    public_group,
-    super_admin_token,
-    super_admin_user,
+    public_group, super_admin_token, super_admin_user, gcnevent_fermi
 ):
     # add a shift to the group, with a start day one day before today,
     # and an end day one day after today
@@ -139,45 +134,7 @@ def test_shift_summary(
     assert status == 200
     assert data['status'] == 'success'
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-    # wait for event to load
-
-    for n_times in range(16):
-        status, data = api(
-            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
-        )
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 15
-
-    # wait for the localization to load
-    skymap = "214.74000_28.14000_11.19000"
-    params = {"include2DMap": True}
-    for n_times_2 in range(16):
-        status, data = api(
-            'GET',
-            f'localization/2018-01-16T00:36:53/name/{skymap}',
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data['status'] == 'success':
-            data = data["data"]
-            assert data["dateobs"] == "2018-01-16T00:36:53"
-            assert data["localization_name"] == "214.74000_28.14000_11.19000"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 15
+    dateobs = gcnevent_fermi.dateobs.strftime('%Y-%m-%dT%H:%M:%S')
 
     status, data = api('GET', f'shifts/summary/{shift_id}', token=super_admin_token)
     assert status == 200
@@ -185,7 +142,7 @@ def test_shift_summary(
     assert int(data['data']['shifts']['total']) == 1
     assert int(data['data']['gcns']['total']) == 1
     assert data['data']['shifts']['data'][0]['name'] == shift_name_1
-    assert data['data']['gcns']['data'][0]['dateobs'] == '2018-01-16T00:36:53'
+    assert data['data']['gcns']['data'][0]['dateobs'] == dateobs
     assert shift_id in data['data']['gcns']['data'][0]['shift_ids']
     assert shift_id_2 not in data['data']['gcns']['data'][0]['shift_ids']
 
