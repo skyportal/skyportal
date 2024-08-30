@@ -82,7 +82,7 @@ def test_shift(public_group, super_admin_token, view_only_token, super_admin_use
 
 
 def test_shift_summary(
-    public_group, super_admin_token, super_admin_user, gcnevent_fermi
+    public_group, super_admin_token, super_admin_user, gcn_GRB180116A
 ):
     # add a shift to the group, with a start day one day before today,
     # and an end day one day after today
@@ -134,7 +134,7 @@ def test_shift_summary(
     assert status == 200
     assert data['status'] == 'success'
 
-    dateobs = gcnevent_fermi.dateobs.strftime('%Y-%m-%dT%H:%M:%S')
+    dateobs = gcn_GRB180116A.dateobs.strftime('%Y-%m-%dT%H:%M:%S')
 
     status, data = api('GET', f'shifts/summary/{shift_id}', token=super_admin_token)
     assert status == 200
