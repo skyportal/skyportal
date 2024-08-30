@@ -64,7 +64,7 @@ export const getThumbnailAltAndLink = (name, ra, dec) => {
       break;
     case "sdss":
       alt = "Link to SDSS Navigate tool";
-      link = `https://skyserver.sdss.org/dr16/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.25`;
+      link = `https://skyserver.sdss.org/dr18/VisualTools/navi?opt=G&ra=${ra}&dec=${dec}&scale=0.1`;
       break;
     case "ls":
       alt = "Link to Legacy Survey DR9 Image Access";
