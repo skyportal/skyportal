@@ -68,7 +68,7 @@ init_db(**cfg["database"])
 
 def load_localization_data(path):
     """
-    Load localization data from a CSV file (uniq, probdensity, contour). Used for testing.
+    Load localization data from a Parquet file (uniq, probdensity, contour). Used for testing.
 
     Parameters
     ----------
@@ -80,7 +80,7 @@ def load_localization_data(path):
     tuple
         Tuple containing the uniq, probdensity, and contour data.
     """
-    df = pd.read_csv(os.path.join(os.path.dirname(__file__), path))
+    df = pd.read_parquet(os.path.join(os.path.dirname(__file__), path))
 
     uniq = df['uniq'].values[0]
     probdensity = df['probdensity'].values[0]
@@ -101,14 +101,14 @@ def load_localization_tiles_data(path):
     Parameters
     ----------
     path : str
-        Path to the CSV file containing localization tile data.
+        Path to the Parquet file containing localization tile data.
 
     Returns
     -------
     tuple
         Tuple containing the probdensities and healpix ranges.
     """
-    df = pd.read_csv(os.path.join(os.path.dirname(__file__), path))
+    df = pd.read_parquet(os.path.join(os.path.dirname(__file__), path))
 
     return df['probdensity'].values, df['healpix'].values
 

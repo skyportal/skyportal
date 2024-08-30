@@ -1400,8 +1400,8 @@ def gcn_GRB180116A(user_no_groups):
 
     localization_dict = {
         "localization_name": 'Test',
-        "localization_data_path": 'data/localization_GRB180116A.csv',
-        "localization_tiles_data_path": 'data/localizationtiles_GRB180116A.csv',
+        "localization_data_path": 'data/localization_GRB180116A.parquet',
+        "localization_tiles_data_path": 'data/localizationtiles_GRB180116A.parquet',
         "properties": {'test': 'test'},
         "tags": ['Test'],
     }
@@ -1435,8 +1435,8 @@ def gcn_GW190814(user_no_groups):
 
     localization_dict = {
         "localization_name": 'LALInference.v1.fits.gz',
-        "localization_data_path": 'data/localization_GW190814.csv',
-        "localization_tiles_data_path": 'data/localizationtiles_GW190814.csv',
+        "localization_data_path": 'data/localization_GW190814.parquet',
+        "localization_tiles_data_path": 'data/localizationtiles_GW190814.parquet',
         "properties": {'test': 'test'},
         "tags": ['Test'],
     }
@@ -1468,8 +1468,8 @@ def gcn_GW190425(user_no_groups):
 
     localization_dict = {
         "localization_name": 'bayestar.fits.gz',
-        "localization_data_path": 'data/localization_GW190425.csv',
-        "localization_tiles_data_path": 'data/localizationtiles_GW190425.csv',
+        "localization_data_path": 'data/localization_GW190425.parquet',
+        "localization_tiles_data_path": 'data/localizationtiles_GW190425.parquet',
         "properties": {'test': 'test'},
         "tags": ['Test'],
     }
