@@ -409,6 +409,11 @@ def post_skymap_from_notice(
                     origin = None
                     if 'SWIFT' in tags_formatted:
                         origin = 'Swift'
+                        if "BAT_GRB_Pos" in gcn_notice.ivorn:
+                            origin = "Swift BAT"
+                        elif "XRT_Pos" in gcn_notice.ivorn:
+                            origin = "Swift XRT"
+
                     elif 'FERMI' in tags_formatted:
                         origin = 'Fermi'
                     source = {'id': source_name, 'ra': ra, 'dec': dec, 'origin': origin}

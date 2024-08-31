@@ -498,10 +498,11 @@ class Obj(Base, conesearch_alchemy.Point):
 
     @property
     def sdss_url(self):
-        """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout."""
+        """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout, using DR18."""
         return (
-            f"https://skyserver.sdss.org/dr12/SkyserverWS/ImgCutout/getjpeg"
-            f"?ra={self.ra}&dec={self.dec}&scale=0.3&width=200&height=200"
+            f"https://skyserver.sdss.org/dr18/SkyServerWS/ImgCutout/getjpeg"
+            "?TaskName=SkyServer.Chart.List"
+            f"&ra={self.ra}&dec={self.dec}&scale=0.3&width=200&height=200"
             f"&opt=G&query=&Grid=on"
         )
 

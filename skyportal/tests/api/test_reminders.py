@@ -1,8 +1,8 @@
-import os
-from skyportal.tests import api
-from datetime import date, timedelta, datetime
-import uuid
 import time
+import uuid
+from datetime import date, timedelta, datetime
+
+from skyportal.tests import api
 
 
 def post_and_verify_reminder(endpoint, token):
@@ -160,25 +160,6 @@ def test_reminder_on_spectra(super_admin_token, lris):
     post_and_verify_reminder(endpoint, super_admin_token)
 
 
-def test_reminder_on_gcn(super_admin_token):
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    data = {'xml': payload}
-
-    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
-
-    endpoint = f"gcn_event/{data['data']['id']}/reminders"
+def test_reminder_on_gcn(super_admin_token, gcn_GW190814):
+    endpoint = f"gcn_event/{gcn_GW190814.id}/reminders"
     post_and_verify_reminder(endpoint, super_admin_token)

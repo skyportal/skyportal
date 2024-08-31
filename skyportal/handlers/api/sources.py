@@ -2284,7 +2284,7 @@ async def get_sources(
                         WHERE obj_id IN {query_str}
                     """
                     photometric_series_exists = session.execute(
-                        text(stmt).bindparams(bindparam(*bindparams))
+                        text(stmt).bindparams(*bindparams)
                     )
                     photometric_series_exists = [
                         r[0] for r in photometric_series_exists
