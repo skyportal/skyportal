@@ -617,14 +617,14 @@ def post_followup_request(
             refresh_source=refresh_source,
             refresh_requests=refresh_requests,
         )
-    except Exception:
-        followup_request.status = 'failed to submit'
+    except Exception as e:
+        followup_request.status = f'failed to submit: {e}'
         raise
     finally:
         session.commit()
         if (
             refresh_source or refresh_requests
-        ) and followup_request.status == 'failed to submit':
+        ) and 'failed to submit' in followup_request.status:
             flow = Flow()
             if refresh_source:
                 flow.push(
@@ -1237,7 +1237,7 @@ class FollowupRequestHandler(BaseHandler):
                 api = followup_request.instrument.api_class
                 existing_status = followup_request.status
 
-                if existing_status == 'failed to submit':
+                if 'failed to submit' in existing_status:
                     if not api.implements()['submit']:
                         return self.error('Cannot submit requests on this instrument.')
 
@@ -1274,7 +1274,7 @@ class FollowupRequestHandler(BaseHandler):
                 for k in data:
                     setattr(followup_request, k, data[k])
 
-                if existing_status == 'failed to submit':
+                if 'failed to submit' in existing_status:
                     try:
                         followup_request.instrument.api_class.submit(
                             followup_request,
