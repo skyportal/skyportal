@@ -1387,7 +1387,6 @@ def public_group_taxonomy(public_taxonomy):
 def gcn_GRB180116A(user_no_groups):
     dateobs = datetime.strptime('2018-01-16 00:36:53', '%Y-%m-%d %H:%M:%S')
     notice_dict = {
-        # "ivorn": 'ivo://gcn/123456',
         "notice_type": 'Test',
         "notice_format": 'Test',
         "stream": 'Test',
@@ -1410,7 +1409,6 @@ def gcn_GRB180116A(user_no_groups):
         dateobs=dateobs,
         trigger_id='537755817',
         aliases=['FERMI#bn180116026'],
-        # tach_id='Tach 1',
         gcn_notices=[notice_dict],
         properties={'test': 'test'},
         localizations=[localization_dict],
