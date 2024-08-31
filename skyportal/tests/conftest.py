@@ -55,7 +55,7 @@ from skyportal.tests.fixtures import (
     NotificationFactory,
     UserNotificationFactory,
     ThumbnailFactory,
-    GcnFactory,
+    GcnEventFactory,
 )
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 from skyportal.models import Obj
@@ -1384,10 +1384,103 @@ def public_group_taxonomy(public_taxonomy):
 
 
 @pytest.fixture()
-def gcn(user_no_groups):
-    gcn = GcnFactory()
-    yield gcn
-    GcnFactory.teardown(gcn)
+def gcn_GRB180116A(user_no_groups):
+    dateobs = datetime.strptime('2018-01-16 00:36:53', '%Y-%m-%d %H:%M:%S')
+    notice_dict = {
+        "notice_type": 'Test',
+        "notice_format": 'Test',
+        "stream": 'Test',
+        "dateobs": dateobs,
+        "date": '2018-01-16 00:36:53',
+        "content": bytes(1024),
+        "has_localization": True,
+        "localization_ingested": True,
+    }
+
+    localization_dict = {
+        "localization_name": 'Test',
+        "localization_data_path": 'data/localization_GRB180116A.parquet',
+        "localization_tiles_data_path": 'data/localizationtiles_GRB180116A.parquet',
+        "properties": {'test': 'test'},
+        "tags": ['Test'],
+    }
+
+    gcnevent = GcnEventFactory(
+        dateobs=dateobs,
+        trigger_id='537755817',
+        aliases=['FERMI#bn180116026'],
+        gcn_notices=[notice_dict],
+        properties={'test': 'test'},
+        localizations=[localization_dict],
+    )
+    yield gcnevent
+    GcnEventFactory.teardown(gcnevent)
+
+
+@pytest.fixture()
+def gcn_GW190814(user_no_groups):
+    dateobs = datetime.strptime('2019-08-14 21:10:39', '%Y-%m-%d %H:%M:%S')
+    notice_dict = {
+        "notice_type": 'Test',
+        "notice_format": 'Test',
+        "stream": 'Test',
+        "dateobs": dateobs,
+        "date": '2019-08-14 21:10:39',
+        "content": bytes(1024),
+        "has_localization": True,
+        "localization_ingested": True,
+    }
+
+    localization_dict = {
+        "localization_name": 'LALInference.v1.fits.gz',
+        "localization_data_path": 'data/localization_GW190814.parquet',
+        "localization_tiles_data_path": 'data/localizationtiles_GW190814.parquet',
+        "properties": {'test': 'test'},
+        "tags": ['Test'],
+    }
+
+    gcnevent = GcnEventFactory(
+        dateobs=dateobs,
+        aliases=['LVC#S190814bv'],
+        gcn_notices=[notice_dict],
+        properties={'test': 'test'},
+        localizations=[localization_dict],
+    )
+    yield gcnevent
+    GcnEventFactory.teardown(gcnevent)
+
+
+@pytest.fixture()
+def gcn_GW190425(user_no_groups):
+    dateobs = datetime.strptime('2019-04-25 08:18:05', '%Y-%m-%d %H:%M:%S')
+    notice_dict = {
+        "notice_type": 'Test',
+        "notice_format": 'Test',
+        "stream": 'Test',
+        "dateobs": dateobs,
+        "date": '2019-04-25 08:18:05',
+        "content": bytes(1024),
+        "has_localization": True,
+        "localization_ingested": True,
+    }
+
+    localization_dict = {
+        "localization_name": 'bayestar.fits.gz',
+        "localization_data_path": 'data/localization_GW190425.parquet',
+        "localization_tiles_data_path": 'data/localizationtiles_GW190425.parquet',
+        "properties": {'test': 'test'},
+        "tags": ['Test'],
+    }
+
+    gcnevent = GcnEventFactory(
+        dateobs=dateobs,
+        aliases=['LVC#S190425z'],
+        gcn_notices=[notice_dict],
+        properties={'test': 'test'},
+        localizations=[localization_dict],
+    )
+    yield gcnevent
+    GcnEventFactory.teardown(gcnevent)
 
 
 @pytest.fixture()

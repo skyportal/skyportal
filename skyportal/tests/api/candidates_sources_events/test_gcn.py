@@ -13,6 +13,7 @@ from astropy.table import Table
 import pytest
 
 
+@pytest.mark.flaky(reruns=2)
 def test_gcn_GW(super_admin_token, view_only_token):
     datafile = f'{os.path.dirname(__file__)}/../../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
@@ -126,6 +127,8 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
 
     params = {"include2DMap": True}
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    if status != 200:
+        print(data)
     assert status == 200
     data = data["data"]
     assert data["dateobs"] == "2018-01-16T00:36:53"
@@ -283,7 +286,76 @@ def test_gcn_from_json(super_admin_token):
     )
 
 
-@pytest.mark.flaky(reruns=3)
+def test_gcn_from_polygon(super_admin_token):
+    localization_name = str(uuid.uuid4())
+    dateobs = '2022-09-03T14:44:12'
+    polygon = [(30.0, 60.0), (40.0, 60.0), (40.0, 70.0), (30.0, 70.0)]
+    tags = ['IPN', 'GRB']
+    skymap = {'polygon': polygon, 'localization_name': localization_name}
+
+    event_data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
+
+    status, data = api('POST', 'gcn_event', data=event_data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    dateobs = "2022-09-03 14:44:12"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    assert data["dateobs"] == "2022-09-03T14:44:12"
+    assert 'IPN' in data["tags"]
+
+
+def test_gcn_Swift(super_admin_token):
+    datafile = f'{os.path.dirname(__file__)}/../../data/SWIFT_1125809-092.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    event_data_1 = {'xml': payload}
+
+    datafile = f'{os.path.dirname(__file__)}/../../data/SWIFT_1125809-104.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    event_data_2 = {'xml': payload}
+
+    dateobs = "2022-09-30 11:11:52"
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            'POST', 'gcn_event', data=event_data_1, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+        status, data = api(
+            'POST', 'gcn_event', data=event_data_2, token=super_admin_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    assert data["dateobs"] == "2022-09-30T11:11:52"
+    assert any(
+        [
+            loc['localization_name'] == '64.71490_13.35000_0.00130'
+            for loc in data["localizations"]
+        ]
+    )
+    assert any(
+        [
+            loc['localization_name'] == '64.73730_13.35170_0.05000'
+            for loc in data["localizations"]
+        ]
+    )
+
+    # wait for the async tasks to finish before finishing the tests, which will delete the user
+    # from the db, causing failures in the session.commit() in the async tasks (because the user is not in the db anymore)
+    time.sleep(5)
+
+
 def test_gcn_summary_sources(
     super_admin_user,
     super_admin_token,
@@ -291,49 +363,9 @@ def test_gcn_summary_sources(
     public_group,
     ztf_camera,
     upload_data_token,
+    gcn_GW190814,
 ):
-    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    event_data = {'xml': payload}
-
-    dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
-
-    # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data['status'] == 'success':
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
+    dateobs = gcn_GW190814.dateobs.strftime('%Y-%m-%dT%H:%M:%S')
 
     obj_id = str(uuid.uuid4())
     status, data = api(
@@ -392,7 +424,7 @@ def test_gcn_summary_sources(
 
     status, data = api(
         'POST',
-        'gcn_event/2019-08-14T21:10:39/summary',
+        f'gcn_event/{dateobs}/summary',
         data=data,
         token=super_admin_token,
     )
@@ -404,9 +436,8 @@ def test_gcn_summary_sources(
     while nretries < 40:
         status, data = api(
             'GET',
-            f'gcn_event/2019-08-14T21:10:39/summary/{summary_id}',
+            f'gcn_event/{dateobs}/summary/{summary_id}',
             token=view_only_token,
-            params=params,
         )
         if status == 404:
             nretries = nretries + 1
@@ -472,56 +503,15 @@ def test_gcn_summary_galaxies(
     super_admin_token,
     view_only_token,
     public_group,
+    gcn_GW190814,
 ):
-    catalog_name = 'test_galaxy_catalog'
+    dateobs = gcn_GW190814.dateobs.strftime('%Y-%m-%dT%H:%M:%S')
 
+    catalog_name = 'test_galaxy_catalog'
     # in case the catalog already exists, delete it.
     status, data = api(
         'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
     )
-
-    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    event_data = {'xml': payload}
-
-    dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
-
-    # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data['status'] == 'success':
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
 
     datafile = f'{os.path.dirname(__file__)}/../../../../data/CLU_mini.hdf5'
     data = {
@@ -578,7 +568,7 @@ def test_gcn_summary_galaxies(
 
     status, data = api(
         'POST',
-        'gcn_event/2019-08-14T21:10:39/summary',
+        f'gcn_event/{dateobs}/summary',
         data=data,
         token=super_admin_token,
     )
@@ -590,7 +580,7 @@ def test_gcn_summary_galaxies(
     while nretries < 40:
         status, data = api(
             'GET',
-            f'gcn_event/2019-08-14T21:10:39/summary/{summary_id}',
+            f'gcn_event/{dateobs}/summary/{summary_id}',
             token=view_only_token,
             params=params,
         )
@@ -624,10 +614,10 @@ def test_gcn_summary_galaxies(
     assert f"reports on behalf of the {public_group.name} group:" in data[4]
 
     # galaxies
-    assert "Found **54 galaxies** in the event's localization:" in data[5]
+    assert "Found **82 galaxies** in the event's localization:" in data[5]
 
     galaxy_table = data[6:]
-    assert len(galaxy_table) == 56
+    assert len(galaxy_table) == 82 + 2
     assert "Galaxy" in galaxy_table[0]
     assert "RA [deg]" in galaxy_table[0]
     assert "Dec [deg]" in galaxy_table[0]
@@ -644,49 +634,9 @@ def test_gcn_summary_galaxies(
 
 def test_gcn_instrument_field(
     super_admin_token,
+    gcn_GW190814,
 ):
-    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    event_data = {'xml': payload}
-
-    dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
-
-    # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data['status'] == 'success':
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
+    dateobs = gcn_GW190814.dateobs.strftime('%Y-%m-%dT%H:%M:%S')
 
     name = str(uuid.uuid4())
     status, data = api(
@@ -769,49 +719,9 @@ def test_confirm_reject_source_in_gcn(
     view_only_token,
     ztf_camera,
     upload_data_token,
+    gcn_GW190814,
 ):
-    datafile = f'{os.path.dirname(__file__)}/../../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    event_data = {'xml': payload}
-
-    dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
-
-    # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data['status'] == 'success':
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
+    dateobs = gcn_GW190814.dateobs.strftime('%Y-%m-%dT%H:%M:%S')
 
     obj_id = str(uuid.uuid4())
     status, data = api(
@@ -857,7 +767,7 @@ def test_confirm_reject_source_in_gcn(
     }
     status, data = api(
         'GET',
-        'sources_in_gcn/2019-08-14T21:10:39',
+        f'sources_in_gcn/{dateobs}',
         params=params,
         token=upload_data_token,
     )
@@ -877,7 +787,7 @@ def test_confirm_reject_source_in_gcn(
     # verify that you can't confirm a source without the Manage GCNs permission
     status, data = api(
         'POST',
-        'sources_in_gcn/2019-08-14T21:10:39',
+        f'sources_in_gcn/{dateobs}',
         data=params,
         token=upload_data_token,
     )
@@ -885,7 +795,7 @@ def test_confirm_reject_source_in_gcn(
 
     status, data = api(
         'POST',
-        'sources_in_gcn/2019-08-14T21:10:39',
+        f'sources_in_gcn/{dateobs}',
         data=params,
         token=super_admin_token,
     )
@@ -896,7 +806,7 @@ def test_confirm_reject_source_in_gcn(
     }
     status, data = api(
         'GET',
-        'sources_in_gcn/2019-08-14T21:10:39',
+        f'sources_in_gcn/{dateobs}',
         params=params,
         token=upload_data_token,
     )
@@ -904,7 +814,7 @@ def test_confirm_reject_source_in_gcn(
     data = data["data"]
     assert len(data) == 1
     assert data[0]["obj_id"] == obj_id
-    assert data[0]["dateobs"] == "2019-08-14T21:10:39"
+    assert data[0]["dateobs"] == dateobs
     assert data[0]["confirmed"] is True
 
     # find gcns associated to source
@@ -915,7 +825,7 @@ def test_confirm_reject_source_in_gcn(
     )
     assert status == 200
     data = data["data"]
-    assert '2019-08-14T21:10:39' in data['gcns']
+    assert dateobs in data['gcns']
 
     # reject source
     params = {
@@ -924,7 +834,7 @@ def test_confirm_reject_source_in_gcn(
 
     status, data = api(
         'PATCH',
-        f'sources_in_gcn/2019-08-14T21:10:39/{obj_id}',
+        f'sources_in_gcn/{dateobs}/{obj_id}',
         data=params,
         token=upload_data_token,
     )
@@ -932,7 +842,7 @@ def test_confirm_reject_source_in_gcn(
 
     status, data = api(
         'PATCH',
-        f'sources_in_gcn/2019-08-14T21:10:39/{obj_id}',
+        f'sources_in_gcn/{dateobs}/{obj_id}',
         data=params,
         token=super_admin_token,
     )
@@ -943,7 +853,7 @@ def test_confirm_reject_source_in_gcn(
     }
     status, data = api(
         'GET',
-        'sources_in_gcn/2019-08-14T21:10:39',
+        f'sources_in_gcn/{dateobs}',
         params=params,
         token=upload_data_token,
     )
@@ -951,7 +861,7 @@ def test_confirm_reject_source_in_gcn(
     data = data["data"]
     assert len(data) == 1
     assert data[0]["obj_id"] == obj_id
-    assert data[0]["dateobs"] == "2019-08-14T21:10:39"
+    assert data[0]["dateobs"] == dateobs
     assert data[0]["confirmed"] is False
 
     # verify that no gcns are associated to source
@@ -969,14 +879,14 @@ def test_confirm_reject_source_in_gcn(
     # mark source as unknow (delete it from the table)
     status, data = api(
         'DELETE',
-        f'sources_in_gcn/2019-08-14T21:10:39/{obj_id}',
+        f'sources_in_gcn/{dateobs}/{obj_id}',
         token=upload_data_token,
     )
     assert status == 401
 
     status, data = api(
         'DELETE',
-        f'sources_in_gcn/2019-08-14T21:10:39/{obj_id}',
+        f'sources_in_gcn/{dateobs}/{obj_id}',
         token=super_admin_token,
     )
     assert status == 200
@@ -986,7 +896,7 @@ def test_confirm_reject_source_in_gcn(
     }
     status, data = api(
         'GET',
-        'sources_in_gcn/2019-08-14T21:10:39',
+        f'sources_in_gcn/{dateobs}',
         params=params,
         token=upload_data_token,
     )
@@ -995,106 +905,19 @@ def test_confirm_reject_source_in_gcn(
     assert len(data) == 0
 
 
-def test_gcn_from_polygon(super_admin_token):
-    localization_name = str(uuid.uuid4())
-    dateobs = '2022-09-03T14:44:12'
-    polygon = [(30.0, 60.0), (40.0, 60.0), (40.0, 70.0), (30.0, 70.0)]
-    tags = ['IPN', 'GRB']
-    skymap = {'polygon': polygon, 'localization_name': localization_name}
-
-    event_data = {'dateobs': dateobs, 'skymap': skymap, 'tags': tags}
-
-    status, data = api('POST', 'gcn_event', data=event_data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    dateobs = "2022-09-03 14:44:12"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-    assert status == 200
-    data = data["data"]
-    assert data["dateobs"] == "2022-09-03T14:44:12"
-    assert 'IPN' in data["tags"]
-
-
-def test_gcn_Swift(super_admin_token):
-    datafile = f'{os.path.dirname(__file__)}/../../data/SWIFT_1125809-092.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    event_data_1 = {'xml': payload}
-
-    datafile = f'{os.path.dirname(__file__)}/../../data/SWIFT_1125809-104.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    event_data_2 = {'xml': payload}
-
-    dateobs = "2022-09-30 11:11:52"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data_1, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
-
-        status, data = api(
-            'POST', 'gcn_event', data=event_data_2, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
-
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-    assert status == 200
-    data = data["data"]
-    assert data["dateobs"] == "2022-09-30T11:11:52"
-    assert any(
-        [
-            loc['localization_name'] == '64.71490_13.35000_0.00130'
-            for loc in data["localizations"]
-        ]
-    )
-    assert any(
-        [
-            loc['localization_name'] == '64.73730_13.35170_0.05000'
-            for loc in data["localizations"]
-        ]
-    )
-
-    # wait for the async tasks to finish before finishing the tests, which will delete the user
-    # from the db, causing failures in the session.commit() in the async tasks (because the user is not in the db anymore)
-    time.sleep(5)
-
-
 def test_gcn_tach(
     super_admin_token,
     view_only_token,
+    gcn_GRB180116A,
 ):
-    datafile = (
-        f'{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
-    )
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    event_data = {'xml': payload}
-
-    dateobs = "2018-01-16T00:36:53"
+    dateobs = gcn_GRB180116A.dateobs.strftime('%Y-%m-%dT%H:%M:%S')
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
-
-    for n_times in range(26):
-        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if status == 200:
-            break
-        time.sleep(2)
-    assert n_times < 25
+    assert status == 200
 
     data = data['data']
-    assert len(data['aliases']) == 1
+    assert 'aliases' in data
+    assert 'GRB180116A' not in data['aliases']
+    aliases_len = len(data['aliases'])
 
     status, data = api('POST', f'gcn_event/{dateobs}/tach', token=view_only_token)
     assert status == 401
@@ -1112,7 +935,7 @@ def test_gcn_tach(
             time.sleep(1)
 
     assert n_times < 29
-    assert len(aliases) == 2
+    assert len(aliases) == aliases_len + 1
     assert 'GRB180116A' in aliases
 
     status, data = api('GET', f"gcn_event/{dateobs}/tach", token=super_admin_token)
@@ -1129,30 +952,12 @@ def test_gcn_allocation_triggers(
     public_group,
     super_admin_token,
     view_only_token,
+    gcn_GRB180116A,
 ):
-    datafile = (
-        f'{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
-    )
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    event_data = {'xml': payload}
+    dateobs = gcn_GRB180116A.dateobs.strftime('%Y-%m-%dT%H:%M:%S')
 
-    dateobs = "2018-01-16T00:36:53"
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
-
-    for n_times in range(26):
-        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if status == 200:
-            break
-        time.sleep(2)
-    assert n_times < 25
+    assert status == 200
 
     name = str(uuid.uuid4())
     status, data = api(

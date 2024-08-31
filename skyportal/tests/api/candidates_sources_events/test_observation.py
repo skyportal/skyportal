@@ -10,20 +10,8 @@ from skyportal.tests import api
 
 
 @pytest.mark.flaky(reruns=2)
-def test_observation(super_admin_token, view_only_token):
-    datafile = f'{os.path.dirname(__file__)}/../../data/GW190425_initial.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    event_data = {'xml': payload}
-
-    dateobs = "2019-04-25 08:18:05"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
+def test_observation(super_admin_token, view_only_token, gcn_GW190425):
+    dateobs = gcn_GW190425.dateobs.strftime("%Y-%m-%dT%H:%M:%S")
 
     telescope_name = str(uuid.uuid4())
     status, data = api(
@@ -98,7 +86,7 @@ def test_observation(super_admin_token, view_only_token):
         'instrumentName': instrument_name,
         'startDate': "2019-04-25 08:18:05",
         'endDate': "2019-04-28 08:18:05",
-        'localizationDateobs': "2019-04-25T08:18:05",
+        'localizationDateobs': dateobs,
         'localizationName': "bayestar.fits.gz",
         'localizationCumprob': 1.01,
         'returnStatistics': True,
@@ -119,6 +107,7 @@ def test_observation(super_admin_token, view_only_token):
         ]
     )
 
+    observation_id = None
     for d in data['observations']:
         if d['observation_id'] == 84434604:
             observation_id = d['id']

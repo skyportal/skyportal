@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import pathlib
 import random
@@ -11,6 +12,7 @@ import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import inspect
 from sqlalchemy.orm.exc import ObjectDeletedError
+import pandas as pd
 
 from baselayer.app.config import load_config
 from baselayer.app.env import load_env
@@ -27,6 +29,13 @@ from skyportal.models import (
     Telescope,
     Obj,
     GcnEvent,
+    GcnNotice,
+    GcnProperty,
+    GcnTag,
+    Localization,
+    LocalizationProperty,
+    LocalizationTile,
+    LocalizationTag,
     Comment,
     CommentOnSpectrum,
     CommentOnGCN,
@@ -55,6 +64,53 @@ cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
 set_server_url(f'http://localhost:{cfg["ports.app"]}')
 print("Setting test database to:", cfg["database"])
 init_db(**cfg["database"])
+
+
+def load_localization_data(path):
+    """
+    Load localization data from a Parquet file (uniq, probdensity, contour). Used for testing.
+
+    Parameters
+    ----------
+    path : str
+        Path to the CSV file containing localization data.
+
+    Returns
+    -------
+    tuple
+        Tuple containing the uniq, probdensity, and contour data.
+    """
+    df = pd.read_parquet(os.path.join(os.path.dirname(__file__), path))
+
+    uniq = df['uniq'].values[0]
+    probdensity = df['probdensity'].values[0]
+    contour = df['contour'].values[0]
+
+    # Convert string representations of lists to actual lists and dicts
+    uniq = np.array([int(x) for x in uniq[1:-1].split(',')]).tolist()
+    probdensity = np.array([float(x) for x in probdensity[1:-1].split(',')]).tolist()
+    contour = json.loads(contour)
+
+    return uniq, probdensity, contour
+
+
+def load_localization_tiles_data(path):
+    """
+    Load localization tile data from a CSV file. Used for testing.
+
+    Parameters
+    ----------
+    path : str
+        Path to the Parquet file containing localization tile data.
+
+    Returns
+    -------
+    tuple
+        Tuple containing the probdensities and healpix ranges.
+    """
+    df = pd.read_parquet(os.path.join(os.path.dirname(__file__), path))
+
+    return df['probdensity'].values, df['healpix'].values
 
 
 def is_already_deleted(instance, table):
@@ -533,23 +589,267 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
             InstrumentFactory.teardown(instrument)
 
 
-class GcnFactory(factory.alchemy.SQLAlchemyModelFactory):
+class GcnNoticeFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = GcnNotice
+
+    sent_by = factory.SubFactory(UserFactory)
+    ivorn = factory.LazyFunction(lambda: f'ivo://gwnet/LVC/{uuid.uuid4().hex}')
+    notice_type = 'test'
+    notice_format = 'voevent'
+    stream = factory.LazyFunction(lambda: uuid.uuid4().hex)
+    date = datetime.datetime.now()
+    dateobs = datetime.datetime.now()
+    content = factory.LazyFunction(lambda: bytes(1024))
+    has_localization = False
+    localization_ingested = False
+
+    @staticmethod
+    def teardown(gcn):
+        if is_already_deleted(gcn, GcnNotice):
+            return
+
+        DBSession().delete(gcn)
+        DBSession().commit()
+
+
+class GcnPropertyFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = GcnProperty
+
+    sent_by = factory.SubFactory(UserFactory)
+    dateobs = datetime.datetime.now()
+    data = {"test": 1}
+
+    @staticmethod
+    def teardown(gcn):
+        if is_already_deleted(gcn, GcnProperty):
+            return
+
+        DBSession().delete(gcn)
+        DBSession().commit()
+
+
+class GcnTagFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = GcnTag
+
+    sent_by = factory.SubFactory(UserFactory)
+    dateobs = datetime.datetime.now()
+    text = 'TestTag'
+
+    @staticmethod
+    def teardown(gcn):
+        if is_already_deleted(gcn, GcnTag):
+            return
+
+        DBSession().delete(gcn)
+        DBSession().commit()
+
+
+class LocalizationPropertyFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = LocalizationProperty
+
+    sent_by = factory.SubFactory(UserFactory)
+    localization_id = 1
+    data = {"test": 1}
+
+    @staticmethod
+    def teardown(localization):
+        if is_already_deleted(localization, LocalizationProperty):
+            return
+
+        DBSession().delete(localization)
+        DBSession().commit()
+
+
+class LocalizationTagFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = LocalizationTag
+
+    sent_by = factory.SubFactory(UserFactory)
+    localization_id = 1
+    text = 'TestTag'
+
+    @staticmethod
+    def teardown(localization):
+        if is_already_deleted(localization, LocalizationTag):
+            return
+
+        DBSession().delete(localization)
+        DBSession().commit()
+
+
+class LocalizationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Localization
+
+    sent_by = factory.SubFactory(UserFactory)
+    dateobs = datetime.datetime.now()
+    localization_name = factory.LazyFunction(lambda: str(uuid.uuid4().hex))
+
+    notice_id = 1
+    uniq = []
+    probdensity = []
+    contour = {}
+
+    @factory.post_generation
+    def properties(self, create, passed_properties, **kwargs):
+        if passed_properties:
+            properties = LocalizationPropertyFactory(
+                sent_by=self.sent_by, localization_id=self.id, data=passed_properties
+            )
+            DBSession().add(properties)
+            self.properties = [properties]
+            DBSession().commit()
+
+    @factory.post_generation
+    def tags(self, create, passed_tags, **kwargs):
+        if passed_tags:
+            tags = [
+                LocalizationTagFactory(
+                    sent_by=self.sent_by, localization_id=self.id, text=tag
+                )
+                for tag in passed_tags
+            ]
+            for tag in tags:
+                DBSession().add(tag)
+            self.tags = tags
+
+            DBSession().commit()
+
+    @factory.post_generation
+    def load_localization(self, create, path=None, **kwargs):
+        if path:
+            uniq, probdensity, contour = load_localization_data(path)
+            self.uniq = uniq
+            self.probdensity = probdensity
+            self.contour = contour
+            DBSession().commit()
+
+    @factory.post_generation
+    def load_localization_tiles(self, create, path=None, **kwargs):
+        if path:
+            probdensities, healpix_ranges = load_localization_tiles_data(path)
+            for i in range(len(probdensities)):
+                localization_tile = LocalizationTile(
+                    dateobs=self.dateobs,
+                    localization_id=self.id,
+                    probdensity=probdensities[i],
+                    healpix=healpix_ranges[i],
+                )
+                DBSession().add(localization_tile)
+            DBSession().commit()
+
+    @staticmethod
+    def teardown(localization):
+        if is_already_deleted(localization, Localization):
+            return
+
+        DBSession().delete(localization)
+        DBSession().commit()
+
+
+class GcnEventFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = GcnEvent
 
     sent_by = factory.SubFactory(UserFactory)
-
     dateobs = datetime.datetime.now()
+    trigger_id = factory.LazyFunction(lambda: uuid.uuid4().hex)
+
+    @factory.post_generation
+    def aliases(self, created, passed_aliases=None, **kwargs):
+        if passed_aliases:
+            self.aliases = passed_aliases
+            DBSession().commit()
+
+    @factory.post_generation
+    def tach_id(self, created, passed_tach_id=None, **kwargs):
+        if passed_tach_id:
+            self.tach_id = passed_tach_id
+            DBSession().commit()
+
+    @factory.post_generation
+    def gcn_notices(self, create, passed_notices=[], **kwargs):
+        if passed_notices and len(passed_notices) > 0:
+            new_notices = []
+            for notice_dict in passed_notices:
+                new_notice = GcnNoticeFactory(
+                    dateobs=self.dateobs,
+                    sent_by=self.sent_by,
+                    ivorn=notice_dict.get('ivorn', f'ivo://test/{uuid.uuid4().hex}'),
+                    notice_type=notice_dict.get('notice_type', 'Test'),
+                    notice_format=notice_dict.get('notice_format', 'voevent'),
+                    stream=notice_dict.get('stream', str(uuid.uuid4().hex)),
+                    date=notice_dict.get('date', datetime.datetime.now()),
+                    content=notice_dict.get('content', bytes(1024)),
+                    has_localization=notice_dict.get('has_localization', False),
+                    localization_ingested=notice_dict.get(
+                        'localization_ingested', False
+                    ),
+                )
+                new_notices.append(new_notice)
+
+            for gcn_notice in new_notices:
+                DBSession().add(gcn_notice)
+            self.gcn_notices = new_notices
+            DBSession().commit()
+
+    @factory.post_generation
+    def properties(self, create, passed_properties=None, **kwargs):
+        if isinstance(passed_properties, dict) and len(passed_properties) > 0:
+            properties = GcnPropertyFactory(
+                dateobs=self.dateobs, sent_by=self.sent_by, data=passed_properties
+            )
+            DBSession().add(properties)
+            self.properties = [properties]
+
+        DBSession().commit()
+
+    @factory.post_generation
+    def localizations(self, create, passed_localizations=[], **kwargs):
+        if len(passed_localizations) > 0:
+            new_localizations = []
+            for localization_dict in passed_localizations:
+                new_loc = LocalizationFactory(
+                    dateobs=self.dateobs,
+                    sent_by=self.sent_by,
+                    notice_id=self.gcn_notices[0].id,
+                    properties=localization_dict.get('properties'),
+                    tags=localization_dict.get('tags'),
+                    localization_name=localization_dict.get(
+                        'localization_name', f'Localization {uuid.uuid4().hex}'
+                    ),
+                    load_localization=localization_dict.get('localization_data_path'),
+                    load_localization_tiles=localization_dict.get(
+                        'localization_tiles_data_path'
+                    ),
+                )
+                new_localizations.append(new_loc)
+
+            for localization in new_localizations:
+                DBSession().add(localization)
+            self.localizations = new_localizations
+            DBSession().commit()
 
     @staticmethod
     def teardown(gcn):
         if is_already_deleted(gcn, GcnEvent):
             return
 
-        sent_by = gcn.sent_by.id
+        for notice in gcn.gcn_notices:
+            GcnNoticeFactory.teardown(notice)
+
+        for prop in gcn.properties:
+            GcnPropertyFactory.teardown(prop)
+
+        for loc in gcn.localizations:
+            LocalizationFactory.teardown(loc)
+
         DBSession().delete(gcn)
         DBSession().commit()
-        UserFactory.teardown(sent_by)
 
 
 class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):

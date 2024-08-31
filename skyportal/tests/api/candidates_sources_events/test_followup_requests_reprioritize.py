@@ -1,39 +1,14 @@
-import os
-
 from skyportal.tests import api
 
 
 def test_reprioritize_followup_request(
-    public_group_sedm_allocation, public_source, upload_data_token, super_admin_token
+    public_group_sedm_allocation,
+    public_source,
+    upload_data_token,
+    super_admin_token,
+    gcn_GW190425,
 ):
-    # GET to see if the gcnevent already exists
-    dateobs = "2019-04-25 08:18:05"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-    if status == 404:
-        # POST the GCN event
-        datafile = f'{os.path.dirname(__file__)}/../../data/GW190425_initial.xml'
-        with open(datafile, 'rb') as fid:
-            payload = fid.read()
-        data = {'xml': payload}
-
-        status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
-        assert status == 200
-        assert data['status'] == 'success'
-
-        params = {"include2DMap": True}
-
-        n_retries = 0
-        while n_retries < 10:
-            status, data = api(
-                'GET', f'gcn_event/{dateobs}', token=super_admin_token, params=params
-            )
-            assert status == 200
-            assert len(data['data']['localizations']) > 0
-            break
-
-        assert n_retries < 10
-
-    localization_id = data['data']['localizations'][0]['id']
+    localization_id = gcn_GW190425.localizations[0].id
 
     request_data = {
         'allocation_id': public_group_sedm_allocation.id,
@@ -75,8 +50,3 @@ def test_reprioritize_followup_request(
     assert status == 200
 
     assert data['data']["payload"]["priority"] == 5
-
-    # delete the event
-    status, data = api(
-        'DELETE', 'gcn_event/2019-04-25T08:18:05', token=super_admin_token
-    )
