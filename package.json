@@ -22,7 +22,7 @@
     "@rjsf/mui": "5.18.3",
     "@rjsf/utils": "5.18.5",
     "@rjsf/validator-ajv6": "5.18.4",
-    "@rjsf/validator-ajv8": "5.18.4",
+    "@rjsf/validator-ajv8": "5.20.1",
     "autosuggest-highlight": "3.3.4",
     "buffer": "6.0.3",
     "check-dependencies": "2.0.0",
