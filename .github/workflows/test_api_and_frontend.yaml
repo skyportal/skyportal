@@ -60,24 +60,32 @@ jobs:
           path: |
             ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
 
       - uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pip
-          key: ${{ runner.os }}-${{ hashFiles('**/requirements*.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - uses: actions/cache@v4
         with:
           path: |
             persistentdata/dustmap/sfd
-          key: ${{ runner.os }}-${{ hashFiles('persistentdata/dustmap/sfd/*.fits') }}
+          key: ${{ runner.os }}-dustmap-${{ hashFiles('persistentdata/dustmap/sfd/*.fits') }}
+          restore-keys: |
+            ${{ runner.os }}-dustmap-
 
       - uses: actions/cache@v4
         with:
           path: |
             ~/.astropy/cache/sncosmo/bandpasses
-          key: ${{ runner.os }}-${{ hashFiles('~/.astropy/cache/sncosmo/bandpasses/*') }}
+          key: ${{ runner.os }}-sncosmo-${{ hashFiles('~/.astropy/cache/sncosmo/bandpasses/*') }}
+          restore-keys: |
+            ${{ runner.os }}-sncosmo-
 
       - uses: browser-actions/setup-geckodriver@latest
         with:
