@@ -529,12 +529,27 @@ class UVOTXRTAPI(FollowUpAPI):
             r = requests.post(
                 url=API_URL, verify=True, data={'jwt': swiftreq.requestgroup.jwt}
             )
-            r.raise_for_status()
 
             if r.status_code == 200:
                 request.status = 'submitted'
             else:
                 request.status = f'rejected: {r.content}'
+                log(
+                    f'Failed to submit Swift request for {request.id} (obj {request.obj.id}): {r.content}'
+                )
+                try:
+                    flow = Flow()
+                    flow.push(
+                        request.last_modified_by_id,
+                        'baselayer/SHOW_NOTIFICATION',
+                        payload={
+                            'message': f'Failed to submit Swift request: {r.content}',
+                            'type': 'error',
+                        },
+                    )
+                except Exception as e:
+                    log(f'Failed to send notification: {e}')
+                    pass
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
