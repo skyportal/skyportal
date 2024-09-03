@@ -55,17 +55,29 @@ jobs:
           ref: main
           submodules: true
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pip
           key: ${{ runner.os }}-${{ hashFiles('**/requirements*.txt') }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            persistentdata/dustmap/sfd
+          key: ${{ runner.os }}-${{ hashFiles('persistentdata/dustmap/sfd/*.fits') }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.astropy/cache/sncosmo/bandpasses
+          key: ${{ runner.os }}-${{ hashFiles('~/.astropy/cache/sncosmo/bandpasses/*') }}
 
       - uses: browser-actions/setup-geckodriver@latest
         with:
