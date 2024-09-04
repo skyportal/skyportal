@@ -40,29 +40,55 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+            ${{ runner.os }}-npm-
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+            ${{ runner.os }}-pip-
+
+      # caching dustmap & sncosmo files is dependent on their corresponding
+      # python package versions, so we use that as the cache key
+      - uses: actions/cache@v4
+        with:
+          path: |
+            persistentdata/dustmap/sfd
+          key: ${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
+            ${{ runner.os }}-dustmap-
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.astropy/cache/sncosmo/bandpasses
+          key: ${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
+            ${{ runner.os }}-sncosmo-
 
       - name: Setup Graphviz
         uses: ts-graphviz/setup-graphviz@v1
@@ -95,7 +121,7 @@ jobs:
           sudo npm -g install npm@latest
 
       - name: Checkout branch being tested
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: true
