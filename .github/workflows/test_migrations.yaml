@@ -135,6 +135,7 @@ jobs:
           make dependencies
 
           pip install black
+          pip install fiona==1.9.6 # 1.10.0 breaks geopandas
 
       - name: Save current Alembic head on main
         run: |
