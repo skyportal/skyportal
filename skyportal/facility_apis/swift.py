@@ -215,6 +215,7 @@ class UVOTXRTRequest:
         modes_index = modes_values.index(request.payload["uvot_mode"])
         too.uvot_mode = modes_keys[modes_index]
         too.science_just = request.payload["science_just"]
+        too.uvot_just = request.payload["uvot_just"]
 
         return too
 
@@ -757,6 +758,11 @@ class UVOTXRTAPI(FollowUpAPI):
                                 "type": "string",
                                 "enum": list(modes_values),
                                 "default": "0x9999 - Default (Filter of the day)",
+                            },
+                            "uvot_just": {
+                                "title": "UVOT Mode Justification",
+                                "type": "string",
+                                "default": "We wish to use mode 0x9999 - Default (Filter of the day).",
                             },
                             "science_just": {
                                 "title": "Science Justification",
