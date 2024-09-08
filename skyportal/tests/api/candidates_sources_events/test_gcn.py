@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import requests
 
 from skyportal.tests import api
 from skyportal.utils.gcn import from_url
@@ -11,6 +12,17 @@ from regions import Regions
 from astropy.table import Table
 
 import pytest
+
+tach_isonline = False
+try:
+    response = requests.get(
+        "https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/", timeout=5
+    )
+    response.raise_for_status()
+except Exception:
+    pass
+else:
+    tach_isonline = True
 
 
 @pytest.mark.flaky(reruns=2)
@@ -905,6 +917,7 @@ def test_confirm_reject_source_in_gcn(
     assert len(data) == 0
 
 
+@pytest.mark.skipif(not tach_isonline, reason="GCN TACH is not online")
 def test_gcn_tach(
     super_admin_token,
     view_only_token,

@@ -215,7 +215,12 @@ class UVOTXRTRequest:
         modes_index = modes_values.index(request.payload["uvot_mode"])
         too.uvot_mode = modes_keys[modes_index]
         too.science_just = request.payload["science_just"]
-        too.uvot_just = request.payload["uvot_just"]
+        if too.uvot_mode == '0x0270':
+            too.uvot_just = request.payload.get("uvot_just", None)
+            if not too.uvot_just:
+                raise ValueError(
+                    'uvot_just is required when the UVOT mode select is 0x0270 (ToO Upload Mode).'
+                )
 
         return too
 
@@ -759,15 +764,42 @@ class UVOTXRTAPI(FollowUpAPI):
                                 "enum": list(modes_values),
                                 "default": "0x9999 - Default (Filter of the day)",
                             },
-                            "uvot_just": {
-                                "title": "UVOT Mode Justification",
-                                "type": "string",
-                                "default": "We wish to use mode 0x9999 - Default (Filter of the day).",
-                            },
                             "science_just": {
                                 "title": "Science Justification",
                                 "type": "string",
                                 "default": "An X-ray detection of this transient will further associate this object to a relativistic explosion and will help unveil the nature of the progenitor type.",
+                            },
+                        },
+                        "dependencies": {
+                            "uvot_mode": {
+                                "oneOf": [
+                                    {
+                                        "properties": {
+                                            "uvot_mode": {
+                                                "enum": [
+                                                    "0x0270 - U+B+V+All UV (ToO Upload Mode)"
+                                                ],
+                                            },
+                                            "uvot_just": {
+                                                "title": "UVOT Mode Justification",
+                                                "type": "string",
+                                                "default": "We wish to use mode 0x0270 - U+B+V+All UV (ToO Upload Mode).",
+                                            },
+                                        },
+                                        "required": ["uvot_just"],
+                                    },
+                                    {
+                                        "properties": {
+                                            "uvot_mode": {
+                                                "not": {
+                                                    "enum": [
+                                                        "0x0270 - U+B+V+All UV (ToO Upload Mode)"
+                                                    ],
+                                                },
+                                            },
+                                        }
+                                    },
+                                ]
                             },
                         },
                     },
