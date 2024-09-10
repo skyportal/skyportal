@@ -8,6 +8,7 @@ from skyportal.tests import api
 def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
     next_reminder = datetime.now(timezone.utc) + timedelta(seconds=2)
+    next_reminder = next_reminder.replace(microsecond=0)
     reminder_delay = 1
     number_of_reminders = 1
     request_data = {
@@ -37,14 +38,13 @@ def post_and_verify_reminder(endpoint, token):
         if reminder['text'] == reminder_text
     )
     assert reminder_index != -1
-    assert data[reminder_index]['text'] == reminder_text
     assert data[reminder_index]['reminder_delay'] == reminder_delay
     assert data[reminder_index]['number_of_reminders'] <= number_of_reminders
     assert (
         datetime.strptime(
             data[reminder_index]['next_reminder'], "%Y-%m-%dT%H:%M:%S"
         ).timestamp()
-        > next_reminder.timestamp()
+        >= next_reminder.timestamp()
     )
 
     n_retries = 0
@@ -71,14 +71,36 @@ def post_and_verify_reminder(endpoint, token):
     assert len(data) == 1
     assert data[reminder_index]['text'] == reminder_text
     assert data[reminder_index]['reminder_delay'] == reminder_delay
+    assert data[reminder_index]['number_of_reminders'] == number_of_reminders - 1
     assert (
         datetime.strptime(
             data[reminder_index]['next_reminder'], "%Y-%m-%dT%H:%M:%S"
         ).timestamp()
         > next_reminder.timestamp()
     )
-    assert data[reminder_index]['number_of_reminders'] == number_of_reminders - 1
     return reminder_text
+
+
+def test_reminder_on_source(super_admin_token):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 24.6258,
+            "dec": -32.9024,
+            "redshift": 3,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"sources/{obj_id}", token=super_admin_token)
+    assert status == 200
+
+    endpoint = f"source/{data['data']['id']}/reminders"
+    post_and_verify_reminder(endpoint, super_admin_token)
 
 
 def test_reminder_on_shift(
@@ -107,28 +129,6 @@ def test_reminder_on_shift(
     assert data['status'] == 'success'
 
     endpoint = f"shift/{data['data']['id']}/reminders"
-    post_and_verify_reminder(endpoint, super_admin_token)
-
-
-def test_reminder_on_source(super_admin_token):
-    obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 24.6258,
-            "dec": -32.9024,
-            "redshift": 3,
-        },
-        token=super_admin_token,
-    )
-    assert status == 200
-
-    status, data = api("GET", f"sources/{obj_id}", token=super_admin_token)
-    assert status == 200
-
-    endpoint = f"source/{data['data']['id']}/reminders"
     post_and_verify_reminder(endpoint, super_admin_token)
 
 
