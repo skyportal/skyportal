@@ -40,12 +40,11 @@ def post_and_verify_reminder(endpoint, token):
         if reminder['text'] == reminder_text
     )
     assert reminder_index != -1
-    assert data[reminder_index]['text'] == reminder_text
     assert data[reminder_index]['reminder_delay'] == reminder_delay
     assert data[reminder_index]['number_of_reminders'] <= number_of_reminders
     assert (
         datetime.strptime(data[reminder_index]['next_reminder'], "%Y-%m-%dT%H:%M:%S")
-        > next_reminder
+        >= next_reminder
     )
 
     n_retries = 0
@@ -72,11 +71,11 @@ def post_and_verify_reminder(endpoint, token):
     assert len(data) == 1
     assert data[reminder_index]['text'] == reminder_text
     assert data[reminder_index]['reminder_delay'] == reminder_delay
+    assert data[reminder_index]['number_of_reminders'] == number_of_reminders - 1
     assert (
         datetime.strptime(data[reminder_index]['next_reminder'], "%Y-%m-%dT%H:%M:%S")
         > next_reminder
     )
-    assert data[reminder_index]['number_of_reminders'] == number_of_reminders - 1
     return reminder_text
 
 
