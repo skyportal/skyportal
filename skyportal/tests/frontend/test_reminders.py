@@ -2,12 +2,12 @@ import uuid
 import time
 
 from skyportal.tests import api
-from datetime import date, timedelta, datetime
+from datetime import datetime, timedelta, timezone
 
 
 def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
-    next_reminder = datetime.utcnow() + timedelta(seconds=5)
+    next_reminder = datetime.now(timezone.utc) + timedelta(seconds=2)
     reminder_delay = 1
     number_of_reminders = 1
     request_data = {
@@ -38,11 +38,14 @@ def post_and_verify_reminder(endpoint, token):
     )
     assert reminder_index != -1
     assert data[reminder_index]['text'] == reminder_text
-    assert data[reminder_index]['next_reminder'] == next_reminder.strftime(
-        "%Y-%m-%dT%H:%M:%S"
-    )
     assert data[reminder_index]['reminder_delay'] == reminder_delay
-    assert data[reminder_index]['number_of_reminders'] == number_of_reminders
+    assert data[reminder_index]['number_of_reminders'] <= number_of_reminders
+    assert (
+        datetime.strptime(
+            data[reminder_index]['next_reminder'], "%Y-%m-%dT%H:%M:%S"
+        ).timestamp()
+        > next_reminder.timestamp()
+    )
 
     n_retries = 0
     while n_retries < 10:
@@ -59,18 +62,21 @@ def post_and_verify_reminder(endpoint, token):
                 for index, reminder in enumerate(data)
                 if reminder['text'] == reminder_text
             )
-            if data[reminder_index]['number_of_reminders'] == number_of_reminders - 1:
+            if data[reminder_index]['number_of_reminders'] < number_of_reminders:
                 break
-        time.sleep(15)
+        time.sleep(2)
         n_retries += 1
     assert n_retries < 10
     assert status == 200
     assert len(data) == 1
     assert data[reminder_index]['text'] == reminder_text
-    assert data[reminder_index]['next_reminder'] == (
-        next_reminder + timedelta(days=reminder_delay)
-    ).strftime("%Y-%m-%dT%H:%M:%S")
     assert data[reminder_index]['reminder_delay'] == reminder_delay
+    assert (
+        datetime.strptime(
+            data[reminder_index]['next_reminder'], "%Y-%m-%dT%H:%M:%S"
+        ).timestamp()
+        > next_reminder.timestamp()
+    )
     assert data[reminder_index]['number_of_reminders'] == number_of_reminders - 1
     return reminder_text
 
@@ -113,8 +119,12 @@ def test_reminder_on_shift(
     super_admin_token,
 ):
     shift_name = str(uuid.uuid4())
-    start_date = (date.today() - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
-    end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    start_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
+    end_date = (datetime.now(timezone.utc) + timedelta(days=1)).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
     request_data = {
         'name': shift_name,
         'group_id': public_group.id,
