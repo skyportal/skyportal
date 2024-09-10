@@ -2166,8 +2166,8 @@ class SourceHandler(BaseHandler):
                     return self.error(f'Cannot find the object with name {obj_id}')
 
                 if not (
-                    np.isclose(data.get('ra'), source.ra)
-                    and np.isclose(data.get('dec'), source.dec)
+                    np.isclose(data.get('ra', source.ra), source.ra)
+                    and np.isclose(data.get('dec', source.dec), source.dec)
                 ):
                     run_async(remove_obj_thumbnails, obj_id)
                     updated_coordinates = True
@@ -2184,7 +2184,7 @@ class SourceHandler(BaseHandler):
 
             update_healpix_if_relevant(data, obj)
 
-            self.verify_and_commit()
+            session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
