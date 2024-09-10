@@ -1,5 +1,5 @@
 astroscrappy==1.2.0
-numpy==1.23.4
+numpy>=1.23.4
 scipy==1.13.1
 pandas==2.2.0
 dask==2024.5.2
