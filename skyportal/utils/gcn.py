@@ -757,7 +757,7 @@ def get_contour(localization):
 
 
 def get_skymap_properties(localization):
-    sky_map = localization.table
+    sky_map = localization.table_2d
 
     properties_dict = {}
     tags_list = []
