@@ -2184,6 +2184,7 @@ class SourceHandler(BaseHandler):
 
             update_healpix_if_relevant(data, obj)
 
+            session.merge(obj)
             session.commit()
 
             self.push_all(
