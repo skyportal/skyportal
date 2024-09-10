@@ -7,7 +7,9 @@ from skyportal.tests import api
 
 def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
-    next_reminder = datetime.now(timezone.utc) + timedelta(seconds=2)
+    next_reminder = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
+        seconds=2
+    )
     next_reminder = next_reminder.replace(microsecond=0)
     reminder_delay = 1
     number_of_reminders = 1
@@ -41,10 +43,8 @@ def post_and_verify_reminder(endpoint, token):
     assert data[reminder_index]['reminder_delay'] == reminder_delay
     assert data[reminder_index]['number_of_reminders'] <= number_of_reminders
     assert (
-        datetime.strptime(
-            data[reminder_index]['next_reminder'], "%Y-%m-%dT%H:%M:%S"
-        ).timestamp()
-        >= next_reminder.timestamp()
+        datetime.strptime(data[reminder_index]['next_reminder'], "%Y-%m-%dT%H:%M:%S")
+        >= next_reminder
     )
 
     n_retries = 0
@@ -73,10 +73,8 @@ def post_and_verify_reminder(endpoint, token):
     assert data[reminder_index]['reminder_delay'] == reminder_delay
     assert data[reminder_index]['number_of_reminders'] == number_of_reminders - 1
     assert (
-        datetime.strptime(
-            data[reminder_index]['next_reminder'], "%Y-%m-%dT%H:%M:%S"
-        ).timestamp()
-        > next_reminder.timestamp()
+        datetime.strptime(data[reminder_index]['next_reminder'], "%Y-%m-%dT%H:%M:%S")
+        > next_reminder
     )
     return reminder_text
 
