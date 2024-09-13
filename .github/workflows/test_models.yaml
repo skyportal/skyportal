@@ -194,12 +194,12 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: logs-${{ matrix.runs-on }}
+          name: logs-model-logic
           path: log
 
       - name: Upload test post-mortem reports
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: test-results-${{ matrix.runs-on }}
+          name: test-results-model-logic
           path: test-results

@@ -248,19 +248,19 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: logs-${{ matrix.runs-on }}
+          name: logs-${{ matrix.test_subset }}
           path: log
 
       - name: Upload test post-mortem reports
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: test-results-${{ matrix.runs-on }}
+          name: test-results-${{ matrix.test_subset }}
           path: test-results
 
       - name: Upload generated plots
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: generated-plots-${{ matrix.runs-on }}
+          name: generated-plots-${{ matrix.test_subset }}
           path: skyportal/tests/data/*_expected.png
