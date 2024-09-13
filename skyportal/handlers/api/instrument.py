@@ -613,7 +613,8 @@ class InstrumentHandler(BaseHandler):
                     observer = instrument.telescope.observer
                     if observer is None:
                         airmass_bulk = (
-                            np.ones((len(fields), len(airmass_time))) * np.inf
+                            np.ones((len(fields), len(np.array([airmass_time]))))
+                            * np.inf
                         )
                     else:
                         airmass_bulk = get_airmass(
