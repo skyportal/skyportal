@@ -297,21 +297,21 @@ jobs:
           fi
 
       - name: Upload logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
           name: logs
           path: log
 
       - name: Upload the Alembic diff
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
           name: alembic-difference
           path: alembic/versions/**test_migration.py
 
       - name: Upload migra diff
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
           name: migra-difference
