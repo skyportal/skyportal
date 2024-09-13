@@ -300,19 +300,19 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: logs
+          name: logs-${{ matrix.runs-on }}
           path: log
 
       - name: Upload the Alembic diff
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: alembic-difference
+          name: alembic-difference-${{ matrix.runs-on }}
           path: alembic/versions/**test_migration.py
 
       - name: Upload migra diff
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: migra-difference
+          name: migra-difference-${{ matrix.runs-on }}
           path: migra.sql
