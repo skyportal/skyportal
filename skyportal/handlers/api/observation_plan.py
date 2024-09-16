@@ -2,6 +2,7 @@ import asyncio
 import functools
 import io
 import json
+import operator  # noqa: F401
 import os
 import random
 import re
@@ -98,6 +99,7 @@ DEFAULT_OBSPLAN_OPTIONS = [
     'localization_tags',
     'localization_properties',
     'gcn_properties',
+    'plan_properties',
 ]
 
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
@@ -162,6 +164,15 @@ TREASUREMAP_FILTERS["ztfg"] = "g"
 TREASUREMAP_FILTERS["ztfr"] = "r"
 TREASUREMAP_FILTERS["ztfi"] = "i"
 
+op_options = [
+    "lt",
+    "le",
+    "eq",
+    "ne",
+    "ge",
+    "gt",
+]
+
 Session = scoped_session(sessionmaker())
 
 observation_plans_microservice_url = (
@@ -171,7 +182,7 @@ observation_plans_microservice_url = (
 MAX_OBSERVATION_PLAN_REQUESTS = 1000
 
 
-def send_observation_plan(plan_id, session, auto_send=False):
+def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=None):
     """Send observation plan to queue
 
     Parameters
@@ -206,9 +217,9 @@ def send_observation_plan(plan_id, session, auto_send=False):
         )
         return
 
-    if auto_send:
-        # if we already sent a plan for this event + allocation
-        # in the last 24 hours, we avoid auto-sending again.
+    if auto_send and default_obsplan_id is not None:
+        # if we already sent a plan for this event + allocation,
+        # we avoid auto-sending again.
         existing_obs_plan_requests = session.scalars(
             sa.select(ObservationPlanRequest).where(
                 ObservationPlanRequest.gcnevent_id
@@ -216,8 +227,6 @@ def send_observation_plan(plan_id, session, auto_send=False):
                 ObservationPlanRequest.allocation_id
                 == observation_plan_request.allocation_id,
                 ObservationPlanRequest.status == "submitted to telescope queue",
-                ObservationPlanRequest.modified
-                > datetime.utcnow() - timedelta(hours=24),
             )
         ).first()
         if existing_obs_plan_requests:
@@ -225,6 +234,84 @@ def send_observation_plan(plan_id, session, auto_send=False):
                 f"Skipping auto-send of observation plan {observation_plan_request.id}: plans have already been sent to the instrument in the last 24 hours for event {observation_plan_request.gcnevent_id} and allocation {observation_plan_request.allocation_id}"
             )
             return
+
+        defaultobsplanrequest = session.scalar(
+            sa.select(DefaultObservationPlanRequest).where(
+                DefaultObservationPlanRequest.id == int(default_obsplan_id)
+            )
+        )
+        if defaultobsplanrequest is None:
+            log(
+                f"Cannot find default observation plan request with ID: {default_obsplan_id}, skipping auto send."
+            )
+            return
+
+        filters = defaultobsplanrequest.filters
+        if not filters or not isinstance(filters, dict):
+            log(
+                f"Default observation plan request {default_obsplan_id} has no filters, skipping auto send."
+            )
+            return
+
+        plan_properties = filters.get('plan_properties', [])
+        if len(plan_properties) > 0:
+            try:
+                statistics = (
+                    observation_plan_request.observation_plans[0]
+                    .statistics[0]
+                    .statistics
+                )
+            except Exception as e:
+                log(f"Error getting statistics for observation plan {plan_id}: {e}")
+                return
+
+            properties_pass = True
+            for prop_filt in plan_properties:
+                prop_split = prop_filt.split(":")
+                if not len(prop_split) == 3:
+                    log(
+                        f"Invalid propertiesFilter value -- property filter must have 3 values, cannot auto-send default observation plan {default_obsplan_id}"
+                    )
+                    properties_pass = False
+                    break
+
+                name = prop_split[0].strip()
+                if name not in statistics:
+                    properties_pass = False
+                    break
+
+                value = prop_split[1].strip()
+                try:
+                    value = float(value)
+                except ValueError as e:
+                    log(
+                        f"Invalid propertiesFilter value: {e}, cannot auto-send default observation plan {default_obsplan_id}"
+                    )
+                    properties_pass = False
+                    break
+
+                op = prop_split[2].strip()
+                if op not in op_options:
+                    log(
+                        f"Invalid operator: {op}, skipping default observation plan {default_obsplan_id}"
+                    )
+                    properties_pass = False
+                    break
+                comp_function = getattr(operator, op)
+                if not comp_function(statistics[name], value):
+                    properties_pass = False
+                    break
+
+            if not properties_pass:
+                log(
+                    f"Default observation plan request {default_obsplan_id} failed plan properties/statistics filter, skipping auto send."
+                )
+                return
+
+    # if the observation plan has no observations scheduled, don't send it
+    if not observation_plan_request.observation_plans[0].planned_observations:
+        log(f"No planned observations for observation plan {plan_id}, skipping send.")
+        return
 
     api = observation_plan_request.instrument.api_class_obsplan
     if not api.implements().get('send', False):
@@ -585,7 +672,9 @@ def post_observation_plan(
             f'Invalid / missing parameters: {e.normalized_messages()}'
         )
 
-    data["requester_id"] = user.id
+    data["requester_id"] = (
+        user.id if data.get("requester_id") is None else int(data.get("requester_id"))
+    )
     data["last_modified_by_id"] = user.id
     data['allocation_id'] = int(data['allocation_id'])
     data['localization_id'] = int(data['localization_id'])
@@ -3454,7 +3543,19 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                     f'Filters must contain at least one of: {DEFAULT_OBSPLAN_OPTIONS}'
                 )
 
+            # verify that the filters are valid, i.e that they are in the allowed options
+            if isinstance(filters, dict):
+                for key in filters.keys():
+                    if key not in DEFAULT_OBSPLAN_OPTIONS:
+                        return self.error(
+                            f'Invalid filter key: {key}, must be one of {DEFAULT_OBSPLAN_OPTIONS}'
+                        )
+
             default_observation_plan_request.target_groups = target_groups
+            if default_observation_plan_request.requester_id is None:
+                default_observation_plan_request.requester_id = (
+                    self.associated_user_object.id
+                )
 
             session.add(default_observation_plan_request)
             session.commit()
