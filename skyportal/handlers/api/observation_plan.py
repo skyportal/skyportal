@@ -3544,11 +3544,12 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                 )
 
             # verify that the filters are valid, i.e that they are in the allowed options
-            for key in filters.keys():
-                if key not in DEFAULT_OBSPLAN_OPTIONS:
-                    return self.error(
-                        f'Invalid filter key: {key}, must be one of {DEFAULT_OBSPLAN_OPTIONS}'
-                    )
+            if isinstance(filters, dict):
+                for key in filters.keys():
+                    if key not in DEFAULT_OBSPLAN_OPTIONS:
+                        return self.error(
+                            f'Invalid filter key: {key}, must be one of {DEFAULT_OBSPLAN_OPTIONS}'
+                        )
 
             default_observation_plan_request.target_groups = target_groups
             if default_observation_plan_request.requester_id is None:
