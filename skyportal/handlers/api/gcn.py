@@ -2312,6 +2312,9 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                 'payload': plan.payload,
                 'default': plan.id,
                 'auto_send': plan.auto_send,
+                'requester_id': user.id
+                if plan.requester_id is None
+                else plan.requester_id,
             }
             gcn_observation_plans.append(gcn_observation_plan)
 
@@ -2346,6 +2349,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                 'allocation_id': allocation.id,
                 'gcnevent_id': event.id,
                 'localization_id': localization_id,
+                'requester_id': gcn_observation_plan['requester_id'],
             }
 
             if isinstance(gcn_observation_plan.get('filters'), dict):
@@ -5430,7 +5434,7 @@ class DefaultGcnTagHandler(BaseHandler):
 
             if default_gcn_tag is None:
                 return self.error(
-                    'Default observation plan with ID {default_observation_plan_id} is not available.'
+                    f'Default GCN tag with ID {default_gcn_tag_id} not found'
                 )
 
             session.delete(default_gcn_tag)

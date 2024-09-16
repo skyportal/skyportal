@@ -99,6 +99,7 @@ DEFAULT_OBSPLAN_OPTIONS = [
     'localization_tags',
     'localization_properties',
     'gcn_properties',
+    'plan_properties',
 ]
 
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
@@ -671,7 +672,9 @@ def post_observation_plan(
             f'Invalid / missing parameters: {e.normalized_messages()}'
         )
 
-    data["requester_id"] = user.id
+    data["requester_id"] = (
+        user.id if data.get("requester_id") is None else int(data.get("requester_id"))
+    )
     data["last_modified_by_id"] = user.id
     data['allocation_id'] = int(data['allocation_id'])
     data['localization_id'] = int(data['localization_id'])
@@ -3548,6 +3551,10 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                     )
 
             default_observation_plan_request.target_groups = target_groups
+            if default_observation_plan_request.requester_id is None:
+                default_observation_plan_request.requester_id = (
+                    self.associated_user_object.id
+                )
 
             session.add(default_observation_plan_request)
             session.commit()

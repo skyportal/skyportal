@@ -1332,6 +1332,11 @@ class ObservationPlanPost(_Schema):
         },
     )
 
+    requester_id = fields.Integer(
+        required=False,
+        metadata={'description': "ID of the user making the request."},
+    )
+
 
 class ObservationPlanManualHandlerPost(_Schema):
     gcnevent_id = fields.Integer(
