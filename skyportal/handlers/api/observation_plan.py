@@ -307,6 +307,11 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
                 )
                 return
 
+    # if the observation plan has no observations scheduled, don't send it
+    if not observation_plan_request.observation_plans[0].planned_observations:
+        log(f"No planned observations for observation plan {plan_id}, skipping send.")
+        return
+
     api = observation_plan_request.instrument.api_class_obsplan
     if not api.implements().get('send', False):
         return ValueError('Cannot send observation plans on this instrument.')
