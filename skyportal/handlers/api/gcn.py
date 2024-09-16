@@ -2283,7 +2283,11 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
             )
             return
         # sort the notices by date (which is a datetime object)
-        latest_notice = sorted(event.gcn_notices, key=lambda x: x.date)[-1]
+        notices = sorted(event.gcn_notices, key=lambda x: x.date)
+        if localization.notice_id is not None:
+            notices = [n for n in notices if n.id == localization.notice_id]
+        notice = notices[-1]
+
         event_properties = event.properties
         if not isinstance(event_properties, list) or len(event_properties) == 0:
             log(
@@ -2346,24 +2350,29 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
             if isinstance(gcn_observation_plan.get('filters'), dict):
                 filters = gcn_observation_plan['filters']
+                # this is a default plan, which we only run on localizations
+                # that have an associated GCN notice
+                if (
+                    localization.notice_id is None
+                    or notice.id != localization.notice_id
+                ):
+                    log(
+                        f"Skipping default observation plan {gcn_observation_plan.id} because it does not match the localization notice"
+                    )
+                    continue
 
                 if (
-                    isinstance(filters.get('gcn_notices'), list)
-                    and len(filters['gcn_notices']) > 0
+                    isinstance(filters.get('notice_types'), list)
+                    and len(filters['notice_types']) > 0
                 ):
-                    gcn_notice_filter = False
-                    if latest_notice.notice_type is not None:
+                    if notice.notice_type is not None:
+                        notice_type = notice.notice_type
                         try:
-                            latest_notice.notice_type = gcn.NoticeType(
-                                latest_notice.notice_type
-                            ).name
+                            notice_type = gcn.NoticeType(int(notice.notice_type)).name
                         except ValueError:
                             pass
-                        if latest_notice.notice_type in filters['gcn_notices']:
-                            gcn_notice_filter = True
-                            break
-                    if not gcn_notice_filter:
-                        continue
+                        if notice_type not in filters['notice_types']:
+                            continue
 
                 if (
                     isinstance(filters.get('gcn_tags'), list)

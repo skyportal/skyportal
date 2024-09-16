@@ -324,6 +324,7 @@ def service(*args, **kwargs):
                                         plan.observation_plan_request.id,
                                         session=session,
                                         auto_send=True,
+                                        default_obsplan_id=default,
                                     )
                                 for (
                                     default_survey_efficiency
@@ -336,6 +337,7 @@ def service(*args, **kwargs):
                                         asynchronous=False,
                                     )
                     except Exception as e:
+                        traceback.print_exc()
                         log(
                             f"Error occured processing default queue submission or survey efficiency for plan {id}: {e}"
                         )
