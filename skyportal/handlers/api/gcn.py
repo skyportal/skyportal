@@ -765,6 +765,7 @@ class GcnEventAliasesHandler(BaseHandler):
     def post(self, dateobs):
         """
         ---
+        summary: Post a GCN Event alias
         description: Post a GCN Event alias
         tags:
           - gcn events
@@ -836,6 +837,7 @@ class GcnEventAliasesHandler(BaseHandler):
     def delete(self, dateobs):
         """
         ---
+        summary: Delete a GCN Event alias
         description: Delete a GCN event alias
         tags:
           - gcn events
@@ -915,6 +917,7 @@ class GcnEventTagsHandler(BaseHandler):
     async def get(self, dateobs=None, tag=None):
         """
         ---
+        summary: Get all GCN Event tags
         description: Get all GCN Event tags
         tags:
           - photometry
@@ -937,6 +940,7 @@ class GcnEventTagsHandler(BaseHandler):
     def post(self, dateobs=None, tag=None):
         """
         ---
+        summary: Post a GCN Event tag
         description: Post a GCN Event tag
         tags:
           - gcn event tags
@@ -1009,6 +1013,7 @@ class GcnEventTagsHandler(BaseHandler):
     def delete(self, dateobs):
         """
         ---
+        summary: Delete a GCN Event tag
         description: Delete a GCN event tag
         tags:
           - gcn events
@@ -1065,6 +1070,7 @@ class GcnEventPropertiesHandler(BaseHandler):
     async def get(self):
         """
         ---
+        summary: Get all GCN Event properties
         description: Get all GCN Event properties
         tags:
           - photometry
@@ -1095,6 +1101,7 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
     async def get(self, gcnevent_id):
         """
         ---
+        summary: Get an event's survey efficiencies
         description: Get survey efficiency analyses of the GcnEvent.
         tags:
           - gcn events
@@ -1141,6 +1148,7 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
     async def get(self, gcnevent_id):
         """
         ---
+        summary: Get an event's observation plan requests.
         description: Get observation plan requests of the GcnEvent.
         tags:
           - gcn events
@@ -1204,6 +1212,7 @@ class GcnEventCatalogQueryHandler(BaseHandler):
     async def get(self, gcnevent_id):
         """
         ---
+        summary: Get an event's catalog queries.
         description: Get catalog queries of the GcnEvent.
         tags:
           - gcn events
@@ -1235,11 +1244,10 @@ class GcnEventHandler(BaseHandler):
     def post(self):
         """
         ---
-        description: Ingest GCN xml file
+        summary: Post a GCN Event from xml/json/dictionary
+        description: Ingest a GCN Event from xml/json/dictionary
         tags:
           - gcn events
-          - gcn event tags
-          - gcn event notices
           - localizations
         requestBody:
           content:
@@ -1305,6 +1313,7 @@ class GcnEventHandler(BaseHandler):
         f"""
         ---
         single:
+          summary: Get a GCN Event
           description: Retrieve a GCN event
           tags:
             - gcn events
@@ -1835,6 +1844,7 @@ class GcnEventHandler(BaseHandler):
     def delete(self, dateobs):
         """
         ---
+        summary: Delete a GCN Event
         description: Delete a GCN event
         tags:
           - gcn events
@@ -1907,6 +1917,7 @@ class GcnEventUserHandler(BaseHandler):
     def post(self, dateobs, *ignored_args):
         """
         ---
+        summary: Add a user as GCN event advocate
         description: Add a event user
         tags:
           - gcn events
@@ -1993,6 +2004,7 @@ class GcnEventUserHandler(BaseHandler):
     def delete(self, dateobs, user_id):
         """
         ---
+        summary: Remove a GCN event advocate
         description: Delete an event user
         tags:
           - shifts
@@ -2548,6 +2560,7 @@ class LocalizationHandler(BaseHandler):
     async def get(self, dateobs, localization_name):
         """
         ---
+        summary: Get a GCN localization
         description: Retrieve a GCN localization
         tags:
           - localizations
@@ -2611,6 +2624,7 @@ class LocalizationHandler(BaseHandler):
     def delete(self, dateobs, localization_name):
         """
         ---
+        summary: Delete a GCN localization
         description: Delete a GCN localization
         tags:
           - localizations
@@ -2746,6 +2760,7 @@ class LocalizationPropertiesHandler(BaseHandler):
     async def get(self):
         """
         ---
+        summary: Get all Localization properties
         description: Get all Localization properties
         tags:
           - photometry
@@ -2778,6 +2793,7 @@ class LocalizationTagsHandler(BaseHandler):
     async def get(self):
         """
         ---
+        summary: Get all Localization tags
         description: Get all Localization tags
         tags:
           - photometry
@@ -3410,9 +3426,11 @@ class GcnSummaryHandler(BaseHandler):
     async def post(self, dateobs, summary_id=None):
         """
         ---
+          summary: Create a GCN summary
           description: Post a summary of a GCN event.
           tags:
-            - gcnsummarys
+            - gcn events
+            - gcn event summaries
           parameters:
             - in: body
               name: title
@@ -3708,9 +3726,11 @@ class GcnSummaryHandler(BaseHandler):
     def get(self, dateobs, summary_id):
         """
         ---
+        summary: Get a GCN summary
         description: Retrieve a GCN summary
         tags:
           - gcn events
+          - gcn event summaries
         parameters:
           - in: path
             name: dateobs
@@ -3752,9 +3772,11 @@ class GcnSummaryHandler(BaseHandler):
     @auth_or_token
     def patch(self, dateobs, summary_id):
         """
+        summary: Update a GCN summary
         description: Update a GCN summary
         tags:
           - gcn events
+          - gcn event summaries
         parameters:
           - in: path
             name: dateobs
@@ -3824,9 +3846,11 @@ class GcnSummaryHandler(BaseHandler):
     def delete(self, dateobs, summary_id):
         """
         ---
+        summary: Delete a GCN summary
         description: Delete a GCN summary
         tags:
           - gcn events
+          - gcn event summaries
         parameters:
           - in: path
             name: summary_id
@@ -4127,6 +4151,7 @@ class GcnReportHandler(BaseHandler):
     async def post(self, dateobs, summary_id=None):
         """
         ---
+          summary: Create a GCN report
           description: Post report data of a GCN event.
           tags:
             - gcn events
@@ -4354,6 +4379,7 @@ class GcnReportHandler(BaseHandler):
     def get(self, dateobs, report_id=None):
         """
         ---
+        summary: Get a GCN report
         description: Retrieve a GCN report
         tags:
           - gcn events
@@ -4413,6 +4439,7 @@ class GcnReportHandler(BaseHandler):
     @auth_or_token
     async def patch(self, dateobs, report_id):
         """
+        summary: Update a GCN report
         description: Update a GCN report
         tags:
           - gcn events
@@ -4560,6 +4587,7 @@ class GcnReportHandler(BaseHandler):
     def delete(self, dateobs, report_id):
         """
         ---
+        summary: Delete a GCN report
         description: Delete a GCN report
         tags:
           - gcn events
@@ -4620,6 +4648,7 @@ class LocalizationDownloadHandler(BaseHandler):
     async def get(self, dateobs, localization_name):
         """
         ---
+        summary: Download a localization's skymap
         description: Download a GCN localization skymap
         tags:
           - localizations
@@ -4700,6 +4729,7 @@ class LocalizationCrossmatchHandler(BaseHandler):
     async def get(self):
         """
         ---
+        summary: Crossmatch two localizations
         description: A fits file corresponding to the intersection of the input fits files.
         tags:
           - localizations
@@ -4794,6 +4824,7 @@ class GcnEventInstrumentFieldHandler(BaseHandler):
     async def get(self, dateobs, instrument_id):
         """
         ---
+        summary: Get instrument field probabilities for a skymap
         description: Compute instrument field probabilities for a skymap
         tags:
           - localizations
@@ -5053,6 +5084,7 @@ class ObjGcnEventHandler(BaseHandler):
     def post(self, obj_id):
         """
         ---
+        summary: Crossmatch an object with GCN events
         description: Retrieve an object's in-out critera for GcnEvents
         tags:
           - objs
@@ -5270,9 +5302,10 @@ class DefaultGcnTagHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create a default gcn tag
         description: Create default gcn tag.
         tags:
-          - default gcn tags
+          - gcn event default tags
         requestBody:
           content:
             application/json:
@@ -5336,9 +5369,10 @@ class DefaultGcnTagHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a default gcn tag
           description: Retrieve a single default gcn tag
           tags:
-            - default gcn tags
+            - gcn event default tags
           parameters:
             - in: path
               name: default_gcn_tag_id
@@ -5355,6 +5389,7 @@ class DefaultGcnTagHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all default gcn tags
           description: Retrieve all default gcn tags
           tags:
             - filters
@@ -5398,9 +5433,10 @@ class DefaultGcnTagHandler(BaseHandler):
     def delete(self, default_gcn_tag_id):
         """
         ---
+        summary: Delete a default gcn tag
         description: Delete a default gcn tag
         tags:
-          - default gcn tags
+          - gcn event default tags
         parameters:
           - in: path
             name: default_gcn_tag_id

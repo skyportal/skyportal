@@ -522,6 +522,7 @@ class AnalysisServiceHandler(BaseHandler):
     def post(self):
         f"""
         ---
+        summary: Create an Analysis Service.
         description: POST a new Analysis Service.
         tags:
           - analysis services
@@ -725,6 +726,7 @@ class AnalysisServiceHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get an Analysis Service.
           description: Retrieve an Analysis Service by id
           tags:
             - analysis services
@@ -744,6 +746,7 @@ class AnalysisServiceHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all Analysis Services
           description: Retrieve all Analysis Services
           tags:
             - analysis services
@@ -802,6 +805,7 @@ class AnalysisServiceHandler(BaseHandler):
     def patch(self, analysis_service_id):
         f"""
         ---
+        summary: Update an Analysis Service.
         description: Update an Analysis Service.
         tags:
           - analysis services
@@ -960,6 +964,7 @@ class AnalysisServiceHandler(BaseHandler):
     def delete(self, analysis_service_id):
         """
         ---
+        summary: Delete an Analysis Service.
         description: Delete an Analysis Service.
         tags:
           - analysis services
@@ -996,6 +1001,7 @@ class AnalysisHandler(BaseHandler):
     async def post(self, analysis_resource_type, resource_id, analysis_service_id):
         """
         ---
+        summary: Run an analysis
         description: Begin an analysis run
         tags:
           - analysis
@@ -1197,6 +1203,7 @@ class AnalysisHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get an Analysis by id
           description: Retrieve an Analysis by id
           tags:
             - analysis
@@ -1267,6 +1274,7 @@ class AnalysisHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all Analyses
           description: Retrieve all Analyses
           tags:
             - analysis
@@ -1397,6 +1405,7 @@ class AnalysisHandler(BaseHandler):
     def delete(self, analysis_resource_type, analysis_id):
         """
         ---
+        summary: Delete an Analysis.
         description: Delete an Analysis.
         tags:
           - analysis
@@ -1468,6 +1477,7 @@ class AnalysisProductsHandler(BaseHandler):
     ):
         """
         ---
+        summary: Get analysis products
         description: Retrieve primary data associated with an Analysis.
         tags:
         - analysis
@@ -1634,6 +1644,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
     def post(self, analysis_resource_type, resource_id, analysis_service_id):
         """
         ---
+        summary: Upload an upload_only analysis result
         description: Upload an upload_only analysis result
         tags:
           - analysis
@@ -1826,6 +1837,7 @@ class DefaultAnalysisHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a default analysis
           description: Retrieve a default analysis
           tags:
             - default analyses
@@ -1848,6 +1860,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all default analyses
           description: Retrieve all default analyses
           tags:
             - default analyses
@@ -1900,6 +1913,7 @@ class DefaultAnalysisHandler(BaseHandler):
     def post(self, analysis_service_id, default_analysis_id=None):
         """
         ---
+        summary: Create a new default analysis
         description: Create a new default analysis
         tags:
           - default analyses
@@ -2107,6 +2121,7 @@ class DefaultAnalysisHandler(BaseHandler):
     def delete(self, analysis_service_id, default_analysis_id):
         """
         ---
+        summary: Delete a default analysis
         description: Delete a default analysis
         tags:
             - default analyses

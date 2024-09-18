@@ -14,6 +14,22 @@
         type="application/json">
       {{ openapi_spec | safe }}
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+    <script>
+      var configuration = {
+        hideModels: true,
+        darkMode: false,
+        defaultHttpClient: {
+          targetKey: 'python',
+          clientKey: 'requests',
+        },
+        hiddenClients: ['python3'],
+        tagsSorter: 'alpha',
+        isEditable: false,
+      }
+
+      document.getElementById('api-reference').dataset.configuration =
+        JSON.stringify(configuration)
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.25.10"></script>
   </body>
 </html>

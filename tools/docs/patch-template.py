@@ -7,12 +7,9 @@ import jinja2
 with open('openapi.json') as f:
     openapi_spec = json.load(f)
 
-# add a list of servers to the openapi spec
-openapi_spec['servers'] = [
-    {'url': 'https://fritz.science', 'description': 'Fritz - Production'},
-    {'url': 'https://preview.fritz.science', 'description': 'Fritz - Preview'},
-    {'url': 'http://localhost:8000', 'description': 'SkyPortal - Dev'},
-]
+# here, we could add a list of servers to the openapi_spec
+# for the scalar docs to let the users point to when testing an endpoint
+openapi_spec['servers'] = []
 
 # Create a Jinja2 template environment
 template_env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath="./"))

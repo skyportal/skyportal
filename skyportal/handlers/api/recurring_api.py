@@ -30,6 +30,7 @@ class RecurringAPIHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create a new Recurring API
         description: POST a new Recurring APIs.
         tags:
           - recurring apis
@@ -127,6 +128,7 @@ class RecurringAPIHandler(BaseHandler):
         """
         ---
         single:
+          summary: Retrieve a Recurring API
           description: Retrieve an Recurring API by id
           tags:
             - recurring apis
@@ -146,6 +148,7 @@ class RecurringAPIHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve all Recurring APIs
           description: Retrieve all Recurring APIs
           tags:
             - recurring apis
@@ -194,6 +197,7 @@ class RecurringAPIHandler(BaseHandler):
     def delete(self, recurring_api_id):
         """
         ---
+        summary: Delete a Recurring API
         description: Delete an Recurring API.
         tags:
           - recurring apis

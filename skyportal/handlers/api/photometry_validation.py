@@ -41,9 +41,10 @@ class PhotometryValidationHandler(BaseHandler):
     async def post(self, photometry_id):
         """
         ---
+        summary: Validate/Reject a photometry point
         description: Validate or reject a photometric point based on data quality (e.g. examining quality of the image and/or reduction)
         tags:
-          - photometry validation
+          - photometry
         parameters:
           - in: path
             name: photometry_id
@@ -168,9 +169,10 @@ class PhotometryValidationHandler(BaseHandler):
     def patch(self, photometry_id):
         """
         ---
+        summary: Update the validated/rejected status of a photometry point
         description: Update the validated or rejected status of a source in a GCN
         tags:
-          - photometry validation
+          - photometry
         parameters:
           - in: path
             name: photometry_id
@@ -264,11 +266,12 @@ class PhotometryValidationHandler(BaseHandler):
     def delete(self, photometry_id):
         """
         ---
+        summary: Delete the validated/rejected status of a photometry point
         description: |
           Deletes the validated or rejected status of a photometric point.
           Its status can be considered as 'undefined'.
         tags:
-          - photometry validation
+          - photometry
         parameters:
           - in: path
             name: photometric_id

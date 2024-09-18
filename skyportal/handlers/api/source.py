@@ -977,25 +977,25 @@ class SourceHandler(BaseHandler):
     def head(self, obj_id=None):
         """
         ---
-        single:
-          description: Check if a Source exists
-          tags:
-            - sources
-          parameters:
-            - in: path
-              name: obj_id
-              required: true
-              schema:
-                type: string
-          responses:
-            200:
-              content:
-                application/json:
-                  schema: Success
-            404:
-              content:
-                application/json:
-                  schema: Error
+        summary: Check if a Source exists
+        description: Check if a Source exists
+        tags:
+          - sources
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          404:
+            content:
+              application/json:
+                schema: Error
         """
 
         with self.Session() as session:
@@ -1027,6 +1027,7 @@ class SourceHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a source
           description: Retrieve a source
           tags:
             - sources
@@ -1120,7 +1121,8 @@ class SourceHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
-          description: Retrieve all sources
+          summary: Retrieve multiple sources
+          description: Retrieve all sources, given a set of filters
           tags:
             - sources
           parameters:
@@ -2052,6 +2054,7 @@ class SourceHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Add a new source
         description: Add a new source
         tags:
           - sources
@@ -2122,28 +2125,30 @@ class SourceHandler(BaseHandler):
     def patch(self, obj_id):
         """
         ---
-        description: Update a source
-        tags:
-          - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: True
-            schema:
-              type: string
-        requestBody:
-          content:
-            application/json:
-              schema: ObjNoID
-        responses:
-          200:
+        single:
+          summary: Update a source
+          description: Update a source
+          tags:
+            - sources
+          parameters:
+            - in: path
+              name: obj_id
+              required: True
+              schema:
+                type: string
+          requestBody:
             content:
               application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
+                schema: ObjNoID
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: Success
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
         data = self.get_json()
         data['id'] = obj_id
@@ -2204,6 +2209,7 @@ class SourceHandler(BaseHandler):
     def delete(self, obj_id, group_id):
         """
         ---
+        summary: Delete a source
         description: Delete a source
         tags:
           - sources
@@ -2244,6 +2250,7 @@ class SourceOffsetsHandler(BaseHandler):
     async def get(self, obj_id):
         """
         ---
+        summary: Retrieve offset stars
         description: Retrieve offset stars to aid in spectroscopy
         tags:
           - sources
@@ -2465,9 +2472,11 @@ class SourceFinderHandler(BaseHandler):
     async def get(self, obj_id):
         """
         ---
+        summary: Retrieve finding chart
         description: Generate a PDF/PNG finding chart to aid in spectroscopy
         tags:
           - sources
+          - finding chart
         parameters:
         - in: path
           name: obj_id
@@ -2654,9 +2663,10 @@ class SourceNotificationHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Send a source notification
         description: Send out a new source notification
         tags:
-          - notifications
+          - sources
         requestBody:
           content:
             application/json:
@@ -2797,6 +2807,38 @@ class SourceNotificationHandler(BaseHandler):
 class SurveyThumbnailHandler(BaseHandler):
     @auth_or_token  # We should allow these requests from view-only users (triggered on source page)
     def post(self):
+        """
+        ---
+        summary: Add survey thumbnails to a source
+        description: Add survey thumbnails to a source
+
+        tags:
+          - sources
+          - thumbnails
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  objID:
+                    type: string
+                    description: ID of the object to add thumbnails to
+                  objIDs:
+                    type: array
+                    items:
+                      type: string
+                    description: List of object IDs to add thumbnails to
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         data = self.get_json()
         obj_id = data.get("objID")
         obj_ids = data.get("objIDs")
@@ -2830,6 +2872,7 @@ class SourceObservabilityPlotHandler(BaseHandler):
     async def get(self, obj_id):
         """
         ---
+        summary: Generate observability plot for a source
         description: Create a summary plot for the observability for a given source.
         tags:
           - localizations
@@ -2941,6 +2984,7 @@ class SourceCopyPhotometryHandler(BaseHandler):
     def post(self, target_id):
         """
         ---
+        summary: Copy photometry from one source to another
         description: Copy all photometry points from one source to another
         tags:
           - sources

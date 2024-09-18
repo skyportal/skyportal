@@ -29,6 +29,7 @@ class UnsourcedFinderHandler(BaseHandler):
     async def get(self):
         """
         ---
+        summary: Get a finding chart for a position or Gaia ID
         description: Generate a PDF/PNG finding chart for a position or Gaia ID
         tags:
           - finding charts

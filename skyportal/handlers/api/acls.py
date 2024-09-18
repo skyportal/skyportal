@@ -8,6 +8,7 @@ class ACLHandler(BaseHandler):
     @auth_or_token
     def get(self):
         """
+        summary: Get all ACL IDs
         description: Retrieve list of all ACL IDs (strings)
         tags:
           - acls
@@ -38,6 +39,7 @@ class UserACLHandler(BaseHandler):
     def post(self, user_id, *ignored_args):
         """
         ---
+        summary: Grant ACLs to a user
         description: Grant new ACL(s) to a user
         tags:
           - acls
@@ -105,6 +107,7 @@ class UserACLHandler(BaseHandler):
     def delete(self, user_id, acl_id):
         """
         ---
+        summary: Remove ACL from a user
         description: Remove ACL from user permissions
         tags:
           - acls

@@ -18,6 +18,7 @@ class HealpixUpdateHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Get a count of sources w/ and w/o Healpix values
         description: find the number of sources with and without a Healpix value
         tags:
           - sources
@@ -63,6 +64,7 @@ class HealpixUpdateHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Calculate Healpix values for sources w/o them
         description: calculate healpix values for a batch of sources without a Healpix value
         tags:
           - sources

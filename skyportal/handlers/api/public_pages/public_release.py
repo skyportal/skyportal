@@ -38,6 +38,7 @@ class PublicReleaseHandler(BaseHandler):
     async def post(self):
         """
         ---
+          summary: Create a new public release
           description:
             Create a new public release
           tags:
@@ -117,6 +118,7 @@ class PublicReleaseHandler(BaseHandler):
     def patch(self, release_id):
         """
         ---
+        summary: Update a public release
         description: Update a public release
         tags:
           - public
@@ -205,6 +207,7 @@ class PublicReleaseHandler(BaseHandler):
     def get(self):
         """
         ---
+          summary: Get all public releases
           description:
             Retrieve all public releases
           tags:
@@ -258,6 +261,7 @@ class PublicReleaseHandler(BaseHandler):
     def delete(self, release_id):
         """
         ---
+        summary: Delete a public release
         description: Delete a public release
         tags:
           - public

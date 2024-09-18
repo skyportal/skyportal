@@ -691,9 +691,9 @@ class PhotometricSeriesHandler(BaseHandler):
     def post(self):
         f"""
         ---
+        summary: Upload a photometric series.
         description: Upload a photometric series.
         tags:
-          - photometry
           - photometric series
         requestBody:
           {body_schema_docstring}
@@ -758,6 +758,7 @@ class PhotometricSeriesHandler(BaseHandler):
     def patch(self, photometric_series_id):
         f"""
         ---
+        summary: Update a photometric series.
         description: |
           Update a photometric series.
           All the inputs in the request body are optional.
@@ -769,7 +770,6 @@ class PhotometricSeriesHandler(BaseHandler):
           in the database. To avoid this, supply those values explicitly
           in the request body parameters.
         tags:
-          - photometry
           - photometric series
         parameters:
           - in: path
@@ -843,9 +843,9 @@ class PhotometricSeriesHandler(BaseHandler):
         """
         ---
         single:
+          summary: Retrieve a photometric series
           description: Retrieve a photometric series
           tags:
-            - photometry
             - photometric series
           parameters:
             - in: path
@@ -872,9 +872,9 @@ class PhotometricSeriesHandler(BaseHandler):
                 application/json:
                   schema: SinglePhotometricSeries
         multiple:
+          summary: Retrieve multiple photometric series
           description: Retrieve all photometric series, based on various cuts.
           tags:
-            - photometry
             - photometric series
           parameters:
             - in: query
@@ -1847,9 +1847,9 @@ class PhotometricSeriesHandler(BaseHandler):
     def delete(self, photometric_series_id):
         """
         ---
+        summary: Delete a photometric series
         description: Delete a photometric series
         tags:
-          - photometry
           - photometric series
         parameters:
           - in: path

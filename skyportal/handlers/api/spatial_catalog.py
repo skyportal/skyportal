@@ -152,9 +152,10 @@ class SpatialCatalogHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Ingest a Spatial Catalog
         description: Ingest a Spatial Catalog
         tags:
-          - galaxies
+          - spatial catalogs
         requestBody:
           content:
             application/json:
@@ -234,6 +235,7 @@ class SpatialCatalogHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a Spatial Catalog
           description: Retrieve a SpatialCatalog
           tags:
             - spatial catalogs
@@ -244,6 +246,7 @@ class SpatialCatalogHandler(BaseHandler):
               schema:
                 type: integer
         multiple:
+          summary: Get all Spatial Catalogs
           description: Retrieve all SpatialCatalogs
           tags:
             - spatial catalogs
@@ -287,9 +290,10 @@ class SpatialCatalogHandler(BaseHandler):
     def delete(self, catalog_id):
         """
         ---
+        summary: Delete a Spatial Catalog
         description: Delete a spatial catalog
         tags:
-          - instruments
+          - spatial catalogs
         parameters:
           - in: path
             name: catalog_id
@@ -325,9 +329,10 @@ class SpatialCatalogASCIIFileHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Upload a Spatial Catalog from ASCII file
         description: Upload spatial catalog from ASCII file
         tags:
-          - galaxys
+          - spatial catalogs
         requestBody:
           content:
             application/json:

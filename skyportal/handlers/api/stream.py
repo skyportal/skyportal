@@ -14,6 +14,7 @@ class StreamHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a stream
           description: Retrieve a stream
           tags:
             - streams
@@ -33,6 +34,7 @@ class StreamHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all streams
           description: Retrieve all streams
           tags:
             - streams
@@ -61,6 +63,7 @@ class StreamHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create a new stream
         description: POST a new stream.
         tags:
           - streams
@@ -110,6 +113,7 @@ class StreamHandler(BaseHandler):
     def patch(self, stream_id):
         """
         ---
+        summary: Update a stream
         description: Update a stream
         tags:
           - streams
@@ -167,6 +171,7 @@ class StreamHandler(BaseHandler):
     def delete(self, stream_id):
         """
         ---
+        summary: Delete a stream
         description: Delete a stream
         tags:
           - streams
@@ -201,6 +206,7 @@ class StreamUserHandler(BaseHandler):
     def post(self, stream_id, *ignored_args):
         """
         ---
+        summary: Grant stream access to a user
         description: Grant stream access to a user
         tags:
           - streams
@@ -265,6 +271,7 @@ class StreamUserHandler(BaseHandler):
     def delete(self, stream_id, user_id):
         """
         ---
+        summary: Revoke stream access from a user
         description: Delete a stream user (revoke stream access for user)
         tags:
           - streams

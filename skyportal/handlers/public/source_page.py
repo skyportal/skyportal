@@ -41,6 +41,7 @@ class SourcePageHandler(BaseHandler):
         """
         ---
         single:
+            summary: Display the public page for a source
             description: Display the public page for a given source and version
             tags:
               - public
@@ -72,9 +73,11 @@ class SourcePageHandler(BaseHandler):
                     application/json:
                       schema: Error
         multiple:
+            summary: List all public source pages and their versions
             description: List all public source pages and their versions
             tags:
-              - sources_page
+              - public
+              - sources
             responses:
                 200:
                   content:
@@ -138,6 +141,7 @@ class ReleaseSourcePageHandler(BaseHandler):
     def get(self, release_name, source_id, version_hash):
         """
         ---
+        summary: Display the public page for a source in a specific release
         description: Display the public page for a given source and version in a specific release
         tags:
             - public

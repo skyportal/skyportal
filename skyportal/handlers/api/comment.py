@@ -146,13 +146,10 @@ class CommentHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a comment
           description: Retrieve a comment
           tags:
             - comments
-            - sources
-            - spectra
-            - shifts
-            - earthquakes
           parameters:
             - in: path
               name: associated_resource_type
@@ -189,14 +186,10 @@ class CommentHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve all comments
           description: Retrieve all comments associated with specified resource
           tags:
             - comments
-            - spectra
-            - sources
-            - gcn events
-            - earthquakes
-            - shifts
           parameters:
             - in: path
               name: associated_resource_type
@@ -405,9 +398,10 @@ class CommentHandler(BaseHandler):
             return self.success(data=comment_data)
 
     @permissions(['Comment'])
-    def post(self, associated_resource_type, resource_id):
+    def post(self, associated_resource_type, resource_id, comment_id=None):
         """
         ---
+        summary: Post a comment
         description: Post a comment
         tags:
           - comments
@@ -830,6 +824,7 @@ class CommentHandler(BaseHandler):
     def put(self, associated_resource_type, resource_id, comment_id):
         """
         ---
+        summary: Update a comment
         description: Update a comment
         tags:
           - comments
@@ -1050,6 +1045,7 @@ class CommentHandler(BaseHandler):
     def delete(self, associated_resource_type, resource_id, comment_id):
         """
         ---
+        summary: Delete a comment
         description: Delete a comment
         tags:
           - comments
@@ -1206,6 +1202,7 @@ class CommentAttachmentHandler(BaseHandler):
     def get(self, associated_resource_type, resource_id, comment_id):
         """
         ---
+        summary: Download/Preview comment attachment
         description: Download comment attachment
         tags:
           - comments

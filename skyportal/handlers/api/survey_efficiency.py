@@ -18,7 +18,8 @@ class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
         ---
         single:
           tags:
-            - survey_efficiency_for_observation_plans
+            - survey efficiency
+          summary: Retrieve an observation plan efficiency analysis
           description: Retrieve an observation plan efficiency analysis
           parameters:
             - in: path
@@ -38,6 +39,7 @@ class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
         multiple:
           tags:
             - allocations
+          summary: Retrieve all observation plan efficiency analyses
           description: Retrieve all observation plan efficiency analyses
           parameters:
           - in: query
@@ -98,7 +100,8 @@ class SurveyEfficiencyForObservationsHandler(BaseHandler):
         ---
         single:
           tags:
-            - survey_efficiency_for_observations
+            - survey efficiency
+          summary: Retrieve an observation efficiency analysis
           description: Retrieve an observation efficiency analysis
           parameters:
             - in: path
@@ -118,6 +121,7 @@ class SurveyEfficiencyForObservationsHandler(BaseHandler):
         multiple:
           tags:
             - allocations
+          summary: Retrieve all observation efficiencies
           description: Retrieve all observation analyses
           parameters:
           - in: query
@@ -175,6 +179,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create default survey efficiency requests
         description: Create default survey efficiency requests.
         tags:
           - default survey efficiency
@@ -226,6 +231,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
         """
         ---
         single:
+          summary: Retrieve a default survey efficiency
           description: Retrieve a single default survey efficiency
           tags:
             - default survey efficiency
@@ -245,9 +251,10 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve all default survey efficiencies
           description: Retrieve all default survey efficiencies
           tags:
-            - filters
+            - default survey efficiency
           responses:
             200:
               content:
@@ -311,9 +318,10 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
     def delete(self, default_survey_efficiency_id):
         """
         ---
+        summary: Delete a default survey efficiency
         description: Delete a default survey efficiency
         tags:
-          - filters
+          - default survey efficiency
         parameters:
           - in: path
             name: default_survey_efficiency_id

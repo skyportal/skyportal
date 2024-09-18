@@ -13,6 +13,7 @@ class PhotometryRequestHandler(BaseHandler):
     def get(self, request_id):
         """
         ---
+        summary: Get photometry request
         description: Get photometry request.
         tags:
           - followup requests

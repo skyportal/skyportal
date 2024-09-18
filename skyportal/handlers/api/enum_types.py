@@ -19,6 +19,7 @@ class EnumTypesHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Get enum types in the DB
         description: Retrieve enum types in the DB
         tags:
           - system info

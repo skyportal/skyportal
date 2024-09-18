@@ -87,7 +87,9 @@ response = requests.post(
 )
 ```
 
-### Response
+### Responses
+
+#### Success
 
 In the above examples, the SkyPortal server is located at
 `http://localhost:5000`. In case of success, the HTTP response is 200:
@@ -98,6 +100,8 @@ HTTP code: 200, OK
 JSON response: {'status': 'success', 'data': {}, 'version': '0.9.dev0+git20200819.84c453a'}
 
 ```
+
+#### Failure
 
 On failure, it is 400; the JSON response has `status="error"` with the reason
 for the failure given in `message`:

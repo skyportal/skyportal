@@ -20,6 +20,7 @@ class SysInfoHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Retrieve system/deployment info
         description: Retrieve system/deployment info
         tags:
           - system info

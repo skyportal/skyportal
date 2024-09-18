@@ -19,9 +19,11 @@ class SkymapTriggerAPIHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Post a skymap-based trigger
         description: Post a skymap-based trigger
         tags:
           - localizations
+          - observations
         requestBody:
           content:
             application/json:
@@ -51,6 +53,14 @@ class SkymapTriggerAPIHandler(BaseHandler):
                     f"Cannot find Allocation with ID: {data['allocation_id']}"
                 )
             instrument = allocation.instrument
+
+            if instrument.api_classname_obsplan is None:
+                return self.error('Instrument has no remote observation plan API.')
+
+            if not instrument.api_class_obsplan.implements()['send_skymap']:
+                return self.error(
+                    'Submitting skymap requests to this Instrument is not available.'
+                )
 
             stmt = Localization.select(session.user_or_token).where(
                 Localization.id == data['localization_id'],
@@ -149,14 +159,6 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 "user": self.associated_user_object.username,
             }
 
-            if instrument.api_classname_obsplan is None:
-                return self.error('Instrument has no remote observation plan API.')
-
-            if not instrument.api_class_obsplan.implements()['send_skymap']:
-                return self.error(
-                    'Submitting skymap requests to this Instrument is not available.'
-                )
-
             try:
                 instrument.api_class_obsplan.send_skymap(
                     allocation,
@@ -170,8 +172,10 @@ class SkymapTriggerAPIHandler(BaseHandler):
     def get(self, allocation_id):
         """
         ---
+        summary: Retrieve skymap-based trigger from external API
         description: Retrieve skymap-based trigger from external API
         tags:
+          - localizations
           - observations
         parameters:
           - in: path
@@ -229,6 +233,7 @@ class SkymapTriggerAPIHandler(BaseHandler):
     def delete(self, allocation_id):
         """
         ---
+        summary: Delete skymap-based trigger from external API
         description: Delete skymap-based trigger from external API
         tags:
           - observations
