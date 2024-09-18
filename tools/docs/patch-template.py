@@ -18,11 +18,11 @@ openapi_spec['servers'] = [
 template_env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath="./"))
 
 # Load the template file
-template = template_env.get_template("doc/scalarapi.html.template")
+template = template_env.get_template("doc/openapi.html.template")
 
 # Render the template with the OpenAPI spec
 output = template.render(openapi_spec=json.dumps(openapi_spec, indent=2))
 
 # Write the output to a new HTML file
-with open("doc/scalarapi.html", "w") as f:
+with open("doc/openapi.html", "w") as f:
     f.write(output)
