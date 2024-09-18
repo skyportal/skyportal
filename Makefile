@@ -37,7 +37,7 @@ doc_reqs:
 api-docs: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 api-docs: | doc_reqs
 	@PYTHONPATH=. python tools/docs/build-spec.py $(FLAGS)
-	@PYTHONPATH=. python tools/docs/patch-template.py $(FLAGS)
+	@PYTHONPATH=. python tools/docs/patch-api-doc-template.py $(FLAGS)
 	rm -f openapi.{yml,json}
 
 docs: ## Build the SkyPortal docs
