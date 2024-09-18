@@ -314,7 +314,7 @@ skyportal_handlers = [
     #     CommentHandler,
     # ),
     (
-        r'/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+]+)?/comments(/[0-9]+)?',
+        r'/api/(sources|spectra|gcn_event|shift|earthquake)(/[0-9A-Za-z-_\.\+]+)?/comments(/[0-9]+)?',
         CommentHandler,
     ),
     (

@@ -229,7 +229,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data=sources_in_gcn)
 
     @permissions(['Manage GCNs'])
-    async def post(self, dateobs):
+    async def post(self, dateobs, source_id=None):
         """
         ---
         summary: Confirm or reject a source in a gcn
