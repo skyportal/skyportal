@@ -17,7 +17,6 @@
     <script>
       var configuration = {
         hideModels: true,
-        darkMode: false,
         defaultHttpClient: {
           targetKey: 'python',
           clientKey: 'requests',
@@ -26,6 +25,7 @@
         tagsSorter: 'alpha',
         isEditable: false,
         hideTestRequestButton: true,
+        theme: 'deepSpace'
       }
 
       document.getElementById('api-reference').dataset.configuration =
