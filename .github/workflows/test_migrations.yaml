@@ -17,8 +17,9 @@ on:
       - "requirements.txt"
 
 jobs:
-  test:
+  test-migrations:
     name: Test SkyPortal migrations
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
