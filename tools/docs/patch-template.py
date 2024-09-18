@@ -18,9 +18,8 @@ servers = cfg.get("docs.servers", [])
 if not isinstance(servers, list) and servers is not None:
     raise ValueError("API servers must be a list.")
 if servers is not None:
-    for server in servers:
-        if not all(k in server for k in ("url", "description")):
-            raise ValueError("Each server must have 'url' and 'description' keys.")
+    if not all(key in server for key in ("url", "desc") for server in servers)
+        raise ValueError("Each server must have 'url' and 'description' keys.")
     openapi_spec['servers'] = servers
 else:
     openapi_spec['servers'] = []
