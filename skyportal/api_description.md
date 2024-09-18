@@ -120,6 +120,8 @@ pagination to limit the number of records that can be fetched per request.
 These APIs expose parameters that facilitate pagination (see the various
 API docs for details). A sample pagination script is included here:
 
+#### Example code
+
 ```python
 import requests
 import time
@@ -165,3 +167,5 @@ while retry_attempts <= max_retry_attempts:
         break
     page += 1
 ```
+
+### API Endpoints
