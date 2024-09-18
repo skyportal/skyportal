@@ -177,7 +177,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
         ---
         description: Create default survey efficiency requests.
         tags:
-          - default_survey_efficiency
+          - default survey efficiency
         requestBody:
           content:
             application/json:
@@ -228,7 +228,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
         single:
           description: Retrieve a single default survey efficiency
           tags:
-            - default_survey_efficiencys
+            - default survey efficiency
           parameters:
             - in: path
               name: default_survey_efficiency_id

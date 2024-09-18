@@ -112,6 +112,7 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
 
             spec = yaml_utils.load_yaml_from_docstring(method.__doc__)
             parameters = list(inspect.signature(method).parameters.keys())[1:]
+            parameters = [f"{{{param}}}" for param in parameters]
             parameters = parameters + (path_parameters - len(parameters)) * [
                 '',
             ]

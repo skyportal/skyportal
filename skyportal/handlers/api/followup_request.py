@@ -711,7 +711,7 @@ class FollowupRequestHandler(BaseHandler):
         single:
           description: Retrieve a followup request
           tags:
-            - followup_requests
+            - followup requests
           parameters:
             - in: path
               name: followup_request_id
@@ -730,7 +730,7 @@ class FollowupRequestHandler(BaseHandler):
         multiple:
           description: Retrieve all followup requests
           tags:
-            - followup_requests
+            - followup requests
           parameters:
           - in: query
             name: sourceID
@@ -1075,7 +1075,7 @@ class FollowupRequestHandler(BaseHandler):
         ---
         description: Submit follow-up request.
         tags:
-          - followup_requests
+          - followup requests
         requestBody:
           content:
             application/json:
@@ -1171,7 +1171,7 @@ class FollowupRequestHandler(BaseHandler):
         ---
         description: Update a follow-up request
         tags:
-          - followup_requests
+          - followup requests
         parameters:
           - in: path
             name: request_id
@@ -1305,7 +1305,7 @@ class FollowupRequestHandler(BaseHandler):
         ---
         description: Delete follow-up request.
         tags:
-          - followup_requests
+          - followup requests
         parameters:
           - in: path
             name: request_id
@@ -1365,7 +1365,7 @@ class FollowupRequestCommentHandler(BaseHandler):
         ---
         description: Update a follow-up request comment
         tags:
-          - followup_requests
+          - followup requests
         parameters:
           - in: path
             name: followup_request_id
@@ -1834,7 +1834,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
         ---
         description: Retrieve followup requests schedule
         tags:
-            - followup_requests
+            - followup requests
         parameters:
         - in: query
           name: sourceID
@@ -2101,7 +2101,7 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
           Reprioritize followup requests schedule automatically based on
           either magnitude or location within skymap.
         tags:
-            - followup_requests
+            - followup requests
         parameters:
         - in: body
           name: requestIds
@@ -2308,7 +2308,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
         ---
         description: Create default follow-up request.
         tags:
-          - default_followup_request
+          - default followup request
         requestBody:
           content:
             application/json:
@@ -2411,7 +2411,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
         single:
           description: Retrieve a single default follow-up request
           tags:
-            - default_followup_requests
+            - default followup requests
           parameters:
             - in: path
               name: default_followup_request_id
@@ -2524,7 +2524,7 @@ class FollowupRequestWatcherHandler(BaseHandler):
         ---
         description: Add follow-up request to watch list
         tags:
-            - followup_requests
+            - followup requests
         parameters:
             - in: path
               name: followup_request_id
@@ -2600,7 +2600,7 @@ class FollowupRequestWatcherHandler(BaseHandler):
         ---
         description: Delete follow-up request from watch list
         tags:
-            - followup_requests
+            - followup requests
         parameters:
             - in: path
               name: followup_request_id

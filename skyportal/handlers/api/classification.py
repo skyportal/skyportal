@@ -737,7 +737,7 @@ class ObjClassificationQueryHandler(BaseHandler):
         ---
         description: find the sources with classifications
         tags:
-          - source
+          - sources
         parameters:
         - in: query
           name: startDate
@@ -812,7 +812,7 @@ class ClassificationVotesHandler(BaseHandler):
         description: Vote for a classification.
         tags:
           - classifications
-          - classification_votes
+          - classification votes
         parameters:
           - in: path
             name: classification_id
@@ -904,7 +904,7 @@ class ClassificationVotesHandler(BaseHandler):
         description: Delete classification vote.
         tags:
           - classifications
-          - classification_votes
+          - classification votes
         parameters:
           - in: path
             name: classification_id

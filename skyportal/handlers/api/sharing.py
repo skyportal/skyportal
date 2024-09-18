@@ -10,7 +10,9 @@ class SharingHandler(BaseHandler):
         ---
         description: Share data with additional groups/users
         tags:
-          - data_sharing
+          - data sharing
+          - photometry
+          - spectra
         requestBody:
           content:
             application/json:

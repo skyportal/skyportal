@@ -43,7 +43,7 @@ class PhotometryValidationHandler(BaseHandler):
         ---
         description: Validate or reject a photometric point based on data quality (e.g. examining quality of the image and/or reduction)
         tags:
-          - photometryvalidations
+          - photometry validation
         parameters:
           - in: path
             name: photometry_id
@@ -170,7 +170,7 @@ class PhotometryValidationHandler(BaseHandler):
         ---
         description: Update the validated or rejected status of a source in a GCN
         tags:
-          - photometryvalidations
+          - photometry validation
         parameters:
           - in: path
             name: photometry_id
@@ -268,7 +268,7 @@ class PhotometryValidationHandler(BaseHandler):
           Deletes the validated or rejected status of a photometric point.
           Its status can be considered as 'undefined'.
         tags:
-          - photometryvalidations
+          - photometry validation
         parameters:
           - in: path
             name: photometric_id

@@ -41,7 +41,7 @@ class PublicReleaseHandler(BaseHandler):
           description:
             Create a new public release
           tags:
-            - public_release
+            - public
           requestBody:
             content:
               application/json:
@@ -119,7 +119,7 @@ class PublicReleaseHandler(BaseHandler):
         ---
         description: Update a public release
         tags:
-          - public_release
+          - public
         parameters:
           - in: path
             name: release_id
@@ -208,7 +208,7 @@ class PublicReleaseHandler(BaseHandler):
           description:
             Retrieve all public releases
           tags:
-            - public_release
+            - public
           responses:
             200:
               content:
@@ -260,7 +260,7 @@ class PublicReleaseHandler(BaseHandler):
         ---
         description: Delete a public release
         tags:
-          - public_release
+          - public
         parameters:
           - in: path
             name: release_id

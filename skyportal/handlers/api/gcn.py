@@ -767,7 +767,7 @@ class GcnEventAliasesHandler(BaseHandler):
         ---
         description: Post a GCN Event alias
         tags:
-          - gcnevents
+          - gcn events
         parameters:
           - in: path
             name: dateobs
@@ -838,7 +838,7 @@ class GcnEventAliasesHandler(BaseHandler):
         ---
         description: Delete a GCN event alias
         tags:
-          - gcnevents
+          - gcn events
         parameters:
           - in: path
             name: dateobs
@@ -939,7 +939,7 @@ class GcnEventTagsHandler(BaseHandler):
         ---
         description: Post a GCN Event tag
         tags:
-          - gcntags
+          - gcn event tags
         requestBody:
           content:
             application/json:
@@ -1011,7 +1011,7 @@ class GcnEventTagsHandler(BaseHandler):
         ---
         description: Delete a GCN event tag
         tags:
-          - gcnevents
+          - gcn events
         parameters:
           - in: path
             name: dateobs
@@ -1097,7 +1097,7 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
         ---
         description: Get survey efficiency analyses of the GcnEvent.
         tags:
-          - gcnevents
+          - gcn events
         parameters:
           - in: path
             name: gcnevent_id
@@ -1143,7 +1143,7 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
         ---
         description: Get observation plan requests of the GcnEvent.
         tags:
-          - gcnevents
+          - gcn events
         parameters:
           - in: path
             name: gcnevent_id
@@ -1206,7 +1206,7 @@ class GcnEventCatalogQueryHandler(BaseHandler):
         ---
         description: Get catalog queries of the GcnEvent.
         tags:
-          - gcnevents
+          - gcn events
         parameters:
           - in: path
             name: gcnevent_id
@@ -1237,9 +1237,9 @@ class GcnEventHandler(BaseHandler):
         ---
         description: Ingest GCN xml file
         tags:
-          - gcnevents
-          - gcntags
-          - gcnnotices
+          - gcn events
+          - gcn event tags
+          - gcn event notices
           - localizations
         requestBody:
           content:
@@ -1307,7 +1307,7 @@ class GcnEventHandler(BaseHandler):
         single:
           description: Retrieve a GCN event
           tags:
-            - gcnevents
+            - gcn events
           parameters:
             - in: path
               name: dateobs
@@ -1317,7 +1317,7 @@ class GcnEventHandler(BaseHandler):
         multiple:
           description: Retrieve multiple GCN events
           tags:
-            - gcnevents
+            - gcn events
           parameters:
             - in: query
               name: startDate
@@ -1837,7 +1837,7 @@ class GcnEventHandler(BaseHandler):
         ---
         description: Delete a GCN event
         tags:
-          - gcnevents
+          - gcn events
         parameters:
           - in: path
             name: dateobs
@@ -1909,7 +1909,7 @@ class GcnEventUserHandler(BaseHandler):
         ---
         description: Add a event user
         tags:
-          - gcnevents
+          - gcn events
           - users
         parameters:
           - in: path
@@ -3710,7 +3710,7 @@ class GcnSummaryHandler(BaseHandler):
         ---
         description: Retrieve a GCN summary
         tags:
-          - gcn
+          - gcn events
         parameters:
           - in: path
             name: dateobs
@@ -3754,7 +3754,7 @@ class GcnSummaryHandler(BaseHandler):
         """
         description: Update a GCN summary
         tags:
-          - gcn
+          - gcn events
         parameters:
           - in: path
             name: dateobs
@@ -3826,7 +3826,7 @@ class GcnSummaryHandler(BaseHandler):
         ---
         description: Delete a GCN summary
         tags:
-          - gcn
+          - gcn events
         parameters:
           - in: path
             name: summary_id
@@ -4129,7 +4129,8 @@ class GcnReportHandler(BaseHandler):
         ---
           description: Post report data of a GCN event.
           tags:
-            - gcnreports
+            - gcn events
+            - gcn event reports
           parameters:
             - in: body
               name: report_name
@@ -4355,7 +4356,7 @@ class GcnReportHandler(BaseHandler):
         ---
         description: Retrieve a GCN report
         tags:
-          - gcn
+          - gcn events
         parameters:
           - in: path
             name: dateobs
@@ -4414,7 +4415,7 @@ class GcnReportHandler(BaseHandler):
         """
         description: Update a GCN report
         tags:
-          - gcn
+          - gcn events
         parameters:
           - in: path
             name: dateobs
@@ -4561,7 +4562,7 @@ class GcnReportHandler(BaseHandler):
         ---
         description: Delete a GCN report
         tags:
-          - gcn
+          - gcn events
         parameters:
           - in: path
             name: report_id
@@ -5271,7 +5272,7 @@ class DefaultGcnTagHandler(BaseHandler):
         ---
         description: Create default gcn tag.
         tags:
-          - defaultgcntags
+          - default gcn tags
         requestBody:
           content:
             application/json:
@@ -5337,7 +5338,7 @@ class DefaultGcnTagHandler(BaseHandler):
         single:
           description: Retrieve a single default gcn tag
           tags:
-            - defaultgcntags
+            - default gcn tags
           parameters:
             - in: path
               name: default_gcn_tag_id
@@ -5399,7 +5400,7 @@ class DefaultGcnTagHandler(BaseHandler):
         ---
         description: Delete a default gcn tag
         tags:
-          - defaultgcntags
+          - default gcn tags
         parameters:
           - in: path
             name: default_gcn_tag_id

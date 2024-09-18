@@ -37,7 +37,7 @@ class AllocationObservationPlanHandler(BaseHandler):
         ---
         tags:
           - allocations
-          - observation_plans
+          - observation plans
         description: Retrieve observation plans associated with an allocation
         parameters:
           - in: path

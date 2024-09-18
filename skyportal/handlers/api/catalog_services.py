@@ -64,7 +64,7 @@ class CatalogQueryHandler(BaseHandler):
         ---
         description: Submit catalog queries
         tags:
-          - catalog_queries
+          - catalog queries
         requestBody:
           content:
             application/json:
@@ -383,6 +383,8 @@ class SwiftLSXPSQueryHandler(BaseHandler):
         description: |
             Get Swift LSXPS objects and post them as sources.
             Repeated posting will skip the existing source.
+        tags:
+            - catalogs
         requestBody:
           content:
             application/json:
@@ -602,6 +604,8 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
         description: |
             Get Gaia Photometric Alert objects and post them as sources.
             Repeated posting will skip the existing source.
+        tags:
+            - catalogs
         requestBody:
           content:
             application/json:
@@ -821,6 +825,9 @@ class TessTransientsQueryHandler(BaseHandler):
         description: |
             Get TESS transient objects and post them as sources.
             Repeated posting will skip the existing source.
+        tags:
+            - catalogs
+            - tess
         requestBody:
           content:
             application/json:

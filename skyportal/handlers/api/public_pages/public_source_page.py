@@ -108,7 +108,7 @@ class PublicSourcePageHandler(BaseHandler):
             Create a public page for a source, with given options,
             only if this page does not already exist
           tags:
-            - public_source_page
+            - public
           parameters:
             - in: path
               name: source_id
@@ -255,7 +255,7 @@ class PublicSourcePageHandler(BaseHandler):
           description:
             Retrieve all public pages for a given source from the most recent to the oldest
           tags:
-            - public_source_page
+            - public
           parameters:
             - in: path
               name: source_id
@@ -295,7 +295,7 @@ class PublicSourcePageHandler(BaseHandler):
         ---
         description: Delete a public source page
         tags:
-          - public_source_page
+          - public
         parameters:
           - in: path
             name: page_id

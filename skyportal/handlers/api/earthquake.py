@@ -167,7 +167,7 @@ class EarthquakeStatusHandler(BaseHandler):
         ---
         description: Get all Earthquake status tags
         tags:
-          - earthquakeevents
+          - earthquakes
         responses:
           200:
             content:
@@ -195,8 +195,7 @@ class EarthquakeHandler(BaseHandler):
         ---
         description: Ingest EarthquakeEvent
         tags:
-          - earthquakeevents
-          - earthquakenotices
+          - earthquakes
         requestBody:
           content:
             application/json:
@@ -249,10 +248,12 @@ class EarthquakeHandler(BaseHandler):
     async def get(self, event_id=None):
         """
         ---
+        tags:
+            - earthquakes
         single:
           description: Retrieve an Earthquake event
           tags:
-            - earthquakeevents
+            - earthquakes
           parameters:
             - in: path
               name: event_id
@@ -271,7 +272,7 @@ class EarthquakeHandler(BaseHandler):
         multiple:
           description: Retrieve multiple Earthquake events
           tags:
-            - earthquakeevents
+            - earthquakes
           parameters:
             - in: query
               name: startDate
@@ -460,7 +461,7 @@ class EarthquakeHandler(BaseHandler):
         ---
         description: Delete an Earthquake event
         tags:
-          - earthquakeevents
+          - earthquakes
         parameters:
           - in: path
             name: event_id
@@ -499,7 +500,7 @@ class EarthquakePredictionHandler(BaseHandler):
         ---
         description: Perform a prediction analysis for the earthquake.
         tags:
-          - earthquakeevents
+          - earthquakes
         parameters:
           - in: path
             name: earthquake_id
@@ -645,7 +646,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
         ---
         description: Provide a ground velocity measurement for the earthquake.
         tags:
-          - earthquakeevents
+          - earthquakes
         parameters:
           - in: path
             name: earthquake_id
@@ -725,7 +726,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
         ---
         description: Retrieve a ground velocity measurement for the earthquake.
         tags:
-          - earthquakeevents
+          - earthquakes
         parameters:
           - in: path
             name: earthquake_id
@@ -774,7 +775,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
         ---
         description: Update a ground velocity measurement for the earthquake.
         tags:
-          - earthquakeevents
+          - earthquakes
         parameters:
           - in: path
             name: earthquake_id
@@ -845,7 +846,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
         ---
         description: Delete a ground velocity measurement for the earthquake.
         tags:
-          - earthquakeevents
+          - earthquakes
         parameters:
           - in: path
             name: earthquake_id

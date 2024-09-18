@@ -43,7 +43,8 @@ class SourcePageHandler(BaseHandler):
         single:
             description: Display the public page for a given source and version
             tags:
-              - source_page
+              - public
+              - sources
             parameters:
                 - in: path
                   name: source_id
@@ -139,7 +140,8 @@ class ReleaseSourcePageHandler(BaseHandler):
         ---
         description: Display the public page for a given source and version in a specific release
         tags:
-            - source_page
+            - public
+            - sources
         parameters:
             - in: path
               name: release_name

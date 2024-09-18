@@ -681,7 +681,7 @@ class ShiftSummary(BaseHandler):
           - shifts
           - users
           - sources
-          - gcn
+          - gcn events
         parameters:
           - in: path
             name: shift_id

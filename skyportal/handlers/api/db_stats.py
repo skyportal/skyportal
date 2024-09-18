@@ -31,7 +31,7 @@ class StatsHandler(BaseHandler):
         ---
         description: Retrieve basic DB statistics
         tags:
-          - system_info
+          - system info
         responses:
           200:
             content:

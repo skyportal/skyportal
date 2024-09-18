@@ -20,7 +20,7 @@ class HealpixUpdateHandler(BaseHandler):
         ---
         description: find the number of sources with and without a Healpix value
         tags:
-          - source
+          - sources
         responses:
             200:
               content:

@@ -21,7 +21,7 @@ class EnumTypesHandler(BaseHandler):
         ---
         description: Retrieve enum types in the DB
         tags:
-          - system_info
+          - system info
         responses:
           200:
             content:

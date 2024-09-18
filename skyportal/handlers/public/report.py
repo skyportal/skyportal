@@ -29,7 +29,8 @@ class ReportHandler(BaseHandler):
         ---
         description: Retrieve all reports
         tags:
-          - reports
+          - gcn events
+          - gcn event reports
         responses:
           200:
             content:

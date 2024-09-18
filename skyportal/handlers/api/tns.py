@@ -338,7 +338,7 @@ class TNSRobotHandler(BaseHandler):
         ---
         description: Post or update a TNS robot
         tags:
-          - tnsrobots
+          - tnsrobot
         requestBody:
           content:
             application/json:
@@ -453,7 +453,7 @@ class TNSRobotHandler(BaseHandler):
         ---
         description: Retrieve a TNS robot
         tags:
-          - tnsrobots
+          - tnsrobot
         parameters:
           - in: path
             name: tnsrobot_id
@@ -508,7 +508,7 @@ class TNSRobotHandler(BaseHandler):
         ---
         description: Delete a TNS robot
         tags:
-          - tnsrobots
+          - tnsrobot
         parameters:
           - in: path
             name: tnsrobot_id
@@ -551,7 +551,8 @@ class TNSRobotCoauthorHandler(BaseHandler):
         ---
         description: Add a coauthor to a TNS robot
         tags:
-            - tnsrobots
+            - tnsrobot
+            - tnsrobot coauthors
         parameters:
             - in: path
               name: tnsrobot_id
@@ -638,7 +639,8 @@ class TNSRobotCoauthorHandler(BaseHandler):
         ---
         description: Remove a coauthor from a TNS robot
         tags:
-            - tnsrobots
+            - tnsrobot
+            - tnsrobot coauthors
         parameters:
             - in: path
               name: tnsrobot_id
@@ -699,7 +701,8 @@ class TNSRobotGroupHandler(BaseHandler):
         ---
         description: Add or edit a group for a TNS robot
         tags:
-            - tnsrobots
+            - tnsrobot
+            - tnsrobot groups
         parameters:
             - in: path
               name: tnsrobot_id
@@ -904,6 +907,9 @@ class TNSRobotGroupHandler(BaseHandler):
         """
         ---
         description: Delete a group from a TNSRobot
+        tags:
+            - tnsrobot
+            - tnsrobot groups
         parameters:
             - in: path
               name: tnsrobot_id
@@ -988,6 +994,9 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
         """
         ---
         description: Add autoreporter(s) to a TNSRobotGroup
+        tags:
+            - tnsrobot
+            - tnsrobot autoreporters
         parameters:
             - in: path
               name: tnsrobot_id
@@ -1143,7 +1152,8 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
         ---
         description: Delete an autoreporter from a TNSRobotGroup
         tags:
-            - tnsrobot_groups
+            - tnsrobot
+            - tnsrobot autoreporters
         parameters:
             - in: path
               name: tnsrobot_id
@@ -1288,6 +1298,9 @@ class TNSRobotSubmissionHandler(BaseHandler):
         ---
         single:
             description: Retrieve a TNSRobotSubmission
+            tags:
+                - tnsrobot
+                - tnsrobot submissions
             parameters:
                 - in: path
                   name: tnsrobot_id
@@ -1312,6 +1325,9 @@ class TNSRobotSubmissionHandler(BaseHandler):
                             schema: Error
         multiple:
             description: Retrieve all TNSRobotSubmissions
+            tags:
+                - tnsrobot
+                - tnsrobot submissions
             parameters:
                 - in: path
                   name: tnsrobot_id
@@ -1453,7 +1469,8 @@ class BulkTNSHandler(BaseHandler):
         ---
         description: Retrieve objects from TNS
         tags:
-          - objs
+            - tns
+            - objs
         requestBody:
           content:
             application/json:
@@ -1553,6 +1570,7 @@ class ObjTNSHandler(BaseHandler):
         ---
         description: Retrieve an Obj from TNS
         tags:
+          - tns
           - objs
         parameters:
           - in: path
@@ -1611,6 +1629,7 @@ class ObjTNSHandler(BaseHandler):
         ---
         description: Post an Obj to TNS
         tags:
+          - tns
           - objs
         parameters:
           - in: path
@@ -1769,6 +1788,7 @@ class SpectrumTNSHandler(BaseHandler):
         ---
         description: Submit a (classification) spectrum to TNS
         tags:
+          - tns
           - spectra
         parameters:
           - in: path

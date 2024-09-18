@@ -224,7 +224,7 @@ class ReminderHandler(BaseHandler):
             - reminders
             - spectra
             - sources
-            - gcn_event
+            - gcn events
             - earthquake
           parameters:
             - in: path

@@ -1326,7 +1326,7 @@ class ObservationPlanNameHandler(BaseHandler):
         multiple:
             description: Get all Observation Plan names
             tags:
-              - observation_plans
+              - observation plans
             responses:
               200:
                 content:
@@ -1339,7 +1339,7 @@ class ObservationPlanNameHandler(BaseHandler):
         single:
             description: Verify that an Observation Plan name exists
             tags:
-              - observation_plans
+              - observation plans
             parameters:
               - in: query
                 name: name
@@ -3348,7 +3348,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
         ---
         description: Create default observation plan requests.
         tags:
-          - default_observation_plan
+          - default observation plan
         requestBody:
           content:
             application/json:
@@ -3469,7 +3469,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
         single:
           description: Retrieve a single default observation plan
           tags:
-            - default_observation_plans
+            - default observation plan
           parameters:
             - in: path
               name: default_observation_plan_id

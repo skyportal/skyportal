@@ -14,7 +14,6 @@ class SourceLabelsHandler(BaseHandler):
         description: Note that a source has been labelled.
         tags:
           - sources
-          - source_scans
         parameters:
           - in: path
             name: obj_id

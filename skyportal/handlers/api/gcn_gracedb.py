@@ -119,7 +119,7 @@ class GcnGraceDBHandler(BaseHandler):
         ---
         description: Scrape data of a GCN Event from GraceDB
         tags:
-          - gcn_event
+          - gcn events
         parameters:
           - in: path
             name: dateobs

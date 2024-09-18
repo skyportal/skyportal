@@ -32,7 +32,7 @@ class RecurringAPIHandler(BaseHandler):
         ---
         description: POST a new Recurring APIs.
         tags:
-          - recurring_apis
+          - recurring apis
         requestBody:
           content:
             application/json:
@@ -129,7 +129,7 @@ class RecurringAPIHandler(BaseHandler):
         single:
           description: Retrieve an Recurring API by id
           tags:
-            - recurring_apis
+            - recurring apis
           parameters:
             - in: path
               name: recurring_api_id
@@ -148,7 +148,7 @@ class RecurringAPIHandler(BaseHandler):
         multiple:
           description: Retrieve all Recurring APIs
           tags:
-            - recurring_apis
+            - recurring apis
           responses:
             200:
               content:
@@ -196,7 +196,7 @@ class RecurringAPIHandler(BaseHandler):
         ---
         description: Delete an Recurring API.
         tags:
-          - recurring_apis
+          - recurring apis
         parameters:
           - in: path
             name: recurring_api_id

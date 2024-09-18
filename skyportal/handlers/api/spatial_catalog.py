@@ -236,7 +236,7 @@ class SpatialCatalogHandler(BaseHandler):
         single:
           description: Retrieve a SpatialCatalog
           tags:
-            - spatial_catalogs
+            - spatial catalogs
           parameters:
             - in: path
               name: catalog_id
@@ -246,7 +246,7 @@ class SpatialCatalogHandler(BaseHandler):
         multiple:
           description: Retrieve all SpatialCatalogs
           tags:
-            - spatial_catalogs
+            - spatial catalogs
         """
 
         catalog_name = self.get_query_argument("catalog_name", None)

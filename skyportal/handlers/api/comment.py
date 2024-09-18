@@ -194,7 +194,7 @@ class CommentHandler(BaseHandler):
             - comments
             - spectra
             - sources
-            - gcn_events
+            - gcn events
             - earthquakes
             - shifts
           parameters:

@@ -30,6 +30,8 @@ class UnsourcedFinderHandler(BaseHandler):
         """
         ---
         description: Generate a PDF/PNG finding chart for a position or Gaia ID
+        tags:
+          - finding charts
         parameters:
         - in: query
           name: location_type
