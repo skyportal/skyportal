@@ -215,6 +215,18 @@ class CommentHandler(BaseHandler):
                 type: string
               description: |
                 Filter comments by partial text match.
+            - in: query
+              name: pageNumber
+              schema:
+                type: integer
+              description: |
+                Page number for pagination.
+            - in: query
+              name: numPerPage
+              schema:
+                type: integer
+              description: |
+                Number of comments per page.
           responses:
             200:
               content:
@@ -398,11 +410,11 @@ class CommentHandler(BaseHandler):
             return self.success(data=comment_data)
 
     @permissions(['Comment'])
-    def post(self, associated_resource_type, resource_id, comment_id=None):
+    def post(self, associated_resource_type, resource_id, *ignore_args):
         """
         ---
         summary: Post a comment
-        description: Post a comment
+        description: Post a new comment. If sent through the API (authenticated with a token), it will be flagged as a bot comment.
         tags:
           - comments
         parameters:
