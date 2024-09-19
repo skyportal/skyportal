@@ -5,6 +5,7 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
-    if: github.repository_owner == 'skyportal'
+    if: github.repository_owner == 'skyportal' && github.event.pull_request.draft == false
 
     services:
       postgres:
@@ -130,17 +131,11 @@ jobs:
           make docs
           touch doc/_build/html/.nojekyll
 
-      - name: Install SSH Client 🔑
-        if: github.ref == 'refs/heads/main'
-        uses: webfactory/ssh-agent@v0.4.1
-        with:
-          ssh-private-key: ${{ secrets.CI_DEPLOY_KEY }}
-
       - name: Deploy docs
         if: github.ref == 'refs/heads/main'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          FOLDER: doc/_build/html
-          REPOSITORY_NAME: skyportal/docs
-          BRANCH: gh-pages
-          SSH: true
+          folder: doc/_build/html
+          repository-name: skyportal/docs
+          branch: gh-pages
+          token: ${{ secrets.DEPLOY_DOCS_TOKEN }}
