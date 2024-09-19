@@ -914,7 +914,7 @@ class GcnEventAliasesHandler(BaseHandler):
 
 class GcnEventTagsHandler(BaseHandler):
     @auth_or_token
-    async def get(self, dateobs=None, tag=None):
+    async def get(self, *ignored_args):
         """
         ---
         summary: Get all GCN Event tags

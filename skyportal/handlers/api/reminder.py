@@ -353,7 +353,7 @@ class ReminderHandler(BaseHandler):
             return self.error(str(e))
 
     @permissions(['Reminder'])
-    def post(self, associated_resource_type, resource_id, reminder_id=None):
+    def post(self, associated_resource_type, resource_id, *ignored_args):
         """
         ---
         summary: Post a reminder

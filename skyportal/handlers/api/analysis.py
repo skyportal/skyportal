@@ -1910,7 +1910,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 )
 
     @auth_or_token
-    def post(self, analysis_service_id, default_analysis_id=None):
+    def post(self, analysis_service_id, *ignored_args):
         """
         ---
         summary: Create a new default analysis
