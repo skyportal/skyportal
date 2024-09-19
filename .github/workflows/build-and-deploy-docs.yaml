@@ -140,7 +140,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          FOLDER: doc/_build/html
-          REPOSITORY_NAME: skyportal/docs
-          BRANCH: gh-pages
-          SSH: true
+          folder: doc/_build/html
+          repository-name: skyportal/docs
+          branch: gh-pages
+          ssh-key: true
