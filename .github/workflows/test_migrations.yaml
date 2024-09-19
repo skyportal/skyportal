@@ -15,6 +15,7 @@ on:
       - "skyportal/enum_types.py"
       - "skyportal/facility_apis/__init__.py"
       - "requirements.txt"
+    types: [opened, reopened, synchronize, ready_for_review]
 
 jobs:
   test-migrations:
