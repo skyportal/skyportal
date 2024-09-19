@@ -28,6 +28,7 @@ class ObjHandler(BaseHandler):
     def delete(self, obj_id):
         """
         ---
+        summary: Delete an Obj
         description: Delete an Obj
         tags:
           - objs
@@ -175,6 +176,7 @@ class ObjPositionHandler(BaseHandler):
     def get(self, obj_id):
         """
         ---
+        summary: Retrieve photometry-based position of an Obj
         description: Calculate the position of an Obj using its photometry
         tags:
           - objs

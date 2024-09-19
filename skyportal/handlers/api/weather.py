@@ -21,10 +21,10 @@ class WeatherHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Get weather info at telescope site
         description: Retrieve weather info at the telescope site saved by user
                      or telescope specified by `telescope_id` parameter
         tags:
-          - weather
           - telescopes
         parameters:
             - in: query

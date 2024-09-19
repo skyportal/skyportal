@@ -13,6 +13,7 @@ class TaxonomyHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a taxonomy
           description: Retrieve a taxonomy
           tags:
             - taxonomies
@@ -32,6 +33,7 @@ class TaxonomyHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all taxonomies
           description: Get all the taxonomies
           tags:
             - taxonomies
@@ -83,6 +85,7 @@ class TaxonomyHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Post new taxonomy
         description: Post new taxonomy
         tags:
           - taxonomies
@@ -236,6 +239,7 @@ class TaxonomyHandler(BaseHandler):
     def put(self, taxonomy_id):
         """
         ---
+        summary: Update a taxonomy
         description: Update taxonomy
         tags:
           - taxonomies
@@ -303,6 +307,7 @@ class TaxonomyHandler(BaseHandler):
     def delete(self, taxonomy_id):
         """
         ---
+        summary: Delete a taxonomy
         description: Delete a taxonomy
         tags:
           - taxonomies

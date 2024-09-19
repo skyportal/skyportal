@@ -11,6 +11,7 @@ class TelescopeHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create a telescope
         description: Create telescopes
         tags:
           - telescopes
@@ -88,6 +89,7 @@ class TelescopeHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a telescope
           description: Retrieve a telescope
           tags:
             - telescopes
@@ -107,6 +109,7 @@ class TelescopeHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all telescopes
           description: Retrieve all telescopes
           tags:
             - telescopes
@@ -221,6 +224,7 @@ class TelescopeHandler(BaseHandler):
     def put(self, telescope_id):
         """
         ---
+        summary: Update a telescope
         description: Update telescope
         tags:
           - telescopes
@@ -297,6 +301,7 @@ class TelescopeHandler(BaseHandler):
     def delete(self, telescope_id):
         """
         ---
+        summary: Delete a telescope
         description: Delete a telescope
         tags:
           - telescopes

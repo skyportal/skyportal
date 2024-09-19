@@ -135,6 +135,7 @@ class AssignmentHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get an assignment
           description: Retrieve an observing run assignment
           tags:
             - assignments
@@ -154,6 +155,7 @@ class AssignmentHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve multiple assignments
           description: Retrieve all observing run assignments
           tags:
             - assignments
@@ -211,6 +213,7 @@ class AssignmentHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Post a new assignment
         description: Post new target assignment to observing run
         tags:
           - assignments
@@ -255,6 +258,7 @@ class AssignmentHandler(BaseHandler):
     def put(self, assignment_id):
         """
         ---
+        summary: Update an assignment
         description: Update an assignment
         tags:
           - assignments
@@ -328,6 +332,7 @@ class AssignmentHandler(BaseHandler):
     def delete(self, assignment_id):
         """
         ---
+        summary: Delete an assignment
         description: Delete assignment.
         tags:
           - assignments
@@ -709,9 +714,10 @@ class FollowupRequestHandler(BaseHandler):
         f"""
         ---
         single:
+          summary: Get a followup request
           description: Retrieve a followup request
           tags:
-            - followup_requests
+            - followup requests
           parameters:
             - in: path
               name: followup_request_id
@@ -728,9 +734,10 @@ class FollowupRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve multiple followup requests
           description: Retrieve all followup requests
           tags:
-            - followup_requests
+            - followup requests
           parameters:
           - in: query
             name: sourceID
@@ -1073,9 +1080,10 @@ class FollowupRequestHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Post new followup request
         description: Submit follow-up request.
         tags:
-          - followup_requests
+          - followup requests
         requestBody:
           content:
             application/json:
@@ -1169,9 +1177,10 @@ class FollowupRequestHandler(BaseHandler):
     def put(self, request_id):
         """
         ---
+        summary: Update a follow-up request
         description: Update a follow-up request
         tags:
-          - followup_requests
+          - followup requests
         parameters:
           - in: path
             name: request_id
@@ -1303,9 +1312,10 @@ class FollowupRequestHandler(BaseHandler):
     def delete(self, request_id):
         """
         ---
+        summary: Delete a follow-up request
         description: Delete follow-up request.
         tags:
-          - followup_requests
+          - followup requests
         parameters:
           - in: path
             name: request_id
@@ -1363,9 +1373,10 @@ class FollowupRequestCommentHandler(BaseHandler):
     def put(self, followup_request_id):
         """
         ---
+        summary: Update a follow-up request comment
         description: Update a follow-up request comment
         tags:
-          - followup_requests
+          - followup requests
         parameters:
           - in: path
             name: followup_request_id
@@ -1832,9 +1843,10 @@ class FollowupRequestSchedulerHandler(BaseHandler):
     async def get(self, instrument_id):
         """
         ---
+        summary: Retrieve followup requests schedule
         description: Retrieve followup requests schedule
         tags:
-            - followup_requests
+            - followup requests
         parameters:
         - in: query
           name: sourceID
@@ -2097,11 +2109,12 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
     async def put(self):
         """
         ---
+        summary: Reprioritize followup requests
         description: |
           Reprioritize followup requests schedule automatically based on
           either magnitude or location within skymap.
         tags:
-            - followup_requests
+            - followup requests
         parameters:
         - in: body
           name: requestIds
@@ -2306,9 +2319,10 @@ class DefaultFollowupRequestHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create default follow-up request
         description: Create default follow-up request.
         tags:
-          - default_followup_request
+          - default followup requests
         requestBody:
           content:
             application/json:
@@ -2409,9 +2423,10 @@ class DefaultFollowupRequestHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a default follow-up request
           description: Retrieve a single default follow-up request
           tags:
-            - default_followup_requests
+            - default followup requests
           parameters:
             - in: path
               name: default_followup_request_id
@@ -2428,6 +2443,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all default follow-up requests
           description: Retrieve all default follow-up requests
           tags:
             - filters
@@ -2484,6 +2500,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
     def delete(self, default_followup_request_id):
         """
         ---
+        summary: Delete a default follow-up request
         description: Delete a default follow-up request
         tags:
           - filters
@@ -2522,9 +2539,10 @@ class FollowupRequestWatcherHandler(BaseHandler):
     def post(self, followup_request_id):
         """
         ---
+        summary: Add follow-up request to watch list
         description: Add follow-up request to watch list
         tags:
-            - followup_requests
+            - followup requests
         parameters:
             - in: path
               name: followup_request_id
@@ -2598,9 +2616,10 @@ class FollowupRequestWatcherHandler(BaseHandler):
     def delete(self, followup_request_id):
         """
         ---
+        summary: Delete follow-up request from watch list
         description: Delete follow-up request from watch list
         tags:
-            - followup_requests
+            - followup requests
         parameters:
             - in: path
               name: followup_request_id

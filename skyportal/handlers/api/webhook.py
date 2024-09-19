@@ -25,9 +25,10 @@ class AnalysisWebhookHandler(BaseHandler):
     def post(self, analysis_resource_type, token):
         """
         ---
+        summary: Return the results of an analysis
         description: Return the results of an analysis
         tags:
-          - webhook
+          - analysis
         parameters:
           - in: path
             name: analysis_resource_type

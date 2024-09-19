@@ -164,6 +164,7 @@ class ClassificationHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a classification
           description: Retrieve a classification
           tags:
             - classifications
@@ -190,6 +191,7 @@ class ClassificationHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all classifications
           description: Retrieve all classifications
           tags:
             - classifications
@@ -328,6 +330,7 @@ class ClassificationHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Post a classification
         description: Post a classification
         tags:
           - classifications
@@ -422,6 +425,7 @@ class ClassificationHandler(BaseHandler):
     def put(self, classification_id):
         """
         ---
+        summary: Update a classification
         description: Update a classification
         tags:
           - classifications
@@ -520,6 +524,7 @@ class ClassificationHandler(BaseHandler):
     def delete(self, classification_id):
         """
         ---
+        summary: Delete a classification
         description: Delete a classification
         tags:
           - classifications
@@ -603,6 +608,7 @@ class ObjClassificationHandler(BaseHandler):
     def get(self, obj_id):
         """
         ---
+        summary: Get an object's classifications
         description: Retrieve an object's classifications
         tags:
           - classifications
@@ -649,6 +655,7 @@ class ObjClassificationHandler(BaseHandler):
     def delete(self, obj_id):
         """
         ---
+        summary: Delete all classifications for an object
         description: Delete all of an object's classifications
         tags:
           - classifications
@@ -735,9 +742,10 @@ class ObjClassificationQueryHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Find sources with classifications
         description: find the sources with classifications
         tags:
-          - source
+          - sources
         parameters:
         - in: query
           name: startDate
@@ -809,10 +817,10 @@ class ClassificationVotesHandler(BaseHandler):
     def post(self, classification_id):
         """
         ---
+        summary: Vote for a classification
         description: Vote for a classification.
         tags:
           - classifications
-          - classification_votes
         parameters:
           - in: path
             name: classification_id
@@ -901,10 +909,10 @@ class ClassificationVotesHandler(BaseHandler):
     def delete(self, classification_id):
         """
         ---
+        summary: Delete a classification vote
         description: Delete classification vote.
         tags:
           - classifications
-          - classification_votes
         parameters:
           - in: path
             name: classification_id

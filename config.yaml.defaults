@@ -816,3 +816,10 @@ colors:
   - score: 0.0
     fw: normal
     col: grey
+
+docs:
+  servers:
+    - url: http://localhost:5000
+      description: Development server
+    - url: https://skyportal.io
+      description: Production server

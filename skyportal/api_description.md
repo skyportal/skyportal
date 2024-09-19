@@ -30,7 +30,7 @@ if response.status_code in (200, 400):
 
 #### Command line (curl)
 
-```shell
+```sh
 curl -s -H 'Authorization: token ea70a5f0-b321-43c6-96a1-b2de225e0339' http://localhost:5000/api/sysinfo
 ```
 
@@ -45,7 +45,7 @@ the URL called. For example, you can specify `numPerPage` or
 `pageNumber` path parameters when calling `/api/candidates` as
 follows:
 
-```shell
+```sh
 curl -s -H 'Authorization: token ea70a5f0-b321-43c6-96a1-b2de225e0339' \
      http://localhost:5000/api/candidates?numPerPage=100&pageNumber=1
 ```
@@ -87,22 +87,24 @@ response = requests.post(
 )
 ```
 
-### Response
+### Responses
+
+#### Success
 
 In the above examples, the SkyPortal server is located at
 `http://localhost:5000`. In case of success, the HTTP response is 200:
 
-```
-
+```text
 HTTP code: 200, OK
 JSON response: {'status': 'success', 'data': {}, 'version': '0.9.dev0+git20200819.84c453a'}
-
 ```
+
+#### Failure
 
 On failure, it is 400; the JSON response has `status="error"` with the reason
 for the failure given in `message`:
 
-```js
+```json
 {
   "status": "error",
   "message": "Invalid API endpoint",
@@ -117,6 +119,8 @@ Several API endpoints (notably the sources and candidates APIs) enforce
 pagination to limit the number of records that can be fetched per request.
 These APIs expose parameters that facilitate pagination (see the various
 API docs for details). A sample pagination script is included here:
+
+#### Example code
 
 ```python
 import requests
@@ -163,3 +167,5 @@ while retry_attempts <= max_retry_attempts:
         break
     page += 1
 ```
+
+### API Endpoints

@@ -45,9 +45,12 @@ class GaiaQueryHandler(BaseHandler):
     def post(self, obj_id):
         """
         ---
+        summary: Add Gaia annotations
         description: |
             get Gaia parallax and magnitudes and post them as an annotation,
             based on cross-match to the Gaia DR3.
+        tags:
+            - annotations
         parameters:
           - in: path
             name: obj_id
@@ -258,9 +261,12 @@ class IRSAQueryWISEHandler(BaseHandler):
     def post(self, obj_id):
         """
         ---
+        summary: Add WISE annotations
         description: |
             get WISE colors and post them as an annotation
             based on cross-matches to some catalog (default is allwise_p3as_psd).
+        tags:
+            - annotations
         parameters:
           - in: path
             name: obj_id
@@ -404,10 +410,13 @@ class VizierQueryHandler(BaseHandler):
     def post(self, obj_id):
         """
         ---
+        summary: Add Vizier annotations
         description: |
             get cross-match with Vizier and post them as an annotation
             based on cross-matches to some catalog
             (default is VII/290, i.e. the million quasar catalog).
+        tags:
+            - annotations
         parameters:
           - in: path
             name: obj_id
@@ -552,11 +561,14 @@ class VizierQueryHandler(BaseHandler):
 class DatalabQueryHandler(BaseHandler):
     """
     ---
+    summary: Add Datalab annotations
     description: |
         get photo(z) of nearby sources and post them as an annotation
         based on cross-matches to some catalog (default is LegacySurvey DR8).
+    tags:
+        - annotations
     parameters:
-    - in: path
+      - in: path
         name: obj_id
         required: true
         schema:
@@ -687,8 +699,11 @@ class PS1QueryHandler(BaseHandler):
     def post(self, obj_id):
         """
         ---
+        summary: Add PS1 annotations
         description: |
             get PS1 sources and post them as an annotation
+        tags:
+            - annotations
         parameters:
           - in: path
             name: obj_id

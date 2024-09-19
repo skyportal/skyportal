@@ -41,6 +41,7 @@ class GroupHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a group
           description: Retrieve a group
           tags:
             - groups
@@ -81,6 +82,7 @@ class GroupHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all groups
           description: Retrieve all groups
           tags:
             - groups
@@ -224,6 +226,7 @@ class GroupHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create a new group
         description: Create a new group
         tags:
           - groups
@@ -310,6 +313,7 @@ class GroupHandler(BaseHandler):
     def put(self, group_id):
         """
         ---
+        summary: Update a group
         description: Update a group
         tags:
           - groups
@@ -364,6 +368,7 @@ class GroupHandler(BaseHandler):
     def delete(self, group_id):
         """
         ---
+        summary: Delete a group
         description: Delete a group
         tags:
           - groups
@@ -406,6 +411,7 @@ class GroupUserHandler(BaseHandler):
     def post(self, group_id, *ignored_args):
         """
         ---
+        summary: Add a group user
         description: Add a group user
         tags:
           - groups
@@ -541,6 +547,7 @@ class GroupUserHandler(BaseHandler):
     def patch(self, group_id, *ignored_args):
         """
         ---
+        summary: Update a group user
         description: Update a group user's admin or save access status
         tags:
           - groups
@@ -624,6 +631,7 @@ class GroupUserHandler(BaseHandler):
     def delete(self, group_id, user_id):
         """
         ---
+        summary: Delete a group user
         description: Delete a group user
         tags:
           - groups
@@ -680,6 +688,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
     def post(self, group_id, *ignored_args):
         """
         ---
+        summary: Add users from other group(s)
         description: Add users from other group(s) to specified group
         tags:
           - groups
@@ -781,6 +790,7 @@ class GroupStreamHandler(BaseHandler):
     def post(self, group_id, *ignored_args):
         """
         ---
+        summary: Add alert stream to group
         description: Add alert stream access to group
         tags:
           - groups
@@ -868,6 +878,7 @@ class GroupStreamHandler(BaseHandler):
     def delete(self, group_id, stream_id):
         """
         ---
+        summary: Delete alert stream from group
         description: Delete an alert stream from group
         tags:
           - groups
@@ -913,6 +924,7 @@ class ObjGroupsHandler(BaseHandler):
     def get(self, obj_id):
         """
         ---
+        summary: Get an object's groups
         description: Retrieve basic info on Groups that an Obj is saved to
         tags:
           - groups

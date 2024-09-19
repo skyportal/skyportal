@@ -458,6 +458,7 @@ class GalaxyCatalogHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Ingest a Galaxy catalog
         description: Ingest a Galaxy catalog
         tags:
           - galaxies
@@ -560,6 +561,7 @@ class GalaxyCatalogHandler(BaseHandler):
     async def get(self, catalog_name=None):
         """
         ---
+          summary: Retrieve multiple galaxies
           description: Retrieve all galaxies
           tags:
             - galaxies
@@ -800,9 +802,10 @@ class GalaxyCatalogHandler(BaseHandler):
     def delete(self, catalog_name):
         """
         ---
+        summary: Delete a galaxy catalog
         description: Delete a galaxy catalog
         tags:
-          - instruments
+          - galaxies
         parameters:
           - in: path
             name: catalog_name
@@ -945,9 +948,10 @@ class GalaxyASCIIFileHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Upload galaxies from ASCII file
         description: Upload galaxies from ASCII file
         tags:
-          - galaxys
+          - galaxies
         requestBody:
           content:
             application/json:
@@ -1373,9 +1377,10 @@ class GalaxyGladeHandler(BaseHandler):
     async def post(self):
         """
         ---
+        summary: Upload galaxies from GLADE+ catalog
         description: Upload galaxies from GLADE+ catalog. If no file_name or file_url is provided, will look for the GLADE+ catalog in the data directory. If it can't be found, it will download it.
         tags:
-          - galaxys
+          - galaxies
         requestBody:
           content:
             application/json:
@@ -1453,10 +1458,11 @@ class ObjHostHandler(BaseHandler):
     def post(self, obj_id):
         """
         ---
+        summary: Set an object's host galaxy
         description: Set an object's host galaxy
         tags:
           - objs
-          - galaxys
+          - galaxies
         parameters:
           - in: path
             name: obj_id
@@ -1518,10 +1524,11 @@ class ObjHostHandler(BaseHandler):
     def delete(self, obj_id):
         """
         ---
+        summary: Delete an object's host galaxy
         description: Delete an object's host galaxy
         tags:
           - objs
-          - galaxys
+          - galaxies
         parameters:
           - in: path
             name: obj_id

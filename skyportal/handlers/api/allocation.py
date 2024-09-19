@@ -35,10 +35,11 @@ class AllocationObservationPlanHandler(BaseHandler):
     def get(self, allocation_id):
         """
         ---
+        summary: Get an allocation's observation plans
+        description: Retrieve observation plans associated with an allocation
         tags:
           - allocations
-          - observation_plans
-        description: Retrieve observation plans associated with an allocation
+          - observation plans
         parameters:
           - in: path
             name: allocation_id
@@ -194,9 +195,10 @@ class AllocationHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get an allocation
+          description: Retrieve an allocation
           tags:
             - allocations
-          description: Retrieve an allocation
           parameters:
             - in: path
               name: allocation_id
@@ -226,9 +228,10 @@ class AllocationHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all allocations
+          description: Retrieve all allocations
           tags:
             - allocations
-          description: Retrieve all allocations
           parameters:
           - in: query
             name: instrument_id
@@ -483,6 +486,7 @@ class AllocationHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create a new allocation
         description: Post new allocation on a robotic instrument
         tags:
           - allocations
@@ -578,6 +582,7 @@ class AllocationHandler(BaseHandler):
     def put(self, allocation_id):
         """
         ---
+        summary: Update an allocation
         description: Update an allocation on a robotic instrument
         tags:
           - allocations
@@ -667,6 +672,7 @@ class AllocationHandler(BaseHandler):
     def delete(self, allocation_id):
         """
         ---
+        summary: Delete an allocation
         description: Delete allocation.
         tags:
           - allocations
@@ -703,9 +709,10 @@ class AllocationReportHandler(BaseHandler):
     async def get(self, instrument_id):
         """
         ---
+        summary: Get allocation report
+        description: Produce a report on allocations for an instrument
         tags:
           - allocations
-        description: Produce a report on allocations for an instrument
         parameters:
           - in: path
             name: instrument_id

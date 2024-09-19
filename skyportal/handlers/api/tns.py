@@ -336,9 +336,10 @@ class TNSRobotHandler(BaseHandler):
     def put(self, existing_id=None):
         """
         ---
+        summary: Create or update a TNS robot
         description: Post or update a TNS robot
         tags:
-          - tnsrobots
+          - tns robot
         requestBody:
           content:
             application/json:
@@ -451,9 +452,10 @@ class TNSRobotHandler(BaseHandler):
     def get(self, tnsrobot_id=None):
         """
         ---
+        summary: Retrieve a TNS robot
         description: Retrieve a TNS robot
         tags:
-          - tnsrobots
+          - tns robot
         parameters:
           - in: path
             name: tnsrobot_id
@@ -506,9 +508,10 @@ class TNSRobotHandler(BaseHandler):
     def delete(self, tnsrobot_id):
         """
         ---
+        summary: Delete a TNS robot
         description: Delete a TNS robot
         tags:
-          - tnsrobots
+          - tns robot
         parameters:
           - in: path
             name: tnsrobot_id
@@ -549,9 +552,10 @@ class TNSRobotCoauthorHandler(BaseHandler):
     def post(self, tnsrobot_id, user_id=None):
         """
         ---
+        summary: Add a coauthor to a TNS robot
         description: Add a coauthor to a TNS robot
         tags:
-            - tnsrobots
+            - tns robot
         parameters:
             - in: path
               name: tnsrobot_id
@@ -636,9 +640,10 @@ class TNSRobotCoauthorHandler(BaseHandler):
     def delete(self, tnsrobot_id, user_id):
         """
         ---
+        summary: Remove a coauthor from a TNS robot
         description: Remove a coauthor from a TNS robot
         tags:
-            - tnsrobots
+            - tns robot
         parameters:
             - in: path
               name: tnsrobot_id
@@ -697,9 +702,10 @@ class TNSRobotGroupHandler(BaseHandler):
     def put(self, tnsrobot_id, group_id=None):
         """
         ---
+        summary: Add or edit a group for a TNS robot
         description: Add or edit a group for a TNS robot
         tags:
-            - tnsrobots
+            - tns robot
         parameters:
             - in: path
               name: tnsrobot_id
@@ -903,7 +909,10 @@ class TNSRobotGroupHandler(BaseHandler):
     def delete(self, tnsrobot_id, group_id):
         """
         ---
+        summary: Delete a group from a TNS robot
         description: Delete a group from a TNSRobot
+        tags:
+            - tns robot
         parameters:
             - in: path
               name: tnsrobot_id
@@ -987,7 +996,10 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
     def post(self, tnsrobot_id, group_id, user_id=None):
         """
         ---
+        summary: Add autoreporter(s) to a TNSRobotGroup
         description: Add autoreporter(s) to a TNSRobotGroup
+        tags:
+            - tns robot
         parameters:
             - in: path
               name: tnsrobot_id
@@ -1141,9 +1153,10 @@ class TNSRobotGroupAutoreporterHandler(BaseHandler):
     def delete(self, tnsrobot_id, group_id, user_id):
         """
         ---
+        summary: Remove autoreporter(s) from a TNSRobotGroup
         description: Delete an autoreporter from a TNSRobotGroup
         tags:
-            - tnsrobot_groups
+            - tns robot
         parameters:
             - in: path
               name: tnsrobot_id
@@ -1287,7 +1300,10 @@ class TNSRobotSubmissionHandler(BaseHandler):
         """
         ---
         single:
+            summary: Retrieve a TNSRobotSubmission
             description: Retrieve a TNSRobotSubmission
+            tags:
+                - tns robot
             parameters:
                 - in: path
                   name: tnsrobot_id
@@ -1311,7 +1327,10 @@ class TNSRobotSubmissionHandler(BaseHandler):
                         application/json:
                             schema: Error
         multiple:
+            summary: Retrieve all TNSRobotSubmissions
             description: Retrieve all TNSRobotSubmissions
+            tags:
+                - tns robot
             parameters:
                 - in: path
                   name: tnsrobot_id
@@ -1451,9 +1470,11 @@ class BulkTNSHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Bulk retrieve objects from TNS
         description: Retrieve objects from TNS
         tags:
-          - objs
+            - tns
+            - objs
         requestBody:
           content:
             application/json:
@@ -1551,8 +1572,10 @@ class ObjTNSHandler(BaseHandler):
     def get(self, obj_id):
         """
         ---
-        description: Retrieve an Obj from TNS
+        summary: Get TNS info for an object
+        description: Retrieve TNS information for an object
         tags:
+          - tns
           - objs
         parameters:
           - in: path
@@ -1609,8 +1632,10 @@ class ObjTNSHandler(BaseHandler):
     def post(self, obj_id):
         """
         ---
+        summary: Post an Obj to TNS
         description: Post an Obj to TNS
         tags:
+          - tns
           - objs
         parameters:
           - in: path
@@ -1767,8 +1792,10 @@ class SpectrumTNSHandler(BaseHandler):
     def post(self, spectrum_id):
         """
         ---
+        summary: Submit a (classification) spectrum to TNS
         description: Submit a (classification) spectrum to TNS
         tags:
+          - tns
           - spectra
         parameters:
           - in: path

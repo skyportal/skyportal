@@ -40,6 +40,7 @@ class ConfigHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Retrieve instance config
         description: Retrieve parts of the config file that are exposed to the user/browser
         tags:
           - config

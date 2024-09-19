@@ -522,9 +522,10 @@ class AnalysisServiceHandler(BaseHandler):
     def post(self):
         f"""
         ---
+        summary: Create an Analysis Service.
         description: POST a new Analysis Service.
         tags:
-          - analysis_services
+          - analysis services
         requestBody:
           content:
             application/json:
@@ -725,9 +726,10 @@ class AnalysisServiceHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get an Analysis Service.
           description: Retrieve an Analysis Service by id
           tags:
-            - analysis_services
+            - analysis services
           parameters:
             - in: path
               name: analysis_service_id
@@ -744,9 +746,10 @@ class AnalysisServiceHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all Analysis Services
           description: Retrieve all Analysis Services
           tags:
-            - analysis_services
+            - analysis services
           responses:
             200:
               content:
@@ -802,9 +805,10 @@ class AnalysisServiceHandler(BaseHandler):
     def patch(self, analysis_service_id):
         f"""
         ---
+        summary: Update an Analysis Service.
         description: Update an Analysis Service.
         tags:
-          - analysis_services
+          - analysis services
         parameters:
           - in: path
             name: analysis_service_id
@@ -960,9 +964,10 @@ class AnalysisServiceHandler(BaseHandler):
     def delete(self, analysis_service_id):
         """
         ---
+        summary: Delete an Analysis Service.
         description: Delete an Analysis Service.
         tags:
-          - analysis_services
+          - analysis services
         parameters:
           - in: path
             name: analysis_service_id
@@ -996,6 +1001,7 @@ class AnalysisHandler(BaseHandler):
     async def post(self, analysis_resource_type, resource_id, analysis_service_id):
         """
         ---
+        summary: Run an analysis
         description: Begin an analysis run
         tags:
           - analysis
@@ -1197,6 +1203,7 @@ class AnalysisHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get an Analysis by id
           description: Retrieve an Analysis by id
           tags:
             - analysis
@@ -1267,6 +1274,7 @@ class AnalysisHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all Analyses
           description: Retrieve all Analyses
           tags:
             - analysis
@@ -1397,6 +1405,7 @@ class AnalysisHandler(BaseHandler):
     def delete(self, analysis_resource_type, analysis_id):
         """
         ---
+        summary: Delete an Analysis.
         description: Delete an Analysis.
         tags:
           - analysis
@@ -1468,6 +1477,7 @@ class AnalysisProductsHandler(BaseHandler):
     ):
         """
         ---
+        summary: Get analysis products
         description: Retrieve primary data associated with an Analysis.
         tags:
         - analysis
@@ -1634,6 +1644,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
     def post(self, analysis_resource_type, resource_id, analysis_service_id):
         """
         ---
+        summary: Upload an upload_only analysis result
         description: Upload an upload_only analysis result
         tags:
           - analysis
@@ -1826,7 +1837,10 @@ class DefaultAnalysisHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a default analysis
           description: Retrieve a default analysis
+          tags:
+            - default analyses
           parameters:
             - in: path
               name: analysis_service_id
@@ -1846,7 +1860,10 @@ class DefaultAnalysisHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all default analyses
           description: Retrieve all default analyses
+          tags:
+            - default analyses
           parameters:
             - in: path
               name: analysis_service_id
@@ -1894,6 +1911,65 @@ class DefaultAnalysisHandler(BaseHandler):
 
     @auth_or_token
     def post(self, analysis_service_id, default_analysis_id=None):
+        """
+        ---
+        summary: Create a new default analysis
+        description: Create a new default analysis
+        tags:
+          - default analyses
+        parameters:
+            - in: path
+              name: analysis_service_id
+              required: true
+              description: Analysis service ID
+            - in: path
+              name: default_analysis_id
+              required: false
+              description: Default analysis ID
+        requestBody:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            default_analysis_parameters:
+                                type: object
+                                description: Dictionary of parameters to be passed thru to the analysis
+                                additionalProperties:
+                                    type: string
+                            source_filter:
+                                type: object
+                                description: Dictionary of filters to apply to the input data
+                                additionalProperties:
+                                    type: string
+                            daily_limit:
+                                type: integer
+                                description: Maximum number of analyses to run per day
+                            group_ids:
+                                type: array
+                                items:
+                                    type: integer
+                                description: |
+                                    List of group IDs corresponding to which groups should be
+                                    able to view analysis results. Defaults to all of requesting user's
+                                    groups.
+        responses:
+            200:
+                content:
+                    application/json:
+                        schema:
+                            allOf:
+                                - $ref: '#/components/schemas/Success'
+                                - type: object
+                                  properties:
+                                    id:
+                                      type: integer
+                                      description: New default analysis ID
+            400:
+                content:
+                    application/json:
+                        schema: Error
+        """
         data = self.get_json()
         with self.Session() as session:
             try:
@@ -2037,7 +2113,6 @@ class DefaultAnalysisHandler(BaseHandler):
                 session.commit()
                 return self.success(data={"id": default_analysis.id})
             except Exception as e:
-                raise e
                 return self.error(
                     f'Unexpected error posting default analysis: {str(e)}'
                 )
@@ -2046,7 +2121,10 @@ class DefaultAnalysisHandler(BaseHandler):
     def delete(self, analysis_service_id, default_analysis_id):
         """
         ---
+        summary: Delete a default analysis
         description: Delete a default analysis
+        tags:
+            - default analyses
         parameters:
           - in: path
             name: analysis_service_id

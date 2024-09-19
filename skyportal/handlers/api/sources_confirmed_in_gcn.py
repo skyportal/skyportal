@@ -81,7 +81,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         ---
         single:
           tags:
-            - source_confirmed_in_gcn
+            - gcn events
+            - sources
+          summary: Retrieve a source confirmed/rejected in a GCN
           description: Retrieve a source that has been confirmed or rejected in a GCN
           parameters:
             - in: path
@@ -127,7 +129,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         multiple:
           tags:
-            - sources_confirmed_in_gcn
+            - gcn events
+            - sources
+          summary: Retrieve sources confirmed/rejected in a GCN
           description: Retrieve sources that have been confirmed/rejected in a GCN
           parameters:
             - in: path
@@ -225,12 +229,14 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data=sources_in_gcn)
 
     @permissions(['Manage GCNs'])
-    async def post(self, dateobs):
+    async def post(self, dateobs, source_id=None):
         """
         ---
+        summary: Confirm or reject a source in a gcn
         description: Confirm or reject a source in a gcn
         tags:
-          - source_confirmed_in_gcn
+          - gcn events
+          - sources
         parameters:
           - in: path
             name: dateobs
@@ -443,9 +449,11 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
     def patch(self, dateobs, source_id):
         """
         ---
+        summary: Update the confirmed/rejected status of a source in a GCN
         description: Update the confirmed or rejected status of a source in a GCN
         tags:
-          - source_confirmed_in_gcn
+          - gcn events
+          - sources
         parameters:
           - in: path
             name: dateobs
@@ -576,11 +584,13 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
     def delete(self, dateobs, source_id):
         """
         ---
+        summary: Remove the confirmed/rejected status of a source in a GCN
         description: |
           Deletes the confirmed or rejected status of source in a GCN.
           Its status can be considered as 'undefined'.
         tags:
-          - source_confirmed_in_gcn
+          - gcn events
+          - sources
         parameters:
           - in: path
             name: dateobs
@@ -680,7 +690,10 @@ class SourcesConfirmedInGCNTNSHandler(BaseHandler):
         """
         ---
         tags:
-          - sources_confirmed_in_gcn
+          - gcn events
+          - sources
+          - tns
+        summary: Post sources that have been confirmed in a GCN to TNS
         description: Post sources that have been confirmed in a GCN to TNS
         parameters:
           - in: path
@@ -861,9 +874,11 @@ class GCNsAssociatedWithSourceHandler(BaseHandler):
     async def get(self, source_id):
         """
         ---
+        summary: Get GCNs associated with a source
         description: Get the GCNs associated with a source (GCNs for which the source has been confirmed)
         tags:
-          - gcn_associated_to_source
+          - gcn events
+          - sources
         parameters:
           - in: path
             name: source_id

@@ -132,6 +132,7 @@ class SummaryQueryHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Search for sources based on their summaries
         description: Get a list of sources with summaries matching the query
         tags:
           - summary

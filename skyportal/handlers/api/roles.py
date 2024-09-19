@@ -9,6 +9,7 @@ class RoleHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Get all roles
         description: Retrieve list of all Role IDs (strings)
         tags:
           - roles
@@ -40,6 +41,7 @@ class UserRoleHandler(BaseHandler):
     def post(self, user_id, *ignored_args):
         """
         ---
+        summary: Grant new Role(s) to a user
         description: Grant new Role(s) to a user
         tags:
           - roles
@@ -90,6 +92,7 @@ class UserRoleHandler(BaseHandler):
     def delete(self, user_id, role_id):
         """
         ---
+        summary: Delete user role
         description: Delete user role
         tags:
           - roles
