@@ -444,7 +444,7 @@ def post_skymap_from_notice(
                     ).first()
                     if existing_source is None:
                         log(
-                            f"Posting source for Localization {localization_id} id {source['id']}."
+                            f"Posting source for Localization {localization_id} with id {source['id']}."
                         )
                         post_source(source, user_id, session)
         except Exception as e:
