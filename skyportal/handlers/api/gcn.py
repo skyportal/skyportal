@@ -386,7 +386,7 @@ def post_skymap_from_notice(
             )
             if error < SOURCE_RADIUS_THRESHOLD:
                 log(
-                    f"Creating source for Localization {localization_id} with name {skymap['localization_name']}."
+                    f"Creating source for event {dateobs} with Localization {localization_id} with name {skymap['localization_name']}."
                 )
                 source = {}
                 name = None
@@ -444,12 +444,12 @@ def post_skymap_from_notice(
                     ).first()
                     if existing_source is None:
                         log(
-                            f"Posting source for Localization {localization_id} with id {source['id']}."
+                            f"Posting source for event {dateobs} with Localization {localization_id} with id {source['id']}."
                         )
                         post_source(source, user_id, session)
         except Exception as e:
             log(
-                f"Failed to create source for Localization {localization_id} with name {skymap['localization_name']}: {str(e)}."
+                f"Failed to create source for event {dateobs} with Localization {localization_id} with name {skymap['localization_name']}: {str(e)}."
             )
 
     else:
