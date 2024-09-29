@@ -492,6 +492,9 @@ class CommentHandler(BaseHandler):
                 and 'name' in data['attachment']
             ):
                 attachment_name = data['attachment']['name']
+                if data['attachment']['body'] is None:
+                    return self.error("Comment attachment body is empty")
+
                 data_to_disk = base64.b64decode(
                     data['attachment']['body'].split('base64,')[-1]
                 )
