@@ -127,6 +127,12 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
             if not getattr(method, '__authenticated__', False):
                 spec['security'] = [{}]
 
+            if getattr(method, '__permissions__', None):
+                spec['description'] = (
+                    f'<b>Permission(s) required:</b> <em>{", ".join(method.__permissions__)} (or System admin)</em><br><br>'
+                    + spec.get('description', '')
+                )
+
             multiple_spec = spec.pop('multiple', {})
             single_spec = spec.pop('single', {})
             other_spec = spec
