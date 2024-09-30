@@ -67,8 +67,8 @@ module.exports = [
       import: {
         resolver: {
           node: {},
-          webpack: {
-            config: "webpack.config.js",
+          rspack: {
+            config: "rspack.config.js",
           },
         },
       },
