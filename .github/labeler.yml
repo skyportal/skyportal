@@ -63,3 +63,16 @@ needs-migration?:
 # Add 'workflows' label to any changes to GA workflows (.github folder)
 workflows:
   - any-glob-to-any-file: ".github/**/*"
+
+# Add a 'frontend-only' label to any changes to the frontend code, but none to the backend
+frontend-only:
+  - changed-files:
+      - any-glob-to-any-file:
+          [
+            "static/**/*",
+            "package.json",
+            "webpack.config.js",
+            "baselayer/static/**/*",
+          ]
+      - all-globs-to-all-files:
+          ["!skyportal/**/*", "!requirements.txt", "!baselayer/**/*"]
