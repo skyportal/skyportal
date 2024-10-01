@@ -3,7 +3,7 @@
   "license": "BSD-3-Clause",
   "scripts": {
     "build": "make bundle",
-    "test": "eslint --ext .jsx,.js static/js && make test"
+    "test": "eslint -c esling.config.js && make test"
   },
   "dependencies": {
     "@date-io/dayjs": "1.3.13",
