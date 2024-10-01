@@ -125,7 +125,7 @@
     "@babel/preset-env": "7.23.9",
     "@babel/preset-react": "7.24.7",
     "@types/eslint": "9.6.1",
-    "@types/node": "20.10.6",
+    "@types/node": "22.7.4",
     "babel-loader": "8.2.2",
     "eslint": "9.9.1",
     "eslint-config-airbnb": "18.2.1",
