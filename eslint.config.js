@@ -13,7 +13,7 @@ const { fixupPluginRules } = require("@eslint/compat");
 module.exports = [
   eslint.configs.recommended,
   // run on all js and jsx files in the static directory and subdirectories
-  { files: ["static/**/*.js", "static/**/*.jsx"] },
+  { files: ["**/*.js", "**/*.jsx"] },
   { ignores: ["docs/*"] },
   {
     languageOptions: {
