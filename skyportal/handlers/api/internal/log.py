@@ -12,7 +12,7 @@ log = make_log('js')
 
 class LogHandler(BaseHandler):
     @tornado.web.authenticated
-    def post(self, file_name=None):
+    def post(self, *ignored_args):
         """Log a frontend error to the server logs, tracking user crash reports."""
         data = self.get_json()
         log(f"{data['error']}{data['stack']}")
