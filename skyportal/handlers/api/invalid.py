@@ -4,5 +4,5 @@ from ..base import BaseHandler
 
 class InvalidEndpointHandler(BaseHandler):
     @auth_or_token
-    def get(self, group_id=None):
+    def get(self, *ignored_args):
         return self.error('Invalid API endpoint')

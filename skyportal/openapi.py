@@ -67,6 +67,7 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
                 'href': 'https://skyportal.io/docs',
             },
         },
+        'security': [{'token': []}],
     }
     if metadata is not None:
         meta.update(metadata)
@@ -122,6 +123,15 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
 
             if parameters[-1:] == [''] and path_template.endswith('/{}'):
                 path_template = path_template[:-3]
+
+            if not getattr(method, '__authenticated__', False):
+                spec['security'] = [{}]
+
+            if getattr(method, '__permissions__', None):
+                spec['description'] = (
+                    f'<b>Permission(s) required:</b> <em>{", ".join(method.__permissions__)} (or System admin)</em><br><br>'
+                    + spec.get('description', '')
+                )
 
             multiple_spec = spec.pop('multiple', {})
             single_spec = spec.pop('single', {})

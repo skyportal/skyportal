@@ -1121,7 +1121,7 @@ class SourceHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
-          summary: Retrieve multiple sources
+          summary: Get multiple sources
           description: Retrieve all sources, given a set of filters
           tags:
             - sources
@@ -1459,6 +1459,14 @@ class SourceHandler(BaseHandler):
               Comma-separated string of "taxonomy: classification" pair(s) to filter for sources NOT matching
               that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
           - in: query
+            name: classified
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return only sources with classifications.
+              Defaults to false.
+          - in: query
             name: unclassified
             nullable: true
             schema:
@@ -1754,6 +1762,7 @@ class SourceHandler(BaseHandler):
         classifications = self.get_query_argument("classifications", None)
         classifications_simul = self.get_query_argument("classifications_simul", False)
         nonclassifications = self.get_query_argument("nonclassifications", None)
+        classified = self.get_query_argument("classified", False)
         unclassified = self.get_query_argument("unclassified", False)
         annotations_filter = self.get_query_argument("annotationsFilter", None)
         annotations_filter_origin = self.get_query_argument(
@@ -2008,6 +2017,7 @@ class SourceHandler(BaseHandler):
                     classifications=classifications,
                     classifications_simul=classifications_simul,
                     nonclassifications=nonclassifications,
+                    classified=classified,
                     unclassified=unclassified,
                     annotations_filter=annotations_filter,
                     annotations_filter_origin=annotations_filter_origin,
