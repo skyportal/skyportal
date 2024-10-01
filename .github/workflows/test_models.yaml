@@ -5,11 +5,11 @@ on:
     branches:
       - main
   pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
+    types: [labeled, reopened, synchronize, ready_for_review]
 
 jobs:
   test-models:
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false && !contains( github.event.pull_request.labels.*.name, 'frontend-only')
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
