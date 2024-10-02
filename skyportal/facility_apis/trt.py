@@ -196,14 +196,14 @@ class TRTAPI(FollowUpAPI):
                 headers=headers,
             )
 
-            if r.status_code == 200 and 'token expired' in r.content:
+            if r.status_code == 200 and 'token expired' in r.text:
                 request.status = (
                     'rejected: API token specified in the allocation is expired.'
                 )
             elif r.status_code == 200:
                 request.status = 'submitted'
             else:
-                request.status = f'rejected: {r.content}'
+                request.status = f'rejected: {r.text}'
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
