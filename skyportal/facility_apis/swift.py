@@ -817,6 +817,6 @@ class UVOTXRTAPI(FollowUpAPI):
         },
     }
 
-    ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
+    ui_json_schema = {}
 
     priorityOrder = "desc"
