@@ -320,7 +320,11 @@ class GEMINIAPI(FollowUpAPI):
         "type": "object",
         "properties": {
             "email": {"type": "string", "title": "Email"},
-            "progid": {"type": "string", "title": "Program ID"},
+            "progid": {
+                "type": "string",
+                "title": "Program ID",
+                "description": "CAUTION: Gemini North and South have different program IDs, starting with GN or GS respectively. So, make sure to use the correct one for the instrument you've selected.",
+            },
             "progkey": {"type": "string", "title": "Program Key (of the user)"},
         },
     }
