@@ -193,8 +193,8 @@ class GeminiRequest:
             'noteTitle': notetitle,
             'note': note,
             'ready': True,
-            'windowStart': l_wDate,
-            'windowStartUT': l_wTime,
+            'windowDate': l_wDate,
+            'windowTime': l_wTime,
             'windowDuration': l_wDur,
             'elevationType': 'airmass',
             'elevationMin': str(l_elmin).strip(),
@@ -203,6 +203,7 @@ class GeminiRequest:
             'gsra': gsra,
             'gsdec': gsdec,
             'gsmag': sgsmag,
+            'gsprobe': 'OIWFS',
         }
 
         if round(l_exptime) != 0:
@@ -248,7 +249,7 @@ class GEMINIAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     'baselayer/SHOW_NOTIFICATION',
                     payload={
-                        'message': f'Failed to submit Gemini request: {r.content}',
+                        'note': f'Failed to submit Gemini request: {r.content}',
                         'type': 'error',
                     },
                 )
