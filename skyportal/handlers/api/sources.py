@@ -1652,7 +1652,7 @@ async def get_sources(
                             f'1. SUB SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
                         )
 
-                all_source_ids = list(set(all_source_ids))
+                all_source_ids = sorted(list(set(all_source_ids)))
                 if verbose:
                     log_verbose(
                         f'1. COMBINING BOTH QUERY RESULTS TOOK {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
@@ -1687,7 +1687,7 @@ async def get_sources(
 
                 connection = session.connection()
                 results = connection.execute(statement)
-                all_source_ids = [r[0] for r in results]
+                all_source_ids = sorted([r[0] for r in results])
 
                 endTime = time.time()
                 if verbose:
