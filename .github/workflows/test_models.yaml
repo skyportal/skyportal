@@ -187,6 +187,14 @@ jobs:
           cat package.json
           pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
+      # if the previous step fails, we want to print the changed files that are not passing the checks
+      - name: Debug - Changed files
+        if: always()
+        run: |
+          echo "Changed files:"
+          git diff --name-only ${{ github.event.before }} ${{ github.sha }}
+          echo "Untracked files:"
+          git ls-files --others --exclude-standard
       - name: Test loading demo data
         run: |
           make run &
