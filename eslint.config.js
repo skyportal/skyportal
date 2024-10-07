@@ -13,7 +13,7 @@ const { fixupPluginRules } = require("@eslint/compat");
 module.exports = [
   eslint.configs.recommended,
   // run on all js and jsx files in the static directory and subdirectories
-  { files: ["**/*.js", "**/*.jsx"] },
+  { files: ["static/**/*.js", "static/**/*.jsx"] },
   { ignores: ["docs/*"] },
   {
     languageOptions: {
@@ -44,12 +44,14 @@ module.exports = [
   {
     rules: {
       ...reactHookPlugin.configs.recommended.rules,
+      ...reactPlugin.configs.recommended.rules,
       ...prettierPlugin.rules,
       camelcase: "off",
       "no-unused-vars": "off",
       "no-unsafe-optional-chaining": "off",
       "no-useless-escape": "off",
       "no-constant-binary-expression": "warn",
+      "no-await-in-loop": "warn",
       "jsx-a11y/click-events-have-key-events": 0,
       "jsx-a11y/label-has-associated-control": 0,
       "jsx-a11y/control-has-associated-label": 0,
@@ -59,7 +61,13 @@ module.exports = [
       "react/jsx-one-expression-per-line": 0,
       "react/jsx-props-no-spreading": 0,
       "react/jsx-curly-newline": 0,
+      "react/forbid-prop-types": "warn",
+      "react-hooks/exhaustive-deps": "warn",
+      "react/destructuring-assignment": 0,
+      "prefer-template": "warn",
       "no-param-reassign": 0,
+      "react/jsx-no-bind": 0,
+      "no-shadow": "error",
     },
   },
   {
@@ -67,7 +75,7 @@ module.exports = [
       import: {
         resolver: {
           node: {},
-          rspack: {
+          webpack: {
             config: "rspack.config.js",
           },
         },
