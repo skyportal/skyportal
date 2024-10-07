@@ -145,10 +145,14 @@ const UserManagement = () => {
 
   if (
     !currentUser?.username?.length ||
-    !allGroups?.length ||
-    !streams?.length ||
-    !acls?.length ||
-    !roles?.length
+    allGroups === null ||
+    allGroups === undefined ||
+    streams === null ||
+    streams === undefined ||
+    acls === null ||
+    acls === undefined ||
+    roles === null ||
+    roles === undefined
   ) {
     return <Spinner />;
   }
