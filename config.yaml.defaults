@@ -79,7 +79,7 @@ app:
     port:
 
   gemini:
-    protocol: http
+    protocol: https
     host: gsodbtest.gemini.edu # this is the test server host, just remove 'test' for production
     port: 8443 # this is the test server port, production is 443
 
