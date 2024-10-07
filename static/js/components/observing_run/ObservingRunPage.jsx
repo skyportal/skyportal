@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import propTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import EditIcon from "@mui/icons-material/Edit";
@@ -147,6 +148,13 @@ const ModifyObservingRunDialog = ({ run, modifyPermission }) => {
   );
 };
 
+ModifyObservingRunDialog.propTypes = {
+  run: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+  }).isRequired,
+  modifyPermission: PropTypes.bool.isRequired,
+};
+
 const DeleteObservingRunDialog = ({ run, deletePermission }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -194,6 +202,13 @@ const DeleteObservingRunDialog = ({ run, deletePermission }) => {
       />
     </div>
   );
+};
+
+DeleteObservingRunDialog.propTypes = {
+  run: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+  }).isRequired,
+  deletePermission: PropTypes.bool.isRequired,
 };
 
 const ObservingRunList = ({ observingRuns, deletePermission }) => {
@@ -279,6 +294,11 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
       </List>
     </div>
   );
+};
+
+ObservingRunList.propTypes = {
+  observingRuns: PropTypes.arrayOf(PropTypes.any).isRequired,
+  deletePermission: PropTypes.bool.isRequired,
 };
 
 const ObservingRunPage = () => {
