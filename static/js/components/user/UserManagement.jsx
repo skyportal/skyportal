@@ -146,7 +146,7 @@ const UserManagement = () => {
   if (
     !currentUser?.username?.length ||
     !allGroups?.length ||
-    !streams?.length ||
+    streams === null ||
     !acls?.length ||
     !roles?.length
   ) {
@@ -1069,6 +1069,7 @@ const UserManagement = () => {
                   onChange={(e, data) => onChange(data)}
                   value={value}
                   options={clickedUser?.affiliations?.map((aff) => aff)}
+                  // eslint-disable-next-line no-shadow
                   filterOptions={(options, params) => {
                     const filtered = filter(options, params);
 
