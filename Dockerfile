@@ -50,7 +50,7 @@ RUN bash -c "\
     export NPM_CONFIG_LEGACY_PEER_DEPS=true && \
     make system_setup && \
     \
-    ./node_modules/.bin/webpack --mode=production && \
+    ./node_modules/.bin/rspack --mode=production && \
     rm -rf node_modules && \
     \
     chown -R skyportal.skyportal /skyportal_env && \

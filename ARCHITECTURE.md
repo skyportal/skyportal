@@ -53,7 +53,7 @@ It also has permissions on the database models. In SkyPortal, RLS policies are d
 
 ## Microservices
 
-SkyPortal uses a microservice architecture managed with supervisord, which allows for running multiple instances of the application in parallel to ensure availability and reduce downtime. Moreover, we can add microservices to run background operations continuously. This is used to run the application, as well as the database migration manager, the webpack builder, websocket server, cron jobs, external logging, and nginx. It is also used when adding computationally expensive or long-running features such as the ingestion of GCN events with low latency, processing of observation plans, sending notifications and reminders, and programming recurrent API calls. These services and others can be found in the directory `services/` in both SkyPortal and baselayer.
+SkyPortal uses a microservice architecture managed with supervisord, which allows for running multiple instances of the application in parallel to ensure availability and reduce downtime. Moreover, we can add microservices to run background operations continuously. This is used to run the application, as well as the database migration manager, the webpack/rspack builder, websocket server, cron jobs, external logging, and nginx. It is also used when adding computationally expensive or long-running features such as the ingestion of GCN events with low latency, processing of observation plans, sending notifications and reminders, and programming recurrent API calls. These services and others can be found in the directory `services/` in both SkyPortal and baselayer.
 
 ## Testing
 
