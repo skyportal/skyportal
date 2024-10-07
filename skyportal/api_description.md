@@ -118,45 +118,58 @@ for the failure given in `message`:
 Several API endpoints (notably the sources and candidates APIs) enforce
 pagination to limit the number of records that can be fetched per request.
 These APIs expose parameters that facilitate pagination (see the various
-API docs for details). A sample pagination script is included here:
+API docs for details). Some of these endpoints (like the sources and candidates APIs) let you query lists of records that are dynamic, and often updated. In such cases, to avoid missing records or fetching duplicates, it is **strongly recommended** to use the **caching mechanism** provided by the API. Below, you'll find examples of how to paginate through the sources API with and without caching.
 
-#### Example code
+#### Without caching
+
+Here is an example of how to paginate through the sources API without any caching. This is valid and the simplest way to paginate through the results of any paginated API endpoint. However, we recommend using the caching mechanism if it is available for the endpoint you are querying (see the following section).
+
+_Warnings_:
+
+- The `totalMatches` is not returned by all endpoints that implement caching. Please check the API documentation for the endpoint you are querying, and we recommend logging the results while debugging to make sure all is in order.
 
 ```python
 import requests
 import time
 
-
-base_url = "https://fritz.science/api/sources"
+base_url = "https://fritz.science/api"
+url = base_url + "/sources"
 token = "your_token_id_here"
+headers = {"Authorization": f"token {token}"}
 group_ids = [4, 71]  # If applicable
-all_sources = []
-num_per_page = 500
-page = 1
-total_matches = None
-retry_attempts = 0
-max_retry_attempts = 10
+max_retries = 3
 
-while retry_attempts <= max_retry_attempts:
+params = {
+    'pageNumber': 1,
+    'numPerPage': 100,
+    'group_ids': group_ids,
+    'totalMatches': None
+}
+
+all_sources = []
+
+retries_remaining = max_retries
+while retries_remaining > 0:
     r = requests.get(
-        f"{base_url}?group_ids={','.join([str(gid) for gid in group_ids])}&pageNumber={page}&numPerPage={num_per_page}&totalMatches={total_matches}",
-        headers={"Authorization": f"token {token}"},
+        url,
+        params=params,
+        headers=headers,
     )
 
     if r.status_code == 429:
-        print("Request rate limit exceeded; sleeping 1s before trying again...")
+        print("Request rate limit exceeded; waiting 1s before trying again...")
         time.sleep(1)
         continue
 
     data = r.json()
 
-    if data["status"] != "success":
-        print(data)  # log as appropriate
-        retry_attempts += 1
+    if data["status"] == "success":
+        retries_remaining = max_retries
+    else:
+        print(f"Error: {data["message"]}; waiting 5s before trying again...")  # log as appropriate
+        retry_attempts -= 1
         time.sleep(5)
         continue
-    else:
-        retry_attempts = 0
 
     all_sources.extend(data["data"]["sources"])
     total_matches = data["data"]["totalMatches"]
@@ -165,7 +178,74 @@ while retry_attempts <= max_retry_attempts:
 
     if len(all_sources) >= total_matches:
         break
-    page += 1
+
+    params[page] += 1
+```
+
+#### With caching (recommended)
+
+If caching is enabled, the server will return a `queryID` in the response when querying the first page. This `queryID` can be used to fetch the next page of results, by simply passing it as a parameter in the next request. This way, the server can keep track of the state of the query and return the next page of results without missing or duplicating any records.
+
+_Warnings_:
+
+- The `queryID` is only valid for a limited time (by default 6 hours, but this can be configured by the server admin). Passed that time, the `queryID` will expire and you will need to start a new query from the beginning. You can also keep looping over the pages past the timeout, but the server will return a new queryID and consistency isn't guaranteed for the following pages.
+- Not all endpoints support caching. Make sure to check the API documentation for the endpoint you are querying (look for the `useCache` & `queryID` parameters).
+
+```python
+import requests
+import time
+
+base_url = "https://fritz.science/api"
+url = base_url + "/sources"
+token = "your_token_id_here"
+headers = {"Authorization": f"token {token}"}
+group_ids = [4, 71]  # If applicable
+max_retries = 3
+
+params = {
+    'pageNumber': 1,
+    'numPerPage': 100,
+    'group_ids': group_ids,
+    'totalMatches': None,
+    'useCache': True, # Enable caching
+    'queryID': None # Server will return this in the first response
+}
+
+all_sources = []
+
+retries_remaining = max_retries
+while retries_remaining > 0:
+    r = requests.get(
+        url,
+        params=params,
+        headers=headers,
+    )
+
+    if r.status_code == 429:
+        print("Request rate limit exceeded; waiting 1s before trying again...")
+        time.sleep(1)
+        continue
+
+    data = r.json()
+
+    if data["status"] == "success":
+        retries_remaining = max_retries
+    else:
+        print(f"Error: {data["message"]}; waiting 5s before trying again...")  # log as appropriate
+        retry_attempts -= 1
+        time.sleep(5)
+        continue
+
+    all_sources.extend(data["data"]["sources"])
+    total_matches = data["data"]["totalMatches"]
+    params["queryID"] = data["data"]["queryID"] # Pass the queryID to the next request
+
+    print(f"Fetched {len(all_sources)} of {total_matches} sources.")
+
+    if len(all_sources) >= total_matches:
+        break
+
+    params[page] += 1
 ```
 
 ### API Endpoints
