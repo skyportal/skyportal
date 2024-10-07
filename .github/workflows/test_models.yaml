@@ -178,8 +178,10 @@ jobs:
 
       - name: Formatting and linting checks
         if: github.ref != 'refs/heads/main'
+        # DEBUG: print the untracked files
         run: |
           pip install pre-commit
+          git ls-files --others --exclude-standard
           pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
       - name: Test loading demo data
