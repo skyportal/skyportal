@@ -186,6 +186,7 @@ jobs:
           git diff --name-only ${{ github.event.before }} ${{ github.sha }}
           echo ${{ github.event.pull_request.base.sha }}
           echo ${{ github.event.pull_request.head.sha }}
+          git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
           pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
       - name: Test loading demo data
