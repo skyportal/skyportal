@@ -176,6 +176,9 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+
       - name: Formatting and linting checks
         if: github.ref != 'refs/heads/main'
         # DEBUG: print the untracked files
