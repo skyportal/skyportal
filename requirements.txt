@@ -27,7 +27,7 @@ Pillow>=8.4.0
 pyproj==3.6.1
 pytest>=8.3.2, <9.0.0
 sncosmo==2.11.1
-tdtax==0.1.4
+tdtax==0.1.7
 healpix-alchemy==1.1.0
 mocpy==0.16.2
 obspy==1.4.0
