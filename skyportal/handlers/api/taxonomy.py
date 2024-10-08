@@ -212,12 +212,15 @@ class TaxonomyHandler(BaseHandler):
             # TODO: deal with the same name but different groups?
             isLatest = data.get('isLatest', True)
             if isLatest:
-                taxonomy_update = session.scalars(
-                    Taxonomy.select(session.user_or_token).where(Taxonomy.name == name)
-                ).first()
-                if taxonomy_update is not None:
-                    taxonomy_update.isLatest = False
-                    session.add(taxonomy_update)
+                taxonomies_to_update = session.scalars(
+                    Taxonomy.select(session.user_or_token).where(
+                        Taxonomy.name == name, Taxonomy.isLatest.is_(True)
+                    )
+                ).all()
+                if len(taxonomies_to_update) > 0:
+                    for tax in taxonomies_to_update:
+                        tax.isLatest = False
+                        session.add(tax)
 
             taxonomy = Taxonomy(
                 name=name,
