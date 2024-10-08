@@ -15,3 +15,5 @@ The development of SkyPortal is active enough that it would be impractical to up
 Each instance of SkyPortal is responsible for updating the version of the software they are running, but it is good to keep in mind that the lastest version of SkyPortal is always available on GitHub, and that the latest version number is also visible at the top left of the [Documentation](https://skyportal.io/docs) page.
 
 The version number will be updated in the `skyportal/__init__.py` file, and release notes will be posted with the tagged release.
+
+As a SkyPortal, please refer to the [Developer Guide](dev) for more information on how to interact with the codebase, and to the [Deployment Guide](deploy) for more information on how to deploy SkyPortal.

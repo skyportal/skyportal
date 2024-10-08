@@ -120,7 +120,7 @@ It will print a command that you can use to SSH into the runner.
 
 ## Upgrading the version of SkyPortal
 
-**Please see the [versioning](doc/versioning.md) document for more information about the versioning logic &frequency.**
+**Please see the [versioning](versioning) section for more information about the versioning logic & frequency.**
 
 To upgrade the version of SkyPortal, you will need to:
 
