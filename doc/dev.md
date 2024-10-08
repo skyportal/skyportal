@@ -141,4 +141,8 @@ To upgrade the version of SkyPortal, you will need to:
     git push --tags origin main
     ```
     where `origin` points to the ``github.com/skyportal/skyportal`` repository.
-5. Create a new release on GitHub, using the tag you just created. Include a summary of the changes in the release notes/changelog.
+5. Create a new release on GitHub, using the tag you just created. Include a summary of the changes in the release notes/changelog, and using `git archive` create a tarball of the release and attach it to the release on GitHub.
+    ```
+    mkdir -p archive
+    git archive --format=tar.gz HEAD > archive/skyportal-v${NEW_VERSION}.tar.gz
+    ```
