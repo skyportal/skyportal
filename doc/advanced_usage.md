@@ -115,6 +115,7 @@ tax_obj =  {'name': 'Sitewide Taxonomy',
             'provenance': 'https://github.com/profjsb/timedomain-taxonomy',
             'hierarchy': tdtax.taxonomy,
             'version': str(tdtax.__version__),
+            'group_ids': [1] # the ID should be the ID of the Sitewide group
 }
 
 token = "USE-YOUR-TOKEN-HERE"
