@@ -117,3 +117,28 @@ You can insert the following step to debug your workflow:
 ```
 
 It will print a command that you can use to SSH into the runner.
+
+## Upgrading the version of SkyPortal
+
+**Please see the [versioning](doc/versioning.md) document for more information about the versioning logic &frequency.**
+
+To upgrade the version of SkyPortal, you will need to:
+
+1. Update the version number in `skyportal/__init__.py`.
+2. Commit the changes:
+    ```
+    git add skyportal/__init__.py
+    git commit -am "Designate ${NEW_VERSION} release"
+    ```
+3. Tag the release in git:
+    ```
+    git tag -s v${NEW_VERSION} -m "signed ${NEW_VERSION} tag"
+    ```
+    (If you do not have a GPG key, follow the tutorial to set it up:
+    https://help.github.com/articles/signing-commits-with-gpg/)
+4. Push the changes:
+    ```
+    git push --tags origin main
+    ```
+    where `origin` points to the ``github.com/skyportal/skyportal`` repository.
+5. Create a new release on GitHub, using the tag you just created. Include a summary of the changes in the release notes/changelog.

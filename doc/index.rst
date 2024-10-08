@@ -88,6 +88,7 @@ User Guide
    api
    dev
    deploy
+   versioning
    data_loader
    contributing
    adding_features
