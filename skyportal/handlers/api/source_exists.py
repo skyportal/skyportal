@@ -15,7 +15,8 @@ class SourceExistsHandler(BaseHandler):
         """
         ---
         single:
-          description: Retrieve a source
+          summary: Check if a source exists
+          description: Check if a source exists by ID
           tags:
             - sources
           parameters:
@@ -25,7 +26,8 @@ class SourceExistsHandler(BaseHandler):
               schema:
                 type: string
         multiple:
-          description: Retrieve all sources
+          summary: Check if a source exists by position
+          description: Check if a source exists by RA, Dec, and radius
           tags:
             - sources
           parameters:

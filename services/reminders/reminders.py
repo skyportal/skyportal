@@ -1,6 +1,4 @@
-from datetime import datetime, timedelta
-
-from astropy.time import Time
+from datetime import datetime, timedelta, timezone
 
 from baselayer.log import make_log
 from baselayer.app.models import init_db
@@ -28,7 +26,7 @@ log = make_log('reminders')
 
 
 def send_reminders():
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     reminders = []
     with DBSession() as session:
         try:
@@ -106,10 +104,7 @@ def send_reminders():
             while True:
                 reminder.number_of_reminders -= 1
                 reminder.next_reminder += timedelta(days=reminder.reminder_delay)
-                if (
-                    reminder.next_reminder > Time(now, format='datetime')
-                    or reminder.number_of_reminders == 0
-                ):
+                if reminder.next_reminder > now or reminder.number_of_reminders == 0:
                     break
             session.add(reminder)
             session.commit()

@@ -23,6 +23,7 @@ class PhotStatHandler(BaseHandler):
     def get(self, obj_id=None):
         """
         ---
+        summary: Get photometry stats for a source
         description: retrieve the PhotStat associated with the obj_id.
         tags:
           - photometry
@@ -80,6 +81,7 @@ class PhotStatHandler(BaseHandler):
     def post(self, obj_id=None):
         """
         ---
+        summary: Create new phot stats for a source
         description: create a new PhotStat to be associated with the obj_id.
         tags:
           - photometry
@@ -130,6 +132,7 @@ class PhotStatHandler(BaseHandler):
     def put(self, obj_id=None):
         """
         ---
+        summary: Update phot stats for a source
         description: create or update the PhotStat associated with the obj_id.
         tags:
           - photometry
@@ -177,6 +180,7 @@ class PhotStatHandler(BaseHandler):
     def delete(self, obj_id=None):
         """
         ---
+        summary: Delete phot stats of a source
         description: delete the PhotStat associated with the obj_id.
         tags:
           - photometry
@@ -224,6 +228,7 @@ class PhotStatUpdateHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Get counts of sources w/ and w/o PhotStats
         description: find the number of sources with and without a PhotStat object
         tags:
           - photometry
@@ -399,6 +404,7 @@ class PhotStatUpdateHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Calculate phot stats for a batch of sources
         description: calculate photometric stats for a batch of sources without a PhotStat
         tags:
           - photometry
@@ -526,6 +532,7 @@ class PhotStatUpdateHandler(BaseHandler):
     def patch(self):
         """
         ---
+        summary: Recalculate phot stats for a batch of sources
         description: manually recalculate the photometric stats for a batch of sources
         tags:
           - photometry

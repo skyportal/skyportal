@@ -13,6 +13,7 @@ class PublicGroupHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get the public group
           description: Retrieve the public group
           tags:
             - groups

@@ -116,6 +116,7 @@ const useStyles = makeStyles((theme) => ({
   }
 }));
 
+// eslint-disable-next-line react/prop-types
 const SidebarLinkText = ({ route, title, open }) => {
   const classes = useStyles();
   const currentRoute = useLocation().pathname;

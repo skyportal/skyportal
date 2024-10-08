@@ -36,13 +36,9 @@ doc_reqs:
 
 api-docs: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 api-docs: | doc_reqs
-	@PYTHONPATH=. python tools/openapi/build-spec.py $(FLAGS)
-	npx @redocly/cli build-docs openapi.json \
-          --title "SkyPortal API docs" \
-          --theme.openapi.logo.gutter 2rem
+	@PYTHONPATH=. python tools/docs/build-spec.py $(FLAGS)
+	@PYTHONPATH=. python tools/docs/patch-api-doc-template.py $(FLAGS)
 	rm -f openapi.{yml,json}
-	mkdir -p doc/_build/html
-	mv redoc-static.html doc/openapi.html
 
 docs: ## Build the SkyPortal docs
 docs: | doc_reqs api-docs

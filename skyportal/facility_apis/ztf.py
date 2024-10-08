@@ -1246,6 +1246,12 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                     if obstable[col].dtype == 'object':
                         obstable[col] = obstable[col].str.strip()
 
+                if obstable.empty:
+                    log(
+                        f'No observations for instrument ID {instrument_id} for JD: {jd}'
+                    )
+                    continue
+
                 # remove the columns we do not need:
                 obstable = obstable[
                     [

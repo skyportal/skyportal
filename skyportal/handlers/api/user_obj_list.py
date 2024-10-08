@@ -32,6 +32,7 @@ class UserObjListHandler(BaseHandler):
     def get(self, user_id=None):
         """
         ---
+        summary: Get user object listings
         description: Retrieve sources from a user's lists
         parameters:
           - in: path
@@ -80,6 +81,7 @@ class UserObjListHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Add a listing
         description: Add a listing.
         tags:
         - listings
@@ -236,6 +238,7 @@ class UserObjListHandler(BaseHandler):
     def patch(self, listing_id):
         """
         ---
+        summary: Update a listing
         description: Update an existing listing
         tags:
         - listings
@@ -335,6 +338,7 @@ class UserObjListHandler(BaseHandler):
     def delete(self, listing_id=None):
         """
         ---
+        summary: Remove a listing
         description: Remove an existing listing
         tags:
         - listings

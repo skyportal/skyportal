@@ -64,9 +64,10 @@ class FacilityMessageHandler(BaseHandler):
     ]
     post.__doc__ = f"""
     ---
+    summary: Post a message from a remote facility
     description: Post a message from a remote facility
     tags:
-      - facility
+      - followup requests
     requestBody:
       content:
         application/json:

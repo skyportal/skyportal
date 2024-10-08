@@ -220,6 +220,7 @@ const PeriodAnnotationDialog = ({ obj_id, period, periodUnit }) => {
 PeriodAnnotationDialog.propTypes = {
   obj_id: PropTypes.string.isRequired,
   period: PropTypes.number.isRequired,
+  periodUnit: PropTypes.string.isRequired,
 };
 
 const PhotometryPlot = ({

@@ -62,9 +62,10 @@ class CatalogQueryHandler(BaseHandler):
     async def post(self):
         """
         ---
-        description: Submit catalog queries
+        summary: Submit catalog queries
+        description: Submit catalog queries, retrieving sources in GCN localization.
         tags:
-          - catalog_queries
+          - gcn event catalog queries
         requestBody:
           content:
             application/json:
@@ -380,9 +381,12 @@ class SwiftLSXPSQueryHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Post Swift LSXPS objects as sources
         description: |
             Get Swift LSXPS objects and post them as sources.
             Repeated posting will skip the existing source.
+        tags:
+            - catalogs
         requestBody:
           content:
             application/json:
@@ -599,9 +603,12 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Post Gaia Photometric Alert as sources
         description: |
             Get Gaia Photometric Alert objects and post them as sources.
             Repeated posting will skip the existing source.
+        tags:
+            - catalogs
         requestBody:
           content:
             application/json:
@@ -818,9 +825,13 @@ class TessTransientsQueryHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Post TESS transients as sources
         description: |
             Get TESS transient objects and post them as sources.
             Repeated posting will skip the existing source.
+        tags:
+            - catalogs
+            - tess
         requestBody:
           content:
             application/json:

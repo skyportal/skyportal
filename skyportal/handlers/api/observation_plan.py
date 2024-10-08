@@ -2,6 +2,7 @@ import asyncio
 import functools
 import io
 import json
+import operator  # noqa: F401
 import os
 import random
 import re
@@ -98,6 +99,7 @@ DEFAULT_OBSPLAN_OPTIONS = [
     'localization_tags',
     'localization_properties',
     'gcn_properties',
+    'plan_properties',
 ]
 
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
@@ -162,6 +164,15 @@ TREASUREMAP_FILTERS["ztfg"] = "g"
 TREASUREMAP_FILTERS["ztfr"] = "r"
 TREASUREMAP_FILTERS["ztfi"] = "i"
 
+op_options = [
+    "lt",
+    "le",
+    "eq",
+    "ne",
+    "ge",
+    "gt",
+]
+
 Session = scoped_session(sessionmaker())
 
 observation_plans_microservice_url = (
@@ -171,7 +182,7 @@ observation_plans_microservice_url = (
 MAX_OBSERVATION_PLAN_REQUESTS = 1000
 
 
-def send_observation_plan(plan_id, session, auto_send=False):
+def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=None):
     """Send observation plan to queue
 
     Parameters
@@ -206,9 +217,9 @@ def send_observation_plan(plan_id, session, auto_send=False):
         )
         return
 
-    if auto_send:
-        # if we already sent a plan for this event + allocation
-        # in the last 24 hours, we avoid auto-sending again.
+    if auto_send and default_obsplan_id is not None:
+        # if we already sent a plan for this event + allocation,
+        # we avoid auto-sending again.
         existing_obs_plan_requests = session.scalars(
             sa.select(ObservationPlanRequest).where(
                 ObservationPlanRequest.gcnevent_id
@@ -216,8 +227,6 @@ def send_observation_plan(plan_id, session, auto_send=False):
                 ObservationPlanRequest.allocation_id
                 == observation_plan_request.allocation_id,
                 ObservationPlanRequest.status == "submitted to telescope queue",
-                ObservationPlanRequest.modified
-                > datetime.utcnow() - timedelta(hours=24),
             )
         ).first()
         if existing_obs_plan_requests:
@@ -225,6 +234,84 @@ def send_observation_plan(plan_id, session, auto_send=False):
                 f"Skipping auto-send of observation plan {observation_plan_request.id}: plans have already been sent to the instrument in the last 24 hours for event {observation_plan_request.gcnevent_id} and allocation {observation_plan_request.allocation_id}"
             )
             return
+
+        defaultobsplanrequest = session.scalar(
+            sa.select(DefaultObservationPlanRequest).where(
+                DefaultObservationPlanRequest.id == int(default_obsplan_id)
+            )
+        )
+        if defaultobsplanrequest is None:
+            log(
+                f"Cannot find default observation plan request with ID: {default_obsplan_id}, skipping auto send."
+            )
+            return
+
+        filters = defaultobsplanrequest.filters
+        if not filters or not isinstance(filters, dict):
+            log(
+                f"Default observation plan request {default_obsplan_id} has no filters, skipping auto send."
+            )
+            return
+
+        plan_properties = filters.get('plan_properties', [])
+        if len(plan_properties) > 0:
+            try:
+                statistics = (
+                    observation_plan_request.observation_plans[0]
+                    .statistics[0]
+                    .statistics
+                )
+            except Exception as e:
+                log(f"Error getting statistics for observation plan {plan_id}: {e}")
+                return
+
+            properties_pass = True
+            for prop_filt in plan_properties:
+                prop_split = prop_filt.split(":")
+                if not len(prop_split) == 3:
+                    log(
+                        f"Invalid propertiesFilter value -- property filter must have 3 values, cannot auto-send default observation plan {default_obsplan_id}"
+                    )
+                    properties_pass = False
+                    break
+
+                name = prop_split[0].strip()
+                if name not in statistics:
+                    properties_pass = False
+                    break
+
+                value = prop_split[1].strip()
+                try:
+                    value = float(value)
+                except ValueError as e:
+                    log(
+                        f"Invalid propertiesFilter value: {e}, cannot auto-send default observation plan {default_obsplan_id}"
+                    )
+                    properties_pass = False
+                    break
+
+                op = prop_split[2].strip()
+                if op not in op_options:
+                    log(
+                        f"Invalid operator: {op}, skipping default observation plan {default_obsplan_id}"
+                    )
+                    properties_pass = False
+                    break
+                comp_function = getattr(operator, op)
+                if not comp_function(statistics[name], value):
+                    properties_pass = False
+                    break
+
+            if not properties_pass:
+                log(
+                    f"Default observation plan request {default_obsplan_id} failed plan properties/statistics filter, skipping auto send."
+                )
+                return
+
+    # if the observation plan has no observations scheduled, don't send it
+    if not observation_plan_request.observation_plans[0].planned_observations:
+        log(f"No planned observations for observation plan {plan_id}, skipping send.")
+        return
 
     api = observation_plan_request.instrument.api_class_obsplan
     if not api.implements().get('send', False):
@@ -585,7 +672,9 @@ def post_observation_plan(
             f'Invalid / missing parameters: {e.normalized_messages()}'
         )
 
-    data["requester_id"] = user.id
+    data["requester_id"] = (
+        user.id if data.get("requester_id") is None else int(data.get("requester_id"))
+    )
     data["last_modified_by_id"] = user.id
     data['allocation_id'] = int(data['allocation_id'])
     data['localization_id'] = int(data['localization_id'])
@@ -656,9 +745,10 @@ class ObservationPlanRequestHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Submit observation plan request.
         description: Submit observation plan request.
         tags:
-          - observation_plan_requests
+          - observation plan requests
         requestBody:
           content:
             application/json:
@@ -757,9 +847,10 @@ class ObservationPlanRequestHandler(BaseHandler):
         f"""
         ---
         single:
+          summary: Get an observation plan.
           description: Get an observation plan.
           tags:
-            - observation_plan_requests
+            - observation plan requests
           parameters:
             - in: path
               name: observation_plan_id
@@ -783,9 +874,10 @@ class ObservationPlanRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all observation plans.
           description: Get all observation plans.
           tags:
-            - observation_plan_requests
+            - observation plan requests
           parameters:
             - in: query
               name: dateobs
@@ -1046,9 +1138,10 @@ class ObservationPlanRequestHandler(BaseHandler):
     def delete(self, observation_plan_request_id):
         """
         ---
+        summary: Delete observation plan request.
         description: Delete observation plan.
         tags:
-          - observation_plan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: observation_plan_id
@@ -1101,9 +1194,10 @@ class ObservationPlanManualRequestHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Submit manual observation plan request.
         description: Submit manual observation plan.
         tags:
-          - observation_plan_requests
+          - observation plan requests
         requestBody:
           content:
             application/json:
@@ -1237,9 +1331,10 @@ class ObservationPlanSubmitHandler(BaseHandler):
     def post(self, observation_plan_request_id):
         """
         ---
+        summary: Submit observation plan request to telescope.
         description: Submit an observation plan.
         tags:
-          - observation_plan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: observation_plan_id
@@ -1266,9 +1361,10 @@ class ObservationPlanSubmitHandler(BaseHandler):
     def delete(self, observation_plan_request_id):
         """
         ---
+        summary: Remove observation plan request from telescope queue.
         description: Remove an observation plan from the queue.
         tags:
-          - observation_plan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: observation_plan_id
@@ -1324,9 +1420,10 @@ class ObservationPlanNameHandler(BaseHandler):
         """
         ---
         multiple:
+            summary: Get all observation plan names.
             description: Get all Observation Plan names
             tags:
-              - observation_plans
+              - observation plans
             responses:
               200:
                 content:
@@ -1337,9 +1434,10 @@ class ObservationPlanNameHandler(BaseHandler):
                   application/json:
                     schema: Error
         single:
+            summary: Check if an observation plan name exists.
             description: Verify that an Observation Plan name exists
             tags:
-              - observation_plans
+              - observation plans
             parameters:
               - in: query
                 name: name
@@ -1396,9 +1494,10 @@ class ObservationPlanGCNHandler(BaseHandler):
     def get(self, observation_plan_request_id):
         """
         ---
+        summary: Get GCN summary for observation plan request.
         description: Get a GCN-izable summary of the observation plan.
         tags:
-          - observation_plan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: observation_plan_id
@@ -1610,9 +1709,10 @@ class ObservationPlanMovieHandler(BaseHandler):
     async def get(self, observation_plan_request_id):
         """
         ---
+        summary: Get a movie of the observation plan.
         description: Get a movie summary of the observation plan.
         tags:
-          - observation_plan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: observation_plan_id
@@ -1689,9 +1789,10 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
     def post(self, observation_plan_request_id):
         """
         ---
+        summary: Submit observation plan request to TreasureMap.
         description: Submit the observation plan to treasuremap.space
         tags:
-          - observation_plan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: observation_plan_id
@@ -1856,9 +1957,10 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
     def delete(self, observation_plan_request_id):
         """
         ---
+        summary: Remove observation plan from treasuremap.space.
         description: Remove observation plan from treasuremap.space.
         tags:
-          - observationplan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: observation_plan_id
@@ -1942,9 +2044,10 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
     def get(self, observation_plan_request_id):
         """
         ---
+        summary: Get survey efficiency analyses of the observation plan.
         description: Get survey efficiency analyses of the observation plan.
         tags:
-          - observation_plan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: observation_plan_id
@@ -2001,9 +2104,10 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
     def get(self, observation_plan_request_id):
         """
         ---
+        summary: Get GeoJSON summary of the observation plan.
         description: Get GeoJSON summary of the observation plan.
         tags:
-          - observation_plan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: observation_plan_id
@@ -2062,9 +2166,10 @@ class ObservationPlanFieldsHandler(BaseHandler):
     def delete(self, observation_plan_request_id):
         """
         ---
+        summary: Delete fields from the observation plan.
         description: Delete selected fields from the observation plan.
         tags:
-          - observation_plan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: observation_plan_id
@@ -2140,6 +2245,7 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
     async def get(self, localization_id):
         """
         ---
+        summary: Create a summary plot for an event's observability.
         description: Create a summary plot for the observability for a given event.
         tags:
           - localizations
@@ -2281,6 +2387,7 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
     async def get(self, localization_id):
         """
         ---
+        summary: Create a summary plot for an event's observability.
         description: Create a summary plot for the observability for a given event.
         tags:
           - localizations
@@ -2395,9 +2502,10 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
     async def get(self, localization_id, telescope_id):
         """
         ---
+        summary: Create an airmass chart for an event.
         description: Get an airmass chart for the GcnEvent
         tags:
-          - observation_plan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: localization_id
@@ -2476,10 +2584,11 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
     def post(self, observation_plan_request_id):
         """
         ---
+        summary: Create observing run from observation plan.
         description: Submit the fields in the observation plan
            to an observing run
         tags:
-          - observation_plan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: observation_plan_id
@@ -2983,9 +3092,10 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
     async def get(self, observation_plan_request_id):
         """
         ---
+        summary: Run a simsurvey analysis for an observation plan request
         description: Perform an efficiency analysis of the observation plan.
         tags:
-          - observation_plan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: observation_plan_id
@@ -3250,9 +3360,10 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
     def delete(self, survey_efficiency_analysis_id):
         """
         ---
+        summary: Delete a simsurvey efficiency calculation.
         description: Delete a simsurvey efficiency calculation.
         tags:
-          - survey_efficiency_for_observation_plans
+          - survey efficiency
         parameters:
           - in: path
             name: survey_efficiency_analysis_id
@@ -3290,9 +3401,10 @@ class ObservationPlanSimSurveyPlotHandler(BaseHandler):
     async def get(self, survey_efficiency_analysis_id):
         """
         ---
+        summary: Create a summary plot for a simsurvey.
         description: Create a summary plot for a simsurvey efficiency calculation.
         tags:
-          - survey_efficiency_for_observations
+          - survey efficiency
         parameters:
           - in: path
             name: survey_efficiency_analysis_id
@@ -3346,9 +3458,10 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create default observation plan requests.
         description: Create default observation plan requests.
         tags:
-          - default_observation_plan
+          - default observation plan
         requestBody:
           content:
             application/json:
@@ -3454,7 +3567,19 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                     f'Filters must contain at least one of: {DEFAULT_OBSPLAN_OPTIONS}'
                 )
 
+            # verify that the filters are valid, i.e that they are in the allowed options
+            if isinstance(filters, dict):
+                for key in filters.keys():
+                    if key not in DEFAULT_OBSPLAN_OPTIONS:
+                        return self.error(
+                            f'Invalid filter key: {key}, must be one of {DEFAULT_OBSPLAN_OPTIONS}'
+                        )
+
             default_observation_plan_request.target_groups = target_groups
+            if default_observation_plan_request.requester_id is None:
+                default_observation_plan_request.requester_id = (
+                    self.associated_user_object.id
+                )
 
             session.add(default_observation_plan_request)
             session.commit()
@@ -3467,9 +3592,10 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
         """
         ---
         single:
+          summary: Retrieve a default observation plan
           description: Retrieve a single default observation plan
           tags:
-            - default_observation_plans
+            - default observation plan
           parameters:
             - in: path
               name: default_observation_plan_id
@@ -3486,6 +3612,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve all default observation plans
           description: Retrieve all default observation plans
           tags:
             - filters
@@ -3542,6 +3669,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
     def delete(self, default_observation_plan_id):
         """
         ---
+        summary: Delete a default observation plan request.
         description: Delete a default observation plan
         tags:
           - filters

@@ -2,6 +2,7 @@ import os
 import pytest
 import time
 import uuid
+import requests
 
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
@@ -12,6 +13,17 @@ from baselayer.app.config import load_config
 
 
 cfg = load_config()
+
+tach_isonline = False
+try:
+    response = requests.get(
+        "https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/", timeout=5
+    )
+    response.raise_for_status()
+except Exception:
+    pass
+else:
+    tach_isonline = True
 
 
 def get_summary(driver, user, group, showSources, showGalaxies, showObservations):
@@ -57,6 +69,7 @@ def get_summary(driver, user, group, showSources, showGalaxies, showObservations
 
 
 @pytest.mark.flaky(reruns=3)
+@pytest.mark.skipif(not tach_isonline, reason="GCN TACH is not online")
 def test_gcn_tach(
     driver,
     super_admin_user,

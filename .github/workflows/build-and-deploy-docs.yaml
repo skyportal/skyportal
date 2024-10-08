@@ -5,13 +5,18 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy-docs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
-    if: github.repository_owner == 'skyportal'
+    if: github.repository_owner == 'skyportal' && github.event.pull_request.draft == false
 
     services:
       postgres:
@@ -30,43 +35,73 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/setup-python@v4
+      - uses: "MercuryTechnologies/delete-cancelled-runs@f5c9d322d9c7afbd41f779199818c1ffe381d34b" #v1.0.0
         with:
-          python-version: '3.10'
+          workflow-file: "build-and-deploy-docs.yaml"
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+            ${{ runner.os }}-npm-
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+            ${{ runner.os }}-pip-
+
+      # caching dustmap & sncosmo files is dependent on their corresponding
+      # python package versions, so we use that as the cache key
+      - uses: actions/cache@v4
+        with:
+          path: |
+            persistentdata/dustmap/sfd
+          key: ${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
+            ${{ runner.os }}-dustmap-
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.astropy/cache/sncosmo/bandpasses
+          key: ${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
+            ${{ runner.os }}-sncosmo-
 
       - name: Setup Graphviz
         uses: ts-graphviz/setup-graphviz@v1
 
       - name: Write SkyPortal config
         run: |
-            cat << EOF > config.yaml
-              database:
-                database: skyportal
-                host: localhost
-                port: 5432
-                user: skyportal
-                password: anything
-            EOF
+          cat << EOF > config.yaml
+            database:
+              database: skyportal
+              host: localhost
+              port: 5432
+              user: skyportal
+              password: anything
+          EOF
 
       - name: Install system dependencies
         run: |
@@ -85,7 +120,7 @@ jobs:
           sudo npm -g install npm@latest
 
       - name: Checkout branch being tested
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: true
@@ -96,17 +131,11 @@ jobs:
           make docs
           touch doc/_build/html/.nojekyll
 
-      - name: Install SSH Client 🔑
-        if: github.ref == 'refs/heads/main'
-        uses: webfactory/ssh-agent@v0.4.1
-        with:
-          ssh-private-key: ${{ secrets.CI_DEPLOY_KEY }}
-
       - name: Deploy docs
         if: github.ref == 'refs/heads/main'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          FOLDER: doc/_build/html
-          REPOSITORY_NAME: skyportal/docs
-          BRANCH: gh-pages
-          SSH: true
+          folder: doc/_build/html
+          repository-name: skyportal/docs
+          branch: gh-pages
+          token: ${{ secrets.DEPLOY_DOCS_TOKEN }}

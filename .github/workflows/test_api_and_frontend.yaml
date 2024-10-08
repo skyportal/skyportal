@@ -5,9 +5,11 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
 
 jobs:
-  test:
+  test-api-and-frontend:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 120
     services:
@@ -40,32 +42,58 @@ jobs:
           ]
 
     steps:
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Checkout main
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: main
           submodules: true
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+            ${{ runner.os }}-npm-
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pip
-          key: ${{ runner.os }}-${{ hashFiles('**/requirements*.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+            ${{ runner.os }}-pip-
+
+      # caching dustmap & sncosmo files is dependent on their corresponding
+      # python package versions, so we use that as the cache key
+      - uses: actions/cache@v4
+        with:
+          path: |
+            persistentdata/dustmap/sfd
+          key: ${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
+            ${{ runner.os }}-dustmap-
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.astropy/cache/sncosmo/bandpasses
+          key: ${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
+            ${{ runner.os }}-sncosmo-
 
       - uses: browser-actions/setup-geckodriver@latest
         with:
@@ -131,7 +159,7 @@ jobs:
           firefox --version
 
       - name: Checkout branch being tested
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: true
@@ -219,22 +247,22 @@ jobs:
           PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/external'
 
       - name: Upload logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: logs
+          name: logs-${{ matrix.test_subset }}
           path: log
 
       - name: Upload test post-mortem reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: test-results
+          name: test-results-${{ matrix.test_subset }}
           path: test-results
 
       - name: Upload generated plots
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: generated-plots
+          name: generated-plots-${{ matrix.test_subset }}
           path: skyportal/tests/data/*_expected.png

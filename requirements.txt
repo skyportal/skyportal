@@ -1,31 +1,32 @@
 astroscrappy==1.2.0
-numpy==1.23.4
-scipy==1.13.1
-pandas==2.2.0
-dask==2024.5.2
+numpy>=1.23.4,<2.0.0
+scipy>=1.13.1, <2.0.0
+pandas>=2.2.0, <3.0.0
+dask>=2024.5.2
 geopandas==1.0.1
+fiona==1.9.6
 intervals==0.9.2
-joblib==1.4.2
-seaborn==0.13.2
+joblib>=1.4.2, <2.0.0
+seaborn>=0.13.2, <1.0.0
 pytest-randomly==3.15.0
-factory-boy==3.3.0
+factory-boy==3.3.1
 astropy==6.1.0
-distributed==2024.5.2
+distributed>=2024.5.2
 dustmaps==1.0.13
 reproject==0.14.0
 avro-python3==1.10.2
-fastavro==1.9.4
+fastavro>=1.9.4,<2.0.0
 tqdm>=4.27,<4.67
-matplotlib==3.6.2
+matplotlib>=3.6.2, <3.8.0
 astroquery==0.4.7
-apispec==6.3.0
+apispec>=6.3.0, <7.0.0
 marshmallow==3.21.3
-marshmallow-sqlalchemy==1.0.0
+marshmallow-sqlalchemy==1.1.0
 marshmallow-enum==1.5.1
 Pillow>=8.4.0
 pyproj==3.6.1
-pytest==8.3.2
-sncosmo==2.10.4
+pytest>=8.3.2, <9.0.0
+sncosmo==2.11.1
 tdtax==0.1.4
 healpix-alchemy==1.1.0
 mocpy==0.16.2
@@ -34,10 +35,10 @@ conesearch-alchemy==1.0.0
 regions==0.9
 jsonschema==4.21.1
 jsonpath_ng==1.6.1
-pytest-rerunfailures==14.0
-tables==3.9.2
+pytest-rerunfailures>=14.0
+tables>=3.10.1,<4.0.0
 timezonefinder==6.5.2
-astroplan==0.10
+astroplan==0.10.1
 email-validator==2.2.0
 alembic==1.13.2
 marshmallow-jsonschema==0.13.0
@@ -47,9 +48,9 @@ requests_toolbelt==0.10.1
 sendgrid==6.11.0
 responses==0.25.3
 twilio==9.2.2
-numba==0.60.0
+numba>=0.59.0
 pyvo==1.5.2
-lxml==5.2.2
+lxml==5.3.0
 suds-py3==1.4.5.0
 vcrpy==6.0.1
 aiosmtpd==1.4.6
@@ -57,13 +58,13 @@ ligo.skymap==2.0.1
 healpy==1.17.1
 pygcn==1.1.2
 pysedm==0.31.1
-xmlschema==3.3.1
-requests==2.32.3
+xmlschema==3.3.2
+requests>=2.30.0, <3.0.0
 geojson==3.1.0
 typing-extensions==4.12.2
 swifttools==3.0.22
-pip==24.2
-gwemopt==0.3.4
+pip>=24.0.0
+gwemopt==0.3.5
 humanize==4.9.0
 xarray>=21.1
 simsurvey==0.7.5
@@ -72,23 +73,23 @@ black==24.4.2
 click==8.1.7
 arviz==0.19.0
 corner==2.2.2
-penquins==2.4.1
+penquins==2.4.2
 selenium==4.8.3
 selenium-requests==2.0.4
 afterglowpy==0.8.0
 gcn-kafka==0.3.3
-confluent_kafka==2.2.0 # dependency of gcn-kafka: pinning to understand memory effects on GCNEvents
+confluent_kafka==2.5.0 # dependency of gcn-kafka: pinning to understand memory effects on GCNEvents
 iminuit==2.26.0
-watchdog==4.0.1
+watchdog==5.0.0
 PyAstronomy==0.21.0
-shapely==2.0.4
+shapely==2.0.6
 openai==1.12.0
 tiktoken==0.7.0
 simplejson==3.19.2
 langchain==0.1.14
 langchain-openai==0.0.6
 pinecone-client==4.1.0
-pydantic==2.7.1
+pydantic==2.9.2
 sentry-sdk==2.8.0
 typing-inspect==0.9.0
 brotli==1.1.0

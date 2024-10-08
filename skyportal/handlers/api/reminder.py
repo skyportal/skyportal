@@ -178,6 +178,7 @@ class ReminderHandler(BaseHandler):
         """
         ---
         single:
+          summary: Retrieve a reminder
           description: Retrieve a reminder
           tags:
             - reminders
@@ -219,13 +220,14 @@ class ReminderHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve all reminders
           description: Retrieve all reminders associated with specified resource
           tags:
             - reminders
             - spectra
             - sources
-            - gcn_event
-            - earthquake
+            - gcn events
+            - earthquakes
           parameters:
             - in: path
               name: associated_resource_type
@@ -351,9 +353,10 @@ class ReminderHandler(BaseHandler):
             return self.error(str(e))
 
     @permissions(['Reminder'])
-    def post(self, associated_resource_type, resource_id, reminder_id=None):
+    def post(self, associated_resource_type, resource_id, *ignored_args):
         """
         ---
+        summary: Post a reminder
         description: Post a reminder
         tags:
           - reminders
@@ -530,6 +533,7 @@ class ReminderHandler(BaseHandler):
     def patch(self, associated_resource_type, resource_id, reminder_id):
         """
         ---
+        summary: Update a reminder
         description: Update a reminder
         tags:
           - reminders
@@ -763,6 +767,7 @@ class ReminderHandler(BaseHandler):
     def delete(self, associated_resource_type, resource_id, reminder_id):
         """
         ---
+        summary: Delete a reminder
         description: Delete a reminder
         tags:
           - reminders

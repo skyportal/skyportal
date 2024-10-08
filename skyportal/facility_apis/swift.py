@@ -215,6 +215,12 @@ class UVOTXRTRequest:
         modes_index = modes_values.index(request.payload["uvot_mode"])
         too.uvot_mode = modes_keys[modes_index]
         too.science_just = request.payload["science_just"]
+        if too.uvot_mode == '0x0270':
+            too.uvot_just = request.payload.get("uvot_just", None)
+            if not too.uvot_just:
+                raise ValueError(
+                    'uvot_just is required when the UVOT mode select is 0x0270 (ToO Upload Mode).'
+                )
 
         return too
 
@@ -529,12 +535,27 @@ class UVOTXRTAPI(FollowUpAPI):
             r = requests.post(
                 url=API_URL, verify=True, data={'jwt': swiftreq.requestgroup.jwt}
             )
-            r.raise_for_status()
 
             if r.status_code == 200:
                 request.status = 'submitted'
             else:
                 request.status = f'rejected: {r.content}'
+                log(
+                    f'Failed to submit Swift request for {request.id} (obj {request.obj.id}): {r.content}'
+                )
+                try:
+                    flow = Flow()
+                    flow.push(
+                        request.last_modified_by_id,
+                        'baselayer/SHOW_NOTIFICATION',
+                        payload={
+                            'message': f'Failed to submit Swift request: {r.content}',
+                            'type': 'error',
+                        },
+                    )
+                except Exception as e:
+                    log(f'Failed to send notification: {e}')
+                    pass
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -747,6 +768,38 @@ class UVOTXRTAPI(FollowUpAPI):
                                 "title": "Science Justification",
                                 "type": "string",
                                 "default": "An X-ray detection of this transient will further associate this object to a relativistic explosion and will help unveil the nature of the progenitor type.",
+                            },
+                        },
+                        "dependencies": {
+                            "uvot_mode": {
+                                "oneOf": [
+                                    {
+                                        "properties": {
+                                            "uvot_mode": {
+                                                "enum": [
+                                                    "0x0270 - U+B+V+All UV (ToO Upload Mode)"
+                                                ],
+                                            },
+                                            "uvot_just": {
+                                                "title": "UVOT Mode Justification",
+                                                "type": "string",
+                                                "default": "We wish to use mode 0x0270 - U+B+V+All UV (ToO Upload Mode).",
+                                            },
+                                        },
+                                        "required": ["uvot_just"],
+                                    },
+                                    {
+                                        "properties": {
+                                            "uvot_mode": {
+                                                "not": {
+                                                    "enum": [
+                                                        "0x0270 - U+B+V+All UV (ToO Upload Mode)"
+                                                    ],
+                                                },
+                                            },
+                                        }
+                                    },
+                                ]
                             },
                         },
                     },

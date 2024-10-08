@@ -89,116 +89,121 @@ def get_color_mag(annotations, **kwargs):
 
 
 class ObjColorMagHandler(BaseHandler):
-    """
-    ---
-    description: |
-        get the color and absolute magnitude of a source
-        based on cross-matches to some catalog (default is GAIA).
-    parameters:
-    - in: path
-        name: obj_id
-        required: true
-        schema:
-          type: string
-        description: ID of the object to retrieve photometry for
-      - in: query
-        name: catalog
-        required: false
-        schema:
-          type: string
+    @auth_or_token
+    def get(self, obj_id):
+        """
+        ---
+        summary: Get color and absolute magnitude of a source
         description: |
-          Partial match to the origin,
-          associated with a catalog cross match,
-          from which the color-mag data should be retrieved.
-          Default is GAIA. Ignores case and underscores.
-      - in: query
-        name: apparentMagKey
-        required: false
-        schema:
-          type: string
-        description: |
-          The key inside the cross-match which is associated
-          with the magnitude of the color-magnitude data.
-          Will look for parallax data in addition to this magnitude
-          in order to calculate the absolute magnitude of the object.
-          Default is "Mag_G". Ignores case and underscores.
-      - in: query
-        name: parallaxKey
-        required: false
-        schema:
-          type: string
-        description: |
-          The key inside the cross-match which is associated
-          with the parallax of the source.
-          Will look for magnitude data in addition to this parallax
-          in order to calculate the absolute magnitude of the object.
-          Default is "Plx". Ignores case and underscores.
-      - in: query
-        name: absorptionKey
-        required: false
-        schema:
-          type: string
-        description: |
-          The key inside the cross-match which is associated
-          with the source absorption term.
-          Will add this term to the absolute magnitude calculated
-          from apparent magnitude and parallax.
-          Default is "A_G". Ignores case and underscores.
-      - in: query
-        name: absoluteMagKey
-        required: false
-        schema:
-          type: string
-        description: |
-          The key inside the cross-match which is associated
-          with the absolute magnitude of the color-magnitude data.
-          If given, will override the "apparentMagKey", "parallaxKey"
-          and "absorptionKey", and takes the magnitude directly from
-          this key in the cross match dictionary.
-          Default is None. Ignores case and underscores.
-      - in: query
-        name: blueMagKey
-        required: false
-        schema:
-          type: string
-        description: |
-          The key inside the cross-match which is associated
-          with the source magnitude in the shorter wavelength.
-          Will add this term to the red magnitude to get the color.
-          Default is "Mag_Bp". Ignores case and underscores.
-      - in: query
-        name: redMagKey
-        required: false
-        schema:
-          type: string
-        description: |
-          The key inside the cross-match which is associated
-          with the source magnitude in the longer wavelength.
-          Will add this term to the blue magnitude to get the color.
-          Default is "Mag_Rp". Ignores case and underscores.
-      - in: query
-        name: colorKey
-        required: false
-        schema:
-          type: string
-        description: |
-          The key inside the cross-match which is associated
-          with the color term of the color-magnitude data.
-          If given, will override the "blueMagKey", and "redMagKey",
-          taking the color directly from the associated dictionary value.
-          Default is None. Ignores case and underscores.
-
-    responses:
-      200:
-        content:
-          application/json:
+            get the color and absolute magnitude of a source
+            based on cross-matches to some catalog (default is GAIA).
+        tags:
+          - objs
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
             schema:
-              allOf:
-                  - $ref: '#/components/schemas/Success'
-                  - type: array
-                    items:
-                      type: object
-                      properties:
+              type: string
+            description: ID of the object to retrieve photometry for
+          - in: query
+            name: catalog
+            required: false
+            schema:
+              type: string
+            description: |
+              Partial match to the origin,
+              associated with a catalog cross match,
+              from which the color-mag data should be retrieved.
+              Default is GAIA. Ignores case and underscores.
+          - in: query
+            name: apparentMagKey
+            required: false
+            schema:
+              type: string
+            description: |
+              The key inside the cross-match which is associated
+              with the magnitude of the color-magnitude data.
+              Will look for parallax data in addition to this magnitude
+              in order to calculate the absolute magnitude of the object.
+              Default is "Mag_G". Ignores case and underscores.
+          - in: query
+            name: parallaxKey
+            required: false
+            schema:
+              type: string
+            description: |
+              The key inside the cross-match which is associated
+              with the parallax of the source.
+              Will look for magnitude data in addition to this parallax
+              in order to calculate the absolute magnitude of the object.
+              Default is "Plx". Ignores case and underscores.
+          - in: query
+            name: absorptionKey
+            required: false
+            schema:
+              type: string
+            description: |
+              The key inside the cross-match which is associated
+              with the source absorption term.
+              Will add this term to the absolute magnitude calculated
+              from apparent magnitude and parallax.
+              Default is "A_G". Ignores case and underscores.
+          - in: query
+            name: absoluteMagKey
+            required: false
+            schema:
+              type: string
+            description: |
+              The key inside the cross-match which is associated
+              with the absolute magnitude of the color-magnitude data.
+              If given, will override the "apparentMagKey", "parallaxKey"
+              and "absorptionKey", and takes the magnitude directly from
+              this key in the cross match dictionary.
+              Default is None. Ignores case and underscores.
+          - in: query
+            name: blueMagKey
+            required: false
+            schema:
+              type: string
+            description: |
+              The key inside the cross-match which is associated
+              with the source magnitude in the shorter wavelength.
+              Will add this term to the red magnitude to get the color.
+              Default is "Mag_Bp". Ignores case and underscores.
+          - in: query
+            name: redMagKey
+            required: false
+            schema:
+              type: string
+            description: |
+              The key inside the cross-match which is associated
+              with the source magnitude in the longer wavelength.
+              Will add this term to the blue magnitude to get the color.
+              Default is "Mag_Rp". Ignores case and underscores.
+          - in: query
+            name: colorKey
+            required: false
+            schema:
+              type: string
+            description: |
+              The key inside the cross-match which is associated
+              with the color term of the color-magnitude data.
+              If given, will override the "blueMagKey", and "redMagKey",
+              taking the color directly from the associated dictionary value.
+              Default is None. Ignores case and underscores.
+
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: array
+                      items:
+                        type: object
+                        properties:
                           origin:
                             type: string
                           color:
@@ -206,15 +211,12 @@ class ObjColorMagHandler(BaseHandler):
                           abs_mag:
                             type: float
 
-      400:
-        content:
-        application/json:
-          schema: Error
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
 
-    """
-
-    @auth_or_token
-    def get(self, obj_id):
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object id.')

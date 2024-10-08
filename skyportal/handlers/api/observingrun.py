@@ -62,9 +62,10 @@ class ObservingRunHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create an observing run
         description: Add a new observing run
         tags:
-          - observing_runs
+          - observing runs
         requestBody:
           content:
             application/json:
@@ -100,9 +101,10 @@ class ObservingRunHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get an observing run
           description: Retrieve an observing run
           tags:
-            - observing_runs
+            - observing runs
           parameters:
             - in: path
               name: run_id
@@ -119,9 +121,10 @@ class ObservingRunHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all observing runs
           description: Retrieve all observing runs
           tags:
-            - observing_runs
+            - observing runs
           responses:
             200:
               content:
@@ -247,9 +250,10 @@ class ObservingRunHandler(BaseHandler):
     def put(self, run_id):
         """
         ---
+        summary: Update an observing run
         description: Update observing run
         tags:
-          - observing_runs
+          - observing runs
         parameters:
           - in: path
             name: run_id
@@ -308,9 +312,10 @@ class ObservingRunHandler(BaseHandler):
     def delete(self, run_id):
         """
         ---
+        summary: Delete an observing run
         description: Delete an observing run
         tags:
-          - observing_runs
+          - observing runs
         parameters:
           - in: path
             name: run_id
@@ -376,9 +381,10 @@ class ObservingRunBulkEditHandler(BaseHandler):
     def put(self, run_id):
         """
         ---
+        summary: Bulk update observing run assignments
         description: Update observing run assignments in bulk
         tags:
-          - observing_runs
+          - observing runs
         parameters:
           - in: path
             name: run_id

@@ -117,9 +117,10 @@ class GcnGraceDBHandler(BaseHandler):
     def post(self, dateobs):
         """
         ---
+        summary: Retrieve GW Event data from GraceDB
         description: Scrape data of a GCN Event from GraceDB
         tags:
-          - gcn_event
+          - gcn events
         parameters:
           - in: path
             name: dateobs

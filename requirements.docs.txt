@@ -1,5 +1,5 @@
 sphinx
-furo
+sphinx-book-theme
 recommonmark
 numpydoc
 notedown

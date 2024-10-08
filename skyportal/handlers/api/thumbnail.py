@@ -88,6 +88,7 @@ class ThumbnailHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Upload thumbnails
         description: Upload thumbnails
         tags:
           - thumbnails
@@ -145,6 +146,7 @@ class ThumbnailHandler(BaseHandler):
     def get(self, thumbnail_id):
         """
         ---
+        summary: Get a thumbnail
         description: Retrieve a thumbnail
         tags:
           - thumbnails
@@ -178,6 +180,7 @@ class ThumbnailHandler(BaseHandler):
     def put(self, thumbnail_id):
         """
         ---
+        summary: Update a thumbnail
         description: Update thumbnail
         tags:
           - thumbnails
@@ -231,6 +234,7 @@ class ThumbnailHandler(BaseHandler):
     def delete(self, thumbnail_id):
         """
         ---
+        summary: Delete a thumbnail
         description: Delete a thumbnail
         tags:
           - thumbnails
@@ -271,6 +275,7 @@ class ThumbnailPathHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Check thumbnail paths
         description: |
           Get information on thumbnails that are
           or are not in the correct folder/path.
@@ -360,6 +365,7 @@ class ThumbnailPathHandler(BaseHandler):
     def patch(self):
         """
         ---
+        summary: Update thumbnail paths
         description: |
           Update the file path and file_uri of the database rows
           of thumbnails that are not in the correct folder/path.
@@ -550,6 +556,7 @@ class ThumbnailPathHandler(BaseHandler):
     def delete(self):
         """
         ---
+        summary: Delete empty thumbnail folders
         description: |
           Delete all empty subfolders under "thumbnails".
           These can be left over if moving thumbnails to a
