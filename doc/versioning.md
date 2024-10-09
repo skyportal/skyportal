@@ -2,7 +2,7 @@
 
 Breaking API changes, and changes that require major upgrades of critical system dependencies (like PostgreSQL), are rare. On the other hand, features (new endpoints, or additional data returned by existing endpoints) are added regularly. Lastly, changes that impact neither the user nor the developer (e.g. refactoring, performance improvements, bug fixes) happen continuously, but do not typically need to be advertised.
 
-Based on these considerations, we have decided to use [Semantic Versioning](https://semver.org/) for SkyPortal. The version number will be of the form `MAJOR.MINOR.PATCH`, where:
+SkyPortal uses [Semantic Versioning](https://semver.org/) to indicate the severity of changes. The version number will be of the form `MAJOR.MINOR.PATCH`, where:
 
 - `MAJOR` is incremented when breaking changes are introduced, for the user or the developer
 - `MINOR` is incremented when new features are added in a backwards-compatible manner, requiring no changes to user code and minimal changes to existing deployments; and
