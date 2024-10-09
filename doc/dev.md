@@ -122,8 +122,6 @@ It will print a command that you can use to SSH into the runner.
 
 **Please also see [versioning](versioning).**
 
-To upgrade the version of SkyPortal, you will need to:
-
 1. Update the version number in `skyportal/__init__.py`.
 2. Commit the changes:
     ```
