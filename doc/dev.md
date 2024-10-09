@@ -138,7 +138,7 @@ It will print a command that you can use to SSH into the runner.
     ```
     git push --tags origin main
     ```
-    where `origin` points to the ``github.com/skyportal/skyportal`` repository.
+    where `origin` points to the ``github.com:skyportal/skyportal`` repository.
 5. Create a new release on GitHub, using the tag you just created. Include a summary of the changes in the release notes/changelog, and using `git archive` create a tarball of the release and attach it to the release on GitHub.
     ```
     mkdir -p archive
