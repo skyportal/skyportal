@@ -144,3 +144,8 @@ It will print a command that you can use to SSH into the runner.
     mkdir -p archive
     git archive --format=tar.gz HEAD > archive/skyportal-v${NEW_VERSION}.tar.gz
     ```
+    Each release description should contain:
+    - A title, in the form `SkyPortal v${NEW_VERSION} release (YYYY-MM-DD)`
+    - A brief summary of the changes, including any breaking changes
+    - A list of the changes split in the relevant categories (e.g., new features, bug fixes, frontend, backend, etc.). For each change, include a list of the PR numbers and the GitHub usernames of the contributors.
+    - If applicable, a migration guide to help users and/or admins upgrade to the new version.
