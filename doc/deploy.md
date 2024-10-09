@@ -83,6 +83,6 @@ This does not affect data, which lives in the `./dbdata` directory.
 
 ## Updating the deployment
 
-SkyPortal uses semantic version, which logic is discussed in detail in the [versioning](versioning) section of the documentation. Though one could simply pull the latest commit on GitHub, it is recommended to use the tagged releases on GitHub. Each release is tagged with a version number, and points to a specific commit in the repository.
+SkyPortal uses semantic versioning (see [versioning](versioning) below) to indicate API breaks. While the `main` branch is typically usable, we recommend rather using release versions, which aim to provide tested, stable development snapshots.
 
 Also, after the initial - and successful - deployment, one needs to make sure that the current database schema has been stamped using Alembic. To do so, please refer to the first command provided in the [Database migrations](migrations) section of the documentation. Thereafter, when restarting the application, the migration manager service will automatically apply any pending migration scripts.
