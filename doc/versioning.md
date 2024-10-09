@@ -1,6 +1,6 @@
 # Versioning
 
-The development cycle of SkyPortal is such that breaking API changes are rare, as we often add, improve, refactor, or fix existing features rather than change their output or behavior. Version changes of critical system dependencies are also very rare (e.g. upgrading the version of PostgreSQL or the Python runtime). On the other hand, new features (new endpoints, new tables, additional data returned by existing endpoints) are added more frequently. Lastly, changes that do not impact the user nor the developer (e.g. refactoring, performance improvements, bug fixes) are very common, but do not necessarily need to be advertised to the end-user.
+Breaking API changes, and changes that require major upgrades of critical system dependencies (like PostgreSQL), are rare. On the other hand, features (new endpoints, or additional data returned by existing endpoints) are added regularly. Lastly, changes that impact neither the user nor the developer (e.g. refactoring, performance improvements, bug fixes) happen continuously, but do not typically need to be advertised.
 
 Based on these considerations, we have decided to use [Semantic Versioning](https://semver.org/) for SkyPortal. The version number will be of the form `MAJOR.MINOR.PATCH`, where:
 
