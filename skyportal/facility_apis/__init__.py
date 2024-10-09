@@ -22,3 +22,4 @@ from .tess import TESSAPI
 from .trt import TRTAPI
 from .winter import WINTERAPI
 from .ztf import ZTFAPI, ZTFMMAAPI
+from .gemini import GEMINIAPI

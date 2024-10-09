@@ -549,7 +549,7 @@ class UVOTXRTAPI(FollowUpAPI):
                         request.last_modified_by_id,
                         'baselayer/SHOW_NOTIFICATION',
                         payload={
-                            'message': f'Failed to submit Swift request: {r.content}',
+                            'note': f'Failed to submit Swift request: {r.content}',
                             'type': 'error',
                         },
                     )
@@ -817,6 +817,6 @@ class UVOTXRTAPI(FollowUpAPI):
         },
     }
 
-    ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
+    ui_json_schema = {}
 
     priorityOrder = "desc"

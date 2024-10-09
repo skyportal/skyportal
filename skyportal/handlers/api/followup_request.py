@@ -623,6 +623,8 @@ def post_followup_request(
             refresh_requests=refresh_requests,
         )
     except Exception as e:
+        log(f'Failed to submit follow-up request: {e}, traceback:')
+        log(traceback.format_exc())
         followup_request.status = f'failed to submit: {e}'
         raise
     finally:
