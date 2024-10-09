@@ -7,7 +7,7 @@ The development cycle of SkyPortal is such that breaking API changes are rare, a
 Based on these considerations, we have decided to use [Semantic Versioning](https://semver.org/) for SkyPortal. The version number will be of the form `MAJOR.MINOR.PATCH`, where:
 
 - `MAJOR` is incremented when breaking changes are introduced, for the user or the developer
-- `MINOR` is incremented when new features are added in a backwards-compatible manner, requiring no changes to the user's code and minimal changes to the deployment
+- `MINOR` is incremented when new features are added in a backwards-compatible manner, requiring no changes to user code and minimal changes to existing deployments; and
 - `PATCH` is incremented when backwards-compatible bug fixes are introduced, or when changes are made that do not impact the user nor the developer
 
 The development of SkyPortal is active enough that it would be impractical to update the version number for every commit. Instead, we will update the version number along with a release on GitHub that tags a specific commit in the repository, at most one a week. That way, the developer / system admin can easily checkout to the latest tagged release's commit (when there is a new version available) rather than simply point to whatever is on main. The end-user can always easily check which version of SkyPortal they are querying/using, as it is returned in every API response and displayed on the about page of the web application.
