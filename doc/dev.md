@@ -139,13 +139,8 @@ It will print a command that you can use to SSH into the runner.
     git push --tags origin main
     ```
     where `origin` points to the ``github.com:skyportal/skyportal`` repository.
-5. Create a new release on GitHub, using the tag you just created. Include a summary of the changes in the release notes/changelog, and using `git archive` create a tarball of the release and attach it to the release on GitHub.
-    ```
-    mkdir -p archive
-    git archive --format=tar.gz HEAD > archive/skyportal-v${NEW_VERSION}.tar.gz
-    ```
-    Each release description should contain:
+5. Create a new release on GitHub, using the tag you just created. The release should be formatted as follows:
     - A title, in the form `SkyPortal v${NEW_VERSION} release (YYYY-MM-DD)`
     - A brief summary of the changes, including any breaking changes
-    - A list of the changes split in the relevant categories (e.g., new features, bug fixes, frontend, backend, etc.). For each change, include a list of the PR numbers and the GitHub usernames of the contributors.
+    - A list of the changes split in the relevant categories (e.g., new features, bug fixes, frontend, backend, etc.). For each change, include a list of the associated PR numbers, as well as the GitHub usernames of the contributors.
     - If applicable, a migration guide to help users and/or admins upgrade to the new version.
