@@ -118,7 +118,7 @@ You can insert the following step to debug your workflow:
 
 It will print a command that you can use to SSH into the runner.
 
-## Upgrading the version of SkyPortal
+## Making a release
 
 **Please also see [versioning](versioning).**
 
