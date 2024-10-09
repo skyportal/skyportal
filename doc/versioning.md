@@ -16,4 +16,4 @@ Each instance of SkyPortal is responsible for updating the version of the softwa
 
 The SkyPortal version number is accessible as `skyportal.__version__`.
 
-As a SkyPortal, please refer to the [Developer Guide](dev) for more information on how to interact with the codebase, and to the [Deployment Guide](deploy) for more information on how to deploy SkyPortal.
+Please refer to the [Deployment Guide](deploy) for more information on how to deploy SkyPortal.
