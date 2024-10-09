@@ -8,7 +8,7 @@ SkyPortal uses [Semantic Versioning](https://semver.org/) to indicate the severi
 - `MINOR` is incremented when new features are added in a backwards-compatible manner, requiring no changes to user code and minimal changes to existing deployments; and
 - `PATCH` is incremented when backwards-compatible bug fixes are made.
 
-The development of SkyPortal is active enough that it would be impractical to update the version number for every commit. Instead, we aim for a monthly cadence. New features will be added earlier on in the cycle, then tested, and bugfixes implemented if necessary. We update the version number along with a signed release on GitHub pointing to a specific commit in the repository. That way, the developer / system admin of a SkyPortal instance can easily checkout to the latest tagged release's commit rather than directly point to the main branch's last commit. The end-user can easily check which version of SkyPortal they are querying, as it is returned in every API response. New versions will also be announced using the **Discussions** page of the repository. The latest available version number is also visible at the top left of the [Documentation](https://skyportal.io/docs) page.
+We aim to make releases monthly. New features are added earlier in the release cycle, then tested, with bugfixes made as necessary. New versions are published on GitHub, generated from tagged commits in the repository. System administrators would typically deploy directly from the tag. End-users can see, from within SkyPortal, which version they are querying: this information is included in API responses, as well as on the About page.
 
 The SkyPortal version number is accessible as `skyportal.__version__`.
 
