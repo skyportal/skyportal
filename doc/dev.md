@@ -130,7 +130,7 @@ It will print a command that you can use to SSH into the runner.
     ```
 3. Tag & sign the release:
     ```
-    git tag -s v${NEW_VERSION} -m "signed ${NEW_VERSION} tag"
+    git tag -s v${NEW_VERSION} -m "SkyPortal v${NEW_VERSION} release"
     ```
     (If you do not have a GPG key, follow the tutorial to set it up:
     https://help.github.com/articles/signing-commits-with-gpg/)
