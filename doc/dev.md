@@ -126,7 +126,7 @@ It will print a command that you can use to SSH into the runner.
 2. Commit the changes:
     ```
     git add skyportal/__init__.py
-    git commit -am "Designate ${NEW_VERSION} release"
+    git commit -am "Update version to v${NEW_VERSION}"
     ```
 3. Tag & sign the release:
     ```
