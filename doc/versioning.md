@@ -12,4 +12,4 @@ The development of SkyPortal is active enough that it would be impractical to up
 
 The SkyPortal version number is accessible as `skyportal.__version__`.
 
-Please refer to the [Deployment Guide](deploy) for more information on how to deploy SkyPortal.
+Please refer to the [Development Guide](dev)'s [Making a release](dev.html#making-a-release) section for instructions on how to create and publish a new release.
