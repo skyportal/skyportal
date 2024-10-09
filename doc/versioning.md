@@ -4,7 +4,7 @@ Breaking API changes, and changes that require major upgrades of critical system
 
 SkyPortal uses [Semantic Versioning](https://semver.org/) to indicate the severity of changes. The version number will be of the form `MAJOR.MINOR.PATCH`, where:
 
-- `MAJOR` is incremented when breaking changes are introduced, for the user or the developer
+- `MAJOR` is incremented when breaking changes, or major dependency upgrades, are introduced;
 - `MINOR` is incremented when new features are added in a backwards-compatible manner, requiring no changes to user code and minimal changes to existing deployments; and
 - `PATCH` is incremented when backwards-compatible bug fixes are made.
 
