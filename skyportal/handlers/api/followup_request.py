@@ -1587,12 +1587,12 @@ def observation_schedule(
         requester = followup_request.requester
 
         if "start_date" in payload:
-            start_date = Time(payload["start_date"], format='isot')
+            start_date = Time(payload["start_date"])
             if start_date > observation_end:
                 continue
 
         if "end_date" in payload:
-            end_date = Time(payload["end_date"], format='isot')
+            end_date = Time(payload["end_date"])
             if end_date < observation_start:
                 continue
 
