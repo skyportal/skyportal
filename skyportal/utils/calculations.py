@@ -187,3 +187,50 @@ def next_sunrise(observer, time=None):
     if time is None:
         time = Time.now()
     return observer.sun_rise_time(time, which='next')
+
+
+def deg2hms(x):
+    """Transform degrees to *hours:minutes:seconds* strings.
+
+    Parameters
+    ----------
+    x : float
+        The degree value c [0, 360) to be written as a sexagesimal string.
+
+    Returns
+    -------
+    out : str
+        The input angle written as a sexagesimal string, in the
+        form, hours:minutes:seconds.
+
+    """
+    if not 0.0 <= x < 360.0:
+        raise ValueError("Bad RA value in degrees")
+    _h = np.floor(x * 12.0 / 180.0)
+    _m = np.floor((x * 12.0 / 180.0 - _h) * 60.0)
+    _s = ((x * 12.0 / 180.0 - _h) * 60.0 - _m) * 60.0
+    hms = f"{_h:02.0f}:{_m:02.0f}:{_s:07.4f}"
+    return hms
+
+
+def deg2dms(x):
+    """Transform degrees to *degrees:arcminutes:arcseconds* strings.
+
+    Parameters
+    ----------
+    x : float
+        The degree value c [-90, 90] to be converted.
+
+    Returns
+    -------
+    out : str
+        The input angle as a string, written as degrees:minutes:seconds.
+
+    """
+    if not -90.0 <= x <= 90.0:
+        raise ValueError("Bad Dec value in degrees")
+    _d = np.floor(abs(x)) * np.sign(x)
+    _m = np.floor(np.abs(x - _d) * 60.0)
+    _s = np.abs(np.abs(x - _d) * 60.0 - _m) * 60.0
+    dms = f"{_d:02.0f}:{_m:02.0f}:{_s:06.3f}"
+    return dms

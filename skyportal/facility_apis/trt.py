@@ -196,14 +196,14 @@ class TRTAPI(FollowUpAPI):
                 headers=headers,
             )
 
-            if r.status_code == 200 and 'token expired' in r.content:
+            if r.status_code == 200 and 'token expired' in r.text:
                 request.status = (
                     'rejected: API token specified in the allocation is expired.'
                 )
             elif r.status_code == 200:
                 request.status = 'submitted'
             else:
-                request.status = f'rejected: {r.content}'
+                request.status = f'rejected: {r.text}'
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -241,7 +241,7 @@ class TRTAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     'baselayer/SHOW_NOTIFICATION',
                     payload={
-                        'message': f'Failed to submit TRT request: "{request.status}"',
+                        'note': f'Failed to submit TRT request: "{request.status}"',
                         'type': 'error',
                     },
                 )
@@ -360,7 +360,7 @@ class TRTAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     'baselayer/SHOW_NOTIFICATION',
                     payload={
-                        'message': 'TRT request is still pending.',
+                        'note': 'TRT request is still pending.',
                         'type': 'warning',
                     },
                 )
@@ -369,7 +369,7 @@ class TRTAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     'baselayer/SHOW_NOTIFICATION',
                     payload={
-                        'message': 'TRT request is complete, observations will be downloaded shortly.',
+                        'note': 'TRT request is complete, observations will be downloaded shortly.',
                         'type': 'info',
                     },
                 )
@@ -378,7 +378,7 @@ class TRTAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     'baselayer/SHOW_NOTIFICATION',
                     payload={
-                        'message': f'Failed to retrieve TRT request: "{request.status}"',
+                        'note': f'Failed to retrieve TRT request: "{request.status}"',
                         'type': 'error',
                     },
                 )
