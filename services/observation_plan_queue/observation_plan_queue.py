@@ -161,15 +161,15 @@ def service(*args, **kwargs):
                             ObservationPlanRequest.created_at
                             > arrow.utcnow().shift(days=-3).datetime,
                         ),
-                        # or plans that have been "running" for more than 30 minutes but less than 24 hours
+                        # or plans that have been "running" for more than 5 minutes but less than 1 hours
                         # this is a way to grab plans that have been stuck in the running state
                         # and have not been processed
                         sa.and_(
                             ObservationPlanRequest.status == "running",
                             ObservationPlanRequest.created_at
-                            < arrow.utcnow().shift(minutes=-30).datetime,
+                            < arrow.utcnow().shift(minutes=-5).datetime,
                             ObservationPlanRequest.created_at
-                            > arrow.utcnow().shift(hours=-24).datetime,
+                            > arrow.utcnow().shift(hours=-1).datetime,
                         ),
                     )
                 )
