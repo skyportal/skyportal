@@ -253,6 +253,22 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
             )
             return
 
+        # if the plan request's created_at date (when we received the GCN) is more than 1 hour ago, we skip the auto-send
+        if observation_plan_request.created_at < datetime.utcnow() - timedelta(hours=1):
+            log(
+                f"Default observation plan request {default_obsplan_id} was created more than 1 hour ago, skipping auto send."
+            )
+            return
+
+        # if the plan's end date is in the past (can see that in the payload), we skip the auto-send
+        plan_request_end_date = observation_plan_request.payload.get("end_date", None)
+        if plan_request_end_date:
+            if arrow.get(plan_request_end_date).datetime < datetime.utcnow():
+                log(
+                    f"Default observation plan request {default_obsplan_id} has an end date in the past, skipping auto send."
+                )
+                return
+
         plan_properties = filters.get('plan_properties', [])
         if len(plan_properties) > 0:
             try:
