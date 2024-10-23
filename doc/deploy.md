@@ -80,3 +80,9 @@ docker-compose down
 ```
 
 This does not affect data, which lives in the `./dbdata` directory.
+
+## Updating the deployment
+
+SkyPortal uses semantic versioning (see [versioning](versioning) below) to indicate API breaks. While the `main` branch is typically usable, we recommend rather using release versions, which aim to provide tested, stable development snapshots.
+
+After initial deployment, it is important to verify that the current database schema has been stamped using Alembic (see [Database migrations](migrations)). Thereafter, the migration manager service will automatically apply pending migration scripts upon application restart.

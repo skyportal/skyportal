@@ -113,7 +113,7 @@ class WeatherHandler(BaseHandler):
             message = ""
             if refresh:
                 response = get_url(
-                    "https://api.openweathermap.org/data/2.5/onecall?"
+                    "https://api.openweathermap.org/data/3.0/onecall?"
                     f"lat={telescope.lat}&lon={telescope.lon}&appid={openweather_api_key}"
                 )
                 if response is not None:
