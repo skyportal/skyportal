@@ -78,6 +78,11 @@ app:
     host:
     port:
 
+  gemini:
+    protocol: https
+    host: gsodbtest.gemini.edu # this is the test server host, just remove 'test' for production
+    port: 8443 # this is the test server port, production is 443
+
   treasuremap_endpoint: https://treasuremap.space
 
   tns:

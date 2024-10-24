@@ -379,6 +379,14 @@ telescope:
     elevation: 1400.0
     diameter: 0.3
     =id: FRAM-Auger-0p3m
+  - name: Gemini South
+    nickname: GS
+    lat: -30.2407
+    lon: -70.7367
+    elevation: 2737
+    diameter: 8.1
+    robotic: false
+    =id: GS
 
 instrument:
   - name: ZTF
@@ -648,6 +656,14 @@ instrument:
     filters: ["ps1::open", "sdssg", "sdssr", "sdssi", "sdssz"]
     field_fov_type: rectangle
     field_fov_attributes: [1,1]
+  - band: optical/ir
+    name: Gemini South
+    telescope_id: =GS
+    type: imager
+    =id: GeminiSouth
+    api_classname: GEMINIAPI
+    filters: ["bessellux", "bessellb", "bessellv", "bessellr", "besselli"]
+
 
 instrument/=SEDMv2/log:
   - start_date: "2023-06-02T22:00:00"
@@ -858,6 +874,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =FRAM-Auger
+  - pi: Michael Coughlin
+    proposal_id: GS-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =GeminiSouth
 
 galaxy_catalog:
   - catalog_name: CLU_mini
