@@ -108,17 +108,31 @@ class GeminiRequest:
             raise ValueError('No altdata provided')
 
         email = altdata.get('email')
-
         programid = altdata.get('progid')
-        programkey = altdata.get('progkey')
+        password = altdata.get('password')
 
-        if email is None:
-            raise ValueError('Email is required')
+        if email is None or programid is None or password is None:
+            raise ValueError('Email, password, and program id are required')
 
-        if programid is None or programkey is None:
-            raise ValueError('Program id and key are required')
+        # create the group str from the allocation's group nickname, PI, and id
+        allocation_group_name = (
+            request.allocation.group.nickname
+            if request.allocation.group.nickname
+            else request.allocation.group.name
+        )
+        allocation_group_name = allocation_group_name.replace(' ', '')
+        allocation_group_pi = request.allocation.pi.replace(' ', '')
+        allocation_id = request.allocation.id
+        group = f'{allocation_group_name}_{allocation_group_pi}_{allocation_id}'
+        group = str(group.replace(' ', '_')).strip()
 
-        obsid = 1  # TODO: investigate what this should be set to
+        obsid = request.payload.get('template_id')
+        # it needs to be castable to an int
+        try:
+            obsid = int(obsid)
+        except Exception:
+            raise ValueError('Invalid template ID')
+
         obsnum = str(obsid).strip()
         target = request.obj.id
         ra, dec = request.obj.ra, request.obj.dec
@@ -163,14 +177,11 @@ class GeminiRequest:
 
         notetitle = request.payload.get('notetitle')  # optional
         note = request.payload.get('note')  # optional
-        group = request.payload.get('group')  # optional
 
         if notetitle:
             notetitle = str(notetitle).strip()
         if note:
             note = str(note).strip()
-        if group:
-            group = str(group).strip()
 
         # Guide star selection
         gstarg, gsra, gsdec, gsmag, gspa = self._get_guide_star(request, session)
@@ -183,13 +194,13 @@ class GeminiRequest:
 
         payload = {
             'prog': programid,
-            'password': programkey,
             'email': email,
+            'password': password,
             'obsnum': obsnum,
             'target': target,
             'ra': ra,
             'dec': dec,
-            'posangle': spa,  # 'mags': smags,
+            'posangle': spa,
             'noteTitle': notetitle,
             'note': note,
             'ready': True,
@@ -204,13 +215,11 @@ class GeminiRequest:
             'gsdec': gsdec,
             'gsmag': sgsmag,
             'gsprobe': 'OIWFS',
+            'group': group,
         }
 
         if round(l_exptime) != 0:
             payload.update({'exptime': round(l_exptime)})
-
-        if isinstance(group, str) and group.strip() != '':
-            payload.update({'group': group.strip()})
 
         return payload
 
@@ -283,6 +292,11 @@ class GEMINIAPI(FollowUpAPI):
     form_json_schema = {
         'type': 'object',
         'properties': {
+            "template_id": {
+                "title": "Template ID",
+                "type": "string",
+                "description": "The template ID is found on the program's page on the OT",
+            },
             "start_date": {
                 "title": "Start Date (UT)",
                 "type": "string",
@@ -309,24 +323,27 @@ class GEMINIAPI(FollowUpAPI):
                 'title': 'Note Content (optional)',
                 'type': 'string',
             },
-            'group': {
-                'title': 'Group (optional)',
-                'type': 'string',
-            },
         },
-        'required': ['l_exptime', 'l_elmin', 'l_elmax', 'start_date', 'end_date'],
+        'required': [
+            'l_exptime',
+            'l_elmin',
+            'l_elmax',
+            'start_date',
+            'end_date',
+            'template_id',
+        ],
     }
 
     form_json_schema_altdata = {
         "type": "object",
         "properties": {
             "email": {"type": "string", "title": "Email"},
+            "password": {"type": "string", "title": "Password"},
             "progid": {
                 "type": "string",
                 "title": "Program ID",
                 "description": "CAUTION: Gemini North and South have different program IDs, starting with GN or GS respectively. So, make sure to use the correct one for the instrument you've selected.",
             },
-            "progkey": {"type": "string", "title": "Program Key (of the user)"},
         },
     }
 
