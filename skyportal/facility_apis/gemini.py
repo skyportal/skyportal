@@ -133,6 +133,20 @@ class GeminiRequest:
         except Exception:
             raise ValueError('Invalid template ID')
 
+        if (
+            isinstance(altdata.get('template_ids'), (str, list))
+            and len(altdata.get('template_ids')) > 0
+        ):
+            template_ids = []
+            try:
+                if isinstance(altdata.get('template_ids'), str):
+                    template_ids = altdata.get('template_ids').split(',')
+                template_ids = [int(i) for i in template_ids]
+            except Exception:
+                raise ValueError('Invalid template IDs specified in altdata')
+            if len(template_ids) > 0 and obsid not in template_ids:
+                raise ValueError('Invalid template ID')
+
         obsnum = str(obsid).strip()
         target = request.obj.id
         ra, dec = request.obj.ra, request.obj.dec
@@ -240,7 +254,7 @@ class GEMINIAPI(FollowUpAPI):
         try:
             gemini_request = GeminiRequest(request, session)
         except Exception as e:
-            traceback.print_exc()
+            log(traceback.format_exc())
             raise ValueError(f'Error building Gemini request: {e}')
 
         r = requests.post(API_URL, verify=False, params=gemini_request.payload)
@@ -294,7 +308,7 @@ class GEMINIAPI(FollowUpAPI):
         'properties': {
             "template_id": {
                 "title": "Template ID",
-                "type": "string",
+                "type": "integer",
                 "description": "The template ID is found on the program's page on the OT",
             },
             "start_date": {
@@ -344,7 +358,13 @@ class GEMINIAPI(FollowUpAPI):
                 "title": "Program ID",
                 "description": "CAUTION: Gemini North and South have different program IDs, starting with GN or GS respectively. So, make sure to use the correct one for the instrument you've selected.",
             },
+            "template_ids": {
+                "type": "string",
+                "title": "Template IDs",
+                "description": "List of available templates, comma separated (optional)",
+            },
         },
+        "required": ["email", "password", "progid"],
     }
 
     ui_json_schema = {}
