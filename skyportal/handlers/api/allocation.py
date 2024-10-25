@@ -512,6 +512,12 @@ class AllocationHandler(BaseHandler):
         """
 
         data = self.get_json()
+        if 'instrument_id' not in data:
+            return self.error('instrument_id is required')
+        try:
+            data['instrument_id'] = int(data['instrument_id'])
+        except ValueError:
+            return self.error('instrument_id must be an integer')
         if isinstance(data.get('_altdata'), dict):
             # sanitize the dictionnary, removing keys with null or empty values
             data['_altdata'] = {
@@ -520,13 +526,29 @@ class AllocationHandler(BaseHandler):
                 if v is not None and str(v).strip() != ""
             }
             # if it ends up being a dictionnary with no keys, remove it
-            # otherwise convert it to a string
             if not data['_altdata'] or not any(data['_altdata']):
                 data.pop('_altdata')
-            else:
+        with self.Session() as session:
+            instrument = session.scalars(
+                Instrument.select(self.current_user).where(
+                    Instrument.id == int(data['instrument_id'])
+                )
+            ).first()
+            if instrument is None:
+                return self.error(
+                    f'No instrument with specified ID: {data["instrument_id"]}'
+                )
+            if isinstance(data.get('_altdata'), dict):
+                if instrument.api_class.implements()['validate_altdata']:
+                    try:
+                        data['_altdata'] = instrument.api_class.validate_altdata(
+                            data['_altdata'], instrument=instrument.to_dict()
+                        )
+                    except Exception as e:
+                        return self.error(f'Error validating altdata: {str(e)}')
                 # then convert it to a string
                 data['_altdata'] = json.dumps(data['_altdata'])
-        with self.Session() as session:
+
             allocation_admin_ids = data.pop('allocation_admin_ids', None)
             if allocation_admin_ids is not None:
                 allocation_admins = session.scalars(

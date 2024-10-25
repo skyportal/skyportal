@@ -145,7 +145,9 @@ class GeminiRequest:
             except Exception:
                 raise ValueError('Invalid template IDs specified in altdata')
             if len(template_ids) > 0 and obsid not in template_ids:
-                raise ValueError('Invalid template ID')
+                raise ValueError(
+                    'Invalid template ID, must be one of: ' + ', '.join(template_ids)
+                )
 
         obsnum = str(obsid).strip()
         target = request.obj.id
@@ -239,6 +241,54 @@ class GeminiRequest:
 
 
 class GEMINIAPI(FollowUpAPI):
+    @staticmethod
+    def validate_altdata(altdata, **kwargs):
+        if not altdata:
+            raise ValueError('Missing allocation information.')
+
+        if not isinstance(altdata, dict):
+            raise ValueError('Invalid altdata format')
+
+        email = str(altdata.get('email')).strip()
+        password = str(altdata.get('password')).strip()
+        progid = str(altdata.get('progid')).strip()
+        if not any([progid.startswith(x) for x in ["GN", "GS"]]):
+            raise ValueError('Invalid program ID, must start with GN or GS')
+
+        instrument = kwargs.get('instrument')
+        if instrument is None:
+            raise ValueError('Instrument not provided, required for validation')
+
+        instrument_name = str(instrument["name"]).lower().strip()
+        if any(
+            [x in instrument_name for x in ["south", "gs"]]
+        ) and not progid.startswith("GS"):
+            raise ValueError('Invalid program ID for Gemini South, must start with GS')
+        elif any(
+            [x in instrument_name for x in ["north", "gn"]]
+        ) and not progid.startswith("GN"):
+            raise ValueError('Invalid program ID for Gemini North, must start with GN')
+        elif not any([x in instrument_name for x in ["north", "south", "gn", "gs"]]):
+            raise ValueError('Invalid instrument, must be Gemini North or South')
+
+        if not email or not password or not progid:
+            raise ValueError('Email, password, and program ID are required')
+
+        template_ids = altdata.get('template_ids')
+        if template_ids:
+            if not isinstance(template_ids, (str, list)):
+                raise ValueError('Invalid template IDs format')
+            if isinstance(template_ids, str):
+                template_ids = template_ids.split(',')
+            try:
+                template_ids = [int(i) for i in template_ids]
+            except Exception:
+                raise ValueError('Invalid template IDs format')
+            if len(template_ids) > 0:
+                altdata['template_ids'] = template_ids
+
+        return altdata
+
     @staticmethod
     def submit(request, session, **kwargs):
         """
