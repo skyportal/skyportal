@@ -196,7 +196,7 @@ class TRTAPI(FollowUpAPI):
                 headers=headers,
             )
 
-            if r.status_code == 200 and 'token expired' in r.text:
+            if r.status_code == 200 and 'token expired' in str(r.text):
                 request.status = (
                     'rejected: API token specified in the allocation is expired.'
                 )
@@ -236,7 +236,7 @@ class TRTAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     'skyportal/REFRESH_FOLLOWUP_REQUESTS',
                 )
-            if request.status != 'submitted':
+            if str(request.status) != 'submitted':
                 flow.push(
                     request.last_modified_by_id,
                     'baselayer/SHOW_NOTIFICATION',
@@ -276,7 +276,7 @@ class TRTAPI(FollowUpAPI):
 
             url = f"{cfg['app.trt_endpoint']}/getfilepath"
 
-            content = req.transactions[-1].response["content"]
+            content = str(req.transactions[-1].response["content"])
 
             if 'token expired' in content:
                 raise ValueError(
@@ -355,7 +355,7 @@ class TRTAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     'skyportal/REFRESH_FOLLOWUP_REQUESTS',
                 )
-            if request.status == 'pending':
+            if str(request.status) == 'pending':
                 flow.push(
                     request.last_modified_by_id,
                     'baselayer/SHOW_NOTIFICATION',
@@ -364,7 +364,7 @@ class TRTAPI(FollowUpAPI):
                         'type': 'warning',
                     },
                 )
-            elif request.status.startswith('complete'):
+            elif str(request.status).startswith('complete'):
                 flow.push(
                     request.last_modified_by_id,
                     'baselayer/SHOW_NOTIFICATION',
@@ -415,7 +415,7 @@ class TRTAPI(FollowUpAPI):
 
             url = f"{cfg['app.trt_endpoint']}/cancelobservation"
 
-            content = req.transactions[-1].response["content"]
+            content = str(req.transactions[-1].response["content"])
             if 'token expired' in content:
                 request.status = 'failed to delete: API token specified in the allocation is expired.'
                 session.commit()
