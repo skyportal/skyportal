@@ -146,7 +146,7 @@ class GeminiRequest:
                 raise ValueError('Invalid template IDs specified in altdata')
             if len(template_ids) > 0 and obsid not in template_ids:
                 raise ValueError(
-                    'Invalid template ID, must be one of: ' + ', '.join(template_ids)
+                    f'Invalid template ID, must be one of: {str(template_ids)}'
                 )
 
         obsnum = str(obsid).strip()
