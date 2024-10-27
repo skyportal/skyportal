@@ -438,15 +438,27 @@ def post_skymap_from_notice(
                         'dec': dec,
                     }
 
-                if source.get('id', None) is not None:
-                    existing_source = session.scalars(
-                        Source.select(user).where(Source.obj_id == source['id'])
-                    ).first()
-                    if existing_source is None:
-                        log(
-                            f"Posting source for event {dateobs} with Localization {localization_id} with id {source['id']}."
-                        )
-                        post_source(source, user_id, session)
+                public_group = session.scalar(
+                    sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
+                )
+                if public_group is None:
+                    log(
+                        f"WARNING: Public group {cfg['misc.public_group_name']} not found in the database, cannot post source"
+                    )
+                else:
+                    public_group_id = public_group.id
+                    source["group_ids"] = [public_group_id]
+
+                    if source.get('id', None) is not None:
+                        existing_source = session.scalars(
+                            Source.select(user).where(Source.obj_id == source['id'])
+                        ).first()
+                        if existing_source is None:
+                            log(
+                                f"Posting source for event {dateobs} with Localization {localization_id} with id {source['id']}."
+                            )
+                            post_source(source, user_id, session)
+
         except Exception as e:
             log(
                 f"Failed to create source for event {dateobs} with Localization {localization_id} with name {skymap['localization_name']}: {str(e)}."
