@@ -196,14 +196,14 @@ class TRTAPI(FollowUpAPI):
                 headers=headers,
             )
 
-            if r.status_code == 200 and 'token expired' in r.content:
+            if r.status_code == 200 and 'token expired' in str(r.text):
                 request.status = (
                     'rejected: API token specified in the allocation is expired.'
                 )
             elif r.status_code == 200:
                 request.status = 'submitted'
             else:
-                request.status = f'rejected: {r.content}'
+                request.status = f'rejected: {r.text}'
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -236,12 +236,12 @@ class TRTAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     'skyportal/REFRESH_FOLLOWUP_REQUESTS',
                 )
-            if request.status != 'submitted':
+            if str(request.status) != 'submitted':
                 flow.push(
                     request.last_modified_by_id,
                     'baselayer/SHOW_NOTIFICATION',
                     payload={
-                        'message': f'Failed to submit TRT request: "{request.status}"',
+                        'note': f'Failed to submit TRT request: "{request.status}"',
                         'type': 'error',
                     },
                 )
@@ -276,7 +276,7 @@ class TRTAPI(FollowUpAPI):
 
             url = f"{cfg['app.trt_endpoint']}/getfilepath"
 
-            content = req.transactions[-1].response["content"]
+            content = str(req.transactions[-1].response["content"])
 
             if 'token expired' in content:
                 raise ValueError(
@@ -355,21 +355,21 @@ class TRTAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     'skyportal/REFRESH_FOLLOWUP_REQUESTS',
                 )
-            if request.status == 'pending':
+            if str(request.status) == 'pending':
                 flow.push(
                     request.last_modified_by_id,
                     'baselayer/SHOW_NOTIFICATION',
                     payload={
-                        'message': 'TRT request is still pending.',
+                        'note': 'TRT request is still pending.',
                         'type': 'warning',
                     },
                 )
-            elif request.status.startswith('complete'):
+            elif str(request.status).startswith('complete'):
                 flow.push(
                     request.last_modified_by_id,
                     'baselayer/SHOW_NOTIFICATION',
                     payload={
-                        'message': 'TRT request is complete, observations will be downloaded shortly.',
+                        'note': 'TRT request is complete, observations will be downloaded shortly.',
                         'type': 'info',
                     },
                 )
@@ -378,7 +378,7 @@ class TRTAPI(FollowUpAPI):
                     request.last_modified_by_id,
                     'baselayer/SHOW_NOTIFICATION',
                     payload={
-                        'message': f'Failed to retrieve TRT request: "{request.status}"',
+                        'note': f'Failed to retrieve TRT request: "{request.status}"',
                         'type': 'error',
                     },
                 )
@@ -415,7 +415,7 @@ class TRTAPI(FollowUpAPI):
 
             url = f"{cfg['app.trt_endpoint']}/cancelobservation"
 
-            content = req.transactions[-1].response["content"]
+            content = str(req.transactions[-1].response["content"])
             if 'token expired' in content:
                 request.status = 'failed to delete: API token specified in the allocation is expired.'
                 session.commit()
