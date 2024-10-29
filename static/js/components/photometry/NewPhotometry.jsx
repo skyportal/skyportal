@@ -30,6 +30,11 @@ const dateType = (date) => {
   return type;
 };
 
+const validNumber = (num) => {
+  // use regex to check if the number is valid (only digits, optional decimal point, optional negative sign)
+  return /^-?\d+(\.\d+)?$/.test(num);
+};
+
 const UTCToMJD = (utc) => {
   // convert utc to MJD
   // if the date has anything after the seconds, remove it
@@ -90,6 +95,11 @@ const NewPhotometryForm = ({ obj_id }) => {
 
   const handleSelectedInstrumentChange = (e) => {
     setSelectedInstrumentId(e.target.value);
+    // reset the filter in the form
+    setSelectedFormData({
+      ...selectedFormData,
+      filter: null,
+    });
   };
 
   const listmag = ["Vega", "AB"];
@@ -116,15 +126,15 @@ const NewPhotometryForm = ({ obj_id }) => {
         title: "Observation date (YYYY-MM-DDThh:mm:ss or MJD)",
       },
       mag: {
-        type: "number",
+        type: "string",
         title: "Magnitude",
       },
       magerr: {
-        type: "number",
+        type: "string",
         title: "Magnitude error",
       },
       limiting_mag: {
-        type: "number",
+        type: "string",
         title: "Limiting magnitude",
       },
       magsys: {
@@ -143,11 +153,11 @@ const NewPhotometryForm = ({ obj_id }) => {
         title: "Origin",
       },
       nb_exposure: {
-        type: "integer",
+        type: "string",
         title: "Number of exposures",
       },
       exposure_time: {
-        type: "integer",
+        type: "string",
         title: "Exposure time [i.e. 60 or 300]",
       },
       altdata: {
@@ -241,24 +251,56 @@ const NewPhotometryForm = ({ obj_id }) => {
     if (selectedInstrumentId && !formData.filter) {
       errors.filter.addError("Please select a filter");
     }
+    // make sure the filter is in the list of filters for the selected instrument
+    if (
+      selectedInstrumentId &&
+      formData.filter &&
+      !instLookUp[selectedInstrumentId].filters.includes(formData.filter)
+    ) {
+      errors.filter.addError(
+        "This filter is not available for the selected instrument",
+      );
+    }
     if (!formData.mag && !formData.limiting_mag) {
       errors.mag.addError("Please enter a magnitude or a limiting magnitude");
     }
     if (formData.mag && !formData.magerr) {
       errors.magerr.addError("Please enter a magnitude error");
     }
-    if (formData.mag && Number.isNaN(formData.mag)) {
+    if (formData.mag && !validNumber(formData.mag)) {
       errors.mag.addError("Magnitude must be a number");
     }
-    if (formData.magerr && Number.isNaN(formData.magerr)) {
+    if (formData.magerr && !validNumber(formData.magerr)) {
       errors.magerr.addError("Magnitude error must be a number");
     }
-    if (formData.limiting_mag && Number.isNaN(formData.limiting_mag)) {
-      errors.magerr.addError("Limiting magnitude must be a number");
+    if (formData.limiting_mag && !validNumber(formData.limiting_mag)) {
+      errors.limiting_mag.addError("Limiting magnitude must be a number");
+    }
+    if (formData.magsys && !listmag.includes(formData.magsys)) {
+      errors.magsys.addError("Magnitude system must be AB or Vega");
+    }
+    if (formData.ra && !validNumber(formData.ra)) {
+      errors.ra.addError("RA must be a number");
+    }
+    if (formData.dec && !validNumber(formData.dec)) {
+      errors.dec.addError("Dec must be a number");
+    }
+    if (formData.nb_exposure && !validNumber(formData.nb_exposure)) {
+      errors.nb_exposure.addError(
+        "Number of exposures must be a number, if specified",
+      );
+    }
+    if (formData.exposure_time && !validNumber(formData.exposure_time)) {
+      errors.exposure_time.addError(
+        "Exposure time must be a number, if specified",
+      );
     }
     if (
       formData.coordinates === true &&
-      (Number.isNaN(formData.ra) || Number.isNaN(formData.dec))
+      (!formData.ra ||
+        !formData.dec ||
+        !validNumber(formData.ra) ||
+        !validNumber(formData.dec))
     ) {
       errors.ra.addError(
         "Please enter a valid RA and Dec when coordinates is checked",
