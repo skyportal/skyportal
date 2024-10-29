@@ -132,6 +132,7 @@ jobs:
         run: |
           source .venv/bin/activate
           export PYTHONPATH=$PYTHONPATH:$(pwd)
+          uv pip install packaging setuptools # required as we are running on an older branch
           make dependencies
 
           uv pip install black
