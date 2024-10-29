@@ -115,7 +115,7 @@ jobs:
           ### UV python package manager installation
           curl -LsSf https://astral.sh/uv/install.sh | sh
 
-          uv venv skyportal_env --python 3.10 && source skyportal_env/bin/activate
+          uv venv skyportal_env --python 3.10 && source ~/skyportal_env/bin/activate
 
           uv pip install pip==24.0
           uv pip install wheel numpy
@@ -130,7 +130,7 @@ jobs:
 
       - name: Install SkyPortal dependencies
         run: |
-          source skyportal_env/bin/activate
+          source ~/skyportal_env/bin/activate
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           uv pip install packaging setuptools # required as we are running on an older branch
           make dependencies
@@ -140,7 +140,7 @@ jobs:
 
       - name: Save current Alembic head on main
         run: |
-          source skyportal_env/bin/activate
+          source ~/skyportal_env/bin/activate
           # Get the head line from Alembic history output
           head=$( PYTHONPATH=. alembic history | grep '(head)' )
 
@@ -183,7 +183,7 @@ jobs:
           createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
-          source skyportal_env/bin/activate
+          source ~/skyportal_env/bin/activate
           make db_init
 
           uv pip list --format=columns
@@ -194,7 +194,7 @@ jobs:
 
       - name: Test loading demo data
         run: |
-          source skyportal_env/bin/activate
+          source ~/skyportal_env/bin/activate
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make run &
           sleep 180 && make load_demo_data
@@ -209,7 +209,7 @@ jobs:
 
       - name: Check for migration branching
         run: |
-          source skyportal_env/bin/activate
+          source ~/skyportal_env/bin/activate
           # Make sure latest revision on main is included in Alembic history
           n_current_head=$( PYTHONPATH=. alembic history | grep -c $CURRENT_HEAD )
           if [[ $n_current_head -eq 0 ]]
@@ -238,7 +238,7 @@ jobs:
 
       - name: Run migration
         run: |
-          source skyportal_env/bin/activate
+          source ~/skyportal_env/bin/activate
           # Update to latest dependencies
           make dependencies
           PYTHONPATH=. alembic -x config=config.yaml upgrade head
@@ -246,7 +246,7 @@ jobs:
 
       - name: Check migration completeness with Alembic
         run: |
-          source skyportal_env/bin/activate
+          source ~/skyportal_env/bin/activate
           # Try generating a new migration
           PYTHONPATH=. alembic -x config=config.yaml revision --autogenerate -m "Test migration"
 
@@ -278,7 +278,7 @@ jobs:
           createdb -h localhost -U skyportal skyportal2_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal2_test TO skyportal;" skyportal2_test
 
-          source skyportal_env/bin/activate
+          source ~/skyportal_env/bin/activate
           make db_init
 
           make run &
@@ -288,7 +288,7 @@ jobs:
 
       - name: Compare databases with migra
         run: |
-          source skyportal_env/bin/activate
+          source ~/skyportal_env/bin/activate
           uv pip install migra
 
           # SQL needed to go from migrated database to fresh database
