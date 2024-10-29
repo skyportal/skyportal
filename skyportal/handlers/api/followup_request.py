@@ -514,8 +514,34 @@ def post_followup_request(
             ).first()
             if existing_tns_classifications is not None:
                 raise ValueError(
-                    'Source within 0.5 arcsec has already been classified in TNS, not submitting request (as per constraint).'
+                    f'Source within {radius} arcsec has already been classified in TNS, not submitting request (as per constraint).'
                 )
+        if isinstance(constraints.get("not_if_tns_reported", None), (int, float)):
+            # don't trigger if there is any source reported to TNS within the radius
+            # and the discovery date is older than the constraint's allowed age
+            existing_tns_sources = session.scalars(
+                Obj.select(session.user_or_token).where(
+                    Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius),
+                    Obj.tns_name.isnot(None),
+                    Obj.tns_name != '',
+                    Obj.tns_info.isnot(None),
+                    Obj.tns_info != '',
+                )
+            ).all()
+            for existing_tns_source in existing_tns_sources:
+                discovery_date = existing_tns_source.tns_info.get('discoverydate', None)
+                if discovery_date is not None:
+                    try:
+                        discovery_date = arrow.get(discovery_date).datetime
+                    except Exception:
+                        continue
+                    delta_hours = (
+                        datetime.utcnow() - discovery_date
+                    ).total_seconds() / 3600
+                    if delta_hours > float(constraints['not_if_tns_reported']):
+                        raise ValueError(
+                            f'A Source within {radius} arcsec ({existing_tns_source.id}) has already been reported to TNS {delta_hours} hours ago, not submitting request (as per constraint).'
+                        )
 
     stmt = Allocation.select(session.user_or_token).where(
         Allocation.id == data['allocation_id'],
