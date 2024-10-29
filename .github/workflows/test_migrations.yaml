@@ -140,6 +140,7 @@ jobs:
 
       - name: Save current Alembic head on main
         run: |
+          source .venv/bin/activate
           # Get the head line from Alembic history output
           head=$( PYTHONPATH=. alembic history | grep '(head)' )
 
@@ -208,6 +209,7 @@ jobs:
 
       - name: Check for migration branching
         run: |
+          source .venv/bin/activate
           # Make sure latest revision on main is included in Alembic history
           n_current_head=$( PYTHONPATH=. alembic history | grep -c $CURRENT_HEAD )
           if [[ $n_current_head -eq 0 ]]
