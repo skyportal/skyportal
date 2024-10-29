@@ -1332,8 +1332,11 @@ class PhotometryHandler(BaseHandler):
                     session,
                     refresh=refresh,
                 )
-            except Exception:
+            except Exception as e:
                 session.rollback()
+                if "The following photometry already exists in the database:" in str(e):
+                    return self.error(str(e))
+
                 return self.error(traceback.format_exc())
 
             log(

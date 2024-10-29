@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -11,10 +11,23 @@ import validator from "@rjsf/validator-ajv8";
 
 import { submitPhotometry } from "../../ducks/photometry";
 
-const validateDate = (date) => {
-  // use a regex to check if the date is written as YYYY-MM-DDThh:mm:ss
-  const regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
-  return regex.test(date);
+const dateType = (date) => {
+  let type = "unknown";
+  if (date === undefined || date === null) {
+    return type;
+  }
+  // if its only digits and up to one dot, then its MJD
+  if (/^\d+(\.\d+)?$/.test(date)) {
+    type = "MJD";
+  }
+  // if its a date string like 2021-09-01T12:00:00 (with or without the T, and optional .000Z)
+  if (
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3}Z)?$/.test(date) ||
+    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{3}Z)?$/.test(date)
+  ) {
+    type = "UTC";
+  }
+  return type;
 };
 
 const UTCToMJD = (utc) => {
@@ -31,6 +44,18 @@ const NewPhotometryForm = ({ obj_id }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const groups = useSelector((state) => state.groups.userAccessible);
+
+  const [selectedFormData, setSelectedFormData] = useState({
+    group_ids: [groups[0]?.id],
+    obsdate: "",
+    mag: null,
+    magerr: null,
+    limiting_mag: null,
+    magsys: "AB",
+    origin: "",
+    altdata: "",
+    coordinates: false,
+  });
   // only show instruments that have an imaging mode
   const sortedInstrumentList = [...instrumentList].filter((instrument) =>
     instrument.type.includes("imag"),
@@ -45,14 +70,23 @@ const NewPhotometryForm = ({ obj_id }) => {
     return 0;
   });
 
-  if (instrumentList.length === 0) {
-    return <h3>No instruments available...</h3>;
-  }
-
   const instLookUp = {};
-  instrumentList?.forEach((instrumentObj) => {
+  sortedInstrumentList?.forEach((instrumentObj) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
+
+  useEffect(() => {
+    // if no instrument is selected, default to the first instrument that has filters
+    if (selectedInstrumentId === null && sortedInstrumentList.length > 0) {
+      // find the first instrument that has filters
+      const firstInstrumentWithFilters = sortedInstrumentList.find(
+        (instrument) => instrument.filters.length > 0,
+      );
+      if (firstInstrumentWithFilters) {
+        setSelectedInstrumentId(firstInstrumentWithFilters.id);
+      }
+    }
+  }, [selectedInstrumentId, sortedInstrumentList]);
 
   const handleSelectedInstrumentChange = (e) => {
     setSelectedInstrumentId(e.target.value);
@@ -60,7 +94,7 @@ const NewPhotometryForm = ({ obj_id }) => {
 
   const listmag = ["Vega", "AB"];
 
-  const photoFormSchema = {
+  const photFormSchema = {
     type: "object",
     properties: {
       group_ids: {
@@ -77,7 +111,7 @@ const NewPhotometryForm = ({ obj_id }) => {
         title: "Share with Groups",
         default: [groups[0]?.id],
       },
-      dateobs: {
+      obsdate: {
         type: "string",
         title: "Observation date (YYYY-MM-DDThh:mm:ss or MJD)",
       },
@@ -97,6 +131,12 @@ const NewPhotometryForm = ({ obj_id }) => {
         type: "string",
         enum: listmag,
         title: "Magnitude system",
+        default: listmag[1],
+      },
+      filter: {
+        type: "string",
+        enum: instLookUp[selectedInstrumentId]?.filters,
+        title: "Filter",
       },
       origin: {
         type: "string",
@@ -121,13 +161,8 @@ const NewPhotometryForm = ({ obj_id }) => {
         title: "Enter coordinates",
         default: false,
       },
-      filter: {
-        type: "string",
-        enum: instLookUp[selectedInstrumentId]?.filters,
-        title: "Filter",
-      },
     },
-    required: ["dateobs", "filter", "magsys"],
+    required: ["obsdate", "filter", "magsys"],
     dependencies: {
       coordinates: {
         oneOf: [
@@ -147,10 +182,21 @@ const NewPhotometryForm = ({ obj_id }) => {
             },
             required: ["ra", "dec"],
           },
+          {
+            properties: {
+              coordinates: {
+                enum: [false],
+              },
+            },
+          },
         ],
       },
     },
   };
+
+  if (sortedInstrumentList.length === 0) {
+    return <h3>No instruments available...</h3>;
+  }
 
   // vanillaJS
   function isJSON(str) {
@@ -162,12 +208,10 @@ const NewPhotometryForm = ({ obj_id }) => {
   }
 
   const validate = (formData, errors) => {
-    if (formData.dateobs && !validateDate(formData.dateobs)) {
-      if (Number.isNaN(parseFloat(formData.dateobs))) {
-        errors.dateobs.addError(
-          "Date must be in the format YYYY-MM-DDThh:mm:ss or MJD",
-        );
-      }
+    if (formData.obsdate && dateType(formData.obsdate) === "unknown") {
+      errors.obsdate.addError(
+        "Date must be in the format YYYY-MM-DDThh:mm:ss or MJD",
+      );
     }
     if (formData.nb_exposure && formData.nb_exposure < 0) {
       errors.nb_exposure.addError("Number of exposures cannot be negative");
@@ -229,7 +273,7 @@ const NewPhotometryForm = ({ obj_id }) => {
   const submit = (data) => {
     const {
       group_ids,
-      dateobs,
+      obsdate,
       mag,
       magerr,
       limiting_mag,
@@ -244,10 +288,13 @@ const NewPhotometryForm = ({ obj_id }) => {
       altdata,
     } = data.formData;
     let mjd = null;
-    if (validateDate(dateobs)) {
-      mjd = UTCToMJD(dateobs);
+    let date_type = dateType(obsdate);
+    if (date_type === "MJD") {
+      mjd = parseFloat(obsdate);
+    } else if (date_type === "UTC") {
+      mjd = UTCToMJD(obsdate);
     } else {
-      mjd = parseFloat(dateobs);
+      console.error("Unknown date type");
     }
     let altdata_json;
     try {
@@ -306,7 +353,7 @@ const NewPhotometryForm = ({ obj_id }) => {
 
   return (
     <div style={{ display: "flex", alignItems: "center" }}>
-      {instrumentList?.length > 0 && groups?.length > 0 ? (
+      {sortedInstrumentList?.length > 0 && groups?.length > 0 ? (
         <div>
           <div>
             <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
@@ -317,7 +364,7 @@ const NewPhotometryForm = ({ obj_id }) => {
               onChange={handleSelectedInstrumentChange}
               name="instrumentSelect"
             >
-              {instrumentList?.map((instrument) => (
+              {sortedInstrumentList?.map((instrument) => (
                 <MenuItem value={instrument.id} key={instrument.id}>
                   {instrument.name}
                 </MenuItem>
@@ -326,10 +373,15 @@ const NewPhotometryForm = ({ obj_id }) => {
           </div>
           <div>
             <Form
-              schema={photoFormSchema}
+              schema={photFormSchema}
               validator={validator}
               onSubmit={submit}
               customValidate={validate}
+              // liveValidate
+              formData={selectedFormData}
+              onChange={({ formData }) => {
+                setSelectedFormData(formData);
+              }}
             />
           </div>
         </div>
