@@ -6,7 +6,7 @@ on:
       - main
       - test-docker
   pull_request:
-    types: [labeled]
+    types: [opened, reopened, synchronize, ready_for_review, labeled]
 
 jobs:
   test:
