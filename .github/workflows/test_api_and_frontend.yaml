@@ -46,9 +46,7 @@ jobs:
         with:
           python-version: "3.10"
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - uses: oven-sh/setup-bun@v2
 
       - name: Checkout main
         uses: actions/checkout@v4
@@ -60,11 +58,11 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+            ~/.bun
+          key: ${{ runner.os }}-bun-${{ hashFiles('package.json') }}
           restore-keys: |
-            ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
-            ${{ runner.os }}-npm-
+            ${{ runner.os }}-bun-${{ hashFiles('package.json') }}
+            ${{ runner.os }}-bun-
 
       - uses: actions/cache@v4
         with:
@@ -143,18 +141,19 @@ jobs:
           sudo apt update -y
           sudo apt install nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter -y
 
-          pip install pip==24.0
-          pip install wheel numpy
+          ### UV python package manager installation
+          curl -LsSf https://astral.sh/uv/install.sh | sh
 
-          export NPM_PACKAGES="${HOME}/.npm-packages"
-          export PATH=${NPM_PACKAGES}/bin:$PATH
-          export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
+          uv venv --python 3.10 && source .venv/bin/activate
 
-          sudo npm -g install npm@latest
+          uv pip install pip==24.0
+          uv pip install wheel numpy
+
+          bun upgrade
 
           which python; python --version
-          echo npm $(npm --version)
-          echo node $(node --version)
+          echo uv $(uv --version)
+          echo bun $(bun --version)
           nginx -v
           firefox --version
 
@@ -180,70 +179,80 @@ jobs:
           createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+          source .venv/bin/activate
           make db_init
 
-          pip list --format=columns
-          npm ls --depth 0 || true
+          uv pip list --format=columns
+          bun pm ls --depth 0 || true
 
           # Stamp Alembic HEAD
           PYTHONPATH=. alembic -x config=config.yaml stamp head
 
       - name: Install Geckodriver / Selenium
         run: |
+          source .venv/bin/activate
           geckodriver --version
           python -c "import selenium; print(f'Selenium {selenium.__version__}')"
 
       - name: Refresh SkyPortal dependencies for tested version
         run: |
+          source .venv/bin/activate
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
       - name: Formatting and linting checks
         if: github.ref != 'refs/heads/main'
         run: |
-          pip install pre-commit
+          source .venv/bin/activate
+          uv pip install pre-commit
           pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
       - name: Patch test_frontend.py for a longer timeout
         run: |
+          source .venv/bin/activate
           sed -i 's/timeout=60/timeout=180/g' baselayer/tools/test_frontend.py
 
       - name: Patch Notifications.jsx for a longer display
         run: |
+          source .venv/bin/activate
           sed -i 's/duration = 3000/duration = 15000/g' baselayer/static/js/components/Notifications.jsx
 
       - name: Run front-end tests part 1
         if: ${{ matrix.test_subset == 'frontend_pt1' }}
         run: |
+          source .venv/bin/activate
           PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/frontend/sources_and_observingruns_etc'
 
       - name: Run front-end tests part 2
         if: ${{ matrix.test_subset == 'frontend_pt2' }}
         run: |
+          source .venv/bin/activate
           PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '--ignore=skyportal/tests/frontend/sources_and_observingruns_etc skyportal/tests/frontend'
 
       - name: Run API & utils tests part 1
         if: ${{ matrix.test_subset == 'api_and_utils_pt1' }}
         run: |
+          source .venv/bin/activate
           PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/api/candidates_sources_events'
 
       - name: Run API & utils tests part 2
         if: ${{ matrix.test_subset == 'api_and_utils_pt2' }}
         run: |
+          source .venv/bin/activate
           PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '--ignore=skyportal/tests/api/candidates_sources_events skyportal/tests/api skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting'
 
       - name: Run flaky tests
         if: ${{ matrix.test_subset == 'flaky' }}
         continue-on-error: true
         run: |
+          source .venv/bin/activate
           PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/flaky'
 
       - name: Run external tests
         if: ${{ matrix.test_subset == 'external' }}
         continue-on-error: true
         run: |
+          source .venv/bin/activate
           PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/external'
 
       - name: Upload logs
