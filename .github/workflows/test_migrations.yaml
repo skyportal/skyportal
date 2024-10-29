@@ -115,7 +115,7 @@ jobs:
           ### UV python package manager installation
           curl -LsSf https://astral.sh/uv/install.sh | sh
 
-          uv venv skyportal_env --python 3.10 && source ~/skyportal_env/bin/activate
+          uv venv ~/skyportal_env --python 3.10 && source ~/skyportal_env/bin/activate
 
           uv pip install pip==24.0
           uv pip install wheel numpy
