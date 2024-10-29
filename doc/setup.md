@@ -9,7 +9,7 @@ how to install them on MacOS and Debian-based systems below.
 - Supervisor (v>=4.2.1)
 - NGINX (v>=1.7)
 - PostgreSQL (v>=14.0)
-- Node.JS/npm (v>=16.14.0/8.3.2)
+- Bun (v>=1.1.33)
 
 When installing SkyPortal on Debian-based systems, 2 additional packages are required to be able to install `pycurl` later on:
 
@@ -53,7 +53,7 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 
 Using Homebrew, install core dependencies:
 ```
-brew install supervisor nginx postgresql node llvm libomp gsl rust
+brew install supervisor nginx postgresql uv llvm libomp gsl rust
 ```
 If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command:
 ```
@@ -62,16 +62,16 @@ brew tap denji/nginx && brew install nginx-full --with-brotli
 
  _If you already had NGINX installed, you may need to uninstall it first with `brew unlink nginx`._ Otherwise, you can install NGINX normally with `brew install nginx`.
 
-Then, install Node.js with NVM:
-```
-nvm install node
-```
 Finally, install these compression libraries. These are needed in order to install the Python dependency `tables` later on:
 ```
 brew install hdf5 c-blosc lzo bzip2
 ```
 After installing each package, Homebrew will print out the installation paths. You should add these paths to your `.zshrc` file to ensure SkyPortal can locate these libraries. Instructions for this can be found in the [Configuring Shell Environment for Development](#configure-shell-mac) section below.
 
+Last but not least, we install `Bun` (a javascript runtime, faster equivalent to `node+npm`):
+```
+curl -fsSL https://bun.sh/install | bash
+```
 
 2. Start the PostgreSQL server:
 
@@ -160,7 +160,7 @@ If the command outputs information about a service, it means that port 5000 is a
 
 	```
 	sudo apt install supervisor postgresql \
-	      libpq-dev npm python3-pip \
+	      libpq-dev python3-pip \
 	      libcurl4-gnutls-dev libgnutls28-dev
 	```
 
@@ -174,6 +174,12 @@ If the command outputs information about a service, it means that port 5000 is a
 	```
 
 	Otherwise, you can install NGINX normally with `sudo apt-get install nginx`.
+
+	Then, we install `Bun` (a javascript runtime, faster equivalent to `node+npm`):
+
+	```
+	curl -fsSL https://bun.sh/install | bash
+	```
 
 2. Configure your database permissions.
 
