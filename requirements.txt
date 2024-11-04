@@ -42,7 +42,7 @@ astroplan==0.10.1
 email-validator==2.2.0
 alembic==1.13.2
 marshmallow-jsonschema==0.13.0
-paramiko==3.4.0
+paramiko==3.5.0
 scp==0.15.0
 requests_toolbelt==0.10.1
 sendgrid==6.11.0
