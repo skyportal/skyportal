@@ -460,6 +460,7 @@ def post_skymap_from_notice(
                             post_source(source, user_id, session)
 
         except Exception as e:
+            log(traceback.format_exc())
             log(
                 f"Failed to create source for event {dateobs} with Localization {localization_id} with name {skymap['localization_name']}: {str(e)}."
             )
