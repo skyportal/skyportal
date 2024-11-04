@@ -34,7 +34,7 @@ obspy==1.4.0
 conesearch-alchemy==1.1.0
 regions==0.9
 jsonschema==4.21.1
-jsonpath_ng==1.6.1
+jsonpath_ng==1.7.0
 pytest-rerunfailures>=14.0
 tables>=3.10.1,<4.0.0
 timezonefinder==6.5.2
