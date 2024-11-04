@@ -595,6 +595,11 @@ def generate_plan(
         # Function to read maps
         params, map_struct = gwemopt.io.read_skymap(params, map_struct=map_struct)
 
+        # we pop out the keys we do not need for scheduling (they are used for plotting, or efficiency calculations)
+        map_struct.pop('skymap_raster', None)
+        map_struct.pop('skymap_raster_schedule', None)
+        map_struct.pop('hdu', None)
+
         # get the partition name for the localization tiles using the dateobs
         # that way, we explicitely use the partition that contains the localization tiles we are interested in
         # that should help not reach that "critical point" mentioned by @mcoughlin where the queries almost dont work anymore
