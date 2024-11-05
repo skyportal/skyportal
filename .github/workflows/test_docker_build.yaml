@@ -6,11 +6,11 @@ on:
       - main
       - test-docker
   pull_request:
-    types: [opened, reopened, synchronize, ready_for_review, labeled]
+    types: [labeled]
 
 jobs:
   test:
-    if: github.event_name == 'push' || github.event.label.name == 'docker'
+    if: github.event_name == 'push' || contains(github.event.issue.labels.*.name, 'docker')
     name: Test Docker build
     runs-on: ubuntu-latest
     timeout-minutes: 30
