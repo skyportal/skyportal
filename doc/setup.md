@@ -28,6 +28,8 @@ virtualenv skyportal_env
 source skyportal_env/bin/activate
 ```
 
+**Note**: To update the repository, you can run `git pull` from the `skyportal` directory. SkyPortal builds on top of `baselayer` where it is added as a submodule. Make sure to also update submodule(s) by running `git submodule update --init --recursive`.
+
 You can also use `conda` or `pipenv` to create your environment.
 
 If you developing on a Mac with an ARM (M1/M2) you might consider using a Rosetta-driven environment so that you more easily install dependencies (that tend to be x86-centric):
@@ -75,14 +77,15 @@ curl -fsSL https://bun.sh/install | bash
 
 2. Start the PostgreSQL server:
 
-  - To start automatically at login: `brew services start postgresql`
-  - To start manually: `pg_ctl -D /usr/local/var/postgres start`
+  - To start it, run: `brew services start postgresql`
+  - To stop it, run: `brew services stop postgresql`
 
   You may also need to run the following command to create the proper admin user:
 
   ```bash
-  /usr/local/opt/postgres/bin/createuser -s postgres
+  /opt/homebrew/opt/postgresql@<version>/bin/createuser -s postgres
   ```
+  where `<version>` is the version of PostgreSQL you are running.
 
 3. To run the test suite, you'll need Geckodriver:
 
@@ -96,19 +99,12 @@ curl -fsSL https://bun.sh/install | bash
 	brew install graphviz
 	```
 
-5. Activate the environment and add a few (hard-to install-with-pip) packages by hand:
-
+5. **Optional:** If you are using `conda` instead of `virtualenv`, we add a few (hard-to install-with-pip) packages by hand:
 	```
 	conda activate skyportal_env
-	conda install pyproj numba Shapely
+	conda install pyproj numba Shapely ligo.skymap
 	```
 
-5. (ARM M1/M2) Explicitly [install ligo.skymap using conda rather than pip](https://lscsoft.docs.ligo.org/ligo.skymap/quickstart/install.html#option-2-conda):
-
-   ```
-   conda activate skyportal_env
-   conda install ligo.skymap
-   ```
 <a name="configure-shell-mac"></a>
 ### Configuring Shell Environment for Development
 
@@ -120,7 +116,7 @@ When developing with SkyPortal on mac, you may  also need to configure your shel
 nano ~/.zshrc
 ```
 #### Set enviroment variables to their installation paths
-After installing the libraries with Homebrew, you'll need to set environment variables to their installation paths. Replace the placeholder text `<path-to-library>` with the actual path that Homebrew provides upon sucessful installation.
+After installing the libraries with Homebrew, you'll need to set environment variables to their installation paths. Replace the placeholder text `<path-to-library>/<version>` with the actual path that Homebrew provides upon sucessful installation.
 
 ```
 export HDF5_DIR="<path-to-hdf5>"
@@ -181,10 +177,16 @@ If the command outputs information about a service, it means that port 5000 is a
 	curl -fsSL https://bun.sh/install | bash
 	```
 
+	Finally, we install `uv` (a faster equivalent to `pip` and `virtualenv`):
+
+	```
+	curl -LsSf https://astral.sh/uv/install.sh | sh
+	```
+
 2. Configure your database permissions.
 
 	In `pg_hba.conf` (typically located in
-	`/etc/postgresql/<postgres-version>/main`), insert the following lines
+	`/etc/postgresql/<postgres-version>/main`, or if using homebrew on macos: `/opt/homebrew/var/postgresql@<version>/pg_hba.conf` where version is the version of postgres you are running), insert the following lines
 	*before* any other `host` lines:
 
 	```
@@ -230,7 +232,7 @@ If the command outputs information about a service, it means that port 5000 is a
 
 0. Make sure you are in the skyportal env: `conda activate skyportal_env`
 1. Initialize the database with `make db_init` (this only needs to
-   happen once).
+   happen once, or anytime you run `make db_clear` to wipe the database, useful for development).
 2. Copy `config.yaml.defaults` to `config.yaml`.
 3. Run `make log` to monitor the service and, in a separate window, `make run` to start the server.
 4. Direct your browser to `http://localhost:5000`.
