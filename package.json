@@ -124,7 +124,7 @@
     "@babel/preset-env": "7.23.9",
     "@babel/preset-react": "7.25.9",
     "@rspack/cli": "1.0.8",
-    "@rspack/core": "1.0.8",
+    "@rspack/core": "1.0.14",
     "@types/eslint": "9.6.1",
     "@types/node": "22.7.4",
     "babel-loader": "8.2.2",
