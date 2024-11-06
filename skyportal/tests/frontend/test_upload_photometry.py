@@ -184,7 +184,7 @@ def test_upload_photometry_form(driver, sedm, super_admin_user, public_source):
     driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
     driver.click_xpath(f'//li[@data-value="{sedm.id}"]', scroll_parent=True)
 
-    driver.wait_for_xpath('//*[@id="root_dateobs"]').send_keys("2017-05-09T12:34:56")
+    driver.wait_for_xpath('//*[@id="root_obsdate"]').send_keys("2017-05-09T12:34:56")
     driver.wait_for_xpath('//*[@id="root_mag"]').send_keys("12.3")
     driver.wait_for_xpath('//*[@id="root_magerr"]').send_keys("0.1")
     driver.wait_for_xpath('//*[@id="root_limiting_mag"]').send_keys("20.0")
