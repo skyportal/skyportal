@@ -5,7 +5,7 @@
 SkyPortal requires the following software to be installed.  We show
 how to install them on MacOS and Debian-based systems below.
 
-- Python 3.9 or later (<3.13, since `numba` requires <3.13)
+- Python 3.10 or later (<3.13, since `numba` requires <3.13)
 - Supervisor (v>=4.2.1)
 - NGINX (v>=1.7)
 - PostgreSQL (v>=14.0)
