@@ -28,7 +28,7 @@ virtualenv skyportal_env
 source skyportal_env/bin/activate
 ```
 
-**Note**: To update the repository, you can run `git pull` from the `skyportal` directory. SkyPortal builds on top of `baselayer` where it is added as a submodule. Make sure to also update submodule(s) by running `git submodule update --init --recursive`.
+**Note**: To update the repository, you can run `git pull` from the `skyportal` directory. SkyPortal builds on top of `baselayer` where it is added as a submodule. Different SkyPortal branches might use different versions of baselayer. Always run the submodule update command after switching branches or pulling changes: `git submodule update --init --recursive`.
 
 You can also use `conda` or `pipenv` to create your environment.
 
@@ -64,7 +64,7 @@ brew tap denji/nginx && brew install nginx-full --with-brotli
 
  _If you already had NGINX installed, you may need to uninstall it first with `brew unlink nginx`._ Otherwise, you can install NGINX normally with `brew install nginx`.
 
-Finally, install these compression libraries. These are needed in order to install the Python dependency `tables` later on:
+Finally, install these compression libraries. These are needed in order to install the Python dependency `tables` later on. After installation, Homebrew will display paths to each library. Be sure to save these paths, as they’ll be needed later to set environment variables.
 ```
 brew install hdf5 c-blosc lzo bzip2
 ```
@@ -115,8 +115,8 @@ When developing with SkyPortal on mac, you may  also need to configure your shel
 ```
 nano ~/.zshrc
 ```
-#### Set enviroment variables to their installation paths
-After installing the libraries with Homebrew, you'll need to set environment variables to their installation paths. Replace the placeholder text `<path-to-library>/<version>` with the actual path that Homebrew provides upon sucessful installation.
+#### Set environment variables to their installation paths
+After installing the libraries with Homebrew, you'll need to set environment variables to their installation paths. Replace the placeholder text `<path-to-library>/<version>` with the actual path that Homebrew provides upon successful installation.
 
 ```
 export HDF5_DIR="<path-to-hdf5>"
@@ -124,6 +124,7 @@ export BLOSC_DIR="<path-to-c-blosc>"
 export LZO_DIR="<path-to-lzo>"
 export BZIP_DIR="<path-to-bzip2>"
 ```
+If you have forgotten your library install paths, you can run `brew info <package_name>` to display the install path.
 
 Typically, Homebrew provides these paths upon successful installation. You can also discover where a library was installed by Homebrew with this command:
 
@@ -148,7 +149,7 @@ SkyPortal defaults to using port 5000. However, this port may already be in use 
 ```
 lsof -i :5000
 ```
-If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port.
+If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port using instructions found in the [Port Configuration](#port-configuration) section.
 
 ## Installation: Debian-based Linux and WSL
 
@@ -239,6 +240,30 @@ If the command outputs information about a service, it means that port 5000 is a
 5. If you want some test data to play with, run `make load_demo_data` (do this while the server is running!).
 6. Change users by navigating to `http://localhost:5000/become_user/<#>` where # is a number from 1-5.
    Different users have different privileges and can see more or less of the demo data.
+
+<a id="port-configuration"></a>
+## Port Configuration
+
+Skyportal uses two distinct ports in its configuration:
+
+1. Internal Port - Where the application is actually hosted
+2. Public-Facing Port - Where external users access the application
+
+If you need to use different ports (e.g., port 5000 is already in use) add the following changes to `skyportal/config.yaml.defaults` override the defaults:
+
+```angular2html
+ports:
+  app: 5001  # Choose an available port for internal hosting
+
+server:
+  port: 5001  # Choose an available port for public access
+```
+
+Be aware that Skyportal has two config.yaml.defaults files:
+
+skyportal/config.yaml.defaults - The main configuration file you should modify
+skyportal/baselayer/config.yaml.defaults - Part of the baselayer submodule (do not modify)
+
 
 ## Troubleshooting
 
