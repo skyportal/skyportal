@@ -16,7 +16,38 @@ When installing SkyPortal on Debian-based systems, 2 additional packages are req
 - libcurl4-gnutls-dev
 - libgnutls28-dev
 
-## Source download, Python environment
+## Package Managers
+Install `uv` and `Bun`:
+```
+# Install uv (faster Python package manager)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install bun (a javascript runtime, faster equivalent to `node+npm`)
+curl -fsSL https://bun.sh/install | bash
+```
+After installation, you'll need to add uv to your PATH. 
+```angular2html
+source $HOME/.cargo/env # for bash, zsh, or sh shells
+source $HOME/.cargo/env.fish # for fish shell
+```
+For bun, reload your shell:
+```angular2html
+# For bash
+exec /bin/bash
+
+# For zsh
+exec /bin/zsh
+
+# For fish
+exec /bin/fish
+```
+You can verify both installations succeeded by running:
+```angular2html
+uv --version
+bun --version
+```
+
+## Cloning SkyPortal and Configuring the Python Environment
 
 Clone the [SkyPortal repository](https://github.com/skyportal/skyportal) and start a new
 virtual environment.
@@ -24,13 +55,11 @@ virtual environment.
 ```
 git clone https://github.com/skyportal/skyportal.git
 cd skyportal/
-virtualenv skyportal_env
+uv venv skyportal_env
 source skyportal_env/bin/activate
 ```
 
 **Note**: To update the repository, you can run `git pull` from the `skyportal` directory. SkyPortal builds on top of `baselayer` where it is added as a submodule. Different SkyPortal branches might use different versions of baselayer. Always run the submodule update command after switching branches or pulling changes: `git submodule update --init --recursive`.
-
-You can also use `conda` or `pipenv` to create your environment.
 
 If you developing on a Mac with an ARM (M1/M2) you might consider using a Rosetta-driven environment so that you more easily install dependencies (that tend to be x86-centric):
 
@@ -70,11 +99,6 @@ brew install hdf5 c-blosc lzo bzip2
 ```
 After installing each package, Homebrew will print out the installation paths. You should add these paths to your `.zshrc` file to ensure SkyPortal can locate these libraries. Instructions for this can be found in the [Configuring Shell Environment for Development](#configure-shell-mac) section below.
 
-Last but not least, we install `Bun` (a javascript runtime, faster equivalent to `node+npm`):
-```
-curl -fsSL https://bun.sh/install | bash
-```
-
 2. Start the PostgreSQL server:
 
   - To start it, run: `brew services start postgresql`
@@ -99,11 +123,16 @@ curl -fsSL https://bun.sh/install | bash
 	brew install graphviz
 	```
 
-5. **Optional:** If you are using `conda` instead of `virtualenv`, we add a few (hard-to install-with-pip) packages by hand:
-	```
-	conda activate skyportal_env
-	conda install pyproj numba Shapely ligo.skymap
-	```
+5. Optional: Some additional packages you might need:
+```
+# If using uv (recommended):
+source skyportal_env/bin/activate
+uv pip install pyproj numba Shapely ligo.skymap
+
+# If using conda:
+conda activate skyportal_env
+conda install pyproj numba Shapely ligo.skymap
+```
 
 <a name="configure-shell-mac"></a>
 ### Configuring Shell Environment for Development
@@ -131,13 +160,6 @@ Typically, Homebrew provides these paths upon successful installation. You can a
 ```
 brew info <name_of_package>
 ```
-#### Alias pip3 and python3
-Depending on your system setup, the `python` and `pip` commands might point to Python 2 rather than Python 3. To ensure that you're using Python 3 and its corresponding pip version, you may need to set aliases in your `.zshrc` file:
-
-```
-alias pip='pip3'
-alias python='python3'
-```
 
 #### To activate the changes, source your .zshrc file:
 ```
@@ -157,8 +179,7 @@ If the command outputs information about a service, it means that port 5000 is a
 
 	```
 	sudo apt install supervisor postgresql \
-	      libpq-dev python3-pip \
-	      libcurl4-gnutls-dev libgnutls28-dev
+	libcurl4-gnutls-dev libgnutls28-dev
 	```
 
 	If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you have to install NGINX and the brotli module from another source with:
@@ -231,7 +252,7 @@ If the command outputs information about a service, it means that port 5000 is a
 
 ## Launch
 
-0. Make sure you are in the skyportal env: `conda activate skyportal_env`
+0. Make sure you are in the skyportal env by running `source skyportal_env/bin/activate` or `conda activate skyportal_env` if using conda.
 1. Initialize the database with `make db_init` (this only needs to
    happen once, or anytime you run `make db_clear` to wipe the database, useful for development).
 2. Copy `config.yaml.defaults` to `config.yaml`.
@@ -336,7 +357,7 @@ To do so, it first verifies that your server is running (without SSL) at the spe
 Start SkyPortal using `make run`.
 
 Then, install `certbot`:
-    pip install certbot-nginx
+    uv pip install certbot-nginx
 
 Ask `certbot` to verify the service and retrieve a new certificate:
     sudo certbot certonly --standalone --preferred-challenges http -d http://your.url
