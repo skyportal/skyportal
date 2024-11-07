@@ -1299,12 +1299,13 @@ class FollowupRequestHandler(BaseHandler):
                 data["last_modified_by_id"] = self.associated_user_object.id
 
                 api = followup_request.instrument.api_class
-                existing_status = followup_request.status
+                existing_status = str(followup_request.status).lower()
 
-                if 'failed to submit' in existing_status:
+                if any(
+                    [x in existing_status for x in ['failed to submit', 'rejected']]
+                ):
                     if not api.implements()['submit']:
                         return self.error('Cannot submit requests on this instrument.')
-
                 else:
                     if not api.implements()['update']:
                         return self.error('Cannot update requests on this instrument.')
@@ -1338,7 +1339,9 @@ class FollowupRequestHandler(BaseHandler):
                 for k in data:
                     setattr(followup_request, k, data[k])
 
-                if 'failed to submit' in existing_status:
+                if any(
+                    [x in existing_status for x in ['failed to submit', 'rejected']]
+                ):
                     try:
                         followup_request.instrument.api_class.submit(
                             followup_request,
@@ -1349,7 +1352,7 @@ class FollowupRequestHandler(BaseHandler):
                         session.commit()
                     except Exception as e:
                         return self.error(f'Failed to submit follow-up request: {e}')
-                else:
+                elif followup_request.instrument.api_class.implements()['update']:
                     try:
                         followup_request.instrument.api_class.update(
                             followup_request,
@@ -1360,6 +1363,10 @@ class FollowupRequestHandler(BaseHandler):
                         session.commit()
                     except Exception as e:
                         return self.error(f'Failed to update follow-up request: {e}')
+                else:
+                    return self.error(
+                        'Could not update existing request, not implemented for this instrument.'
+                    )
 
             return self.success()
 

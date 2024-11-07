@@ -116,7 +116,27 @@ class WINTERAPI(FollowUpAPI):
     """An interface to WINTER operations."""
 
     @staticmethod
-    def prepare_payload(payload):
+    def prepare_payload(payload, existing_payload=None):
+        """Prepare a payload for submission to WINTER.
+
+        Parameters
+        ----------
+        payload : dict
+            The payload to prepare for submission to WINTER.
+        existing_payload : dict, optional
+            The existing payload, if any, to update with the new payload.
+
+        Returns
+        -------
+        dict
+            The prepared payload.
+        """
+        # we know that WINTER does not implement updating requests
+        # so, if this method is called with an existing_payload, we just return it
+        # since it has already been prepared
+        if existing_payload is not None:
+            return existing_payload
+
         filter = payload['filter']
         if filter is None:
             raise ValueError("Filter not set in payload.")
@@ -213,7 +233,6 @@ class WINTERAPI(FollowUpAPI):
                 'skyportal/REFRESH_FOLLOWUP_REQUESTS',
             )
 
-    # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
         """Submit a follow-up request to WINTER.
@@ -256,10 +275,26 @@ class WINTERAPI(FollowUpAPI):
             auth=HTTPBasicAuth(altdata['username'], altdata['password']),
         )
 
-        r.raise_for_status()
-
         if r.status_code == 200:
             request.status = 'submitted'
+        else:
+            request.status = f'rejected: {r.content}'
+            log(
+                f'Failed to submit WINTER request for {request.id} (obj {request.obj.id}): {r.content}'
+            )
+            try:
+                flow = Flow()
+                flow.push(
+                    request.last_modified_by_id,
+                    'baselayer/SHOW_NOTIFICATION',
+                    payload={
+                        'note': f'Failed to submit WINTER request: {r.content}',
+                        'type': 'error',
+                    },
+                )
+            except Exception as e:
+                log(f'Failed to send notification for failed WINTER request: {e}')
+                pass
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
