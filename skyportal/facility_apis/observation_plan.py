@@ -439,7 +439,7 @@ class MMAAPI(FollowUpAPI):
             galaxy_catalogs = [
                 g for g, in DBSession().query(GalaxyCatalog.name).distinct().all()
             ]
-        end_date = instrument.telescope.next_sunrise()
+        end_date = instrument.telescope.next_twilight_morning_nautical()
         if end_date is None:
             end_date = str(datetime.utcnow() + timedelta(days=1))
         else:
