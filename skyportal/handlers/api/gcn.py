@@ -1345,6 +1345,7 @@ class GcnEventHandler(BaseHandler):
               schema:
                 type: string
         multiple:
+          summary: Get multiple GCN Events
           description: Retrieve multiple GCN events
           tags:
             - gcn events

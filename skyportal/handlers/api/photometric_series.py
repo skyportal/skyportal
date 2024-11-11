@@ -700,7 +700,7 @@ class PhotometricSeriesHandler(BaseHandler):
         responses:
           200:
             content:
-            application/json:
+              application/json:
                 schema:
                   allOf:
                     - $ref: '#/components/schemas/Success'
@@ -782,7 +782,7 @@ class PhotometricSeriesHandler(BaseHandler):
         responses:
           200:
             content:
-            application/json:
+              application/json:
                 schema:
                   allOf:
                     - $ref: '#/components/schemas/Success'
