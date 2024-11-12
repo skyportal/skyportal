@@ -522,8 +522,6 @@ server:
     google_oauth2_secret:
     google_oauth2_timeout: 15
 
-ports:
-  app: 5000 # This is the internal port
 services:
   dask: False
 
@@ -698,6 +696,7 @@ user:
   default_acls: []
 
 ports:
+  app: 5000 # This is the internal port
   facility_queue: 64510
   notification_queue: 64610
   observation_plan_queue: 64710
