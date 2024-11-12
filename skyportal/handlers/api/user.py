@@ -256,6 +256,12 @@ class UserHandler(BaseHandler):
             schema:
               type: string
             description: Get users with access to the stream with name given by this parameter.
+          - in: query
+            name: includeExpired
+            nullable: true
+            schema:
+              type: boolean
+            description: Include users with expired accounts in the results.
           responses:
             200:
               content:
