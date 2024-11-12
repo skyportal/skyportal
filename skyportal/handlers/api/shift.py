@@ -1,4 +1,5 @@
 import arrow
+from datetime import datetime
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
@@ -157,7 +158,7 @@ class ShiftHandler(BaseHandler):
                         Shift.select(
                             session.user_or_token,
                             options=[
-                                joinedload(Shift.group).joinedload(Group.group_users),
+                                joinedload(Shift.group).joinedload(Group.users),
                                 joinedload(Shift.shift_users),
                                 joinedload(Shift.comments),
                             ],
@@ -167,6 +168,7 @@ class ShiftHandler(BaseHandler):
                         return self.error(
                             f"Could not load shift with ID {shift_id}.", status=404
                         )
+
                     data = {
                         **shift.to_dict(),
                         "comments": sorted(
@@ -205,12 +207,16 @@ class ShiftHandler(BaseHandler):
                             ),
                             "group_users": [
                                 {
-                                    "id": gu.user.id,
-                                    "username": gu.user.username,
-                                    "first_name": gu.user.first_name,
-                                    "last_name": gu.user.last_name,
+                                    "id": gu.id,
+                                    "username": gu.username,
+                                    "first_name": gu.first_name,
+                                    "last_name": gu.last_name,
                                 }
-                                for gu in shift.group.group_users
+                                for gu in shift.group.users
+                                if (
+                                    gu.expiration_date is None
+                                    or gu.expiration_date >= datetime.now()
+                                )
                             ],
                         },
                     }
