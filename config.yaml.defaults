@@ -522,6 +522,8 @@ server:
     google_oauth2_secret:
     google_oauth2_timeout: 15
 
+ports:
+  app: 5000 # This is the internal port
 services:
   dask: False
 
