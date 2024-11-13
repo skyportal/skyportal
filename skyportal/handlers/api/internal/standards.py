@@ -22,7 +22,7 @@ class StandardsHandler(BaseHandler):
           required: false
           schema:
             type: string
-            enum: [Keck, Shane, , P200-NGPS]
+            enum: [Keck, Shane, P200, P200-NGPS]
           description: Which facility to generate the starlist for
         - in: query
           name: standard_type
