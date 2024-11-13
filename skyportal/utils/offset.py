@@ -196,6 +196,12 @@ facility_parameters = {
         "mag_min": 10.0,
         "min_sep_arcsec": 5.0,
     },
+    'P200-NGPS': {
+        "radius_degrees": 2.0 / 60,
+        "mag_limit": 18.0,
+        "mag_min": 10.0,
+        "min_sep_arcsec": 5.0,
+    },
     'Shane': {
         "radius_degrees": 2.5 / 60,
         "mag_limit": 17.0,
@@ -227,6 +233,15 @@ starlist_formats = {
         "giveoffsets": False,
         "maxname_size": 18,
         "first_line": None,
+    },
+    'P200-NGPS': {
+        "coord_sep": ' ',
+        "col_sep": 'XXX',
+        "commentstr": "!",
+        "giveoffsets": False,
+        "maxname_size": 18,
+        "first_line": None,
+        "format": "csv",
     },
     'Shane': {
         "coord_sep": ' ',
@@ -714,7 +729,7 @@ def get_formatted_standards_list(
     Parameters
     ----------
     starlist_type : str, optional
-        Type of starlist (Keck, P200, Shane)
+        Type of starlist (Keck, P200, P200-NGPS, Shane)
     standard_type : str, optional
         Name of the collection of standards (ESO, ZTF, ...)
     dec_filter_range: tuple, optional
@@ -797,6 +812,26 @@ def get_formatted_standards_list(
 
     if return_dataframe:
         return df
+    elif starlist_type == "P200-NGPS":
+        # here instead we want a CSV of the format:
+        # NAME RA DECL binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max
+        # where NAME RA DECL are the only required fields, the rest will have the following
+        # defaults:
+        # binspect = 1, binspat = 1, ccdmode = default, slitangle = 0, slitwidth = SET 1, exptime = SET 900, airmass_max = 3
+        for index, row in df.iterrows():
+            starlist.append(
+                {
+                    "str": (
+                        f"{row['name']}"
+                        + ", "
+                        + f"{row.ra_float}"
+                        + ", "
+                        + f"{row.dec_float}"
+                        + ", 1, 1, default, 0, 1, SET 900, 3"
+                    )
+                }
+            )
+        return {"starlist_info": starlist, "success": True}
     else:
         for index, row in df.iterrows():
             starlist.append(
@@ -1133,15 +1168,34 @@ def get_nearby_offset_stars(
 
     space = " "
     hmsdms = format_hmsdms(center, coord_sep, col_sep)
-    star_list_format = (
-        f"{basename:{space}<{maxname_size}}"
-        + col_sep
-        + f"{hmsdms}"
-        + col_sep
-        + "2000.0"
-        + col_sep
-        + f"{commentstr} source_name={source_name}"
-    )
+    if starlist_type == "P200-NGPS":
+        # here instead we want a CSV of the format
+        # NAME RA DECL binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max
+        # where NAME RA DECL are the only required fields, the rest will have the following
+        # defaults:
+        # binspect = 1, binspat = 1, ccdmode = default, slitangle = 0, slitwidth = SET 1, exptime = SET 900, airmass_max = 3
+        # first_line = (
+        #     f"NAME, RA, DECL, binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max"
+        # )
+
+        star_list_format = (
+            f"{basename}"
+            + ", "
+            + f"{source_ra}"
+            + ", "
+            + f"{source_dec}"
+            + ", 1, 1, default, 0, 1, SET 900, 3"
+        )
+    else:
+        star_list_format = (
+            f"{basename:{space}<{maxname_size}}"
+            + col_sep
+            + f"{hmsdms}"
+            + col_sep
+            + "2000.0"
+            + col_sep
+            + f"{commentstr} source_name={source_name}"
+        )
 
     star_list = [{"str": first_line}] if first_line else []
     if use_source_pos_in_starlist:
@@ -1176,19 +1230,29 @@ def get_nearby_offset_stars(
                 id_col = k
                 break
 
-        star_list_format = (
-            f"{name:{space}<{maxname_size}}"
-            + col_sep
-            + f"{hmsdms}"
-            + col_sep
-            + "2000.0"
-            + col_sep
-            + f"{offsets}"
-            + f"{col_sep if giveoffsets else ''}"
-            + f"{commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
-            + f"; {dras}, {ddecs} PA={pa:<0.02f} deg"
-            + f" ID={source[id_col]}"
-        )
+        if starlist_type == "P200-NGPS":
+            star_list_format = (
+                f"{name}"
+                + ", "
+                + f"{c.ra.value}"
+                + ", "
+                + f"{c.dec.value}"
+                + ", 1, 1, default, 0, 1, SET 900, 3"
+            )
+        else:
+            star_list_format = (
+                f"{name:{space}<{maxname_size}}"
+                + col_sep
+                + f"{hmsdms}"
+                + col_sep
+                + "2000.0"
+                + col_sep
+                + f"{offsets}"
+                + f"{col_sep if giveoffsets else ''}"
+                + f"{commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
+                + f"; {dras}, {ddecs} PA={pa:<0.02f} deg"
+                + f" ID={source[id_col]}"
+            )
 
         star_list.append(
             {
@@ -1514,6 +1578,11 @@ def get_finding_chart(
             'name': '',
         }
 
+    first_line = None
+    if offset_star_kwargs.get('starlist_type', 'Keck') == 'P200-NGPS':
+        # add a first line with the column names for P200-NGPS (csv format)
+        first_line = "NAME, RA, DEC, binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max"
+
     ncolors = len(star_list)
     if star_list[0]['str'].startswith("!Data"):
         ncolors -= 1
@@ -1531,6 +1600,7 @@ def get_finding_chart(
         "# Note: spacing in starlist many not copy/paste correctly in PDF\n"
         + "#       you can get starlist directly from"
         + f" {starlist_url}\n"
+        + (f"{first_line}\n" if first_line else "")
         + "\n".join([x["str"] for x in star_list])
     )
 

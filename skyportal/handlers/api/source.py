@@ -2275,7 +2275,7 @@ class SourceOffsetsHandler(BaseHandler):
           nullable: true
           schema:
             type: string
-            enum: [Keck, Shane, P200]
+            enum: [Keck, Shane, P200, P200-NGPS]
           description: Which facility to generate the starlist for
         - in: query
           name: num_offset_stars
@@ -2315,7 +2315,7 @@ class SourceOffsetsHandler(BaseHandler):
                           properties:
                             facility:
                               type: string
-                              enum: [Keck, Shane, P200]
+                              enum: [Keck, Shane, P200, P200-NGPS]
                               description: Facility queried for starlist
                             starlist_str:
                               type: string
@@ -2505,7 +2505,7 @@ class SourceFinderHandler(BaseHandler):
           nullable: true
           schema:
             type: string
-            enum: [Keck, Shane, P200]
+            enum: [Keck, Shane, P200, P200-NGPS]
         - in: query
           name: image_source
           nullable: true

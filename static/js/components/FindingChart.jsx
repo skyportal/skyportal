@@ -242,6 +242,7 @@ const FindingChart = () => {
                             <MenuItem value="Keck">Keck</MenuItem>
                             <MenuItem value="Shane">Shane</MenuItem>
                             <MenuItem value="P200">P200</MenuItem>
+                            <MenuItem value="P200-NGPS">P200 (NGPS)</MenuItem>
                           </Select>
                         )}
                       />
