@@ -4,8 +4,8 @@ services:
   web:
     image: skyportal/web
     ports:
-      - "5000:5000"
-      - "5001:5001"
+      - "9000:5000"
+      - "9001:5001"
     volumes:
       # allow the data files to be mounted across containers
       # if need be with the :z flag

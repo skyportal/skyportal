@@ -63,6 +63,11 @@ load_seed_data: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 load_seed_data: | dependencies_no_js prepare_seed_data
 	@PYTHONPATH=. python tools/data_loader.py data/db_seed.yaml $(FLAGS)
 
+db_create_tables: ## Create tables in the database
+db_create_tables: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
+db_create_tables: | dependencies_no_js
+	@PYTHONPATH=. python skyportal/initial_setup.py $(FLAGS)
+
 db_migrate: ## Migrate database to latest schema
 db_migrate: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 db_migrate: FLAGS := $(subst --,-x ,$(FLAGS))
