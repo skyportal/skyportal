@@ -17,36 +17,31 @@ When installing SkyPortal on Debian-based systems, 2 additional packages are req
 - libcurl4-gnutls-dev
 - libgnutls28-dev
 
-## Package Managers
-Install `uv` and `Bun`:
-```
-# Install uv (faster Python package manager)
+## Development Environment Setup
+SkyPortal is a full-stack application with a Python backend and JavaScript frontend. You'll need to set up both environments.
+
+### Backend Environment (Python)
+We use [uv](https://docs.astral.sh/uv/) for Python package management and virtual environment creation. It's a faster alternative to pip and virtualenv.
+To install uv, run
+```angular2html
+# macOS/ Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install bun (a javascript runtime, faster equivalent to `node+npm`)
+# Windows
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+### Frontend Environment (JavaScript)
+For the frontend, we use [bun](https://bun.sh/docs), an all-in-one JavaScript toolkit that provides a fast JavaScript runtime (which replaces Node.js),
+a package manager (which replaces npm), and up to 4x faster startup times than Node.js. To install Bun, run
+```angular2html
+# macOS / Linux
 curl -fsSL https://bun.sh/install | bash
-```
-After installation, you'll need to add uv to your PATH.
-```angular2html
-source $HOME/.cargo/env # for bash, zsh, or sh shells
-source $HOME/.cargo/env.fish # for fish shell
-```
-For bun, reload your shell:
-```angular2html
-# For bash
-exec /bin/bash
 
-# For zsh
-exec /bin/zsh
-
-# For fish
-exec /bin/fish
+# Windows
+powershell -c "irm bun.sh/install.ps1|iex"
 ```
-You can verify both installations succeeded by running:
-```angular2html
-uv --version
-bun --version
-```
+Make sure to reload your shell or open a new terminal to access bun. You can also verify the install by running `bun --version`.
 
 ## Cloning SkyPortal and Configuring the Python Environment
 
@@ -124,17 +119,6 @@ After installing each package, Homebrew will print out the installation paths. Y
 	brew install graphviz
 	```
 
-5. Optional: Some additional packages you might need:
-```
-# If using uv (recommended):
-source skyportal_env/bin/activate
-uv pip install pyproj numba Shapely ligo.skymap
-
-# If using conda:
-conda activate skyportal_env
-conda install pyproj numba Shapely ligo.skymap
-```
-
 <a name="configure-shell-mac"></a>
 ### Configuring Shell Environment for Development
 
@@ -149,12 +133,12 @@ nano ~/.zshrc
 After installing the libraries with Homebrew, you'll need to set environment variables to their installation paths. Replace the placeholder text `<path-to-library>/<version>` with the actual path that Homebrew provides upon successful installation.
 
 ```
-export HDF5_DIR="<path-to-hdf5>"
-export BLOSC_DIR="<path-to-c-blosc>"
-export LZO_DIR="<path-to-lzo>"
-export BZIP_DIR="<path-to-bzip2>"
+export HDF5_DIR="<path-to-hdf5>/<version>"
+export BLOSC_DIR="<path-to-c-blosc>/<version>"
+export LZO_DIR="<path-to-lzo>/<version>"
+export BZIP_DIR="<path-to-bzip2>/<version>"
 ```
-If you have forgotten your library install paths, you can run `brew info <package_name>` to display the install path.
+You can also run `brew info <package_name>` to display the install path.
 
 Typically, Homebrew provides these paths upon successful installation. You can also discover where a library was installed by Homebrew with this command:
 
@@ -180,6 +164,7 @@ If the command outputs information about a service, it means that port 5000 is a
 
 	```
 	sudo apt install supervisor postgresql \
+	libpq-dev python3-pip \
 	libcurl4-gnutls-dev libgnutls28-dev
 	```
 
@@ -253,7 +238,7 @@ If the command outputs information about a service, it means that port 5000 is a
 
 ## Launch
 
-0. Make sure you are in the skyportal env by running `source skyportal_env/bin/activate` or `conda activate skyportal_env` if using conda.
+0. Make sure you are in the skyportal env by running `source skyportal_env/bin/activate`
 1. Initialize the database with `make db_init` (this only needs to
    happen once, or anytime you run `make db_clear` to wipe the database, useful for development).
 2. Copy `config.yaml.defaults` to `config.yaml`.
@@ -271,21 +256,25 @@ Skyportal uses two distinct ports in its configuration:
 1. Internal Port - Where the application is actually hosted
 2. Public-Facing Port - Where external users access the application
 
-If you need to use different ports (e.g., port 5000 is already in use) add the following changes to `skyportal/config.yaml.defaults` override the defaults:
+If you need to use different ports (e.g., port 5000 is already in use):
+1. Copy `skyportal/config.yaml.defaults` to `skyportal/config.yaml` if you haven't already
+2. Add the following changes to your `config.yaml`:
 
-```angular2html
+```yaml
+# ... other config settings ...
+
 ports:
-  app: 5001  # Choose an available port for internal hosting
+	app: 5001  # Choose an available port for internal hosting
+	...
+
+...
 
 server:
-  port: 5001  # Choose an available port for public access
+	port: 5001  # Choose an available port for public access
+	...
+
+...
 ```
-
-Be aware that Skyportal has two config.yaml.defaults files:
-
-skyportal/config.yaml.defaults - The main configuration file you should modify
-skyportal/baselayer/config.yaml.defaults - Part of the baselayer submodule (do not modify)
-
 
 ## Troubleshooting
 
