@@ -74,7 +74,7 @@ If you want to use a specific configuration file at runtime (that can then be di
 ```
 This will mount the `config.yaml` file from the `config` directory to the `/etc/skyportal/config.yaml` path in the container. You could technically directly have it mounted to `/skyportal/config.yaml`, but we recommend using a different path to not lose track of the original configuration file used to build the image.
 
-You would need to pass the `--config=config.yaml` flag when calling any `make` commands. For the container to use this configuration file on startup, you can simply specify your own FLAG environment variable in the `docker-compose.yaml` file:
+You would need to pass the `--config=config.yaml` flag when calling any `make` commands. For the container to use this configuration file on startup, set the FLAG environment variable in the `docker-compose.yaml` file:
 
 ```yaml
     web:
