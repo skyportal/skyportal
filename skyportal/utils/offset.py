@@ -241,7 +241,6 @@ starlist_formats = {
         "giveoffsets": False,
         "maxname_size": 18,
         "first_line": None,
-        "format": "csv",
     },
     'Shane': {
         "coord_sep": ' ',
