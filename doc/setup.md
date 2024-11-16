@@ -1,5 +1,6 @@
 # Setup
 
+
 ## Dependencies
 
 SkyPortal requires the following software to be installed.  We show
@@ -25,7 +26,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Install bun (a javascript runtime, faster equivalent to `node+npm`)
 curl -fsSL https://bun.sh/install | bash
 ```
-After installation, you'll need to add uv to your PATH. 
+After installation, you'll need to add uv to your PATH.
 ```angular2html
 source $HOME/.cargo/env # for bash, zsh, or sh shells
 source $HOME/.cargo/env.fish # for fish shell
