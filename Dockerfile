@@ -61,8 +61,9 @@ RUN bash -c "\
 
 USER skyportal
 
-# edit the exposed port to match the one in the config.yaml
-# or ignore, if you are specifying ports in docker-compose.yaml
+# edit the exposed port to match the one in the 
+# docker.yaml, or just ignore it if you are 
+# specifying ports in docker-compose.yaml already
 EXPOSE 5000
 
 CMD bash -c "source /skyportal_env/bin/activate && \
