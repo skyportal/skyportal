@@ -23,10 +23,6 @@ RUN apt-get update && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     useradd --create-home --shell /bin/bash skyportal
 
-# install snid
-# RUN git clone https://github.com/Theodlz/snid-install-ubuntu.git && \
-#     cd snid-install-ubuntu && chmod +x install.sh && bash ./install.sh
-
 ADD . /skyportal
 WORKDIR /skyportal
 
