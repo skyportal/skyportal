@@ -97,7 +97,8 @@ class PublicReleaseHandler(BaseHandler):
                 groups = session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
                 ).all()
-
+            else:
+                return self.error("Invalid groups")
             if not groups:
                 return self.error("Invalid groups")
 
@@ -106,13 +107,14 @@ class PublicReleaseHandler(BaseHandler):
                 link_name=link_name,
                 description=data.get("description", ""),
                 is_visible=data.get("is_visible", True),
+                automatically_publish=data.get("automatically_publish", False),
                 options=data.get("options", {}),
                 groups=groups,
             )
             session.add(public_release)
             session.commit()
             self.push_all(action="skyportal/REFRESH_PUBLIC_RELEASES")
-            return self.success()
+            return self.success(data={"id": public_release.id})
 
     @permissions(['Manage sources'])
     def patch(self, release_id):
@@ -182,6 +184,10 @@ class PublicReleaseHandler(BaseHandler):
                 groups = session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
                 ).all()
+            else:
+                return self.error("Invalid groups")
+            if not groups:
+                return self.error("Invalid groups")
 
             if not groups:
                 return self.error("Invalid groups")
@@ -194,6 +200,9 @@ class PublicReleaseHandler(BaseHandler):
                     source_page.remove_from_cache()
 
             public_release.name = name
+            public_release.automatically_publish = data.get(
+                "automatically_publish", False
+            )
             public_release.description = data.get("description", "")
             public_release.is_visible = data.get("is_visible", True)
             public_release.options = data.get("options", {})
