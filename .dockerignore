@@ -12,6 +12,9 @@ dbdata
 dask-worker-space
 webdriver-console
 cache
+__pycache__/
+.pytest_cache/
+node_modules/
 
 # Git
 .git
@@ -30,3 +33,10 @@ docker-compose.yml
 
 # Visual Studio Code
 .vscode
+
+# Python virtual environments
+skyportal_env/
+env/
+venv/
+
+dists/
