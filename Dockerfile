@@ -4,6 +4,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
+ENV NODE_MAJOR=20
+ENV NPM_CONFIG_LEGACY_PEER_DEPS=true
 ENV PATH="/root/.cargo/bin:${PATH}"
 ENV SNCOSMO_DATA_DIR=/skyportal/persistentdata/sncosmo
 
