@@ -17,7 +17,7 @@ When installing SkyPortal on Debian-based systems, 2 additional packages are req
 - libcurl4-gnutls-dev
 - libgnutls28-dev
 
-## Development Environment Setup
+## Environment Setup
 SkyPortal is a full-stack application with a Python backend and JavaScript frontend. You'll need to set up both environments.
 
 ### Backend Environment (Python)
@@ -26,9 +26,6 @@ To install uv, run
 ```angular2html
 # macOS/ Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Windows
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
 ### Frontend Environment (JavaScript)
@@ -37,11 +34,9 @@ a package manager (which replaces npm), and up to 4x faster startup times than N
 ```angular2html
 # macOS / Linux
 curl -fsSL https://bun.sh/install | bash
-
-# Windows
-powershell -c "irm bun.sh/install.ps1|iex"
 ```
-Make sure to reload your shell or open a new terminal to access bun. You can also verify the install by running `bun --version`.
+### Reload Shell
+Make sure to reload your shell or open a new terminal to access uv and bun. You can also verify the install by running `bun --version` and `uv -version`.
 
 ## Cloning SkyPortal and Configuring the Python Environment
 
@@ -257,7 +252,7 @@ Skyportal uses two distinct ports in its configuration:
 2. Public-Facing Port - Where external users access the application
 
 If you need to use different ports (e.g., port 5000 is already in use):
-1. Copy `skyportal/config.yaml.defaults` to `skyportal/config.yaml` if you haven't already
+1. Copy `config.yaml.defaults` to `config.yaml` if you haven't already
 2. Add the following changes to your `config.yaml`:
 
 ```yaml
