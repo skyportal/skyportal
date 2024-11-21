@@ -215,7 +215,7 @@ class UVOTXRTRequest:
         modes_index = modes_values.index(request.payload["uvot_mode"])
         too.uvot_mode = modes_keys[modes_index]
         too.science_just = request.payload["science_just"]
-        if too.uvot_mode == '0x0270':
+        if too.uvot_mode != '0x9999':
             too.uvot_just = request.payload.get("uvot_just", None)
             if not too.uvot_just:
                 raise ValueError(
