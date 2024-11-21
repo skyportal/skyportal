@@ -777,27 +777,27 @@ class UVOTXRTAPI(FollowUpAPI):
                                         "properties": {
                                             "uvot_mode": {
                                                 "enum": [
-                                                    "0x0270 - U+B+V+All UV (ToO Upload Mode)"
+                                                    "0x9999 - Default (Filter of the day)"
                                                 ],
                                             },
-                                            "uvot_just": {
-                                                "title": "UVOT Mode Justification",
-                                                "type": "string",
-                                                "default": "We wish to use mode 0x0270 - U+B+V+All UV (ToO Upload Mode).",
-                                            },
-                                        },
-                                        "required": ["uvot_just"],
+                                        }
                                     },
                                     {
                                         "properties": {
                                             "uvot_mode": {
                                                 "not": {
                                                     "enum": [
-                                                        "0x0270 - U+B+V+All UV (ToO Upload Mode)"
+                                                        "0x9999 - Default (Filter of the day)"
                                                     ],
                                                 },
                                             },
-                                        }
+                                            "uvot_just": {
+                                                "title": "UVOT Mode Justification",
+                                                "type": "string",
+                                                "default": "We wish to map the entire transient SED in all UV filters.",
+                                            },
+                                        },
+                                        "required": ["uvot_just"],
                                     },
                                 ]
                             },
