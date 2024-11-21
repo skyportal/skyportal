@@ -698,12 +698,12 @@ class UVOTXRTAPI(FollowUpAPI):
                                 "enum": ["XRT/UVOT ToO"],
                             },
                             "exposure_time": {
-                                "title": "Exposure Time [s]",
+                                "title": "Exposure Time per visit [s]",
                                 "type": "number",
                                 "default": 4000.0,
                             },
                             "exposure_counts": {
-                                "title": "Exposure Counts",
+                                "title": "Number of visits",
                                 "type": "number",
                                 "default": 1,
                                 "minimum": 1,
