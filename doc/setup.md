@@ -52,20 +52,7 @@ source skyportal_env/bin/activate
 
 **Note**: To update the repository, you can run `git pull` from the `skyportal` directory. SkyPortal builds on top of `baselayer` where it is added as a submodule. Different SkyPortal branches might use different versions of baselayer. Always run the submodule update command after switching branches or pulling changes: `git submodule update --init --recursive`.
 
-If you developing on a Mac with an ARM (M1/M2) you might consider using a Rosetta-driven environment so that you more easily install dependencies (that tend to be x86-centric):
-
-```
-CONDA_SUBDIR=osx-64 conda create -n skyportal_env \
-      python=3.10
-conda activate skyportal_env
-conda config --env --set subdir osx-64
-conda config --add channels conda-forge
-conda config --set channel_priority strict
-```
-
-
-
-If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.
+*If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.*
 
 ## Installation: MacOS
 
@@ -235,9 +222,9 @@ If the command outputs information about a service, it means that port 5000 is a
 
 0. Make sure you are in the skyportal env by running `source skyportal_env/bin/activate`
 1. Initialize the database with `make db_init` (this only needs to
-   happen once, or anytime you run `make db_clear` to wipe the database, useful for development).
-2. Copy `config.yaml.defaults` to `config.yaml`.
-3. Run `make log` to monitor the service and, in a separate window, `make run` to start the server.
+   happen once, or anytime you run `make db_clear` to wipe the database, which is useful for development).
+2. Copy `config.yaml.defaults` to `config.yaml`, and edit the configuration as you see fit.
+3. Run `make run` to start the server, and then run `make log` in a separate window to monitor the different services.
 4. Direct your browser to `http://localhost:5000`.
 5. If you want some test data to play with, run `make load_demo_data` (do this while the server is running!).
 6. Change users by navigating to `http://localhost:5000/become_user/<#>` where # is a number from 1-5.
