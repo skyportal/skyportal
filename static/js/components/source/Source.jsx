@@ -1237,6 +1237,7 @@ const SourceContent = ({ source }) => {
                       setShowPhotometry(true);
                     }}
                     data-testid="show-photometry-table-button"
+                    disabled={source?.photometry_exists === false}
                   >
                     Photometry Table
                   </Button>

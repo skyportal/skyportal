@@ -1,50 +1,37 @@
-FROM ubuntu:22.04
+FROM debian:bookworm-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+ENV NODE_MAJOR=20
+ENV NPM_CONFIG_LEGACY_PEER_DEPS=true
+ENV PATH="/root/.cargo/bin:${PATH}"
+ENV SNCOSMO_DATA_DIR=/skyportal/persistentdata/sncosmo
+
 RUN apt-get update && \
-    apt-get install -y curl build-essential software-properties-common ca-certificates gnupg && \
-    mkdir -p /etc/apt/keyrings && \
-    apt-get update && \
-    apt-get -y upgrade && \
-    apt-get install -y python3 python3-venv python3-dev \
-    libpq-dev supervisor \
+    apt-get install -y curl build-essential software-properties-common ca-certificates gnupg \
+    python3 python3-venv python3-dev libpq-dev supervisor libgdal-dev \
     git postgresql-client vim nano screen htop \
     libcurl4-gnutls-dev libgnutls28-dev && \
+    nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter cargo && \
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     curl -LsSf https://astral.sh/uv/install.sh | sh && \
     curl -fsSL https://bun.sh/install | bash && \
-    apt-get install -y cargo
-
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-# we install nginx with brotli support from ppa:ondrej/nginx-mainline
-RUN add-apt-repository ppa:ondrej/nginx-mainline -y && \
-	apt update -y && \
-	apt install -y nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter
-
-RUN apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
-    useradd --create-home --shell /bin/bash skyportal
-
-RUN uv venv /skyportal_env --python 3.11 && \
-    bash -c "source /skyportal_env/bin/activate && \
-    pip install --upgrade pip==22.2.2 wheel numpy"
-
-# install snid
-RUN git clone https://github.com/Theodlz/snid-install-ubuntu.git && \
-    cd snid-install-ubuntu && chmod +x install.sh && bash ./install.sh
-
-ENV LC_ALL=C.UTF-8
-ENV LANG=C.UTF-8
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    useradd --create-home --shell /bin/bash skyportal && \
+    uv venv /skyportal_env --python 3.11
 
 ADD . /skyportal
 WORKDIR /skyportal
 
 RUN bash -c "\
     cp docker.yaml config.yaml && \
-    \
+    python3 -m venv /skyportal_env && \
     source /skyportal_env/bin/activate && \
+    uv pip install --upgrade pip wheel packaging setuptools --no-cache && \
+    uv pip install -r baselayer/requirements.txt --no-cache && \
+    uv pip install -r requirements.txt --no-cache && \
     make system_setup && \
     \
     ./node_modules/.bin/rspack --mode=production && \
@@ -66,12 +53,18 @@ RUN bash -c "\
     chown -R skyportal.skyportal /skyportal/persistentdata/phot_series && \
     \
     mkdir -p /skyportal/persistentdata/sncosmo && \
-    chown -R skyportal.skyportal /skyportal/persistentdata/sncosmo"
+    chown -R skyportal.skyportal /skyportal/persistentdata/sncosmo && \
+    # we remove the cache and temp files to reduce the image size
+    rm -rf /root/.cache/pip && rm -rf /tmp/* && \
+    # we remove some unused data from the gwemopt package to reduce the image size
+    rm -rf /skyportal_env/lib/python3.11/site-packages/gwemopt/data/tesselations/*.tess"
 
-ENV SNCOSMO_DATA_DIR=/skyportal/persistentdata/sncosmo
 
 USER skyportal
 
+# edit the exposed port to match the one in the
+# docker.yaml, or just ignore it if you are
+# specifying ports in docker-compose.yaml already
 EXPOSE 5000
 
 CMD bash -c "source /skyportal_env/bin/activate && \

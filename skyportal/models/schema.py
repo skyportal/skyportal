@@ -1269,6 +1269,15 @@ class FollowupRequestPost(_Schema):
         },
     )
 
+    not_if_tns_reported = fields.Float(
+        required=False,
+        metadata={
+            'description': (
+                'If there are any sources within radius with TNS reports, and the source has been discovered within before this many hours from the current time, the followup request will not be executed.'
+            )
+        },
+    )
+
     ignore_source_group_ids = fields.List(
         fields.Integer,
         required=False,

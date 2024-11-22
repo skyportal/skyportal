@@ -514,8 +514,61 @@ def post_followup_request(
             ).first()
             if existing_tns_classifications is not None:
                 raise ValueError(
-                    'Source within 0.5 arcsec has already been classified in TNS, not submitting request (as per constraint).'
+                    f'Source within {radius} arcsec has already been classified in TNS, not submitting request (as per constraint).'
                 )
+        if isinstance(constraints.get("not_if_tns_reported", None), (int, float)):
+            # don't trigger if there is any source reported to TNS within the radius
+            # and the "tns_time" is older than the constraint's allowed age
+            # where the tns_time is the time of latest photometry point or the discovery date (first point)
+            # if we cannot parse the photometry
+            # Basically, discoverydate < max([p.jd for p in photometry]) < reported_at
+            # but we do not have the reported_at, the last photometry point is a good approximation
+            # which might actually be even better, since we are then not affected by the delay
+            # between the last photometry point and the report to TNS
+            existing_tns_sources = session.scalars(
+                Obj.select(session.user_or_token).where(
+                    Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius),
+                    Obj.tns_name.isnot(None),
+                    Obj.tns_name != '',
+                    Obj.tns_info.isnot(None),
+                    Obj.tns_info != '',
+                )
+            ).all()
+            for existing_tns_source in existing_tns_sources:
+                try:
+                    tns_info = existing_tns_source.tns_info
+                    if tns_info is None:
+                        raise ValueError('TNS info missing')
+                    if isinstance(tns_info, str):
+                        tns_info = json.loads(tns_info)
+
+                    tns_time = None
+                    tns_photometry = tns_info.get('photometry', [])
+                    if len(tns_photometry) > 0 and all(
+                        [
+                            isinstance(p, dict)
+                            and isinstance(p.get("jd"), (int, float, str))
+                            for p in tns_photometry
+                        ]
+                    ):
+                        # jd to datetime
+                        tns_time = max(float(p['jd']) for p in tns_photometry)
+                        tns_time = Time(tns_time, format='jd').datetime
+                    else:
+                        # string to datetime
+                        tns_time = tns_info.get('discoverydate', None)
+                        tns_time = arrow.get(tns_time).datetime
+                except Exception as e:
+                    log(
+                        f'Error parsing TNS info for source {existing_tns_source.id}: {e}, skipping.'
+                    )
+                    continue
+                if tns_time is not None:
+                    delta_hours = (datetime.utcnow() - tns_time).total_seconds() / 3600
+                    if delta_hours > float(constraints['not_if_tns_reported']):
+                        raise ValueError(
+                            f'A Source within {radius} arcsec ({existing_tns_source.id}) has already been reported to TNS {delta_hours} hours ago, not submitting request (as per constraint).'
+                        )
 
     stmt = Allocation.select(session.user_or_token).where(
         Allocation.id == data['allocation_id'],
@@ -1246,12 +1299,13 @@ class FollowupRequestHandler(BaseHandler):
                 data["last_modified_by_id"] = self.associated_user_object.id
 
                 api = followup_request.instrument.api_class
-                existing_status = followup_request.status
+                existing_status = str(followup_request.status).lower()
 
-                if 'failed to submit' in existing_status:
+                if any(
+                    [x in existing_status for x in ['failed to submit', 'rejected']]
+                ):
                     if not api.implements()['submit']:
                         return self.error('Cannot submit requests on this instrument.')
-
                 else:
                     if not api.implements()['update']:
                         return self.error('Cannot update requests on this instrument.')
@@ -1285,7 +1339,9 @@ class FollowupRequestHandler(BaseHandler):
                 for k in data:
                     setattr(followup_request, k, data[k])
 
-                if 'failed to submit' in existing_status:
+                if any(
+                    [x in existing_status for x in ['failed to submit', 'rejected']]
+                ):
                     try:
                         followup_request.instrument.api_class.submit(
                             followup_request,
@@ -1296,7 +1352,7 @@ class FollowupRequestHandler(BaseHandler):
                         session.commit()
                     except Exception as e:
                         return self.error(f'Failed to submit follow-up request: {e}')
-                else:
+                elif followup_request.instrument.api_class.implements()['update']:
                     try:
                         followup_request.instrument.api_class.update(
                             followup_request,
@@ -1307,6 +1363,10 @@ class FollowupRequestHandler(BaseHandler):
                         session.commit()
                     except Exception as e:
                         return self.error(f'Failed to update follow-up request: {e}')
+                else:
+                    return self.error(
+                        'Could not update existing request, not implemented for this instrument.'
+                    )
 
             return self.success()
 

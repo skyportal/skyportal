@@ -263,7 +263,10 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
         # if the plan's end date is in the past (can see that in the payload), we skip the auto-send
         plan_request_end_date = observation_plan_request.payload.get("end_date", None)
         if plan_request_end_date:
-            if arrow.get(plan_request_end_date).datetime < datetime.utcnow():
+            if (
+                arrow.get(plan_request_end_date).timestamp()
+                < datetime.utcnow().timestamp()
+            ):
                 log(
                     f"Default observation plan request {default_obsplan_id} has an end date in the past, skipping auto send."
                 )

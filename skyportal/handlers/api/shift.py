@@ -209,6 +209,7 @@ class ShiftHandler(BaseHandler):
                                     "username": gu.user.username,
                                     "first_name": gu.user.first_name,
                                     "last_name": gu.user.last_name,
+                                    "expiration_date": gu.user.expiration_date,
                                 }
                                 for gu in shift.group.group_users
                             ],

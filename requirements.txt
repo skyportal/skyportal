@@ -10,7 +10,7 @@ joblib>=1.4.2, <2.0.0
 seaborn>=0.13.2, <1.0.0
 pytest-randomly==3.15.0
 factory-boy==3.3.1
-astropy==6.1.0
+astropy==6.1.4
 distributed>=2024.5.2
 dustmaps==1.0.13
 reproject==0.14.0
@@ -31,10 +31,10 @@ tdtax==0.1.7
 healpix-alchemy==1.1.0
 mocpy==0.16.2
 obspy==1.4.0
-conesearch-alchemy==1.0.0
+conesearch-alchemy==1.1.0
 regions==0.9
 jsonschema==4.21.1
-jsonpath_ng==1.6.1
+jsonpath_ng==1.7.0
 pytest-rerunfailures>=14.0
 tables>=3.10.1,<4.0.0
 timezonefinder==6.5.2
@@ -42,7 +42,7 @@ astroplan==0.10.1
 email-validator==2.2.0
 alembic==1.13.2
 marshmallow-jsonschema==0.13.0
-paramiko==3.4.0
+paramiko==3.5.0
 scp==0.15.0
 requests_toolbelt==0.10.1
 sendgrid==6.11.0
@@ -80,11 +80,11 @@ afterglowpy==0.8.0
 gcn-kafka==0.3.3
 confluent_kafka==2.5.0 # dependency of gcn-kafka: pinning to understand memory effects on GCNEvents
 iminuit==2.26.0
-watchdog==5.0.0
+watchdog==5.0.3
 PyAstronomy==0.21.0
 shapely==2.0.6
 openai==1.12.0
-tiktoken==0.7.0
+tiktoken==0.8.0
 simplejson==3.19.2
 langchain==0.1.14
 langchain-openai==0.0.6

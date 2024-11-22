@@ -699,6 +699,7 @@ user:
   default_acls: []
 
 ports:
+  app: 5000 # This is the internal port
   facility_queue: 64510
   notification_queue: 64610
   observation_plan_queue: 64710
