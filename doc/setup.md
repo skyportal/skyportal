@@ -1,5 +1,6 @@
 # Setup
 
+
 ## Dependencies
 
 SkyPortal requires the following software to be installed.  We show
@@ -16,7 +17,28 @@ When installing SkyPortal on Debian-based systems, 2 additional packages are req
 - libcurl4-gnutls-dev
 - libgnutls28-dev
 
-## Source download, Python environment
+## Environment Setup
+SkyPortal is a full-stack application with a Python backend and JavaScript frontend. You'll need to set up both environments.
+
+### Backend Environment (Python)
+We use [uv](https://docs.astral.sh/uv/) for Python package management and virtual environment creation. It's a faster alternative to pip and virtualenv.
+To install uv, run
+```angular2html
+# macOS/ Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### Frontend Environment (JavaScript)
+For the frontend, we use [bun](https://bun.sh/docs), an all-in-one JavaScript toolkit that provides a fast JavaScript runtime (which replaces Node.js),
+a package manager (which replaces npm), and up to 4x faster startup times than Node.js. To install Bun, run
+```angular2html
+# macOS / Linux
+curl -fsSL https://bun.sh/install | bash
+```
+### Reload Shell
+Make sure to reload your shell or open a new terminal to access uv and bun. You can also verify the install by running `bun --version` and `uv -version`.
+
+## Cloning SkyPortal and Configuring the Python Environment
 
 Clone the [SkyPortal repository](https://github.com/skyportal/skyportal) and start a new
 virtual environment.
@@ -24,28 +46,13 @@ virtual environment.
 ```
 git clone https://github.com/skyportal/skyportal.git
 cd skyportal/
-virtualenv skyportal_env
+uv venv skyportal_env
 source skyportal_env/bin/activate
 ```
 
-**Note**: To update the repository, you can run `git pull` from the `skyportal` directory. SkyPortal builds on top of `baselayer` where it is added as a submodule. Make sure to also update submodule(s) by running `git submodule update --init --recursive`.
+**Note**: To update the repository, you can run `git pull` from the `skyportal` directory. SkyPortal builds on top of `baselayer` where it is added as a submodule. Different SkyPortal branches might use different versions of baselayer. Always run the submodule update command after switching branches or pulling changes: `git submodule update --init --recursive`.
 
-You can also use `conda` or `pipenv` to create your environment.
-
-If you developing on a Mac with an ARM (M1/M2) you might consider using a Rosetta-driven environment so that you more easily install dependencies (that tend to be x86-centric):
-
-```
-CONDA_SUBDIR=osx-64 conda create -n skyportal_env \
-      python=3.10
-conda activate skyportal_env
-conda config --env --set subdir osx-64
-conda config --add channels conda-forge
-conda config --set channel_priority strict
-```
-
-
-
-If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.
+*If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.*
 
 ## Installation: MacOS
 
@@ -64,16 +71,11 @@ brew tap denji/nginx && brew install nginx-full --with-brotli
 
  _If you already had NGINX installed, you may need to uninstall it first with `brew unlink nginx`._ Otherwise, you can install NGINX normally with `brew install nginx`.
 
-Finally, install these compression libraries. These are needed in order to install the Python dependency `tables` later on:
+Finally, install these compression libraries. These are needed in order to install the Python dependency `tables` later on. After installation, Homebrew will display paths to each library. Be sure to save these paths, as they’ll be needed later to set environment variables.
 ```
 brew install hdf5 c-blosc lzo bzip2
 ```
 After installing each package, Homebrew will print out the installation paths. You should add these paths to your `.zshrc` file to ensure SkyPortal can locate these libraries. Instructions for this can be found in the [Configuring Shell Environment for Development](#configure-shell-mac) section below.
-
-Last but not least, we install `Bun` (a javascript runtime, faster equivalent to `node+npm`):
-```
-curl -fsSL https://bun.sh/install | bash
-```
 
 2. Start the PostgreSQL server:
 
@@ -99,12 +101,6 @@ curl -fsSL https://bun.sh/install | bash
 	brew install graphviz
 	```
 
-5. **Optional:** If you are using `conda` instead of `virtualenv`, we add a few (hard-to install-with-pip) packages by hand:
-	```
-	conda activate skyportal_env
-	conda install pyproj numba Shapely ligo.skymap
-	```
-
 <a name="configure-shell-mac"></a>
 ### Configuring Shell Environment for Development
 
@@ -115,27 +111,21 @@ When developing with SkyPortal on mac, you may  also need to configure your shel
 ```
 nano ~/.zshrc
 ```
-#### Set enviroment variables to their installation paths
-After installing the libraries with Homebrew, you'll need to set environment variables to their installation paths. Replace the placeholder text `<path-to-library>/<version>` with the actual path that Homebrew provides upon sucessful installation.
+#### Set environment variables to their installation paths
+After installing the libraries with Homebrew, you'll need to set environment variables to their installation paths. Replace the placeholder text `<path-to-library>/<version>` with the actual path that Homebrew provides upon successful installation.
 
 ```
-export HDF5_DIR="<path-to-hdf5>"
-export BLOSC_DIR="<path-to-c-blosc>"
-export LZO_DIR="<path-to-lzo>"
-export BZIP_DIR="<path-to-bzip2>"
+export HDF5_DIR="<path-to-hdf5>/<version>"
+export BLOSC_DIR="<path-to-c-blosc>/<version>"
+export LZO_DIR="<path-to-lzo>/<version>"
+export BZIP_DIR="<path-to-bzip2>/<version>"
 ```
+You can also run `brew info <package_name>` to display the install path.
 
 Typically, Homebrew provides these paths upon successful installation. You can also discover where a library was installed by Homebrew with this command:
 
 ```
 brew info <name_of_package>
-```
-#### Alias pip3 and python3
-Depending on your system setup, the `python` and `pip` commands might point to Python 2 rather than Python 3. To ensure that you're using Python 3 and its corresponding pip version, you may need to set aliases in your `.zshrc` file:
-
-```
-alias pip='pip3'
-alias python='python3'
 ```
 
 #### To activate the changes, source your .zshrc file:
@@ -148,7 +138,7 @@ SkyPortal defaults to using port 5000. However, this port may already be in use 
 ```
 lsof -i :5000
 ```
-If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port.
+If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port using instructions found in the [Port Configuration](#port-configuration) section.
 
 ## Installation: Debian-based Linux and WSL
 
@@ -156,8 +146,8 @@ If the command outputs information about a service, it means that port 5000 is a
 
 	```
 	sudo apt install supervisor postgresql \
-	      libpq-dev python3-pip \
-	      libcurl4-gnutls-dev libgnutls28-dev
+	libpq-dev python3-pip \
+	libcurl4-gnutls-dev libgnutls28-dev
 	```
 
 	If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you have to install NGINX and the brotli module from another source with:
@@ -230,15 +220,43 @@ If the command outputs information about a service, it means that port 5000 is a
 
 ## Launch
 
-0. Make sure you are in the skyportal env: `conda activate skyportal_env`
+0. Make sure you are in the skyportal env by running `source skyportal_env/bin/activate`
 1. Initialize the database with `make db_init` (this only needs to
-   happen once, or anytime you run `make db_clear` to wipe the database, useful for development).
-2. Copy `config.yaml.defaults` to `config.yaml`.
-3. Run `make log` to monitor the service and, in a separate window, `make run` to start the server.
+   happen once, or anytime you run `make db_clear` to wipe the database, which is useful for development).
+2. Copy `config.yaml.defaults` to `config.yaml`, and edit the configuration as you see fit.
+3. Run `make run` to start the server, and then run `make log` in a separate window to monitor the different services.
 4. Direct your browser to `http://localhost:5000`.
 5. If you want some test data to play with, run `make load_demo_data` (do this while the server is running!).
 6. Change users by navigating to `http://localhost:5000/become_user/<#>` where # is a number from 1-5.
    Different users have different privileges and can see more or less of the demo data.
+
+<a id="port-configuration"></a>
+## Port Configuration
+
+Skyportal uses two distinct ports in its configuration:
+
+1. Internal Port - Where the application is actually hosted
+2. Public-Facing Port - Where external users access the application
+
+If you need to use different ports (e.g., port 5000 is already in use):
+1. Copy `config.yaml.defaults` to `config.yaml` if you haven't already
+2. Add the following changes to your `config.yaml`:
+
+```yaml
+# ... other config settings ...
+
+ports:
+	app: 5001  # Choose an available port for internal hosting
+	...
+
+...
+
+server:
+	port: 5001  # Choose an available port for public access
+	...
+
+...
+```
 
 ## Troubleshooting
 
@@ -311,7 +329,7 @@ To do so, it first verifies that your server is running (without SSL) at the spe
 Start SkyPortal using `make run`.
 
 Then, install `certbot`:
-    pip install certbot-nginx
+    uv pip install certbot-nginx
 
 Ask `certbot` to verify the service and retrieve a new certificate:
     sudo certbot certonly --standalone --preferred-challenges http -d http://your.url
