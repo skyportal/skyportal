@@ -5,8 +5,6 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 ENV PATH="/root/.cargo/bin:$PATH"
-ENV PATH="/root/.local/bin:$PATH"
-ENV PATH="/root/.bun/bin:$PATH"
 ENV SNCOSMO_DATA_DIR=/skyportal/persistentdata/sncosmo
 
 RUN apt-get update && \
@@ -18,6 +16,10 @@ RUN apt-get update && \
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     curl -LsSf https://astral.sh/uv/install.sh | sh && \
     curl -fsSL https://bun.sh/install | bash && \
+    # make the bun and uv commands available globally
+    mv /root/.bun/bin/bun /usr/local/bin/bun && \
+    mv /root/.local/bin/uv /usr/local/bin/uv && \
+    chmod a+x /usr/local/bin/bun && chmod a+x /usr/local/bin/uv && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     useradd --create-home --shell /bin/bash skyportal && \
     uv venv /skyportal_env --python 3.11
