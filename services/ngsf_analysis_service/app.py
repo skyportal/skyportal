@@ -134,6 +134,20 @@ def run_ngsf_model(data_dict):
         with zipfile.ZipFile(NGSF_zip, "r") as zp:
             zp.extractall(SUPERFIT_PATH)
 
+        # NGSF is somewhat outdated, and uses np.float which doesn't exist anymore in a method called
+        # JD, in get_metadata.py. We need to change it to float. For that we simply
+        # look for the line with "return np.float(mjd) + 2400000.5", and change it to "return float(mjd) + 2400000.5"
+        # in the file get_metadata.py. For that we open the file
+        with open(f"{SUPERFIT_PATH}/NGSF/get_metadata.py") as file:
+            filedata = file.read()
+
+        # Replace the target string
+        filedata = filedata.replace("np.float", "float")
+
+        # Write the file out again
+        with open(f"{SUPERFIT_PATH}/NGSF/get_metadata.py", "w") as file:
+            file.write(filedata)
+
     if not os.path.isdir(SUPERFIT_DATA_PATH):
         os.makedirs(SUPERFIT_DATA_PATH)
 
