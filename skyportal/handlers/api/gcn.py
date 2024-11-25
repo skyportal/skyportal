@@ -5559,14 +5559,14 @@ class GcnEventNoticeDownloadHandler(BaseHandler):
             schema:
               type: integer
         responses:
-            200:
-                content:
-                    application/json:
-                    schema: Success
-            400:
-                content:
-                    application/json:
-                    schema: Error
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
         """
 
         dateobs = dateobs.strip()

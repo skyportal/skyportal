@@ -51,3 +51,5 @@ webdriver-console/
 
 # persistent data (e.g. analysis, localizations, comment attachements, etc.)
 persistentdata/
+# dbdata
+dbdata/
