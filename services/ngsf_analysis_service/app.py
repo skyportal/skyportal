@@ -158,7 +158,14 @@ def run_ngsf_model(data_dict):
             filebase = str(uuid.uuid4())
             SPECFILE = f'{SUPERFIT_DATA_PATH}/{filebase}.dat'
             wavelengths = np.array(ast.literal_eval(row['wavelengths']))
-            fluxes = np.array(ast.literal_eval(row['fluxes']))
+
+            # we might have some issues reading `nan` values, so we need to
+            # convert them to `None` first
+            fluxes = row['fluxes'].replace('nan', 'None')
+            fluxes = np.array(ast.literal_eval(fluxes))
+            # then we convert `None` values back to `np.nan`
+            fluxes = np.array([np.nan if x is None else x for x in fluxes])
+
             with open(SPECFILE, 'w') as fid:
                 for w, f in zip(wavelengths.tolist(), fluxes.tolist()):
                     fid.write(f'{w} {f}\n')
