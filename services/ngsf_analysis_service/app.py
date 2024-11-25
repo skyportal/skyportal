@@ -136,8 +136,7 @@ def run_ngsf_model(data_dict):
 
         # NGSF is somewhat outdated, and uses np.float which doesn't exist anymore in a method called
         # JD, in get_metadata.py. We need to change it to float. For that we simply
-        # look for the line with "return np.float(mjd) + 2400000.5", and change it to "return float(mjd) + 2400000.5"
-        # in the file get_metadata.py. For that we open the file
+        # open the file and replace the string.
         with open(f"{SUPERFIT_PATH}/NGSF/get_metadata.py") as file:
             filedata = file.read()
 
