@@ -1432,6 +1432,14 @@ class GcnEventHandler(BaseHandler):
               schema:
                 type: integer
               description: Page number for paginated query results. Defaults to 1.
+            - in: query
+              name: excludeNoticeContent
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                If true, do not include the notice content in the response.
+                Defaults to false.
         responses:
           200:
             content:
@@ -1475,6 +1483,7 @@ class GcnEventHandler(BaseHandler):
         localization_tag_keep = self.get_query_argument('localizationTagKeep', None)
         localization_tag_remove = self.get_query_argument('localizationTagRemove', None)
         gcn_properties_filter = self.get_query_argument("gcnPropertiesFilter", None)
+        no_notice_content = self.get_query_argument("excludeNoticeContent", False)
 
         if gcn_tag_keep is not None:
             if isinstance(gcn_tag_keep, str):
@@ -1538,27 +1547,53 @@ class GcnEventHandler(BaseHandler):
 
         if dateobs is not None:
             with self.Session() as session:
+                options = [
+                    joinedload(GcnEvent.localizations).joinedload(Localization.tags),
+                    joinedload(GcnEvent.localizations).joinedload(
+                        Localization.properties
+                    ),
+                    joinedload(GcnEvent.comments),
+                    joinedload(GcnEvent.detectors),
+                    joinedload(GcnEvent.properties),
+                    joinedload(GcnEvent.summaries),
+                    joinedload(GcnEvent.gcn_triggers),
+                ]
+                if no_notice_content:
+                    options.append(joinedload(GcnEvent.gcn_notices))
+                else:
+                    options.append(
+                        joinedload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
+                    )
                 event = session.scalars(
                     GcnEvent.select(
                         session.user_or_token,
-                        options=[
-                            joinedload(GcnEvent.localizations).joinedload(
-                                Localization.tags
-                            ),
-                            joinedload(GcnEvent.localizations).joinedload(
-                                Localization.properties
-                            ),
-                            joinedload(GcnEvent.gcn_notices).undefer(GcnNotice.content),
-                            joinedload(GcnEvent.comments),
-                            joinedload(GcnEvent.detectors),
-                            joinedload(GcnEvent.properties),
-                            joinedload(GcnEvent.summaries),
-                            joinedload(GcnEvent.gcn_triggers),
-                        ],
+                        options=options,
                     ).where(GcnEvent.dateobs == dateobs)
                 ).first()
                 if event is None:
                     return self.error("GCN event not found", status=404)
+
+                # .to_dict() fetches the deferred properties, so we build the dict
+                # manually to avoid fetching the content if no_notice_content is True
+                notices = []
+                for notice in event.gcn_notices:
+                    notice_dict = {
+                        "id": notice.id,
+                        "dateobs": notice.dateobs,
+                        "ivorn": notice.ivorn,
+                        "notice_type": notice.notice_type,
+                        "stream": notice.stream,
+                        "date": notice.date,
+                        "notice_format": notice.notice_format,
+                        "has_localization": notice.has_localization,
+                        "localization_ingested": notice.localization_ingested,
+                        "created_at": notice.created_at,
+                        "modified": notice.modified,
+                        "sent_by_id": notice.sent_by_id,
+                    }
+                    if not no_notice_content:
+                        notice_dict["content"] = notice.content
+                    notices.append(notice_dict)
 
                 data = {
                     **event.to_dict(),
@@ -1620,7 +1655,7 @@ class GcnEventHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     ),
-                    "gcn_notices": [notice.to_dict() for notice in event.gcn_notices],
+                    "gcn_notices": notices,
                     # sort the properties by created_at date descending
                     "properties": sorted(
                         (
@@ -5500,3 +5535,70 @@ class DefaultGcnTagHandler(BaseHandler):
             session.commit()
             self.push_all(action="skyportal/REFRESH_DEFAULT_GCN_TAGS")
             return self.success()
+
+
+# the following handler is used to download the content of a GCN notice, as a txt file
+class GcnEventNoticeDownloadHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, dateobs, notice_id):
+        """
+        ---
+        summary: Download a GCN notice
+        description: Download a GCN notice
+        tags:
+          - gcn notices
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: notice_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        dateobs = dateobs.strip()
+        try:
+            arrow.get(dateobs)
+        except arrow.parser.ParserError as e:
+            return self.error(f'Failed to parse dateobs: str({e})')
+
+        with self.Session() as session:
+            try:
+                notice = session.scalars(
+                    GcnNotice.select(session.user_or_token).where(
+                        GcnNotice.dateobs == dateobs, GcnNotice.id == int(notice_id)
+                    )
+                ).first()
+                if notice is None:
+                    return self.error("Notice not found", status=404)
+
+                output_format = 'txt'
+                if notice.notice_format == "voevent":
+                    output_format = 'xml'
+                elif notice.notice_format == "json":
+                    output_format = 'json'
+
+                data = io.BytesIO(notice.content)
+                try:
+                    filename = f"{notice.ivorn.split('/')[-1]}_{notice.dateobs}.{output_format}"
+                except Exception:
+                    filename = f"{notice.dateobs}_{notice.id}.{output_format}"
+
+                print(filename)
+
+                await self.send_file(data, filename, output_type=output_format)
+            except Exception as e:
+                return self.error(f'Failed to create notice for download: str({e})')

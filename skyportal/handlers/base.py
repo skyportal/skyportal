@@ -49,7 +49,10 @@ class BaseHandler(BaselayerHandler):
         # do not send result via `.success`, since that uses content-type JSON
         self.set_status(200)
         if output_type == "pdf":
-            self.set_header("Content-Type", "application/pdf; charset='utf-8'")
+            self.set_header("Content-type", "application/pdf; charset='utf-8'")
+            self.set_header("Content-Disposition", f"attachment; filename={filename}")
+        elif output_type in ["txt", "xml", "json", "csv"]:
+            self.set_header("Content-type", "text/plain")
             self.set_header("Content-Disposition", f"attachment; filename={filename}")
         else:
             self.set_header("Content-type", f"image/{output_type}")
