@@ -23,6 +23,7 @@ from .listing import *
 from .localization import *
 from .mmadetector import *
 from .obj import *
+from .grouped_object import *
 from .observation import *
 from .observation_plan import *
 from .observing_run import *
