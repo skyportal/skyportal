@@ -215,7 +215,7 @@ class UVOTXRTRequest:
         modes_index = modes_values.index(request.payload["uvot_mode"])
         too.uvot_mode = modes_keys[modes_index]
         too.science_just = request.payload["science_just"]
-        if too.uvot_mode == '0x0270':
+        if too.uvot_mode != '0x9999':
             too.uvot_just = request.payload.get("uvot_just", None)
             if not too.uvot_just:
                 raise ValueError(
@@ -698,12 +698,12 @@ class UVOTXRTAPI(FollowUpAPI):
                                 "enum": ["XRT/UVOT ToO"],
                             },
                             "exposure_time": {
-                                "title": "Exposure Time [s]",
+                                "title": "Exposure Time per visit [s]",
                                 "type": "number",
                                 "default": 4000.0,
                             },
                             "exposure_counts": {
-                                "title": "Exposure Counts",
+                                "title": "Number of visits",
                                 "type": "number",
                                 "default": 1,
                                 "minimum": 1,
@@ -777,27 +777,27 @@ class UVOTXRTAPI(FollowUpAPI):
                                         "properties": {
                                             "uvot_mode": {
                                                 "enum": [
-                                                    "0x0270 - U+B+V+All UV (ToO Upload Mode)"
+                                                    "0x9999 - Default (Filter of the day)"
                                                 ],
                                             },
-                                            "uvot_just": {
-                                                "title": "UVOT Mode Justification",
-                                                "type": "string",
-                                                "default": "We wish to use mode 0x0270 - U+B+V+All UV (ToO Upload Mode).",
-                                            },
-                                        },
-                                        "required": ["uvot_just"],
+                                        }
                                     },
                                     {
                                         "properties": {
                                             "uvot_mode": {
                                                 "not": {
                                                     "enum": [
-                                                        "0x0270 - U+B+V+All UV (ToO Upload Mode)"
+                                                        "0x9999 - Default (Filter of the day)"
                                                     ],
                                                 },
                                             },
-                                        }
+                                            "uvot_just": {
+                                                "title": "UVOT Mode Justification",
+                                                "type": "string",
+                                                "default": "We wish to map the entire transient SED in all UV filters.",
+                                            },
+                                        },
+                                        "required": ["uvot_just"],
                                     },
                                 ]
                             },

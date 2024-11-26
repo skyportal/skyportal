@@ -172,6 +172,11 @@ class SOAR_GHTS_Request:
             'min_lunar_distance': request.payload["minimum_lunar_distance"],
         }
 
+        arc_constraints = {
+            'max_airmass': 2 * request.payload["maximum_airmass"],
+            'min_lunar_distance': request.payload["minimum_lunar_distance"],
+        }
+
         # The target of the observation
         target = {
             'name': request.obj.id,
@@ -190,14 +195,6 @@ class SOAR_GHTS_Request:
         exp_time = request.payload["exposure_time"]
         exp_count = int(request.payload["exposure_counts"])
 
-        lamp_exposure_time = {
-            "GHTS_B_400m1_2x2": 3,
-            "GHTS_R_2100_6507A_1x2_slit0p45": 60,
-            "GHTS_R_400m1_2x2": 3,
-            "GHTS_R_400m2_2x2": 3,
-            "GHTS_R_1200_CaNIR_1x2_slit0p8": 60,
-            "GHTS_R_2100_5000A_1x2_slit1p0": 60,
-        }
         arc_exposure_time = {
             "GHTS_B_400m1_2x2": 0.5,
             "GHTS_R_2100_6507A_1x2_slit0p45": 0.5,
@@ -208,57 +205,6 @@ class SOAR_GHTS_Request:
         }
 
         configurations = []
-        if request.payload.get("include_calibrations", False):
-            configurations = configurations + [
-                {
-                    "type": "LAMP_FLAT",
-                    "instrument_type": request.payload["instrument_type"],
-                    "instrument_configs": [
-                        {
-                            "exposure_count": 1,
-                            "exposure_time": lamp_exposure_time[
-                                request.payload["instrument_mode"]
-                            ],
-                            "mode": request.payload["instrument_mode"],
-                            "rotator_mode": "SKY",
-                            "extra_params": {
-                                "offset_ra": 0,
-                                "offset_dec": 0,
-                                "rotator_angle": 0,
-                            },
-                            "optical_elements": {},
-                        }
-                    ],
-                    "acquisition_config": {"mode": "OFF", "extra_params": {}},
-                    "guiding_config": {},
-                    "target": target,
-                    "constraints": constraints,
-                },
-                {
-                    "type": "ARC",
-                    "instrument_type": request.payload["instrument_type"],
-                    "instrument_configs": [
-                        {
-                            "exposure_count": 1,
-                            "exposure_time": arc_exposure_time[
-                                request.payload["instrument_mode"]
-                            ],
-                            "mode": request.payload["instrument_mode"],
-                            "rotator_mode": "SKY",
-                            "extra_params": {
-                                "offset_ra": 0,
-                                "offset_dec": 0,
-                                "rotator_angle": 0,
-                            },
-                            "optical_elements": {},
-                        }
-                    ],
-                    "acquisition_config": {"mode": "OFF", "extra_params": {}},
-                    "guiding_config": {},
-                    "target": target,
-                    "constraints": constraints,
-                },
-            ]
         configurations = configurations + [
             {
                 'type': 'SPECTRUM',
@@ -290,7 +236,7 @@ class SOAR_GHTS_Request:
                     "instrument_type": request.payload["instrument_type"],
                     "instrument_configs": [
                         {
-                            "exposure_count": 1,
+                            "exposure_count": 3,
                             "exposure_time": arc_exposure_time[
                                 request.payload["instrument_mode"]
                             ],
@@ -307,31 +253,7 @@ class SOAR_GHTS_Request:
                     "acquisition_config": {"mode": "OFF", "extra_params": {}},
                     "guiding_config": {},
                     "target": target,
-                    "constraints": constraints,
-                },
-                {
-                    "type": "LAMP_FLAT",
-                    "instrument_type": request.payload["instrument_type"],
-                    "instrument_configs": [
-                        {
-                            "exposure_count": 1,
-                            "exposure_time": lamp_exposure_time[
-                                request.payload["instrument_mode"]
-                            ],
-                            "mode": request.payload["instrument_mode"],
-                            "rotator_mode": "SKY",
-                            "extra_params": {
-                                "offset_ra": 0,
-                                "offset_dec": 0,
-                                "rotator_angle": 0,
-                            },
-                            "optical_elements": {},
-                        }
-                    ],
-                    "acquisition_config": {"mode": "OFF", "extra_params": {}},
-                    "guiding_config": {},
-                    "target": target,
-                    "constraints": constraints,
+                    "constraints": arc_constraints,
                 },
             ]
 
@@ -632,7 +554,7 @@ class SOARGHTSIMAGERAPI(SOARAPI):
             "instrument_type": {
                 "type": "string",
                 "enum": ["SOAR_GHTS_BLUECAM_IMAGER", "SOAR_GHTS_REDCAM_IMAGER"],
-                "default": "SOAR_GHTS_BLUECAM_IMAGER",
+                "default": "SOAR_GHTS_REDCAM_IMAGER",
                 "title": "Instrument Type",
             },
             "exposure_time": {
@@ -801,7 +723,7 @@ class SOARGHTSAPI(SOARAPI):
             "instrument_type": {
                 "type": "string",
                 "enum": ["SOAR_GHTS_BLUECAM", "SOAR_GHTS_REDCAM"],
-                "default": "SOAR_GHTS_BLUECAM",
+                "default": "SOAR_GHTS_REDCAM",
                 "title": "Instrument Type",
             },
             "include_calibrations": {
@@ -882,7 +804,7 @@ class SOARGHTSAPI(SOARAPI):
                                     "GHTS_R_1200_CaNIR_1x2_slit0p8",
                                     "GHTS_R_2100_5000A_1x2_slit1p0",
                                 ],
-                                "default": "GHTS_R_400m2_2x2",
+                                "default": "GHTS_R_400m1_2x2",
                                 "title": "Instrument Mode",
                             },
                         }

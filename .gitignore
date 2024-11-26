@@ -14,6 +14,7 @@ geckodriver.log
 *.swo
 .DS_Store
 __pycache__/
+.pytest_cache/
 node_modules/
 *.pyc
 config.yaml
@@ -51,5 +52,14 @@ webdriver-console/
 
 # persistent data (e.g. analysis, localizations, comment attachements, etc.)
 persistentdata/
-# dbdata
-dbdata/
+
+# python virtual environments
+skyportal_env/
+env/
+venv/
+
+# distribution files (for releases)
+dists/
+
+# postgres persistent volume
+data/dbdata/
