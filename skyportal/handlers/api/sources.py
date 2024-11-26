@@ -31,6 +31,7 @@ from skyportal.models import (
     cosmo,
 )
 from ...utils.cache import Cache, array_to_bytes
+from ...utils.calculations import radec2lb
 
 _, cfg = load_env()
 cache_dir = "cache/sources_queries"
@@ -421,42 +422,6 @@ def get_localization(localization_dateobs, localization_name, session):
     log_verbose(f"get_localization took {endTime - startTime} seconds")
 
     return localization_id, localizationtilescls.__tablename__
-
-
-# Rotation matrix for the conversion : x_galactic = R * x_equatorial (J2000)
-# http://adsabs.harvard.edu/abs/1989A&A...218..325M
-RGE = np.array(
-    [
-        [-0.054875539, -0.873437105, -0.483834992],
-        [+0.494109454, -0.444829594, +0.746982249],
-        [-0.867666136, -0.198076390, +0.455983795],
-    ]
-)
-
-
-def radec2lb(ra, dec):
-    """
-        Convert $R.A.$ and $Decl.$ into Galactic coordinates $l$ and $b$
-    ra [deg]
-    dec [deg]
-
-    return l [deg], b [deg]
-    """
-    ra_rad, dec_rad = np.deg2rad(ra), np.deg2rad(dec)
-    u = np.array(
-        [
-            np.cos(ra_rad) * np.cos(dec_rad),
-            np.sin(ra_rad) * np.cos(dec_rad),
-            np.sin(dec_rad),
-        ]
-    )
-
-    ug = np.dot(RGE, u)
-
-    x, y, z = ug
-    galactic_l = np.arctan2(y, x)
-    galactic_b = np.arctan2(z, (x * x + y * y) ** 0.5)
-    return np.rad2deg(galactic_l), np.rad2deg(galactic_b)
 
 
 def get_luminosity_distance(obj):

@@ -1,25 +1,14 @@
-from astropy.coordinates import SkyCoord
-import astropy.units as u
 from datetime import datetime, timedelta
 import json
 import requests
-import textwrap
 
 from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
 
 from . import FollowUpAPI
-from ..email_utils import send_email
-from ..app_utils import get_app_base_url
 from ..utils import http
 
 env, cfg = load_env()
-
-SLACK_URL = f"{cfg['slack.expected_url_preamble']}/services"
-
-email = False
-if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
-    email = True
 
 
 def validate_request(request, filters):
@@ -69,79 +58,6 @@ def validate_request(request, filters):
         raise ValueError('priority must be within 1-5.')
 
 
-def create_target_text(request, request_type='email', comments=False):
-    """Payload json for SLACK / email queue requests.
-
-    Parameters
-    ----------
-    request : skyportal.models.FollowupRequest
-        The request to add to the queue and the SkyPortal database.
-    request_type : str
-        Type of request. Must be either email or slack.
-    comments : bool
-        Include comments in notification. Defaults to False.
-
-    Returns
-    ----------
-    text : str
-        String which summarizes the request payload. Payload includes
-          name: object name
-          instrument_request: instrument name
-          ra: right ascension in decimal degrees
-          dec: declination in decimal degrees
-          filters: comma delimited list of filters
-          exposure_time: exposure time requested in seconds
-          exposure_counts: number of exposures requested
-          username: SkyPortal username of requester
-    """
-
-    # The target of the observation
-    target = {
-        'name': request.obj.id,
-        'instrument_request': request.allocation.instrument.name,
-        'ra': f"{request.obj.ra:.5f}",
-        'dec': f"{request.obj.dec:.5f}",
-        'filters': ",".join(request.payload["observation_choices"]),
-        'exposure_time': request.payload["exposure_time"],
-        'exposure_counts': request.payload["exposure_counts"],
-        'username': request.requester.username,
-    }
-
-    c = SkyCoord(ra=request.obj.ra * u.degree, dec=request.obj.dec * u.degree)
-
-    app_url = get_app_base_url()
-    skyportal_url = f"{app_url}/source/{request.obj.id}"
-
-    if request_type == 'email':
-        linebreak = "<br>"
-    elif request_type == 'slack':
-        linebreak = "\n"
-    else:
-        raise ValueError('request_type must be either email or slack')
-
-    text = (
-        f"Name: {target['name']}{linebreak}"
-        f"SkyPortal Link: {skyportal_url}{linebreak}"
-        f"RA / Dec: {c.ra.to_string(sep=':')} {c.dec.to_string(sep=':')} ({target['ra']} {target['dec']}){linebreak}"
-        f"Filters: {target['filters']}{linebreak}"
-        f"Exposure time: {target['exposure_time']}{linebreak}"
-        f"Exposure counts: {target['exposure_counts']}{linebreak}"
-        f"Username: {target['username']}"
-    )
-
-    if comments:
-        if len(request.obj.comments) > 0:
-            text_comments = [f"{linebreak}{linebreak}Comments:"]
-            for comment in request.obj.comments:
-                text_comments.append(f'{comment.author.username}: {comment.text}')
-        else:
-            text_comments = [f"{linebreak}{linebreak}No Comments"]
-
-        text = text + f"{linebreak}".join(text_comments)
-
-    return textwrap.dedent(text)
-
-
 class GENERICAPI(FollowUpAPI):
     """SkyPortal interface for generic imaging follow-up"""
 
@@ -185,7 +101,11 @@ class GENERICAPI(FollowUpAPI):
 
         transaction = None
         if altdata is not None:
-            if 'endpoint' in altdata and 'api_token' in altdata:
+            if altdata.get('notification_type') == 'API':
+                if altdata.get('endpoint') is None or altdata.get('api_token') is None:
+                    raise ValueError(
+                        'API endpoint and API token required for API notification type.'
+                    )
                 payload = {
                     'obj_id': request.obj_id,
                     'allocation_id': request.allocation.id,
@@ -210,63 +130,26 @@ class GENERICAPI(FollowUpAPI):
                     initiator_id=request.last_modified_by_id,
                 )
 
-            elif 'type' in altdata and altdata['type'] == 'slack':
-                slack_microservice_url = (
-                    f'http://127.0.0.1:{cfg["slack.microservice_port"]}'
-                )
+            elif altdata.get('notification_type') == 'slack':
+                from ..utils.notifications import request_notify_by_slack
 
-                if altdata.get('comments') in ["True", "t", "true", "1", True, 1]:
-                    comments = True
-                else:
-                    comments = False
-
-                text = create_target_text(
-                    request, request_type='slack', comments=comments
-                )
-
-                data = json.dumps(
-                    {
-                        "url": f"{SLACK_URL}/{altdata['slack_workspace']}/{altdata['slack_channel']}/{altdata['slack_token']}",
-                        "text": text,
-                    }
-                )
-
-                r = requests.post(
-                    slack_microservice_url,
-                    data=data,
-                    headers={'Content-Type': 'application/json'},
-                )
-                r.raise_for_status()
+                request_notify_by_slack(request, session)
 
                 request.status = 'submitted'
 
                 transaction = FacilityTransaction(
-                    request=http.serialize_requests_request(r.request),
-                    response=http.serialize_requests_response(r),
+                    request=None,
+                    response=None,
                     followup_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
 
-            elif 'type' in altdata and altdata['type'] == 'email':
-                if email:
-                    subject = f"{cfg['app.title']} - New observation request"
+            elif altdata.get('notification_type') == 'email':
+                from ..utils.notifications import request_notify_by_email
 
-                    if altdata.get('comments') in ["True", "t", "true", "1", True, 1]:
-                        comments = True
-                    else:
-                        comments = False
+                request_notify_by_email(request, session)
 
-                    text = create_target_text(
-                        request, request_type='email', comments=comments
-                    )
-
-                    send_email(
-                        recipients=altdata['email'].split(","),
-                        subject=subject,
-                        body=text,
-                    )
-
-                    request.status = 'submitted'
+                request.status = 'submitted'
 
                 transaction = FacilityTransaction(
                     request=None,
@@ -276,9 +159,7 @@ class GENERICAPI(FollowUpAPI):
                 )
 
             else:
-                request.status = (
-                    'rejected: missing endpoint or API token in allocation altdata'
-                )
+                request.status = 'rejected: no valid altdata configuration found.'
         else:
             request.status = 'submitted'
 
@@ -538,19 +419,19 @@ class GENERICAPI(FollowUpAPI):
     form_json_schema_altdata = {
         "type": "object",
         "properties": {
-            "allocation_type": {
+            "notification_type": {
                 "type": "string",
-                "title": "Type",
+                "title": "Notification Type",
                 "enum": ["API", "slack", "email"],
             },
         },
-        "required": ["allocation_type"],
+        "required": ["notification_type"],
         "dependencies": {
-            "allocation_type": {
+            "notification_type": {
                 "oneOf": [
                     {
                         "properties": {
-                            "allocation_type": {"enum": ["API"]},
+                            "notification_type": {"enum": ["API"]},
                             "endpoint": {
                                 "type": "string",
                                 "title": "Endpoint",
@@ -558,6 +439,11 @@ class GENERICAPI(FollowUpAPI):
                             "api_token": {
                                 "type": "string",
                                 "title": "API Token (Authorization header)",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
                             },
                         },
                         "required": [
@@ -567,7 +453,7 @@ class GENERICAPI(FollowUpAPI):
                     },
                     {
                         "properties": {
-                            "allocation_type": {"enum": ["slack"]},
+                            "notification_type": {"enum": ["slack"]},
                             "slack_workspace": {
                                 "type": "string",
                                 "title": "Slack Workspace",
@@ -580,6 +466,11 @@ class GENERICAPI(FollowUpAPI):
                                 "type": "string",
                                 "title": "Slack Token",
                             },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
+                            },
                         },
                         "required": [
                             "slack_workspace",
@@ -589,10 +480,15 @@ class GENERICAPI(FollowUpAPI):
                     },
                     {
                         "properties": {
-                            "allocation_type": {"enum": ["email"]},
+                            "notification_type": {"enum": ["email"]},
                             "email": {
                                 "type": "string",
                                 "title": "Email",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
                             },
                         },
                         "required": [
