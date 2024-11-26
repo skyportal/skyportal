@@ -102,6 +102,8 @@ def convert_request_to_sedm(request, method_value='new'):
     }
 
     if rtype == "Mix 'n Match":
+        # we make a deepcopy so that the payload's observation_choices
+        # aren't edited when we edit choices
         choices = deepcopy(request.payload['observation_choices'])
         hasspec = 'IFU' in choices
         followup = 'IFU' if hasspec else ''
