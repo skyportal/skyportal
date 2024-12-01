@@ -44,7 +44,7 @@ alembic==1.13.2
 marshmallow-jsonschema==0.13.0
 paramiko==3.5.0
 scp==0.15.0
-requests_toolbelt==0.10.1
+requests_toolbelt==1.0.0
 sendgrid==6.11.0
 responses==0.25.3
 twilio==9.2.2
