@@ -96,7 +96,7 @@
     "redux-logger": "3.0.6",
     "redux-state-sync": "3.1.4",
     "redux-thunk": "2.4.2",
-    "regl": "2.1.0",
+    "regl": "2.1.1",
     "remark-gfm": "4.0.0",
     "semver": "7.6.2",
     "sprintf-js": "1.1.3",
