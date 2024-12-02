@@ -6,6 +6,11 @@ NORMAL=\033[0m
 VER := $(shell python -c "import skyportal; print(skyportal.__version__)")
 BANNER := $(shell echo -e "Welcome to $(BOLD)SkyPortal v$(VER)$(NORMAL) (https://skyportal.io)")
 
+# Set the Python package installer to use
+# if uv is available set it to uv pip, otherwise use pip
+# for that simply call the uv command, and if we get a non-zero exit code, we know it's not available
+PYTHON_PGK_INSTALLER := $(shell command -v uv 2>&1 >/dev/null && echo "uv pip" || echo "pip")
+
 $(info $())
 $(info $(BANNER))
 $(info $())
@@ -22,7 +27,7 @@ baselayer/Makefile:
 	git submodule update --init
 
 dependencies_no_js: ## Install Python dependencies and check environment, without checking/installing JS dependencies
-	@PYTHONPATH=. pip install packaging
+	@PYTHONPATH=. $(PYTHON_PGK_INSTALLER) install packaging setuptools wheel
 	@baselayer/tools/check_app_environment.py
 	@PYTHONPATH=. python baselayer/tools/pip_install_requirements.py baselayer/requirements.txt requirements.txt
 
@@ -34,10 +39,10 @@ docker-images: docker-local
 
 docker-local: ## Build docker images locally
 	cd baselayer && git submodule update --init --remote
-	docker build -t skyportal/web .
+	docker build -t skyportal/web . --progress=plain
 
-doc_reqs:
-	pip install -q -r requirements.docs.txt
+doc_reqs: ## Install documentation requirements
+	$(PYTHON_PGK_INSTALLER) install -q -r requirements.docs.txt
 
 api-docs: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 api-docs: | doc_reqs

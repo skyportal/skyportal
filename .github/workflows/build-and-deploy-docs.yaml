@@ -43,9 +43,7 @@ jobs:
         with:
           python-version: "3.10"
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - uses: oven-sh/setup-bun@v2
 
       - uses: actions/checkout@v4
         with:
@@ -54,11 +52,11 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+            ~/.bun
+          key: ${{ runner.os }}-bun-${{ hashFiles('package.json') }}
           restore-keys: |
-            ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
-            ${{ runner.os }}-npm-
+            ${{ runner.os }}-bun-${{ hashFiles('package.json') }}
+            ${{ runner.os }}-bun-
 
       - uses: actions/cache@v4
         with:
@@ -108,16 +106,17 @@ jobs:
           sudo apt update -y
           sudo apt install -y libcurl4-gnutls-dev libgnutls28-dev
 
-          python -m pip install pip==24.0
-          pip install numpy wheel
-          pip install -r baselayer/requirements.txt
-          pip install -r requirements.txt
+          ### UV python package manager installation
+          curl -LsSf https://astral.sh/uv/install.sh | sh
 
-          export NPM_PACKAGES="${HOME}/.npm-packages"
-          export PATH=${NPM_PACKAGES}/bin:$PATH
-          export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
+          uv venv --python 3.10 && source .venv/bin/activate
 
-          sudo npm -g install npm@latest
+          uv pip install pip==24.0
+          uv pip install numpy wheel
+          uv pip install -r baselayer/requirements.txt
+          uv pip install -r requirements.txt
+
+          bun upgrade
 
       - name: Checkout branch being tested
         uses: actions/checkout@v4
@@ -128,6 +127,7 @@ jobs:
 
       - name: Build docs
         run: |
+          source .venv/bin/activate
           make docs
           touch doc/_build/html/.nojekyll
 

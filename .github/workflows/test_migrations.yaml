@@ -54,9 +54,7 @@ jobs:
         with:
           python-version: "3.10"
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - uses: oven-sh/setup-bun@v2
 
       - name: Checkout main
         uses: actions/checkout@v4
@@ -68,11 +66,11 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+            ~/.bun
+          key: ${{ runner.os }}-bun-${{ hashFiles('package.json') }}
           restore-keys: |
-            ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
-            ${{ runner.os }}-npm-
+            ${{ runner.os }}-bun-${{ hashFiles('package.json') }}
+            ${{ runner.os }}-bun-
 
       - uses: actions/cache@v4
         with:
@@ -114,33 +112,35 @@ jobs:
 
           sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
-          pip install pip==24.0
-          pip install wheel numpy
+          ### UV python package manager installation
+          curl -LsSf https://astral.sh/uv/install.sh | sh
 
-          export NPM_PACKAGES="${HOME}/.npm-packages"
-          export PATH=${NPM_PACKAGES}/bin:$PATH
-          export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
+          uv venv ~/skyportal_env --python 3.10 && source ~/skyportal_env/bin/activate
 
-          sudo npm -g install npm@latest
+          uv pip install pip==24.0
+          uv pip install wheel numpy
+
+          bun upgrade
 
           which python; python --version
-          echo npm $(npm --version)
-          echo node $(node --version)
+          echo uv $(uv --version)
+          echo bun $(bun --version)
           nginx -v
           firefox --version
 
       - name: Install SkyPortal dependencies
         run: |
+          source ~/skyportal_env/bin/activate
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          # do not be so demanding of the npm packaging, needed until we get to mui 5
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+          uv pip install packaging setuptools # required as we are running on an older branch
           make dependencies
 
-          pip install black
-          pip install fiona==1.9.6 # 1.10.0 breaks geopandas
+          uv pip install black
+          uv pip install fiona==1.9.6 # 1.10.0 breaks geopandas
 
       - name: Save current Alembic head on main
         run: |
+          source ~/skyportal_env/bin/activate
           # Get the head line from Alembic history output
           head=$( PYTHONPATH=. alembic history | grep '(head)' )
 
@@ -183,17 +183,18 @@ jobs:
           createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+          source ~/skyportal_env/bin/activate
           make db_init
 
-          pip list --format=columns
-          npm ls --depth 0
+          uv pip list --format=columns
+          bun pm ls --depth 0 || true
 
           # Stamp Alembic HEAD
           PYTHONPATH=. alembic -x config=config.yaml stamp head
 
       - name: Test loading demo data
         run: |
+          source ~/skyportal_env/bin/activate
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make run &
           sleep 180 && make load_demo_data
@@ -208,6 +209,7 @@ jobs:
 
       - name: Check for migration branching
         run: |
+          source ~/skyportal_env/bin/activate
           # Make sure latest revision on main is included in Alembic history
           n_current_head=$( PYTHONPATH=. alembic history | grep -c $CURRENT_HEAD )
           if [[ $n_current_head -eq 0 ]]
@@ -236,8 +238,7 @@ jobs:
 
       - name: Run migration
         run: |
-          # do not be so demanding of the npm packaging, needed until we get to mui 5
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+          source ~/skyportal_env/bin/activate
           # Update to latest dependencies
           make dependencies
           PYTHONPATH=. alembic -x config=config.yaml upgrade head
@@ -245,6 +246,7 @@ jobs:
 
       - name: Check migration completeness with Alembic
         run: |
+          source ~/skyportal_env/bin/activate
           # Try generating a new migration
           PYTHONPATH=. alembic -x config=config.yaml revision --autogenerate -m "Test migration"
 
@@ -276,7 +278,7 @@ jobs:
           createdb -h localhost -U skyportal skyportal2_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal2_test TO skyportal;" skyportal2_test
 
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+          source ~/skyportal_env/bin/activate
           make db_init
 
           make run &
@@ -286,7 +288,8 @@ jobs:
 
       - name: Compare databases with migra
         run: |
-          pip install migra
+          source ~/skyportal_env/bin/activate
+          uv pip install migra
 
           # SQL needed to go from migrated database to fresh database
           migra --unsafe postgresql://skyportal:anything@localhost:5432/skyportal postgresql://skyportal:anything@localhost:5432/skyportal2 > migra.sql || true
