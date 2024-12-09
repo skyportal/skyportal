@@ -54,6 +54,7 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
           >
             <MenuItem value="Keck">Keck</MenuItem>
             <MenuItem value="P200">P200</MenuItem>
+            <MenuItem value="P200-NGPS">P200 (NGPS)</MenuItem>
             <MenuItem value="Shane">Shane</MenuItem>
           </Select>
         </div>
@@ -81,7 +82,6 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
             <pre>
               {starList &&
                 starList.map((item, idx) => (
-                  // eslint-disable-next-line react/no-array-index-key
                   <React.Fragment key={idx}>
                     {item.str}
                     <br />
@@ -108,7 +108,17 @@ const StarList = ({ sourceId }) => {
           "skyportal/FETCH_STARLIST",
         ),
       );
-      setStarList(response.data.starlist_info);
+
+      let data = response.data.starlist_info;
+      if (facility === "P200-NGPS") {
+        data = [
+          {
+            str: "NAME, RA, DECL, binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max",
+          },
+          ...data,
+        ];
+      }
+      setStarList(data);
     };
 
     fetchStarList();
@@ -156,6 +166,16 @@ export const ObservingRunStarList = () => {
       values.forEach((response) =>
         starlistInfo.push(...response.value.data.starlist_info),
       );
+
+      // if the facility is P200-NGPS, add the headers at the beginning:
+      // NAME, RA, DECL, binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max
+      // we could have added this to the backend, but since we fetch sources one by one anyway,
+      // this would have caused duplicate headers in the starlist
+      if (facility === "P200-NGPS") {
+        starlistInfo.unshift({
+          str: "NAME, RA, DECL, binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max",
+        });
+      }
 
       setStarList(starlistInfo);
     };

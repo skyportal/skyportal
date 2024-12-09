@@ -83,7 +83,7 @@ class UnsourcedFinderHandler(BaseHandler):
           nullable: true
           schema:
             type: string
-            enum: [Keck, Shane, P200]
+            enum: [Keck, Shane, P200, P200-NGPS]
             description: |
                What type of starlist should be used? Defaults to Keck
         - in: query
