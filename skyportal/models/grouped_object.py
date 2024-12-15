@@ -32,11 +32,23 @@ class GroupedObject(Base):
         doc="Optional description of why these objects are related",
     )
 
-    # Todo: add created_by User?
-    created_by = sa.Column(
-        postgresql.JSONB,
+    created_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the User that created this grouped object",
+    )
+
+    created_by = relationship(
+        'User',
+        foreign_keys=[created_by_id],
+        doc="The User that created this grouped object",
+    )
+
+    origin = sa.Column(
+        sa.String,
         nullable=True,
-        doc="Metadata about what/who created this group (user, pipeline name, etc)",
+        doc="Source/origin of the grouped object (e.g. the name of a pipeline, script)",
     )
 
     properties = sa.Column(
@@ -49,7 +61,6 @@ class GroupedObject(Base):
 # Create the many-to-many relationship (creates linking table)
 GroupedObjectObj = join_model("grouped_object_objs", GroupedObject, Obj)
 
-# Set up the relationship between GroupedObject and Obj
 GroupedObject.objs = relationship(
     "Obj",
     secondary="grouped_object_objs",

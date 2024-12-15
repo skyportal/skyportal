@@ -34,9 +34,9 @@ class GroupedObjectHandler(BaseHandler):
                   properties:
                     type: object
                     description: Additional metadata about this grouped object
-                  created_by:
-                    type: object
-                    description: Metadata about what/who created this group
+                  origin:
+                    type: string
+                    description: Source/origin of the grouped object (e.g. pipeline name, script identifier)
                 required:
                   - name
                   - type
@@ -82,9 +82,8 @@ class GroupedObjectHandler(BaseHandler):
                     type=group_type,
                     description=data.get('description'),
                     properties=data.get('properties'),
-                    created_by=data.get(
-                        'created_by', {'type': 'api', 'user_id': self.current_user.id}
-                    ),
+                    created_by_id=self.current_user.id,  # Set the creator to current user
+                    origin=data.get('origin'),  # Add optional origin information
                 )
 
                 # Add the objects to the group
@@ -116,6 +115,10 @@ class GroupedObjectHandler(BaseHandler):
               content:
                 application/json:
                   schema: SingleGroupedObject
+            400:
+              content:
+                application/json:
+                  schema: Error
         multiple:
           summary: Retrieve all grouped objects
           responses:
@@ -132,12 +135,21 @@ class GroupedObjectHandler(BaseHandler):
                 grouped_obj = session.scalars(stmt).first()
                 if grouped_obj is None:
                     return self.error('Invalid grouped object ID')
-                return self.success(data=grouped_obj.to_dict())
 
-            # Return all grouped objects
+                result = grouped_obj.to_dict()
+                result['created_by'] = grouped_obj.created_by.to_dict()
+                return self.success(data=result)
+
             stmt = GroupedObject.select(self.current_user)
             grouped_objs = session.scalars(stmt).all()
-            return self.success(data=[obj.to_dict() for obj in grouped_objs])
+
+            results = []
+            for obj in grouped_objs:
+                result = obj.to_dict()
+                result['created_by'] = obj.created_by.to_dict()
+                results.append(result)
+
+            return self.success(data=results)
 
     @permissions(['Upload'])
     def delete(self, grouped_object_id):
