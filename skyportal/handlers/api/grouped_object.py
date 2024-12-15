@@ -20,27 +20,29 @@ class GroupedObjectHandler(BaseHandler):
                   name:
                     type: string
                     description: Name/identifier for the grouped object
+                    required: true
                   type:
                     type: string
                     description: Type of grouped object (e.g., 'moving_object', 'duplicate_detection')
+                    required: true
                   description:
                     type: string
                     description: Optional description of why these objects are related
+                    required: false
                   obj_ids:
                     type: array
                     items:
                       type: string
                     description: List of Obj IDs to include in this group
+                    required: true
                   properties:
                     type: object
                     description: Additional metadata about this grouped object
+                    required: false
                   origin:
                     type: string
                     description: Source/origin of the grouped object (e.g. pipeline name, script identifier)
-                required:
-                  - name
-                  - type
-                  - obj_ids
+                    required: false
         responses:
           200:
             content:
@@ -56,12 +58,12 @@ class GroupedObjectHandler(BaseHandler):
         with self.Session() as session:
             # required fields
             name = data.get('name')
-            group_type = data.get('type')
+            type = data.get('type')
             obj_ids = data.get('obj_ids', [])
 
             if not name:
                 return self.error('name is required')
-            if not group_type:
+            if not type:
                 return self.error('type is required')
             if not obj_ids:
                 return self.error('obj_ids is required')
@@ -79,11 +81,11 @@ class GroupedObjectHandler(BaseHandler):
                 # Create grouped object
                 grouped_obj = GroupedObject(
                     name=name,
-                    type=group_type,
+                    type=type,
                     description=data.get('description'),
                     properties=data.get('properties'),
-                    created_by_id=self.current_user.id,  # Set the creator to current user
-                    origin=data.get('origin'),  # Add optional origin information
+                    created_by_id=self.current_user.id,
+                    origin=data.get('origin'),
                 )
 
                 # Add the objects to the group
@@ -92,7 +94,6 @@ class GroupedObjectHandler(BaseHandler):
                 session.add(grouped_obj)
                 session.commit()
 
-                self.push_all(action='skyportal/REFRESH_GROUPED_OBJECTS')
                 return self.success(data={'id': grouped_obj.id})
 
             except Exception as e:
@@ -183,5 +184,4 @@ class GroupedObjectHandler(BaseHandler):
             session.delete(grouped_obj)
             session.commit()
 
-            self.push_all(action='skyportal/REFRESH_GROUPED_OBJECTS')
             return self.success()
