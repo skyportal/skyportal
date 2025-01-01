@@ -41,8 +41,8 @@ _, cfg = load_env()
 Session = scoped_session(sessionmaker())
 
 TNS_URL = cfg['app.tns.endpoint']
-upload_url = urllib.parse.urljoin(TNS_URL, 'api/file-upload')
-report_url = urllib.parse.urljoin(TNS_URL, 'api/bulk-report')
+upload_url = urllib.parse.urljoin(TNS_URL, 'api/set/file-upload')
+report_url = urllib.parse.urljoin(TNS_URL, 'api/set/bulk-report')
 
 log = make_log('api/tns')
 
