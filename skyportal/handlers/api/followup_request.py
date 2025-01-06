@@ -1426,6 +1426,7 @@ class FollowupRequestHandler(BaseHandler):
                 )
                 session.commit()
             except Exception as e:
+                traceback.print_exc()
                 return self.error(f'Failed to delete follow-up request: {e}')
             return self.success()
 

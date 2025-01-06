@@ -4,6 +4,16 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
 
+# Rotation matrix for the conversion : x_galactic = R * x_equatorial (J2000)
+# http://adsabs.harvard.edu/abs/1989A&A...218..325M
+RGE = np.array(
+    [
+        [-0.054875539, -0.873437105, -0.483834992],
+        [+0.494109454, -0.444829594, +0.746982249],
+        [-0.867666136, -0.198076390, +0.455983795],
+    ]
+)
+
 
 def radec_str2deg(_ra_str, _dec_str):
     c = SkyCoord(_ra_str, _dec_str, unit=(u.hourangle, u.deg))
@@ -234,3 +244,28 @@ def deg2dms(x):
     _s = np.abs(np.abs(x - _d) * 60.0 - _m) * 60.0
     dms = f"{_d:02.0f}:{_m:02.0f}:{_s:06.3f}"
     return dms
+
+
+def radec2lb(ra, dec):
+    """
+        Convert $R.A.$ and $Decl.$ into Galactic coordinates $l$ and $b$
+    ra [deg]
+    dec [deg]
+
+    return l [deg], b [deg]
+    """
+    ra_rad, dec_rad = np.deg2rad(ra), np.deg2rad(dec)
+    u = np.array(
+        [
+            np.cos(ra_rad) * np.cos(dec_rad),
+            np.sin(ra_rad) * np.cos(dec_rad),
+            np.sin(dec_rad),
+        ]
+    )
+
+    ug = np.dot(RGE, u)
+
+    x, y, z = ug
+    galactic_l = np.arctan2(y, x)
+    galactic_b = np.arctan2(z, (x * x + y * y) ** 0.5)
+    return np.rad2deg(galactic_l), np.rad2deg(galactic_b)

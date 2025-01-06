@@ -79,6 +79,7 @@ from .gcn import (
     LocalizationPropertiesHandler,
     LocalizationTagsHandler,
     ObjGcnEventHandler,
+    GcnEventNoticeDownloadHandler,
 )
 from .gcn_tach import GcnTachHandler
 from .gcn_gracedb import GcnGraceDBHandler

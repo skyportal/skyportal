@@ -1,5 +1,6 @@
 import json
 import requests
+import traceback
 import urllib
 from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
@@ -319,6 +320,30 @@ class WINTERAPI(FollowUpAPI):
                 'skyportal/REFRESH_FOLLOWUP_REQUESTS',
             )
 
+        try:
+            notification_type = request.allocation.altdata.get(
+                'notification_type', 'none'
+            )
+            if notification_type == 'slack':
+                from ..utils.notifications import request_notify_by_slack
+
+                request_notify_by_slack(
+                    request,
+                    session,
+                    is_update=False,
+                )
+            elif notification_type == 'email':
+                from ..utils.notifications import request_notify_by_email
+
+                request_notify_by_email(
+                    request,
+                    session,
+                    is_update=False,
+                )
+        except Exception as e:
+            traceback.print_exc()
+            log(f"Error sending notification: {e}")
+
     form_json_schema = {
         "type": "object",
         "properties": {
@@ -486,6 +511,66 @@ class WINTERAPI(FollowUpAPI):
             "password": {
                 "type": "string",
                 "title": "Password",
+            },
+            "notification_type": {
+                "type": "string",
+                "title": "Notification Type",
+                "enum": ["none", "slack", "email"],
+            },
+        },
+        "dependencies": {
+            "notification_type": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["none"]},
+                        },
+                    },
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["slack"]},
+                            "slack_workspace": {
+                                "type": "string",
+                                "title": "Slack Workspace",
+                            },
+                            "slack_channel": {
+                                "type": "string",
+                                "title": "Slack Channel",
+                            },
+                            "slack_token": {
+                                "type": "string",
+                                "title": "Slack Token",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
+                            },
+                        },
+                        "required": [
+                            "slack_workspace",
+                            "slack_channel",
+                            "slack_token",
+                        ],
+                    },
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["email"]},
+                            "email": {
+                                "type": "string",
+                                "title": "Email",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
+                            },
+                        },
+                        "required": [
+                            "email",
+                        ],
+                    },
+                ]
             },
         },
     }

@@ -20,7 +20,7 @@ tqdm>=4.27,<4.67
 matplotlib>=3.6.2, <3.8.0
 astroquery==0.4.7
 apispec>=6.3.0, <7.0.0
-marshmallow==3.21.3
+marshmallow==3.23.1
 marshmallow-sqlalchemy==1.1.0
 marshmallow-enum==1.5.1
 Pillow>=8.4.0
@@ -29,7 +29,7 @@ pytest>=8.3.2, <9.0.0
 sncosmo==2.11.1
 tdtax==0.1.7
 healpix-alchemy==1.1.0
-mocpy==0.16.2
+mocpy==0.17.1
 obspy==1.4.0
 conesearch-alchemy==1.1.0
 regions==0.9
@@ -44,7 +44,7 @@ alembic==1.13.2
 marshmallow-jsonschema==0.13.0
 paramiko==3.5.0
 scp==0.15.0
-requests_toolbelt==0.10.1
+requests_toolbelt==1.0.0
 sendgrid==6.11.0
 responses==0.25.3
 twilio==9.2.2
@@ -64,7 +64,7 @@ geojson==3.1.0
 typing-extensions==4.12.2
 swifttools==3.0.22
 pip>=24.0.0
-gwemopt==0.3.5
+gwemopt==0.3.6
 humanize==4.9.0
 xarray>=21.1
 simsurvey==0.7.5
@@ -78,8 +78,8 @@ selenium==4.8.3
 selenium-requests==2.0.4
 afterglowpy==0.8.0
 gcn-kafka==0.3.3
-confluent_kafka==2.5.0 # dependency of gcn-kafka: pinning to understand memory effects on GCNEvents
-iminuit==2.26.0
+confluent_kafka==2.6.1 # dependency of gcn-kafka: pinning to understand memory effects on GCNEvents
+iminuit==2.30.1
 watchdog==5.0.3
 PyAstronomy==0.21.0
 shapely==2.0.6
@@ -89,7 +89,7 @@ simplejson==3.19.2
 langchain==0.1.14
 langchain-openai==0.0.6
 pinecone-client==4.1.0
-pydantic==2.9.2
-sentry-sdk==2.8.0
+pydantic==2.10.2
+sentry-sdk==2.19.0
 typing-inspect==0.9.0
 brotli==1.1.0

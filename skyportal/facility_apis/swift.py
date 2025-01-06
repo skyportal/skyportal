@@ -7,6 +7,7 @@ import os
 import pandas as pd
 import requests
 import sqlalchemy as sa
+import traceback
 from sqlalchemy.orm import sessionmaker, scoped_session
 from swifttools.swift_too import ObsQuery, UVOT_mode, Swift_TOO, Data
 from swifttools.xrt_prods import XRTProductRequest
@@ -215,7 +216,7 @@ class UVOTXRTRequest:
         modes_index = modes_values.index(request.payload["uvot_mode"])
         too.uvot_mode = modes_keys[modes_index]
         too.science_just = request.payload["science_just"]
-        if too.uvot_mode == '0x0270':
+        if too.uvot_mode != '0x9999':
             too.uvot_just = request.payload.get("uvot_just", None)
             if not too.uvot_just:
                 raise ValueError(
@@ -609,6 +610,30 @@ class UVOTXRTAPI(FollowUpAPI):
                 'skyportal/REFRESH_FOLLOWUP_REQUESTS',
             )
 
+        try:
+            notification_type = request.allocation.altdata.get(
+                'notification_type', 'none'
+            )
+            if notification_type == 'slack':
+                from ..utils.notifications import request_notify_by_slack
+
+                request_notify_by_slack(
+                    request,
+                    session,
+                    is_update=False,
+                )
+            elif notification_type == 'email':
+                from ..utils.notifications import request_notify_by_email
+
+                request_notify_by_email(
+                    request,
+                    session,
+                    is_update=False,
+                )
+        except Exception as e:
+            traceback.print_exc()
+            log(f"Error sending notification: {e}")
+
     form_json_schema = {
         "type": "object",
         "properties": {
@@ -698,12 +723,12 @@ class UVOTXRTAPI(FollowUpAPI):
                                 "enum": ["XRT/UVOT ToO"],
                             },
                             "exposure_time": {
-                                "title": "Exposure Time [s]",
+                                "title": "Exposure Time per visit [s]",
                                 "type": "number",
                                 "default": 4000.0,
                             },
                             "exposure_counts": {
-                                "title": "Exposure Counts",
+                                "title": "Number of visits",
                                 "type": "number",
                                 "default": 1,
                                 "minimum": 1,
@@ -777,27 +802,27 @@ class UVOTXRTAPI(FollowUpAPI):
                                         "properties": {
                                             "uvot_mode": {
                                                 "enum": [
-                                                    "0x0270 - U+B+V+All UV (ToO Upload Mode)"
+                                                    "0x9999 - Default (Filter of the day)"
                                                 ],
                                             },
-                                            "uvot_just": {
-                                                "title": "UVOT Mode Justification",
-                                                "type": "string",
-                                                "default": "We wish to use mode 0x0270 - U+B+V+All UV (ToO Upload Mode).",
-                                            },
-                                        },
-                                        "required": ["uvot_just"],
+                                        }
                                     },
                                     {
                                         "properties": {
                                             "uvot_mode": {
                                                 "not": {
                                                     "enum": [
-                                                        "0x0270 - U+B+V+All UV (ToO Upload Mode)"
+                                                        "0x9999 - Default (Filter of the day)"
                                                     ],
                                                 },
                                             },
-                                        }
+                                            "uvot_just": {
+                                                "title": "UVOT Mode Justification",
+                                                "type": "string",
+                                                "default": "We wish to map the entire transient SED in all UV filters.",
+                                            },
+                                        },
+                                        "required": ["uvot_just"],
                                     },
                                 ]
                             },
@@ -814,6 +839,66 @@ class UVOTXRTAPI(FollowUpAPI):
             "username": {"type": "string", "title": "Username"},
             "secret": {"type": "string", "title": "Secret"},
             "XRT_UserID": {"type": "string", "title": "XRT User ID"},
+            "notification_type": {
+                "type": "string",
+                "title": "Notification Type",
+                "enum": ["none", "slack", "email"],
+            },
+        },
+        "dependencies": {
+            "notification_type": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["none"]},
+                        },
+                    },
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["slack"]},
+                            "slack_workspace": {
+                                "type": "string",
+                                "title": "Slack Workspace",
+                            },
+                            "slack_channel": {
+                                "type": "string",
+                                "title": "Slack Channel",
+                            },
+                            "slack_token": {
+                                "type": "string",
+                                "title": "Slack Token",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
+                            },
+                        },
+                        "required": [
+                            "slack_workspace",
+                            "slack_channel",
+                            "slack_token",
+                        ],
+                    },
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["email"]},
+                            "email": {
+                                "type": "string",
+                                "title": "Email",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
+                            },
+                        },
+                        "required": [
+                            "email",
+                        ],
+                    },
+                ]
+            },
         },
     }
 

@@ -107,12 +107,12 @@ class GeminiRequest:
         if not altdata:
             raise ValueError('No altdata provided')
 
-        email = altdata.get('email')
-        programid = altdata.get('progid')
-        password = altdata.get('password')
+        user_email = altdata.get('user_email')
+        programid = altdata.get('programid')
+        user_password = altdata.get('user_password')
 
-        if email is None or programid is None or password is None:
-            raise ValueError('Email, password, and program id are required')
+        if user_email is None or programid is None or user_password is None:
+            raise ValueError('user_email, user_password, and programid are required')
 
         # create the group str from the allocation's group nickname, PI, and id
         allocation_group_name = (
@@ -210,8 +210,8 @@ class GeminiRequest:
 
         payload = {
             'prog': programid,
-            'email': email,
-            'password': password,
+            'email': user_email,
+            'password': user_password,
             'obsnum': obsnum,
             'target': target,
             'ra': ra,
@@ -249,10 +249,10 @@ class GEMINIAPI(FollowUpAPI):
         if not isinstance(altdata, dict):
             raise ValueError('Invalid altdata format')
 
-        email = str(altdata.get('email')).strip()
-        password = str(altdata.get('password')).strip()
-        progid = str(altdata.get('progid')).strip()
-        if not any([progid.startswith(x) for x in ["GN", "GS"]]):
+        user_email = str(altdata.get('user_email')).strip()
+        user_password = str(altdata.get('user_password')).strip()
+        programid = str(altdata.get('programid')).strip()
+        if not any([programid.startswith(x) for x in ["GN", "GS"]]):
             raise ValueError('Invalid program ID, must start with GN or GS')
 
         instrument = kwargs.get('instrument')
@@ -262,17 +262,17 @@ class GEMINIAPI(FollowUpAPI):
         instrument_name = str(instrument["name"]).lower().strip()
         if any(
             [x in instrument_name for x in ["south", "gs"]]
-        ) and not progid.startswith("GS"):
+        ) and not programid.startswith("GS"):
             raise ValueError('Invalid program ID for Gemini South, must start with GS')
         elif any(
             [x in instrument_name for x in ["north", "gn"]]
-        ) and not progid.startswith("GN"):
+        ) and not programid.startswith("GN"):
             raise ValueError('Invalid program ID for Gemini North, must start with GN')
         elif not any([x in instrument_name for x in ["north", "south", "gn", "gs"]]):
             raise ValueError('Invalid instrument, must be Gemini North or South')
 
-        if not email or not password or not progid:
-            raise ValueError('Email, password, and program ID are required')
+        if not user_email or not user_password or not programid:
+            raise ValueError('user_email, user_password, and programid are required')
 
         template_ids = altdata.get('template_ids')
         if template_ids:
@@ -401,9 +401,9 @@ class GEMINIAPI(FollowUpAPI):
     form_json_schema_altdata = {
         "type": "object",
         "properties": {
-            "email": {"type": "string", "title": "Email"},
-            "password": {"type": "string", "title": "Password"},
-            "progid": {
+            "user_email": {"type": "string", "title": "Email"},
+            "user_password": {"type": "string", "title": "Password"},
+            "programid": {
                 "type": "string",
                 "title": "Program ID",
                 "description": "CAUTION: Gemini North and South have different program IDs, starting with GN or GS respectively. So, make sure to use the correct one for the instrument you've selected.",
@@ -414,7 +414,7 @@ class GEMINIAPI(FollowUpAPI):
                 "description": "List of available templates, comma separated (optional)",
             },
         },
-        "required": ["email", "password", "progid"],
+        "required": ["user_email", "user_password", "programid"],
     }
 
     ui_json_schema = {}
