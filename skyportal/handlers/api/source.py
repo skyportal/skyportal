@@ -82,6 +82,7 @@ from ...utils.offset import (
     get_finding_chart,
     get_nearby_offset_stars,
     source_image_parameters,
+    ALL_NGPS_SNCOSMO_BANDS,
 )
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
@@ -2430,6 +2431,54 @@ class SourceOffsetsHandler(BaseHandler):
                 # could not handle inputs
                 return self.error('Invalid argument for `num_offset_stars`')
 
+            (
+                source_mag,
+                source_magfilter,
+            ) = (
+                None,
+                None,
+            )
+            priority, comment = 1, 'science'
+            if facility in ['P200-NGPS']:
+                # look for the latest photometry point
+                # in the filters supported by NGPS
+                latest_photometry = session.scalars(
+                    Photometry.select(session.user_or_token)
+                    .where(
+                        Photometry.obj_id == obj_id,
+                        Photometry.flux.isnot(None),
+                        Photometry.flux > 0,
+                        Photometry.fluxerr.isnot(None),
+                        Photometry.filter.in_(ALL_NGPS_SNCOSMO_BANDS),
+                    )
+                    .order_by(Photometry.mjd.desc())
+                ).first()
+                if latest_photometry is not None:
+                    source_mag = latest_photometry.mag
+                    source_magfilter = latest_photometry.filter
+
+                # optionally, the source can be associated with an observing run
+                # in which case we retrieve the assignment's priority and comment
+                observing_run = self.get_query_argument('observing_run_id', None)
+                if observing_run is not None:
+                    try:
+                        observing_run = int(observing_run)
+                    except ValueError:
+                        return self.error('Invalid argument for `observing_run_id`')
+
+                    assignment = session.scalars(
+                        ClassicalAssignment.select(session.user_or_token).where(
+                            ClassicalAssignment.obj_id == obj_id,
+                            ClassicalAssignment.run_id == observing_run,
+                        )
+                    ).first()
+                    if assignment is None:
+                        return self.error(
+                            f'No target found with obj_id {obj_id} and observing run ID {observing_run}'
+                        )
+
+                    priority, comment = assignment.priority, assignment.comment
+
             offset_func = functools.partial(
                 get_nearby_offset_stars,
                 best_ra,
@@ -2444,6 +2493,10 @@ class SourceOffsetsHandler(BaseHandler):
                 obstime=obstime,
                 allowed_queries=2,
                 use_ztfref=use_ztfref,
+                assignment_priority=priority,
+                assignment_comment=comment,
+                source_mag=source_mag,
+                source_magfilter=source_magfilter,
             )
 
             try:

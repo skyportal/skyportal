@@ -110,10 +110,11 @@ const StarList = ({ sourceId }) => {
       );
 
       let data = response.data.starlist_info;
+      // if the facility is P200-NGPS, we add the header to the starlist
       if (facility === "P200-NGPS") {
         data = [
           {
-            str: "NAME, RA, DECL, binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max",
+            str: "NAME,RA,DECL,OFFSET_RA,OFFSET_DEC,COMMENT,PRIORITY,BINSPAT,BINSPECT,SLITANGLE,SLITWIDTH,AIRMASS_MAX,WRANGE_LOW,WRANGE_HIGH,CHANNEL,MAGNITUDE,MAGFILTER,EXPTIME",
           },
           ...data,
         ];
@@ -145,7 +146,7 @@ export const ObservingRunStarList = () => {
       const promises = assignments.map((assignment) =>
         dispatch(
           GET(
-            `/api/sources/${assignment.obj_id}/offsets?facility=${facility}`,
+            `/api/sources/${assignment.obj_id}/offsets?facility=${facility}&observing_run_id=${assignment.run_id}`,
             "skyportal/FETCH_STARLIST",
           ),
         ),
@@ -167,13 +168,10 @@ export const ObservingRunStarList = () => {
         starlistInfo.push(...response.value.data.starlist_info),
       );
 
-      // if the facility is P200-NGPS, add the headers at the beginning:
-      // NAME, RA, DECL, binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max
-      // we could have added this to the backend, but since we fetch sources one by one anyway,
-      // this would have caused duplicate headers in the starlist
+      // if the facility is P200-NGPS, we add the header to the starlist
       if (facility === "P200-NGPS") {
         starlistInfo.unshift({
-          str: "NAME, RA, DECL, binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max",
+          str: "NAME,RA,DECL,OFFSET_RA,OFFSET_DEC,COMMENT,PRIORITY,BINSPAT,BINSPECT,SLITANGLE,SLITWIDTH,AIRMASS_MAX,WRANGE_LOW,WRANGE_HIGH,CHANNEL,MAGNITUDE,MAGFILTER,EXPTIME",
         });
       }
 

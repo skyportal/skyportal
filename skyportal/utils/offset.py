@@ -50,6 +50,21 @@ HOST = f'{cfg["server.protocol"]}://{cfg["server.host"]}' + (
     f':{cfg["server.port"]}' if cfg['server.port'] not in [80, 443] else ''
 )
 
+NGPS_TARGET_BANDS_TO_SNCOSMO = {
+    'G': ['ztfg', 'sdssg', 'lsstg'],
+    'R': ['ztfr', 'sdssr', 'bessellr', 'standard::r', 'lsstr'],
+    'I': ['ztfi', 'sdssi', 'besselli', 'standard::i', 'lssti'],
+    'U': ['sdssu', 'bessellux', 'standard::u', 'lsstu'],
+}
+SNCOSMO_BANDS_TO_NGPS_TARGET = {}
+for k, v in NGPS_TARGET_BANDS_TO_SNCOSMO.items():
+    for vv in v:
+        SNCOSMO_BANDS_TO_NGPS_TARGET[vv] = k
+
+ALL_NGPS_SNCOSMO_BANDS = []
+for v in NGPS_TARGET_BANDS_TO_SNCOSMO.values():
+    ALL_NGPS_SNCOSMO_BANDS.extend(v)
+
 
 class GaiaQuery:
     alt_tap = 'https://gaia.aip.de/tap'
@@ -812,21 +827,26 @@ def get_formatted_standards_list(
     if return_dataframe:
         return df
     elif starlist_type == "P200-NGPS":
-        # here instead we want a CSV of the format:
-        # NAME RA DECL binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max
-        # where NAME RA DECL are the only required fields, the rest will have the following
-        # defaults:
-        # binspect = 1, binspat = 1, ccdmode = default, slitangle = 0, slitwidth = SET 1, exptime = SET 900, airmass_max = 3
-        for index, row in df.iterrows():
+        # special format for NGPS, CSV-like with additional columns
+        for _, row in df.iterrows():
+            if 'mag' in df.columns:
+                mag, magfilter = row['mag'], 'V'
+            else:
+                mag, magfilter = '', ''
             starlist.append(
                 {
                     "str": (
                         f"{row['name']}"
-                        + ", "
+                        + ","
                         + f"{row.ra_float}"
-                        + ", "
+                        + ","
                         + f"{row.dec_float}"
-                        + ", 1, 1, default, 0, 1, SET 900, 3"
+                        + ",,"  # offset ra, dec, empty for standards
+                        + ","
+                        + "standard"  # comment
+                        + ","  # priority, empty for standards
+                        + ","
+                        + f"2,1,PA,1.3,2.5,650,680,R,{mag},{magfilter},SNR 5"
                     )
                 }
             )
@@ -869,6 +889,10 @@ def get_nearby_offset_stars(
     use_ztfref=True,
     use_ztfref_as_gaia_backup=True,
     required_ztfref_source_distance=60,
+    assignment_priority=1,
+    assignment_comment="science",
+    source_mag=None,
+    source_magfilter=None,
 ):
     """Finds good list of nearby offset stars for spectroscopy
        and returns info about those stars, including their
@@ -914,6 +938,14 @@ def get_nearby_offset_stars(
         If there are zero ZTF ref stars within this distance in arcsec,
         then do not use the ztfref catalog even if asked. This probably
         means that the source is at the end of the ref catalog.
+    assignment_priority : int, optional
+        Priority of the optional observing run assignment, if the starlist format supports it
+    assignment_comment : str, optional
+        Comment for the optional observing run assignment, if the starlist format supports it
+    source_mag : float, optional
+        Magnitude of the source
+    source_magfilter : str, optional
+        Filter of the source magnitude
 
     Returns
     -------
@@ -1143,6 +1175,10 @@ def get_nearby_offset_stars(
             allowed_queries=allowed_queries,
             use_ztfref=use_ztfref,
             required_ztfref_source_distance=required_ztfref_source_distance,
+            assignment_priority=assignment_priority,
+            assignment_comment=assignment_comment,
+            source_mag=source_mag,
+            source_magfilter=source_magfilter,
         )
 
     starlist_format = starlist_formats.get(starlist_type)
@@ -1168,22 +1204,34 @@ def get_nearby_offset_stars(
     space = " "
     hmsdms = format_hmsdms(center, coord_sep, col_sep)
     if starlist_type == "P200-NGPS":
-        # here instead we want a CSV of the format
-        # NAME RA DECL binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max
-        # where NAME RA DECL are the only required fields, the rest will have the following
-        # defaults:
-        # binspect = 1, binspat = 1, ccdmode = default, slitangle = 0, slitwidth = SET 1, exptime = SET 900, airmass_max = 3
-        # first_line = (
-        #     f"NAME, RA, DECL, binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max"
-        # )
+        # special format for NGPS, CSV-like with additional columns
+        if not source_mag or not source_magfilter:
+            mag, magfilter = "", ""
+        else:
+            magfilter = SNCOSMO_BANDS_TO_NGPS_TARGET.get(source_magfilter, None)
+            if magfilter is None:
+                raise ValueError(
+                    f"Cannot find corresponding NGPS filter for sncosmo filter {magfilter}"
+                )
+            try:
+                mag = round(float(source_mag), 2)
+            except ValueError:
+                raise ValueError(f"Cannot convert magnitude {source_mag} to float")
 
+            # check that there is a corresponding value in NGPS_TARGET_BANDS_TO_SNCOSMO
         star_list_format = (
             f"{basename}"
-            + ", "
+            + ","
             + f"{source_ra}"
-            + ", "
+            + ","
             + f"{source_dec}"
-            + ", 1, 1, default, 0, 1, SET 900, 3"
+            + ",,"  # offset ra, dec (empty for target)
+            + ","
+            + str(assignment_comment)  # assignment comment, if any
+            + ","
+            + str(int(assignment_priority))  # assignment priority, if any
+            + ","
+            + f"2,1,PA,1.3,2.5,650,680,R,{mag},{magfilter},SNR 5"
         )
     else:
         star_list_format = (
@@ -1218,7 +1266,10 @@ def get_nearby_offset_stars(
         else:
             offsets = ""
 
-        name = f"{abrev_basename}_{starlist_type.lower()[0]}{i+1}"
+        if starlist_type == "P200-NGPS":
+            name = f"{abrev_basename}_o{i+1}"
+        else:
+            name = f"{abrev_basename}_{starlist_type.lower()[0]}{i+1}"
 
         hmsdms = format_hmsdms(c, coord_sep, col_sep)
 
@@ -1230,13 +1281,18 @@ def get_nearby_offset_stars(
                 break
 
         if starlist_type == "P200-NGPS":
+            # special format for NGPS, CSV-like with additional columns
             star_list_format = (
                 f"{name}"
-                + ", "
+                + ","
                 + f"{c.ra.value}"
-                + ", "
+                + ","
                 + f"{c.dec.value}"
-                + ", 1, 1, default, 0, 1, SET 900, 3"
+                + f",{dra.value:<0.03f},{ddec.value:<0.03f},"  # offset ra, dec
+                + "offset"  # comment
+                + ","  # priority (empty for offsets)
+                + ","
+                + f"2,1,PA,1.3,2.5,650,680,R,{source['phot_rp_mean_mag']:<0.02f},R,SNR 5"
             )
         else:
             star_list_format = (
@@ -1580,7 +1636,7 @@ def get_finding_chart(
     first_line = None
     if offset_star_kwargs.get('starlist_type', 'Keck') == 'P200-NGPS':
         # add a first line with the column names for P200-NGPS (csv format)
-        first_line = "NAME, RA, DEC, binspect, binspat, ccdmode, slitangle, slitwidth, exptime, airmass_max"
+        first_line = "NAME,RA,DECL,OFFSET_RA,OFFSET_DEC,COMMENT,PRIORITY,BINSPAT,BINSPECT,SLITANGLE,SLITWIDTH,AIRMASS_MAX,WRANGE_LOW,WRANGE_HIGH,CHANNEL,MAGNITUDE,MAGFILTER,EXPTIME"
 
     ncolors = len(star_list)
     if star_list[0]['str'].startswith("!Data"):
