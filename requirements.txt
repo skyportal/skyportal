@@ -58,7 +58,7 @@ ligo.skymap==2.0.1
 healpy==1.18.0
 pygcn==1.1.2
 pysedm==0.31.1
-xmlschema==3.3.2
+xmlschema==3.4.3
 requests>=2.30.0, <3.0.0
 geojson==3.1.0
 typing-extensions==4.12.2
