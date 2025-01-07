@@ -1,10 +1,10 @@
-__version__ = '1.1.0'
+__version__ = '1.2.0'
 
 if 'dev' in __version__:
     # Append last commit date and hash to dev version information, if available
 
-    import subprocess
     import os.path
+    import subprocess
 
     try:
         p = subprocess.Popen(
