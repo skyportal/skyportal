@@ -1648,6 +1648,11 @@ class SyntheticPhotometryHandler(BaseHandler):
             err = spec_dict['errors']
             obstime = spec_dict['observed_at']
 
+            if spectrum.astropy_units is None:
+                return self.error(
+                    f'Spectrum with id {spectrum_id} needs astropy_units set to compute synthetic photometry'
+                )
+
             try:
                 spec = sncosmo.Spectrum(
                     wav, flux * spectrum.astropy_units, err * spectrum.astropy_units
