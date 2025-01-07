@@ -56,6 +56,8 @@ NGPS_TARGET_BANDS_TO_SNCOSMO = {
     'I': ['ztfi', 'sdssi', 'besselli', 'standard::i', 'lssti'],
     'U': ['sdssu', 'bessellux', 'standard::u', 'lsstu'],
 }
+
+# we inverse the dictionnary
 SNCOSMO_BANDS_TO_NGPS_TARGET = {}
 for k, v in NGPS_TARGET_BANDS_TO_SNCOSMO.items():
     for vv in v:
@@ -1218,7 +1220,6 @@ def get_nearby_offset_stars(
             except ValueError:
                 raise ValueError(f"Cannot convert magnitude {source_mag} to float")
 
-            # check that there is a corresponding value in NGPS_TARGET_BANDS_TO_SNCOSMO
         star_list_format = (
             f"{basename}"
             + ","
