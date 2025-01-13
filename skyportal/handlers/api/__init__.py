@@ -93,6 +93,7 @@ from .group import (
 from .healpix import HealpixUpdateHandler
 from .user_obj_list import UserObjListHandler
 from .group_admission_request import GroupAdmissionRequestHandler
+from .grouped_object import GroupedObjectHandler
 from .instrument import InstrumentHandler, InstrumentFieldHandler
 from .instrument_log import (
     InstrumentLogHandler,
