@@ -44,7 +44,7 @@ jobs:
           submodules: true
 
       - name: Cache dependencies
-        uses: ./.github/workflows/_cache.yaml
+        uses: ./.github/actions/cache-dependencies
 
       - uses: actions/setup-python@v5
         with:
