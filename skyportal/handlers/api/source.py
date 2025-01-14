@@ -2217,7 +2217,7 @@ class SourceHandler(BaseHandler):
         return self.success()
 
     @permissions(['Manage sources'])
-    def delete(self, obj_id, group_id):
+    def delete(self, obj_id):
         """
         ---
         summary: Delete a source
@@ -2230,7 +2230,7 @@ class SourceHandler(BaseHandler):
             required: true
             schema:
               type: string
-          - in: path
+          - in: query
             name: group_id
             required: true
             schema:
@@ -2242,6 +2242,13 @@ class SourceHandler(BaseHandler):
                 schema: Success
         """
 
+        data = self.get_json()
+
+        if data.get("group_id") is None:
+            return self.error("Missing required parameter `group_id`")
+
+        group_id = data.get("group_id")
+
         with self.Session() as session:
             if group_id not in [g.id for g in self.current_user.accessible_groups]:
                 return self.error("Inadequate permissions.")
@@ -2250,8 +2257,12 @@ class SourceHandler(BaseHandler):
                 .where(Source.obj_id == obj_id)
                 .where(Source.group_id == group_id)
             ).first()
+
+            if s is None:
+                return self.error(f"No such source {obj_id} in group {group_id}.")
+
             s.active = False
-            s.unsaved_by = self.current_user
+            s.unsaved_by = self.associated_user_object
             session.commit()
             return self.success()
 
