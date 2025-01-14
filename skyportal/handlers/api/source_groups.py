@@ -4,14 +4,17 @@ import sqlalchemy as sa
 
 from baselayer.app.access import permissions
 from baselayer.log import make_log
+from ...utils.asynchronous import run_async
 from ..base import BaseHandler
 from ...models import (
     Obj,
     Source,
+    Thumbnail,
     TNSRobotGroup,
     TNSRobotGroupAutoreporter,
     TNSRobotSubmission,
     GroupUser,
+    PublicRelease,
 )
 
 log = make_log('api/source_groups')
@@ -49,7 +52,11 @@ class SourceGroupsHandler(BaseHandler):
                       List of group IDs from which specified source is to be unsaved.
                 required:
                   - objId
-                  - inviteGroupIds
+                anyOf:
+                  - required:
+                    - inviteGroupIds
+                  - required:
+                    - unsaveGroupIds
         responses:
           200:
             content:
@@ -121,6 +128,20 @@ class SourceGroupsHandler(BaseHandler):
                 source.active = False
                 source.unsaved_at = datetime.datetime.utcnow()
 
+            if len(unsave_group_ids) > 0:
+                # Delete all this source auto-published pages, link to a release and sharing no groups with this source
+                from .public_pages.public_source_page import delete_auto_published_page
+
+                all_saved_groups = session.scalars(
+                    sa.select(Source.group_id).where(
+                        Source.obj_id == obj_id, ~Source.group_id.in_(unsave_group_ids)
+                    )
+                ).all()
+                run_async(
+                    delete_auto_published_page,
+                    source_id=obj_id,
+                    remaining_group_ids=all_saved_groups,
+                )
             session.commit()
 
             for group_id in saved_to_group_ids:
@@ -189,12 +210,40 @@ class SourceGroupsHandler(BaseHandler):
                         )
                         break
 
+                # if there is releases with automatically_publish and one of the source groups,
+                # a public page is published for this source
+                releases = session.scalars(
+                    PublicRelease.select(session.user_or_token).where(
+                        PublicRelease.groups.any(id=group_id),
+                        PublicRelease.automatically_publish,
+                    )
+                ).all()
+                if releases is not None and len(releases) > 0:
+                    from .public_pages.public_source_page import (
+                        async_post_public_source_page,
+                    )
+
+                    dict_obj = obj.to_dict()
+                    thumbnails = session.scalars(
+                        sa.select(Thumbnail).where(
+                            Thumbnail.obj_id == obj_id,
+                        )
+                    ).all()
+                    dict_obj['thumbnails'] = [
+                        thumbnail.to_dict() for thumbnail in thumbnails
+                    ]
+                    for release in releases:
+                        run_async(
+                            async_post_public_source_page,
+                            options=release.options,
+                            source=dict_obj,
+                            release=release,
+                            user_id=self.associated_user_object.id,
+                        )
+
             self.push_all(
                 action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
             )
-            # self.push_all(
-            #    action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-            # )
             return self.success()
 
     @permissions(['Upload data'])
