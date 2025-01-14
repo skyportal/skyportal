@@ -26,7 +26,7 @@ marshmallow-enum==1.5.1
 Pillow>=8.4.0
 pyproj==3.6.1
 pytest>=8.3.2, <9.0.0
-sncosmo==2.11.1
+sncosmo==2.11.2
 tdtax==0.1.7
 healpix-alchemy==1.1.0
 mocpy==0.17.1
