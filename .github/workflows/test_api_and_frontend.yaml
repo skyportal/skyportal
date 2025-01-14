@@ -42,6 +42,13 @@ jobs:
           ]
 
     steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+          submodules: true
+
       - name: Cache dependencies
         uses: ./.github/workflows/_cache.yaml
 
@@ -52,13 +59,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Checkout main
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main
-          submodules: true
 
       - uses: browser-actions/setup-geckodriver@latest
         with:

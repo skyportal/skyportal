@@ -39,6 +39,9 @@ jobs:
         with:
           workflow-file: "build-and-deploy-docs.yaml"
 
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Cache dependencies
         uses: ./.github/workflows/_cache.yaml
@@ -50,10 +53,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - name: Setup Graphviz
         uses: ts-graphviz/setup-graphviz@v1
