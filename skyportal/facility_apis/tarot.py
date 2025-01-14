@@ -1,11 +1,11 @@
 import json
 from datetime import datetime
-import numpy as np
 
+import astropy.units as u
+import numpy as np
 import requests
 from astroplan.moon import moon_phase_angle
 from astropy.time import Time
-import astropy.units as u
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow

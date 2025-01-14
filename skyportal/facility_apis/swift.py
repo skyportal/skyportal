@@ -1,26 +1,27 @@
-from astropy.time import Time
 import base64
-from datetime import datetime, timedelta
 import functools
 import json
 import os
+import tarfile
+import tempfile
+import traceback
+from datetime import datetime, timedelta
+
 import pandas as pd
 import requests
 import sqlalchemy as sa
-import traceback
-from sqlalchemy.orm import sessionmaker, scoped_session
-from swifttools.swift_too import ObsQuery, UVOT_mode, Swift_TOO, Data
+from astropy.time import Time
+from sqlalchemy.orm import scoped_session, sessionmaker
+from swifttools.swift_too import Data, ObsQuery, Swift_TOO, UVOT_mode
 from swifttools.xrt_prods import XRTProductRequest
-import tarfile
-import tempfile
 from tornado.ioloop import IOLoop
 
-from . import FollowUpAPI, MMAAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import MMAAPI, FollowUpAPI
 
 env, cfg = load_env()
 
@@ -335,12 +336,7 @@ def download_observations(request_id, oq):
         Swift observation query
     """
 
-    from ..models import (
-        Comment,
-        DBSession,
-        FollowupRequest,
-        Group,
-    )
+    from ..models import Comment, DBSession, FollowupRequest, Group
 
     Session = scoped_session(sessionmaker())
     if Session.registry.has():
@@ -431,11 +427,7 @@ class UVOTXRTAPI(FollowUpAPI):
             Database session to use for photometry
         """
 
-        from ..models import (
-            FollowupRequest,
-            Comment,
-            Group,
-        )
+        from ..models import Comment, FollowupRequest, Group
 
         req = (
             session.query(FollowupRequest)

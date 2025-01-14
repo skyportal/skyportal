@@ -1,19 +1,20 @@
 import base64
 import functools
 import json
-import requests
-from datetime import datetime, timedelta
-import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
-from tornado.ioloop import IOLoop
 import urllib
+from datetime import datetime, timedelta
 
-from . import FollowUpAPI
+import requests
+import sqlalchemy as sa
+from sqlalchemy.orm import scoped_session, sessionmaker
+from tornado.ioloop import IOLoop
+
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
@@ -503,12 +504,7 @@ def download_observations(request_id, ar):
         LCO archive response query
     """
 
-    from ..models import (
-        Comment,
-        DBSession,
-        FollowupRequest,
-        Group,
-    )
+    from ..models import Comment, DBSession, FollowupRequest, Group
 
     Session = scoped_session(sessionmaker())
     if Session.registry.has():

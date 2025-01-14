@@ -1,15 +1,15 @@
-from astropy.time import Time, TimeDelta
-from astropy.table import Table
 import numpy as np
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
+from astropy.table import Table
+from astropy.time import Time, TimeDelta
+from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
-from . import FollowUpAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
@@ -35,11 +35,7 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
         User SkyPortal ID
     """
 
-    from ..models import (
-        DBSession,
-        FollowupRequest,
-        PhotometricSeries,
-    )
+    from ..models import DBSession, FollowupRequest, PhotometricSeries
 
     Session = scoped_session(sessionmaker())
     if Session.registry.has():
@@ -187,8 +183,8 @@ class TESSAPI(FollowUpAPI):
         """
 
         from ..models import (
-            FacilityTransaction,
             Allocation,
+            FacilityTransaction,
             FollowupRequest,
             Instrument,
         )

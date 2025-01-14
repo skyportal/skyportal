@@ -1,17 +1,18 @@
 import json
-import requests
 import traceback
 import urllib
-from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
-from astropy.time import Time
 
-from . import FollowUpAPI
+import requests
+from astropy.time import Time
+from requests.auth import HTTPBasicAuth
+
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
@@ -175,7 +176,7 @@ class WINTERAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FollowupRequest, FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key

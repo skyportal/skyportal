@@ -1,21 +1,20 @@
-import requests
-import arrow
 import traceback
-from json import JSONDecodeError
 from datetime import datetime, timedelta
+from json import JSONDecodeError
+
+import arrow
+import requests
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ..utils.calculations import deg2hms, deg2dms
+from ..utils import http
+from ..utils.calculations import deg2dms, deg2hms
 from ..utils.offset import (
     _calculate_best_position_for_offset_stars,
     get_nearby_offset_stars,
 )
-from ..utils import http
-
-
 from . import FollowUpAPI
 
 env, cfg = load_env()

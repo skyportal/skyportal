@@ -1,15 +1,16 @@
-from datetime import datetime, timedelta
 import json
-import requests
 import traceback
 from copy import deepcopy
+from datetime import datetime, timedelta
+
+import requests
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
 from baselayer.app.flow import Flow
+from baselayer.log import make_log
 
-from . import FollowUpAPI, Listener
 from ..utils import http
+from . import FollowUpAPI, Listener
 
 env, cfg = load_env()
 
@@ -39,7 +40,7 @@ class SEDMListener(Listener):
             Database session for this transaction
         """
 
-        from ..models import FollowupRequest, FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
 
         data = handler_instance.get_json()
 
@@ -73,7 +74,7 @@ def convert_request_to_sedm(request, method_value='new'):
         The desired SEDM queue action.
     """
 
-    from ..models import DBSession, UserInvitation, Invitation
+    from ..models import DBSession, Invitation, UserInvitation
 
     photometry = sorted(request.obj.photometry, key=lambda p: p.mjd, reverse=True)
     photometry_payload = {}

@@ -1,13 +1,14 @@
-from datetime import datetime, timedelta
 import json
+from datetime import datetime, timedelta
+
 import requests
 
-from . import FollowUpAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 

@@ -12,9 +12,9 @@ from requests import Request, Session
 from scp import SCPClient
 from sqlalchemy.orm import joinedload
 
-from baselayer.log import make_log
-from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.log import make_log
 
 from ..email_utils import send_email
 from ..utils import http
@@ -109,6 +109,7 @@ class MMAAPI(FollowUpAPI):
         """
 
         from tornado.ioloop import IOLoop
+
         from ..models import DBSession, EventObservationPlan
         from ..utils.observation_plan import generate_plan
 
@@ -238,6 +239,7 @@ class MMAAPI(FollowUpAPI):
         """
 
         from tornado.ioloop import IOLoop
+
         from ..models import DBSession, EventObservationPlan, ObservationPlanRequest
         from ..utils.observation_plan import generate_plan
 
