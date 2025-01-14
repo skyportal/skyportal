@@ -30,11 +30,10 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Checkout main
+      - name: Checkout branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: main
           submodules: true
 
       - name: Cache dependencies
@@ -101,13 +100,6 @@ jobs:
           echo node $(node --version)
           nginx -v
           firefox --version
-
-      - name: Checkout branch being tested
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: true
-          clean: false
 
       - name: Initialize SkyPortal
         run: |

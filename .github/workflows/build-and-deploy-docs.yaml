@@ -39,8 +39,10 @@ jobs:
         with:
           workflow-file: "build-and-deploy-docs.yaml"
 
-      - uses: actions/checkout@v4
+      - name: Checkout branch being tested
+        uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           submodules: true
 
       - name: Cache dependencies
@@ -83,13 +85,6 @@ jobs:
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
           npm -g install npm@latest
-
-      - name: Checkout branch being tested
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: true
-          clean: false
 
       - name: Build docs
         run: |

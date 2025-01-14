@@ -42,12 +42,12 @@ jobs:
           ]
 
     steps:
-      - name: Checkout main
+      - name: Checkout branch being tested
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: main
           submodules: true
+          clean: false
 
       - name: Cache dependencies
         uses: ./.github/actions/cache-dependencies
@@ -122,13 +122,6 @@ jobs:
           echo node $(node --version)
           nginx -v
           firefox --version
-
-      - name: Checkout branch being tested
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: true
-          clean: false
 
       - name: Initialize SkyPortal
         run: |
