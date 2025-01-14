@@ -57,8 +57,10 @@ jobs:
           ref: main
           submodules: true
 
-      - name: Cache dependencies
+      - name: Cache main dependencies
         uses: ./.github/actions/cache-dependencies
+        with:
+          key-prefix: main
 
       - uses: actions/setup-python@v5
         with:
@@ -115,12 +117,22 @@ jobs:
           echo ${current_head}
           echo "CURRENT_HEAD=${current_head}" >> $GITHUB_ENV
 
+      - name: Save main branch cache
+        uses: ./.github/actions/cache-dependencies-save
+        with:
+          key-prefix: main
+
       - name: Checkout migration reference commit
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ env.MIGRATION_REFERENCE }}
           submodules: true
+
+      - name: Cache migration reference branch dependencies
+        uses: ./.github/actions/cache-dependencies
+        with:
+          key-prefix: ref
 
       - name: Write SkyPortal configs
         run: |
@@ -164,12 +176,20 @@ jobs:
           sleep 180 && make load_demo_data
           kill %1
 
-      - name: Checkout PR branch
+      - name: Save migration reference branch cache
+        uses: ./.github/actions/cache-dependencies-save
+        with:
+          key-prefix: ref
+
+      - name: Checkout branch being tested
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: true
           clean: false
+
+      - name: Cache dependencies
+        uses: ./.github/actions/cache-dependencies
 
       - name: Check for migration branching
         run: |
