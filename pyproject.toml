@@ -50,3 +50,6 @@ ignore = [
   "PYI",      # flake8-pyi
   "NPY002",   # Replace legacy `np.random.random` call with `np.random.Generator`
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"skyportal/facility_apis/__init__.py" = ['I']

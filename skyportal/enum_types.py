@@ -11,7 +11,7 @@ from sncosmo.magsystems import _MAGSYSTEMS
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from . import facility_apis
+from .facility_apis import APIS, LISTENERS
 
 log = make_log("enum_types")
 
@@ -67,15 +67,10 @@ INSTRUMENT_TYPES = ("imager", "spectrograph", "imaging spectrograph")
 MMA_DETECTOR_TYPES = ("gravitational-wave", "neutrino", "gamma-ray-burst")
 FOLLOWUP_PRIORITIES = ("1", "2", "3", "4", "5")
 FOLLOWUP_HTTP_REQUEST_ORIGINS = ("remote", "skyportal")
-LISTENER_CLASSNAMES = [
-    k
-    for k, v in facility_apis.__dict__.items()
-    if inspect.isclass(v)
-    and issubclass(v, facility_apis.Listener)
-    and v is not facility_apis.Listener
-]
 
-LISTENER_CLASSES = [getattr(facility_apis, c) for c in LISTENER_CLASSNAMES]
+LISTENER_CLASSES = LISTENERS
+LISTENER_CLASSNAMES = [c.__name__ for c in LISTENERS]
+
 
 ANALYSIS_TYPES = ("lightcurve_fitting", "spectrum_fitting", "meta_analysis")
 ANALYSIS_INPUT_TYPES = (
@@ -155,13 +150,7 @@ followup_priorities = sa.Enum(
     *FOLLOWUP_PRIORITIES, name="followup_priorities", validate_strings=True
 )
 
-ALLOWED_API_CLASSNAMES = [
-    k
-    for k, v in facility_apis.__dict__.items()
-    if inspect.isclass(v)
-    and issubclass(v, facility_apis.FollowUpAPI)
-    and v is not facility_apis.FollowUpAPI
-]
+ALLOWED_API_CLASSNAMES = [c.__name__ for c in APIS]
 
 api_classnames = sa.Enum(
     *ALLOWED_API_CLASSNAMES,
