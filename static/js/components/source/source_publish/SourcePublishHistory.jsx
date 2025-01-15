@@ -93,7 +93,7 @@ const SourcePublishHistory = ({ sourceId, versions }) => {
                 <Button
                   href={`/public${
                     version.release_link_name
-                      ? "/releases/" + version.release_link_name
+                      ? `/releases/${version.release_link_name}`
                       : ""
                   }/sources/${sourceId}/version/${version?.hash}`}
                   target="_blank"
