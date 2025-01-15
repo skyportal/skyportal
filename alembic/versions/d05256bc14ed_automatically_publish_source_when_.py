@@ -1,8 +1,8 @@
 """Automatically publish source when created
 
-Revision ID: 18f7e51cedc9
-Revises: b0f0b2a30357
-Create Date: 2024-08-14 17:56:46.849575
+Revision ID: d05256bc14ed
+Revises: 3eb663b5c3e0
+Create Date: 2025-01-15 16:55:03.008848
 
 """
 
@@ -11,8 +11,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '18f7e51cedc9'
-down_revision = 'b0f0b2a30357'
+revision = 'd05256bc14ed'
+down_revision = '3eb663b5c3e0'
 branch_labels = None
 depends_on = None
 
