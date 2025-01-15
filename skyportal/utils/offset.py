@@ -1,44 +1,42 @@
-import io
-import os
-import math
 import datetime
+import io
+import math
+import os
+import re
+import time
 import urllib
 import warnings
 from functools import wraps
-import re
-import time
 
-import pandas as pd
-import requests
-from requests.exceptions import HTTPError
 import matplotlib
 import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 import numpy.ma as ma
-from scipy.ndimage import gaussian_filter
-from joblib import Memory
-
+import pandas as pd
+import pyvo as vo
+import requests
+import seaborn as sns
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from astroquery.gaia import Gaia
-from astropy.time import Time
+from astropy.io import fits
 from astropy.table import Table
+from astropy.time import Time
 from astropy.utils.exceptions import AstropyWarning
-
-from astropy.wcs.wcs import FITSFixedWarning
+from astropy.visualization import ImageNormalize, ZScaleInterval
 from astropy.wcs import WCS
 from astropy.wcs.utils import pixel_to_skycoord
-from astropy.io import fits
-from astropy.visualization import ImageNormalize, ZScaleInterval
-from reproject import reproject_adaptive
-import pyvo as vo
+from astropy.wcs.wcs import FITSFixedWarning
+from astroquery.gaia import Gaia
+from joblib import Memory
 from pyvo.dal.exceptions import DALQueryError, DALServiceError
+from reproject import reproject_adaptive
+from requests.exceptions import HTTPError
+from scipy.ndimage import gaussian_filter
+
+from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 from .cache import Cache
-
-from baselayer.log import make_log
-from baselayer.app.env import load_env
 
 log = make_log('finder-chart')
 
