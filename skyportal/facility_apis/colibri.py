@@ -1,15 +1,15 @@
 from datetime import datetime
+
 import requests
+from astropy import units as u
+from astropy.coordinates import SkyCoord
 from requests.auth import HTTPBasicAuth
 
-from astropy.coordinates import SkyCoord
-from astropy import units as u
-
-from . import FollowUpAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 

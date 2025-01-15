@@ -2,21 +2,21 @@ import ast
 import functools
 import io
 import json
+import operator
 import tempfile
 import time
+import traceback
 import uuid
 from datetime import datetime, timedelta
-import traceback
 
 import arrow
+import conesearch_alchemy as ca
 import healpy as hp
 import jsonschema
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import operator
 import pandas as pd
-import conesearch_alchemy as ca
 import sqlalchemy as sa
 from astroplan import FixedTarget, Observer, ObservingBlock
 from astroplan.constraints import (
@@ -34,9 +34,9 @@ from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
 from scipy.stats import norm
 from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import cast
-from sqlalchemy.dialects.postgresql import JSONB
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -47,6 +47,7 @@ from ...models import (
     Allocation,
     ClassicalAssignment,
     Classification,
+    DBSession,
     DefaultFollowupRequest,
     FollowupRequest,
     FollowupRequestUser,
@@ -59,7 +60,6 @@ from ...models import (
     Spectrum,
     User,
     cosmo,
-    DBSession,
 )
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 from ...utils.offset import get_formatted_standards_list
@@ -698,7 +698,7 @@ def post_followup_request(
                     "skyportal/REFRESH_FOLLOWUP_REQUESTS",
                     payload={"request_id": followup_request.id},
                 )
-    return followup_request.id
+    return followup_request.id, followup_request.status
 
 
 def post_default_followup_requests(obj_id, default_followup_requests, user_id):
@@ -1204,7 +1204,7 @@ class FollowupRequestHandler(BaseHandler):
                 data["last_modified_by_id"] = self.associated_user_object.id
                 data['allocation_id'] = int(data['allocation_id'])
 
-                followup_request_id = post_followup_request(
+                followup_request_id, followup_request_status = post_followup_request(
                     data,
                     constraints,
                     session,
@@ -1212,7 +1212,12 @@ class FollowupRequestHandler(BaseHandler):
                     refresh_requests=refresh_requests,
                 )
 
-                return self.success(data={"id": followup_request_id})
+                return self.success(
+                    data={
+                        "id": followup_request_id,
+                        "request_status": followup_request_status,
+                    }
+                )
             except Exception as e:
                 if (
                     'not submitting request' in str(e)

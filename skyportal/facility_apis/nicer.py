@@ -1,15 +1,16 @@
-from astropy.time import Time
-from datetime import datetime, timedelta
 import re
-import requests
 import urllib
+from datetime import datetime, timedelta
 
-from . import FollowUpAPI
+import requests
+from astropy.time import Time
+
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 

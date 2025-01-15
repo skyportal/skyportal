@@ -1,12 +1,13 @@
-from datetime import datetime, timedelta
 import json
+from datetime import datetime, timedelta
+
 import requests
 
-from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 
-from . import FollowUpAPI
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
@@ -73,7 +74,7 @@ class GENERICAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, Allocation
+        from ..models import Allocation, FacilityTransaction
 
         if (
             getattr(request, 'allocation', None) is None
@@ -199,7 +200,7 @@ class GENERICAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import DBSession, FollowupRequest, FacilityTransaction
+        from ..models import DBSession, FacilityTransaction, FollowupRequest
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key

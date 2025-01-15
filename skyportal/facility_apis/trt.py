@@ -1,15 +1,15 @@
 import base64
 import json
 import os
-from datetime import datetime, timedelta
-import sqlalchemy as sa
-
-import requests
-from astropy.time import Time, TimeDelta
-from astropy.coordinates import SkyCoord
-import astropy.units as u
 import urllib
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
+
+import astropy.units as u
+import requests
+import sqlalchemy as sa
+from astropy.coordinates import SkyCoord
+from astropy.time import Time, TimeDelta
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -106,12 +106,7 @@ def download_observations(request_id, urls):
         List of image URLs from TRT archive
     """
 
-    from ..models import (
-        Comment,
-        DBSession,
-        FollowupRequest,
-        Group,
-    )
+    from ..models import Comment, DBSession, FollowupRequest, Group
 
     with DBSession() as session:
         try:

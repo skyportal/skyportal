@@ -1,11 +1,11 @@
 import requests
 from requests.auth import HTTPBasicAuth
 
-from . import FollowUpAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
