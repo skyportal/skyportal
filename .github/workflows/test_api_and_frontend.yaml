@@ -152,12 +152,6 @@ jobs:
           geckodriver --version
           python -c "import selenium; print(f'Selenium {selenium.__version__}')"
 
-      - name: Refresh SkyPortal dependencies for tested version
-        run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
-          make dependencies
-
       - name: Formatting and linting checks
         if: github.ref != 'refs/heads/main'
         run: |
