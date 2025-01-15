@@ -69,6 +69,7 @@ const SourceRedshiftHistory = ({ redshiftHistory }) => {
                 <TableCell>Time (UTC)</TableCell>
                 <TableCell>Value</TableCell>
                 <TableCell>Uncertainty</TableCell>
+                <TableCell>Origin</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -82,6 +83,7 @@ const SourceRedshiftHistory = ({ redshiftHistory }) => {
                     <TableCell>{historyItem.set_at_utc}</TableCell>
                     <TableCell>{historyItem.value}</TableCell>
                     <TableCell>{historyItem.uncertainty}</TableCell>
+                    <TableCell>{historyItem?.origin || ""}</TableCell>
                   </TableRow>
                 ))}
             </TableBody>

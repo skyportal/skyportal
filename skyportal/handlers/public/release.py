@@ -12,9 +12,11 @@ class ReleaseHandler(BaseHandler):
         """
         ---
         single:
+            summary: Get a public release
             description: Display the page with all sources and descriptions for a given public release
             tags:
-              - release
+              - public
+              - public releases
             parameters:
                 - in: path
                   name: link_name
@@ -34,9 +36,11 @@ class ReleaseHandler(BaseHandler):
                     application/json:
                       schema: Error
         multiple:
+            summary: List all public releases
             description: Display the page with all the public releases
             tags:
-              - release
+              - public
+              - public releases
             responses:
                 200:
                   content:

@@ -64,6 +64,7 @@ from skyportal.handlers.api import (
     GcnEventCatalogQueryHandler,
     GcnEventInstrumentFieldHandler,
     GcnEventTriggerHandler,
+    GcnEventNoticeDownloadHandler,
     GcnReportHandler,
     GcnSummaryHandler,
     GcnTachHandler,
@@ -310,15 +311,7 @@ skyportal_handlers = [
         EarthquakeMeasurementHandler,
     ),
     (
-        r'/api/(sources|spectra|gcn_event|shift|earthquake)/comments(/.*)?',
-        CommentHandler,
-    ),
-    (
-        r'/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+]+)/comments',
-        CommentHandler,
-    ),
-    (
-        r'/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?',
+        r'/api/(sources|spectra|gcn_event|shift|earthquake)(/[0-9A-Za-z-_\.\+]+)?/comments(/[0-9]+)?',
         CommentHandler,
     ),
     (
@@ -358,12 +351,12 @@ skyportal_handlers = [
     (r'/api/gcn_event/(.*)/summary(/.*)?', GcnSummaryHandler),
     (r'/api/gcn_event/(.*)/instrument(/.*)?', GcnEventInstrumentFieldHandler),
     (r'/api/gcn_event(/.*)/users(/[0-9]+)?', GcnEventUserHandler),
+    (r'/api/gcn_event(/.*)/notice/([0-9]+)/download', GcnEventNoticeDownloadHandler),
     (r'/api/gcn_event/tags(/.*)?', GcnEventTagsHandler),
     (r'/api/gcn_event/properties', GcnEventPropertiesHandler),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
     (r'/api/sources_in_gcn/(.*)/tns', SourcesConfirmedInGCNTNSHandler),
-    (r'/api/sources_in_gcn/(.*)/(.*)', SourcesConfirmedInGCNHandler),
-    (r'/api/sources_in_gcn/(.*)', SourcesConfirmedInGCNHandler),
+    (r'/api/sources_in_gcn/([0-9T\\:\\.\\-]+)(/.*)?', SourcesConfirmedInGCNHandler),
     (r'/api/associated_gcns/(.*)', GCNsAssociatedWithSourceHandler),
     (
         r'/api/localization(/[0-9]+)/observability',

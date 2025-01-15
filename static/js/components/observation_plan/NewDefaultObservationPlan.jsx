@@ -16,6 +16,7 @@ import GcnTagsSelect from "../gcn/GcnTagsSelect";
 import GcnPropertiesSelect from "../gcn/GcnPropertiesSelect";
 import LocalizationTagsSelect from "../localization/LocalizationTagsSelect";
 import LocalizationPropertiesSelect from "../localization/LocalizationPropertiesSelect";
+import PlanPropertiesSelect from "./PlanPropertiesSelect";
 
 import * as defaultObservationPlansActions from "../../ducks/default_observation_plans";
 import * as allocationActions from "../../ducks/allocations";
@@ -110,6 +111,7 @@ const NewDefaultObservationPlan = ({ onClose }) => {
   const [selectedLocalizationTags, setSelectedLocalizationTags] = useState([]);
   const [selectedLocalizationProperties, setSelectedLocalizationProperties] =
     useState([]);
+  const [selectedPlanProperties, setSelectedPlanProperties] = useState([]);
 
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationListApiObsplan } = useSelector(
@@ -223,6 +225,7 @@ const NewDefaultObservationPlan = ({ onClose }) => {
       localization_tags: selectedLocalizationTags,
       gcn_properties: selectedGcnProperties,
       localization_properties: selectedLocalizationProperties,
+      plan_properties: selectedPlanProperties,
     };
     const json = {
       allocation_id: selectedAllocationId,
@@ -348,6 +351,18 @@ const NewDefaultObservationPlan = ({ onClose }) => {
             setSelectedLocalizationProperties={
               setSelectedLocalizationProperties
             }
+          />
+        </div>
+      </div>
+      <div className={classes.formGroupDivider} />
+      <div className={classes.form_group}>
+        <Typography className={classes.form_group_title}>
+          Observation Plan Stats Filtering
+        </Typography>
+        <div className={classes.form_subgroup}>
+          <PlanPropertiesSelect
+            selectedPlanProperties={selectedPlanProperties}
+            setSelectedPlanProperties={setSelectedPlanProperties}
           />
         </div>
       </div>

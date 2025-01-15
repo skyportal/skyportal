@@ -1,18 +1,20 @@
-from astropy.table import Table
-from astropy.coordinates import SkyCoord, EarthLocation, get_moon
-from astropy.time import Time
-import astropy.units as u
-from astroplan import Observer, is_always_observable
-from astroplan.constraints import AltitudeConstraint
-import numpy as np
 import os
-import paramiko
-from paramiko import SSHClient
-from scp import SCPClient
 import tempfile
 
-from . import MMAAPI, GenericRequest
+import astropy.units as u
+import numpy as np
+import paramiko
+from astroplan import Observer, is_always_observable
+from astroplan.constraints import AltitudeConstraint
+from astropy.coordinates import EarthLocation, SkyCoord, get_moon
+from astropy.table import Table
+from astropy.time import Time
+from paramiko import SSHClient
+from scp import SCPClient
+
 from baselayer.log import make_log
+
+from . import MMAAPI, GenericRequest
 
 log = make_log('facility_apis/git')
 

@@ -18,10 +18,10 @@ class InstrumentLogHandler(BaseHandler):
     def post(self, instrument_id):
         """
         ---
+        summary: Add instrument logs
         description: Add log messages from an instrument
         tags:
           - instruments
-          - instrumentlogs
         parameters:
           - in: path
             name: instrument_id
@@ -162,9 +162,10 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
     def get(self, allocation_id):
         """
         ---
-        description: Retrieve queued observations from external API
+        summary: Get instrument logs from external API
+        description: Retrieve logs for a specific allocation from the instrument's external API
         tags:
-          - observations
+          - instruments
         parameters:
           - in: path
             name: allocation_id
@@ -256,6 +257,7 @@ class InstrumentStatusHandler(BaseHandler):
     def put(self, instrument_id):
         """
         ---
+        summary: Update instrument status
         description: Update the status of an instrument
         tags:
           - instruments

@@ -49,16 +49,15 @@ migration:
 # Add 'needs-migration?' label to any change to models.py without changes to
 # the Alembic versions
 needs-migration?:
-  - any:
-      - changed-files:
-          - any-glob-to-any-file: ["skyportal/models.py", "skyportal/models/*"]
-          - all-globs-to-all-files: "!alembic/versions/*"
+  - all:
       - changed-files:
           - any-glob-to-any-file:
-              ["baselayer/app/models.py", "baselayer/app/models/*"]
-          - all-globs-to-all-files: "!alembic/versions/*"
-      - changed-files:
-          - any-glob-to-any-file: ["requirements.txt"]
+              [
+                "skyportal/models.py",
+                "skyportal/models/*",
+                "baselayer/app/models.py",
+                "baselayer/app/models/*",
+              ]
           - all-globs-to-all-files: "!alembic/versions/*"
 
 # Add 'workflows' label to any changes to GA workflows (.github folder)

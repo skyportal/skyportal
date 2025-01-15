@@ -187,9 +187,9 @@ def generate_observation_plan_statistics(
         if stats_method == 'python':
             t0 = time.time()
             localization_tiles = session.scalars(
-                sa.select(LocalizationTile)
-                .where(LocalizationTile.localization_id == request.localization_id)
-                .order_by(LocalizationTile.probdensity.desc())
+                sa.select(localizationtilescls)
+                .where(localizationtilescls.localization_id == request.localization_id)
+                .order_by(localizationtilescls.probdensity.desc())
                 .distinct()
             ).all()
             if stats_logging:
@@ -299,13 +299,13 @@ def generate_observation_plan_statistics(
                 log(f'STATS: area= {intarea}. Runtime= {time.time() - t0:.2f}s. ')
 
             prob = sa.func.sum(
-                LocalizationTile.probdensity
-                * (union.columns.healpix * LocalizationTile.healpix).area
+                localizationtilescls.probdensity
+                * (union.columns.healpix * localizationtilescls.healpix).area
             )
 
             query_prob = sa.select(prob).filter(
-                LocalizationTile.localization_id == request.localization_id,
-                union.columns.healpix.overlaps(LocalizationTile.healpix),
+                localizationtilescls.localization_id == request.localization_id,
+                union.columns.healpix.overlaps(localizationtilescls.healpix),
             )
 
             intprob = session.execute(query_prob).scalar_one()
@@ -594,6 +594,11 @@ def generate_plan(
 
         # Function to read maps
         params, map_struct = gwemopt.io.read_skymap(params, map_struct=map_struct)
+
+        # we pop out the keys we do not need for scheduling (they are used for plotting, or efficiency calculations)
+        map_struct.pop('skymap_raster', None)
+        map_struct.pop('skymap_raster_schedule', None)
+        map_struct.pop('hdu', None)
 
         # get the partition name for the localization tiles using the dateobs
         # that way, we explicitely use the partition that contains the localization tiles we are interested in

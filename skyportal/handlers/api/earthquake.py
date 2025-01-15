@@ -165,9 +165,10 @@ class EarthquakeStatusHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Retrieve all Earthquake status tags
         description: Get all Earthquake status tags
         tags:
-          - earthquakeevents
+          - earthquakes
         responses:
           200:
             content:
@@ -193,10 +194,10 @@ class EarthquakeHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Ingest EarthquakeEvent
         description: Ingest EarthquakeEvent
         tags:
-          - earthquakeevents
-          - earthquakenotices
+          - earthquakes
         requestBody:
           content:
             application/json:
@@ -250,9 +251,10 @@ class EarthquakeHandler(BaseHandler):
         """
         ---
         single:
+          summary: Retrieve an Earthquake event
           description: Retrieve an Earthquake event
           tags:
-            - earthquakeevents
+            - earthquakes
           parameters:
             - in: path
               name: event_id
@@ -269,9 +271,10 @@ class EarthquakeHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve multiple Earthquake events
           description: Retrieve multiple Earthquake events
           tags:
-            - earthquakeevents
+            - earthquakes
           parameters:
             - in: query
               name: startDate
@@ -317,15 +320,15 @@ class EarthquakeHandler(BaseHandler):
                 type: integer
               description: Page number for iterating through all earthquakes. Defaults to 1
 
-        responses:
-          200:
-            content:
-              application/json:
-                schema: ArrayOfEarthquakeEvents
-          400:
-            content:
-              application/json:
-                schema: Error
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfEarthquakeEvents
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
 
         page_number = self.get_query_argument("pageNumber", 1)
@@ -458,9 +461,10 @@ class EarthquakeHandler(BaseHandler):
     def delete(self, event_id):
         """
         ---
+        summary: Delete an Earthquake event
         description: Delete an Earthquake event
         tags:
-          - earthquakeevents
+          - earthquakes
         parameters:
           - in: path
             name: event_id
@@ -497,9 +501,10 @@ class EarthquakePredictionHandler(BaseHandler):
     async def post(self, earthquake_id, mma_detector_id):
         """
         ---
+        summary: Run a prediction analysis for the earthquake.
         description: Perform a prediction analysis for the earthquake.
         tags:
-          - earthquakeevents
+          - earthquakes
         parameters:
           - in: path
             name: earthquake_id
@@ -643,9 +648,10 @@ class EarthquakeMeasurementHandler(BaseHandler):
     async def post(self, earthquake_id, mma_detector_id):
         """
         ---
+        summary: Post a ground velocity measurement for the earthquake.
         description: Provide a ground velocity measurement for the earthquake.
         tags:
-          - earthquakeevents
+          - earthquakes
         parameters:
           - in: path
             name: earthquake_id
@@ -723,9 +729,10 @@ class EarthquakeMeasurementHandler(BaseHandler):
     async def get(self, earthquake_id, mma_detector_id):
         """
         ---
+        summary: Retrieve a ground velocity measurement for the earthquake.
         description: Retrieve a ground velocity measurement for the earthquake.
         tags:
-          - earthquakeevents
+          - earthquakes
         parameters:
           - in: path
             name: earthquake_id
@@ -772,9 +779,10 @@ class EarthquakeMeasurementHandler(BaseHandler):
     async def patch(self, earthquake_id, mma_detector_id):
         """
         ---
+        summary: Update a ground velocity measurement for the earthquake.
         description: Update a ground velocity measurement for the earthquake.
         tags:
-          - earthquakeevents
+          - earthquakes
         parameters:
           - in: path
             name: earthquake_id
@@ -843,9 +851,10 @@ class EarthquakeMeasurementHandler(BaseHandler):
     async def delete(self, earthquake_id, mma_detector_id):
         """
         ---
+        summary: Delete a ground velocity measurement for the earthquake.
         description: Delete a ground velocity measurement for the earthquake.
         tags:
-          - earthquakeevents
+          - earthquakes
         parameters:
           - in: path
             name: earthquake_id

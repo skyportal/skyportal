@@ -6,6 +6,7 @@ from .slack import SLACKAPI
 
 # Instrument Specific APIs
 from .atlas import ATLASAPI
+from .colibri import COLIBRIAPI
 from .growth_india import GROWTHINDIAMMAAPI
 from .kait import KAITAPI
 from .sedm import SEDMAPI, SEDMListener
@@ -21,3 +22,4 @@ from .tess import TESSAPI
 from .trt import TRTAPI
 from .winter import WINTERAPI
 from .ztf import ZTFAPI, ZTFMMAAPI
+from .gemini import GEMINIAPI

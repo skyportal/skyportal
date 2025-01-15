@@ -13,6 +13,7 @@ class FilterHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a filter
           description: Retrieve a filter
           tags:
             - filters
@@ -32,6 +33,7 @@ class FilterHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all filters
           description: Retrieve all filters
           tags:
             - filters
@@ -65,6 +67,7 @@ class FilterHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create a new filter
         description: POST a new filter.
         tags:
           - filters
@@ -105,6 +108,7 @@ class FilterHandler(BaseHandler):
     def patch(self, filter_id):
         """
         ---
+        summary: Update a filter
         description: Update filter name
         tags:
           - filters
@@ -161,6 +165,7 @@ class FilterHandler(BaseHandler):
     def delete(self, filter_id):
         """
         ---
+        summary: Delete a filter
         description: Delete a filter
         tags:
           - filters

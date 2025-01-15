@@ -11,10 +11,10 @@ class SourceLabelsHandler(BaseHandler):
     def post(self, obj_id):
         """
         ---
+        summary: Label a source
         description: Note that a source has been labelled.
         tags:
           - sources
-          - source_scans
         parameters:
           - in: path
             name: obj_id
@@ -89,6 +89,7 @@ class SourceLabelsHandler(BaseHandler):
     def delete(self, obj_id):
         """
         ---
+        summary: Delete source labels
         description: Delete source labels
         tags:
           - sources

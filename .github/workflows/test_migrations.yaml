@@ -15,10 +15,12 @@ on:
       - "skyportal/enum_types.py"
       - "skyportal/facility_apis/__init__.py"
       - "requirements.txt"
+    types: [opened, reopened, synchronize, ready_for_review]
 
 jobs:
-  test:
+  test-migrations:
     name: Test SkyPortal migrations
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -48,32 +50,58 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Checkout main
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: main
           submodules: true
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+            ${{ runner.os }}-npm-
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pip
-          key: ${{ runner.os }}-${{ hashFiles('**/requirements*.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+            ${{ runner.os }}-pip-
+
+      # caching dustmap & sncosmo files is dependent on their corresponding
+      # python package versions, so we use that as the cache key
+      - uses: actions/cache@v4
+        with:
+          path: |
+            persistentdata/dustmap/sfd
+          key: ${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-dustmap-${{ hashFiles('**/requirements*.txt') }}
+            ${{ runner.os }}-dustmap-
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.astropy/cache/sncosmo/bandpasses
+          key: ${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-sncosmo-${{ hashFiles('**/requirements*.txt') }}
+            ${{ runner.os }}-sncosmo-
 
       - name: Install system dependencies
         run: |
@@ -93,7 +121,7 @@ jobs:
           export PATH=${NPM_PACKAGES}/bin:$PATH
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
-          sudo npm -g install npm@latest
+          npm -g install npm@latest
 
           which python; python --version
           echo npm $(npm --version)
@@ -109,6 +137,7 @@ jobs:
           make dependencies
 
           pip install black
+          pip install fiona==1.9.6 # 1.10.0 breaks geopandas
 
       - name: Save current Alembic head on main
         run: |
@@ -122,7 +151,7 @@ jobs:
           echo "CURRENT_HEAD=${current_head}" >> $GITHUB_ENV
 
       - name: Checkout migration reference commit
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ env.MIGRATION_REFERENCE }}
@@ -171,7 +200,7 @@ jobs:
           kill %1
 
       - name: Checkout PR branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: true
@@ -270,21 +299,21 @@ jobs:
           fi
 
       - name: Upload logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: logs
+          name: logs-migration
           path: log
 
       - name: Upload the Alembic diff
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
           name: alembic-difference
           path: alembic/versions/**test_migration.py
 
       - name: Upload migra diff
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
           name: migra-difference

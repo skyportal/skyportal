@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+import traceback
 import urllib
 from threading import Thread
 from datetime import datetime, timedelta
@@ -365,7 +366,7 @@ def process_queue(queue):
                     continue
 
                 try:
-                    tns_source_data = r.json().get("data", dict()).get("reply", dict())
+                    tns_source_data = r.json().get("data", dict())
                 except Exception:
                     tns_source_data = None
                 if tns_source_data is None:
@@ -387,7 +388,9 @@ def process_queue(queue):
 
                 tns_prefix = tns_source_data.get("name_prefix", None)
                 if tns_prefix is None:
-                    log(f"Error processing TNS source {tns_name}: obj has no prefix")
+                    log(
+                        f"Error processing TNS source {tns_name}: obj has no prefix ({str(r.json())})"
+                    )
                     continue
 
                 tns_name = f"{tns_prefix} {tns_source}"
@@ -467,6 +470,7 @@ def process_queue(queue):
                             session,
                         )
         except Exception as e:
+            traceback.print_exc()
             log(f"Error processing TNS source {tns_name}: {e}")
             user_id = task.get("user_id", None)
             if user_id is not None:

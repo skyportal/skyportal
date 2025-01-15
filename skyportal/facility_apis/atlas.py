@@ -1,18 +1,19 @@
-import requests
 from datetime import datetime, timedelta
-from astropy.time import Time
-from marshmallow.exceptions import ValidationError
+from io import StringIO
+
 import numpy as np
 import pandas as pd
-from io import StringIO
-from sqlalchemy.orm import sessionmaker, scoped_session
+import requests
+from astropy.time import Time
+from marshmallow.exceptions import ValidationError
+from sqlalchemy.orm import scoped_session, sessionmaker
 
-from . import FollowUpAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
@@ -95,11 +96,7 @@ def commit_photometry(
         Session to use for database transactions. If None, a new session will be created.
     """
 
-    from ..models import (
-        DBSession,
-        FollowupRequest,
-        Instrument,
-    )
+    from ..models import DBSession, FollowupRequest, Instrument
 
     if parent_session is None:
         Session = scoped_session(sessionmaker())

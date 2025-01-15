@@ -83,6 +83,7 @@ from ...utils.offset import (
     get_finding_chart,
     get_nearby_offset_stars,
     source_image_parameters,
+    ALL_NGPS_SNCOSMO_BANDS,
 )
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
@@ -693,14 +694,20 @@ def post_source(data, user_id, session, refresh_source=True):
         raise AttributeError(
             "You must belong to one or more groups before you can add sources."
         )
-    try:
-        group_ids = [
-            int(id)
-            for id in data.pop('group_ids')
-            if int(id) in user_accessible_group_ids
-        ]
-    except KeyError:
+
+    group_ids = data.pop('group_ids', None)
+    if group_ids is None:
         group_ids = user_group_ids
+    else:
+        group_ids_tmp = []
+        for id in group_ids:
+            if int(id) in user_accessible_group_ids:
+                group_ids_tmp.append(int(id))
+            else:
+                raise ValueError(
+                    f'Cannot find group_id {id}. Please remove and try again.'
+                )
+        group_ids = group_ids_tmp
 
     if not group_ids:
         raise AttributeError(
@@ -998,25 +1005,25 @@ class SourceHandler(BaseHandler):
     def head(self, obj_id=None):
         """
         ---
-        single:
-          description: Check if a Source exists
-          tags:
-            - sources
-          parameters:
-            - in: path
-              name: obj_id
-              required: true
-              schema:
-                type: string
-          responses:
-            200:
-              content:
-                application/json:
-                  schema: Success
-            404:
-              content:
-                application/json:
-                  schema: Error
+        summary: Check if a Source exists
+        description: Check if a Source exists
+        tags:
+          - sources
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          404:
+            content:
+              application/json:
+                schema: Error
         """
 
         with self.Session() as session:
@@ -1048,6 +1055,7 @@ class SourceHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a source
           description: Retrieve a source
           tags:
             - sources
@@ -1141,7 +1149,8 @@ class SourceHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
-          description: Retrieve all sources
+          summary: Get multiple sources
+          description: Retrieve all sources, given a set of filters
           tags:
             - sources
           parameters:
@@ -1478,6 +1487,14 @@ class SourceHandler(BaseHandler):
               Comma-separated string of "taxonomy: classification" pair(s) to filter for sources NOT matching
               that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
           - in: query
+            name: classified
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return only sources with classifications.
+              Defaults to false.
+          - in: query
             name: unclassified
             nullable: true
             schema:
@@ -1773,6 +1790,7 @@ class SourceHandler(BaseHandler):
         classifications = self.get_query_argument("classifications", None)
         classifications_simul = self.get_query_argument("classifications_simul", False)
         nonclassifications = self.get_query_argument("nonclassifications", None)
+        classified = self.get_query_argument("classified", False)
         unclassified = self.get_query_argument("unclassified", False)
         annotations_filter = self.get_query_argument("annotationsFilter", None)
         annotations_filter_origin = self.get_query_argument(
@@ -2027,6 +2045,7 @@ class SourceHandler(BaseHandler):
                     classifications=classifications,
                     classifications_simul=classifications_simul,
                     nonclassifications=nonclassifications,
+                    classified=classified,
                     unclassified=unclassified,
                     annotations_filter=annotations_filter,
                     annotations_filter_origin=annotations_filter_origin,
@@ -2073,6 +2092,7 @@ class SourceHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Add a new source
         description: Add a new source
         tags:
           - sources
@@ -2143,28 +2163,30 @@ class SourceHandler(BaseHandler):
     def patch(self, obj_id):
         """
         ---
-        description: Update a source
-        tags:
-          - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: True
-            schema:
-              type: string
-        requestBody:
-          content:
-            application/json:
-              schema: ObjNoID
-        responses:
-          200:
+        single:
+          summary: Update a source
+          description: Update a source
+          tags:
+            - sources
+          parameters:
+            - in: path
+              name: obj_id
+              required: True
+              schema:
+                type: string
+          requestBody:
             content:
               application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
+                schema: ObjNoID
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: Success
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
         data = self.get_json()
         data['id'] = obj_id
@@ -2187,8 +2209,8 @@ class SourceHandler(BaseHandler):
                     return self.error(f'Cannot find the object with name {obj_id}')
 
                 if not (
-                    np.isclose(data.get('ra'), source.ra)
-                    and np.isclose(data.get('dec'), source.dec)
+                    np.isclose(data.get('ra', source.ra), source.ra)
+                    and np.isclose(data.get('dec', source.dec), source.dec)
                 ):
                     run_async(remove_obj_thumbnails, obj_id)
                     updated_coordinates = True
@@ -2205,7 +2227,8 @@ class SourceHandler(BaseHandler):
 
             update_healpix_if_relevant(data, obj)
 
-            self.verify_and_commit()
+            session.merge(obj)
+            session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
@@ -2221,9 +2244,10 @@ class SourceHandler(BaseHandler):
         return self.success()
 
     @permissions(['Manage sources'])
-    def delete(self, obj_id, group_id):
+    def delete(self, obj_id):
         """
         ---
+        summary: Delete a source
         description: Delete a source
         tags:
           - sources
@@ -2233,7 +2257,7 @@ class SourceHandler(BaseHandler):
             required: true
             schema:
               type: string
-          - in: path
+          - in: query
             name: group_id
             required: true
             schema:
@@ -2245,6 +2269,13 @@ class SourceHandler(BaseHandler):
                 schema: Success
         """
 
+        data = self.get_json()
+
+        if data.get("group_id") is None:
+            return self.error("Missing required parameter `group_id`")
+
+        group_id = data.get("group_id")
+
         with self.Session() as session:
             if group_id not in [g.id for g in self.current_user.accessible_groups]:
                 return self.error("Inadequate permissions.")
@@ -2253,8 +2284,12 @@ class SourceHandler(BaseHandler):
                 .where(Source.obj_id == obj_id)
                 .where(Source.group_id == group_id)
             ).first()
+
+            if s is None:
+                return self.error(f"No such source {obj_id} in group {group_id}.")
+
             s.active = False
-            s.unsaved_by = self.current_user
+            s.unsaved_by = self.associated_user_object
             session.commit()
             return self.success()
 
@@ -2264,6 +2299,7 @@ class SourceOffsetsHandler(BaseHandler):
     async def get(self, obj_id):
         """
         ---
+        summary: Retrieve offset stars
         description: Retrieve offset stars to aid in spectroscopy
         tags:
           - sources
@@ -2278,7 +2314,7 @@ class SourceOffsetsHandler(BaseHandler):
           nullable: true
           schema:
             type: string
-            enum: [Keck, Shane, P200]
+            enum: [Keck, Shane, P200, P200-NGPS]
           description: Which facility to generate the starlist for
         - in: query
           name: num_offset_stars
@@ -2318,7 +2354,7 @@ class SourceOffsetsHandler(BaseHandler):
                           properties:
                             facility:
                               type: string
-                              enum: [Keck, Shane, P200]
+                              enum: [Keck, Shane, P200, P200-NGPS]
                               description: Facility queried for starlist
                             starlist_str:
                               type: string
@@ -2433,6 +2469,54 @@ class SourceOffsetsHandler(BaseHandler):
                 # could not handle inputs
                 return self.error('Invalid argument for `num_offset_stars`')
 
+            (
+                source_mag,
+                source_magfilter,
+            ) = (
+                None,
+                None,
+            )
+            priority, comment = 1, 'science'
+            if facility in ['P200-NGPS']:
+                # look for the latest photometry point
+                # in the filters supported by NGPS
+                latest_photometry = session.scalars(
+                    Photometry.select(session.user_or_token)
+                    .where(
+                        Photometry.obj_id == obj_id,
+                        Photometry.flux.isnot(None),
+                        Photometry.flux > 0,
+                        Photometry.fluxerr.isnot(None),
+                        Photometry.filter.in_(ALL_NGPS_SNCOSMO_BANDS),
+                    )
+                    .order_by(Photometry.mjd.desc())
+                ).first()
+                if latest_photometry is not None:
+                    source_mag = latest_photometry.mag
+                    source_magfilter = latest_photometry.filter
+
+                # optionally, the source can be associated with an observing run
+                # in which case we retrieve the assignment's priority and comment
+                observing_run = self.get_query_argument('observing_run_id', None)
+                if observing_run is not None:
+                    try:
+                        observing_run = int(observing_run)
+                    except ValueError:
+                        return self.error('Invalid argument for `observing_run_id`')
+
+                    assignment = session.scalars(
+                        ClassicalAssignment.select(session.user_or_token).where(
+                            ClassicalAssignment.obj_id == obj_id,
+                            ClassicalAssignment.run_id == observing_run,
+                        )
+                    ).first()
+                    if assignment is None:
+                        return self.error(
+                            f'No target found with obj_id {obj_id} and observing run ID {observing_run}'
+                        )
+
+                    priority, comment = assignment.priority, assignment.comment
+
             offset_func = functools.partial(
                 get_nearby_offset_stars,
                 best_ra,
@@ -2447,6 +2531,10 @@ class SourceOffsetsHandler(BaseHandler):
                 obstime=obstime,
                 allowed_queries=2,
                 use_ztfref=use_ztfref,
+                assignment_priority=priority,
+                assignment_comment=comment,
+                source_mag=source_mag,
+                source_magfilter=source_magfilter,
             )
 
             try:
@@ -2485,9 +2573,11 @@ class SourceFinderHandler(BaseHandler):
     async def get(self, obj_id):
         """
         ---
+        summary: Retrieve finding chart
         description: Generate a PDF/PNG finding chart to aid in spectroscopy
         tags:
           - sources
+          - finding chart
         parameters:
         - in: path
           name: obj_id
@@ -2506,7 +2596,7 @@ class SourceFinderHandler(BaseHandler):
           nullable: true
           schema:
             type: string
-            enum: [Keck, Shane, P200]
+            enum: [Keck, Shane, P200, P200-NGPS]
         - in: query
           name: image_source
           nullable: true
@@ -2674,9 +2764,10 @@ class SourceNotificationHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Send a source notification
         description: Send out a new source notification
         tags:
-          - notifications
+          - sources
         requestBody:
           content:
             application/json:
@@ -2817,6 +2908,38 @@ class SourceNotificationHandler(BaseHandler):
 class SurveyThumbnailHandler(BaseHandler):
     @auth_or_token  # We should allow these requests from view-only users (triggered on source page)
     def post(self):
+        """
+        ---
+        summary: Add survey thumbnails to a source
+        description: Add survey thumbnails to a source
+
+        tags:
+          - sources
+          - thumbnails
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  objID:
+                    type: string
+                    description: ID of the object to add thumbnails to
+                  objIDs:
+                    type: array
+                    items:
+                      type: string
+                    description: List of object IDs to add thumbnails to
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         data = self.get_json()
         obj_id = data.get("objID")
         obj_ids = data.get("objIDs")
@@ -2850,6 +2973,7 @@ class SourceObservabilityPlotHandler(BaseHandler):
     async def get(self, obj_id):
         """
         ---
+        summary: Generate observability plot for a source
         description: Create a summary plot for the observability for a given source.
         tags:
           - localizations
@@ -2961,6 +3085,7 @@ class SourceCopyPhotometryHandler(BaseHandler):
     def post(self, target_id):
         """
         ---
+        summary: Copy photometry from one source to another
         description: Copy all photometry points from one source to another
         tags:
           - sources

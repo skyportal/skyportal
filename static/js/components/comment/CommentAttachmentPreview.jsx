@@ -3,12 +3,10 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 
 import { useTheme } from "@mui/material/styles";
-import withStyles from "@mui/styles/withStyles";
 import makeStyles from "@mui/styles/makeStyles";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
-import MuiDialogTitle from "@mui/material/DialogTitle";
+import DialogTitle from "@mui/material/DialogTitle";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
@@ -16,8 +14,6 @@ import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
 
 import ReactJson from "react-json-view";
-import { grey } from "@mui/material/colors";
-import Button from "../Button";
 
 import * as sourceActions from "../../ducks/source";
 import * as gcnEventActions from "../../ducks/gcnEvent";
@@ -25,6 +21,18 @@ import * as shiftActions from "../../ducks/shift";
 import * as earthquakeActions from "../../ducks/earthquake";
 
 const useStyles = makeStyles((theme) => ({
+  dialogTitle: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    height: "4rem",
+    width: "100%",
+  },
+  dialogPaper: {
+    minHeight: "95vh",
+    maxHeight: "95vh",
+  },
   linkButton: {
     textDecoration: "none",
     color: theme.palette.info.dark,
@@ -41,21 +49,9 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   dialogContent: {
-    padding: theme.spacing(2),
+    padding: theme.spacing(0),
     width: "100%",
     minWidth: "15rem",
-
-    // Override styling in react-file-previewer
-    "& img": {
-      maxWidth: theme.breakpoints.values.md - theme.spacing(10),
-    },
-    "& canvas": {
-      maxWidth: theme.breakpoints.values.md - theme.spacing(10),
-      height: "auto !important",
-    },
-  },
-  filename: {
-    marginBottom: theme.spacing(1),
   },
   unsupportedType: {
     width: "20rem",
@@ -126,42 +122,6 @@ const SUPPORTED_TYPES = [
   ...SUPPORTED_FITS_TYPES,
   "pdf",
 ];
-
-const dialogTitleStyles = (theme) => ({
-  root: {
-    margin: 0,
-    padding: theme.spacing(2),
-  },
-  title: {
-    marginRight: theme.spacing(2),
-  },
-  closeButton: {
-    position: "absolute",
-    right: theme.spacing(1),
-    top: theme.spacing(1),
-    color: grey[500],
-  },
-});
-
-const DialogTitle = withStyles(dialogTitleStyles)(
-  ({ children, classes, onClose }) => (
-    <MuiDialogTitle disableTypography className={classes.root}>
-      <Typography variant="h6" className={classes.title}>
-        {children}
-      </Typography>
-      {onClose ? (
-        <IconButton
-          aria-label="close"
-          className={classes.closeButton}
-          onClick={onClose}
-          size="large"
-        >
-          <CloseIcon />
-        </IconButton>
-      ) : null}
-    </MuiDialogTitle>
-  ),
-);
 
 export const shortenFilename = (filename) => {
   if (filename.length <= 15) {
@@ -325,6 +285,7 @@ const CommentAttachmentPreview = ({
         <Dialog
           open={open}
           onClose={handleClose}
+          classes={{ paper: classes.dialogPaper }}
           style={{ position: "fixed" }}
           maxWidth="xlg"
           fullWidth={
@@ -332,12 +293,31 @@ const CommentAttachmentPreview = ({
             !SUPPORTED_AUDIO_TYPES.includes(fileType)
           }
         >
-          <DialogTitle onClose={handleClose}>Attachment Preview</DialogTitle>
+          <DialogTitle classes={{ root: classes.dialogTitle }}>
+            <Typography variant="h6" component="div">
+              {filename}
+            </Typography>
+            <div style={{ display: "flex", flexDirection: "row" }}>
+              <IconButton
+                size="large"
+                href={getURLs(fileType).url}
+                data-testid={`attachmentDownloadButton_${
+                  filename.split(".")[0]
+                }`}
+              >
+                <CloudDownloadIcon />
+              </IconButton>
+              <IconButton
+                size="large"
+                onClick={handleClose}
+                data-testid={`attachmentCloseButton_${filename.split(".")[0]}`}
+              >
+                <CloseIcon />
+              </IconButton>
+            </div>
+          </DialogTitle>
           <DialogContent dividers>
             <div className={classes.dialogContent}>
-              <Typography variant="subtitle1" className={classes.filename}>
-                {filename}
-              </Typography>
               <div className={classes.attachmentPreview}>
                 {fileType === "json" && (
                   <ReactJson
@@ -359,7 +339,7 @@ const CommentAttachmentPreview = ({
                     <video
                       controls
                       style={{
-                        height: "68vh",
+                        height: "84vh",
                         maxWidth: "100%",
                         width: "auto",
                       }}
@@ -390,7 +370,7 @@ const CommentAttachmentPreview = ({
                     src={getURLs().previewUrl}
                     alt={filename}
                     style={{
-                      height: "68vh",
+                      height: "84vh",
                       maxWidth: "100%",
                       width: "auto",
                     }}
@@ -404,23 +384,6 @@ const CommentAttachmentPreview = ({
               </div>
             </div>
           </DialogContent>
-          <DialogActions>
-            <div>
-              <Button
-                primary
-                size="large"
-                endIcon={<CloudDownloadIcon />}
-                href={getURLs(fileType).url}
-                onClick={handleClose}
-                data-testid={`attachmentDownloadButton_${
-                  filename.split(".")[0]
-                }`}
-                style={{ marginBottom: "10px" }}
-              >
-                Download file
-              </Button>
-            </div>
-          </DialogActions>
         </Dialog>
       )}
     </div>

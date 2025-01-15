@@ -29,9 +29,10 @@ class StatsHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Get DB statistics
         description: Retrieve basic DB statistics
         tags:
-          - system_info
+          - system info
         responses:
           200:
             content:

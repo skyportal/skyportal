@@ -266,9 +266,10 @@ class GcnTachHandler(BaseHandler):
     def post(self, dateobs):
         """
         ---
+        summary: Retrieve GCN Event aliases from TACH
         description: Scrape aliases of a GCN Event from GCNs notice/circulars
         tags:
-          - gcn_event
+          - gcn events
         parameters:
           - in: path
             name: dateobs

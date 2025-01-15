@@ -13,7 +13,7 @@ class RecentGcnEventsHandler(BaseHandler):
         ---
         description: Retrieve recent GCN events
         tags:
-          - gcnevents
+          - gcn events
         responses:
           200:
             content:

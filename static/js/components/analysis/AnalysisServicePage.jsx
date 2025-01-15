@@ -49,13 +49,6 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const textStyles = makeStyles(() => ({
-  primary: {
-    fontWeight: "bold",
-    fontSize: "110%",
-  },
-}));
-
 export function analysisServiceTitle(analysisService) {
   if (!analysisService?.display_name) {
     return (
@@ -327,7 +320,12 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
           <DialogTitle>Analysis Service Details</DialogTitle>
           <DialogContent dividers>
             <ReactJson
-              src={analysisServices[analysisServiceToViewDelete] || {}}
+              src={
+                (analysisServices || []).find(
+                  (analysisService) =>
+                    analysisService?.id === analysisServiceToViewDelete,
+                ) || {}
+              }
               name={false}
               displayDataTypes={false}
               displayObjectSize={false}

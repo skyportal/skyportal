@@ -8,6 +8,7 @@ from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
 from .models import schema
 
+HTTP_METHODS = ("head", "get", "post", "put", "patch", "delete", "options")
 
 api_description = pjoin(os.path.dirname(__file__), 'api_description.md')
 
@@ -21,6 +22,7 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
 
     ```yaml
     ---
+    summary: Get a source
     description: Retrieve a source
     parameters:
       - in: path
@@ -65,6 +67,7 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
                 'href': 'https://skyportal.io/docs',
             },
         },
+        'security': [{'token': []}],
     }
     if metadata is not None:
         meta.update(metadata)
@@ -87,7 +90,6 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
     import inspect
     import re
 
-    HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch")
     handlers = [
         handler
         for handler in handlers
@@ -112,12 +114,24 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
 
             spec = yaml_utils.load_yaml_from_docstring(method.__doc__)
             parameters = list(inspect.signature(method).parameters.keys())[1:]
+            # remove parameters called "ignored_args"
+            parameters = [param for param in parameters if param != 'ignored_args']
+            parameters = [f"{{{param}}}" for param in parameters]
             parameters = parameters + (path_parameters - len(parameters)) * [
                 '',
             ]
 
             if parameters[-1:] == [''] and path_template.endswith('/{}'):
                 path_template = path_template[:-3]
+
+            if not getattr(method, '__authenticated__', False):
+                spec['security'] = [{}]
+
+            if getattr(method, '__permissions__', None):
+                spec['description'] = (
+                    f'<b>Permission(s) required:</b> <em>{", ".join(method.__permissions__)} (or System admin)</em><br><br>'
+                    + spec.get('description', '')
+                )
 
             multiple_spec = spec.pop('multiple', {})
             single_spec = spec.pop('single', {})

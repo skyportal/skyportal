@@ -1,15 +1,16 @@
 import astropy
-import requests
 import numpy as np
-from sqlalchemy.orm import sessionmaker, scoped_session
+import requests
+from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
-from . import FollowUpAPI
+
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
 from ..utils.calculations import great_circle_distance
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
@@ -34,11 +35,7 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
         User SkyPortal ID
     """
 
-    from ..models import (
-        DBSession,
-        FollowupRequest,
-        Instrument,
-    )
+    from ..models import DBSession, FollowupRequest, Instrument
 
     Session = scoped_session(sessionmaker())
     if Session.registry.has():
@@ -146,9 +143,9 @@ class PS1API(FollowUpAPI):
         """
 
         from ..models import (
-            FollowupRequest,
-            FacilityTransaction,
             Allocation,
+            FacilityTransaction,
+            FollowupRequest,
             Instrument,
         )
 

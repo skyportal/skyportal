@@ -1269,6 +1269,15 @@ class FollowupRequestPost(_Schema):
         },
     )
 
+    not_if_tns_reported = fields.Float(
+        required=False,
+        metadata={
+            'description': (
+                'If there are any sources within radius with TNS reports, and the source has been discovered within before this many hours from the current time, the followup request will not be executed.'
+            )
+        },
+    )
+
     ignore_source_group_ids = fields.List(
         fields.Integer,
         required=False,
@@ -1282,6 +1291,16 @@ class FollowupRequestPost(_Schema):
     radius = fields.Float(
         required=False,
         metadata={'description': "Radius of to use when checking constraints."},
+    )
+
+    ignore_allocation_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            'description': (
+                'If there are any existing requests from the allocations that are pending or completed, the followup request will not be executed.'
+            )
+        },
     )
 
 
@@ -1320,6 +1339,11 @@ class ObservationPlanPost(_Schema):
                 'IDs of groups to share the results of the observation plan request with.'
             )
         },
+    )
+
+    requester_id = fields.Integer(
+        required=False,
+        metadata={'description': "ID of the user making the request."},
     )
 
 

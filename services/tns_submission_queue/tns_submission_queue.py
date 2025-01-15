@@ -33,8 +33,8 @@ log = make_log('tns_queue')
 init_db(**cfg['database'])
 
 TNS_URL = cfg['app.tns.endpoint']
-report_url = urljoin(TNS_URL, 'api/bulk-report')
-report_reply_url = urljoin(TNS_URL, 'api/bulk-report-reply')
+report_url = urljoin(TNS_URL, 'api/set/bulk-report')
+report_reply_url = urljoin(TNS_URL, 'api/get/bulk-report-reply')
 search_frontend_url = urljoin(TNS_URL, 'search')
 tns_retrieval_microservice_url = f'http://127.0.0.1:{cfg["ports.tns_retrieval_queue"]}'
 

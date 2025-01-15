@@ -278,7 +278,7 @@ class Telescope(Base):
         sunrise = self.next_sunrise(time=time)
         sunset = self.next_sunset(time=time)
 
-        if sunset is not None and sunset > sunrise:
+        if sunset is not None and sunrise is not None and sunset > sunrise:
             sunset = self.observer.sun_set_time(time, which='previous')
             time = sunset - ap_time.TimeDelta(30, format='sec')
 

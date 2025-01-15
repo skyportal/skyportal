@@ -16,6 +16,7 @@ class CommentAttachmentUpdateHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Get counts of comments w/ and w/o attachment_bytes
         description: find the number of comments with and without attachment_bytes
         tags:
           - comments
@@ -61,6 +62,7 @@ class CommentAttachmentUpdateHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create attachments for comments with attachment_bytes
         description: create attachments for a batch of comments with attachment_bytes
         tags:
           - comments

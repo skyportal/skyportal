@@ -170,6 +170,7 @@ class UserHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a user
           description: Retrieve a user
           tags:
             - users
@@ -189,6 +190,7 @@ class UserHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all users
           description: Retrieve all users
           tags:
             - users
@@ -254,6 +256,12 @@ class UserHandler(BaseHandler):
             schema:
               type: string
             description: Get users with access to the stream with name given by this parameter.
+          - in: query
+            name: includeExpired
+            nullable: true
+            schema:
+              type: boolean
+            description: Include users with expired accounts in the results.
           responses:
             200:
               content:
@@ -396,6 +404,7 @@ class UserHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Add a new user
         description: Add a new user
         tags:
           - users
@@ -511,6 +520,7 @@ class UserHandler(BaseHandler):
     def patch(self, user_id):
         """
         ---
+        summary: Update a user
         description: Update a User record
         tags:
           - users
@@ -577,6 +587,7 @@ class UserHandler(BaseHandler):
     def delete(self, user_id=None):
         """
         ---
+        summary: Delete a user
         description: Delete a user
         tags:
           - users

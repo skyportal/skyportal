@@ -1,5 +1,6 @@
 import json
 import time
+import traceback
 import urllib
 
 import astropy.units as u
@@ -148,8 +149,9 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
         return []
     try:
         json_response = json.loads(r.text)
-        reply = json_response['data']['reply']
+        reply = json_response['data']
     except Exception as e:
+        traceback.print_exc()
         log(f'TNS request failed: {str(e)}.')
         return []
 
@@ -194,9 +196,9 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
 
             if r.status_code == 200:
                 try:
-                    source_data = r.json().get("data", dict()).get("reply", dict())
+                    source_data = r.json().get("data", dict())
                 except Exception as e:
-                    log(f'Failed to parse TNS response: {str(e)}')
+                    log(f'Failed to parse TNS response: {str(e)} ({str(r.json())})')
                     source_data = None
                 if source_data:
                     sources.append(
@@ -303,9 +305,9 @@ def get_IAUname(
         raise ValueError('TNS request failed: request rate exceeded.')
 
     try:
-        reply = r.json().get("data", dict()).get("reply", [])
+        reply = r.json().get("data", dict())
     except Exception as e:
-        log(f'Failed to parse TNS response: {str(e)}')
+        log(f'Failed to parse TNS response: {str(e)} ({str(r.json())})')
         reply = []
 
     if len(reply) > 0:
@@ -347,7 +349,7 @@ def get_IAUname(
                     continue
 
                 try:
-                    source_data = r.json().get("data", dict()).get("reply", dict())
+                    source_data = r.json().get("data", dict())
                 except Exception:
                     source_data = None
                 if source_data:
@@ -438,7 +440,7 @@ def get_internal_names(api_key, headers, tns_name=None):
     internal_names = []
     try:
         reply = json.loads(r.text)
-        internal_names = reply["data"]["reply"]["internal_names"]
+        internal_names = reply["data"]["internal_names"]
         # comma separated list of internal names, starting with a comma (so we fiter out the first empty string after splitting)
         internal_names = list(filter(None, map(str.strip, internal_names.split(","))))
     except Exception as e:

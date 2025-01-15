@@ -73,6 +73,16 @@ app:
     host: herculesii.astro.berkeley.edu
     port:
 
+  colibri:
+    protocol: http
+    host:
+    port:
+
+  gemini:
+    protocol: https
+    host: gsodbtest.gemini.edu # this is the test server host, just remove 'test' for production
+    port: 8443 # this is the test server port, production is 443
+
   treasuremap_endpoint: https://treasuremap.space
 
   tns:
@@ -518,6 +528,7 @@ services:
 misc:
   days_to_keep_unsaved_candidates: 7
   minutes_to_keep_candidate_query_cache: 60
+  minutes_to_keep_source_query_cache: 360
   minutes_to_keep_annotations_info_query_cache: 360
   minutes_to_keep_localization_instrument_query_cache: 1440
   max_items_in_localization_instrument_query_cache: 100
@@ -685,6 +696,7 @@ user:
   default_acls: []
 
 ports:
+  app: 5000 # This is the internal port
   facility_queue: 64510
   notification_queue: 64610
   observation_plan_queue: 64710
@@ -705,6 +717,7 @@ gcn:
     - FERMI_GBM_SUBTHRESH
     - SWIFT_BAT_GRB_POS_ACK
     - SWIFT_XRT_POSITION
+    - SWIFT_UVOT_POS
     # - LVC_PRELIMINARY
     # - LVC_INITIAL
     # - LVC_UPDATE
@@ -811,3 +824,10 @@ colors:
   - score: 0.0
     fw: normal
     col: grey
+
+docs:
+  servers:
+    - url: http://localhost:5000
+      description: Development server
+    - url: https://skyportal.io
+      description: Production server

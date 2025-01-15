@@ -1,10 +1,15 @@
-from tdtax import schema, validate
-from jsonschema.exceptions import ValidationError as JSONValidationError
 import yaml
+from jsonschema.exceptions import ValidationError as JSONValidationError
+
+import sqlalchemy as sa
+from tdtax import schema, validate
 
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import Taxonomy, Group
+
+_, cfg = load_env()
 
 
 class TaxonomyHandler(BaseHandler):
@@ -13,6 +18,7 @@ class TaxonomyHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a taxonomy
           description: Retrieve a taxonomy
           tags:
             - taxonomies
@@ -32,6 +38,7 @@ class TaxonomyHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all taxonomies
           description: Get all the taxonomies
           tags:
             - taxonomies
@@ -83,6 +90,7 @@ class TaxonomyHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Post new taxonomy
         description: Post new taxonomy
         tags:
           - taxonomies
@@ -185,14 +193,23 @@ class TaxonomyHandler(BaseHandler):
                 return self.error("Hierarchy does not validate against the schema.")
 
             # establish the groups to use
-            user_group_ids = [g.id for g in self.current_user.groups]
             user_accessible_group_ids = [
                 g.id for g in self.current_user.accessible_groups
             ]
 
-            group_ids = data.pop("group_ids", user_group_ids)
-            if group_ids == []:
-                group_ids = user_group_ids
+            group_ids = data.pop("group_ids", None)
+            if not isinstance(group_ids, list) or len(group_ids) == 0:
+                public_group = session.scalar(
+                    sa.select(Group.id).where(
+                        Group.name == cfg['misc.public_group_name']
+                    )
+                )
+                if public_group is None:
+                    return self.error(
+                        f'No group_ids were specified and the public group "{cfg["misc.public_group_name"]}" does not exist. Cannot post taxonomy.'
+                    )
+                group_ids = [public_group]
+
             group_ids = [gid for gid in group_ids if gid in user_accessible_group_ids]
             if not group_ids:
                 return self.error(
@@ -209,12 +226,15 @@ class TaxonomyHandler(BaseHandler):
             # TODO: deal with the same name but different groups?
             isLatest = data.get('isLatest', True)
             if isLatest:
-                taxonomy_update = session.scalars(
-                    Taxonomy.select(session.user_or_token).where(Taxonomy.name == name)
-                ).first()
-                if taxonomy_update is not None:
-                    taxonomy_update.isLatest = False
-                    session.add(taxonomy_update)
+                taxonomies_to_update = session.scalars(
+                    Taxonomy.select(session.user_or_token).where(
+                        Taxonomy.name == name, Taxonomy.isLatest.is_(True)
+                    )
+                ).all()
+                if len(taxonomies_to_update) > 0:
+                    for tax in taxonomies_to_update:
+                        tax.isLatest = False
+                        session.add(tax)
 
             taxonomy = Taxonomy(
                 name=name,
@@ -236,6 +256,7 @@ class TaxonomyHandler(BaseHandler):
     def put(self, taxonomy_id):
         """
         ---
+        summary: Update a taxonomy
         description: Update taxonomy
         tags:
           - taxonomies
@@ -303,6 +324,7 @@ class TaxonomyHandler(BaseHandler):
     def delete(self, taxonomy_id):
         """
         ---
+        summary: Delete a taxonomy
         description: Delete a taxonomy
         tags:
           - taxonomies

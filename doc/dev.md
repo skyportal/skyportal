@@ -117,3 +117,30 @@ You can insert the following step to debug your workflow:
 ```
 
 It will print a command that you can use to SSH into the runner.
+
+## Making a release
+
+**Please also see [versioning](versioning).**
+
+1. Update the version number in `skyportal/__init__.py`.
+2. Commit the changes:
+    ```
+    git add skyportal/__init__.py
+    git commit -am "Update version to v${NEW_VERSION}"
+    ```
+3. Tag & sign the release:
+    ```
+    git tag -s v${NEW_VERSION} -m "SkyPortal v${NEW_VERSION} release"
+    ```
+    (If you do not have a GPG key, follow the tutorial to set it up:
+    https://help.github.com/articles/signing-commits-with-gpg/)
+4. Push the changes:
+    ```
+    git push --tags origin main
+    ```
+    where `origin` points to the ``github.com:skyportal/skyportal`` repository.
+5. Create a new release on GitHub, using the tag you just created. The release should be formatted as follows:
+    - A title, in the form `SkyPortal v${NEW_VERSION} release (YYYY-MM-DD)`
+    - A brief summary of the changes, including any breaking changes
+    - A list of the changes split in the relevant categories (e.g., new features, bug fixes, frontend, backend, etc.). For each change, include a list of the associated PR numbers, as well as the GitHub usernames of the contributors.
+    - If applicable, a migration guide to help users and/or admins upgrade to the new version.

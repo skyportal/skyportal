@@ -161,15 +161,15 @@ def service(*args, **kwargs):
                             ObservationPlanRequest.created_at
                             > arrow.utcnow().shift(days=-3).datetime,
                         ),
-                        # or plans that have been "running" for more than 24 hours but less than 72 hours
+                        # or plans that have been "running" for more than 5 minutes but less than 1 hours
                         # this is a way to grab plans that have been stuck in the running state
                         # and have not been processed
                         sa.and_(
                             ObservationPlanRequest.status == "running",
                             ObservationPlanRequest.created_at
-                            < arrow.utcnow().shift(days=-1).datetime,
+                            < arrow.utcnow().shift(minutes=-5).datetime,
                             ObservationPlanRequest.created_at
-                            > arrow.utcnow().shift(days=-3).datetime,
+                            > arrow.utcnow().shift(hours=-1).datetime,
                         ),
                     )
                 )
@@ -324,6 +324,7 @@ def service(*args, **kwargs):
                                         plan.observation_plan_request.id,
                                         session=session,
                                         auto_send=True,
+                                        default_obsplan_id=default,
                                     )
                                 for (
                                     default_survey_efficiency
@@ -336,6 +337,7 @@ def service(*args, **kwargs):
                                         asynchronous=False,
                                     )
                     except Exception as e:
+                        traceback.print_exc()
                         log(
                             f"Error occured processing default queue submission or survey efficiency for plan {id}: {e}"
                         )

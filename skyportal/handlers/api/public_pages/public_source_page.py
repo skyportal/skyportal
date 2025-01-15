@@ -237,11 +237,12 @@ class PublicSourcePageHandler(BaseHandler):
     async def post(self, source_id):
         """
         ---
+          summary: Create a public page for a source
           description:
             Create a public page for a source, with given options,
             only if this page does not already exist
           tags:
-            - public_source_page
+            - sources
           parameters:
             - in: path
               name: source_id
@@ -324,10 +325,11 @@ class PublicSourcePageHandler(BaseHandler):
     def get(self, source_id):
         """
         ---
+          summary: Retrieve all public pages for a source
           description:
             Retrieve all public pages for a given source from the most recent to the oldest
           tags:
-            - public_source_page
+            - sources
           parameters:
             - in: path
               name: source_id
@@ -365,9 +367,10 @@ class PublicSourcePageHandler(BaseHandler):
     def delete(self, page_id):
         """
         ---
+        summary: Delete a public source page
         description: Delete a public source page
         tags:
-          - public_source_page
+          - sources
         parameters:
           - in: path
             name: page_id

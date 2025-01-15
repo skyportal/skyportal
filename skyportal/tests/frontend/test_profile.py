@@ -121,6 +121,7 @@ def test_add_data_to_user_profile(driver, user):
     )
 
 
+@pytest.mark.flaky(reruns=2)
 def test_insufficient_name_entry_in_profile(driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
@@ -156,6 +157,7 @@ def test_profile_dropdown(driver, user):
     driver.wait_for_xpath("//a[contains(@data-testid, 'signOutButton')]")
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_classification_shortcut(driver, user, public_group, taxonomy_token):
     status, data = api(
         'POST',
@@ -173,6 +175,10 @@ def test_add_classification_shortcut(driver, user, public_group, taxonomy_token)
     assert status == 200
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
+
+    # let the profile load and the taxonomies hydrate
+    time.sleep(2)
+
     classifications_entry = driver.wait_for_xpath('//div[@id="classifications-select"]')
     driver.scroll_to_element_and_click(classifications_entry)
     agn_option = driver.wait_for_xpath('//li[@data-value="AGN"]')

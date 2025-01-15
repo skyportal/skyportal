@@ -22,9 +22,10 @@ class MMADetectorHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create an MMA Detector
         description: Create a Multimessenger Astronomical Detector (MMADetector)
         tags:
-          - mmadetectors
+          - mma detectors
         requestBody:
           content:
             application/json:
@@ -80,9 +81,10 @@ class MMADetectorHandler(BaseHandler):
         """
         ---
         single:
+          summary: Retrieve an MMA Detector
           description: Retrieve a Multimessenger Astronomical Detector (MMADetector)
           tags:
-            - mmadetectors
+            - mma detectors
           parameters:
             - in: path
               name: mmadetector_id
@@ -99,9 +101,10 @@ class MMADetectorHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve multiple MMA Detectors
           description: Retrieve all Multimessenger Astronomical Detectors (MMADetectors)
           tags:
-            - mmadetectors
+            - mma detectors
           parameters:
             - in: query
               name: name
@@ -144,9 +147,10 @@ class MMADetectorHandler(BaseHandler):
     def patch(self, mmadetector_id):
         """
         ---
+        summary: Update an MMA Detector
         description: Update a Multimessenger Astronomical Detector (MMADetector)
         tags:
-          - mmadetectors
+          - mma detectors
         parameters:
           - in: path
             name: mmadetector_id
@@ -213,9 +217,10 @@ class MMADetectorHandler(BaseHandler):
     def delete(self, mmadetector_id):
         """
         ---
+        summary: Delete an MMA Detector
         description: Delete a Multimessenger Astronomical Detector (MMADetector)
         tags:
-          - mmadetectors
+          - mma detectors
         parameters:
           - in: path
             name: mmadetector_id
@@ -252,9 +257,10 @@ class MMADetectorSpectrumHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Upload an MMA Detector Spectrum
         description: Upload a Multimessenger Astronomical Detector (MMADetector) spectrum
         tags:
-          - mmadetector_spectra
+          - mma detector spectra
         requestBody:
           content:
             application/json:
@@ -348,9 +354,10 @@ class MMADetectorSpectrumHandler(BaseHandler):
         """
         ---
         single:
+          summary: Retrieve an MMA Detector Spectrum
           description: Retrieve an mmadetector spectrum
           tags:
-            - mmadetector_spectra
+            - mma detector spectra
           parameters:
             - in: path
               name: spectrum_id
@@ -367,9 +374,10 @@ class MMADetectorSpectrumHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve multiple MMA Detector Spectra
           description: Retrieve multiple spectra with given criteria
           tags:
-            - mmadetector_spectra
+            - mma detector spectra
           parameters:
             - in: query
               name: observedBefore
@@ -482,9 +490,10 @@ class MMADetectorSpectrumHandler(BaseHandler):
     def patch(self, spectrum_id):
         """
         ---
+        summary: Update an MMA Detector Spectrum
         description: Update mmadetector spectrum
         tags:
-          - mmadetector_spectra
+          - mma detector spectra
         parameters:
           - in: path
             name: spectrum_id
@@ -567,9 +576,10 @@ class MMADetectorSpectrumHandler(BaseHandler):
     def delete(self, spectrum_id):
         """
         ---
+        summary: Delete an MMA Detector Spectrum
         description: Delete an mmadetector spectrum
         tags:
-          - mmadetector_spectra
+          - mma detector spectra
         parameters:
           - in: path
             name: spectrum_id
@@ -617,9 +627,10 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Upload an MMA Detector Time Interval
         description: Upload a Multimessenger Astronomical Detector (MMADetector) time_interval(s)
         tags:
-          - mmadetector_time_intervals
+          - mma detector time intervals
         requestBody:
           content:
             application/json:
@@ -727,9 +738,10 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         """
         ---
         single:
+          summary: Retrieve an MMA Detector Time Interval
           description: Retrieve an mmadetector time_interval
           tags:
-            - mmadetector_time_intervals
+            - mma detector time intervals
           parameters:
             - in: path
               name: time_interval_id
@@ -748,7 +760,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         multiple:
           description: Retrieve multiple time_intervals with given criteria
           tags:
-            - mmadetector_time_intervals
+            - mma detector time intervals
           parameters:
             - in: query
               name: observedBefore
@@ -880,9 +892,10 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
     def patch(self, time_interval_id):
         """
         ---
+        summary: Update an MMA Detector Time Interval
         description: Update mmadetector time_interval
         tags:
-          - mmadetector_time_intervals
+          - mma detector time intervals
         parameters:
           - in: path
             name: time_interval_id
@@ -957,9 +970,10 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
     def delete(self, time_interval_id):
         """
         ---
+        summary: Delete an MMA Detector Time Interval
         description: Delete an mmadetector time_interval
         tags:
-          - mmadetector_time_intervals
+          - mma detector time intervals
         parameters:
           - in: path
             name: time_interval_id

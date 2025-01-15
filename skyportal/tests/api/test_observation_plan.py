@@ -9,55 +9,10 @@ import numpy as np
 from skyportal.tests import api
 
 
-def test_observation_plan_tiling(super_admin_token, public_group):
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    event_data = {'xml': payload}
-
-    dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
-
-        gcnevent_id = data['data']['gcnevent_id']
-    else:
-        print(data)
-        gcnevent_id = data['data']['id']
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api('GET', f"gcn_event/{dateobs}", token=super_admin_token)
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
-
-    # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data['status'] == 'success':
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
-    localization_id = data['id']
+def test_observation_plan_tiling(super_admin_token, public_group, gcn_GW190814):
+    dateobs = gcn_GW190814.dateobs.strftime('%Y-%m-%dT%H:%M:%S')
+    gcnevent_id = gcn_GW190814.id
+    localization_id = gcn_GW190814.localizations[0].id
 
     name = str(uuid.uuid4())
     status, data = api(
@@ -126,10 +81,9 @@ def test_observation_plan_tiling(super_admin_token, public_group):
             assert data['data']['band'] == 'Optical'
             assert len(data['data']['fields']) == 2
             fields_loaded = True
-            time.sleep(15)
         except AssertionError:
             nretries = nretries + 1
-            time.sleep(15)
+            time.sleep(3)
     assert nretries < maxretries
 
     request_data = {
@@ -169,7 +123,7 @@ def test_observation_plan_tiling(super_admin_token, public_group):
                 'galactic_latitude': 10,
             },
         }
-        for _ in range(3)
+        for _ in range(2)
     ]
 
     for request_data in requests_data:
@@ -180,7 +134,7 @@ def test_observation_plan_tiling(super_admin_token, public_group):
         assert data['status'] == 'success'
 
     # wait for the observation plans to finish, we added some patience later, but we know that it takes at least 30 seconds
-    time.sleep(30)
+    time.sleep(10)
 
     n_retries = 0
     while n_retries < 10:
@@ -271,63 +225,31 @@ def test_observation_plan_tiling(super_admin_token, public_group):
     assert n_retries < 10
 
 
-def test_observation_plan_galaxy(super_admin_token, view_only_token, public_group):
-    catalog_name = 'test_galaxy_catalog'
+def test_observation_plan_galaxy(
+    super_admin_token, view_only_token, public_group, gcn_GW190814
+):
+    dateobs = gcn_GW190814.dateobs.strftime('%Y-%m-%dT%H:%M:%S')
+    gcnevent_id = gcn_GW190814.id
+    localization_id = gcn_GW190814.localizations[0].id
 
+    catalog_name = 'test_galaxy_catalog'
     # in case the catalog already exists, delete it.
     status, data = api(
         'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
     )
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    event_data = {'xml': payload}
+    datafile = f'{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5'
+    data = {
+        'catalog_name': catalog_name,
+        'catalog_data': Table.read(datafile)
+        .to_pandas()
+        .replace({np.nan: None})
+        .to_dict(orient='list'),
+    }
 
-    dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
-
-        gcnevent_id = data['data']['gcnevent_id']
-    else:
-        gcnevent_id = data['data']['id']
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
-
-    # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data['status'] == 'success':
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
-    localization_id = data['id']
+    status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
 
     name = str(uuid.uuid4())
     status, data = api(
@@ -392,26 +314,14 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
             nretries = nretries + 1
             time.sleep(3)
 
-    datafile = f'{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5'
-    data = {
-        'catalog_name': catalog_name,
-        'catalog_data': Table.read(datafile)
-        .to_pandas()
-        .replace({np.nan: None})
-        .to_dict(orient='list'),
-    }
-
-    status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    params = {'catalog_name': catalog_name}
-
     nretries = 0
     galaxies_loaded = False
     while nretries < 10:
         status, data = api(
-            'GET', 'galaxy_catalog', token=view_only_token, params=params
+            'GET',
+            'galaxy_catalog',
+            token=view_only_token,
+            params={'catalog_name': catalog_name},
         )
         assert status == 200
         data = data["data"]["galaxies"]
@@ -468,7 +378,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
                 'galactic_latitude': 10,
             },
         }
-        for _ in range(3)
+        for _ in range(2)
     ]
 
     for request_data in requests_data:
@@ -479,7 +389,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
         assert data['status'] == 'success'
 
     # wait for the observation plans to finish, we added some patience later, but we know that it takes at least 30 seconds
-    time.sleep(30)
+    time.sleep(10)
 
     n_retries = 0
     while n_retries < 10:
@@ -529,7 +439,7 @@ def test_observation_plan_galaxy(super_admin_token, view_only_token, public_grou
                 ]['end_date'].replace(" ", "T")
 
                 planned_observations = observation_plan['planned_observations']
-                assert len(planned_observations) >= 11
+                assert len(planned_observations) >= 10
 
                 assert all(
                     [

@@ -4,6 +4,16 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
 
+# Rotation matrix for the conversion : x_galactic = R * x_equatorial (J2000)
+# http://adsabs.harvard.edu/abs/1989A&A...218..325M
+RGE = np.array(
+    [
+        [-0.054875539, -0.873437105, -0.483834992],
+        [+0.494109454, -0.444829594, +0.746982249],
+        [-0.867666136, -0.198076390, +0.455983795],
+    ]
+)
+
 
 def radec_str2deg(_ra_str, _dec_str):
     c = SkyCoord(_ra_str, _dec_str, unit=(u.hourangle, u.deg))
@@ -187,3 +197,75 @@ def next_sunrise(observer, time=None):
     if time is None:
         time = Time.now()
     return observer.sun_rise_time(time, which='next')
+
+
+def deg2hms(x):
+    """Transform degrees to *hours:minutes:seconds* strings.
+
+    Parameters
+    ----------
+    x : float
+        The degree value c [0, 360) to be written as a sexagesimal string.
+
+    Returns
+    -------
+    out : str
+        The input angle written as a sexagesimal string, in the
+        form, hours:minutes:seconds.
+
+    """
+    if not 0.0 <= x < 360.0:
+        raise ValueError("Bad RA value in degrees")
+    _h = np.floor(x * 12.0 / 180.0)
+    _m = np.floor((x * 12.0 / 180.0 - _h) * 60.0)
+    _s = ((x * 12.0 / 180.0 - _h) * 60.0 - _m) * 60.0
+    hms = f"{_h:02.0f}:{_m:02.0f}:{_s:07.4f}"
+    return hms
+
+
+def deg2dms(x):
+    """Transform degrees to *degrees:arcminutes:arcseconds* strings.
+
+    Parameters
+    ----------
+    x : float
+        The degree value c [-90, 90] to be converted.
+
+    Returns
+    -------
+    out : str
+        The input angle as a string, written as degrees:minutes:seconds.
+
+    """
+    if not -90.0 <= x <= 90.0:
+        raise ValueError("Bad Dec value in degrees")
+    _d = np.floor(abs(x)) * np.sign(x)
+    _m = np.floor(np.abs(x - _d) * 60.0)
+    _s = np.abs(np.abs(x - _d) * 60.0 - _m) * 60.0
+    dms = f"{_d:02.0f}:{_m:02.0f}:{_s:06.3f}"
+    return dms
+
+
+def radec2lb(ra, dec):
+    """
+        Convert $R.A.$ and $Decl.$ into Galactic coordinates $l$ and $b$
+    ra [deg]
+    dec [deg]
+
+    return l [deg], b [deg]
+    """
+    ra_rad, dec_rad = np.deg2rad(ra), np.deg2rad(dec)
+    u = np.array(
+        [
+            np.cos(ra_rad) * np.cos(dec_rad),
+            np.sin(ra_rad) * np.cos(dec_rad),
+            np.sin(dec_rad),
+        ]
+    )
+
+    ug = np.dot(RGE, u)
+
+    x, y, z = ug
+    galactic_l = np.arctan2(y, x)
+    galactic_b = np.arctan2(z, (x * x + y * y) ** 0.5)
+    return np.rad2deg(galactic_l), np.rad2deg(galactic_b)

@@ -35,6 +35,7 @@ class ObjMPCHandler(BaseHandler):
     def post(self, obj_id):
         """
         ---
+        summary: Crossmatch an object with MPC
         description: Retrieve an object's status from Minor Planet Center
         tags:
           - objs

@@ -27,9 +27,11 @@ class ReportHandler(BaseHandler):
     def get(self, report_type, report_id=None, option=None):
         """
         ---
+        summary: Get GCN event public reports
         description: Retrieve all reports
         tags:
-          - reports
+          - gcn events
+          - gcn event reports
         responses:
           200:
             content:

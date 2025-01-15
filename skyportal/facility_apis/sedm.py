@@ -1,13 +1,16 @@
-from datetime import datetime, timedelta
 import json
+import traceback
+from copy import deepcopy
+from datetime import datetime, timedelta
+
 import requests
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
 from baselayer.app.flow import Flow
+from baselayer.log import make_log
 
-from . import FollowUpAPI, Listener
 from ..utils import http
+from . import FollowUpAPI, Listener
 
 env, cfg = load_env()
 
@@ -37,7 +40,7 @@ class SEDMListener(Listener):
             Database session for this transaction
         """
 
-        from ..models import FollowupRequest, FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
 
         data = handler_instance.get_json()
 
@@ -71,7 +74,7 @@ def convert_request_to_sedm(request, method_value='new'):
         The desired SEDM queue action.
     """
 
-    from ..models import DBSession, UserInvitation, Invitation
+    from ..models import DBSession, Invitation, UserInvitation
 
     photometry = sorted(request.obj.photometry, key=lambda p: p.mjd, reverse=True)
     photometry_payload = {}
@@ -100,7 +103,9 @@ def convert_request_to_sedm(request, method_value='new'):
     }
 
     if rtype == "Mix 'n Match":
-        choices = request.payload['observation_choices']
+        # we make a deepcopy so that the payload's observation_choices
+        # aren't edited when we edit choices
+        choices = deepcopy(request.payload['observation_choices'])
         hasspec = 'IFU' in choices
         followup = 'IFU' if hasspec else ''
         if hasspec:
@@ -241,6 +246,30 @@ class SEDMAPI(FollowUpAPI):
                 'skyportal/REFRESH_FOLLOWUP_REQUESTS',
             )
 
+        try:
+            notification_type = request.allocation.altdata.get(
+                'notification_type', 'none'
+            )
+            if notification_type == 'slack':
+                from ..utils.notifications import request_notify_by_slack
+
+                request_notify_by_slack(
+                    request,
+                    session,
+                    is_update=False,
+                )
+            elif notification_type == 'email':
+                from ..utils.notifications import request_notify_by_email
+
+                request_notify_by_email(
+                    request,
+                    session,
+                    is_update=False,
+                )
+        except Exception as e:
+            traceback.print_exc()
+            log(f"Error sending notification: {e}")
+
     @staticmethod
     def delete(request, session, **kwargs):
         """Delete a follow-up request from SEDM queue.
@@ -343,6 +372,30 @@ class SEDMAPI(FollowUpAPI):
                 request.last_modified_by_id,
                 "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
+
+        try:
+            notification_type = request.allocation.altdata.get(
+                'notification_type', 'none'
+            )
+            if notification_type == 'slack':
+                from ..utils.notifications import request_notify_by_slack
+
+                request_notify_by_slack(
+                    request,
+                    session,
+                    is_update=True,
+                )
+            elif notification_type == 'email':
+                from ..utils.notifications import request_notify_by_email
+
+                request_notify_by_email(
+                    request,
+                    session,
+                    is_update=True,
+                )
+        except Exception as e:
+            traceback.print_exc()
+            log(f"Error sending notification: {e}")
 
     @staticmethod
     def prepare_payload(payload, existing_payload=None):
@@ -466,4 +519,70 @@ class SEDMAPI(FollowUpAPI):
         'end_date': "End Date",
         'priority': "Priority",
         'observation_type': 'Mode',
+    }
+
+    form_json_schema_altdata = {
+        "type": "object",
+        "properties": {
+            "notification_type": {
+                "type": "string",
+                "title": "Notification Type",
+                "enum": ["none", "slack", "email"],
+            },
+        },
+        "dependencies": {
+            "notification_type": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["none"]},
+                        },
+                    },
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["slack"]},
+                            "slack_workspace": {
+                                "type": "string",
+                                "title": "Slack Workspace",
+                            },
+                            "slack_channel": {
+                                "type": "string",
+                                "title": "Slack Channel",
+                            },
+                            "slack_token": {
+                                "type": "string",
+                                "title": "Slack Token",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
+                            },
+                        },
+                        "required": [
+                            "slack_workspace",
+                            "slack_channel",
+                            "slack_token",
+                        ],
+                    },
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["email"]},
+                            "email": {
+                                "type": "string",
+                                "title": "Email",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
+                            },
+                        },
+                        "required": [
+                            "email",
+                        ],
+                    },
+                ]
+            },
+        },
     }

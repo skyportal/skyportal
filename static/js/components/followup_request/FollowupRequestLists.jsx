@@ -336,7 +336,7 @@ const FollowupRequestLists = ({
           followupRequest.status,
         );
 
-        const isFailed = followupRequest.status === "failed to submit";
+        const isFailed = followupRequest.status.includes("failed to submit");
 
         return (
           <div className={classes.actionButtons}>
