@@ -2735,15 +2735,6 @@ class SourceFinderHandler(BaseHandler):
                     ' Reverting to discovery position.'
                 )
 
-            # print all the parameters
-            log(
-                f"facility: {facility}, num_offset_stars: {num_offset_stars}, "
-                f"ra: {ra}, dec: {dec}, obstime: {obstime}, use_ztfref: {use_ztfref}"
-                f"radius_degrees: {radius_degrees}, mag_limit: {mag_limit}, "
-                f"min_sep_arcsec: {min_sep_arcsec}, mag_min: {mag_min}"
-                f"imsize: {imsize}, output_type: {output_type}"
-            )
-
             finder = functools.partial(
                 get_finding_chart,
                 ra,
