@@ -108,7 +108,7 @@ const SourcePublishRelease = ({
               {isLoading ? (
                 <CircularProgress size={24} />
               ) : (
-                <div>No releases available yet. Create the first one here.</div>
+                <div>No releases available yet! Create the first one here.</div>
               )}
             </div>
           )}

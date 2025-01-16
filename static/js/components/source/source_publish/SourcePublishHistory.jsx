@@ -42,7 +42,6 @@ const useStyles = makeStyles(() => ({
     justifyContent: "center",
     padding: "1rem 0",
     color: "gray",
-    fontWeight: "bold",
   },
 }));
 
@@ -93,7 +92,7 @@ const SourcePublishHistory = ({ sourceId, versions }) => {
                 <Button
                   href={`/public${
                     version.release_link_name
-                      ? "/releases/" + version.release_link_name
+                      ? `/releases/${version.release_link_name}`
                       : ""
                   }/sources/${sourceId}/version/${version?.hash}`}
                   target="_blank"
@@ -114,7 +113,7 @@ const SourcePublishHistory = ({ sourceId, versions }) => {
           {isLoading ? (
             <CircularProgress size={24} />
           ) : (
-            <div>NO PUBLIC PAGE AVAILABLE!</div>
+            <div>No public page available yet!</div>
           )}
         </div>
       )}
