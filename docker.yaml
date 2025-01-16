@@ -6,4 +6,7 @@ database:
     password: password
 
 server:
-    url: http://localhost:5000
+    port: 5000 # Internal port
+
+ports:
+    app: 5000 # External port

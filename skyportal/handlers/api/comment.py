@@ -146,13 +146,10 @@ class CommentHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a comment
           description: Retrieve a comment
           tags:
             - comments
-            - sources
-            - spectra
-            - shifts
-            - earthquakes
           parameters:
             - in: path
               name: associated_resource_type
@@ -189,14 +186,10 @@ class CommentHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve all comments
           description: Retrieve all comments associated with specified resource
           tags:
             - comments
-            - spectra
-            - sources
-            - gcn_events
-            - earthquakes
-            - shifts
           parameters:
             - in: path
               name: associated_resource_type
@@ -222,6 +215,18 @@ class CommentHandler(BaseHandler):
                 type: string
               description: |
                 Filter comments by partial text match.
+            - in: query
+              name: pageNumber
+              schema:
+                type: integer
+              description: |
+                Page number for pagination.
+            - in: query
+              name: numPerPage
+              schema:
+                type: integer
+              description: |
+                Number of comments per page.
           responses:
             200:
               content:
@@ -405,10 +410,11 @@ class CommentHandler(BaseHandler):
             return self.success(data=comment_data)
 
     @permissions(['Comment'])
-    def post(self, associated_resource_type, resource_id):
+    def post(self, associated_resource_type, resource_id, *ignore_args):
         """
         ---
-        description: Post a comment
+        summary: Post a comment
+        description: Post a new comment. If sent through the API (authenticated with a token), it will be flagged as a bot comment.
         tags:
           - comments
         parameters:
@@ -486,6 +492,9 @@ class CommentHandler(BaseHandler):
                 and 'name' in data['attachment']
             ):
                 attachment_name = data['attachment']['name']
+                if data['attachment']['body'] is None:
+                    return self.error("Comment attachment body is empty")
+
                 data_to_disk = base64.b64decode(
                     data['attachment']['body'].split('base64,')[-1]
                 )
@@ -830,6 +839,7 @@ class CommentHandler(BaseHandler):
     def put(self, associated_resource_type, resource_id, comment_id):
         """
         ---
+        summary: Update a comment
         description: Update a comment
         tags:
           - comments
@@ -1050,6 +1060,7 @@ class CommentHandler(BaseHandler):
     def delete(self, associated_resource_type, resource_id, comment_id):
         """
         ---
+        summary: Delete a comment
         description: Delete a comment
         tags:
           - comments
@@ -1206,6 +1217,7 @@ class CommentAttachmentHandler(BaseHandler):
     def get(self, associated_resource_type, resource_id, comment_id):
         """
         ---
+        summary: Download/Preview comment attachment
         description: Download comment attachment
         tags:
           - comments

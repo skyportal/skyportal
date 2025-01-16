@@ -16,9 +16,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a group admission request
           description: Retrieve a group admission request
           tags:
-            - group_admission_requests
             - groups
             - users
           parameters:
@@ -37,9 +37,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all group admission requests
           description: Retrieve all group admission requests
           tags:
-            - group_admission_requests
             - groups
             - users
           parameters:
@@ -114,9 +114,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create a group admission request
         description: Create a new group admission request
         tags:
-          - group_admission_requests
           - groups
           - users
         requestBody:
@@ -229,9 +229,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
     def patch(self, admission_request_id):
         """
         ---
+        summary: Update a group admission request status
         description: Update a group admission request's status
         tags:
-          - group_admission_requests
           - groups
           - users
         parameters:
@@ -297,9 +297,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
     def delete(self, admission_request_id):
         """
         ---
+        summary: Delete a group admission request
         description: Delete a group admission request
         tags:
-          - group_admission_requests
           - groups
           - users
         parameters:

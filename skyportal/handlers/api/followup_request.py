@@ -2,21 +2,21 @@ import ast
 import functools
 import io
 import json
+import operator
 import tempfile
 import time
+import traceback
 import uuid
 from datetime import datetime, timedelta
-import traceback
 
 import arrow
+import conesearch_alchemy as ca
 import healpy as hp
 import jsonschema
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import operator
 import pandas as pd
-import conesearch_alchemy as ca
 import sqlalchemy as sa
 from astroplan import FixedTarget, Observer, ObservingBlock
 from astroplan.constraints import (
@@ -34,9 +34,9 @@ from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
 from scipy.stats import norm
 from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import cast
-from sqlalchemy.dialects.postgresql import JSONB
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -47,6 +47,7 @@ from ...models import (
     Allocation,
     ClassicalAssignment,
     Classification,
+    DBSession,
     DefaultFollowupRequest,
     FollowupRequest,
     FollowupRequestUser,
@@ -59,7 +60,6 @@ from ...models import (
     Spectrum,
     User,
     cosmo,
-    DBSession,
 )
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 from ...utils.offset import get_formatted_standards_list
@@ -135,6 +135,7 @@ class AssignmentHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get an assignment
           description: Retrieve an observing run assignment
           tags:
             - assignments
@@ -154,6 +155,7 @@ class AssignmentHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve multiple assignments
           description: Retrieve all observing run assignments
           tags:
             - assignments
@@ -211,6 +213,7 @@ class AssignmentHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Post a new assignment
         description: Post new target assignment to observing run
         tags:
           - assignments
@@ -255,6 +258,7 @@ class AssignmentHandler(BaseHandler):
     def put(self, assignment_id):
         """
         ---
+        summary: Update an assignment
         description: Update an assignment
         tags:
           - assignments
@@ -328,6 +332,7 @@ class AssignmentHandler(BaseHandler):
     def delete(self, assignment_id):
         """
         ---
+        summary: Delete an assignment
         description: Delete assignment.
         tags:
           - assignments
@@ -410,9 +415,20 @@ def post_followup_request(
         if constraints.get('not_if_duplicates', False):
             # verify that there is no follow-up requests with the same allocation and within the radius
             # that are in the "submitted" or "completed" state
+            # apply the same logic to a list of allocations if provided, not just the one for the new request
+            try:
+                ignore_allocation_ids = constraints.get('ignore_allocation_ids', [])
+                ignore_allocation_ids = [int(i) for i in ignore_allocation_ids]
+            except ValueError:
+                raise ValueError(
+                    'ignore_allocation_ids must be a valid list of integers.'
+                )
+
             existing_requests = session.scalars(
                 FollowupRequest.select(session.user_or_token).where(
-                    FollowupRequest.allocation_id == data['allocation_id'],
+                    FollowupRequest.allocation_id.in_(
+                        list(set([data['allocation_id']] + ignore_allocation_ids))
+                    ),
                     sa.or_(
                         func.lower(FollowupRequest.status)
                         .contains("submitted")
@@ -429,9 +445,14 @@ def post_followup_request(
                 )
             ).first()
             if existing_requests is not None:
-                raise ValueError(
-                    'There is already a follow-up request for this source and allocation, not submitting request.'
-                )
+                if existing_requests.allocation_id == data['allocation_id']:
+                    raise ValueError(
+                        'There is already a follow-up request for this source and allocation, not submitting request.'
+                    )
+                else:
+                    raise ValueError(
+                        'There is already a follow-up request for this source and one of the ignore_allocation_ids, not submitting request.'
+                    )
 
         if len(constraints.get('ignore_source_group_ids', [])) > 0:
             # verify that there is NO source saved to any of the group IDs (within the radius)
@@ -493,8 +514,61 @@ def post_followup_request(
             ).first()
             if existing_tns_classifications is not None:
                 raise ValueError(
-                    'Source within 0.5 arcsec has already been classified in TNS, not submitting request (as per constraint).'
+                    f'Source within {radius} arcsec has already been classified in TNS, not submitting request (as per constraint).'
                 )
+        if isinstance(constraints.get("not_if_tns_reported", None), (int, float)):
+            # don't trigger if there is any source reported to TNS within the radius
+            # and the "tns_time" is older than the constraint's allowed age
+            # where the tns_time is the time of latest photometry point or the discovery date (first point)
+            # if we cannot parse the photometry
+            # Basically, discoverydate < max([p.jd for p in photometry]) < reported_at
+            # but we do not have the reported_at, the last photometry point is a good approximation
+            # which might actually be even better, since we are then not affected by the delay
+            # between the last photometry point and the report to TNS
+            existing_tns_sources = session.scalars(
+                Obj.select(session.user_or_token).where(
+                    Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius),
+                    Obj.tns_name.isnot(None),
+                    Obj.tns_name != '',
+                    Obj.tns_info.isnot(None),
+                    Obj.tns_info != '',
+                )
+            ).all()
+            for existing_tns_source in existing_tns_sources:
+                try:
+                    tns_info = existing_tns_source.tns_info
+                    if tns_info is None:
+                        raise ValueError('TNS info missing')
+                    if isinstance(tns_info, str):
+                        tns_info = json.loads(tns_info)
+
+                    tns_time = None
+                    tns_photometry = tns_info.get('photometry', [])
+                    if len(tns_photometry) > 0 and all(
+                        [
+                            isinstance(p, dict)
+                            and isinstance(p.get("jd"), (int, float, str))
+                            for p in tns_photometry
+                        ]
+                    ):
+                        # jd to datetime
+                        tns_time = max(float(p['jd']) for p in tns_photometry)
+                        tns_time = Time(tns_time, format='jd').datetime
+                    else:
+                        # string to datetime
+                        tns_time = tns_info.get('discoverydate', None)
+                        tns_time = arrow.get(tns_time).datetime
+                except Exception as e:
+                    log(
+                        f'Error parsing TNS info for source {existing_tns_source.id}: {e}, skipping.'
+                    )
+                    continue
+                if tns_time is not None:
+                    delta_hours = (datetime.utcnow() - tns_time).total_seconds() / 3600
+                    if delta_hours > float(constraints['not_if_tns_reported']):
+                        raise ValueError(
+                            f'A Source within {radius} arcsec ({existing_tns_source.id}) has already been reported to TNS {delta_hours} hours ago, not submitting request (as per constraint).'
+                        )
 
     stmt = Allocation.select(session.user_or_token).where(
         Allocation.id == data['allocation_id'],
@@ -601,14 +675,16 @@ def post_followup_request(
             refresh_source=refresh_source,
             refresh_requests=refresh_requests,
         )
-    except Exception:
-        followup_request.status = 'failed to submit'
+    except Exception as e:
+        log(f'Failed to submit follow-up request: {e}, traceback:')
+        log(traceback.format_exc())
+        followup_request.status = f'failed to submit: {e}'
         raise
     finally:
         session.commit()
         if (
             refresh_source or refresh_requests
-        ) and followup_request.status == 'failed to submit':
+        ) and 'failed to submit' in followup_request.status:
             flow = Flow()
             if refresh_source:
                 flow.push(
@@ -622,7 +698,7 @@ def post_followup_request(
                     "skyportal/REFRESH_FOLLOWUP_REQUESTS",
                     payload={"request_id": followup_request.id},
                 )
-    return followup_request.id
+    return followup_request.id, followup_request.status
 
 
 def post_default_followup_requests(obj_id, default_followup_requests, user_id):
@@ -693,9 +769,10 @@ class FollowupRequestHandler(BaseHandler):
         f"""
         ---
         single:
+          summary: Get a followup request
           description: Retrieve a followup request
           tags:
-            - followup_requests
+            - followup requests
           parameters:
             - in: path
               name: followup_request_id
@@ -712,9 +789,10 @@ class FollowupRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve multiple followup requests
           description: Retrieve all followup requests
           tags:
-            - followup_requests
+            - followup requests
           parameters:
           - in: query
             name: sourceID
@@ -1057,9 +1135,10 @@ class FollowupRequestHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Post new followup request
         description: Submit follow-up request.
         tags:
-          - followup_requests
+          - followup requests
         requestBody:
           content:
             application/json:
@@ -1109,6 +1188,8 @@ class FollowupRequestHandler(BaseHandler):
             constraints['not_if_spectra_exist'] = data.pop('not_if_spectra_exist')
         if 'not_if_tns_classified' in data:
             constraints['not_if_tns_classified'] = data.pop('not_if_tns_classified')
+        if 'ignore_allocation_ids' in data:
+            constraints['ignore_allocation_ids'] = data.pop('ignore_allocation_ids')
         if len(list(constraints.keys())) == 0:
             constraints = None
         if constraints is not None:
@@ -1123,7 +1204,7 @@ class FollowupRequestHandler(BaseHandler):
                 data["last_modified_by_id"] = self.associated_user_object.id
                 data['allocation_id'] = int(data['allocation_id'])
 
-                followup_request_id = post_followup_request(
+                followup_request_id, followup_request_status = post_followup_request(
                     data,
                     constraints,
                     session,
@@ -1131,12 +1212,20 @@ class FollowupRequestHandler(BaseHandler):
                     refresh_requests=refresh_requests,
                 )
 
-                return self.success(data={"id": followup_request_id})
+                return self.success(
+                    data={
+                        "id": followup_request_id,
+                        "request_status": followup_request_status,
+                    }
+                )
             except Exception as e:
                 if (
                     'not submitting request' in str(e)
                     and len(list(constraints.keys())) > 0
                 ):
+                    log(
+                        f'Not submitting request with allocation_id {data["allocation_id"]}: {e}'
+                    )
                     return self.success(
                         data={"id": None, "ignored": True, "message": str(e)}
                     )
@@ -1148,9 +1237,10 @@ class FollowupRequestHandler(BaseHandler):
     def put(self, request_id):
         """
         ---
+        summary: Update a follow-up request
         description: Update a follow-up request
         tags:
-          - followup_requests
+          - followup requests
         parameters:
           - in: path
             name: request_id
@@ -1214,12 +1304,13 @@ class FollowupRequestHandler(BaseHandler):
                 data["last_modified_by_id"] = self.associated_user_object.id
 
                 api = followup_request.instrument.api_class
-                existing_status = followup_request.status
+                existing_status = str(followup_request.status).lower()
 
-                if existing_status == 'failed to submit':
+                if any(
+                    [x in existing_status for x in ['failed to submit', 'rejected']]
+                ):
                     if not api.implements()['submit']:
                         return self.error('Cannot submit requests on this instrument.')
-
                 else:
                     if not api.implements()['update']:
                         return self.error('Cannot update requests on this instrument.')
@@ -1253,7 +1344,9 @@ class FollowupRequestHandler(BaseHandler):
                 for k in data:
                     setattr(followup_request, k, data[k])
 
-                if existing_status == 'failed to submit':
+                if any(
+                    [x in existing_status for x in ['failed to submit', 'rejected']]
+                ):
                     try:
                         followup_request.instrument.api_class.submit(
                             followup_request,
@@ -1264,7 +1357,7 @@ class FollowupRequestHandler(BaseHandler):
                         session.commit()
                     except Exception as e:
                         return self.error(f'Failed to submit follow-up request: {e}')
-                else:
+                elif followup_request.instrument.api_class.implements()['update']:
                     try:
                         followup_request.instrument.api_class.update(
                             followup_request,
@@ -1275,6 +1368,10 @@ class FollowupRequestHandler(BaseHandler):
                         session.commit()
                     except Exception as e:
                         return self.error(f'Failed to update follow-up request: {e}')
+                else:
+                    return self.error(
+                        'Could not update existing request, not implemented for this instrument.'
+                    )
 
             return self.success()
 
@@ -1282,9 +1379,10 @@ class FollowupRequestHandler(BaseHandler):
     def delete(self, request_id):
         """
         ---
+        summary: Delete a follow-up request
         description: Delete follow-up request.
         tags:
-          - followup_requests
+          - followup requests
         parameters:
           - in: path
             name: request_id
@@ -1333,6 +1431,7 @@ class FollowupRequestHandler(BaseHandler):
                 )
                 session.commit()
             except Exception as e:
+                traceback.print_exc()
                 return self.error(f'Failed to delete follow-up request: {e}')
             return self.success()
 
@@ -1342,9 +1441,10 @@ class FollowupRequestCommentHandler(BaseHandler):
     def put(self, followup_request_id):
         """
         ---
+        summary: Update a follow-up request comment
         description: Update a follow-up request comment
         tags:
-          - followup_requests
+          - followup requests
         parameters:
           - in: path
             name: followup_request_id
@@ -1555,12 +1655,12 @@ def observation_schedule(
         requester = followup_request.requester
 
         if "start_date" in payload:
-            start_date = Time(payload["start_date"], format='isot')
+            start_date = Time(payload["start_date"])
             if start_date > observation_end:
                 continue
 
         if "end_date" in payload:
-            end_date = Time(payload["end_date"], format='isot')
+            end_date = Time(payload["end_date"])
             if end_date < observation_start:
                 continue
 
@@ -1811,9 +1911,10 @@ class FollowupRequestSchedulerHandler(BaseHandler):
     async def get(self, instrument_id):
         """
         ---
+        summary: Retrieve followup requests schedule
         description: Retrieve followup requests schedule
         tags:
-            - followup_requests
+            - followup requests
         parameters:
         - in: query
           name: sourceID
@@ -2076,11 +2177,12 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
     async def put(self):
         """
         ---
+        summary: Reprioritize followup requests
         description: |
           Reprioritize followup requests schedule automatically based on
           either magnitude or location within skymap.
         tags:
-            - followup_requests
+            - followup requests
         parameters:
         - in: body
           name: requestIds
@@ -2285,9 +2387,10 @@ class DefaultFollowupRequestHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create default follow-up request
         description: Create default follow-up request.
         tags:
-          - default_followup_request
+          - default followup requests
         requestBody:
           content:
             application/json:
@@ -2388,9 +2491,10 @@ class DefaultFollowupRequestHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a default follow-up request
           description: Retrieve a single default follow-up request
           tags:
-            - default_followup_requests
+            - default followup requests
           parameters:
             - in: path
               name: default_followup_request_id
@@ -2407,6 +2511,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all default follow-up requests
           description: Retrieve all default follow-up requests
           tags:
             - filters
@@ -2463,6 +2568,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
     def delete(self, default_followup_request_id):
         """
         ---
+        summary: Delete a default follow-up request
         description: Delete a default follow-up request
         tags:
           - filters
@@ -2501,9 +2607,10 @@ class FollowupRequestWatcherHandler(BaseHandler):
     def post(self, followup_request_id):
         """
         ---
+        summary: Add follow-up request to watch list
         description: Add follow-up request to watch list
         tags:
-            - followup_requests
+            - followup requests
         parameters:
             - in: path
               name: followup_request_id
@@ -2577,9 +2684,10 @@ class FollowupRequestWatcherHandler(BaseHandler):
     def delete(self, followup_request_id):
         """
         ---
+        summary: Delete follow-up request from watch list
         description: Delete follow-up request from watch list
         tags:
-            - followup_requests
+            - followup requests
         parameters:
             - in: path
               name: followup_request_id

@@ -81,7 +81,7 @@ SurveyLink.defaultProps = {
 SurveyLinkForm.propTypes = {
   name: PropTypes.string.isRequired,
   url: PropTypes.string.isRequired,
-  formData: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types
+  formData: PropTypes.objectOf(PropTypes.any).isRequired,
   urlEncoded: PropTypes.bool,
 };
 
@@ -228,7 +228,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       />
       <SurveyLink
         name="SDSS"
-        url={`http://skyserver.sdss.org/dr16/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.25`}
+        url={`https://skyserver.sdss.org/dr18/VisualTools/navi?opt=G&ra=${ra}&dec=${dec}&scale=0.1`}
       />
       <SurveyLink
         name="SIMBAD"

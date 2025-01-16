@@ -28,6 +28,7 @@ class InvitationHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Invite a new user
         description: Invite a new user
         tags:
           - invitations
@@ -225,6 +226,7 @@ class InvitationHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Retrieve invitations
         description: Retrieve invitations
         tags:
           - invitations
@@ -350,6 +352,7 @@ class InvitationHandler(BaseHandler):
     def patch(self, invitation_id):
         """
         ---
+        summary: Update a pending invitation
         description: Update a pending invitation
         tags:
           - invitations
@@ -483,6 +486,7 @@ class InvitationHandler(BaseHandler):
     def delete(self, invitation_id):
         """
         ---
+        summary: Delete an invitation
         description: Delete an invitation
         tags:
           - invitations

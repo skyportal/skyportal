@@ -1,26 +1,27 @@
-import astropy
-from astropy.io import ascii
+import functools
 import json
+import urllib
+from datetime import datetime, timedelta
+
+import astropy
+import numpy as np
+import pandas as pd
 import requests
+import sqlalchemy as sa
+from astropy.io import ascii
+from astropy.time import Time
+from marshmallow.exceptions import ValidationError
 from requests import Request, Session
 from requests.auth import HTTPBasicAuth
-from datetime import datetime, timedelta
-from astropy.time import Time
-import functools
-from marshmallow.exceptions import ValidationError
-import numpy as np
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
-import pandas as pd
-import sqlalchemy as sa
-import urllib
 
-from . import FollowUpAPI, MMAAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import MMAAPI, FollowUpAPI
 
 env, cfg = load_env()
 
@@ -133,7 +134,7 @@ class ZTFRequest:
         error : str
             error message if the request is invalid.
         """
-        from ..models import Instrument, Photometry, DBSession
+        from ..models import DBSession, Instrument, Photometry
 
         error = None
 
@@ -329,11 +330,7 @@ def commit_photometry(
         SQLAlchemy session object. If None, a new session is created.
     """
 
-    from ..models import (
-        DBSession,
-        FollowupRequest,
-        Instrument,
-    )
+    from ..models import DBSession, FollowupRequest, Instrument
 
     if parent_session is None:
         Session = scoped_session(sessionmaker())
@@ -485,9 +482,9 @@ class ZTFAPI(FollowUpAPI):
         """
 
         from ..models import (
-            FollowupRequest,
             FacilityTransaction,
             FacilityTransactionRequest,
+            FollowupRequest,
         )
 
         last_modified_by_id = request.last_modified_by_id
@@ -864,7 +861,7 @@ class ZTFMMAAPI(MMAAPI):
             The request to delete from the queue and the SkyPortal database.
         """
 
-        from ..models import DBSession, ObservationPlanRequest, FacilityTransaction
+        from ..models import DBSession, FacilityTransaction, ObservationPlanRequest
 
         req = (
             DBSession()
@@ -1245,6 +1242,12 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                 for col in obstable.columns:
                     if obstable[col].dtype == 'object':
                         obstable[col] = obstable[col].str.strip()
+
+                if obstable.empty:
+                    log(
+                        f'No observations for instrument ID {instrument_id} for JD: {jd}'
+                    )
+                    continue
 
                 # remove the columns we do not need:
                 obstable = obstable[

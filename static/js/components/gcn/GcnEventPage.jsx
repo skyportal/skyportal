@@ -162,24 +162,23 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const DownloadXMLButton = ({ gcn_notice }) => {
-  const blob = new Blob([gcn_notice.content], { type: "text/plain" });
-
+const DownloadNoticeButton = ({ gcn_notice }) => {
   return (
     <IconButton
-      href={URL.createObjectURL(blob)}
-      download={gcn_notice.ivorn}
+      href={`/api/gcn_event/${gcn_notice.dateobs}/notice/${gcn_notice.id}/download`}
+      download
       size="large"
+      target="_blank"
     >
       <GetAppIcon />
     </IconButton>
   );
 };
 
-DownloadXMLButton.propTypes = {
+DownloadNoticeButton.propTypes = {
   gcn_notice: PropTypes.shape({
-    content: PropTypes.string,
-    ivorn: PropTypes.string,
+    dateobs: PropTypes.string,
+    id: PropTypes.number,
   }).isRequired,
 };
 
@@ -590,7 +589,7 @@ const GcnEventPage = ({ route }) => {
                               key={gcn_notice.ivorn}
                               className={styles.noticeListElementIVORN}
                             />
-                            <DownloadXMLButton gcn_notice={gcn_notice} />
+                            <DownloadNoticeButton gcn_notice={gcn_notice} />
                           </div>
                           {gcn_notice?.has_localization &&
                             gcn_notice?.localization_ingested === false && (

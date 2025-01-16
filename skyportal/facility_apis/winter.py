@@ -1,16 +1,18 @@
 import json
-import requests
+import traceback
 import urllib
-from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
-from astropy.time import Time
 
-from . import FollowUpAPI
+import requests
+from astropy.time import Time
+from requests.auth import HTTPBasicAuth
+
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
@@ -116,7 +118,27 @@ class WINTERAPI(FollowUpAPI):
     """An interface to WINTER operations."""
 
     @staticmethod
-    def prepare_payload(payload):
+    def prepare_payload(payload, existing_payload=None):
+        """Prepare a payload for submission to WINTER.
+
+        Parameters
+        ----------
+        payload : dict
+            The payload to prepare for submission to WINTER.
+        existing_payload : dict, optional
+            The existing payload, if any, to update with the new payload.
+
+        Returns
+        -------
+        dict
+            The prepared payload.
+        """
+        # we know that WINTER does not implement updating requests
+        # so, if this method is called with an existing_payload, we just return it
+        # since it has already been prepared
+        if existing_payload is not None:
+            return existing_payload
+
         filter = payload['filter']
         if filter is None:
             raise ValueError("Filter not set in payload.")
@@ -154,7 +176,7 @@ class WINTERAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FollowupRequest, FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
@@ -213,7 +235,6 @@ class WINTERAPI(FollowUpAPI):
                 'skyportal/REFRESH_FOLLOWUP_REQUESTS',
             )
 
-    # subclasses *must* implement the method below
     @staticmethod
     def submit(request, session, **kwargs):
         """Submit a follow-up request to WINTER.
@@ -256,10 +277,26 @@ class WINTERAPI(FollowUpAPI):
             auth=HTTPBasicAuth(altdata['username'], altdata['password']),
         )
 
-        r.raise_for_status()
-
         if r.status_code == 200:
             request.status = 'submitted'
+        else:
+            request.status = f'rejected: {r.content}'
+            log(
+                f'Failed to submit WINTER request for {request.id} (obj {request.obj.id}): {r.content}'
+            )
+            try:
+                flow = Flow()
+                flow.push(
+                    request.last_modified_by_id,
+                    'baselayer/SHOW_NOTIFICATION',
+                    payload={
+                        'note': f'Failed to submit WINTER request: {r.content}',
+                        'type': 'error',
+                    },
+                )
+            except Exception as e:
+                log(f'Failed to send notification for failed WINTER request: {e}')
+                pass
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -283,6 +320,30 @@ class WINTERAPI(FollowUpAPI):
                 request.last_modified_by_id,
                 'skyportal/REFRESH_FOLLOWUP_REQUESTS',
             )
+
+        try:
+            notification_type = request.allocation.altdata.get(
+                'notification_type', 'none'
+            )
+            if notification_type == 'slack':
+                from ..utils.notifications import request_notify_by_slack
+
+                request_notify_by_slack(
+                    request,
+                    session,
+                    is_update=False,
+                )
+            elif notification_type == 'email':
+                from ..utils.notifications import request_notify_by_email
+
+                request_notify_by_email(
+                    request,
+                    session,
+                    is_update=False,
+                )
+        except Exception as e:
+            traceback.print_exc()
+            log(f"Error sending notification: {e}")
 
     form_json_schema = {
         "type": "object",
@@ -451,6 +512,66 @@ class WINTERAPI(FollowUpAPI):
             "password": {
                 "type": "string",
                 "title": "Password",
+            },
+            "notification_type": {
+                "type": "string",
+                "title": "Notification Type",
+                "enum": ["none", "slack", "email"],
+            },
+        },
+        "dependencies": {
+            "notification_type": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["none"]},
+                        },
+                    },
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["slack"]},
+                            "slack_workspace": {
+                                "type": "string",
+                                "title": "Slack Workspace",
+                            },
+                            "slack_channel": {
+                                "type": "string",
+                                "title": "Slack Channel",
+                            },
+                            "slack_token": {
+                                "type": "string",
+                                "title": "Slack Token",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
+                            },
+                        },
+                        "required": [
+                            "slack_workspace",
+                            "slack_channel",
+                            "slack_token",
+                        ],
+                    },
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["email"]},
+                            "email": {
+                                "type": "string",
+                                "title": "Email",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
+                            },
+                        },
+                        "required": [
+                            "email",
+                        ],
+                    },
+                ]
             },
         },
     }

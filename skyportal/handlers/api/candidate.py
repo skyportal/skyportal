@@ -99,8 +99,9 @@ def update_redshift_history_if_relevant(request_data, obj, user):
             "uncertainty": request_data.get("redshift_error", None),
         }
 
-        if "redshift_origin" in request_data:
-            history_params["origin"] = request_data["redshift_origin"]
+        origin = request_data.get("redshift_origin", None)
+        if isinstance(origin, str) and len(origin.strip()) > 0:
+            history_params["origin"] = origin
 
         redshift_history.append(history_params)
         obj.redshift_history = redshift_history
@@ -159,6 +160,7 @@ class CandidateHandler(BaseHandler):
         """
         ---
         single:
+          summary: Check if a Candidate exists
           description: Check if a Candidate exists
           tags:
             - candidates
@@ -206,6 +208,7 @@ class CandidateHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a candidate
           description: Retrieve a candidate
           tags:
             - candidates
@@ -239,9 +242,10 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve multiple candidates
+          description: Retrieve all candidates
           tags:
             - candidates
-          description: Retrieve all candidates
           parameters:
           - in: query
             name: numPerPage
@@ -1574,6 +1578,7 @@ class CandidateHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Create new candidate(s)
         description: Create new candidate(s) (one per filter).
         tags:
           - candidates
@@ -1696,6 +1701,7 @@ class CandidateHandler(BaseHandler):
     def delete(self, obj_id, filter_id):
         """
         ---
+        summary: Delete candidate(s)
         description: Delete candidate(s)
         tags:
           - candidates

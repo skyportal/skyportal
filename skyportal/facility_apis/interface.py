@@ -157,6 +157,11 @@ class FollowUpAPI(_Base):
         """Retrieve the latest status of an instrument."""
         raise NotImplementedError
 
+    @staticmethod
+    def validate_altdata():
+        """Validate the altdata for the allocation information."""
+        raise NotImplementedError
+
     # jsonschema outlining the schema of the frontend form. See
     # https://github.com/rjsf-team/react-jsonschema-form
     # for examples.

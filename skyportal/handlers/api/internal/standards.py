@@ -22,7 +22,7 @@ class StandardsHandler(BaseHandler):
           required: false
           schema:
             type: string
-            enum: [Keck, Shane, P200]
+            enum: [Keck, Shane, P200, P200-NGPS]
           description: Which facility to generate the starlist for
         - in: query
           name: standard_type
@@ -96,9 +96,9 @@ class StandardsHandler(BaseHandler):
                 f'Invalid `standard_type`. Should be in {list(cfg["standard_stars"].keys())}'
             )
 
-        if starlist_type not in ["Keck", "Shane", "P200"]:
+        if starlist_type not in ["Keck", "Shane", "P200", "P200-NGPS"]:
             return self.error(
-                'Invalid `starlist_type`. Should be in [Keck, Shane, P200]'
+                'Invalid `starlist_type`. Should be in [Keck, Shane, P200, P200-NGPS]'
             )
 
         dec_filter_range = ast.literal_eval(dec_filter_range_str)

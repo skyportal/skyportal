@@ -1,7 +1,7 @@
 import { PropTypes } from "prop-types";
 import React, { Suspense, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-// eslint-disable-next-line import/no-unresolved
+
 import useMediaQuery from "@mui/material/useMediaQuery";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
@@ -499,6 +499,9 @@ const GcnSelectionForm = ({ dateobs }) => {
 
   const [hasFetchedObservations, setHasFetchedObservations] = useState(false);
 
+  const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
+  const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
+
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
   };
@@ -621,6 +624,64 @@ const GcnSelectionForm = ({ dateobs }) => {
     setIsSubmittingTreasureMap(null);
   };
 
+  const handleExecutedDownload = async () => {
+    const observationsAll = [];
+    if (gcnEventObservations.totalMatches === 0) {
+      dispatch(showNotification("No observations to download", "warning"));
+    } else {
+      setDownloadProgressTotal(gcnEventObservations.totalMatches);
+      for (
+        let i = 1;
+        i <= Math.ceil(gcnEventObservations.totalMatches / 100);
+        i += 1
+      ) {
+        const result = await dispatch(
+          observationsActions.fetchGcnEventObservations(gcnEvent?.dateobs, {
+            ...formDataState,
+            instrumentName: instLookUp[selectedInstrumentId]?.name,
+            telescopeName:
+              telLookUp[instLookUp[selectedInstrumentId]?.telescope_id]?.name,
+            numberObservations: formDataState?.numberDetections || 1,
+            numPerPage: 100,
+            pageNumber: i,
+            includeGeoJSON: true,
+          }),
+        );
+        if (result && result.data && result?.status === "success") {
+          observationsAll.push(...result.data.observations);
+          setDownloadProgressCurrent(observationsAll.length);
+          setDownloadProgressTotal(gcnEventObservations.totalMatches);
+        } else if (result && result?.status !== "success") {
+          // break the loop and set progress to 0 and show error message
+          setDownloadProgressCurrent(0);
+          setDownloadProgressTotal(0);
+          if (gcnEventObservations.observations?.length === 0) {
+            dispatch(
+              showNotification(
+                "Failed to fetch some observations. Download cancelled.",
+                "error",
+              ),
+            );
+          } else {
+            dispatch(
+              showNotification(
+                "Failed to fetch some observations, please try again. Observations fetched so far will be downloaded.",
+                "error",
+              ),
+            );
+          }
+          break;
+        }
+      }
+    }
+    setDownloadProgressCurrent(0);
+    setDownloadProgressTotal(0);
+    if (observationsAll?.length === gcnEventObservations.totalMatches?.length) {
+      dispatch(showNotification("Observations downloaded successfully"));
+    }
+    return observationsAll;
+  };
+
   if (!sortedInstrumentList) {
     displayOptionsAvailable.instruments = false;
   }
@@ -647,13 +708,13 @@ const GcnSelectionForm = ({ dateobs }) => {
   });
 
   const telLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
 
   const locLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
+
   gcnEvent?.localizations?.forEach((loc) => {
     locLookUp[loc.id] = loc;
   });
@@ -1168,7 +1229,6 @@ const GcnSelectionForm = ({ dateobs }) => {
                   templates={{ ObjectFieldTemplate: MyObjectFieldTemplate }}
                   validator={validator}
                   onSubmit={handleSubmit}
-                  // eslint-disable-next-line react/jsx-no-bind
                   customValidate={validate}
                   disabled={isSubmitting}
                   liveValidate
@@ -1273,8 +1333,48 @@ const GcnSelectionForm = ({ dateobs }) => {
                       <ExecutedObservationsTable
                         observations={gcnEventObservations.observations}
                         totalMatches={gcnEventObservations.totalMatches}
+                        numPerPage={
+                          formDataState.numPerPage ||
+                          gcnEventObservations.numPerPage ||
+                          100
+                        }
+                        downloadCallback={handleExecutedDownload}
                         serverSide={false}
                       />
+                      <Dialog
+                        open={downloadProgressTotal > 0}
+                        style={{ position: "fixed" }}
+                        maxWidth="md"
+                      >
+                        <DialogContent
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Typography variant="h6" display="inline">
+                            Downloading {downloadProgressTotal} observations
+                          </Typography>
+                          <div
+                            style={{
+                              height: "5rem",
+                              width: "5rem",
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <ProgressIndicator
+                              current={downloadProgressCurrent}
+                              total={downloadProgressTotal}
+                              percentage={false}
+                            />
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   )}
                 </div>

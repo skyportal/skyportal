@@ -6,7 +6,7 @@ from sqlalchemy import func
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
-from ..base import BaseHandler
+
 from ...models import (
     Annotation,
     Classification,
@@ -14,11 +14,12 @@ from ...models import (
     Obj,
     PhotometricSeries,
     Photometry,
-    Spectrum,
     SourcesConfirmedInGCN,
+    Spectrum,
 )
-from ...utils.offset import _calculate_best_position_for_offset_stars
 from ...utils.calculations import great_circle_distance
+from ...utils.offset import _calculate_best_position_for_offset_stars
+from ..base import BaseHandler
 
 _, cfg = load_env()
 
@@ -28,6 +29,7 @@ class ObjHandler(BaseHandler):
     def delete(self, obj_id):
         """
         ---
+        summary: Delete an Obj
         description: Delete an Obj
         tags:
           - objs
@@ -175,6 +177,7 @@ class ObjPositionHandler(BaseHandler):
     def get(self, obj_id):
         """
         ---
+        summary: Retrieve photometry-based position of an Obj
         description: Calculate the position of an Obj using its photometry
         tags:
           - objs
@@ -302,6 +305,8 @@ class ObjPositionHandler(BaseHandler):
                         "separation": float(
                             great_circle_distance(ra, dec, obj.ra, obj.dec) * 3600
                         ),
+                        "discovery_ra": obj.ra,
+                        "discovery_dec": obj.dec,
                     }
                 )
             except Exception as e:

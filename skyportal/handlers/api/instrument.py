@@ -237,6 +237,7 @@ class InstrumentHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get an instrument
           description: Retrieve an instrument
           tags:
             - instruments
@@ -308,6 +309,7 @@ class InstrumentHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all instruments
           description: Retrieve all instruments
           tags:
             - instruments
@@ -613,7 +615,8 @@ class InstrumentHandler(BaseHandler):
                     observer = instrument.telescope.observer
                     if observer is None:
                         airmass_bulk = (
-                            np.ones((len(fields), len(airmass_time))) * np.inf
+                            np.ones((len(fields), len(np.array([airmass_time]))))
+                            * np.inf
                         )
                     else:
                         airmass_bulk = get_airmass(
@@ -661,6 +664,7 @@ class InstrumentHandler(BaseHandler):
     def put(self, instrument_id):
         """
         ---
+        summary: Update an instrument
         description: Update instrument
         tags:
           - instruments
@@ -896,6 +900,7 @@ class InstrumentHandler(BaseHandler):
     def delete(self, instrument_id):
         """
         ---
+        summary: Delete an instrument
         description: Delete an instrument
         tags:
           - instruments
@@ -941,6 +946,7 @@ class InstrumentHandler(BaseHandler):
 
 InstrumentHandler.post.__doc__ = f"""
         ---
+        summary: Add an instrument
         description: Add a new instrument
         tags:
           - instruments
@@ -1385,6 +1391,7 @@ class InstrumentFieldHandler(BaseHandler):
     def delete(self, instrument_id):
         """
         ---
+        summary: Delete an instrument's fields
         description: Delete fields associated with an instrument
         tags:
           - instruments

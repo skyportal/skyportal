@@ -1,18 +1,19 @@
-from datetime import datetime, timedelta
 import time
+from copy import deepcopy
+from datetime import datetime, timedelta
 
+import arrow
+from astropy import units as u
+from astropy.coordinates import SkyCoord
 from lxml import etree
 from suds import Client
 
-from astropy.coordinates import SkyCoord
-from astropy import units as u
-
-from . import FollowUpAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import FollowUpAPI
 
 env, cfg = load_env()
 
@@ -119,10 +120,23 @@ class LTRequest:
             etree.SubElement(photom_const, 'Clouds').text = 'light'
 
         date_const = etree.Element('DateTimeConstraint', type='include')
-        start = request.payload["start_date"] + 'T00:00:00+00:00'
-        end = request.payload["end_date"] + 'T00:00:00+00:00'
-        etree.SubElement(date_const, 'DateTimeStart', system='UT', value=start)
-        etree.SubElement(date_const, 'DateTimeEnd', system='UT', value=end)
+
+        try:
+            start_date = deepcopy(request.payload["start_date"])
+            end_date = deepcopy(request.payload["end_date"])
+
+            start_date = arrow.get(start_date).format('YYYY-MM-DDTHH:mm:ss')
+            end_date = arrow.get(end_date).format('YYYY-MM-DDTHH:mm:ss')
+
+            start = start_date + "+00:00"
+            end = end_date + "+00:00"
+            etree.SubElement(date_const, 'DateTimeStart', system='UT', value=start)
+            etree.SubElement(date_const, 'DateTimeEnd', system='UT', value=end)
+        except Exception as e:
+            log(f"Error parsing dates for LT request: {e}")
+            raise ValueError(
+                'Error parsing dates for LT request, should be in ISO format'
+            )
 
         return [airmass_const, sky_const, seeing_const, photom_const, date_const]
 
@@ -494,6 +508,22 @@ class IOOAPI(LTAPI):
         else:
             error = list(response_rtml.iter('{http://www.rtml.org/v3.1a}Error'))[0].text
             request.status = f'rejected: {error}'
+            log(
+                f'Failed to submit IOO request: {str(error)}. Full payload: {str(full_payload)}'
+            )
+            try:
+                flow = Flow()
+                flow.push(
+                    request.last_modified_by_id,
+                    'baselayer/SHOW_NOTIFICATION',
+                    payload={
+                        'note': f'Failed to submit IOO request: {error}',
+                        'type': 'error',
+                    },
+                )
+            except Exception as e:
+                log(f'Failed to send notification: {e}')
+                pass
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request_xml(full_payload),
@@ -540,15 +570,13 @@ class IOOAPI(LTAPI):
             },
             "start_date": {
                 "type": "string",
-                "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": datetime.utcnow().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
-                "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -635,6 +663,22 @@ class IOIAPI(LTAPI):
         else:
             error = list(response_rtml.iter('{http://www.rtml.org/v3.1a}Error'))[0].text
             request.status = f'rejected: {error}'
+            log(
+                f'Failed to submit IOI request: {str(error)}. Full payload: {str(full_payload)}'
+            )
+            try:
+                flow = Flow()
+                flow.push(
+                    request.last_modified_by_id,
+                    'baselayer/SHOW_NOTIFICATION',
+                    payload={
+                        'note': f'Failed to submit IOI request: {error}',
+                        'type': 'error',
+                    },
+                )
+            except Exception as e:
+                log(f'Failed to send notification: {e}')
+                pass
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request_xml(full_payload),
@@ -681,15 +725,13 @@ class IOIAPI(LTAPI):
             },
             "start_date": {
                 "type": "string",
-                "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": datetime.utcnow().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
-                "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -777,6 +819,22 @@ class SPRATAPI(LTAPI):
         else:
             error = list(response_rtml.iter('{http://www.rtml.org/v3.1a}Error'))[0].text
             request.status = f'rejected: {error}'
+            log(
+                f'Failed to submit SPRAT request: {str(error)}. Full payload: {str(full_payload)}'
+            )
+            try:
+                flow = Flow()
+                flow.push(
+                    request.last_modified_by_id,
+                    'baselayer/SHOW_NOTIFICATION',
+                    payload={
+                        'note': f'Failed to submit SPRAT request: {error}',
+                        'type': 'error',
+                    },
+                )
+            except Exception as e:
+                log(f'Failed to send notification: {e}')
+                pass
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request_xml(full_payload),
@@ -821,15 +879,13 @@ class SPRATAPI(LTAPI):
             },
             "start_date": {
                 "type": "string",
-                "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": datetime.utcnow().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
-                "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",

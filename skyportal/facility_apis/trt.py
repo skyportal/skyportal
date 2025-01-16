@@ -1,18 +1,15 @@
 import base64
-import functools
 import json
 import os
-from datetime import datetime, timedelta
-import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
-from tornado.ioloop import IOLoop
-
-import requests
-from astropy.time import Time, TimeDelta
-from astropy.coordinates import SkyCoord
-import astropy.units as u
 import urllib
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
+
+import astropy.units as u
+import requests
+import sqlalchemy as sa
+from astropy.coordinates import SkyCoord
+from astropy.time import Time, TimeDelta
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -109,51 +106,50 @@ def download_observations(request_id, urls):
         List of image URLs from TRT archive
     """
 
-    from ..models import (
-        Comment,
-        DBSession,
-        FollowupRequest,
-        Group,
-    )
+    from ..models import Comment, DBSession, FollowupRequest, Group
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
-
-    try:
-        req = session.scalars(
-            sa.select(FollowupRequest).where(FollowupRequest.id == request_id)
-        ).first()
-
-        group_ids = [g.id for g in req.requester.accessible_groups]
-        groups = session.scalars(
-            Group.select(req.requester).where(Group.id.in_(group_ids))
-        ).all()
-        for url in urls:
-            url_parse = urlparse(url)
-            attachment_name = os.path.basename(url_parse.path)
-            with urllib.request.urlopen(url) as f:
-                attachment_bytes = base64.b64encode(f.read())
-            comment = Comment(
-                text=f'TRT: {attachment_name}',
-                obj_id=req.obj.id,
-                attachment_bytes=attachment_bytes,
-                attachment_name=attachment_name,
-                author=req.requester,
-                groups=groups,
-                bot=True,
+    with DBSession() as session:
+        try:
+            req = session.scalar(
+                sa.select(FollowupRequest).where(FollowupRequest.id == request_id)
             )
-            session.add(comment)
-        req.status = f'{len(urls)} images posted as comment'
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        log(f"Unable to post data for {request_id}: {e}")
-    finally:
-        session.close()
-        Session.remove()
+
+            group_ids = [g.id for g in req.requester.accessible_groups]
+            groups = session.scalars(
+                Group.select(req.requester).where(Group.id.in_(group_ids))
+            ).all()
+            for url in urls:
+                url_parse = urlparse(url)
+                attachment_name = os.path.basename(url_parse.path)
+                try:
+                    with urllib.request.urlopen(url) as f:
+                        attachment_bytes = base64.b64encode(f.read())
+                    comment = Comment(
+                        text=f'TRT: {attachment_name}',
+                        obj_id=req.obj.id,
+                        attachment_bytes=attachment_bytes,
+                        attachment_name=attachment_name,
+                        author=req.requester,
+                        groups=groups,
+                        bot=True,
+                    )
+                except Exception as e:
+                    log(
+                        f"TRT API Retrieve: unable to download data for {request_id}: {e}"
+                    )
+                    comment = Comment(
+                        text=f'TRT: {attachment_name}, **failed to download** data [at this url]({url})',
+                        obj_id=req.obj.id,
+                        author=req.requester,
+                        groups=groups,
+                        bot=True,
+                    )
+                session.add(comment)
+            req.status = f'{len(urls)} images posted as comment'
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            log(f"Unable to post data for {request_id}: {e}")
 
 
 class TRTAPI(FollowUpAPI):
@@ -195,10 +191,14 @@ class TRTAPI(FollowUpAPI):
                 headers=headers,
             )
 
-            if r.status_code == 200:
+            if r.status_code == 200 and 'token expired' in str(r.text):
+                request.status = (
+                    'rejected: API token specified in the allocation is expired.'
+                )
+            elif r.status_code == 200:
                 request.status = 'submitted'
             else:
-                request.status = f'rejected: {r.content}'
+                request.status = f'rejected: {r.text}'
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -218,19 +218,31 @@ class TRTAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get('refresh_source', False):
+        try:
             flow = Flow()
-            flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
-            )
-        if kwargs.get('refresh_requests', False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
-            )
+            if kwargs.get('refresh_source', False):
+                flow.push(
+                    '*',
+                    'skyportal/REFRESH_SOURCE',
+                    payload={'obj_key': request.obj.internal_key},
+                )
+            if kwargs.get('refresh_requests', False):
+                flow.push(
+                    request.last_modified_by_id,
+                    'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                )
+            if str(request.status) != 'submitted':
+                flow.push(
+                    request.last_modified_by_id,
+                    'baselayer/SHOW_NOTIFICATION',
+                    payload={
+                        'note': f'Failed to submit TRT request: "{request.status}"',
+                        'type': 'error',
+                    },
+                )
+        except Exception as e:
+            log(f'Failed to send notification: {e}')
+            pass
 
     @staticmethod
     def get(request, session, **kwargs):
@@ -244,28 +256,38 @@ class TRTAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import DBSession, FacilityTransaction, FollowupRequest
+        from ..models import FacilityTransaction, FollowupRequest
+        from ..utils.asynchronous import run_async
 
         if cfg['app.trt_endpoint'] is not None:
-            altdata = request.allocation.altdata
-
-            req = (
-                DBSession()
-                .query(FollowupRequest)
-                .filter(FollowupRequest.id == request.id)
-                .one()
-            )
-
             altdata = request.allocation.altdata
 
             if not altdata:
                 raise ValueError('Missing allocation information.')
 
+            req = session.scalar(
+                sa.select(FollowupRequest).where(FollowupRequest.id == request.id)
+            )
+
             url = f"{cfg['app.trt_endpoint']}/getfilepath"
 
-            content = req.transactions[-1].response["content"]
-            content = json.loads(content)
+            content = str(req.transactions[-1].response["content"])
+
+            if 'token expired' in content:
+                raise ValueError(
+                    'Token expired, the request might have not been submitted correctly, or cannot be retrieved.'
+                )
+
+            try:
+                content = json.loads(content)
+            except json.JSONDecodeError:
+                raise ValueError(
+                    f'Unable to parse submission response from TRT: {content}'
+                )
+
             uid = content[0]
+            if not uid:
+                raise ValueError('Unable to find observation ID in response from TRT.')
 
             payload = json.dumps({"obs_id": uid})
 
@@ -278,8 +300,20 @@ class TRTAPI(FollowUpAPI):
             r.raise_for_status()
 
             if r.status_code == 200:
+                try:
+                    data = r.json()
+                except json.JSONDecodeError:
+                    raise ValueError(
+                        f'Unable to parse retrieval response from TRT: {r.content}'
+                    )
+
                 urls = []
-                for file_path in r.json()['file_path']:
+
+                if not isinstance(data.get('file_path', []), list):
+                    raise ValueError(
+                        f'Unexpected response from TRT, expected list of file paths, got {data.get("file_path", [])}'
+                    )
+                for file_path in data.get('file_path', []):
                     for key in file_path.keys():
                         calibrated = file_path[key].get('calibrated', '')
                         if calibrated:
@@ -287,16 +321,11 @@ class TRTAPI(FollowUpAPI):
 
                 if len(urls) > 0:
                     request.status = "complete"
-                    download_obs = functools.partial(
-                        download_observations,
-                        request.id,
-                        urls,
-                    )
-                    IOLoop.current().run_in_executor(None, download_obs)
+                    run_async(download_observations, request.id, urls)
                 else:
                     request.status = "pending"
             else:
-                request.status = r.content.decode()
+                request.status = f'failed to retrieve: {r.content.decode()}'
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -308,19 +337,49 @@ class TRTAPI(FollowUpAPI):
         session.add(transaction)
         session.commit()
 
-        if kwargs.get('refresh_source', False):
+        try:
             flow = Flow()
-            flow.push(
-                '*',
-                'skyportal/REFRESH_SOURCE',
-                payload={'obj_key': request.obj.internal_key},
-            )
-        if kwargs.get('refresh_requests', False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id,
-                'skyportal/REFRESH_FOLLOWUP_REQUESTS',
-            )
+            if kwargs.get('refresh_source', False):
+                flow.push(
+                    '*',
+                    'skyportal/REFRESH_SOURCE',
+                    payload={'obj_key': request.obj.internal_key},
+                )
+            if kwargs.get('refresh_requests', False):
+                flow.push(
+                    request.last_modified_by_id,
+                    'skyportal/REFRESH_FOLLOWUP_REQUESTS',
+                )
+            if str(request.status) == 'pending':
+                flow.push(
+                    request.last_modified_by_id,
+                    'baselayer/SHOW_NOTIFICATION',
+                    payload={
+                        'note': 'TRT request is still pending.',
+                        'type': 'warning',
+                    },
+                )
+            elif str(request.status).startswith('complete'):
+                flow.push(
+                    request.last_modified_by_id,
+                    'baselayer/SHOW_NOTIFICATION',
+                    payload={
+                        'note': 'TRT request is complete, observations will be downloaded shortly.',
+                        'type': 'info',
+                    },
+                )
+            else:
+                flow.push(
+                    request.last_modified_by_id,
+                    'baselayer/SHOW_NOTIFICATION',
+                    payload={
+                        'note': f'Failed to retrieve TRT request: "{request.status}"',
+                        'type': 'error',
+                    },
+                )
+        except Exception as e:
+            log(f'Failed to send notification: {e}')
+            pass
 
     @staticmethod
     def delete(request, session, **kwargs):
@@ -334,47 +393,58 @@ class TRTAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import DBSession, FacilityTransaction, FollowupRequest
+        from ..models import FacilityTransaction, FollowupRequest
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
         if cfg['app.trt_endpoint'] is not None:
-            req = (
-                DBSession()
-                .query(FollowupRequest)
-                .filter(FollowupRequest.id == request.id)
-                .one()
-            )
-
             altdata = request.allocation.altdata
 
             if not altdata:
                 raise ValueError('Missing allocation information.')
 
+            req = session.scalar(
+                sa.select(FollowupRequest).where(FollowupRequest.id == request.id)
+            )
+
             url = f"{cfg['app.trt_endpoint']}/cancelobservation"
 
-            content = req.transactions[-1].response["content"]
-            content = json.loads(content)
-            uid = content[0]
+            content = str(req.transactions[-1].response["content"])
+            if 'token expired' in content:
+                request.status = 'failed to delete: API token specified in the allocation is expired.'
+                session.commit()
+            else:
+                try:
+                    content = json.loads(content)
+                except json.JSONDecodeError:
+                    raise ValueError(
+                        f'Unable to parse submission response from TRT: {content}'
+                    )
 
-            payload = json.dumps({"obs_id": [uid]})
+                uid = content[0]
+                if not uid:
+                    raise ValueError(
+                        'Unable to find observation ID in response from TRT.'
+                    )
 
-            headers = {
-                'Content-Type': 'application/json',
-                'TRT': altdata['token'],
-            }
-            r = requests.request("POST", url, headers=headers, data=payload)
+                payload = json.dumps({"obs_id": [uid]})
 
-            r.raise_for_status()
-            request.status = "deleted"
+                headers = {
+                    'Content-Type': 'application/json',
+                    'TRT': altdata['token'],
+                }
+                r = requests.request("POST", url, headers=headers, data=payload)
 
-            transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
+                r.raise_for_status()
+                request.status = "deleted"
+
+                transaction = FacilityTransaction(
+                    request=http.serialize_requests_request(r.request),
+                    response=http.serialize_requests_response(r),
+                    followup_request=request,
+                    initiator_id=request.last_modified_by_id,
+                )
         else:
             request.status = 'deleted'
 

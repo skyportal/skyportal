@@ -820,6 +820,7 @@ class ObservationHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Ingest a set of ExecutedObservations
         description: Ingest a set of ExecutedObservations
         tags:
           - observations
@@ -940,6 +941,7 @@ class ObservationHandler(BaseHandler):
     async def get(self):
         """
         ---
+          summary: Get all observations
           description: Retrieve all observations
           tags:
             - observations
@@ -1164,6 +1166,7 @@ class ObservationHandler(BaseHandler):
     def delete(self, observation_id):
         """
         ---
+        summary: Delete an observation
         description: Delete an observation
         tags:
           - observations
@@ -1209,6 +1212,7 @@ class ObservationASCIIFileHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Upload observation from ASCII file
         description: Upload observation from ASCII file
         tags:
           - observations
@@ -1323,6 +1327,7 @@ class ObservationExternalAPIHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Retrieve observations from external API
         description: Retrieve observations from external API
         tags:
           - observations
@@ -1399,6 +1404,7 @@ class ObservationExternalAPIHandler(BaseHandler):
     def get(self, allocation_id):
         """
         ---
+        summary: Retrieve queued observations from external API
         description: Retrieve queued observations from external API
         tags:
           - observations
@@ -1502,6 +1508,7 @@ class ObservationExternalAPIHandler(BaseHandler):
     def delete(self, allocation_id):
         """
         ---
+        summary: Delete queued observations from external API
         description: Delete queued observations from external API
         tags:
           - observations
@@ -1573,9 +1580,10 @@ class ObservationTreasureMapHandler(BaseHandler):
     def post(self, instrument_id):
         """
         ---
+        summary: Submit observations to TreasureMap
         description: Submit the executed observations to treasuremap.space
         tags:
-          - observation_plan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: instrument_id
@@ -1816,9 +1824,10 @@ class ObservationTreasureMapHandler(BaseHandler):
     def delete(self, instrument_id):
         """
         ---
+        summary: Remove observations from TreasureMap
         description: Remove observations from treasuremap.space.
         tags:
-          - observationplan_requests
+          - observation plan requests
         parameters:
           - in: path
             name: instrument_id
@@ -2078,6 +2087,7 @@ class ObservationSimSurveyHandler(BaseHandler):
     async def get(self, instrument_id):
         """
         ---
+        summary: Perform SimSurvey efficiency calculation
         description: Perform simsurvey efficiency calculation
         tags:
           - observations
@@ -2347,9 +2357,10 @@ class ObservationSimSurveyHandler(BaseHandler):
     def delete(self, survey_efficiency_analysis_id):
         """
         ---
+        summary: Delete a SimSurvey efficiency calculation
         description: Delete a simsurvey efficiency calculation.
         tags:
-          - survey_efficiency_for_observations
+          - survey efficiency
         parameters:
           - in: path
             name: survey_efficiency_analysis_id
@@ -2392,9 +2403,10 @@ class ObservationSimSurveyPlotHandler(BaseHandler):
     async def get(self, survey_efficiency_analysis_id):
         """
         ---
+        summary: Create summary plot for SimSurvey
         description: Create a summary plot for a simsurvey efficiency calculation.
         tags:
-          - survey_efficiency_for_observations
+          - survey efficiency
         parameters:
           - in: path
             name: survey_efficiency_analysis_id

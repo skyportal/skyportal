@@ -46,13 +46,18 @@ class MainHandler(tornado.web.RequestHandler):
 
         http_client = AsyncHTTPClient()
         try:
-            await http_client.fetch(
+            response = await http_client.fetch(
                 url,
                 raise_error=False,
                 method='POST',
                 body=json.dumps(data),
                 headers={'Content-type': 'application/json'},
             )
+            if response.code != 200:
+                log(
+                    f"Slack POST failed with code {response.code}: {str(response.body)}"
+                )
+                return self.error(response.code, str(response.body))
         except Exception as e:
             log(f"Error posting to Slack: {e}")
 

@@ -1246,6 +1246,7 @@ class PhotometryHandler(BaseHandler):
     def post(self):
         f"""
         ---
+        summary: Upload photometry
         description: Upload photometry. Posting is capped at {MAX_NUMBER_ROWS} for database stability purposes.
         tags:
           - photometry
@@ -1331,8 +1332,11 @@ class PhotometryHandler(BaseHandler):
                     session,
                     refresh=refresh,
                 )
-            except Exception:
+            except Exception as e:
                 session.rollback()
+                if "The following photometry already exists in the database:" in str(e):
+                    return self.error(str(e))
+
                 return self.error(traceback.format_exc())
 
             log(
@@ -1345,6 +1349,7 @@ class PhotometryHandler(BaseHandler):
     def put(self):
         """
         ---
+        summary: Update and/or upload photometry
         description: Update and/or upload photometry, resolving potential duplicates
         tags:
           - photometry
@@ -1651,6 +1656,7 @@ class PhotometryHandler(BaseHandler):
     def patch(self, photometry_id):
         """
         ---
+        summary: Update photometry
         description: Update photometry
         tags:
           - photometry
@@ -1818,6 +1824,7 @@ class PhotometryHandler(BaseHandler):
     def delete(self, photometry_id):
         """
         ---
+        summary: Delete photometry
         description: Delete photometry
         tags:
           - photometry
@@ -2029,6 +2036,7 @@ class ObjPhotometryHandler(BaseHandler):
     def delete(self, obj_id):
         """
         ---
+        summary: Delete all photometry for an object
         description: Delete object photometry
         tags:
           - photometry
@@ -2082,6 +2090,7 @@ class BulkDeletePhotometryHandler(BaseHandler):
     def delete(self, upload_id):
         """
         ---
+        summary: Delete bulk-uploaded photometry
         description: Delete bulk-uploaded photometry set
         tags:
           - photometry
@@ -2191,6 +2200,7 @@ class PhotometryOriginHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Get all photometry origins
         description: Get all photometry origins
         tags:
           - photometry
@@ -2214,6 +2224,7 @@ class PhotometryOriginHandler(BaseHandler):
 
 PhotometryHandler.get.__doc__ = f"""
         ---
+        summary: Get a photometry point
         description: Retrieve photometry
         tags:
           - photometry
@@ -2260,6 +2271,7 @@ PhotometryHandler.get.__doc__ = f"""
 
 ObjPhotometryHandler.get.__doc__ = f"""
         ---
+        summary: Get an object's photometry
         description: Retrieve all photometry associated with an Object
         tags:
           - photometry
@@ -2350,6 +2362,7 @@ ObjPhotometryHandler.get.__doc__ = f"""
 
 PhotometryRangeHandler.get.__doc__ = f"""
         ---
+        summary: Retrieve photometry over a date range
         description: Get photometry taken by specific instruments over a date range
         tags:
           - photometry

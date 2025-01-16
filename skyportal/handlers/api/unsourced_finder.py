@@ -29,7 +29,10 @@ class UnsourcedFinderHandler(BaseHandler):
     async def get(self):
         """
         ---
+        summary: Get a finding chart for a position or Gaia ID
         description: Generate a PDF/PNG finding chart for a position or Gaia ID
+        tags:
+          - finding charts
         parameters:
         - in: query
           name: location_type
@@ -80,7 +83,7 @@ class UnsourcedFinderHandler(BaseHandler):
           nullable: true
           schema:
             type: string
-            enum: [Keck, Shane, P200]
+            enum: [Keck, Shane, P200, P200-NGPS]
             description: |
                What type of starlist should be used? Defaults to Keck
         - in: query

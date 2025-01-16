@@ -25,6 +25,7 @@ import Typography from "@mui/material/Typography";
 import UpdatePhotometry from "./UpdatePhotometry";
 import PhotometryValidation from "./PhotometryValidation";
 import PhotometryMagsys from "./PhotometryMagsys";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Button from "../Button";
 import * as Actions from "../../ducks/photometry";
 import { mjd_to_utc } from "../../units";
@@ -98,11 +99,16 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
 
-  const [isDeleting, setIsDeleting] = useState(null);
-  const handleDelete = async (id) => {
-    setIsDeleting(id);
-    await dispatch(Actions.deletePhotometry(id));
-    setIsDeleting(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(null);
+  const handleDelete = async () => {
+    if (!deleteDialogOpen) {
+      return;
+    }
+    await dispatch(Actions.deletePhotometry(deleteDialogOpen));
+    setDeleteDialogOpen(null);
+  };
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(null);
   };
 
   const objectWithFalseValues = defaultHiddenColumns.reduce((acc, curr) => {
@@ -358,7 +364,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
               <div>
                 <UpdatePhotometry phot={phot} magsys={magsys} />
               </div>
-              {isDeleting === phot.id ? (
+              {deleteDialogOpen === phot.id ? (
                 <div>
                   <CircularProgress />
                 </div>
@@ -367,7 +373,7 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
                   <Button
                     primary
                     onClick={() => {
-                      handleDelete(phot.id);
+                      setDeleteDialogOpen(phot.id);
                     }}
                     size="small"
                     type="submit"
@@ -613,6 +619,12 @@ const PhotometryTable = ({ obj_id, open, onClose, magsys, setMagsys }) => {
               />
             </ThemeProvider>
           </StyledEngineProvider>
+          <ConfirmDeletionDialog
+            deleteFunction={handleDelete}
+            dialogOpen={deleteDialogOpen}
+            closeDialog={closeDeleteDialog}
+            resourceName="Photometry Point"
+          />
         </div>
       );
     }

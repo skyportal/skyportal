@@ -34,6 +34,7 @@ Please refer to the <a href="https://skyportal.io/docs">project documentation</a
 
 When utilizing this code for a publication, kindly make a reference to the package by its name, SkyPortal, and citations to the companion papers [SkyPortal: An Astronomical Data Platform](https://joss.theoj.org/papers/10.21105/joss.01247) and [A data science platform to enable time-domain astronomy
 ](https://iopscience.iop.org/article/10.3847/1538-4365/acdee1). The BibTeX entries for the papers are:
+
 ```bibtex
 @article{vanderWalt2019,
   doi = {10.21105/joss.01247},
@@ -63,11 +64,14 @@ When utilizing this code for a publication, kindly make a reference to the packa
 ```
 
 ### Acknowledgments
+
 If you benefited from participating in our community, we ask that you please acknowledge the SkyPortal collaboration, and particular individuals who helped you, in any publications.
 Please use the following text for this acknowledgment:
-  > We acknowledge the SkyPortal collective as an open community of multi-domain experts and collaborators. This community and \<names of individuals\>, in particular, were important for the development of this project.
+
+> We acknowledge the SkyPortal collective as an open community of multi-domain experts and collaborators. This community and \<names of individuals\>, in particular, were important for the development of this project.
 
 ### Funding
+
 We gratefully acknowledge previous and current support from the Gordon and Betty Moore Foundation, through both the Data-Driven Investigator Program (No. <a href="https://www.moore.org/grant-detail?grantId=GBMF4550">GBMF4550</a>) and a dedicated grant (No. <a href="https://www.moore.org/grant-detail?grantId=GBMF9122">GBMF9122</a>) and the U.S. National Science Foundation (NSF) Harnessing the Data Revolution (HDR) Institute for <a href="https://a3d3.ai">Accelerating AI Algorithms for Data Driven Discovery (A3D3)</a> under Cooperative Agreement No. <a href="https://www.nsf.gov/awardsearch/showAward?AWD_ID=2117997">PHY-2117997</a> to develop SkyPortal.
 
 <p align="center">

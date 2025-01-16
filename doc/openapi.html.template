@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <title>SkyPortal API Reference</title>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <script
+        id="api-reference"
+        type="application/json">
+      {{ openapi_spec | safe }}
+    </script>
+    <script>
+      var configuration = {
+        hideModels: true,
+        defaultHttpClient: {
+          targetKey: 'python',
+          clientKey: 'requests',
+        },
+        hiddenClients: ['python3'],
+        tagsSorter: 'alpha',
+        isEditable: false,
+        hideTestRequestButton: true,
+        theme: 'deepSpace'
+      }
+
+      document.getElementById('api-reference').dataset.configuration =
+        JSON.stringify(configuration)
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.25.24"></script>
+  </body>
+</html>

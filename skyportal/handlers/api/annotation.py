@@ -53,12 +53,12 @@ class AnnotationHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get an annotation
           description: Retrieve an annotation
           tags:
             - annotations
             - sources
             - spectra
-            - photometry
           parameters:
             - in: path
               name: associated_resource_type
@@ -93,12 +93,12 @@ class AnnotationHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Get all annotations
           description: Retrieve all annotations associated with specified resource
           tags:
             - annotations
             - sources
             - spectra
-            - photometry
           parameters:
             - in: path
               name: associated_resource_type
@@ -197,6 +197,7 @@ class AnnotationHandler(BaseHandler):
     def post(self, associated_resource_type, resource_id):
         """
         ---
+        summary: Post an annotation
         description: Post an annotation
         tags:
           - annotations
@@ -403,6 +404,7 @@ class AnnotationHandler(BaseHandler):
     def put(self, associated_resource_type, resource_id, annotation_id):
         """
         ---
+        summary: Update an annotation
         description: Update an annotation
         tags:
           - annotations
@@ -528,6 +530,7 @@ class AnnotationHandler(BaseHandler):
     def delete(self, associated_resource_type, resource_id, annotation_id):
         """
         ---
+        summary: Delete an annotation
         description: Delete an annotation
         tags:
           - annotations

@@ -1,3 +1,4 @@
+import hashlib
 import re
 import time
 
@@ -29,8 +30,15 @@ from skyportal.models import (
     User,
     cosmo,
 )
+from ...utils.cache import Cache, array_to_bytes
+from ...utils.calculations import radec2lb
 
 _, cfg = load_env()
+cache_dir = "cache/sources_queries"
+cache = Cache(
+    cache_dir=cache_dir,
+    max_age=cfg["misc.minutes_to_keep_source_query_cache"] * 60,
+)
 log = make_log('api/sources')
 log_verbose = make_log('sources_verbose')
 
@@ -416,42 +424,6 @@ def get_localization(localization_dateobs, localization_name, session):
     return localization_id, localizationtilescls.__tablename__
 
 
-# Rotation matrix for the conversion : x_galactic = R * x_equatorial (J2000)
-# http://adsabs.harvard.edu/abs/1989A&A...218..325M
-RGE = np.array(
-    [
-        [-0.054875539, -0.873437105, -0.483834992],
-        [+0.494109454, -0.444829594, +0.746982249],
-        [-0.867666136, -0.198076390, +0.455983795],
-    ]
-)
-
-
-def radec2lb(ra, dec):
-    """
-        Convert $R.A.$ and $Decl.$ into Galactic coordinates $l$ and $b$
-    ra [deg]
-    dec [deg]
-
-    return l [deg], b [deg]
-    """
-    ra_rad, dec_rad = np.deg2rad(ra), np.deg2rad(dec)
-    u = np.array(
-        [
-            np.cos(ra_rad) * np.cos(dec_rad),
-            np.sin(ra_rad) * np.cos(dec_rad),
-            np.sin(dec_rad),
-        ]
-    )
-
-    ug = np.dot(RGE, u)
-
-    x, y, z = ug
-    galactic_l = np.arctan2(y, x)
-    galactic_b = np.arctan2(z, (x * x + y * y) ** 0.5)
-    return np.rad2deg(galactic_l), np.rad2deg(galactic_b)
-
-
 def get_luminosity_distance(obj):
     """
     The luminosity distance in Mpc, using either DM or distance data
@@ -588,6 +560,21 @@ async def get_sources(
     except Exception as e:
         log(f'Invalid pagination arguments: {e}')
         raise ValueError(f'Invalid pagination arguments: {e}')
+
+    if page_number < 1:
+        raise ValueError('Invalid page_number: must be >= 1')
+    if num_per_page < 1:
+        raise ValueError('Invalid num_per_page: must be >= 1')
+
+    if use_cache:
+        if query_id is None and page_number > 1:
+            raise ValueError(
+                'Cannot use cache and not specify a query_id when requesting a page number > 1'
+            )
+        elif query_id is not None and page_number == 1:
+            raise ValueError(
+                'Cannot use cache and specify a query_id when requesting the first page'
+            )
 
     try:
         # it takes one query argument, which is the query type
@@ -1612,16 +1599,71 @@ async def get_sources(
 
         if save_summary:
             all_source_ids = []
-            if len(localization_queries) > 0:
-                for localization_query in localization_queries:
+
+            if use_cache and query_id is not None:
+                cache_filename = cache[query_id]
+                if cache_filename is not None:
+                    all_source_ids = np.load(cache_filename)
+                    data['queryID'] = query_id
+                    if len(all_source_ids) == 0:
+                        return data
+
+            if len(all_source_ids) == 0:
+                if len(localization_queries) > 0:
+                    for localization_query in localization_queries:
+                        statement = f"""
+                            SELECT sources.id
+                            FROM sources INNER JOIN objs ON sources.obj_id = objs.id
+                            {' '.join(joins)}
+                            WHERE {' AND '.join(statements + [localization_query])}
+                            GROUP BY sources.id
+                        """
+
+                        if ":accessible_group_ids" in statement:
+                            statement = statement.replace(
+                                ":accessible_group_ids", accessible_groups_query_str
+                            )
+                            query_params.extend(accessible_groups_bindparams)
+                        if ':allocation_ids' in statement:
+                            statement = statement.replace(
+                                ':allocation_ids', allocation_query_str
+                            )
+                            query_params.extend(allocation_bindparams)
+
+                        statement = (
+                            text(statement)
+                            .bindparams(*query_params)
+                            .columns(id=sa.String)
+                        )
+                        if verbose:
+                            log_verbose(f'Params:\n{query_params}')
+                            log_verbose(f'Query:\n{statement}')
+
+                        startTime = time.time()
+
+                        connection = session.connection()
+                        results = connection.execute(statement)
+                        all_source_ids.extend([r[0] for r in results])
+
+                        endTime = time.time()
+                        if verbose:
+                            log_verbose(
+                                f'1. SUB SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
+                            )
+
+                    all_source_ids = list(set(all_source_ids))
+                    if verbose:
+                        log_verbose(
+                            f'1. COMBINING BOTH QUERY RESULTS TOOK {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
+                        )
+                else:
                     statement = f"""
                         SELECT sources.id
                         FROM sources INNER JOIN objs ON sources.obj_id = objs.id
                         {' '.join(joins)}
-                        WHERE {' AND '.join(statements + [localization_query])}
+                        WHERE {' AND '.join(statements)}
                         GROUP BY sources.id
                     """
-
                     if ":accessible_group_ids" in statement:
                         statement = statement.replace(
                             ":accessible_group_ids", accessible_groups_query_str
@@ -1644,59 +1686,31 @@ async def get_sources(
 
                     connection = session.connection()
                     results = connection.execute(statement)
-                    all_source_ids.extend([r[0] for r in results])
+                    all_source_ids = [r[0] for r in results]
 
                     endTime = time.time()
                     if verbose:
                         log_verbose(
-                            f'1. SUB SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
+                            f'1. MAIN SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
                         )
 
-                all_source_ids = list(set(all_source_ids))
-                if verbose:
-                    log_verbose(
-                        f'1. COMBINING BOTH QUERY RESULTS TOOK {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
-                    )
-            else:
-                statement = f"""
-                    SELECT sources.id
-                    FROM sources INNER JOIN objs ON sources.obj_id = objs.id
-                    {' '.join(joins)}
-                    WHERE {' AND '.join(statements)}
-                    GROUP BY sources.id
-                """
-                if ":accessible_group_ids" in statement:
-                    statement = statement.replace(
-                        ":accessible_group_ids", accessible_groups_query_str
-                    )
-                    query_params.extend(accessible_groups_bindparams)
-                if ':allocation_ids' in statement:
-                    statement = statement.replace(
-                        ':allocation_ids', allocation_query_str
-                    )
-                    query_params.extend(allocation_bindparams)
+                if len(all_source_ids) == 0:
+                    return data
 
-                statement = (
-                    text(statement).bindparams(*query_params).columns(id=sa.String)
-                )
-                if verbose:
-                    log_verbose(f'Params:\n{query_params}')
-                    log_verbose(f'Query:\n{statement}')
+                # in save_summary mode, we do not apply any sorting
+                # so, for the results to be consistent, we simply return
+                # the sources sorted by their id, ascending (essentially, the order they were saved in)
+                #
+                # we make it a numpy array to sort it, as it scales much better than a python list
+                # (performs about the same with small lists, but much better with large lists)
+                all_source_ids = np.array(all_source_ids)
+                all_source_ids.sort()
 
-                startTime = time.time()
-
-                connection = session.connection()
-                results = connection.execute(statement)
-                all_source_ids = [r[0] for r in results]
-
-                endTime = time.time()
-                if verbose:
-                    log_verbose(
-                        f'1. MAIN SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results.'
-                    )
-
-            if len(all_source_ids) == 0:
-                return data
+                if use_cache:
+                    all_source_ids_bytes = array_to_bytes(all_source_ids)
+                    query_id = hashlib.sha256(all_source_ids_bytes).hexdigest()
+                    cache[query_id] = all_source_ids_bytes
+                    data['queryID'] = query_id
 
             sources, total_matches = [], len(all_source_ids)
 
@@ -1707,33 +1721,109 @@ async def get_sources(
                 end = total_matches
 
             source_ids = all_source_ids[start:end]
+            if isinstance(source_ids, np.ndarray):
+                source_ids = source_ids.tolist()
 
             startTime = time.time()
 
             sources = session.scalars(
                 Source.select(user).where(Source.id.in_(source_ids))
             ).all()
+            # keep the order of the sources consistent with the order of the source_ids
+            sources = sorted(sources, key=lambda s: source_ids.index(s.id))
 
             endTime = time.time()
             if verbose:
                 log_verbose(f'2. Sources Query took {endTime - startTime} seconds.')
 
-            return {
-                'totalMatches': total_matches,
-                'sources': sources,
-                'pageNumber': page_number,
-                'numPerPage': num_per_page,
-            }
+            data['sources'] = sources
+            return data
 
         else:
             all_obj_ids = []
-            if len(localization_queries) > 0:
-                for localization_query in localization_queries:
-                    # ADD QUERY STATEMENTS
+
+            if use_cache and query_id is not None:
+                cache_filename = cache[query_id]
+                if cache_filename is not None:
+                    all_obj_ids = np.load(cache_filename)
+                    data['queryID'] = query_id
+                    if len(all_obj_ids) == 0:
+                        return data
+
+            if len(all_obj_ids) == 0:
+                if len(localization_queries) > 0:
+                    for localization_query in localization_queries:
+                        # ADD QUERY STATEMENTS
+                        statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
+                            FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+                            {' '.join(joins)}
+                            WHERE {' AND '.join(statements + [localization_query])}
+                            GROUP BY objs.id
+                        """
+
+                        if ":accessible_group_ids" in statement:
+                            statement = statement.replace(
+                                ":accessible_group_ids", accessible_groups_query_str
+                            )
+                            query_params.extend(accessible_groups_bindparams)
+                        if ':allocation_ids' in statement:
+                            statement = statement.replace(
+                                ':allocation_ids', allocation_query_str
+                            )
+                            query_params.extend(allocation_bindparams)
+
+                        statement = (
+                            text(statement)
+                            .bindparams(*query_params)
+                            .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
+                        )
+                        if verbose:
+                            log_verbose(f'Params:\n{query_params}')
+                            log_verbose(f'Query:\n{statement}')
+
+                        startTime = time.time()
+
+                        connection = session.connection()
+                        results = connection.execute(statement)
+                        all_obj_ids.extend([r[0] for r in results])
+
+                        endTime = time.time()
+                        if verbose:
+                            log_verbose(
+                                f'1. SUB MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
+                            )
+
+                    all_obj_ids = list(set(all_obj_ids))
+                    if len(all_obj_ids) == 0:
+                        return data
+                    # by running 2 seperate queries, we lost the ordering, so we need rerun a query with the ordering
+                    joins = []
+                    query_params = []
+
+                    # SORTING JOINS
+                    if sort_by == "gcn_status":
+                        joins.append(
+                            f"""
+                            LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime('%Y-%m-%d %H:%M:%S')}'
+                            """
+                        )
+                    elif sort_by == "favorites":
+                        joins.append(
+                            f"""
+                            LEFT JOIN listings ON listings.obj_id = objs.id AND listings.list_name = 'favorites' AND listings.user_id = {user_id}
+                            """
+                        )
+
+                    query_str, bindparams = array2sql(
+                        all_obj_ids,
+                        type=sa.String,
+                        prefix="obj_id",
+                    )
+                    query_params.extend(bindparams)
                     statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
                         FROM objs INNER JOIN sources ON objs.id = sources.obj_id
                         {' '.join(joins)}
-                        WHERE {' AND '.join(statements + [localization_query])}
+                        where objs.id in {query_str}
                         GROUP BY objs.id
                     """
 
@@ -1748,6 +1838,74 @@ async def get_sources(
                         )
                         query_params.extend(allocation_bindparams)
 
+                    if sort_by == "gcn_status":
+                        statement += f"""ORDER BY
+                            CASE
+                                WHEN bool_and(sourcesconfirmedingcns.obj_id IS NULL) = true THEN 4
+                                WHEN bool_or(sourcesconfirmedingcns.confirmed) = true THEN 3
+                                WHEN bool_and(sourcesconfirmedingcns.confirmed IS NULL) = true THEN 2
+                                WHEN bool_or(sourcesconfirmedingcns.confirmed) = false THEN 1
+                                ELSE 0
+                            END {sort_order.upper()}"""
+                    elif sort_by == "favorites":
+                        statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
+                    elif sort_by in NULL_FIELDS:
+                        statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
+                    else:
+                        statement += (
+                            f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
+                        )
+
+                    statement = (
+                        text(statement)
+                        .bindparams(*query_params)
+                        .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
+                    )
+                    connection = session.connection()
+                    results = connection.execute(statement)
+                    all_obj_ids = [r[0] for r in results]
+
+                    if verbose:
+                        log_verbose(
+                            f'1. COMBINING BOTH QUERY RESULTS TOOK {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
+                        )
+                else:
+                    # SORTING JOINS
+                    if sort_by == "favorites":
+                        joins.append(
+                            f"""
+                            LEFT JOIN listings ON listings.obj_id = objs.id AND listings.list_name = 'favorites' AND listings.user_id = {user_id}
+                            """
+                        )
+
+                    # ADD QUERY STATEMENTS
+                    statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
+                        FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+                        {' '.join(joins)}
+                        WHERE {' AND '.join(statements)}
+                        GROUP BY objs.id
+                    """
+
+                    if ":accessible_group_ids" in statement:
+                        statement = statement.replace(
+                            ":accessible_group_ids", accessible_groups_query_str
+                        )
+                        query_params.extend(accessible_groups_bindparams)
+                    if ':allocation_ids' in statement:
+                        statement = statement.replace(
+                            ':allocation_ids', allocation_query_str
+                        )
+                        query_params.extend(allocation_bindparams)
+
+                    if sort_by == "favorites":
+                        statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
+                    elif sort_by in NULL_FIELDS:
+                        statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
+                    else:
+                        statement += (
+                            f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
+                        )
+
                     statement = (
                         text(statement)
                         .bindparams(*query_params)
@@ -1761,152 +1919,29 @@ async def get_sources(
 
                     connection = session.connection()
                     results = connection.execute(statement)
-                    all_obj_ids.extend([r[0] for r in results])
+                    all_obj_ids = [r[0] for r in results]
+                    if len(all_obj_ids) != len(set(all_obj_ids)):
+                        raise ValueError(
+                            f'Duplicate obj_ids in query results, query is incorrect: {all_obj_ids}'
+                        )
 
                     endTime = time.time()
                     if verbose:
                         log_verbose(
-                            f'1. SUB MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
+                            f'1. MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
                         )
 
-                all_obj_ids = list(set(all_obj_ids))
                 if len(all_obj_ids) == 0:
                     return data
-                # by running 2 seperate queries, we lost the ordering, so we need rerun a query with the ordering
-                joins = []
-                query_params = []
 
-                # SORTING JOINS
-                if sort_by == "gcn_status":
-                    joins.append(
-                        f"""
-                        LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime('%Y-%m-%d %H:%M:%S')}'
-                        """
-                    )
-                elif sort_by == "favorites":
-                    joins.append(
-                        f"""
-                        LEFT JOIN listings ON listings.obj_id = objs.id AND listings.list_name = 'favorites' AND listings.user_id = {user_id}
-                        """
-                    )
-
-                query_str, bindparams = array2sql(
-                    all_obj_ids,
-                    type=sa.String,
-                    prefix="obj_id",
-                )
-                query_params.extend(bindparams)
-                statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
-                    FROM objs INNER JOIN sources ON objs.id = sources.obj_id
-                    {' '.join(joins)}
-                    where objs.id in {query_str}
-                    GROUP BY objs.id
-                """
-
-                if ":accessible_group_ids" in statement:
-                    statement = statement.replace(
-                        ":accessible_group_ids", accessible_groups_query_str
-                    )
-                    query_params.extend(accessible_groups_bindparams)
-                if ':allocation_ids' in statement:
-                    statement = statement.replace(
-                        ':allocation_ids', allocation_query_str
-                    )
-                    query_params.extend(allocation_bindparams)
-
-                if sort_by == "gcn_status":
-                    statement += f"""ORDER BY
-                        CASE
-                            WHEN bool_and(sourcesconfirmedingcns.obj_id IS NULL) = true THEN 4
-                            WHEN bool_or(sourcesconfirmedingcns.confirmed) = true THEN 3
-                            WHEN bool_and(sourcesconfirmedingcns.confirmed IS NULL) = true THEN 2
-                            WHEN bool_or(sourcesconfirmedingcns.confirmed) = false THEN 1
-                            ELSE 0
-                        END {sort_order.upper()}"""
-                elif sort_by == "favorites":
-                    statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
-                elif sort_by in NULL_FIELDS:
-                    statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
-                else:
-                    statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
-
-                statement = (
-                    text(statement)
-                    .bindparams(*query_params)
-                    .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
-                )
-                connection = session.connection()
-                results = connection.execute(statement)
-                all_obj_ids = [r[0] for r in results]
-
-                if verbose:
-                    log_verbose(
-                        f'1. COMBINING BOTH QUERY RESULTS TOOK {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
-                    )
-            else:
-                # SORTING JOINS
-                if sort_by == "favorites":
-                    joins.append(
-                        f"""
-                        LEFT JOIN listings ON listings.obj_id = objs.id AND listings.list_name = 'favorites' AND listings.user_id = {user_id}
-                        """
-                    )
-
-                # ADD QUERY STATEMENTS
-                statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
-                    FROM objs INNER JOIN sources ON objs.id = sources.obj_id
-                    {' '.join(joins)}
-                    WHERE {' AND '.join(statements)}
-                    GROUP BY objs.id
-                """
-
-                if ":accessible_group_ids" in statement:
-                    statement = statement.replace(
-                        ":accessible_group_ids", accessible_groups_query_str
-                    )
-                    query_params.extend(accessible_groups_bindparams)
-                if ':allocation_ids' in statement:
-                    statement = statement.replace(
-                        ':allocation_ids', allocation_query_str
-                    )
-                    query_params.extend(allocation_bindparams)
-
-                if sort_by == "favorites":
-                    statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
-                elif sort_by in NULL_FIELDS:
-                    statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
-                else:
-                    statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
-
-                statement = (
-                    text(statement)
-                    .bindparams(*query_params)
-                    .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
-                )
-                if verbose:
-                    log_verbose(f'Params:\n{query_params}')
-                    log_verbose(f'Query:\n{statement}')
-
-                startTime = time.time()
-
-                connection = session.connection()
-                results = connection.execute(statement)
-                all_obj_ids = [r[0] for r in results]
-                if len(all_obj_ids) != len(set(all_obj_ids)):
-                    raise ValueError(
-                        f'Duplicate obj_ids in query results, query is incorrect: {all_obj_ids}'
-                    )
-
-                endTime = time.time()
-                if verbose:
-                    log_verbose(
-                        f'1. MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results.'
-                    )
-
-            if len(all_obj_ids) == 0:
-                return data
+                if use_cache:
+                    all_obj_ids_bytes = array_to_bytes(all_obj_ids)
+                    query_id = hashlib.sha256(all_obj_ids_bytes).hexdigest()
+                    cache[query_id] = all_obj_ids_bytes
+                    data['queryID'] = query_id
 
             objs, total_matches = [], len(all_obj_ids)
+            data['totalMatches'] = total_matches
             if start > total_matches:
                 return data
             if end > total_matches:
@@ -1915,6 +1950,8 @@ async def get_sources(
             startTime = time.time()
 
             obj_ids = all_obj_ids[start:end]
+            if isinstance(obj_ids, np.ndarray):
+                obj_ids = obj_ids.tolist()
             objs = session.query(Obj).filter(Obj.id.in_(obj_ids)).distinct().all()
             # keep the original order
             objs = sorted(objs, key=lambda obj: obj_ids.index(obj.id))
@@ -2284,7 +2321,7 @@ async def get_sources(
                         WHERE obj_id IN {query_str}
                     """
                     photometric_series_exists = session.execute(
-                        text(stmt).bindparams(bindparam(*bindparams))
+                        text(stmt).bindparams(*bindparams)
                     )
                     photometric_series_exists = [
                         r[0] for r in photometric_series_exists
@@ -2386,12 +2423,7 @@ async def get_sources(
                         f'17. Color Mag Query took {endTime - startTime} seconds.'
                     )
 
-            data = {
-                'totalMatches': total_matches,
-                'sources': objs,
-                'pageNumber': page_number,
-                'numPerPage': num_per_page,
-            }
+            data['sources'] = objs
 
             # when querying for group sources, return the group_id used
             if len(group_ids) == 1:
@@ -2401,18 +2433,16 @@ async def get_sources(
                 startTime = time.time()
                 features = []
                 for source in data["sources"]:
-                    point = Point((source["ra"], source["dec"]))
-                    aliases = [alias for alias in (source["alias"] or []) if alias]
                     source_name = ", ".join(
                         [
                             source["id"],
                         ]
-                        + aliases
+                        + [alias for alias in (source["alias"] or []) if alias]
                     )
 
                     features.append(
                         Feature(
-                            geometry=point,
+                            geometry=Point((source["ra"], source["dec"])),
                             properties={
                                 "name": source_name,
                                 "url": f"/source/{source['id']}",

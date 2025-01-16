@@ -224,6 +224,7 @@ class SpectrumHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Upload spectrum
         description: Upload spectrum
         tags:
           - spectra
@@ -290,6 +291,7 @@ class SpectrumHandler(BaseHandler):
         """
         ---
         single:
+          summary: Get a spectrum
           description: Retrieve a spectrum
           tags:
             - spectra
@@ -309,6 +311,7 @@ class SpectrumHandler(BaseHandler):
                 application/json:
                   schema: Error
         multiple:
+          summary: Retrieve multiple spectra
           description: Retrieve multiple spectra with given criteria
           tags:
             - spectra
@@ -820,7 +823,8 @@ class SpectrumHandler(BaseHandler):
     def put(self, spectrum_id):
         """
         ---
-        description: Update spectrum
+        summary: Update a spectrum
+        description: Update a spectrum
         tags:
           - spectra
         parameters:
@@ -995,6 +999,7 @@ class SpectrumHandler(BaseHandler):
     def delete(self, spectrum_id):
         """
         ---
+        summary: Delete a spectrum
         description: Delete a spectrum
         tags:
           - spectra
@@ -1087,6 +1092,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
     def post(self):
         """
         ---
+        summary: Upload spectrum from ASCII
         description: Upload spectrum from ASCII file
         tags:
           - spectra
@@ -1274,6 +1280,7 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
     def post(self):
         """
         ---
+        summary: Parse spectrum from ASCII file
         description: Parse spectrum from ASCII file
         tags:
           - spectra
@@ -1304,6 +1311,7 @@ class ObjSpectraHandler(BaseHandler):
     def get(self, obj_id):
         """
         ---
+        summary: Get spectra for an object
         description: Retrieve all spectra associated with an Object
         tags:
           - spectra
@@ -1514,6 +1522,7 @@ class SpectrumRangeHandler(BaseHandler):
     def get(self):
         """
         ---
+        summary: Get spectra within a date range
         description: Retrieve spectra for given instrument within date range
         tags:
           - spectra
@@ -1595,6 +1604,7 @@ class SyntheticPhotometryHandler(BaseHandler):
     def post(self, spectrum_id):
         """
         ---
+        summary: Create synthetic photometry from a spectrum
         description: Create synthetic photometry from a spectrum
         tags:
           - spectra
@@ -1637,6 +1647,11 @@ class SyntheticPhotometryHandler(BaseHandler):
             flux = spec_dict['fluxes']
             err = spec_dict['errors']
             obstime = spec_dict['observed_at']
+
+            if spectrum.astropy_units is None:
+                return self.error(
+                    f'Spectrum with id {spectrum_id} needs astropy_units set to compute synthetic photometry'
+                )
 
             try:
                 spec = sncosmo.Spectrum(

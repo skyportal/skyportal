@@ -8,9 +8,12 @@ class SharingHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Share data with additional groups/users
         description: Share data with additional groups/users
         tags:
-          - data_sharing
+          - data sharing
+          - photometry
+          - spectra
         requestBody:
           content:
             application/json:

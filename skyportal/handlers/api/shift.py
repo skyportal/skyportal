@@ -20,6 +20,7 @@ class ShiftHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Add a new shift
         description: Add a new shift
         tags:
           - shifts
@@ -121,6 +122,7 @@ class ShiftHandler(BaseHandler):
     def get(self, shift_id=None):
         """
         ---
+        summary: Retrieve shifts
         description: Retrieve shifts
         tags:
           - shifts
@@ -207,6 +209,7 @@ class ShiftHandler(BaseHandler):
                                     "username": gu.user.username,
                                     "first_name": gu.user.first_name,
                                     "last_name": gu.user.last_name,
+                                    "expiration_date": gu.user.expiration_date,
                                 }
                                 for gu in shift.group.group_users
                             ],
@@ -230,6 +233,7 @@ class ShiftHandler(BaseHandler):
     def patch(self, shift_id):
         """
         ---
+        summary: Update a shift
         description: Update a shift
         tags:
           - shifts
@@ -312,6 +316,7 @@ class ShiftHandler(BaseHandler):
     def delete(self, shift_id):
         """
         ---
+        summary: Delete a shift
         description: Delete a shift
         tags:
           - shifts
@@ -356,6 +361,7 @@ class ShiftUserHandler(BaseHandler):
     def post(self, shift_id, *ignored_args):
         """
         ---
+        summary: Add a shift user
         description: Add a shift user
         tags:
           - shifts
@@ -495,6 +501,7 @@ class ShiftUserHandler(BaseHandler):
     def patch(self, shift_id, user_id):
         """
         ---
+        summary: Update a shift user
         description: Update a shift user's admin status, or needs_replacement status
         tags:
           - shifts
@@ -612,6 +619,7 @@ class ShiftUserHandler(BaseHandler):
     def delete(self, shift_id, user_id):
         """
         ---
+        summary: Delete a shift user
         description: Delete a shift user
         tags:
           - shifts
@@ -676,12 +684,10 @@ class ShiftSummary(BaseHandler):
     def get(self, shift_id=None):
         """
         ---
+        summary: Get a summary of a shift
         description: Get a summary of all the activity of shift users on skyportal for a given period
         tags:
           - shifts
-          - users
-          - sources
-          - gcn
         parameters:
           - in: path
             name: shift_id

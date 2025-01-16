@@ -7,58 +7,14 @@ import uuid
 from skyportal.tests import api
 
 
-def test_galaxy(super_admin_token, view_only_token):
-    catalog_name = 'test_galaxy_catalog'
+def test_galaxy(super_admin_token, view_only_token, gcn_GW190814):
+    dateobs = gcn_GW190814.dateobs.strftime('%Y-%m-%dT%H:%M:%S')
 
+    catalog_name = 'test_galaxy_catalog'
     # in case the catalog already exists, delete it.
     status, data = api(
         'DELETE', f'galaxy_catalog/{catalog_name}', token=super_admin_token
     )
-
-    datafile = f'{os.path.dirname(__file__)}/../../../data/GW190814.xml'
-    with open(datafile, 'rb') as fid:
-        payload = fid.read()
-    event_data = {'xml': payload}
-
-    dateobs = "2019-08-14T21:10:39"
-    status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            'POST', 'gcn_event', data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data['status'] == 'success'
-
-    # wait for event to load
-    for n_times in range(26):
-        status, data = api(
-            'GET', "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
-        if data['status'] == 'success':
-            break
-        time.sleep(2)
-    assert n_times < 25
-
-    # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            'GET',
-            'localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz',
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data['status'] == 'success':
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5'
     data = {
@@ -101,7 +57,7 @@ def test_galaxy(super_admin_token, view_only_token):
     params = {
         'includeGeoJSON': True,
         'catalog_name': catalog_name,
-        'localizationDateobs': '2019-08-14T21:10:39',
+        'localizationDateobs': dateobs,
         'localizationCumprob': 0.45,
     }
 
@@ -111,8 +67,8 @@ def test_galaxy(super_admin_token, view_only_token):
     geojson = data["data"]["geojson"]
     data = data["data"]["galaxies"]
 
-    # now we have restricted to only 2/92 being in localization
-    assert len(data) == 2
+    # now we have restricted to only 3/92 being in localization
+    assert len(data) == 3
     assert any(
         [
             d['name'] == 'MCG -04-03-023' and d['mstar'] == 20113219211.26844

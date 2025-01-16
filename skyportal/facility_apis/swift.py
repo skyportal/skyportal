@@ -1,25 +1,27 @@
-from astropy.time import Time
 import base64
-from datetime import datetime, timedelta
 import functools
 import json
 import os
+import tarfile
+import tempfile
+import traceback
+from datetime import datetime, timedelta
+
 import pandas as pd
 import requests
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, scoped_session
-from swifttools.swift_too import ObsQuery, UVOT_mode, Swift_TOO, Data
+from astropy.time import Time
+from sqlalchemy.orm import scoped_session, sessionmaker
+from swifttools.swift_too import Data, ObsQuery, Swift_TOO, UVOT_mode
 from swifttools.xrt_prods import XRTProductRequest
-import tarfile
-import tempfile
 from tornado.ioloop import IOLoop
 
-from . import FollowUpAPI, MMAAPI
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from . import MMAAPI, FollowUpAPI
 
 env, cfg = load_env()
 
@@ -215,6 +217,12 @@ class UVOTXRTRequest:
         modes_index = modes_values.index(request.payload["uvot_mode"])
         too.uvot_mode = modes_keys[modes_index]
         too.science_just = request.payload["science_just"]
+        if too.uvot_mode != '0x9999':
+            too.uvot_just = request.payload.get("uvot_just", None)
+            if not too.uvot_just:
+                raise ValueError(
+                    'uvot_just is required when the UVOT mode select is 0x0270 (ToO Upload Mode).'
+                )
 
         return too
 
@@ -328,12 +336,7 @@ def download_observations(request_id, oq):
         Swift observation query
     """
 
-    from ..models import (
-        Comment,
-        DBSession,
-        FollowupRequest,
-        Group,
-    )
+    from ..models import Comment, DBSession, FollowupRequest, Group
 
     Session = scoped_session(sessionmaker())
     if Session.registry.has():
@@ -424,11 +427,7 @@ class UVOTXRTAPI(FollowUpAPI):
             Database session to use for photometry
         """
 
-        from ..models import (
-            FollowupRequest,
-            Comment,
-            Group,
-        )
+        from ..models import Comment, FollowupRequest, Group
 
         req = (
             session.query(FollowupRequest)
@@ -529,12 +528,27 @@ class UVOTXRTAPI(FollowUpAPI):
             r = requests.post(
                 url=API_URL, verify=True, data={'jwt': swiftreq.requestgroup.jwt}
             )
-            r.raise_for_status()
 
             if r.status_code == 200:
                 request.status = 'submitted'
             else:
                 request.status = f'rejected: {r.content}'
+                log(
+                    f'Failed to submit Swift request for {request.id} (obj {request.obj.id}): {r.content}'
+                )
+                try:
+                    flow = Flow()
+                    flow.push(
+                        request.last_modified_by_id,
+                        'baselayer/SHOW_NOTIFICATION',
+                        payload={
+                            'note': f'Failed to submit Swift request: {r.content}',
+                            'type': 'error',
+                        },
+                    )
+                except Exception as e:
+                    log(f'Failed to send notification: {e}')
+                    pass
 
             transaction = FacilityTransaction(
                 request=http.serialize_requests_request(r.request),
@@ -587,6 +601,30 @@ class UVOTXRTAPI(FollowUpAPI):
                 request.last_modified_by_id,
                 'skyportal/REFRESH_FOLLOWUP_REQUESTS',
             )
+
+        try:
+            notification_type = request.allocation.altdata.get(
+                'notification_type', 'none'
+            )
+            if notification_type == 'slack':
+                from ..utils.notifications import request_notify_by_slack
+
+                request_notify_by_slack(
+                    request,
+                    session,
+                    is_update=False,
+                )
+            elif notification_type == 'email':
+                from ..utils.notifications import request_notify_by_email
+
+                request_notify_by_email(
+                    request,
+                    session,
+                    is_update=False,
+                )
+        except Exception as e:
+            traceback.print_exc()
+            log(f"Error sending notification: {e}")
 
     form_json_schema = {
         "type": "object",
@@ -677,12 +715,12 @@ class UVOTXRTAPI(FollowUpAPI):
                                 "enum": ["XRT/UVOT ToO"],
                             },
                             "exposure_time": {
-                                "title": "Exposure Time [s]",
+                                "title": "Exposure Time per visit [s]",
                                 "type": "number",
                                 "default": 4000.0,
                             },
                             "exposure_counts": {
-                                "title": "Exposure Counts",
+                                "title": "Number of visits",
                                 "type": "number",
                                 "default": 1,
                                 "minimum": 1,
@@ -749,6 +787,38 @@ class UVOTXRTAPI(FollowUpAPI):
                                 "default": "An X-ray detection of this transient will further associate this object to a relativistic explosion and will help unveil the nature of the progenitor type.",
                             },
                         },
+                        "dependencies": {
+                            "uvot_mode": {
+                                "oneOf": [
+                                    {
+                                        "properties": {
+                                            "uvot_mode": {
+                                                "enum": [
+                                                    "0x9999 - Default (Filter of the day)"
+                                                ],
+                                            },
+                                        }
+                                    },
+                                    {
+                                        "properties": {
+                                            "uvot_mode": {
+                                                "not": {
+                                                    "enum": [
+                                                        "0x9999 - Default (Filter of the day)"
+                                                    ],
+                                                },
+                                            },
+                                            "uvot_just": {
+                                                "title": "UVOT Mode Justification",
+                                                "type": "string",
+                                                "default": "We wish to map the entire transient SED in all UV filters.",
+                                            },
+                                        },
+                                        "required": ["uvot_just"],
+                                    },
+                                ]
+                            },
+                        },
                     },
                 ],
             },
@@ -761,9 +831,69 @@ class UVOTXRTAPI(FollowUpAPI):
             "username": {"type": "string", "title": "Username"},
             "secret": {"type": "string", "title": "Secret"},
             "XRT_UserID": {"type": "string", "title": "XRT User ID"},
+            "notification_type": {
+                "type": "string",
+                "title": "Notification Type",
+                "enum": ["none", "slack", "email"],
+            },
+        },
+        "dependencies": {
+            "notification_type": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["none"]},
+                        },
+                    },
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["slack"]},
+                            "slack_workspace": {
+                                "type": "string",
+                                "title": "Slack Workspace",
+                            },
+                            "slack_channel": {
+                                "type": "string",
+                                "title": "Slack Channel",
+                            },
+                            "slack_token": {
+                                "type": "string",
+                                "title": "Slack Token",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
+                            },
+                        },
+                        "required": [
+                            "slack_workspace",
+                            "slack_channel",
+                            "slack_token",
+                        ],
+                    },
+                    {
+                        "properties": {
+                            "notification_type": {"enum": ["email"]},
+                            "email": {
+                                "type": "string",
+                                "title": "Email",
+                            },
+                            "include_comments": {
+                                "type": "boolean",
+                                "title": "Include Comments",
+                                "default": False,
+                            },
+                        },
+                        "required": [
+                            "email",
+                        ],
+                    },
+                ]
+            },
         },
     }
 
-    ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
+    ui_json_schema = {}
 
     priorityOrder = "desc"

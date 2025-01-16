@@ -22,10 +22,10 @@ class SourceGroupsHandler(BaseHandler):
     def post(self):
         """
         ---
+        summary: Save or unsave sources to/from groups
         description: Save or request group(s) to save source, and optionally unsave from group(s).
         tags:
           - sources
-          - groups
         requestBody:
           content:
             application/json:
@@ -201,10 +201,10 @@ class SourceGroupsHandler(BaseHandler):
     def patch(self, obj_id, *ignored_args):
         """
         ---
+        summary: Update a Source table row
         description: Update a Source table row
         tags:
           - sources
-          - groups
         parameters:
           - in: path
             name: obj_id
