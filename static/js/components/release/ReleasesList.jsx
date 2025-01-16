@@ -44,6 +44,12 @@ const useStyles = makeStyles(() => ({
   itemButtons: {
     display: "flex",
   },
+  noRelease: {
+    display: "flex",
+    justifyContent: "center",
+    padding: "1.5rem 0",
+    color: "gray",
+  },
 }));
 
 const ReleasesList = () => {
@@ -80,16 +86,16 @@ const ReleasesList = () => {
 
   return (
     <div>
-      <div className={styles.listHeader}>
-        <Button
-          onClick={() => {
-            handleViewList();
-          }}
-          disabled={releases.length === 0}
-        >
-          Manage releases {openReleaseList ? <ExpandLess /> : <ExpandMore />}
-        </Button>
-        {manageSourcesAccess && (
+      {manageSourcesAccess && (
+        <div className={styles.listHeader}>
+          <Button
+            onClick={() => {
+              handleViewList();
+            }}
+            disabled={releases.length === 0}
+          >
+            Manage releases {openReleaseList ? <ExpandLess /> : <ExpandMore />}
+          </Button>
           <Button
             onClick={() => {
               handleViewEdit({});
@@ -97,46 +103,51 @@ const ReleasesList = () => {
           >
             Add +
           </Button>
-        )}
-      </div>
-      {openReleaseList && !openReleaseForm && (
+        </div>
+      )}
+      {(!manageSourcesAccess ||
+        (releases.length > 0 && openReleaseList && !openReleaseForm)) && (
         <div>
-          {releases.map((release) => (
-            <div key={`release_${release.id}`} className={styles.item}>
-              <div className={styles.itemNameDescription}>
-                <div>{release.name}</div>
-                <div className={styles.itemDescription}>
-                  {truncateText(release.description, 40)}
+          {releases.length > 0 ? (
+            releases.map((release) => (
+              <div key={`release_${release.id}`} className={styles.item}>
+                <div className={styles.itemNameDescription}>
+                  <div>{release.name}</div>
+                  <div className={styles.itemDescription}>
+                    {truncateText(release.description, 40)}
+                  </div>
+                </div>
+                <div className={styles.itemButtons}>
+                  <Button
+                    href={`/public/releases/${release.link_name}`}
+                    target="_blank"
+                  >
+                    <VisibilityIcon />
+                  </Button>
+                  {manageSourcesAccess && release.group_ids.length > 0 && (
+                    <>
+                      <Button
+                        onClick={() => {
+                          handleViewEdit(release);
+                        }}
+                      >
+                        <EditIcon />
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          deleteRelease(release.id);
+                        }}
+                      >
+                        <DeleteIcon />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
-              <div className={styles.itemButtons}>
-                <Button
-                  href={`/public/releases/${release.link_name}`}
-                  target="_blank"
-                >
-                  <VisibilityIcon />
-                </Button>
-                {manageSourcesAccess && release.group_ids.length > 0 && (
-                  <>
-                    <Button
-                      onClick={() => {
-                        handleViewEdit(release);
-                      }}
-                    >
-                      <EditIcon />
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        deleteRelease(release.id);
-                      }}
-                    >
-                      <DeleteIcon />
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <div className={styles.noRelease}>No releases available yet!</div>
+          )}
         </div>
       )}
       {openReleaseForm && (
