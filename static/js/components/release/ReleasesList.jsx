@@ -87,7 +87,7 @@ const ReleasesList = () => {
           }}
           disabled={releases.length === 0}
         >
-          View all {openReleaseList ? <ExpandLess /> : <ExpandMore />}
+          Manage releases {openReleaseList ? <ExpandLess /> : <ExpandMore />}
         </Button>
         {manageSourcesAccess && (
           <Button
