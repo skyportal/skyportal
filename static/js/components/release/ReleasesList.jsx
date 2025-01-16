@@ -85,6 +85,7 @@ const ReleasesList = () => {
           onClick={() => {
             handleViewList();
           }}
+          disabled={releases.length === 0}
         >
           View all {openReleaseList ? <ExpandLess /> : <ExpandMore />}
         </Button>
