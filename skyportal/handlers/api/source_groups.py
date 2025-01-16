@@ -134,7 +134,9 @@ class SourceGroupsHandler(BaseHandler):
 
                 all_saved_groups = session.scalars(
                     sa.select(Source.group_id).where(
-                        Source.obj_id == obj_id, ~Source.group_id.in_(unsave_group_ids)
+                        Source.obj_id == obj_id,
+                        Source.active.is_(True),
+                        ~Source.group_id.in_(unsave_group_ids),
                     )
                 ).all()
                 run_async(
