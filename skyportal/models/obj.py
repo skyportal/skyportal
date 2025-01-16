@@ -757,6 +757,12 @@ Obj.candidates = relationship(
     doc="Instances in which this Obj passed a group's filter.",
 )
 
+Obj.grouped_objects = relationship(
+    "GroupedObject",
+    secondary="grouped_object_objs",
+    back_populates="objs",
+    doc="Groups this object belongs to",
+)
 # See source.py for Obj.sources relationship
 # It had to be defined there to prevent a circular import.
 
