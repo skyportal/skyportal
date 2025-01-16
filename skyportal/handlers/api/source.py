@@ -1,13 +1,13 @@
 import datetime
 import functools
 import io
+import json
 import operator  # noqa: F401
+import re
 import time
 import traceback
-import json
 from json.decoder import JSONDecodeError
 
-import re
 import astropy
 import astropy.units as u
 import conesearch_alchemy as ca
@@ -31,7 +31,7 @@ from marshmallow.exceptions import ValidationError
 from matplotlib import dates
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
-from sqlalchemy.sql import text, bindparam
+from sqlalchemy.sql import bindparam, text
 from tornado.ioloop import IOLoop
 from twilio.base.exceptions import TwilioException
 
@@ -41,15 +41,14 @@ from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
-from ...utils.asynchronous import run_async
 from ...models import (
-    DBSession,
     Allocation,
     Annotation,
     Candidate,
     ClassicalAssignment,
     Classification,
     Comment,
+    DBSession,
     FacilityTransaction,
     FollowupRequest,
     Galaxy,
@@ -70,12 +69,14 @@ from ...models import (
     Spectrum,
     Telescope,
     Thumbnail,
-    TNSRobotGroupAutoreporter,
     TNSRobotGroup,
+    TNSRobotGroupAutoreporter,
     TNSRobotSubmission,
     Token,
     User,
 )
+from ...utils.asynchronous import run_async
+from ...utils.calculations import great_circle_distance
 from ...utils.offset import (
     _calculate_best_position_for_offset_stars,
     facility_parameters,
@@ -86,7 +87,6 @@ from ...utils.offset import (
 )
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
-from ...utils.calculations import great_circle_distance
 from ..base import BaseHandler
 from .candidate import (
     update_healpix_if_relevant,
@@ -2399,25 +2399,6 @@ class SourceOffsetsHandler(BaseHandler):
             if source is None:
                 return self.error('Source not found', status=404)
 
-            initial_pos = (source.ra, source.dec)
-
-            try:
-                best_ra, best_dec = _calculate_best_position_for_offset_stars(
-                    session.scalars(
-                        Photometry.select(session.user_or_token).where(
-                            Photometry.obj_id == source.id
-                        )
-                    ).all(),
-                    fallback=(initial_pos[0], initial_pos[1]),
-                    how="snr2",
-                )
-            except JSONDecodeError:
-                self.push_notification(
-                    'Source position using photometry points failed.'
-                    ' Reverting to discovery position.'
-                )
-                best_ra, best_dec = initial_pos[0], initial_pos[1]
-
             facility = self.get_query_argument('facility', 'Keck')
             num_offset_stars = self.get_query_argument('num_offset_stars', '3')
             use_ztfref = self.get_query_argument('use_ztfref', True)
@@ -2441,6 +2422,42 @@ class SourceOffsetsHandler(BaseHandler):
             except ValueError:
                 # could not handle inputs
                 return self.error('Invalid argument for `num_offset_stars`')
+
+            photometry = (
+                session.scalars(
+                    sa.select(Photometry).where(
+                        sa.and_(
+                            Photometry.obj_id == source.id,
+                            ~Photometry.origin.ilike('%fp%'),
+                        )
+                    )
+                )
+            ).all()
+
+            photometry = [
+                p
+                for p in photometry
+                if not np.isnan(p.flux)
+                and not np.isnan(p.fluxerr)
+                and p.ra is not None
+                and not np.isnan(p.ra)
+                and p.dec is not None
+                and not np.isnan(p.dec)
+                and p.flux / p.fluxerr > 3.0
+            ]
+
+            ra, dec = source.ra, source.dec
+            try:
+                ra, dec = _calculate_best_position_for_offset_stars(
+                    photometry,
+                    fallback=(source.ra, source.dec),
+                    how="snr2",
+                )
+            except JSONDecodeError:
+                self.push_notification(
+                    'Source position using photometry points failed.'
+                    ' Reverting to discovery position.'
+                )
 
             (
                 source_mag,
@@ -2492,8 +2509,8 @@ class SourceOffsetsHandler(BaseHandler):
 
             offset_func = functools.partial(
                 get_nearby_offset_stars,
-                best_ra,
-                best_dec,
+                ra,
+                dec,
                 obj_id,
                 how_many=num_offset_stars,
                 radius_degrees=radius_degrees,
@@ -2649,24 +2666,6 @@ class SourceFinderHandler(BaseHandler):
                     'The value for `imsize` is outside the allowed range (2.0-15.0)'
                 )
 
-            initial_pos = (source.ra, source.dec)
-            try:
-                best_ra, best_dec = _calculate_best_position_for_offset_stars(
-                    session.scalars(
-                        Photometry.select(session.user_or_token).where(
-                            Photometry.obj_id == source.id
-                        )
-                    ).all(),
-                    fallback=(initial_pos[0], initial_pos[1]),
-                    how="snr2",
-                )
-            except JSONDecodeError:
-                self.push_notification(
-                    'Source position using photometry points failed.'
-                    ' Reverting to discovery position.'
-                )
-                best_ra, best_dec = initial_pos[0], initial_pos[1]
-
             facility = self.get_query_argument('facility', 'Keck')
             image_source = self.get_query_argument('image_source', 'ps1')
             use_ztfref = self.get_query_argument('use_ztfref', True)
@@ -2700,10 +2699,46 @@ class SourceFinderHandler(BaseHandler):
             min_sep_arcsec = facility_parameters[facility]["min_sep_arcsec"]
             mag_min = facility_parameters[facility]["mag_min"]
 
+            photometry = (
+                session.scalars(
+                    sa.select(Photometry).where(
+                        sa.and_(
+                            Photometry.obj_id == source.id,
+                            ~Photometry.origin.ilike('%fp%'),
+                        )
+                    )
+                )
+            ).all()
+
+            photometry = [
+                p
+                for p in photometry
+                if not np.isnan(p.flux)
+                and not np.isnan(p.fluxerr)
+                and p.ra is not None
+                and not np.isnan(p.ra)
+                and p.dec is not None
+                and not np.isnan(p.dec)
+                and p.flux / p.fluxerr > 3.0
+            ]
+
+            ra, dec = source.ra, source.dec
+            try:
+                ra, dec = _calculate_best_position_for_offset_stars(
+                    photometry,
+                    fallback=(source.ra, source.dec),
+                    how="snr2",
+                )
+            except JSONDecodeError:
+                self.push_notification(
+                    'Source position using photometry points failed.'
+                    ' Reverting to discovery position.'
+                )
+
             finder = functools.partial(
                 get_finding_chart,
-                best_ra,
-                best_dec,
+                ra,
+                dec,
                 obj_id,
                 image_source=image_source,
                 output_format=output_type,
